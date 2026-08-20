@@ -29,7 +29,7 @@ change_classes:
       - INSTALL-COMPANYOS.md
       - CLAUDE.md
       - release-manifest.json
-      - scripts/prepare-release-assets.mjs
+      - scripts/**
       - core/**
       - docs/vision.md
       - docs/architecture/**
