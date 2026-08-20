@@ -1,0 +1,53 @@
+version: 1
+plan_id: private-identifier-fingerprints-2026-08-20
+status: approved
+author: codex-agent
+created: 2026-08-20
+title: Protect private identifiers without publishing them
+objective: >-
+  Enforce the public repository boundary with one-way identifier fingerprints
+  in public CI while retaining the readable denylist only in the separate
+  private publication-review repository.
+non_goals:
+  - Publish a customer identifier or the readable private denylist.
+  - Change Oregano runtime behavior or provider access.
+  - Replace generic path, binary, size, or credential protections.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-20-private-identifier-fingerprints.yaml
+  - scripts/check-public-boundary.mjs
+required_approvals:
+  - product-owner
+  - core-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-20
+    evidence: explicit-user-approval-in-codex-task-for-public-fingerprints-and-private-readable-checks
+  - role: core-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-20
+    evidence: explicit-user-approval-in-codex-task-for-public-fingerprints-and-private-readable-checks
+validation:
+  - pnpm public:check
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-20-private-identifier-fingerprints.yaml
+  - pnpm docs:check
+  - pnpm test
+  - git diff --check
+tests:
+  - the public check passes when restricted identifiers are absent
+  - the public check fails when a protected identifier is introduced
+  - the private readable publication check evaluates the same public checkout
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: The public behavior and contributor instructions are unchanged; only the representation of a private denylist changes.
+rollback: >-
+  Keep the Core repository private and restore the previous readable checks
+  until an alternative that does not disclose protected identifiers is ready.
+open_decisions: []

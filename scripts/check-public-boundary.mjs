@@ -15,6 +15,7 @@ const forbiddenContent = [
   { label: "private migration path", pattern: /spec\/(?:aktuell|archiv)/iu },
   { label: "private decision log", pattern: /DECISIONS\.md/u },
 ];
+// The readable source values remain in the private publication-review repository.
 const restrictedIdentifierFingerprints = new Set([
   "1076f1e1c136ba7b70f013ba0ed13b2298490d3f219b4157201f2d90046da9ac",
   "24ff0a83e2d8ca2514e3f560007e1e769784999c3be7dc8a029d09a972d97aac",
