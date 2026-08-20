@@ -1,0 +1,32 @@
+{
+  "name": "oregano",
+  "private": true,
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "companyos": "node packages/cli/src/cli.mjs",
+    "docs:generate": "node packages/cli/src/cli.mjs docs generate",
+    "docs:check": "node packages/cli/src/cli.mjs docs check",
+    "public:check": "node scripts/check-public-boundary.mjs",
+    "validate:fixture": "node packages/cli/src/cli.mjs validate packages/testkit/fixtures/acme-casas",
+    "validate:company": "node packages/cli/src/cli.mjs validate",
+    "build:instance": "node packages/cli/src/cli.mjs build",
+    "validate": "pnpm docs:check && pnpm validate:fixture",
+    "typecheck": "tsc",
+    "runner:typecheck": "pnpm --dir packages/runner-vercel typecheck",
+    "runner:build": "pnpm --dir packages/runner-vercel build",
+    "test": "node --experimental-strip-types --test packages/testkit/tests/*.test.ts packages/cli/tests/*.test.mjs",
+    "check": "pnpm public:check && pnpm validate && pnpm typecheck && pnpm runner:typecheck && pnpm test"
+  },
+  "dependencies": {
+    "ajv": "8.20.0"
+  },
+  "devDependencies": {
+    "@neondatabase/serverless": "1.1.0",
+    "@types/node": "^25.9.3",
+    "typescript": "7.0.1-rc",
+    "vercel": "56.3.2",
+    "yaml": "2.9.0"
+  }
+}

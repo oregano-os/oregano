@@ -1,0 +1,28 @@
+schema_version: 1
+id: companyos-fixtures/minimal-blueprint
+version: 0.1.0
+kind: blueprint
+name: Minimal Blueprint
+description: Neutral fixture for the read-only CompanyOS Package Inspector.
+license: Apache-2.0
+publisher:
+  id: companyos-fixtures
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - agents/sprint/instructions.md
+  workflows:
+    - workflows/sprint-planning/WORKFLOW.md
+  skills:
+    - skills/backlog-refinement/SKILL.md
+requires:
+  tools: []
+  capabilities: []
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures: []

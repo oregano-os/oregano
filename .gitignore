@@ -1,0 +1,22 @@
+.env*
+node_modules/
+.pnpm-store/
+# Raw material with personal data (data-retention.md rule 2: never in git).
+private/
+state/
+companies/*/state/
+.vercel
+.generated/
+.DS_Store
+.eve
+.workflow-data
+.next
+.output
+.nitro
+dist
+*.tsbuildinfo
+packages/runtime-eve/agent/instructions.md
+packages/runtime-eve/agent/skills/
+packages/runtime-eve/agent/sandbox/workspace/
+packages/runtime-eve/agent/lib/company.generated.ts
+packages/runner-vercel/.companyos/

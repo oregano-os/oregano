@@ -1,0 +1,9 @@
+/.companyos/ @fixture-workspace-stewards
+/.github/ @fixture-workspace-stewards
+/AGENTS.md @fixture-workspace-stewards
+/company.md @fixture-workspace-stewards
+/policies/ @fixture-workspace-stewards
+/handbook/roster.md @fixture-workspace-stewards
+/connections/ @fixture-workspace-stewards
+/agents/*/tools/ @fixture-workspace-stewards
+/agents/builder/ @fixture-workspace-stewards

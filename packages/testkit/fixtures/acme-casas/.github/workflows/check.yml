@@ -1,0 +1,8 @@
+name: fixture-check
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: companyos validate .
+      - run: companyos inspect . --base origin/main --plan auto

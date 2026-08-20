@@ -1,0 +1,21 @@
+node_modules
+.eve
+.next
+.output
+.nitro
+dist
+.env*
+private
+
+# The company lives in its own repo (DECISIONS #1). The Vercel cloud build has
+# no company checkout, so the artifact pre-synced locally/in CI must travel
+# with the upload. These paths are gitignored, and Vercel honours .gitignore
+# unless .vercelignore says otherwise — re-include them explicitly:
+!.generated
+!.generated/**
+!packages/runtime-eve/agent/instructions.md
+!packages/runtime-eve/agent/skills
+!packages/runtime-eve/agent/skills/**
+!packages/runtime-eve/agent/sandbox/workspace
+!packages/runtime-eve/agent/sandbox/workspace/**
+!packages/runtime-eve/agent/lib/company.generated.ts

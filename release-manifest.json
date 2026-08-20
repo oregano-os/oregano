@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "status": "source-template",
+  "release_version": null,
+  "tag": null,
+  "core_repository": "oregano-os/oregano",
+  "core_commit": null,
+  "workbench_version": null,
+  "released_at": null,
+  "install_runbook": "INSTALL-COMPANYOS.md",
+  "supported_agent_harnesses": [
+    "codex",
+    "claude-code"
+  ],
+  "default_profile": "vercel-neon-slack",
+  "default_model": "openai/gpt-5.4-nano",
+  "requirements": {
+    "node": ">=24",
+    "pnpm": "11.16.0",
+    "vercel_cli": "56.3.2",
+    "git": true
+  },
+  "checksums": {},
+  "note": "The tag-triggered release workflow replaces null values and checksums in the published release asset. Installers must reject this source template."
+}

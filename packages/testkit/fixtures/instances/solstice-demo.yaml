@@ -1,0 +1,24 @@
+version: 1
+instance_id: solstice-demo
+environment: test
+bindings:
+  - capability: artifact.publish
+    contract_version: 1.0.0
+    connector: oregano/artifact-sandbox
+    connector_version: 1.0.0
+  - capability: marketing-campaign.launch
+    contract_version: 1.0.0
+    connector: oregano/marketing-sandbox
+    connector_version: 1.0.0
+  - capability: marketing-campaign.read-report
+    contract_version: 1.0.0
+    connector: oregano/marketing-sandbox
+    connector_version: 1.0.0
+  - capability: marketing-campaign.stop-asset
+    contract_version: 1.0.0
+    connector: oregano/marketing-sandbox
+    connector_version: 1.0.0
+  - capability: conversion.record
+    contract_version: 1.0.0
+    connector: oregano/marketing-sandbox
+    connector_version: 1.0.0

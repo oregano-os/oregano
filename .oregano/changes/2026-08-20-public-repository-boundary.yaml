@@ -1,0 +1,88 @@
+version: 1
+plan_id: public-repository-boundary-2026-08-20
+status: approved
+author: codex-agent
+created: 2026-08-20
+title: Establish the public Oregano repository boundary
+objective: >-
+  Publish a company-neutral Oregano source repository under oregano-os/oregano
+  with a fresh history, Apache-2.0 licensing, source-based stable installation,
+  and automated checks that prevent private development or customer material
+  from entering the public Core.
+non_goals:
+  - Publish private development specifications, assessments, research, or decision records.
+  - Publish a real Company Workspace or customer operating evidence.
+  - Publish Oregano as an npm package.
+  - Rewrite or delete the existing private repository history.
+  - Create or change a live customer Instance.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - One Company Workspace per company
+  - One deployed pairing
+  - Evidence beats claims
+  - The Workbench guides every Contributor
+  - Documentation is part of the system
+  - Onboarding has no hidden steps
+  - Public contracts are portable and maintained
+files_expected:
+  - .github/**
+  - .oregano/changes/2026-08-20-public-repository-boundary.yaml
+  - AGENTS.md
+  - BOOTSTRAP_FOR_AGENTS.md
+  - CODE_OF_CONDUCT.md
+  - CONTRIBUTING.md
+  - INSTALL-COMPANYOS.md
+  - LICENSE
+  - NOTICE
+  - README.md
+  - SECURITY.md
+  - TRADEMARKS.md
+  - docs/**
+  - package.json
+  - packages/**
+  - release-manifest.json
+  - scripts/**
+required_approvals:
+  - product-owner
+  - core-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-20
+    evidence: explicit-user-request-in-codex-task-to-create-the-public-oregano-repository
+  - role: core-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-20
+    evidence: explicit-user-request-in-codex-task-to-implement-the-approved-three-repository-plan
+validation:
+  - pnpm public:check
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-20-public-repository-boundary.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - COMPANYOS_SKIP_DATABASE_TESTS=1 pnpm test
+  - pnpm runner:typecheck
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - the public repository has a fresh root commit and no private predecessor history
+  - customer names, known customer identifiers, private source paths, and legacy repository URLs are absent
+  - public installation resolves oregano-os/oregano through one exact stable release
+  - the Workbench runs from the release checkout without an Oregano npm publication
+  - private development and Company Workspace repositories remain separate and private
+documentation_impact:
+  required: true
+  affected_documents:
+    - docs.index
+    - status.current
+    - onboarding.index
+    - onboarding.company-workspace
+    - governance.versioning
+rollback: >-
+  Keep the existing private repository authoritative, make the new public
+  repository private or archive it before any stable release, and remove public
+  installation links. No customer repository or live Instance is changed.
+open_decisions:
+  - Confirm the final legal copyright holder before the first commercial launch.
+  - Publish v0.1.0 only after a release candidate passes a clean-machine installation.

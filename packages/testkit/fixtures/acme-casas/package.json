@@ -1,0 +1,11 @@
+{
+  "name": "acme-casas-companyos-fixture",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "companyos": "companyos"
+  },
+  "devDependencies": {
+    "@companyos/cli": "0.1.0-experimental.3"
+  }
+}

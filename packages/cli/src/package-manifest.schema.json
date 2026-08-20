@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:companyos:schema:package-manifest:v1",
+  "title": "CompanyOS Package Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "id", "version", "kind", "name", "description", "license",
+    "publisher", "compatibility", "components", "requires", "permissions", "tests"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9.-]*$" },
+    "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "kind": { "enum": ["blueprint", "tool", "connector"] },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "license": { "type": "string", "minLength": 1 },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": { "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$" } }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["companyos_spec", "package_contract"],
+      "properties": {
+        "companyos_spec": { "type": "string", "minLength": 1 },
+        "package_contract": { "type": "string", "minLength": 1 }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agents", "workflows", "skills"],
+      "properties": {
+        "agents": { "$ref": "#/$defs/paths" },
+        "workflows": { "$ref": "#/$defs/paths" },
+        "skills": { "$ref": "#/$defs/paths" }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tools", "capabilities"],
+      "properties": {
+        "tools": { "$ref": "#/$defs/ids" },
+        "capabilities": { "$ref": "#/$defs/ids" }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_code", "network", "secret_refs"],
+      "properties": {
+        "runtime_code": { "type": "boolean" },
+        "network": { "$ref": "#/$defs/ids" },
+        "secret_refs": { "$ref": "#/$defs/ids" }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixtures"],
+      "properties": { "fixtures": { "$ref": "#/$defs/paths" } }
+    },
+    "entrypoints": { "type": "object" },
+    "provides": { "$ref": "#/$defs/ids" }
+  },
+  "$defs": {
+    "ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "blueprint" } }, "required": ["kind"] },
+      "then": {
+        "properties": {
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "runtime_code": { "const": false },
+              "network": { "type": "array", "maxItems": 0 },
+              "secret_refs": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        "not": {
+          "anyOf": [
+            { "type": "object", "properties": { "entrypoints": true }, "required": ["entrypoints"] },
+            { "type": "object", "properties": { "provides": true }, "required": ["provides"] }
+          ]
+        }
+      }
+    }
+  ]
+}

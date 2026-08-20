@@ -1,0 +1,26 @@
+schema_version: 1
+id: companyos-fixtures/invalid-runtime-code-pl
+version: 0.1.0
+kind: blueprint
+name: Invalid Perl Runtime Code
+description: Fixture that hides Perl runtime code beside declarative content.
+license: Apache-2.0
+publisher:
+  id: companyos-fixtures
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - agents/example/instructions.md
+  workflows: []
+  skills: []
+requires:
+  tools: []
+  capabilities: []
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures: []

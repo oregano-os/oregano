@@ -1,0 +1,41 @@
+version: 1
+core_defaults:
+  may_only_tighten: true
+roles:
+  workspace_stewards:
+    - founder
+  process_stewards:
+    board-rhythm:
+      - lead
+change_classes:
+  content:
+    paths:
+      - handbook/**
+      - agents/*/skills/**
+    approval: process-steward
+  behavior:
+    paths:
+      - workflows/**
+      - schedules/**
+      - agents/*/instructions.md
+    approval: process-steward
+    change_plan: required
+    inspection: required
+  security:
+    paths:
+      - policies/**
+      - handbook/roster.md
+      - agents/*/tools/**
+      - connections/**
+      - .companyos/**
+      - .github/**
+      - AGENTS.md
+      - company.md
+      - .gitignore
+      - package.json
+      - agents/builder/**
+    approval: workspace-steward
+    change_plan: required
+    inspection: required
+    two_person_review: true
+    review_model: author-plus-one-independent-reviewer

@@ -1,0 +1,50 @@
+version: 1
+core_defaults:
+  may_only_tighten: true
+change_classes:
+  content:
+    paths:
+      - docs/**
+      - spec/**
+      - README.md
+      - INTEGRATIONS.md
+      - ONBOARDING.md
+      - packages/*/README.md
+  behavior:
+    paths:
+      - packages/**
+      - templates/**
+      - package.json
+      - pnpm-lock.yaml
+      - vercel.json
+      - pnpm-workspace.yaml
+      - tsconfig.json
+      - .gitignore
+  security:
+    paths:
+      - .oregano/**
+      - .github/**
+      - AGENTS.md
+      - BOOTSTRAP_FOR_AGENTS.md
+      - INSTALL-COMPANYOS.md
+      - CLAUDE.md
+      - release-manifest.json
+      - scripts/prepare-release-assets.mjs
+      - core/**
+      - docs/vision.md
+      - docs/architecture/**
+      - docs/governance/**
+      - docs/onboarding/**
+      - docs/specifications/**
+      - ONBOARDING.md
+      - packages/cli/src/**
+      - packages/runner/interfaces.ts
+      - packages/state-store/**
+      - packages/state-postgres/**
+      - package.json
+      - pnpm-lock.yaml
+    approval: core-maintainer
+    change_plan: required
+    inspection: required
+    two_person_review: true
+    review_model: author-plus-one-independent-reviewer

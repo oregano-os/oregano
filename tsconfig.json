@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@companyos/tool-sdk": ["./packages/tool-sdk/contracts.ts"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "packages/capabilities/**/*.ts",
+    "packages/companyos-builder/**/*.ts",
+    "packages/connectors/**/*.ts",
+    "packages/runtime/**/*.ts",
+    "packages/security/**/*.ts",
+    "packages/tool-sdk/**/*.ts",
+    "packages/toolset-resolver/**/*.ts",
+    "packages/state-store/**/*.ts",
+    "packages/state-postgres/**/*.ts",
+    "packages/runner/**/*.ts",
+    "packages/runner-vercel/src/lib/**/*.ts",
+    "packages/testkit/**/*.ts"
+  ]
+}

@@ -1,0 +1,26 @@
+schema_version: 1
+id: companyos-fixtures/invalid-path-escape
+version: 0.1.0
+kind: blueprint
+name: Invalid Path Escape
+description: Fixture that attempts to reference content outside the Package root.
+license: Apache-2.0
+publisher:
+  id: companyos-fixtures
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - ../outside.md
+  workflows: []
+  skills: []
+requires:
+  tools: []
+  capabilities: []
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures: []

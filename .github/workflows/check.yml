@@ -1,0 +1,114 @@
+# Typecheck + tests on every push and pull request (Fundament 2). Runs BEFORE
+# anything is deployed: the deploy workflow waits for this one on main, so a red
+# check never reaches production.
+#
+# The DB-backed approval tests skip themselves without DATABASE_URL. The
+# generic Builder, Tool SDK, Resolver, sandbox Connector, and neutrality tests
+# run unconditionally.
+name: check
+
+on:
+  push:
+  pull_request:
+  workflow_call: # the deploy workflow gates on this
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.16.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Enforce the public repository boundary
+        run: pnpm public:check
+
+      - name: Validate canonical documentation
+        run: pnpm docs:check
+
+      - name: Resolve Change Plan
+        id: change-plan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$PR_BODY"
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            body="$(
+              gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+                --jq "[.[] | select(.merged_at != null and .merge_commit_sha == \"$GITHUB_SHA\")] | if length == 1 then .[0].body // \"\" elif length == 0 then \"\" else error(\"multiple merged pull requests matched commit\") end"
+            )"
+          fi
+
+          plan=""
+          while IFS= read -r line; do
+            line="${line%$'\r'}"
+            if [[ "$line" =~ ^Change-Plan:[[:space:]]*(.+)$ ]]; then
+              plan="${BASH_REMATCH[1]}"
+              break
+            fi
+          done <<< "$body"
+
+          if [[ -z "$plan" ]]; then
+            plan="auto"
+          elif [[ ! "$plan" =~ ^\.oregano/changes/[A-Za-z0-9._/-]+\.ya?ml$ ]]; then
+            echo "Change-Plan must name one file below .oregano/changes/." >&2
+            exit 1
+          elif [[ ! -f "$plan" ]]; then
+            echo "Declared Change-Plan does not exist: $plan" >&2
+            exit 1
+          fi
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+
+      - name: Inspect Core diff against Vision and Change Plan
+        if: github.event_name == 'pull_request'
+        run: node packages/cli/src/cli.mjs inspect-core --base "origin/$BASE_BRANCH" --plan "$CHANGE_PLAN"
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          CHANGE_PLAN: ${{ steps.change-plan.outputs.plan }}
+
+      - name: Inspect committed Core change against Vision and Change Plan
+        if: github.event_name != 'pull_request'
+        run: |
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            node packages/cli/src/cli.mjs inspect-core --base HEAD^ --plan "$CHANGE_PLAN"
+          else
+            echo "Initial public root commit: repository boundary checks and the full test suite are authoritative."
+          fi
+        env:
+          CHANGE_PLAN: ${{ steps.change-plan.outputs.plan }}
+
+      - name: Validate the neutral Company Workspace fixture
+        run: pnpm validate:fixture
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+        env:
+          # Present → the approval-atomicity tests run against a real Postgres.
+          # Absent → they self-skip and the rest still runs.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

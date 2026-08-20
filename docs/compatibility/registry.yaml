@@ -1,0 +1,74 @@
+version: 1
+updated: 2026-08-18
+companyos_spec:
+  current: 0.7.0
+  supported:
+    - 0.7.0
+  specification: specification.companyos-core-v0.7
+contracts:
+  - id: companyos.package-manifest
+    version: "1"
+    stability: experimental
+    owner: core-maintainers
+    introduced: 2026-08-14
+    specification: specification.companyos-packages-v0.1
+    implementation: local-read-only-blueprint-inspector
+    tests:
+      - package-manifest-contract
+      - blueprint-inspection-contract
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-core-maintainer-breaking-release-approval
+  - id: companyos.compatibility-registry
+    version: "1"
+    stability: experimental
+    owner: core-maintainers
+    introduced: 2026-08-14
+    specification: specification.companyos-packages-v0.1
+    implementation: enforced-by-docs-and-core-inspection
+    tests:
+      - compatibility-registry-contract
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-core-maintainer-breaking-release-approval
+  - id: companyos.tool-sdk
+    version: "1"
+    stability: experimental
+    owner: core-maintainers
+    introduced: 2026-08-19
+    specification: specification.tool-architecture
+    implementation: local-company-tool-sdk-and-isolated-runner
+    tests:
+      - company-tool-source-boundary
+      - company-tool-isolation-boundary
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-core-maintainer-breaking-release-approval
+  - id: companyos.capability-contract
+    version: "1"
+    stability: experimental
+    owner: core-maintainers
+    introduced: 2026-08-19
+    specification: specification.tool-architecture
+    implementation: seed-catalog-resolver-and-sandbox-connectors
+    tests:
+      - capability-json-schema-contract
+      - deterministic-toolset-resolution
+      - reference-campaign-connector-contract
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-core-maintainer-breaking-release-approval
+  - id: companyos.instance-artifact
+    version: "1"
+    stability: experimental
+    owner: core-maintainers
+    introduced: 2026-08-19
+    specification: specification.companyos-core-v0.7
+    implementation: deterministic-core-workspace-instance-builder
+    tests:
+      - deterministic-instance-artifact
+      - exact-provenance-pair
+      - resolved-toolset-provenance
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-core-maintainer-breaking-release-approval

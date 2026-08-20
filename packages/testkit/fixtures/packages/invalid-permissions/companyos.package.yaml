@@ -1,0 +1,28 @@
+schema_version: 1
+id: companyos-fixtures/invalid-permissions
+version: 0.1.0
+kind: blueprint
+name: Invalid Permissions
+description: Fixture that requests runtime, network, and secret access.
+license: Apache-2.0
+publisher:
+  id: companyos-fixtures
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - agents/example/instructions.md
+  workflows: []
+  skills: []
+requires:
+  tools: []
+  capabilities: []
+permissions:
+  runtime_code: true
+  network:
+    - api.example.invalid
+  secret_refs:
+    - provider-token
+tests:
+  fixtures: []

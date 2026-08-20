@@ -1,0 +1,8 @@
+packages:
+  - "packages/cli"
+  - "packages/runner-vercel"
+
+allowBuilds:
+  esbuild: true
+
+minimumReleaseAgeExclude: []

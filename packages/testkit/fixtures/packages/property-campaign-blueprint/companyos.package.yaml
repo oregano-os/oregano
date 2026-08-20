@@ -1,0 +1,38 @@
+schema_version: 1
+id: companyos-reference/property-campaign
+version: 0.1.0
+kind: blueprint
+name: Property Campaign Blueprint
+description: Provider-neutral supervised property campaign Components.
+license: Apache-2.0
+publisher:
+  id: companyos-reference
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - agents/performance-marketing/instructions.md
+  workflows:
+    - workflows/property-campaign/WORKFLOW.md
+  skills:
+    - skills/property-campaign/SKILL.md
+requires:
+  tools:
+    - companyos-reference/publish-asset
+    - companyos-reference/launch-campaign
+    - companyos-reference/record-conversion
+    - companyos-reference/campaign-report
+    - companyos-reference/stop-asset
+  capabilities:
+    - artifact.publish
+    - marketing-campaign.launch
+    - marketing-campaign.read-report
+    - marketing-campaign.stop-asset
+    - conversion.record
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures: []

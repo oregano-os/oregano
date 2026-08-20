@@ -1,0 +1,938 @@
+[
+  {
+    "document_id": "architecture.boundaries",
+    "title": "System Boundaries and Placement",
+    "path": "docs/architecture/system-boundaries.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "architecture.overview"
+      ]
+    }
+  },
+  {
+    "document_id": "architecture.company-instance",
+    "title": "Company Instance",
+    "path": "docs/architecture/company-instance.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "architecture.oregano-core",
+        "architecture.company-workspace"
+      ]
+    }
+  },
+  {
+    "document_id": "architecture.company-workspace",
+    "title": "Company Workspace",
+    "path": "docs/architecture/company-workspace.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "architecture.ecosystem-packages",
+    "title": "Ecosystem and Package Architecture",
+    "path": "docs/architecture/ecosystem-and-packages.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.overview",
+        "architecture.boundaries"
+      ]
+    }
+  },
+  {
+    "document_id": "architecture.oregano-core",
+    "title": "Oregano Core",
+    "path": "docs/architecture/oregano-core.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "architecture.overview",
+    "title": "CompanyOS Architecture Overview",
+    "path": "docs/architecture/overview.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "reference.glossary"
+      ]
+    }
+  },
+  {
+    "document_id": "architecture.security-governance",
+    "title": "Security and Governance",
+    "path": "docs/architecture/security-and-governance.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "architecture.validation-inspection",
+    "title": "Validation and Inspection",
+    "path": "docs/architecture/validation-and-inspection.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "architecture.workbench",
+    "title": "CompanyOS Workbench",
+    "path": "docs/architecture/companyos-workbench.md",
+    "kind": "architecture",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "archive.index",
+    "title": "Documentation Archive",
+    "path": "docs/archive/README.md",
+    "kind": "index",
+    "status": "frozen",
+    "authority": "historical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.bootstrap",
+    "title": "companyos bootstrap",
+    "path": "docs/workbench/commands/bootstrap.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "implements": [
+        "onboarding.index",
+        "onboarding.company-workspace",
+        "specification.workspace-generator-v0.1"
+      ]
+    }
+  },
+  {
+    "document_id": "command.build",
+    "title": "companyos build",
+    "path": "docs/workbench/commands/build.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "implements": [
+        "architecture.company-instance",
+        "specification.tool-architecture"
+      ]
+    }
+  },
+  {
+    "document_id": "command.create-workspace",
+    "title": "companyos create workspace",
+    "path": "docs/workbench/commands/create-workspace.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "implements": [
+        "specification.workspace-generator-v0.1",
+        "onboarding.company-workspace"
+      ]
+    }
+  },
+  {
+    "document_id": "command.guide",
+    "title": "companyos guide",
+    "path": "docs/workbench/commands/guide.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.inspect",
+    "title": "companyos inspect",
+    "path": "docs/workbench/commands/inspect.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.inspect-core",
+    "title": "companyos inspect-core",
+    "path": "docs/workbench/commands/inspect-core.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.onboard",
+    "title": "companyos onboard",
+    "path": "docs/workbench/commands/onboard.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "implements": [
+        "onboarding.index",
+        "onboarding.company-workspace"
+      ]
+    }
+  },
+  {
+    "document_id": "command.package-inspect",
+    "title": "companyos package inspect",
+    "path": "docs/workbench/commands/package-inspect.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-18",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-packages-v0.1"
+      ]
+    }
+  },
+  {
+    "document_id": "command.plan",
+    "title": "companyos plan",
+    "path": "docs/workbench/commands/plan.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.security",
+    "title": "companyos security",
+    "path": "docs/workbench/commands/security.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.setup",
+    "title": "companyos setup",
+    "path": "docs/workbench/commands/setup.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "command.create-workspace",
+        "architecture.company-instance",
+        "specification.company-instance-release-promotion-v0.1"
+      ],
+      "implements": [
+        "onboarding.company-workspace"
+      ]
+    }
+  },
+  {
+    "document_id": "command.validate",
+    "title": "companyos validate",
+    "path": "docs/workbench/commands/validate.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "command.verify-live",
+    "title": "companyos verify-live",
+    "path": "docs/workbench/commands/verify-live.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "command.setup",
+        "architecture.company-instance"
+      ],
+      "implements": [
+        "onboarding.company-workspace"
+      ]
+    }
+  },
+  {
+    "document_id": "compatibility.index",
+    "title": "CompanyOS Compatibility Registry",
+    "path": "docs/compatibility/README.md",
+    "kind": "reference",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-packages-v0.1"
+      ]
+    }
+  },
+  {
+    "document_id": "docs.index",
+    "title": "CompanyOS Documentation",
+    "path": "docs/README.md",
+    "kind": "index",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "governance.agent-agreement",
+    "title": "Agent Working Agreement",
+    "path": "docs/governance/agent-working-agreement.md",
+    "kind": "governance",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "governance.documentation",
+    "title": "Documentation Rules",
+    "path": "docs/governance/documentation-rules.md",
+    "kind": "governance",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "governance.ecosystem-trust",
+    "title": "Ecosystem Contribution and Trust",
+    "path": "docs/governance/ecosystem-contribution-and-trust.md",
+    "kind": "governance",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.ecosystem-packages",
+        "specification.companyos-packages-v0.1"
+      ]
+    }
+  },
+  {
+    "document_id": "governance.roles",
+    "title": "Roles and Authority",
+    "path": "docs/governance/roles-and-authority.md",
+    "kind": "governance",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "governance.versioning",
+    "title": "Core and Workspace Versioning Policy",
+    "path": "docs/governance/versioning-policy.md",
+    "kind": "governance",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.company-instance"
+      ]
+    }
+  },
+  {
+    "document_id": "guide.author-agent",
+    "title": "Author an Agent",
+    "path": "docs/workbench/guides/author-an-agent.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.author-company-tool",
+    "title": "Author a Company Tool",
+    "path": "docs/workbench/guides/author-a-company-tool.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.author-package",
+    "title": "Author a CompanyOS Package",
+    "path": "docs/workbench/guides/author-a-package.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-18",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-packages-v0.1",
+        "architecture.ecosystem-packages"
+      ]
+    }
+  },
+  {
+    "document_id": "guide.author-workflow",
+    "title": "Author a Workflow",
+    "path": "docs/workbench/guides/author-a-workflow.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.change-policy",
+    "title": "Change a Policy",
+    "path": "docs/workbench/guides/change-a-policy.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.choose-placement",
+    "title": "Choose the Correct Placement",
+    "path": "docs/workbench/guides/choose-placement.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.configure-connection",
+    "title": "Configure an External Connection",
+    "path": "docs/workbench/guides/configure-a-connection.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.configure-repository-protection",
+    "title": "Configure Repository Protection",
+    "path": "docs/workbench/guides/configure-repository-protection.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.manage-identity-access",
+    "title": "Manage Identity and Access",
+    "path": "docs/workbench/guides/manage-identity-and-access.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.plan-change",
+    "title": "Plan a Change",
+    "path": "docs/workbench/guides/plan-a-change.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.prepare-instance",
+    "title": "Prepare a Company Instance",
+    "path": "docs/workbench/guides/prepare-an-instance.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.review-change",
+    "title": "Review a Governed Change",
+    "path": "docs/workbench/guides/review-a-change.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.start-here",
+    "title": "Start Here",
+    "path": "docs/workbench/guides/start-here.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.version-release",
+    "title": "Version a Release",
+    "path": "docs/workbench/guides/version-a-release.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "governance.versioning"
+      ]
+    }
+  },
+  {
+    "document_id": "onboarding.company-workspace",
+    "title": "Onboard a Company Workspace",
+    "path": "docs/onboarding/company-workspace.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "onboarding.index",
+        "governance.roles",
+        "guide.configure-repository-protection",
+        "architecture.company-instance"
+      ]
+    }
+  },
+  {
+    "document_id": "onboarding.index",
+    "title": "CompanyOS Onboarding",
+    "path": "docs/onboarding/README.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.overview",
+        "workbench.overview"
+      ]
+    }
+  },
+  {
+    "document_id": "reference.glossary",
+    "title": "CompanyOS Glossary",
+    "path": "docs/glossary.md",
+    "kind": "reference",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "reference.translation-exceptions",
+    "title": "Translation Exception Report",
+    "path": "docs/reference/translation-exceptions.md",
+    "kind": "report",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "specification.builder-governance",
+    "title": "Builder Governance Specification",
+    "path": "docs/specifications/builder-governance.md",
+    "kind": "specification",
+    "status": "draft",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7",
+        "architecture.security-governance",
+        "governance.roles"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.company-instance-release-promotion-v0.1",
+    "title": "Company Instance Release and Promotion v0.1",
+    "path": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "kind": "specification",
+    "status": "draft",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "planned",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7",
+        "architecture.company-instance",
+        "architecture.security-governance",
+        "governance.roles",
+        "specification.identity-access-offboarding"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.companyos-core-v0.7",
+    "title": "CompanyOS Core Specification v0.7",
+    "path": "docs/specifications/companyos-core-v0.7-draft.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.overview",
+        "architecture.boundaries"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.companyos-packages-v0.1",
+    "title": "CompanyOS Packages Specification v0.1",
+    "path": "docs/specifications/companyos-packages-v0.1-draft.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-18",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.ecosystem-packages",
+        "architecture.boundaries",
+        "specification.companyos-core-v0.7",
+        "specification.tool-architecture"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.core-workspace-upgrades-v0.1",
+    "title": "Core-to-Workspace Upgrades v0.1",
+    "path": "docs/specifications/core-workspace-upgrades-v0.1-draft.md",
+    "kind": "specification",
+    "status": "draft",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": "planned",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.company-workspace",
+        "architecture.company-instance",
+        "architecture.validation-inspection",
+        "compatibility.index",
+        "specification.companyos-core-v0.7",
+        "specification.builder-governance"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.identity-access-offboarding",
+    "title": "Identity, Access, and Offboarding Specification",
+    "path": "docs/specifications/identity-access-and-offboarding.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7",
+        "governance.roles"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.tool-architecture",
+    "title": "Tool Architecture Specification",
+    "path": "docs/specifications/tool-architecture.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-19",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7",
+        "architecture.boundaries"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.workspace-generator-v0.1",
+    "title": "Company Workspace Generator v0.1",
+    "path": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "architecture.company-workspace",
+        "architecture.security-governance",
+        "onboarding.company-workspace",
+        "specification.companyos-core-v0.7",
+        "specification.core-workspace-upgrades-v0.1"
+      ]
+    }
+  },
+  {
+    "document_id": "specifications.index",
+    "title": "CompanyOS Specifications",
+    "path": "docs/specifications/README.md",
+    "kind": "index",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "status.current",
+    "title": "Current System Status",
+    "path": "docs/status/current.md",
+    "kind": "status",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "vision.companyos",
+    "title": "CompanyOS Vision",
+    "path": "docs/vision.md",
+    "kind": "vision",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "workbench.overview",
+    "title": "CompanyOS Workbench",
+    "path": "docs/workbench/overview.md",
+    "kind": "guide",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-20",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  }
+]

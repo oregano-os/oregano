@@ -1,0 +1,45 @@
+---
+document_id: command.verify-live
+title: companyos verify-live
+kind: command
+status: implemented
+authority: canonical
+language: en
+updated: 2026-08-20
+owners:
+  - core-maintainers
+audience:
+  - human
+  - agent
+availability: experimental
+relations:
+  depends_on:
+    - command.setup
+    - architecture.company-instance
+  implements:
+    - onboarding.company-workspace
+---
+
+# `companyos verify-live`
+
+```bash
+companyos verify-live --state <file> [--format human|json]
+```
+
+This is the completion boundary for the full Codex and Claude Code starter
+runbook. It fails unless fresh or recorded evidence proves:
+
+- the GitHub Workspace repository is private and protected-main enforcement was verified;
+- the independently reviewed operating change was merged;
+- the named Vercel, Neon, and Slack resources are present in setup evidence;
+- the canonical Slack team and user principal is resolved without a stored credential;
+- current Vercel health matches the exact Artifact, Core commit, Workspace commit, selected Oregano Agent, and empty ToolSet; and
+- the nonce-bound human Slack message and an Oregano assistant response were persisted in Neon.
+
+Successful scope is exactly `live-starter-instance`, with readiness
+`validated`. This scope proves one supervised starter deployment. It does not
+authorize business Tools, provider effects, unattended execution, or a general
+claim that every Company Instance enforcement control has been exercised.
+
+`companyos bootstrap verify` remains the earlier `authoring-only-local`
+checkpoint. It is intentionally insufficient for the live runbook.
