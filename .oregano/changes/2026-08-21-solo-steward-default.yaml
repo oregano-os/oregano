@@ -1,0 +1,72 @@
+version: 1
+plan_id: solo-steward-default-2026-08-21
+status: implemented
+author: codex-agent
+created: 2026-08-21
+title: Make one Workspace Steward the customer default
+objective: >-
+  Let one person install and operate the supervised Oregano starter without an
+  independent human reviewer while preserving pull requests, required checks,
+  explicit human confirmations, protected main, and immutable release evidence.
+non_goals:
+  - Weaken Oregano Core repository governance or its independent review requirement.
+  - Enable unattended workflows or business Tools in the starter Instance.
+  - Migrate setup state from an earlier public installation.
+  - Delete provider resources or credentials.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - Onboarding has no hidden steps
+  - One Company Workspace per company
+files_expected:
+  - .oregano/changes/2026-08-21-solo-steward-default.yaml
+  - INSTALL-COMPANYOS.md
+  - docs/**
+  - packages/cli/**
+  - packages/testkit/fixtures/**
+required_approvals:
+  - product-owner
+  - core-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-21
+    evidence: explicit-user-request-in-codex-task-to-remove-the-second-reviewer-from-the-default
+  - role: core-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-21
+    evidence: explicit-user-approval-in-codex-task-to-implement-the-solo-steward-design
+validation:
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-21-solo-steward-default.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - COMPANYOS_SKIP_DATABASE_TESTS=1 pnpm test
+  - pnpm runner:typecheck
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - generated Workspaces contain one Steward and a solo protected-main contract
+  - live setup requires no reviewer answers, invitation, or approval
+  - operating activation retains the original Steward and binds that person to Slack
+  - merge requires the CompanyOS check and explicit Steward confirmation
+  - optional independent-review governance remains stricter when explicitly selected
+documentation_impact:
+  required: true
+  affected_documents:
+    - install.companyos
+    - onboarding.company-workspace
+    - architecture.security-and-governance
+    - workbench.commands.setup
+    - workbench.guides.configure-repository-protection
+    - specification.companyos-core
+    - specification.workspace-generator
+    - specification.company-instance-release-and-promotion
+    - status.current
+rollback: >-
+  Revert this Core change before publishing the next stable release. No customer
+  state migration or provider deletion is required because no earlier public
+  installation exists.
+open_decisions:
+  - Add a guided switch to independent-review mode only when customer demand exists.

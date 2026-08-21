@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-20
+updated: 2026-08-21
 owners:
   - core-maintainers
   - product-owner
@@ -115,10 +115,11 @@ Maintainer approves generic Oregano Core releases but cannot decide a company's
 Workspace policy or production timing.
 
 One human MAY hold several roles, but every recorded action MUST identify the
-role and scope being exercised. A security-change author MUST NOT provide the
-only independent approval. This separation requirement does not imply that the
-reviewer, merge initiator, and deployment approver must always be three
-different people.
+role and scope being exercised. In `review_mode: steward`, one Workspace
+Steward MAY authorize a checked security change and later authorize deployment.
+In `review_mode: independent-review`, a security-change author MUST NOT provide
+the independent approval. Merge and deployment remain separate confirmations
+in both modes.
 
 ## 4. Change lanes
 
@@ -223,14 +224,14 @@ At minimum:
 | Non-behavioral process content | assigned Process Steward |
 | Existing workflow or SOP behavior | assigned Process Steward |
 | New workflow | responsible Process Steward and Workspace Steward |
-| Agent authority, Tool, grant, connection, roster, policy, governance, or protected CI | Workspace Steward with independent review |
+| Agent authority, Tool, grant, connection, roster, policy, governance, or protected CI | Workspace Steward under the declared review mode |
 | Core adoption by a company | Core release evidence and Workspace Steward |
 | Instance deployment or migration | Platform Administrator with `instance` scope after Workspace approval |
 
-One independent authorized review MAY satisfy both the Git-host approval and
-the required CompanyOS authority when the reviewer genuinely holds that
-authority. Merely administering GitHub, Vercel, Neon, or another provider does
-not grant business approval.
+In `independent-review` mode, one authorized review MAY satisfy both the
+Git-host approval and required CompanyOS authority when the reviewer genuinely
+holds that authority. Merely administering GitHub, Vercel, Neon, or another
+provider does not grant business approval.
 
 ## 8. Merge execution
 
@@ -346,12 +347,13 @@ The experimental `companyos setup --profile vercel-neon-slack` command
 implements one bounded initial-installation subset:
 
 - exact clean Core and Workspace identity plus an immutable Artifact;
-- a private GitHub repository, protected-main verification, and a named
-  independent reviewer for the authoring-to-operating change;
+- a private GitHub repository, protected-main verification, a required
+  CompanyOS check, and explicit Workspace Steward merge authorization for the
+  authoring-to-operating change;
 - explicit create-or-adopt choices for one Vercel project, Neon resource, and
   Slack connection;
 - separate hash-bound confirmations for the setup plan, operating Workspace
-  content, reviewed merge, and exact production candidate;
+  content, checked merge, and exact production candidate;
 - current deployment health plus one nonce-bound Slack and Neon persistence
   proof; and
 - a supervised Oregano Agent with no business Tool grants.

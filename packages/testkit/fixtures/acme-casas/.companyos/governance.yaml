@@ -1,4 +1,5 @@
 version: 1
+review_mode: steward
 core_defaults:
   may_only_tighten: true
 roles:
@@ -37,5 +38,3 @@ change_classes:
     approval: workspace-steward
     change_plan: required
     inspection: required
-    two_person_review: true
-    review_model: author-plus-one-independent-reviewer

@@ -217,6 +217,7 @@ export function renderWorkspace(input, coreIdentity) {
   }));
   files.set(".companyos/governance.yaml", YAML.stringify({
     version: 1,
+    review_mode: "steward",
     core_defaults: { may_only_tighten: true },
     roles: {
       workspace_stewards: [steward_id],
@@ -238,8 +239,6 @@ export function renderWorkspace(input, coreIdentity) {
         approval: "workspace-steward",
         change_plan: "required",
         inspection: "required",
-        two_person_review: true,
-        review_model: "author-plus-one-independent-reviewer",
       },
     },
   }));
@@ -249,8 +248,8 @@ export function renderWorkspace(input, coreIdentity) {
     target: { branch: "main" },
     rules: {
       require_pull_request: true,
-      required_approvals: 1,
-      require_code_owner_review: true,
+      required_approvals: 0,
+      require_code_owner_review: false,
       dismiss_stale_approvals: true,
       require_conversation_resolution: true,
       required_status_checks: ["check"],

@@ -4,7 +4,7 @@ import YAML from "yaml";
 import { inspectWorkspaceCompatibility } from "./compatibility.mjs";
 import { diagnostic } from "./diagnostics.mjs";
 import { readDocument, relativePath, walkFiles } from "./files.mjs";
-import { inspectRepositoryProtectionContract, isSoleStewardBootstrapBypass } from "./repository-protection.mjs";
+import { inspectRepositoryProtectionContract } from "./repository-protection.mjs";
 import { inspectAndCompileCompanyTool } from "../../tool-sdk/source-inspector.ts";
 import { scanCredentialIndicators } from "../../security/credential-scanner.ts";
 import { isExactSemanticVersion } from "../../runtime/semantic-version.ts";
@@ -173,11 +173,14 @@ export function validateWorkspace(root) {
   }
 
   const governancePath = join(root, ".companyos", "governance.yaml");
+  let reviewMode = null;
   if (!existsSync(governancePath)) {
     diagnostics.push(diagnostic("GOV001", "error", "Workspace has no .companyos/governance.yaml; protected change classes cannot be enforced.", { file: ".companyos/governance.yaml" }));
   } else {
     try {
       const governance = YAML.parse(readFileSync(governancePath, "utf8"));
+      reviewMode = governance?.review_mode ?? null;
+      if (!new Set(["steward", "independent-review"]).has(governance?.review_mode)) diagnostics.push(diagnostic("GOV010", "error", "Governance review_mode must be 'steward' or 'independent-review'.", { file: ".companyos/governance.yaml" }));
       if (governance?.core_defaults?.may_only_tighten !== true) diagnostics.push(diagnostic("GOV002", "error", "Governance must declare core_defaults.may_only_tighten: true.", { file: ".companyos/governance.yaml" }));
       if (!Array.isArray(governance?.roles?.workspace_stewards) || governance.roles.workspace_stewards.length === 0) diagnostics.push(diagnostic("GOV003", "error", "Governance must assign at least one Workspace Steward role.", { file: ".companyos/governance.yaml" }));
       for (const name of ["content", "behavior", "security"]) {
@@ -185,8 +188,8 @@ export function validateWorkspace(root) {
       }
       const securityPaths = governance?.change_classes?.security?.paths ?? [];
       if (!securityPaths.includes(".companyos/**")) diagnostics.push(diagnostic("GOV005", "error", "The security change class must protect .companyos/**, including its own policy.", { file: ".companyos/governance.yaml" }));
-      if (governance?.change_classes?.security?.two_person_review !== true) diagnostics.push(diagnostic("GOV006", "error", "Security changes must require two_person_review: true.", { file: ".companyos/governance.yaml" }));
-      if (governance?.change_classes?.security?.review_model !== "author-plus-one-independent-reviewer") diagnostics.push(diagnostic("GOV009", "error", "Security changes must declare review_model: author-plus-one-independent-reviewer.", { file: ".companyos/governance.yaml" }));
+      if (governance?.review_mode === "steward" && (governance?.change_classes?.security?.two_person_review !== undefined || governance?.change_classes?.security?.review_model !== undefined)) diagnostics.push(diagnostic("GOV006", "error", "Steward review mode must not declare a second-person review requirement.", { file: ".companyos/governance.yaml" }));
+      if (governance?.review_mode === "independent-review" && (governance?.change_classes?.security?.two_person_review !== true || governance?.change_classes?.security?.review_model !== "author-plus-one-independent-reviewer")) diagnostics.push(diagnostic("GOV009", "error", "Independent-review mode must require author-plus-one-independent-reviewer for security changes.", { file: ".companyos/governance.yaml" }));
       for (const protectedPath of [".github/**", "AGENTS.md"]) {
         if (!securityPaths.includes(protectedPath)) diagnostics.push(diagnostic("GOV008", "error", `The security change class must protect '${protectedPath}'.`, { file: ".companyos/governance.yaml" }));
       }
@@ -198,9 +201,6 @@ export function validateWorkspace(root) {
   diagnostics.push(...inspectWorkspaceCompatibility(root).diagnostics);
   const protection = inspectRepositoryProtectionContract(root);
   diagnostics.push(...protection.diagnostics);
-  if (isSoleStewardBootstrapBypass(protection.config?.rules?.bypass) && company?.data?.workspace_mode !== "authoring-only") {
-    diagnostics.push(diagnostic("RPR012", "error", "The sole-steward bootstrap exception is allowed only while workspace_mode is authoring-only.", { file: ".companyos/repository-protection.yaml" }));
-  }
 
   return {
     diagnostics,
@@ -209,6 +209,7 @@ export function validateWorkspace(root) {
       workspace_version: company?.data?.workspace_version ?? null,
       specification: company?.data?.companyos_spec ?? null,
       workspace_mode: company?.data?.workspace_mode ?? null,
+      review_mode: reviewMode,
       documents: documents.length,
       workflows: workflowDocs.length,
       supervised_workflows: workflowDocs.filter((workflow) => workflow.data?.execution_mode === "supervised").length,

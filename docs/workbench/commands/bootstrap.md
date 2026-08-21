@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-21
 owners:
   - core-maintainers
 audience:
@@ -49,5 +49,5 @@ authorize:
 Those external phases remain visible as `manual`, `deferred`, or
 `not-authorized` to this local command. The separate experimental
 `companyos setup --profile vercel-neon-slack` command owns provider contracts,
-confirmations, idempotent resume evidence, independent review, and deployment.
+confirmations, idempotent resume evidence, checked Steward merge, and deployment.
 `companyos verify-live` is the final completion boundary for that full path.

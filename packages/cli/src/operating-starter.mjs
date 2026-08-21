@@ -19,9 +19,6 @@ import { validateWorkspace } from "./workspace-validator.mjs";
 
 export const OPERATING_STARTER_FIELDS = [
   "change_date",
-  "reviewer_name",
-  "reviewer_id",
-  "reviewer_github",
   "slack_team_id",
   "slack_user_id",
   "slack_channel_id",
@@ -71,16 +68,11 @@ export function normalizeOperatingStarterInput(raw = {}) {
   const input = Object.fromEntries(OPERATING_STARTER_FIELDS.map((field) => [field, text(raw[field])]));
   for (const [field, label] of [
     ["change_date", "Change date"],
-    ["reviewer_name", "Independent reviewer name"],
-    ["reviewer_id", "Independent reviewer member ID"],
-    ["reviewer_github", "Independent reviewer GitHub login"],
     ["slack_team_id", "Slack team ID"],
     ["slack_user_id", "Slack user ID"],
   ]) validateLine(input[field], field, label, diagnostics);
   if (input.slack_channel_id) validateLine(input.slack_channel_id, "slack_channel_id", "Slack test channel ID", diagnostics);
   if (input.change_date && !/^\d{4}-\d{2}-\d{2}$/.test(input.change_date)) diagnostics.push(diagnostic("OPS007", "error", "Change date must use YYYY-MM-DD.", { field: "change_date" }));
-  if (input.reviewer_id && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.reviewer_id)) diagnostics.push(diagnostic("OPS008", "error", "Reviewer ID must contain lowercase letters, digits, and single hyphens only.", { field: "reviewer_id" }));
-  if (input.reviewer_github && !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(input.reviewer_github)) diagnostics.push(diagnostic("OPS009", "error", "Reviewer GitHub login must be one user login without '@'.", { field: "reviewer_github" }));
   if (input.slack_team_id && !/^[A-Z][A-Z0-9]{5,31}$/.test(input.slack_team_id)) diagnostics.push(diagnostic("OPS010", "error", "Slack team ID has an invalid shape.", { field: "slack_team_id" }));
   if (input.slack_user_id && !/^[A-Z][A-Z0-9]{5,31}$/.test(input.slack_user_id)) diagnostics.push(diagnostic("OPS011", "error", "Slack user ID has an invalid shape.", { field: "slack_user_id" }));
   if (input.slack_channel_id && !/^[A-Z][A-Z0-9]{5,31}$/.test(input.slack_channel_id)) diagnostics.push(diagnostic("OPS012", "error", "Slack channel ID has an invalid shape.", { field: "slack_channel_id" }));
@@ -91,8 +83,8 @@ const readWorkspaceSource = (root) => {
   const company = readDocument(join(root, "company.md"));
   const roster = readDocument(join(root, "handbook", "roster.md"));
   const governance = YAML.parse(readFileSync(join(root, ".companyos", "governance.yaml"), "utf8"));
-  const codeowners = readFileSync(join(root, ".github", "CODEOWNERS"), "utf8");
-  return { company, roster, governance, codeowners };
+  const repositoryProtection = YAML.parse(readFileSync(join(root, ".companyos", "repository-protection.yaml"), "utf8"));
+  return { company, roster, governance, repositoryProtection };
 };
 
 export function renderOperatingStarter(root, rawInput) {
@@ -112,10 +104,7 @@ export function renderOperatingStarter(root, rawInput) {
   const members = Array.isArray(source.roster.data.members) ? structuredClone(source.roster.data.members) : [];
   const steward = members.find((member) => member?.role === "workspace-steward");
   if (!steward?.id || !steward?.name) diagnostics.push(diagnostic("OPS015", "error", "The authoring Workspace needs one identified initial Workspace Steward.", { file: "handbook/roster.md" }));
-  const stewardGithub = text(steward?.identities?.github).replace(/^@/, "");
-  if (steward?.id === normalized.input.reviewer_id) diagnostics.push(diagnostic("OPS016", "error", "The independent reviewer must have a different member ID from the initial Workspace Steward.", { field: "reviewer_id" }));
-  if (stewardGithub && stewardGithub.toLowerCase() === normalized.input.reviewer_github.toLowerCase()) diagnostics.push(diagnostic("OPS017", "error", "The independent reviewer must use a different GitHub identity from the initial Workspace Steward.", { field: "reviewer_github" }));
-  if (members.some((member) => member?.id === normalized.input.reviewer_id)) diagnostics.push(diagnostic("OPS018", "error", "Reviewer ID already exists in the Workspace roster.", { field: "reviewer_id" }));
+  if (source.governance?.review_mode !== "steward") diagnostics.push(diagnostic("OPS016", "error", "The maintained operating starter requires the default steward review mode and will not weaken an independent-review Workspace.", { file: ".companyos/governance.yaml" }));
   if (!exactVersion(source.company.data.workspace_version)) diagnostics.push(diagnostic("OPS019", "error", "The authoring Workspace must declare an exact workspace_version before activation.", { file: "company.md" }));
   if (existsSync(join(root, "agents", "oregano", "instructions.md")) || existsSync(join(root, "workflows", "slack-assistant.md")) || existsSync(join(root, "connections", "slack.md"))) {
     diagnostics.push(diagnostic("OPS020", "error", "The Oregano operating starter already exists; use an ordinary governed Workspace change instead of applying bootstrap twice."));
@@ -130,15 +119,6 @@ export function renderOperatingStarter(root, rawInput) {
     ...(steward.identities ?? {}),
     slack: { team_id: normalized.input.slack_team_id, user_id: normalized.input.slack_user_id },
   };
-  members.push({
-    role: "workspace-steward",
-    id: normalized.input.reviewer_id,
-    name: normalized.input.reviewer_name,
-    status: "active",
-    identities: { github: normalized.input.reviewer_github },
-    may_approve: ["R1", "R2", "R3", "R4"],
-    may_see: ["business", "personal"],
-  });
   const orderedMembers = members.map((member) => ({
     role: member.role,
     ...(member.id ? { id: member.id } : {}),
@@ -152,16 +132,22 @@ export function renderOperatingStarter(root, rawInput) {
   files.set("handbook/roster.md", document({ ...source.roster.data, members: orderedMembers }, `${source.roster.body.trim()}\n\nSlack identities are canonicalized as \`slack:<team-id>:<user-id>\`.`));
 
   const governance = structuredClone(source.governance);
-  const stewardIds = new Set(governance?.roles?.workspace_stewards ?? []);
-  stewardIds.add(normalized.input.reviewer_id);
-  governance.roles.workspace_stewards = [...stewardIds].sort();
+  governance.review_mode = "steward";
+  delete governance.change_classes.security.two_person_review;
+  delete governance.change_classes.security.review_model;
   files.set(".companyos/governance.yaml", YAML.stringify(governance));
 
-  const owners = [...new Set([...source.codeowners.matchAll(/@[A-Za-z0-9][A-Za-z0-9_/-]*/g)].map((match) => match[0]).concat(`@${normalized.input.reviewer_github}`))];
-  files.set(".github/CODEOWNERS", source.codeowners.split("\n").map((line) => {
-    if (!line.trim() || line.trim().startsWith("#")) return line;
-    return `${line.trim().split(/\s+/)[0]} ${owners.join(" ")}`;
-  }).join("\n").replace(/\n*$/, "\n"));
+  const repositoryProtection = structuredClone(source.repositoryProtection);
+  repositoryProtection.rules.required_approvals = 0;
+  repositoryProtection.rules.require_code_owner_review = false;
+  repositoryProtection.rules.bypass = "none";
+  repositoryProtection.verification = {
+    status: "pending",
+    ruleset_id: null,
+    verified_at: null,
+    verified_by: null,
+  };
+  files.set(".companyos/repository-protection.yaml", YAML.stringify(repositoryProtection));
 
   files.set("agents/oregano/instructions.md", document({
     description: "Supervised company assistant for authorized Slack conversations.",
@@ -198,7 +184,7 @@ export function renderOperatingStarter(root, rawInput) {
   files.set(planPath, YAML.stringify({
     version: 1,
     plan_id: `activate-oregano-slack-${normalized.input.change_date}`,
-    status: "review",
+    status: "approved",
     author: steward.id,
     created: normalized.input.change_date,
     title: "Activate the supervised Oregano Slack starter",
@@ -207,8 +193,8 @@ export function renderOperatingStarter(root, rawInput) {
     placement: "workspace",
     change_class: "security",
     vision_principles_affected: ["Human authority is explicit", "Safety cannot be weakened from a Workspace", "Evidence beats claims"],
-    files_expected: ["company.md", "handbook/roster.md", ".companyos/governance.yaml", ".github/CODEOWNERS", "agents/oregano/instructions.md", "workflows/slack-assistant.md", "connections/slack.md", planPath],
-    required_approvals: ["workspace-steward", "independent-reviewer"],
+    files_expected: ["company.md", "handbook/roster.md", ".companyos/governance.yaml", ".companyos/repository-protection.yaml", "agents/oregano/instructions.md", "workflows/slack-assistant.md", "connections/slack.md", planPath],
+    required_approvals: ["workspace-steward"],
     approvals: [{ role: "workspace-steward", approver: steward.id, approved_at: normalized.input.change_date, evidence: "explicit-human-bootstrap-confirmation" }],
     validation: ["companyos validate .", "companyos security .", "companyos inspect . --plan auto", "companyos onboard ."],
     tests: ["authorized Slack identity reaches Oregano", "unknown Slack identity is blocked before model invocation", "thread state persists in Postgres"],

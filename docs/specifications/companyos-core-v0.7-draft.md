@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-14
+updated: 2026-08-21
 owners:
   - core-maintainers
 audience:
@@ -151,15 +151,14 @@ CompanyOS separates legal ownership from operational access authority.
 Role assignments MUST resolve to active identities. A role label MUST NOT imply
 legal company ownership unless the company explicitly models that separate
 fact. One person MAY hold both Platform Administrator scopes or several roles,
-but every action MUST identify the authority being exercised. The author of a
-security change MUST NOT be its sole approver.
+but every action MUST identify the authority being exercised.
 
-An `authoring-only` Workspace MAY declare one temporary, named
-sole-Steward repository exception when no independent reviewer exists. It MUST
-apply only through pull requests, MUST preserve required CI and the normal
-approval baseline for all other actors, and MUST be reported as missing
-separation of duties. A second account controlled by the same person does not
-constitute independent review. `operating` Workspaces MUST reject this exception.
+A Company Workspace MUST declare `review_mode: steward` or
+`review_mode: independent-review`. The maintained default is `steward`: one
+Workspace Steward MAY authorize their own security change only through a pull
+request after required CI passes and with no repository bypass. The optional
+`independent-review` mode MUST require a distinct authorized approver for
+security changes. Oregano Core governance remains independently reviewed.
 
 ## 5. Agents, workflows, and human boundaries
 
@@ -303,21 +302,21 @@ A Workspace governance policy MUST:
 - classify content, behavior, and security paths;
 - define required approvals for protected classes;
 - protect itself and agent entrypoints as security-class artifacts;
-- require separation of author and sole security approver;
+- define whether the Workspace uses Steward approval or independent review;
 - remain enforceable outside any individual Agent Contributor.
 
 Repository permissions, required CI, protected branches, and CODEOWNERS SHOULD
 enforce the local policy on the hosting platform. Local files alone are not a
 security boundary against an administrator with write access.
 
-`two_person_review` means the author plus at least one independent authorized
-reviewer. CODEOWNERS maps protected paths to technical GitHub reviewers; the
-mapped reviewer normally represents a Workspace Steward or Process Steward but
-the GitHub mechanism does not itself grant CompanyOS authority.
-
-The `authoring-only` sole-Steward bootstrap exception described in section 4 does not
-satisfy `two_person_review`; it is a machine-readable, temporary deviation that
-must remain visible until removed. It blocks transition to `operating`.
+In `review_mode: steward`, repository protection MUST require zero GitHub
+approvals and MUST NOT require CODEOWNER review; the Change Plan and explicit
+human merge confirmation record the Steward's authority. In
+`review_mode: independent-review`, `two_person_review` means the author plus at
+least one independent authorized reviewer, repository protection MUST require
+one CODEOWNER approval, and the author MUST NOT be the sole approver.
+CODEOWNERS maps paths to technical GitHub owners but does not itself grant
+CompanyOS authority.
 
 ## 13. Validation and inspection
 

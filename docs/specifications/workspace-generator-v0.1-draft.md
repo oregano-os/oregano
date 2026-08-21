@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-20
+updated: 2026-08-21
 owners:
   - core-maintainers
   - product-owner
@@ -122,10 +122,9 @@ database URLs, Vercel credentials, model credentials, or other secret values.
 Provider identities may be added later through a governed roster change and
 are required before the corresponding operating capability is approved.
 
-The generator MUST NOT infer a sole-Steward bypass. If that temporary exception
-is needed, a Platform Administrator with `repository` scope follows the
-version-matched repository protection Guide and records the explicit named
-exception as a separate security decision.
+The generator MUST declare `review_mode: steward` with zero required GitHub
+approvals, non-mandatory CODEOWNER review, and no bypass. This is a complete
+operating-capable review contract, not a temporary bootstrap exception.
 
 ## 3. Canonical generated baseline
 
@@ -354,13 +353,13 @@ The following remain open beyond the implemented generator slice:
 The live setup profile may call the generator library and local bootstrap
 verifier, but it MUST preserve their exact preview and atomic-write evidence.
 It then creates a separate non-secret setup plan whose hash binds every external
-resource name, explicit create-or-adopt mode, independent reviewer, cost or
+resource name, explicit create-or-adopt mode, cost or
 consent gate, and intended production target. External mutation starts only
 after that second plan is confirmed.
 
 The transition from `authoring-only` to `operating` is also separate: a pure
 operating-starter renderer produces a complete preview and confirmation hash;
 the resulting Workspace security change is proposed in GitHub and requires the
-named independent reviewer before merge. Local generation success never
-substitutes for that review, provider consent, deployment authorization, or
-`companyos verify-live` evidence.
+CompanyOS check plus the Workspace Steward's exact merge confirmation. Local
+generation success never substitutes for that authorization, provider consent,
+deployment authorization, or `companyos verify-live` evidence.

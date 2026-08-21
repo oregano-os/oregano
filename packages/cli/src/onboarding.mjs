@@ -1,5 +1,5 @@
 import { inspectWorkspaceCompatibility } from "./compatibility.mjs";
-import { inspectRepositoryProtectionContract, isSoleStewardBootstrapBypass } from "./repository-protection.mjs";
+import { inspectRepositoryProtectionContract } from "./repository-protection.mjs";
 import { inspectWorkspaceSecurity } from "./security.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
 
@@ -19,7 +19,6 @@ export function inspectWorkspaceOnboarding(root) {
   const operatingAgents = Math.max(0, Number(workspace.summary?.agents ?? 0) - 1);
   const workspaceMode = workspace.summary?.workspace_mode ?? null;
   const unattendedWorkflows = Number(workspace.summary?.unattended_workflows ?? 0);
-  const soleStewardBootstrap = isSoleStewardBootstrapBypass(protection.config?.rules?.bypass);
   const hostedProtectionBlocked = protection.config?.verification?.status === "blocked";
 
   return {
@@ -32,7 +31,7 @@ export function inspectWorkspaceOnboarding(root) {
       execution_readiness: workspaceMode === "authoring-only"
         ? "not-applicable"
         : unattendedWorkflows > 0 ? "unattended-enforcement-unverified" : "supervised-requires-instance-verification",
-      review_separation: soleStewardBootstrap ? "sole-steward-bootstrap-exception" : "independent-review",
+      review_mode: workspace.summary?.review_mode ?? null,
     },
     checklist: [
       {
@@ -68,9 +67,7 @@ export function inspectWorkspaceOnboarding(root) {
         status: hostedProtectionBlocked ? "blocked" : "manual",
         next: hostedProtectionBlocked
           ? `Hosted ruleset activation is blocked: ${protection.config.verification.blocker}. Resolve the provider prerequisite and retry.`
-          : soleStewardBootstrap
-            ? "A Repository Administrator must apply the PR-only sole-steward bootstrap exception and verify that every other author still requires approval."
-            : "A Repository Administrator must apply and verify the declared ruleset on GitHub.",
+          : "A Repository Administrator must apply and verify the declared ruleset on GitHub.",
       },
       {
         id: "operating-model",

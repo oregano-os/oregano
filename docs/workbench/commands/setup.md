@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-21
 owners:
   - core-maintainers
 audience:
@@ -60,22 +60,20 @@ companyos setup \
 ```
 
 `--plan` is read-only. It validates the exact release checkout, authoring
-Workspace, bounded answers, resource modes, reviewer separation, intended
+Workspace, bounded answers, resource modes, intended
 provider mutations, costs and consent gates, rollback boundary, and state-file
 placement. The returned hash binds the complete plan.
 
 `--apply` creates a mode-0600 non-secret state file and advances until a browser
-login, provider consent, independent review, exact operating-Workspace
+login, provider consent, exact operating-Workspace
 confirmation, merge authorization, production confirmation, or Slack test is
 required. `--resume` uses that same evidence rather than chat history. A failed
 or interrupted command does not delete resources and must not be replaced by a
 second setup state.
 
-The named independent reviewer is appointed as a second Workspace Steward in
-the starter roster, with the declared R1-R4 approval and business/personal-data
-visibility. The runbook must explain and obtain consent for that company-wide
-authority; a person who should receive only ordinary repository read access is
-not a valid substitute for this starter profile.
+The starter keeps the original human as its only Workspace Steward. The
+installer binds that person's verified Slack principal to the existing roster
+entry and never requests, creates, or invites a second reviewer.
 
 ## Maintained profile
 
@@ -84,7 +82,7 @@ not a valid substitute for this starter profile.
 1. verify Git, GitHub CLI, Vercel CLI, pnpm, and the maintained Vercel Runner;
 2. authenticate GitHub in the browser;
 3. initialize and push a private Company Workspace repository;
-4. invite the independent reviewer and verify protected `main`;
+4. apply and verify the solo-Steward protected `main` baseline;
 5. authenticate Vercel and create or adopt the exact project;
 6. create or adopt a Neon Marketplace resource without pulling its connection
    string to disk;
@@ -93,7 +91,8 @@ not a valid substitute for this starter profile.
 8. request a short-lived Slack user authorization, call `auth.test`, retain only
    the canonical team and user IDs, and discard the credential;
 9. preview and apply one supervised, Tool-free Oregano Agent and Slack workflow;
-10. push the operating change through an independently reviewed pull request;
+10. push the operating change through a required-check pull request and obtain
+    the Workspace Steward's exact merge confirmation;
 11. build one immutable production Artifact from clean exact Core and Workspace
     commits and inject it into Vercel as a sensitive environment value;
 12. deploy only after the exact production-candidate confirmation; and
@@ -121,9 +120,6 @@ github_owner: example-company
 github_repository: companyos
 github_account_type: organization
 github_repository_mode: create
-reviewer_name: Max Review
-reviewer_id: max-review
-reviewer_github: max-review
 vercel_scope: example-company
 vercel_project: example-companyos
 vercel_project_mode: create

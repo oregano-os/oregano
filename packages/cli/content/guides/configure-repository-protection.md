@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-21
 owners:
   - core-maintainers
 audience:
@@ -22,8 +22,8 @@ Workspace baseline is one active branch ruleset targeting `main` with these
 controls:
 
 1. require a pull request before merging;
-2. require one approval from an independent reviewer;
-3. require review from a CODEOWNERS reviewer for owned paths;
+2. require zero GitHub approvals in the default `steward` review mode;
+3. keep CODEOWNERS for ownership routing without making its review mandatory;
 4. dismiss approvals when new commits change the reviewed diff;
 5. require the `check` status from the expected GitHub Actions source;
 6. require all review conversations to be resolved;
@@ -31,9 +31,11 @@ controls:
 8. grant no ruleset bypass to Human Contributors, Agent Contributors,
    deployment keys, or contributor bots.
 
-`two_person_review: true` means the author plus one independent authorized
-reviewer—not two additional reviewers. This keeps ordinary work practical while
-preventing a Contributor from approving their own security change.
+This baseline lets one Workspace Steward operate CompanyOS alone while retaining
+a pull request, a required check, explicit merge confirmation, and protected
+history. An organization may explicitly select `independent-review`; that mode
+requires exactly one CODEOWNER approval and declares `two_person_review: true`
+for security changes.
 
 ## GitHub account and plan prerequisite
 
@@ -54,38 +56,24 @@ will not be enforced. Keep verification `blocked` until the banner is gone and
 an adversarial test pull request proves enforcement. Never make a Company
 Workspace public merely to avoid a plan prerequisite.
 
-## Sole Steward bootstrap exception
+## Review modes
 
-Do not create a second account controlled by the same person to simulate an
-independent reviewer. It provides neither independent judgment nor meaningful
-resilience against account compromise.
+The generated Workspace declares `review_mode: steward`. Its protection
+contract sets `required_approvals: 0`, `require_code_owner_review: false`, and
+`bypass: none`. The Steward supplies CompanyOS authority through the recorded
+Change Plan and the installer's explicit merge confirmation. GitHub supplies
+mechanical evidence that the pull request and required check passed.
 
-An `authoring-only` Workspace with exactly one available Workspace
-Steward MAY declare a temporary `sole-steward-bootstrap` exception. The hosted
-ruleset still requires the complete baseline for every other author, while one
-named Steward receives `pull_request` bypass mode. This means the Steward must
-open a pull request and obtain a green `check`, but may merge that pull request
-without approving it from another account. Direct pushes remain blocked.
+For a company that deliberately wants separation of duties, set
+`review_mode: independent-review`, appoint the additional authorized person,
+declare `two_person_review: true` and
+`review_model: author-plus-one-independent-reviewer` on the security class, and
+change repository protection to one required CODEOWNER approval. Change all of
+these fields together through a security-class Change Plan. A second account
+controlled by the same person is not independent.
 
-The machine-readable shape is deliberately narrow:
-
-```yaml
-bypass:
-  mode: pull_request
-  actors:
-    - type: user
-      login: github-login
-      purpose: sole-steward-bootstrap
-  constraints:
-    workspace_mode: authoring-only
-    expires_when: independent-reviewer-appointed
-```
-
-Workbench reports this as a warning, not independent review. `always` bypass,
-role-wide bypass, multiple bootstrap actors, deployment identities, and use in
-an `operating` Workspace fail validation. Remove the exception as soon as a
-genuinely independent authorized reviewer is available and before adding an
-operating agent, workflow, or production effect.
+Neither mode permits a ruleset bypass. Direct pushes, force pushes, and branch
+deletion remain blocked.
 
 The desired baseline is also declared in
 `.companyos/repository-protection.yaml`. `companyos validate`, `companyos
@@ -112,14 +100,13 @@ After the protected branch contains the required `check` workflow:
 1. Open the repository's **Settings → Rules → Rulesets** page.
 2. Create one branch ruleset, name it `CompanyOS main protection`, set it to
    active, and target the default branch `main`.
-3. Enable the eight baseline rules listed above. Select the status check named
+3. Enable the baseline rules listed above. Select the status check named
    exactly `check` from the expected GitHub Actions source.
-4. Leave the bypass list empty for Contributors, bots, and deployment keys. If
-   the declared `authoring-only` sole-Steward exception is necessary, add only the
-   named user and choose **For pull requests only** (`pull_request`) as the
-   bypass mode.
-5. Save the ruleset, open a test pull request, and verify that self-approval,
-   missing CODEOWNERS approval, and a red or absent `check` prevent merge.
+4. Leave the bypass list empty for Contributors, administrators, bots, and
+   deployment keys.
+5. Save the ruleset, open a test pull request, and verify that a red or absent
+   `check` prevents merge. In `independent-review` mode, also verify that the
+   missing CODEOWNER approval prevents merge.
 6. Record the ruleset ID, verification time, and Platform Administrator acting
    with `repository` scope in `.companyos/repository-protection.yaml` through a
    protected pull request.
@@ -131,15 +118,13 @@ Use these values for the current reference configuration:
 - **Ruleset name:** `CompanyOS main protection`
 - **Enforcement status:** `Active`
 - **Target branches:** `Include default branch` (`main`)
-- **Bypass list:** empty in the normal independent-review model; for the
-  declared `authoring-only` bootstrap only, add the one named Steward as a **User**
-  with **For pull requests only**. Never choose **Always**.
+- **Bypass list:** empty.
 - **Restrict deletions:** enabled
 - **Require a pull request before merging:** enabled
-  - required approvals: `1`
+  - required approvals: `0` for `steward`, `1` for `independent-review`
   - dismiss stale approvals on new commits: enabled
-  - require review from Code Owners: enabled when exposed by the plan/UI; do
-    not substitute **Require review from specific teams** in a personal repo
+  - require review from Code Owners: disabled for `steward`; enabled for
+    `independent-review` when exposed by the plan/UI
   - require approval of the most recent reviewable push: disabled for this
     baseline
   - require conversation resolution: enabled
@@ -153,11 +138,10 @@ Copilot review disabled unless a later approved policy explicitly adds them.
 Deployment success must not be required when the production deployment starts
 only after merging to `main`, because that would create a circular gate.
 
-The equivalent REST operation is `POST /repos/{owner}/{repo}/rulesets`. Resolve
-the declared login to its numeric GitHub user ID, map it to an actor with
-`actor_type: User` and `bypass_mode: pull_request`, and map the remaining YAML
-rules one-for-one. Read the saved ruleset back through the API and run the same
-test pull request before changing `verification.status` to `verified`.
+The equivalent REST operation is `POST /repos/{owner}/{repo}/rulesets`. Keep
+the bypass actor list empty and map the remaining YAML rules one-for-one. Read
+the saved ruleset back through the API and run the same test pull request before
+changing `verification.status` to `verified`.
 
 GitHub rulesets for a private repository require a GitHub plan that supports
 private-repository rulesets. A provider refusal is an external onboarding
@@ -165,10 +149,10 @@ blocker; record `verification.status: blocked` with the provider reason, check
 time, and administrator identity. Never make a company repository public merely
 to avoid it.
 
-If the repository belongs to a personal GitHub account, CODEOWNERS may map to
-the sole Steward account during `authoring-only` bootstrap. A visible organization
-team is preferable once the repository moves into an organization because role
-membership can then change without editing every protected path.
+If the repository belongs to a personal GitHub account, CODEOWNERS maps to the
+Steward account. A visible organization team is useful once the repository
+moves into an organization because role membership can then change without
+editing every protected path.
 
 ## CODEOWNERS mapping
 
