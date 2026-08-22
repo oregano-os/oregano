@@ -79,7 +79,8 @@ entry and never requests, creates, or invites a second reviewer.
 
 `vercel-neon-slack` performs these bounded phases:
 
-1. verify Git, GitHub CLI, Vercel CLI, pnpm, and the maintained Vercel Runner;
+1. verify Git, GitHub CLI, the repository-pinned exact pnpm, Vercel CLI, and the
+   maintained Vercel Runner;
 2. authenticate GitHub in the browser;
 3. initialize and push a private Company Workspace repository;
 4. apply and verify the solo-Steward protected `main` baseline;

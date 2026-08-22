@@ -62,9 +62,11 @@ The runbook uses ordinary shell and filesystem operations and does not install
 a Claude Code plugin or hook.
 
 Oregano itself is installed from an exact GitHub Release checkout. It is not
-published as an npm package. `pnpm install --frozen-lockfile` installs only the
-locked third-party dependencies required to run the repository-local
-Workbench and Vercel Runner.
+published as an npm package. The release manifest pins pnpm, and the agent
+invokes that exact version through npm without changing a global pnpm
+installation. Its single `pnpm install --frozen-lockfile` installs only the
+locked third-party dependencies required to run the repository-local Workbench
+and Vercel Runner.
 
 - `docs/` — canonical English product and engineering documentation
 - `packages/` — Core runtime, control-plane, Workbench, and test packages
