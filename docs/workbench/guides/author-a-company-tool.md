@@ -5,9 +5,9 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-19
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -25,11 +25,12 @@ read environment variables, import provider SDKs or Node infrastructure, or
 make direct network calls. Secrets and provider bindings belong to the Company
 Instance and are exposed only through granted Core capabilities.
 
-Tool creation and grant changes are security-class work. The author cannot be
-the sole approver. Run `companyos validate`, then use `companyos build` with the
-exact Instance declaration. The build resolves the grant against the Core
-Capability catalog, Workspace allowlist, and exact Connector bindings; file
-existence and validation alone are not proof of availability.
+Tool creation and grant changes are security-class work. Approval follows the
+Workspace's declared `steward` or `independent-review` mode. Run `companyos
+validate`, then use `companyos build` with the exact Instance declaration. The
+build resolves the grant against the Core Capability catalog, Workspace
+allowlist, and exact Connector bindings; file existence and validation alone
+are not proof of availability.
 
 See the [ToolSet Resolver flow](../../specifications/tool-architecture.md#5-deterministic-resolution)
 for the distinction between declaring a Tool, granting it, resolving it, and

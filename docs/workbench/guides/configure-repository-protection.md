@@ -5,9 +5,9 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-21
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -165,7 +165,8 @@ administration.
 
 GitHub accepts an approval from any one owner listed for a path, so listing two
 owners on one line does not require both of them. Protect `.github/` itself so
-the proposal author cannot replace `CODEOWNERS` or CI without the same review.
+the proposal author cannot replace `CODEOWNERS` or CI without the same governed
+pull request and required check.
 
 ## Additional Instance protection
 

@@ -5,9 +5,9 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-21
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -142,7 +142,7 @@ this draft.
 - path traversal, symlink, rename, and partial-apply attempts cannot reach
   protected paths;
 - actual diff class cannot be understated by the plan;
-- author cannot provide the only security approval;
+- security approval follows the declared `steward` or `independent-review` mode;
 - denied and failed proposals leave no partial branch effect;
 - dry-run cannot reach production providers or state;
 - merge/deploy uses the exact reviewed commit pair;

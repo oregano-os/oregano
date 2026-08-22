@@ -5,9 +5,9 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-21
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -133,8 +133,8 @@ evidence, historical prototypes, and production gaps.
    legal, account, spend, and recovery decision.
 3. Establish an isolated non-production Instance and Connector authorization
    instead of testing future changes against production state.
-4. Reconcile, independently review, tag, and publish the first stable immutable
-   GitHub Release containing the checksum-bound agent runbook. There is no
+4. Reconcile, validate, tag, and publish the next stable immutable GitHub
+   Release containing the checksum-bound agent runbook. There is no
    `latest-stable` branch; `releases/latest` is discovery only and installation
    pins the exact tag, commit, and Workbench version.
 5. Qualify the new `vercel-neon-slack` setup profile through a real external

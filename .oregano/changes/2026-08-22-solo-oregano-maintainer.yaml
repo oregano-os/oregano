@@ -1,0 +1,63 @@
+version: 1
+plan_id: solo-oregano-maintainer-2026-08-22
+status: implemented
+author: codex-agent
+created: 2026-08-22
+title: Make one Oregano Maintainer the Core default
+objective: >-
+  Let one accountable Oregano Maintainer develop and release the public Core
+  without a mandatory second person while preserving pull requests, required
+  CI, protected main, explicit merge intent, and immutable release evidence.
+non_goals:
+  - Remove the accountable maintainer role.
+  - Permit direct pushes, force pushes, branch deletion, or ruleset bypass.
+  - Weaken Company Workspace or Company Instance runtime controls.
+  - Make independent review unavailable when additional maintainers later want it.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - Documentation is part of the system
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-08-21-solo-steward-default.yaml
+  - .oregano/changes/2026-08-22-solo-oregano-maintainer.yaml
+  - docs/**
+  - packages/cli/**
+required_approvals:
+  - product-owner
+  - oregano-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-22
+    evidence: explicit-user-request-in-codex-task-to-remove-the-second-core-maintainer-requirement
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-22
+    evidence: explicit-user-approval-in-codex-task-to-implement-the-solo-maintainer-design
+validation:
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-22-solo-oregano-maintainer.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core governance requires maintainer review mode and one Oregano Maintainer authority
+  - Core inspection accepts maintainer self-approval while retaining plan evidence
+  - public main still requires pull requests and the check status with no bypass
+  - terminology exposes Oregano Maintainer instead of Core Maintainer
+documentation_impact:
+  required: true
+  affected_documents:
+    - governance.core-change-policy
+    - governance.roles
+    - glossary
+    - architecture.security-and-governance
+    - specification.companyos-core
+rollback: >-
+  Restore the previous independent-review Core policy and GitHub approval gate
+  through a checked pull request after appointing at least two maintainers.
+open_decisions:
+  - Add an optional independent-review Core mode when a second active maintainer exists.

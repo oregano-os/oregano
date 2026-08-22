@@ -5,9 +5,9 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-21
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -146,7 +146,7 @@ CompanyOS separates legal ownership from operational access authority.
   assignable `repository` and `instance` scopes. The `repository` scope covers
   Git access and protection; the `instance` scope covers deployment
   infrastructure, StateStore resources, providers, secrets, and recovery.
-- **Core Maintainer** governs generic Core behavior.
+- **Oregano Maintainer** governs generic Core behavior.
 
 Role assignments MUST resolve to active identities. A role label MUST NOT imply
 legal company ownership unless the company explicitly models that separate
@@ -158,7 +158,8 @@ A Company Workspace MUST declare `review_mode: steward` or
 Workspace Steward MAY authorize their own security change only through a pull
 request after required CI passes and with no repository bypass. The optional
 `independent-review` mode MUST require a distinct authorized approver for
-security changes. Oregano Core governance remains independently reviewed.
+security changes. Oregano Core uses `review_mode: maintainer`: one accountable
+Oregano Maintainer may authorize a checked Core change without a second person.
 
 ## 5. Agents, workflows, and human boundaries
 

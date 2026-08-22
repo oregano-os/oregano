@@ -9,6 +9,7 @@ import { checkGeneratedDocumentation, inspectDocumentation } from "../src/docs-c
 import { changePlanTemplate, validateChangePlan } from "../src/change-plan.mjs";
 import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { inspectWorkspace } from "../src/inspection.mjs";
+import { inspectCore } from "../src/core-inspection.mjs";
 import { inspectWorkspaceSecurity } from "../src/security.mjs";
 import { inspectWorkspaceOnboarding } from "../src/onboarding.mjs";
 import { inspectCompatibilityRegistry } from "../src/compatibility-registry.mjs";
@@ -44,6 +45,42 @@ test("the Workbench exposes its exact running version", () => {
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
   assert.equal(result.stderr, "");
+});
+
+test("Core governance supports one accountable Oregano Maintainer", () => {
+  const policy = YAML.parse(readFileSync(join(REPO, "docs", "governance", "core-change-policy.yaml"), "utf8"));
+  assert.equal(policy.review_mode, "maintainer");
+  assert.equal(policy.change_classes.security.approval, "oregano-maintainer");
+  assert.equal(policy.change_classes.security.two_person_review, undefined);
+  assert.equal(policy.change_classes.security.review_model, undefined);
+
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-core-plan-"));
+  const planPath = join(temporaryRoot, "self-approved-core-change.yaml");
+  writeFileSync(planPath, YAML.stringify({
+    ...structuredClone(changePlanTemplate),
+    plan_id: "self-approved-core-change",
+    status: "approved",
+    author: "maintainer",
+    created: "2026-08-22",
+    title: "Checked maintainer change",
+    objective: "Prove the maintainer review contract.",
+    placement: "core",
+    change_class: "security",
+    required_approvals: ["oregano-maintainer"],
+    approvals: [{ role: "oregano-maintainer", approver: "maintainer", approved_at: "2026-08-22", evidence: "explicit-human-approval" }],
+    validation: ["pnpm check"],
+    tests: ["Core inspection accepts the declared maintainer authority"],
+    documentation_impact: { required: true, affected_documents: ["governance.core-change-policy"], reason_if_none: "" },
+    rollback: "Revert the checked change.",
+    open_decisions: [],
+  }));
+  try {
+    const result = inspectCore(REPO, planPath);
+    assert.ok(!result.diagnostics.some((item) => item.code === "PLAN011"));
+    assert.ok(!result.diagnostics.some((item) => ["CFIT010", "CFIT011", "CFIT012"].includes(item.code)));
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 test("canonical documentation passes metadata, relation, link, and generated-output checks", () => {

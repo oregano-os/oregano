@@ -5,9 +5,9 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-21
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -51,10 +51,12 @@ authorizes a separately confirmed deployment. Merge records an accepted
 revision; it does not activate that revision in production. Neither Workspace
 review mode grants a repository bypass.
 
-Oregano Core deliberately keeps independent review through the machine-readable
-[Core Change Policy](../governance/core-change-policy.yaml) and
-`companyos inspect-core`. Changes to the Vision, specifications, governance,
-validators, state controls, or CI are security-class Core changes.
+Oregano Core uses `review_mode: maintainer`: one accountable Oregano Maintainer
+may authorize a checked Core change without a second person or repository
+bypass. The machine-readable [Core Change Policy](../governance/core-change-policy.yaml)
+and `companyos inspect-core` enforce the plan and authority contract. Changes
+to the Vision, specifications, governance, validators, state controls, or CI
+are security-class Core changes.
 
 The hosting-side requirements are operationalized in the
 [Repository Protection Guide](../workbench/guides/configure-repository-protection.md).

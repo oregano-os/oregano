@@ -5,9 +5,9 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-18
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent

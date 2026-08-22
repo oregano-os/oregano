@@ -17,9 +17,9 @@ claim hosted or Instance readiness. The maintained
 `companyos setup --profile vercel-neon-slack` state machine then creates or
 adopts the explicitly named private GitHub repository, Vercel project, Neon
 resource, and Slack connection. It pauses for browser authentication,
-independent review, cost or provider consent, and exact hash-bound production
-confirmation. `companyos verify-live` is the final boundary for that narrow
-supervised starter scope.
+checked Steward merge authorization, cost or provider consent, and exact
+hash-bound production confirmation. `companyos verify-live` is the final
+boundary for that narrow supervised starter scope.
 
 The setup state is non-secret, mode `0600`, and resumable. Provider credentials,
 database URLs, Artifact content, and short-lived Slack user credentials are

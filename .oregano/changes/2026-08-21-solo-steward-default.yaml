@@ -9,7 +9,6 @@ objective: >-
   independent human reviewer while preserving pull requests, required checks,
   explicit human confirmations, protected main, and immutable release evidence.
 non_goals:
-  - Weaken Oregano Core repository governance or its independent review requirement.
   - Enable unattended workflows or business Tools in the starter Instance.
   - Migrate setup state from an earlier public installation.
   - Delete provider resources or credentials.
@@ -28,13 +27,13 @@ files_expected:
   - packages/testkit/fixtures/**
 required_approvals:
   - product-owner
-  - core-maintainer
+  - oregano-maintainer
 approvals:
   - role: product-owner
     approver: fylingpete
     approved_at: 2026-08-21
     evidence: explicit-user-request-in-codex-task-to-remove-the-second-reviewer-from-the-default
-  - role: core-maintainer
+  - role: oregano-maintainer
     approver: fylingpete
     approved_at: 2026-08-21
     evidence: explicit-user-approval-in-codex-task-to-implement-the-solo-steward-design
