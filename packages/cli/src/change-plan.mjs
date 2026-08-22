@@ -40,7 +40,7 @@ export function readChangePlan(path) {
   return YAML.parse(readFileSync(path, "utf8"));
 }
 
-export function validateChangePlan(path) {
+export function validateChangePlan(path, { allowAuthorApproval = false } = {}) {
   const diagnostics = [];
   if (!existsSync(path)) return [diagnostic("PLAN001", "error", "Change Plan does not exist.", { file: path })];
   let plan;
@@ -62,7 +62,7 @@ export function validateChangePlan(path) {
     for (const role of plan.required_approvals ?? []) {
       if (!approvedRoles.has(role)) diagnostics.push(diagnostic("PLAN010", "error", `Status '${plan.status}' requires recorded approval for role '${role}'.`, { file: path }));
     }
-    if (plan.change_class === "security" && approvals.some((approval) => approval?.approver === plan.author)) diagnostics.push(diagnostic("PLAN011", "error", "A security-plan author cannot record themselves as its approving identity.", { file: path }));
+    if (!allowAuthorApproval && plan.change_class === "security" && approvals.some((approval) => approval?.approver === plan.author)) diagnostics.push(diagnostic("PLAN011", "error", "A security-plan author cannot record themselves as its approving identity.", { file: path }));
   }
   return diagnostics;
 }

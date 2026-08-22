@@ -5,9 +5,9 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -28,7 +28,7 @@ assignment.
 | Workspace Steward | Approves protected Company Workspace governance changes | legal ownership or Git administration |
 | Process Steward | Reviews behavior of an assigned workflow or SOP | authority over unrelated policies or Core |
 | Platform Administrator | Administers technical hosting through separately assignable `repository` and `instance` scopes | business approval authority or permission to rewrite Workspace policy |
-| Core Maintainer | Changes Oregano Core, schemas, and Workbench releases | authority to decide company-specific policy |
+| Oregano Maintainer | Changes Oregano Core, schemas, and Workbench releases | authority to decide company-specific policy |
 
 A person may hold more than one role, but systems and reviews must name the
 authority being exercised rather than infer it from account privileges.
@@ -53,11 +53,9 @@ not a CompanyOS authority model. The recommended mapping is:
 
 One person may initially occupy several roles, but the assignments remain
 separate so they can later be delegated without changing the architecture.
-Separate accounts controlled by that same person do not create independent
-review. While `workspace_mode` is `authoring-only`, the sole Workspace Steward
-may instead be declared honestly as the one PR-only ruleset bypass actor. This
-is a temporary repository-control exception, not an additional reviewer and
-not business authority for any other Contributor.
+The default Workspace `review_mode: steward` requires no second person and no
+ruleset bypass. An optional `independent-review` policy may be selected only
+when a genuinely distinct authorized reviewer exists.
 
 ## Approval, merge, and deployment
 
@@ -72,6 +70,7 @@ Approval, merge execution, and deployment authorization are separate actions:
   the technical action.
 
 The same human may perform more than one of these actions when assigned the
-corresponding authority. The security boundary is that the author of a security
-change cannot supply its only independent approval; it is not a requirement to
-staff every action with a different person.
+corresponding authority. In the default Workspace `steward` mode and Core
+`maintainer` mode, that human may authorize a checked change they initiated.
+An `independent-review` policy adds author/reviewer separation explicitly; it
+is not assumed merely because a change is security-class.

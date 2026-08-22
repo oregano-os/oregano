@@ -9,7 +9,7 @@ contracts:
   - id: companyos.package-manifest
     version: "1"
     stability: experimental
-    owner: core-maintainers
+    owner: oregano-maintainers
     introduced: 2026-08-14
     specification: specification.companyos-packages-v0.1
     implementation: local-read-only-blueprint-inspector
@@ -18,11 +18,11 @@ contracts:
       - blueprint-inspection-contract
     deprecated: null
     replacement: null
-    removal_gate: explicit-core-maintainer-breaking-release-approval
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
   - id: companyos.compatibility-registry
     version: "1"
     stability: experimental
-    owner: core-maintainers
+    owner: oregano-maintainers
     introduced: 2026-08-14
     specification: specification.companyos-packages-v0.1
     implementation: enforced-by-docs-and-core-inspection
@@ -30,11 +30,11 @@ contracts:
       - compatibility-registry-contract
     deprecated: null
     replacement: null
-    removal_gate: explicit-core-maintainer-breaking-release-approval
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
   - id: companyos.tool-sdk
     version: "1"
     stability: experimental
-    owner: core-maintainers
+    owner: oregano-maintainers
     introduced: 2026-08-19
     specification: specification.tool-architecture
     implementation: local-company-tool-sdk-and-isolated-runner
@@ -43,11 +43,11 @@ contracts:
       - company-tool-isolation-boundary
     deprecated: null
     replacement: null
-    removal_gate: explicit-core-maintainer-breaking-release-approval
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
   - id: companyos.capability-contract
     version: "1"
     stability: experimental
-    owner: core-maintainers
+    owner: oregano-maintainers
     introduced: 2026-08-19
     specification: specification.tool-architecture
     implementation: seed-catalog-resolver-and-sandbox-connectors
@@ -57,11 +57,11 @@ contracts:
       - reference-campaign-connector-contract
     deprecated: null
     replacement: null
-    removal_gate: explicit-core-maintainer-breaking-release-approval
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
   - id: companyos.instance-artifact
     version: "1"
     stability: experimental
-    owner: core-maintainers
+    owner: oregano-maintainers
     introduced: 2026-08-19
     specification: specification.companyos-core-v0.7
     implementation: deterministic-core-workspace-instance-builder
@@ -71,4 +71,4 @@ contracts:
       - resolved-toolset-provenance
     deprecated: null
     replacement: null
-    removal_gate: explicit-core-maintainer-breaking-release-approval
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval

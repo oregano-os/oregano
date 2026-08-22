@@ -9,6 +9,7 @@ import { checkGeneratedDocumentation, inspectDocumentation } from "../src/docs-c
 import { changePlanTemplate, validateChangePlan } from "../src/change-plan.mjs";
 import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { inspectWorkspace } from "../src/inspection.mjs";
+import { inspectCore } from "../src/core-inspection.mjs";
 import { inspectWorkspaceSecurity } from "../src/security.mjs";
 import { inspectWorkspaceOnboarding } from "../src/onboarding.mjs";
 import { inspectCompatibilityRegistry } from "../src/compatibility-registry.mjs";
@@ -44,6 +45,42 @@ test("the Workbench exposes its exact running version", () => {
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
   assert.equal(result.stderr, "");
+});
+
+test("Core governance supports one accountable Oregano Maintainer", () => {
+  const policy = YAML.parse(readFileSync(join(REPO, "docs", "governance", "core-change-policy.yaml"), "utf8"));
+  assert.equal(policy.review_mode, "maintainer");
+  assert.equal(policy.change_classes.security.approval, "oregano-maintainer");
+  assert.equal(policy.change_classes.security.two_person_review, undefined);
+  assert.equal(policy.change_classes.security.review_model, undefined);
+
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-core-plan-"));
+  const planPath = join(temporaryRoot, "self-approved-core-change.yaml");
+  writeFileSync(planPath, YAML.stringify({
+    ...structuredClone(changePlanTemplate),
+    plan_id: "self-approved-core-change",
+    status: "approved",
+    author: "maintainer",
+    created: "2026-08-22",
+    title: "Checked maintainer change",
+    objective: "Prove the maintainer review contract.",
+    placement: "core",
+    change_class: "security",
+    required_approvals: ["oregano-maintainer"],
+    approvals: [{ role: "oregano-maintainer", approver: "maintainer", approved_at: "2026-08-22", evidence: "explicit-human-approval" }],
+    validation: ["pnpm check"],
+    tests: ["Core inspection accepts the declared maintainer authority"],
+    documentation_impact: { required: true, affected_documents: ["governance.core-change-policy"], reason_if_none: "" },
+    rollback: "Revert the checked change.",
+    open_decisions: [],
+  }));
+  try {
+    const result = inspectCore(REPO, planPath);
+    assert.ok(!result.diagnostics.some((item) => item.code === "PLAN011"));
+    assert.ok(!result.diagnostics.some((item) => ["CFIT010", "CFIT011", "CFIT012"].includes(item.code)));
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 test("canonical documentation passes metadata, relation, link, and generated-output checks", () => {
@@ -155,51 +192,42 @@ test("the pinned Core version must be exact and match the checked-out Core", () 
 test("repository onboarding cannot weaken the declared GitHub baseline", () => withFixture((workspace) => {
   const path = join(workspace, ".companyos", "repository-protection.yaml");
   const raw = YAML.parse(readFileSync(path, "utf8"));
-  raw.rules.require_code_owner_review = false;
+  raw.rules.require_pull_request = false;
   writeFileSync(path, YAML.stringify(raw));
   const result = validateWorkspace(workspace);
   assert.ok(result.diagnostics.some((item) => item.code === "RPR006" && item.severity === "error"));
 }));
 
-test("a named sole Steward may use only the explicit authoring-only pull-request bootstrap exception", () => withFixture((workspace) => {
-  rmSync(join(workspace, "agents", "ops"), { recursive: true, force: true });
-  rmSync(join(workspace, "workflows", "board-rhythm.md"));
-  const companyPath = join(workspace, "company.md");
-  writeFileSync(companyPath, readFileSync(companyPath, "utf8").replace("workspace_mode: operating", "workspace_mode: authoring-only"));
+test("steward review mode rejects a hidden second-person requirement", () => withFixture((workspace) => {
   const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
   const raw = YAML.parse(readFileSync(protectionPath, "utf8"));
-  raw.rules.bypass = {
-    mode: "pull_request",
-    actors: [{ type: "user", login: "founder", purpose: "sole-steward-bootstrap" }],
-    constraints: { workspace_mode: "authoring-only", expires_when: "independent-reviewer-appointed" },
-  };
+  raw.rules.required_approvals = 1;
+  raw.rules.require_code_owner_review = true;
   writeFileSync(protectionPath, YAML.stringify(raw));
+  const result = validateWorkspace(workspace);
+  assert.ok(result.diagnostics.some((item) => item.code === "RPR007" && item.severity === "error"));
+}));
+
+test("independent-review mode remains an explicit stricter option", () => withFixture((workspace) => {
+  const governancePath = join(workspace, ".companyos", "governance.yaml");
+  const governance = YAML.parse(readFileSync(governancePath, "utf8"));
+  governance.review_mode = "independent-review";
+  governance.change_classes.security.two_person_review = true;
+  governance.change_classes.security.review_model = "author-plus-one-independent-reviewer";
+  writeFileSync(governancePath, YAML.stringify(governance));
+  const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
+  const protection = YAML.parse(readFileSync(protectionPath, "utf8"));
+  protection.rules.required_approvals = 1;
+  protection.rules.require_code_owner_review = true;
+  writeFileSync(protectionPath, YAML.stringify(protection));
   const result = validateWorkspace(workspace);
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
-  assert.ok(result.diagnostics.some((item) => item.code === "RPR011" && item.severity === "warning"));
 }));
 
-test("the sole Steward bootstrap exception cannot protect an operating Workspace", () => withFixture((workspace) => {
+test("repository protection rejects every bypass", () => withFixture((workspace) => {
   const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
   const raw = YAML.parse(readFileSync(protectionPath, "utf8"));
-  raw.rules.bypass = {
-    mode: "pull_request",
-    actors: [{ type: "user", login: "founder", purpose: "sole-steward-bootstrap" }],
-    constraints: { workspace_mode: "authoring-only", expires_when: "independent-reviewer-appointed" },
-  };
-  writeFileSync(protectionPath, YAML.stringify(raw));
-  const result = validateWorkspace(workspace);
-  assert.ok(result.diagnostics.some((item) => item.code === "RPR012" && item.severity === "error"));
-}));
-
-test("repository protection rejects an always-on or broad bypass", () => withFixture((workspace) => {
-  const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
-  const raw = YAML.parse(readFileSync(protectionPath, "utf8"));
-  raw.rules.bypass = {
-    mode: "always",
-    actors: [{ type: "user", login: "founder", purpose: "sole-steward-bootstrap" }],
-    constraints: { workspace_mode: "authoring-only", expires_when: "independent-reviewer-appointed" },
-  };
+  raw.rules.bypass = { mode: "always", actors: [{ type: "user", login: "founder" }] };
   writeFileSync(protectionPath, YAML.stringify(raw));
   const result = validateWorkspace(workspace);
   assert.ok(result.diagnostics.some((item) => item.code === "RPR009" && item.severity === "error"));
@@ -259,13 +287,13 @@ test("governance cannot omit protection for its own policy", () => withFixture((
   assert.ok(result.diagnostics.some((item) => item.code === "GOV005" && item.severity === "error"));
 }));
 
-test("governance must define the independent security review model", () => withFixture((workspace) => {
+test("governance must define an explicit Workspace review mode", () => withFixture((workspace) => {
   const path = join(workspace, ".companyos", "governance.yaml");
   const raw = YAML.parse(readFileSync(path, "utf8"));
-  delete raw.change_classes.security.review_model;
+  delete raw.review_mode;
   writeFileSync(path, YAML.stringify(raw));
   const result = validateWorkspace(workspace);
-  assert.ok(result.diagnostics.some((item) => item.code === "GOV009" && item.severity === "error"));
+  assert.ok(result.diagnostics.some((item) => item.code === "GOV010" && item.severity === "error"));
 }));
 
 test("Company Tools cannot import providers or read environment secrets", () => withFixture((workspace) => {
@@ -747,7 +775,8 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.match(runbook, /release-manifest\.json/);
   assert.match(runbook, /without a plugin/);
   assert.match(install, /companyos verify-live/);
-  assert.match(install, /second Workspace Steward/);
+  assert.match(install, /original Workspace Steward/);
+  assert.doesNotMatch(install, /reviewer_(?:name|id|github)/);
   assert.match(install, /immutable/);
   assert.doesNotMatch(install, /codex plugin (?:marketplace )?add|claude plugin (?:marketplace )?add/i);
   assert.equal(releaseManifest.status, "source-template");

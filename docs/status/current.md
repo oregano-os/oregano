@@ -5,9 +5,9 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -66,8 +66,8 @@ evidence, historical prototypes, and production gaps.
 - The experimental `companyos setup --profile vercel-neon-slack` state machine
   continues from that checkpoint through explicit create-or-adopt GitHub,
   Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a
-  separately confirmed operating-starter diff, named independent reviewer,
-  required-check and merge evidence, immutable Artifact injection, current
+  separately confirmed operating-starter diff, required-check and Steward
+  merge evidence, immutable Artifact injection, current
   health verification, and nonce-bound Slack plus Neon persistence proof.
   `companyos verify-live` reports only `live-starter-instance` with readiness
   `validated`.
@@ -133,8 +133,8 @@ evidence, historical prototypes, and production gaps.
    legal, account, spend, and recovery decision.
 3. Establish an isolated non-production Instance and Connector authorization
    instead of testing future changes against production state.
-4. Reconcile, independently review, tag, and publish the first stable immutable
-   GitHub Release containing the checksum-bound agent runbook. There is no
+4. Reconcile, validate, tag, and publish the next stable immutable GitHub
+   Release containing the checksum-bound agent runbook. There is no
    `latest-stable` branch; `releases/latest` is discovery only and installation
    pins the exact tag, commit, and Workbench version.
 5. Qualify the new `vercel-neon-slack` setup profile through a real external
@@ -143,7 +143,8 @@ evidence, historical prototypes, and production gaps.
 6. Publish a signed Workbench package so Workspace-only Contributors do not
    require a Core source checkout.
 7. Migrate existing Company Workspaces to externally enforced branch protection
-   and independent review; the new setup automates only its own starter path.
+   and an explicit `steward` or `independent-review` mode; the new setup
+   automates only its own starter path.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

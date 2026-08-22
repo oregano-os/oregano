@@ -5,9 +5,9 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -189,9 +189,10 @@ scope covers runtime hosting, state, provider installations, environment
 variables, secrets, deployment, observability, backup, and recovery. One person
 may hold both scopes or a company may assign them separately.
 
-### Core Maintainer
-A human authorized to change Oregano Core invariants, schemas, runtime code,
-and Workbench releases.
+### Oregano Maintainer
+The accountable human authorized to change Oregano Core invariants, schemas,
+runtime code, and Workbench releases. One person may hold this role; it does
+not imply a mandatory second maintainer.
 
 ### GitHub code owner / CODEOWNERS reviewer
 A GitHub user or team selected by path through `.github/CODEOWNERS`. This is a

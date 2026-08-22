@@ -5,9 +5,9 @@ kind: reference
 status: building
 authority: normative
 language: en
-updated: 2026-08-19
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent

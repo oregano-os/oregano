@@ -5,9 +5,9 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-19
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
   - product-owner
 audience:
   - human
@@ -88,7 +88,7 @@ selected Core and Workbench pin through `.companyos/compatibility.yaml`. Core
 release publication supplies candidates and evidence but does not grant itself
 authority to change that file.
 
-**CWU-AUTH-001 — Core responsibility.** Core Maintainers own Core release
+**CWU-AUTH-001 — Core responsibility.** Oregano Maintainers own Core release
 evidence, compatibility declarations, supported migration paths, migration
 guidance, and the conformance evidence for any Core-owned deterministic
 transformation.
@@ -103,7 +103,7 @@ deployment timing and every environment, provider, secret, durable-state, or
 rollback action. A Workspace approval alone MUST NOT authorize an Instance
 migration.
 
-**CWU-AUTH-004 — Separation of authority.** An upgrade tool, Core Maintainer,
+**CWU-AUTH-004 — Separation of authority.** An upgrade tool, Oregano Maintainer,
 Package, migration artifact, or Agent Contributor MUST NOT approve its own
 Workspace proposal or Instance release. Generated evidence is input to human
 review, not authority.
@@ -112,7 +112,7 @@ review, not authority.
 
 **CWU-REL-001 — Immutable release evidence.** A selectable target release MUST
 identify its exact Core commit and Workbench version and MUST make its release
-evidence attributable to Core Maintainers. The future public distribution
+evidence attributable to Oregano Maintainers. The future public distribution
 mechanism MUST preserve integrity and provenance; its signing and publication
 design remains an open decision.
 

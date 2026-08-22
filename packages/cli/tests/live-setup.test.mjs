@@ -53,9 +53,6 @@ const liveAnswers = (overrides = {}) => ({
   github_repository: "companyos",
   github_account_type: "organization",
   github_repository_mode: "create",
-  reviewer_name: "Max Review",
-  reviewer_id: "max-review",
-  reviewer_github: "max-review",
   vercel_scope: "example-company",
   vercel_project: "example-companyos",
   vercel_project_mode: "create",
@@ -72,9 +69,6 @@ const liveAnswers = (overrides = {}) => ({
 
 const operatingAnswers = (overrides = {}) => ({
   change_date: "2026-08-20",
-  reviewer_name: "Max Review",
-  reviewer_id: "max-review",
-  reviewer_github: "max-review",
   slack_team_id: "T12345678",
   slack_user_id: "U12345678",
   slack_channel_id: "C12345678",
@@ -115,7 +109,7 @@ test("live setup answers are bounded data with explicit create or adopt choices"
   assert.ok(invalid.diagnostics.some((item) => item.code === "LIVE017"));
 });
 
-test("the operating starter is deterministic, Tool-free, and requires a different reviewer", () => withSetup(({ workspace }) => {
+test("the operating starter is deterministic, Tool-free, and keeps one Steward", () => withSetup(({ workspace }) => {
   assert.deepEqual(normalizeOperatingStarterInput(operatingAnswers()).diagnostics, []);
   const first = previewOperatingStarter({ workspaceRoot: workspace, rawInput: operatingAnswers() });
   const second = previewOperatingStarter({ workspaceRoot: workspace, rawInput: operatingAnswers() });
@@ -131,15 +125,15 @@ test("the operating starter is deterministic, Tool-free, and requires a differen
   assert.match(readFileSync(join(workspace, "agents", "oregano", "instructions.md"), "utf8"), /tools: \[\]/);
   assert.match(readFileSync(join(workspace, "handbook", "roster.md"), "utf8"), /team_id: T12345678/);
   const compiledRoster = parseRoster(readFileSync(join(workspace, "handbook", "roster.md"), "utf8"));
-  assert.equal(compiledRoster.length, 2);
+  assert.equal(compiledRoster.length, 1);
   const slackSteward = compiledRoster.find((member) => member.teamId === "T12345678");
   assert.equal(slackSteward?.userId, "U12345678");
   assert.doesNotMatch(readFileSync(join(workspace, "connections", "slack.md"), "utf8"), /xox[baprs]-|postgresql:\/\//);
-}));
-
-test("the operating starter rejects a self-owned reviewer identity", () => withSetup(({ workspace }) => {
-  const preview = previewOperatingStarter({ workspaceRoot: workspace, rawInput: operatingAnswers({ reviewer_github: "anna-example" }) });
-  assert.ok(preview.diagnostics.some((item) => item.code === "OPS017"));
+  const governance = YAML.parse(readFileSync(join(workspace, ".companyos", "governance.yaml"), "utf8"));
+  const protection = YAML.parse(readFileSync(join(workspace, ".companyos", "repository-protection.yaml"), "utf8"));
+  assert.equal(governance.review_mode, "steward");
+  assert.equal(protection.rules.required_approvals, 0);
+  assert.equal(protection.rules.require_code_owner_review, false);
 }));
 
 test("live planning is deterministic and state initialization is confirmation-bound and private", () => withSetup(({ temporary, workspace, core }) => {
@@ -159,15 +153,36 @@ test("live planning is deterministic and state initialization is confirmation-bo
   assert.doesNotMatch(readFileSync(statePath, "utf8"), /DATABASE_URL|xox[baprs]-|postgresql:\/\//);
 }));
 
-test("live planning rejects the initial Steward as the independent reviewer before provider mutation", () => withSetup(({ temporary, workspace, core }) => {
+test("live planning rejects obsolete reviewer fields instead of asking for a second person", () => withSetup(({ temporary, workspace, core }) => {
   const result = planLiveSetup({
     workspaceRoot: workspace,
-    rawAnswers: liveAnswers({ reviewer_id: "anna-example", reviewer_github: "anna-example" }),
+    rawAnswers: liveAnswers({ reviewer_github: "another-person" }),
+    coreIdentity: coreIdentity(core),
+    statePath: join(temporary, "state.json"),
+  });
+  assert.ok(result.diagnostics.some((item) => item.code === "LIVE005" && item.field === "reviewer_github"));
+  assert.equal(existsSync(join(temporary, "state.json")), false);
+}));
+
+test("the solo live profile refuses to weaken an independent-review Workspace", () => withSetup(({ temporary, workspace, core }) => {
+  const governancePath = join(workspace, ".companyos", "governance.yaml");
+  const governance = YAML.parse(readFileSync(governancePath, "utf8"));
+  governance.review_mode = "independent-review";
+  governance.change_classes.security.two_person_review = true;
+  governance.change_classes.security.review_model = "author-plus-one-independent-reviewer";
+  writeFileSync(governancePath, YAML.stringify(governance));
+  const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
+  const protection = YAML.parse(readFileSync(protectionPath, "utf8"));
+  protection.rules.required_approvals = 1;
+  protection.rules.require_code_owner_review = true;
+  writeFileSync(protectionPath, YAML.stringify(protection));
+  const result = planLiveSetup({
+    workspaceRoot: workspace,
+    rawAnswers: liveAnswers(),
     coreIdentity: coreIdentity(core),
     statePath: join(temporary, "state.json"),
   });
   assert.ok(result.diagnostics.some((item) => item.code === "LIVE028"));
-  assert.ok(result.diagnostics.some((item) => item.code === "LIVE029"));
   assert.equal(existsSync(join(temporary, "state.json")), false);
 }));
 
@@ -299,14 +314,14 @@ test("live verification proves only the exact supervised starter scope", async (
     profile: "vercel-neon-slack",
     phase: "complete",
     history: [],
-    answers: { reviewer_github: "max-review" },
+    answers: {},
     resources: {
-      github: { repository: "example-company/companyos", visibility: "PRIVATE", protection_verified: true },
+      github: { repository: "example-company/companyos", visibility: "PRIVATE", protection_verified: true, authenticated_login: "anna-example" },
       vercel: { project: "example-companyos" },
       neon: { id: "store_example", name: "example-companyos-db" },
       slack: { uid: "slack/example-company-oregano", team_id: "T12345678", user_id: "U12345678" },
     },
-    operating: { merge_commit: "d".repeat(40), reviewed_by: "max-review", required_check: "passed" },
+    operating: { merge_commit: "d".repeat(40), merge_authorized_by: "anna-example", merge_authorized_at: "2026-08-21T10:00:00.000Z", required_check: "passed" },
     artifact: { hash: "a".repeat(64), core_commit: CORE_REF, workspace_commit: "b".repeat(40), resolved_toolset_hash: "c".repeat(64) },
     deployment: { url: "https://example.vercel.app" },
     verification: { database: { ok: true } },
@@ -322,7 +337,7 @@ test("live verification proves only the exact supervised starter scope", async (
           stdout: JSON.stringify({
             required_status_checks: { strict: true, contexts: ["check"] },
             enforce_admins: { enabled: true },
-            required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: true, required_approving_review_count: 1 },
+            required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: false, required_approving_review_count: 0 },
             allow_force_pushes: { enabled: false },
             allow_deletions: { enabled: false },
             required_conversation_resolution: { enabled: true },
@@ -351,7 +366,7 @@ test("live verification proves only the exact supervised starter scope", async (
           stdout: JSON.stringify({
             required_status_checks: { strict: true, contexts: ["check"] },
             enforce_admins: { enabled: true },
-            required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: true, required_approving_review_count: 1 },
+            required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: false, required_approving_review_count: 0 },
             allow_force_pushes: { enabled: false },
             allow_deletions: { enabled: false },
             required_conversation_resolution: { enabled: true },

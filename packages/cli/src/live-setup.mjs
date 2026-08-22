@@ -30,9 +30,6 @@ export const LIVE_SETUP_FIELDS = [
   "github_repository",
   "github_account_type",
   "github_repository_mode",
-  "reviewer_name",
-  "reviewer_id",
-  "reviewer_github",
   "vercel_scope",
   "vercel_project",
   "vercel_project_mode",
@@ -87,9 +84,6 @@ export function normalizeLiveSetupAnswers(raw = {}) {
     ["github_repository", "GitHub repository"],
     ["github_account_type", "GitHub account type"],
     ["github_repository_mode", "GitHub repository mode"],
-    ["reviewer_name", "Independent reviewer name"],
-    ["reviewer_id", "Independent reviewer member ID"],
-    ["reviewer_github", "Independent reviewer GitHub login"],
     ["vercel_scope", "Vercel account or team"],
     ["vercel_project", "Vercel project"],
     ["vercel_project_mode", "Vercel project mode"],
@@ -105,11 +99,9 @@ export function normalizeLiveSetupAnswers(raw = {}) {
 
   if (answers.change_date && !/^\d{4}-\d{2}-\d{2}$/.test(answers.change_date)) diagnostics.push(diagnostic("LIVE007", "error", "Change date must use YYYY-MM-DD.", { field: "change_date" }));
   if (answers.steward_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answers.steward_email)) diagnostics.push(diagnostic("LIVE008", "error", "Workspace Steward email has an invalid shape.", { field: "steward_email" }));
-  for (const field of ["github_owner", "github_repository", "reviewer_github", "vercel_scope", "vercel_project", "neon_resource_name", "slack_connector_name"]) {
+  for (const field of ["github_owner", "github_repository", "vercel_scope", "vercel_project", "neon_resource_name", "slack_connector_name"]) {
     if (answers[field] && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(answers[field])) diagnostics.push(diagnostic("LIVE009", "error", `${field} contains unsupported characters.`, { field }));
   }
-  if (answers.reviewer_id && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(answers.reviewer_id)) diagnostics.push(diagnostic("LIVE010", "error", "Reviewer ID must contain lowercase letters, digits, and single hyphens only.", { field: "reviewer_id" }));
-  if (answers.github_owner && answers.reviewer_github && answers.github_owner.toLowerCase() === answers.reviewer_github.toLowerCase() && answers.github_account_type === "personal") diagnostics.push(diagnostic("LIVE011", "error", "A personal GitHub repository needs a different human reviewer account.", { field: "reviewer_github" }));
   if (!new Set(["personal", "organization"]).has(answers.github_account_type)) diagnostics.push(diagnostic("LIVE012", "error", "GitHub account type must be 'personal' or 'organization'.", { field: "github_account_type" }));
   for (const field of ["github_repository_mode", "vercel_project_mode", "neon_resource_mode", "slack_connector_mode"]) {
     if (!new Set(["create", "adopt"]).has(answers[field])) diagnostics.push(diagnostic("LIVE013", "error", `${field} must be 'create' or 'adopt'.`, { field }));
@@ -174,18 +166,9 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
   const workspaceResult = validateWorkspace(workspace);
   diagnostics.push(...workspaceResult.diagnostics.filter((item) => item.severity === "error"));
   if (workspaceResult.summary?.workspace_mode !== "authoring-only") diagnostics.push(diagnostic("LIVE024", "error", "The one-prompt live profile starts from the locally verified authoring-only Workspace.", { file: "company.md" }));
+  if (workspaceResult.summary?.review_mode !== "steward") diagnostics.push(diagnostic("LIVE028", "error", "The one-prompt live profile requires the default steward review mode. Configure a custom independent-review installation outside this profile.", { file: ".companyos/governance.yaml" }));
   const normalized = normalizeLiveSetupAnswers(rawAnswers);
   diagnostics.push(...normalized.diagnostics);
-  try {
-    const rosterRaw = readFileSync(join(workspace, "handbook", "roster.md"), "utf8");
-    const rosterData = YAML.parse(rosterRaw.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? "");
-    const steward = (rosterData?.members ?? []).find((member) => member?.role === "workspace-steward");
-    const stewardGithub = clean(steward?.identities?.github).replace(/^@/, "");
-    if (steward?.id && steward.id === normalized.answers.reviewer_id) diagnostics.push(diagnostic("LIVE028", "error", "The independent reviewer needs a different member ID from the initial Workspace Steward.", { field: "reviewer_id" }));
-    if (stewardGithub && stewardGithub.toLowerCase() === normalized.answers.reviewer_github.toLowerCase()) diagnostics.push(diagnostic("LIVE029", "error", "The independent reviewer needs a different GitHub login from the initial Workspace Steward.", { field: "reviewer_github" }));
-  } catch (error) {
-    diagnostics.push(diagnostic("LIVE030", "error", `Workspace Steward identity could not be read: ${safeError(error.message)}`, { file: "handbook/roster.md" }));
-  }
   const core = normalizeCoreIdentity(coreIdentity, diagnostics);
   const effectiveStatePath = resolve(statePath ?? join(dirname(workspace), ".companyos-bootstrap", `${basename(workspace)}-${LIVE_SETUP_PROFILE}-state.json`));
   if (effectiveStatePath.startsWith(`${workspace}/`) && !effectiveStatePath.includes("/.companyos-bootstrap/")) diagnostics.push(diagnostic("LIVE025", "error", "Live setup state must stay outside committed Workspace material."));
@@ -207,20 +190,19 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
     outcome: "One private GitHub Company Workspace and one supervised Oregano Company Instance on Vercel with Neon/Postgres and Slack.",
     mutations: [
       `Initialize and push ${normalized.answers.github_owner}/${normalized.answers.github_repository} as a private GitHub repository.`,
-      `Invite @${normalized.answers.reviewer_github} and apply the declared protected-main baseline.`,
+      "Apply the solo-Steward protected-main baseline with pull requests and the required CompanyOS check.",
       `${normalized.answers.vercel_project_mode === "create" ? "Create" : "Adopt"} Vercel project '${normalized.answers.vercel_project}' in '${normalized.answers.vercel_scope}'.`,
       `${normalized.answers.neon_resource_mode === "create" ? "Create" : "Adopt"} Neon resource '${normalized.answers.neon_resource_name}' on plan '${normalized.answers.neon_plan}'.`,
       `${normalized.answers.slack_connector_mode === "create" ? "Create" : "Adopt"} Slack connector '${normalized.answers.slack_connector_name}' and attach /api/webhooks/slack.`,
       "Resolve the consenting human's canonical Slack principal with a short-lived user token and discard the token.",
-      "Propose and independently review one operating, supervised, Tool-free Oregano Slack assistant.",
+      "Propose one operating, supervised, Tool-free Oregano Slack assistant in a pull request.",
       `Build an immutable Artifact from Core ${core.ref} and the reviewed Workspace commit.`,
       `Configure Vercel AI Gateway model '${normalized.answers.model}', deploy production only after a separate confirmation, and prove a Slack round trip in Neon.`,
     ],
     required_human_actions: [
       "Complete GitHub, Vercel, Neon, and Slack browser login or consent when prompted.",
       "Confirm provider plans and possible usage charges before resource creation.",
-      `Have @${normalized.answers.reviewer_github} accept access and independently approve the operating Workspace pull request.`,
-      "Confirm the exact operating Workspace preview and the exact production candidate.",
+      "Confirm the exact operating Workspace preview, the checked pull request merge, and the exact production candidate.",
       "Send the generated Slack verification message after deployment.",
     ],
     safety: {
@@ -229,7 +211,8 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
       business_tools: [],
       credentials_in_chat_or_git: false,
       automatic_resource_deletion: false,
-      independent_review_required: true,
+      independent_review_required: false,
+      review_mode: "steward",
     },
   };
   plan.confirmation_hash = sha256(JSON.stringify(plan));
@@ -405,8 +388,8 @@ const inspectGitHubProtection = (executor, repository) => {
     ...(protection?.required_status_checks?.checks ?? []).map((item) => item?.context).filter(Boolean),
   ]);
   if (!contexts.has("check") || protection?.required_status_checks?.strict !== true || protection?.enforce_admins?.enabled !== true ||
-      protection?.required_pull_request_reviews?.dismiss_stale_reviews !== true || protection?.required_pull_request_reviews?.require_code_owner_reviews !== true ||
-      Number(protection?.required_pull_request_reviews?.required_approving_review_count) < 1 || protection?.allow_force_pushes?.enabled === true ||
+      protection?.required_pull_request_reviews?.dismiss_stale_reviews !== true || protection?.required_pull_request_reviews?.require_code_owner_reviews !== false ||
+      Number(protection?.required_pull_request_reviews?.required_approving_review_count) !== 0 || protection?.allow_force_pushes?.enabled === true ||
       protection?.allow_deletions?.enabled === true || protection?.required_conversation_resolution?.enabled !== true) {
     throw new Error("GitHub did not report the complete required protected-main baseline after applying it.");
   }
@@ -420,8 +403,8 @@ const applyGitHubProtection = (executor, state) => {
     enforce_admins: true,
     required_pull_request_reviews: {
       dismiss_stale_reviews: true,
-      require_code_owner_reviews: true,
-      required_approving_review_count: 1,
+      require_code_owner_reviews: false,
+      required_approving_review_count: 0,
     },
     restrictions: null,
     allow_force_pushes: false,
@@ -444,18 +427,13 @@ const createOperatingPullRequest = (executor, state) => {
   git(executor, workspace, "push", "-u", "origin", branch);
   const existing = parseJson(gh(executor, ["pr", "list", "--repo", githubRepository(state), "--head", branch, "--state", "all", "--json", "url"]).stdout, "GitHub pull request list");
   if (Array.isArray(existing) && existing[0]?.url) return { branch, url: existing[0].url };
-  const result = gh(executor, ["pr", "create", "--repo", githubRepository(state), "--base", "main", "--head", branch, "--title", "Activate the supervised Oregano Slack assistant", "--body", "Moves the reviewed Company Workspace to operating mode with one Tool-free, supervised Slack assistant. Requires independent Workspace Steward review before merge."]);
+  const result = gh(executor, ["pr", "create", "--repo", githubRepository(state), "--base", "main", "--head", branch, "--title", "Activate the supervised Oregano Slack assistant", "--body", "Moves the Company Workspace to operating mode with one Tool-free, supervised Slack assistant. The Workspace Steward confirms the merge after the required CompanyOS check passes."]);
   const url = result.stdout.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/)?.[0];
   if (!url) throw new Error("GitHub did not return the operating Workspace pull request URL.");
   return { branch, url };
 };
 
-const inspectPullRequest = (executor, state) => parseJson(gh(executor, ["pr", "view", state.operating.pull_request_url, "--repo", githubRepository(state), "--json", "state,reviewDecision,reviews,mergeCommit,statusCheckRollup,url"]).stdout, "GitHub pull request");
-
-const namedReviewerApproved = (pullRequest, login) => {
-  const reviews = (pullRequest?.reviews ?? []).filter((review) => clean(review?.author?.login).toLowerCase() === login.toLowerCase());
-  return reviews.length > 0 && clean(reviews.at(-1)?.state).toUpperCase() === "APPROVED";
-};
+const inspectPullRequest = (executor, state) => parseJson(gh(executor, ["pr", "view", state.operating.pull_request_url, "--repo", githubRepository(state), "--json", "state,mergeCommit,statusCheckRollup,url"]).stdout, "GitHub pull request");
 
 const requiredCheckPassed = (pullRequest) => (pullRequest?.statusCheckRollup ?? []).some((check) =>
   clean(check?.name ?? check?.context) === "check" && new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]).has(clean(check?.conclusion ?? check?.state).toUpperCase()));
@@ -544,7 +522,6 @@ export async function advanceLiveSetup({
           const membership = clean(gh(executor, ["api", `orgs/${state.answers.github_owner}/memberships/${authenticatedLogin}`, "--jq", ".state"]).stdout);
           if (membership !== "active") throw new Error(`The authenticated GitHub user is not an active member of organization '${state.answers.github_owner}'.`);
         }
-        gh(executor, ["api", `users/${state.answers.reviewer_github}`, "--jq", ".login"]);
         const existing = gh(executor, ["repo", "view", repository, "--json", "nameWithOwner,url,visibility"], { allowFailure: true });
         if (state.answers.github_repository_mode === "create" && existing.status === 0) throw new Error(`GitHub repository '${repository}' already exists; choose adopt explicitly or a new name.`);
         if (state.answers.github_repository_mode === "adopt" && existing.status !== 0) throw new Error(`GitHub repository '${repository}' does not exist and cannot be adopted.`);
@@ -563,7 +540,6 @@ export async function advanceLiveSetup({
           git(executor, state.workspace, "push", "-u", "origin", "main");
         }
         state.resources.github = { repository, url: repositoryData.url, visibility: "PRIVATE", mode: state.answers.github_repository_mode, authenticated_login: authenticatedLogin };
-        gh(executor, ["api", "--method", "PUT", `repos/${repository}/collaborators/${state.answers.reviewer_github}`, "-f", "permission=push"]);
         savePhase(absoluteStatePath, state, "github-protection");
       } else if (state.phase === "github-protection") {
         applyGitHubProtection(executor, state);
@@ -626,9 +602,6 @@ export async function advanceLiveSetup({
         if (clean(git(executor, state.workspace, "status", "--porcelain").stdout)) throw new Error("Company Workspace has uncommitted changes before the operating-starter preview.");
         const rawInput = {
           change_date: state.answers.change_date,
-          reviewer_name: state.answers.reviewer_name,
-          reviewer_id: state.answers.reviewer_id,
-          reviewer_github: state.answers.reviewer_github,
           slack_team_id: state.resources.slack.team_id,
           slack_user_id: state.resources.slack.user_id,
           slack_channel_id: state.answers.slack_channel_id,
@@ -642,8 +615,8 @@ export async function advanceLiveSetup({
         const applied = applyOperatingStarter({ workspaceRoot: state.workspace, rawInput, confirmationHash: operatingConfirmation });
         if (!applied.applied) throw new Error(`Operating Workspace apply failed: ${applied.diagnostics.find((item) => item.severity === "error")?.message}`);
         state.operating.applied = true;
-        savePhase(absoluteStatePath, state, "independent-review");
-      } else if (state.phase === "independent-review") {
+        savePhase(absoluteStatePath, state, "steward-merge");
+      } else if (state.phase === "steward-merge") {
         if (!state.operating.pull_request_url) {
           const pullRequest = createOperatingPullRequest(executor, state);
           state.operating.pull_request_url = pullRequest.url;
@@ -652,23 +625,23 @@ export async function advanceLiveSetup({
         }
         const pullRequest = inspectPullRequest(executor, state);
         if (pullRequest.state === "MERGED") {
-          if (!namedReviewerApproved(pullRequest, state.answers.reviewer_github)) throw new Error("The operating Workspace was merged without recorded approval from the named independent reviewer.");
+          if (state.operating.merge_authorized_by !== state.resources.github.authenticated_login) throw new Error("The operating Workspace was merged without the installer's recorded Workspace Steward authorization.");
           if (!requiredCheckPassed(pullRequest)) throw new Error("The operating Workspace was merged without the required successful CompanyOS check evidence.");
-          state.operating.reviewed_by = state.answers.reviewer_github;
           state.operating.required_check = "passed";
           state.operating.merge_commit = clean(pullRequest.mergeCommit?.oid);
           if (!/^[0-9a-f]{40}$/.test(state.operating.merge_commit)) throw new Error("GitHub did not return one immutable merge commit for the operating Workspace.");
           savePhase(absoluteStatePath, state, "artifact");
           continue;
         }
-        if (pullRequest.reviewDecision !== "APPROVED" || !namedReviewerApproved(pullRequest, state.answers.reviewer_github)) return wait(absoluteStatePath, state, "The operating Workspace pull request is waiting for approval from the named independent human reviewer.", { type: "independent-review", url: state.operating.pull_request_url, reviewer: state.answers.reviewer_github });
-        if (!requiredCheckPassed(pullRequest)) return wait(absoluteStatePath, state, "The independent review is present, but the required CompanyOS check has not passed yet.", { type: "wait-for-required-check", url: state.operating.pull_request_url, check: "check" });
-        const candidateHash = sha256(JSON.stringify({ url: state.operating.pull_request_url, reviewDecision: pullRequest.reviewDecision, checks: pullRequest.statusCheckRollup }));
-        state.operating.reviewed_by = state.answers.reviewer_github;
+        if (!requiredCheckPassed(pullRequest)) return wait(absoluteStatePath, state, "The operating Workspace pull request is waiting for the required CompanyOS check.", { type: "wait-for-required-check", url: state.operating.pull_request_url, check: "check" });
+        const candidateHash = sha256(JSON.stringify({ url: state.operating.pull_request_url, checks: pullRequest.statusCheckRollup }));
         state.operating.required_check = "passed";
         state.operating.merge_confirmation_hash = candidateHash;
         writeLiveSetupState(absoluteStatePath, state);
-        if (mergeConfirmation !== candidateHash) return wait(absoluteStatePath, state, "Independent review is approved. Human merge authorization is required before the release candidate is built.", { type: "confirm-merge", confirmation_hash: candidateHash, url: state.operating.pull_request_url });
+        if (mergeConfirmation !== candidateHash) return wait(absoluteStatePath, state, "The required check passed. The Workspace Steward must confirm this exact merge before the release candidate is built.", { type: "confirm-merge", confirmation_hash: candidateHash, url: state.operating.pull_request_url });
+        state.operating.merge_authorized_by = state.resources.github.authenticated_login;
+        state.operating.merge_authorized_at = now();
+        writeLiveSetupState(absoluteStatePath, state);
         gh(executor, ["pr", "merge", state.operating.pull_request_url, "--repo", githubRepository(state), "--squash", "--delete-branch"]);
       } else if (state.phase === "artifact") {
         state.artifact = buildAndConfigureArtifact(executor, state, absoluteStatePath, coreRoot);
@@ -738,7 +711,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
   if (state.resources.github?.protection_verified !== true) diagnostics.push(diagnostic("LIVE103", "error", "GitHub protected-main enforcement is not verified."));
   if (!state.resources.neon?.id && !state.resources.neon?.uid && !state.resources.neon?.name) diagnostics.push(diagnostic("LIVE104", "error", "Neon resource evidence is missing."));
   if (!state.resources.slack?.uid || !state.resources.slack?.team_id || !state.resources.slack?.user_id) diagnostics.push(diagnostic("LIVE105", "error", "Slack connector or canonical human principal evidence is missing."));
-  if (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.reviewed_by !== state.answers?.reviewer_github || state.operating?.required_check !== "passed") diagnostics.push(diagnostic("LIVE106", "error", "Named independent review, required check, or immutable merge evidence is missing."));
+  if (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.merge_authorized_by !== state.resources.github?.authenticated_login || !/^\d{4}-\d{2}-\d{2}T/.test(state.operating?.merge_authorized_at ?? "") || state.operating?.required_check !== "passed") diagnostics.push(diagnostic("LIVE106", "error", "Workspace Steward merge authorization, required check, or immutable merge evidence is missing."));
   if (state.verification?.database?.ok !== true) diagnostics.push(diagnostic("LIVE107", "error", "Persisted Slack round-trip evidence is missing."));
   if (state.deployment?.url) {
     try {

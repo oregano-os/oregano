@@ -108,7 +108,7 @@ export function inspectWorkspace(root, planPath, baseRef) {
 
   let plan = null;
   if (resolvedPlanPath) {
-    diagnostics.push(...validateChangePlan(resolvedPlanPath));
+    diagnostics.push(...validateChangePlan(resolvedPlanPath, { allowAuthorApproval: governance?.review_mode === "steward" }));
     try { plan = readChangePlan(resolvedPlanPath); }
     catch { /* The Change Plan validator already reports the parse failure. */ }
     if (plan?.placement && plan.placement !== "workspace") diagnostics.push(diagnostic("FIT008", "error", `Plan placement '${plan.placement}' does not match a Company Workspace inspection.`, { file: resolvedPlanPath }));

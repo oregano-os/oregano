@@ -5,9 +5,9 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -30,7 +30,7 @@ This is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:
 
 - the GitHub Workspace repository is private and protected-main enforcement was verified;
-- the independently reviewed operating change was merged;
+- the operating change passed the required check and the Workspace Steward authorized its merge;
 - the named Vercel, Neon, and Slack resources are present in setup evidence;
 - the canonical Slack team and user principal is resolved without a stored credential;
 - current Vercel health matches the exact Artifact, Core commit, Workspace commit, selected Oregano Agent, and empty ToolSet; and

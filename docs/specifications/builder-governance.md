@@ -5,9 +5,9 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-14
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -49,8 +49,8 @@ implicit technical right.
 | Workflow steps, criteria, order, or schedule | behavior; security if authority/effect changes | Process Steward plus Workspace Steward where security applies |
 | New workflow | security | Workspace Steward and responsible Process Steward |
 | Agent scope or instructions | behavior; security when authority/data expands | Process Steward or Workspace Steward by effect |
-| Company Tool, grant, connection, roster, or policy | security | Workspace Steward with independent review |
-| Builder, governance, CODEOWNERS, CI, or protected paths | security | Workspace Steward; author cannot be sole approver |
+| Company Tool, grant, connection, roster, or policy | security | Workspace Steward; plus independent review only when Workspace policy requires it |
+| Builder, governance, CODEOWNERS, CI, or protected paths | security | Workspace Steward under the declared review mode |
 | Core/module upgrade | security and Instance release | Core release evidence, Workspace Steward, Platform Administrator |
 
 A change inherits the highest class of every file and effect it touches. Diff
@@ -65,7 +65,7 @@ verified request
   → deterministic validation
   → isolated replay/dry-run where available
   → consequence summary and evidence
-  → required Git-host review
+  → required Git-host check and human authorization
   → merge
   → exact-pair deployment
   → verification or compensation
@@ -79,16 +79,16 @@ migration behavior.
 
 1. **Workbench boundary:** normalized paths, governance class, forbidden
    imports, scope, and Change Plan are checked after model output.
-2. **Repository boundary:** CODEOWNERS, protected branches, independent review,
-   no force push, and no Contributor bypass rights.
+2. **Repository boundary:** CODEOWNERS, protected branches, the declared review
+   mode, no force push, and no Contributor bypass rights.
 3. **CI boundary:** the real diff is classified against the base revision;
    validation, inspection, tests, and documentation checks must pass.
 4. **Runtime boundary:** unattended enforcement mounts only compiled write
    scopes and never grants the Builder production secrets or protected state.
 
 Agent instructions are useful behavior guidance but are not a security
-boundary. A claim written into a plan or approval file by the branch author is
-not proof that the external review occurred.
+boundary. A claim written into a plan or approval file is not proof that the
+required Git-host check or human merge confirmation occurred.
 
 ## 5. Workbench access by actor type
 
@@ -142,7 +142,7 @@ this draft.
 - path traversal, symlink, rename, and partial-apply attempts cannot reach
   protected paths;
 - actual diff class cannot be understated by the plan;
-- author cannot provide the only security approval;
+- security approval follows the declared `steward` or `independent-review` mode;
 - denied and failed proposals leave no partial branch effect;
 - dry-run cannot reach production providers or state;
 - merge/deploy uses the exact reviewed commit pair;

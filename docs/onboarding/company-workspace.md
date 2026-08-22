@@ -5,9 +5,9 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -35,7 +35,7 @@ The generated Workspace is deliberately `authoring-only`;
 `companyos bootstrap verify <workspace>` is only the local checkpoint. The
 maintained `vercel-neon-slack` setup profile then creates or adopts explicitly
 named resources, moves the Workspace to one supervised operating starter
-through an independently reviewed pull request, deploys an immutable Artifact,
+through a checked, Steward-confirmed pull request, deploys an immutable Artifact,
 and requires a real Slack round trip persisted in Neon. Completion is
 `companyos verify-live`, not local generation.
 
@@ -67,15 +67,12 @@ chat.
 
 Name the human who is accountable for the company's Workspace, approvals, and
 rules (the **Workspace Steward**; in the German runbook: "ist gleich Workspace
-Steward"). Name a second real person with a distinct GitHub account for the
-independent operating-change review. The maintained starter appoints this
-person as a second Workspace Steward with the roster's declared R1-R4 approval
-and business/personal-data visibility; explain that authority and obtain their
-consent. A second account controlled by the first person is not independent.
-Also name a Platform Administrator with `repository` and `instance` scopes. One
-person may initially be both Workspace Steward and Platform Administrator, but
-the operating security change still requires the separate reviewer and every
-action states which authority is being exercised.
+Steward"). The maintained starter needs only this one person. The same person
+may also act as Platform Administrator with `repository` and `instance` scopes;
+every action still states which authority is being exercised. Organizations
+that later want separation of duties may explicitly select
+`review_mode: independent-review` and appoint additional Stewards, but that is
+not an installation prerequisite.
 
 ## 3. Establish the Workspace contract
 
@@ -128,13 +125,11 @@ The Platform Administrator with `repository` scope maps the intended Workspace
 or Process Steward to the CODEOWNERS user or team and applies the declared
 ruleset to `main`. Follow
 the version-matched [repository protection Guide](../workbench/guides/configure-repository-protection.md).
-The branch author cannot self-certify this hosted control.
-
-If only one Workspace Steward exists, do not manufacture review independence
-with a second self-owned account. An `authoring-only` Workspace may use
-the Guide's named PR-only bootstrap exception until an independent reviewer is
-appointed. The onboarding report keeps that limitation visible, and
-`workspace_mode: operating` rejects it.
+The default `review_mode: steward` keeps pull requests, the required `check`,
+stale-check invalidation, resolved conversations, blocked force pushes, and
+blocked deletion. It requires zero GitHub approvals, so the one Steward can
+confirm and merge their checked pull request without a bypass. CODEOWNERS still
+documents ownership but is not a required-review gate in this mode.
 
 ## 7. Run the maintained live starter when requested
 
@@ -157,7 +152,7 @@ contract](../specifications/company-instance-release-and-promotion-v0.1-draft.md
 Onboarding is locally ready when `companyos onboard` has no errors. The complete
 starter is ready only when `companyos verify-live --state <file>` succeeds with
 scope `live-starter-instance`: the repository is private and protected, the
-independently reviewed operating change is merged, current Vercel health
+required check and explicit Steward merge authorization are recorded, current Vercel health
 matches the exact Artifact and version pair, and a nonce-bound human Slack
 message plus Oregano response are persisted in Neon. This is bounded evidence
 for the supervised starter, not certification of future Tools, unattended

@@ -5,9 +5,9 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -35,8 +35,8 @@ routes them through `companyos create workspace`, and treats
 live path then uses `companyos setup --profile vercel-neon-slack` and finishes
 only when `companyos verify-live` proves the narrow supervised starter scope.
 The agent waits for the human's browser authentication, provider consent,
-independent review, and hash-bound production confirmation; it does not obtain
-those authorities from the chat prompt.
+hash-bound Steward merge authorization, and production confirmation; it does
+not obtain those authorities from the chat prompt.
 
 Start with [Onboard a Company Workspace](company-workspace.md), then run:
 

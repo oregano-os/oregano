@@ -5,9 +5,9 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-14
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -33,7 +33,7 @@ result grants authority inside a Company Workspace or Company Instance.
 | Publisher Administrator | controls one Registry namespace and its Package ownership assignments | trust of Package behavior or Instance access |
 | Registry Operator | operates catalog, artifact, moderation, yank, and advisory services | permission to activate a Package for a company |
 | Ecosystem Security Responder | investigates reports and issues advisories or revocation recommendations under policy | unilateral Company Workspace grants or effect approval |
-| Core Maintainer | owns Package, Capability, SDK, compatibility, and conformance contracts | authority over a company's policies, principals, bindings, or approvals |
+| Oregano Maintainer | owns Package, Capability, SDK, compatibility, and conformance contracts | authority over a company's policies, principals, bindings, or approvals |
 
 These are ecosystem responsibilities, not CompanyOS authority roles. A person
 may hold more than one responsibility, but every action records which authority
@@ -85,7 +85,7 @@ replacement guidance, and evidence. Historical deployment records are retained.
 
 ## Compatibility and deprecation
 
-Package Maintainers own migration within their Package. Core Maintainers own
+Package Maintainers own migration within their Package. Oregano Maintainers own
 migration of public CompanyOS contracts. A breaking contract change requires a
 Compatibility Registry update, replacement guidance, tests for supported old
 and new paths, and the announced migration window defined by Core policy.
@@ -124,7 +124,7 @@ corresponding versioned Contract Test Kit and contribution policy exist.
 
 ## Decisions required before public launch
 
-Before accepting public Package releases, Core Maintainers MUST approve:
+Before accepting public Package releases, Oregano Maintainers MUST approve:
 
 - Oregano Core and Registry software licenses;
 - contributor terms and repository governance;

@@ -5,9 +5,9 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-20
+updated: 2026-08-22
 owners:
-  - core-maintainers
+  - oregano-maintainers
 audience:
   - human
   - agent
@@ -34,10 +34,11 @@ and map Platform Administrators with `instance` scope to the protected
 deployment environment. A notification route does not grant the role it
 notifies.
 
-Separation of duties means that the author of a security change cannot provide
-its only independent approval. It does not require a different person for every
-review, merge, and deployment action. R3/R4 approval paths retain their stricter
-effect-specific identity and continuity requirements.
+The declared review mode determines separation of duties. Default `steward`
+mode permits the authorized Steward to approve a checked change they initiated;
+optional `independent-review` mode requires a distinct approver. It does not
+require a different person for every merge and deployment action. R3/R4 approval
+paths retain their stricter effect-specific identity and continuity requirements.
 
 Roster and rights changes are security-class work and require validation of all
 workflow human-role references.

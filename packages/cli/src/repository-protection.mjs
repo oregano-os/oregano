@@ -5,23 +5,11 @@ import { diagnostic } from "./diagnostics.mjs";
 
 const REQUIRED_TRUE_RULES = [
   "require_pull_request",
-  "require_code_owner_review",
   "dismiss_stale_approvals",
   "require_conversation_resolution",
   "block_force_pushes",
   "block_deletions",
 ];
-
-export const isSoleStewardBootstrapBypass = (bypass) =>
-  bypass?.mode === "pull_request" &&
-  Array.isArray(bypass?.actors) &&
-  bypass.actors.length === 1 &&
-  bypass.actors[0]?.type === "user" &&
-  typeof bypass.actors[0]?.login === "string" &&
-  bypass.actors[0].login.length > 0 &&
-  bypass.actors[0]?.purpose === "sole-steward-bootstrap" &&
-  bypass?.constraints?.workspace_mode === "authoring-only" &&
-  bypass?.constraints?.expires_when === "independent-reviewer-appointed";
 
 export function inspectRepositoryProtectionContract(root) {
   const path = join(root, ".companyos", "repository-protection.yaml");
@@ -36,8 +24,10 @@ export function inspectRepositoryProtectionContract(root) {
   }
 
   let config;
+  let governance;
   try {
     config = YAML.parse(readFileSync(path, "utf8"));
+    governance = YAML.parse(readFileSync(join(root, ".companyos", "governance.yaml"), "utf8"));
   } catch (error) {
     return {
       config: null,
@@ -53,16 +43,21 @@ export function inspectRepositoryProtectionContract(root) {
   for (const rule of REQUIRED_TRUE_RULES) {
     if (config?.rules?.[rule] !== true) diagnostics.push(diagnostic("RPR006", "error", `Repository protection must set rules.${rule}: true.`, { file: ".companyos/repository-protection.yaml" }));
   }
-  if (config?.rules?.required_approvals !== 1) diagnostics.push(diagnostic("RPR007", "error", "Repository protection must require exactly one approval from an authorized reviewer for authors without bypass.", { file: ".companyos/repository-protection.yaml" }));
+  const reviewMode = governance?.review_mode;
+  if (reviewMode === "steward") {
+    if (config?.rules?.required_approvals !== 0 || config?.rules?.require_code_owner_review !== false) {
+      diagnostics.push(diagnostic("RPR007", "error", "Steward review mode must allow the Steward to merge after required checks without a second approval.", { file: ".companyos/repository-protection.yaml" }));
+    }
+  } else if (reviewMode === "independent-review") {
+    if (config?.rules?.required_approvals !== 1 || config?.rules?.require_code_owner_review !== true) {
+      diagnostics.push(diagnostic("RPR007", "error", "Independent-review mode must require exactly one CODEOWNER approval.", { file: ".companyos/repository-protection.yaml" }));
+    }
+  }
   if (!Array.isArray(config?.rules?.required_status_checks) || !config.rules.required_status_checks.includes("check")) {
     diagnostics.push(diagnostic("RPR008", "error", "Repository protection must require the 'check' status.", { file: ".companyos/repository-protection.yaml" }));
   }
   const bypass = config?.rules?.bypass;
-  if (bypass !== "none" && !isSoleStewardBootstrapBypass(bypass)) {
-    diagnostics.push(diagnostic("RPR009", "error", "Ruleset bypass must be 'none' or one named user with the constrained sole-steward pull-request bootstrap exception.", { file: ".companyos/repository-protection.yaml" }));
-  } else if (isSoleStewardBootstrapBypass(bypass)) {
-    diagnostics.push(diagnostic("RPR011", "warning", "Independent review is unavailable: the named sole Workspace Steward may bypass approval requirements only through a pull request. Remove this bootstrap exception before the Workspace becomes operating.", { file: ".companyos/repository-protection.yaml" }));
-  }
+  if (bypass !== "none") diagnostics.push(diagnostic("RPR009", "error", "Ruleset bypass must be 'none'.", { file: ".companyos/repository-protection.yaml" }));
   if (!new Set(["pending", "blocked", "verified"]).has(config?.verification?.status)) {
     diagnostics.push(diagnostic("RPR010", "error", "Repository protection verification.status must be pending, blocked, or verified.", { file: ".companyos/repository-protection.yaml" }));
   }

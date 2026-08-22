@@ -33,12 +33,9 @@ export function inspectCore(root, planPath, baseRef) {
     try { governance = YAML.parse(readFileSync(policyPath, "utf8")); }
     catch (error) { diagnostics.push(diagnostic("CFIT002", "error", `Core change policy cannot be parsed: ${error.message.split("\n")[0]}`, { file: "docs/governance/core-change-policy.yaml" })); }
   }
-  if (governance?.change_classes?.security?.two_person_review !== true) {
-    diagnostics.push(diagnostic("CFIT010", "error", "Core security changes must require two_person_review: true.", { file: "docs/governance/core-change-policy.yaml" }));
-  }
-  if (governance?.change_classes?.security?.review_model !== "author-plus-one-independent-reviewer") {
-    diagnostics.push(diagnostic("CFIT011", "error", "Core security changes must declare review_model: author-plus-one-independent-reviewer.", { file: "docs/governance/core-change-policy.yaml" }));
-  }
+  if (governance?.review_mode !== "maintainer") diagnostics.push(diagnostic("CFIT010", "error", "Core governance must declare review_mode: maintainer.", { file: "docs/governance/core-change-policy.yaml" }));
+  if (governance?.change_classes?.security?.approval !== "oregano-maintainer") diagnostics.push(diagnostic("CFIT011", "error", "Core security changes must require Oregano Maintainer authority.", { file: "docs/governance/core-change-policy.yaml" }));
+  if (governance?.change_classes?.security?.two_person_review !== undefined || governance?.change_classes?.security?.review_model !== undefined) diagnostics.push(diagnostic("CFIT012", "error", "Maintainer review mode must not declare a mandatory second-person review.", { file: "docs/governance/core-change-policy.yaml" }));
 
   const files = changedFiles(root, baseRef);
   let diffClassification = null;
@@ -62,7 +59,7 @@ export function inspectCore(root, planPath, baseRef) {
 
   let plan = null;
   if (resolvedPlanPath) {
-    diagnostics.push(...validateChangePlan(resolvedPlanPath));
+    diagnostics.push(...validateChangePlan(resolvedPlanPath, { allowAuthorApproval: governance?.review_mode === "maintainer" }));
     try { plan = readChangePlan(resolvedPlanPath); }
     catch { /* Plan diagnostics already contain the parse error. */ }
     if (plan?.placement && plan.placement !== "core") diagnostics.push(diagnostic("CFIT006", "error", `Plan placement '${plan.placement}' does not match Oregano Core.`, { file: resolvedPlanPath }));
@@ -80,7 +77,7 @@ export function inspectCore(root, planPath, baseRef) {
   return {
     diagnostics,
     report: {
-      status: diagnostics.some((item) => item.severity === "error") ? "blocked" : "ready-for-review",
+      status: diagnostics.some((item) => item.severity === "error") ? "blocked" : "ready-for-merge",
       facts: {
         target: root,
         plan: resolvedPlanPath ?? null,
