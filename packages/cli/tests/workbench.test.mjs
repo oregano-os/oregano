@@ -39,8 +39,8 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.1.0");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.3");
+  assert.equal(CORE_VERSION, "0.2.0");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.4");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -104,9 +104,9 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.1.0",
+    core: "0.2.0",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.3",
+    workbench: "0.1.0-experimental.4",
     companyos_spec: "0.7-draft",
   });
 
@@ -178,7 +178,7 @@ test("the pinned Workbench must match the validator that is running", () => with
 test("the pinned Core version must be exact and match the checked-out Core", () => withFixture((workspace) => {
   const path = join(workspace, ".companyos", "compatibility.yaml");
   const raw = YAML.parse(readFileSync(path, "utf8"));
-  raw.core.version = "0.2.0";
+  raw.core.version = "0.1.0";
   writeFileSync(path, YAML.stringify(raw));
   const mismatch = validateWorkspace(workspace);
   assert.ok(mismatch.diagnostics.some((item) => item.code === "CMP010" && item.severity === "error"));
@@ -598,7 +598,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.1.0",
+  core_version: "0.2.0",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };

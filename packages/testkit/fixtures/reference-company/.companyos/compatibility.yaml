@@ -2,7 +2,7 @@ version: 1
 mode: core-checkout
 core:
   repository: example/oregano
-  version: 0.1.0
+  version: 0.2.0
   ref: "0000000000000000000000000000000000000000"
 workbench:
-  version: 0.1.0-experimental.3
+  version: 0.1.0-experimental.4
