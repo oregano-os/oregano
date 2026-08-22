@@ -21,6 +21,8 @@ vision_principles_affected:
   - Human authority is explicit
 files_expected:
   - .oregano/changes/2026-08-22-install-bootstrap-hardening.yaml
+  - .github/workflows/check.yml
+  - .github/workflows/release.yml
   - INSTALL-COMPANYOS.md
   - README.md
   - docs/onboarding/company-workspace.md
@@ -41,6 +43,7 @@ validation:
   - git diff --check
 tests:
   - package metadata pins exact pnpm with registry integrity
+  - Core CI and release workflows consume the repository package-manager pin without a duplicate version
   - release manifest derives pnpm from the repository package-manager pin
   - runbook checks exact pnpm before the first dependency installation
   - runbook requires no Corepack or global pnpm replacement

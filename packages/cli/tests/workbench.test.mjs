@@ -769,6 +769,7 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   const readme = readFileSync(join(REPO, "README.md"), "utf8");
   const releaseManifest = JSON.parse(readFileSync(join(REPO, "release-manifest.json"), "utf8"));
   const rootPackage = JSON.parse(readFileSync(join(REPO, "package.json"), "utf8"));
+  const checkWorkflow = readFileSync(join(REPO, ".github", "workflows", "check.yml"), "utf8");
   const releaseWorkflow = readFileSync(join(REPO, ".github", "workflows", "release.yml"), "utf8");
   const releaseScript = readFileSync(join(REPO, "scripts", "prepare-release-assets.mjs"), "utf8");
   assert.match(runbook, /supports Codex and Claude Code/);
@@ -787,6 +788,10 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.equal(PNPM_VERSION, releaseManifest.requirements.pnpm);
   assert.equal(PACKAGE_MANAGER_SPEC, rootPackage.packageManager);
   assert.match(rootPackage.packageManager, /^pnpm@11\.16\.0\+sha512\.[0-9a-f]{128}$/);
+  for (const workflow of [checkWorkflow, releaseWorkflow]) {
+    assert.match(workflow, /uses: pnpm\/action-setup@v4/);
+    assert.doesNotMatch(workflow, /version:\s*11\.16\.0/);
+  }
   assert.match(releaseScript, /rootPackage\.packageManager/);
   assert.doesNotMatch(releaseScript, /pnpm: "11\.16\.0"/);
   assert.match(install, /exact Vercel CLI is included in the locked\s+Oregano dependencies/);
