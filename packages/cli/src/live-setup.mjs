@@ -16,6 +16,7 @@ import { spawnSync } from "node:child_process";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import YAML from "yaml";
 import { diagnostic } from "./diagnostics.mjs";
+import { PNPM_VERSION } from "./core-version.mjs";
 import { applyOperatingStarter, previewOperatingStarter } from "./operating-starter.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
 
@@ -49,6 +50,7 @@ const hasErrors = (diagnostics) => diagnostics.some((item) => item.severity === 
 const clean = (value) => String(value ?? "").normalize("NFC").trim();
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const now = () => new Date().toISOString();
+const exactPnpmCommand = (coreRoot, ...args) => ["npm", "exec", "--yes", `--package=pnpm@${PNPM_VERSION}`, "--", "pnpm", "--dir", coreRoot, ...args];
 
 const safeError = (value) => clean(value)
   .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[REDACTED_DATABASE_URL]")
@@ -499,13 +501,16 @@ export async function advanceLiveSetup({
       if (state.phase === "preflight") {
         const nodeMajor = Number(process.versions.node.split(".")[0]);
         if (!Number.isInteger(nodeMajor) || nodeMajor < 24) return wait(absoluteStatePath, state, "Oregano requires Node.js 24 or newer for this release.", { type: "install-prerequisite", command: "node", minimum_version: "24" });
-        for (const command of ["git", "gh", "pnpm"]) {
+        for (const command of ["git", "gh"]) {
           if (run(executor, command, ["--version"], { allowFailure: true }).status !== 0) return wait(absoluteStatePath, state, `Required command '${command}' is not installed.`, { type: "install-prerequisite", command });
         }
+        const pnpmVersion = run(executor, "pnpm", ["--version"], { allowFailure: true });
+        const detectedPnpmVersion = clean(pnpmVersion.stdout || pnpmVersion.stderr).match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/)?.[0];
+        if (pnpmVersion.status !== 0 || detectedPnpmVersion !== PNPM_VERSION) return wait(absoluteStatePath, state, `Oregano requires pnpm ${PNPM_VERSION}, but found '${detectedPnpmVersion ?? "unavailable"}'. Run the exact repository-local package-manager command instead of installing or replacing a global pnpm.`, { type: "repair-release-dependencies", command: exactPnpmCommand(coreRoot, "install", "--frozen-lockfile"), required_version: PNPM_VERSION });
         const vercelVersion = run(executor, "vercel", ["--version"], { allowFailure: true });
-        if (vercelVersion.status !== 0) return wait(absoluteStatePath, state, "The release-bundled Vercel CLI is unavailable. Reinstall the locked Oregano dependencies.", { type: "repair-release-dependencies", command: "pnpm install --frozen-lockfile" });
+        if (vercelVersion.status !== 0) return wait(absoluteStatePath, state, "The release-bundled Vercel CLI is unavailable. Reinstall the locked Oregano dependencies.", { type: "repair-release-dependencies", command: exactPnpmCommand(coreRoot, "install", "--frozen-lockfile") });
         const detectedVercelVersion = clean(vercelVersion.stdout || vercelVersion.stderr).match(/\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?/)?.[0];
-        if (detectedVercelVersion !== SUPPORTED_VERCEL_CLI_VERSION) return wait(absoluteStatePath, state, `Oregano requires its bundled Vercel CLI ${SUPPORTED_VERCEL_CLI_VERSION}, but found '${detectedVercelVersion ?? "unknown"}'.`, { type: "repair-release-dependencies", command: "pnpm install --frozen-lockfile", required_version: SUPPORTED_VERCEL_CLI_VERSION });
+        if (detectedVercelVersion !== SUPPORTED_VERCEL_CLI_VERSION) return wait(absoluteStatePath, state, `Oregano requires its bundled Vercel CLI ${SUPPORTED_VERCEL_CLI_VERSION}, but found '${detectedVercelVersion ?? "unknown"}'.`, { type: "repair-release-dependencies", command: exactPnpmCommand(coreRoot, "install", "--frozen-lockfile"), required_version: SUPPORTED_VERCEL_CLI_VERSION });
         savePhase(absoluteStatePath, state, "github-auth");
       } else if (state.phase === "github-auth") {
         if (gh(executor, ["auth", "status"], { allowFailure: true }).status !== 0) return wait(absoluteStatePath, state, "GitHub needs your browser login before the private Workspace repository can be created.", { type: "browser-login", command: ["gh", "auth", "login", "--web"] });

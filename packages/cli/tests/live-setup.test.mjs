@@ -22,6 +22,7 @@ import {
 import { renderWorkspace } from "../src/workspace-generator.mjs";
 import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { WORKBENCH_VERSION } from "../src/workbench-version.mjs";
+import { PNPM_VERSION } from "../src/core-version.mjs";
 import { parseRoster } from "../../state-store/roster.ts";
 
 const CORE_REF = "1234567890abcdef1234567890abcdef12345678";
@@ -251,6 +252,7 @@ test("preflight refuses an unreviewed Vercel CLI version", async () => withSetup
     statePath,
     executor: {
       run(file) {
+        if (file === "pnpm") return { status: 0, stdout: PNPM_VERSION, stderr: "" };
         return { status: 0, stdout: file === "vercel" ? "Vercel CLI 99.0.0" : "ok", stderr: "" };
       },
     },
@@ -258,6 +260,39 @@ test("preflight refuses an unreviewed Vercel CLI version", async () => withSetup
   assert.equal(result.status, "waiting");
   assert.equal(result.state.phase, "preflight");
   assert.equal(result.next_action.required_version, SUPPORTED_VERCEL_CLI_VERSION);
+}));
+
+test("preflight refuses a package manager version other than the repository pin", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "pnpm-preflight-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 1,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-20T00:00:00.000Z",
+    updated_at: "2026-08-20T00:00:00.000Z",
+    phase: "preflight",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers(),
+    resources: {},
+    operating: {},
+    artifact: {},
+    deployment: {},
+    verification: {},
+    history: [],
+  });
+  const result = await advanceLiveSetup({
+    statePath,
+    executor: {
+      run(file) {
+        return { status: 0, stdout: file === "pnpm" ? "10.26.2" : "ok", stderr: "" };
+      },
+    },
+  });
+  assert.equal(result.status, "waiting");
+  assert.equal(result.state.phase, "preflight");
+  assert.equal(result.next_action.required_version, PNPM_VERSION);
+  assert.deepEqual(result.next_action.command.slice(0, 6), ["npm", "exec", "--yes", `--package=pnpm@${PNPM_VERSION}`, "--", "pnpm"]);
 }));
 
 test("the create path explicitly adds the Vercel project before linking it", async () => withSetup(async ({ temporary, core }) => {

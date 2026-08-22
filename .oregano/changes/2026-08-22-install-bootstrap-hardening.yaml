@@ -1,0 +1,58 @@
+version: 1
+plan_id: install-bootstrap-hardening-2026-08-22
+status: review
+author: codex-agent
+created: 2026-08-22
+title: Make the agent bootstrap single-pass and path-stable
+objective: >-
+  Ensure a first-time Codex or Claude Code installation selects the exact pnpm
+  version before dependency installation, requires no global Corepack or pnpm
+  mutation, and resolves all setup inputs independently of pnpm's working
+  directory.
+non_goals:
+  - Publish Oregano as an npm package.
+  - Change provider accounts, resource creation, or production authorization.
+  - Add compatibility behavior for the unreleased v0.1.0 reviewer schema.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Onboarding has no hidden steps
+  - Human authority is explicit
+files_expected:
+  - .oregano/changes/2026-08-22-install-bootstrap-hardening.yaml
+  - INSTALL-COMPANYOS.md
+  - README.md
+  - docs/onboarding/company-workspace.md
+  - docs/workbench/commands/setup.md
+  - package.json
+  - packages/cli/src/core-version.mjs
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/tests/**
+  - scripts/prepare-release-assets.mjs
+required_approvals:
+  - oregano-maintainer
+approvals: []
+validation:
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-22-install-bootstrap-hardening.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - package metadata pins exact pnpm with registry integrity
+  - release manifest derives pnpm from the repository package-manager pin
+  - runbook checks exact pnpm before the first dependency installation
+  - runbook requires no Corepack or global pnpm replacement
+  - runbook uses absolute setup, Workspace, answers, and state paths
+  - live setup preflight rejects a mismatched pnpm version
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.company-workspace
+    - command.setup
+rollback: >-
+  Revert the runbook, package-manager contract, and preflight together through
+  a checked pull request. Existing v0.2.0 remains immutable and unchanged.
+open_decisions:
+  - Publish the reviewed correction as a later patch release after explicit Oregano Maintainer approval.

@@ -24,7 +24,7 @@ import {
   renderWorkspace,
 } from "../src/workspace-generator.mjs";
 import { WORKBENCH_VERSION } from "../src/workbench-version.mjs";
-import { CORE_VERSION } from "../src/core-version.mjs";
+import { CORE_VERSION, PACKAGE_MANAGER_SPEC, PNPM_VERSION } from "../src/core-version.mjs";
 
 const REPO = resolve(import.meta.dirname, "..", "..", "..");
 const FIXTURE = join(REPO, "packages", "testkit", "fixtures", "acme-casas");
@@ -770,6 +770,7 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   const releaseManifest = JSON.parse(readFileSync(join(REPO, "release-manifest.json"), "utf8"));
   const rootPackage = JSON.parse(readFileSync(join(REPO, "package.json"), "utf8"));
   const releaseWorkflow = readFileSync(join(REPO, ".github", "workflows", "release.yml"), "utf8");
+  const releaseScript = readFileSync(join(REPO, "scripts", "prepare-release-assets.mjs"), "utf8");
   assert.match(runbook, /supports Codex and Claude Code/);
   assert.match(runbook, /companyos verify-live/);
   assert.match(runbook, /release-manifest\.json/);
@@ -783,7 +784,19 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.equal(releaseManifest.default_profile, "vercel-neon-slack");
   assert.equal(releaseManifest.requirements.vercel_cli, "56.3.2");
   assert.equal(rootPackage.devDependencies.vercel, releaseManifest.requirements.vercel_cli);
-  assert.match(install, /exact Vercel\s+CLI is included in the locked Oregano dependencies/);
+  assert.equal(PNPM_VERSION, releaseManifest.requirements.pnpm);
+  assert.equal(PACKAGE_MANAGER_SPEC, rootPackage.packageManager);
+  assert.match(rootPackage.packageManager, /^pnpm@11\.16\.0\+sha512\.[0-9a-f]{128}$/);
+  assert.match(releaseScript, /rootPackage\.packageManager/);
+  assert.doesNotMatch(releaseScript, /pnpm: "11\.16\.0"/);
+  assert.match(install, /exact Vercel CLI is included in the locked\s+Oregano dependencies/);
+  assert.match(install, /npm exec --yes --package="pnpm@\$exact_pnpm_version"/);
+  assert.doesNotMatch(install, /\bcorepack\b/i);
+  assert.doesNotMatch(install, /--dir \.companyos-bootstrap\/oregano/);
+  assert.doesNotMatch(install, /--(?:answers|state) \.companyos-bootstrap\//);
+  assert.match(install, /setup_root="\$\(pwd -P\)"/);
+  assert.match(install, /oregano_root="\$setup_root\/\.companyos-bootstrap\/oregano"/);
+  assert.ok(install.indexOf("pnpm --version") < install.indexOf('pnpm --dir "$oregano_root" install --frozen-lockfile'));
   assert.match(releaseWorkflow, /immutable-releases/);
   assert.match(releaseWorkflow, /pnpm runner:build/);
   assert.match(releaseWorkflow, /--draft/);

@@ -73,6 +73,7 @@ Require all of the following:
 - `release_version` and `workbench_version` are exact semantic versions;
 - `tag` is exactly `v<release_version>`;
 - `core_commit` is a 40-character Git SHA; and
+- `requirements.pnpm` is one exact semantic version;
 - `requirements.vercel_cli` is exactly `56.3.2`; and
 - the downloaded runbook's SHA-256 equals
   `checksums.INSTALL-COMPANYOS.md` after removing the `sha256:` prefix.
@@ -82,26 +83,50 @@ Tell the human: “I will install Oregano release `<tag>` at exact commit
 be running in Slack with a private GitHub Workspace, Vercel hosting, and a Neon
 database.”
 
-Check for Git, Node.js 24 or newer, Corepack, and GitHub CLI. The exact Vercel
-CLI is included in the locked Oregano dependencies and does not need a separate
-global installation. A
-missing prerequisite is not a task for the human to diagnose. Explain what is
-missing and ask before installing the exact supported version through the
-platform's ordinary package manager. Never pipe a network download into a
-shell.
+Check for Git, Node.js 24 or newer with npm, and GitHub CLI. The exact pnpm
+version is invoked from npm's temporary package cache; neither pnpm nor another
+package-manager shim needs a global installation. Ignore an existing global
+pnpm. Do not uninstall it, overwrite it, force-link another executable over it,
+or use it for this installation. The exact Vercel CLI is included in the locked
+Oregano dependencies and also needs no global installation. A missing
+prerequisite is not a task for the human to diagnose. Explain what is missing
+and ask before installing the exact supported version through the platform's
+ordinary package manager. Never pipe a network download into a shell.
 
-In the empty setup directory, clone the exact tag into
-`.companyos-bootstrap/oregano`. Verify that `git rev-parse HEAD` equals the
-manifest's `core_commit`, that the tag points to that commit, and that the
-checkout is clean. Then install the locked dependencies:
+In the empty setup directory, record one absolute setup root and use absolute
+paths for every later Workbench input. Replace the two angle-bracket values
+below with the already verified manifest values. Clone the exact tag into the
+private bootstrap directory:
 
 ```bash
+setup_root="$(pwd -P)"
+oregano_root="$setup_root/.companyos-bootstrap/oregano"
+exact_pnpm_version="<requirements.pnpm from the verified manifest>"
+mkdir -p "$setup_root/.companyos-bootstrap"
 git clone --branch <exact-tag> --single-branch \
   https://github.com/oregano-os/oregano.git \
-  .companyos-bootstrap/oregano
-corepack pnpm --dir .companyos-bootstrap/oregano install --frozen-lockfile
-corepack pnpm --dir .companyos-bootstrap/oregano companyos --version
+  "$oregano_root"
 ```
+
+Verify that `git rev-parse HEAD` equals the manifest's `core_commit`, that the
+tag points to that commit, and that the checkout is clean. Require the cloned
+root `package.json` `packageManager` field to start with
+`pnpm@<exact_pnpm_version>+sha512.`. Before installing any dependencies, invoke
+and check the exact pnpm version. Only after that check passes, perform the one
+locked install:
+
+```bash
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- pnpm --version
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" install --frozen-lockfile
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos --version
+```
+
+The first command must print exactly `<exact_pnpm_version>`. Stop before
+`install` when it does not. Ignore any notice that a newer pnpm is available;
+the verified Release pin is authoritative. Do not repair a mismatch by using a
+global pnpm.
 
 Require the checkout's root package version to equal `release_version` and the
 printed Workbench version to equal `workbench_version`. Any mismatch stops the
@@ -169,9 +194,12 @@ Write only those eight confirmed non-secret values to
 for explicit confirmation before creation:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos create workspace \
-  --answers .companyos-bootstrap/workspace-answers.yaml \
-  --parent . \
+workspace_answers="$setup_root/.companyos-bootstrap/workspace-answers.yaml"
+workspace_root="$setup_root/<target-directory>"
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos create workspace \
+  --answers "$workspace_answers" \
+  --parent "$setup_root" \
   --preview \
   --format json
 ```
@@ -180,13 +208,14 @@ After confirmation, apply the returned `confirmation_hash`, then run local
 verification. This is an internal checkpoint, not completion:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos create workspace \
-  --answers .companyos-bootstrap/workspace-answers.yaml \
-  --parent . \
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos create workspace \
+  --answers "$workspace_answers" \
+  --parent "$setup_root" \
   --confirm <workspace-confirmation-hash> \
   --format json
-corepack pnpm --dir .companyos-bootstrap/oregano companyos bootstrap verify \
-  ./<target-directory>
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos bootstrap verify "$workspace_root"
 ```
 
 ### GitHub destination
@@ -257,6 +286,11 @@ provider pricing or budget information. Ask the human to confirm the exact
 Write only the confirmed fields to
 `.companyos-bootstrap/live-answers.yaml`:
 
+```bash
+live_answers="$setup_root/.companyos-bootstrap/live-answers.yaml"
+live_state="$setup_root/.companyos-bootstrap/live-state.json"
+```
+
 ```yaml
 change_date: "2026-08-20"
 steward_email: anna@example.com
@@ -282,11 +316,12 @@ The example values are illustrative only. Never copy them as user answers.
 Run the non-mutating live plan:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos setup \
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos setup \
   --profile vercel-neon-slack \
-  --workspace ./<target-directory> \
-  --answers .companyos-bootstrap/live-answers.yaml \
-  --state .companyos-bootstrap/live-state.json \
+  --workspace "$workspace_root" \
+  --answers "$live_answers" \
+  --state "$live_state" \
   --plan \
   --format json
 ```
@@ -304,9 +339,10 @@ in the mode-0600 state file. Relay every `next_action` in plain language,
 perform only that action, and resume with the same state file:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos setup \
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos setup \
   --profile vercel-neon-slack \
-  --state .companyos-bootstrap/live-state.json \
+  --state "$live_state" \
   --resume \
   --format json
 ```
@@ -353,8 +389,8 @@ need to copy a Slack ID or database value.
 Finally run:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos verify-live \
-  --state .companyos-bootstrap/live-state.json
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos verify-live --state "$live_state"
 ```
 
 Do not announce completion unless this exits successfully. State the scope as

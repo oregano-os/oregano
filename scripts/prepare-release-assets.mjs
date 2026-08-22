@@ -18,6 +18,9 @@ const rootPackage = JSON.parse(readFileSync(join(root, "package.json"), "utf8"))
 const cliPackage = JSON.parse(readFileSync(join(root, "packages", "cli", "package.json"), "utf8"));
 const version = String(rootPackage.version ?? "");
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) throw new Error("Root package.json must declare one exact semantic version.");
+const packageManagerMatch = String(rootPackage.packageManager ?? "").match(/^pnpm@(\d+\.\d+\.\d+)\+sha512\.([0-9a-f]{128})$/);
+if (!packageManagerMatch) throw new Error("Root package.json must pin pnpm as pnpm@<exact-version>+sha512.<integrity>.");
+const pnpmVersion = packageManagerMatch[1];
 const tag = git("describe", "--tags", "--exact-match", "HEAD");
 if (tag !== `v${version}`) throw new Error(`Release tag '${tag}' does not match package version '${version}'.`);
 const coreCommit = git("rev-parse", "HEAD");
@@ -39,7 +42,7 @@ const manifest = {
   supported_agent_harnesses: ["codex", "claude-code"],
   default_profile: "vercel-neon-slack",
   default_model: "openai/gpt-5.4-nano",
-  requirements: { node: ">=24", pnpm: "11.16.0", vercel_cli: "56.3.2", git: true },
+  requirements: { node: ">=24", pnpm: pnpmVersion, vercel_cli: "56.3.2", git: true },
   checksums: Object.fromEntries(assetNames.map((name) => [name, `sha256:${sha256(join(output, name))}`])),
 };
 writeFileSync(join(output, "release-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

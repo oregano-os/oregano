@@ -39,6 +39,14 @@ through a checked, Steward-confirmed pull request, deploys an immutable Artifact
 and requires a real Slack round trip persisted in Neon. Completion is
 `companyos verify-live`, not local generation.
 
+The release manifest and root `package.json` pin the exact pnpm version. The
+agent invokes that version through npm's temporary package cache and verifies
+it before the first locked dependency installation. It does not install,
+replace, unlink, or force-link a global pnpm executable. The setup root,
+Oregano checkout, Workspace, answers, and state file are resolved to absolute
+paths before Workbench commands run, so changing pnpm's working directory
+cannot redirect an input.
+
 ## 1. Verify external account prerequisites
 
 Use individual human identities; never share one provider login between
