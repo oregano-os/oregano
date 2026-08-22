@@ -46,6 +46,7 @@ validation:
   - pnpm runner:build
   - git diff --check
 tests:
+  - automatic Core Change Plan discovery resolves one final plan for the pull request
   - generated Workspaces contain one Steward and no mandatory reviewer
   - live setup requires no reviewer answers, invitation, or approval
   - operating activation binds Slack to the original Steward
