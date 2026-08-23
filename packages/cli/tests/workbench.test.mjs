@@ -814,7 +814,12 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.match(install, /setup_root="\$\(pwd -P\)"/);
   assert.match(install, /oregano_root="\$setup_root\/\.companyos-bootstrap\/oregano"/);
   assert.ok(install.indexOf("pnpm --version") < install.indexOf('pnpm --dir "$oregano_root" install --frozen-lockfile'));
-  assert.match(releaseWorkflow, /immutable-releases/);
+  assert.doesNotMatch(releaseWorkflow, /immutable-releases/);
+  assert.match(releaseWorkflow, /releases\/tags\/\$GITHUB_REF_NAME/);
+  assert.ok(
+    releaseWorkflow.indexOf("Publish immutable GitHub Release")
+      < releaseWorkflow.indexOf("Verify published GitHub Release is immutable"),
+  );
   assert.match(releaseWorkflow, /pnpm runner:build/);
   assert.match(releaseWorkflow, /--draft/);
   assert.match(releaseWorkflow, /--draft=false --latest/);

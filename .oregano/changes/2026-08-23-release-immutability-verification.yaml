@@ -1,0 +1,50 @@
+version: 1
+plan_id: release-immutability-verification-2026-08-23
+status: implemented
+author: codex-agent
+created: 2026-08-23
+title: Verify release immutability with the Actions-accessible release API
+objective: >-
+  Keep release publication fail-evident without requiring an administrative
+  repository token that GitHub Actions cannot receive through GITHUB_TOKEN.
+non_goals:
+  - Change the repository Immutable Releases setting.
+  - Republish, replace, or mutate Oregano v0.3.0.
+  - Add a long-lived administrative token or secret.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Least privilege by construction
+  - Provenance is a first-class system
+files_expected:
+  - .github/workflows/release.yml
+  - .oregano/changes/2026-08-23-release-immutability-verification.yaml
+  - packages/cli/tests/workbench.test.mjs
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-23
+    evidence: explicit-user-instruction-in-codex-task-to-commit-merge-and-publish-the-release
+validation:
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-08-23-release-immutability-verification.yaml
+  - pnpm docs:check
+  - pnpm test
+  - git diff --check
+tests:
+  - The release workflow does not call the administration-only immutable-releases endpoint with GITHUB_TOKEN.
+  - The release workflow verifies the immutable field through the published tag release endpoint.
+  - Immutability verification runs only after the draft is published.
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: >-
+    The immutable-release contract and user flow are unchanged; this corrects
+    only which GitHub API endpoint the release workflow can access.
+rollback: >-
+  Restore the previous workflow only together with a scoped GitHub App token
+  that can read repository administration settings; never add a broad personal
+  token merely to satisfy the pre-publication check.
+open_decisions: []
