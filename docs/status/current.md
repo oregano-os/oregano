@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -22,7 +22,7 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core uses the `0.2.0` initial-development release line. Every Company
+- Oregano Core uses the `0.3.0` initial-development release line. Every Company
   Workspace advances independently under the canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
@@ -55,7 +55,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.4`; no
+  builds. Its repository release candidate is `0.1.0-experimental.5`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
@@ -66,8 +66,9 @@ evidence, historical prototypes, and production gaps.
 - The experimental `companyos setup --profile vercel-neon-slack` state machine
   continues from that checkpoint through explicit create-or-adopt GitHub,
   Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a
-  separately confirmed operating-starter diff, required-check and Steward
-  merge evidence, immutable Artifact injection, current
+  private GitHub repository, automatic best-effort hosted protection with no
+  paid-plan requirement, a separately confirmed operating-starter diff,
+  required-check and Steward merge evidence, immutable Artifact injection, current
   health verification, and nonce-bound Slack plus Neon persistence proof.
   `companyos verify-live` reports only `live-starter-instance` with readiness
   `validated`.
@@ -142,9 +143,10 @@ evidence, historical prototypes, and production gaps.
    tests but have not yet completed that release qualification.
 6. Publish a signed Workbench package so Workspace-only Contributors do not
    require a Core source checkout.
-7. Migrate existing Company Workspaces to externally enforced branch protection
-   and an explicit `steward` or `independent-review` mode; the new setup
-   automates only its own starter path.
+7. Require and qualify hosted repository protection before any future
+   unattended agent receives repository write, merge, or deployment authority;
+   the maintained supervised starter deliberately grants none of those
+   capabilities.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

@@ -55,6 +55,6 @@ export function inspectWorkspaceSecurity(root) {
     if (!/companyos.*validate|cli\.mjs validate/.test(workflow)) diagnostics.push(diagnostic("SEC020", "error", "Workspace CI must execute CompanyOS validation.", { file: ".github/workflows/check.yml" }));
     if (!/companyos.*inspect|cli\.mjs inspect/.test(workflow)) diagnostics.push(diagnostic("SEC021", "error", "Workspace CI must inspect governed pull-request diffs.", { file: ".github/workflows/check.yml" }));
   }
-  diagnostics.push(diagnostic("SEC019", "info", "Local files cannot prove hosted branch protection. A Repository Administrator must configure and verify the Git ruleset through the provider."));
+  diagnostics.push(diagnostic("SEC019", "info", "Local files cannot prove hosted branch protection. The maintained setup applies and verifies it when the provider supports it; unavailable hosted enforcement does not block the Tool-free supervised starter."));
   return diagnostics;
 }

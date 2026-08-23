@@ -19,7 +19,7 @@ export function inspectWorkspaceOnboarding(root) {
   const operatingAgents = Math.max(0, Number(workspace.summary?.agents ?? 0) - 1);
   const workspaceMode = workspace.summary?.workspace_mode ?? null;
   const unattendedWorkflows = Number(workspace.summary?.unattended_workflows ?? 0);
-  const hostedProtectionBlocked = protection.config?.verification?.status === "blocked";
+  const hostedProtectionStatus = protection.config?.verification?.status ?? "pending";
 
   return {
     diagnostics,
@@ -35,11 +35,9 @@ export function inspectWorkspaceOnboarding(root) {
     },
     checklist: [
       {
-        id: "git-host-account-and-plan",
-        status: hostedProtectionBlocked ? "blocked" : "manual",
-        next: hostedProtectionBlocked
-          ? `The GitHub account exists, but hosted protection is unavailable: ${protection.config.verification.blocker}. Use a private-repository plan that enforces rulesets and verify admin recovery ownership.`
-          : "The Repository Administrator must verify an individual GitHub identity, repository admin and recovery access, and a plan that enforces the declared ruleset.",
+        id: "git-host-account",
+        status: "manual",
+        next: "The Repository Administrator must verify an individual GitHub identity, private-repository admin access, and account recovery ownership. GitHub Free is sufficient for the supervised starter.",
       },
       {
         id: "workspace-contract",
@@ -63,11 +61,13 @@ export function inspectWorkspaceOnboarding(root) {
           : "Governance, CODEOWNERS, CI, and the protection contract are present.",
       },
       {
-        id: "github-ruleset",
-        status: hostedProtectionBlocked ? "blocked" : "manual",
-        next: hostedProtectionBlocked
-          ? `Hosted ruleset activation is blocked: ${protection.config.verification.blocker}. Resolve the provider prerequisite and retry.`
-          : "A Repository Administrator must apply and verify the declared ruleset on GitHub.",
+        id: "github-protection",
+        status: hostedProtectionStatus === "enforced" ? "complete" : "manual",
+        next: hostedProtectionStatus === "enforced"
+          ? "GitHub reports the declared protected-main controls as enforced."
+          : hostedProtectionStatus === "advisory"
+            ? "GitHub does not enforce the declared protected-main controls. This is acceptable for the supervised starter; require hosted enforcement before granting unattended repository write, merge, or deployment authority."
+            : "The maintained setup automatically applies and verifies the declared protected-main controls when GitHub supports them; unavailable hosted enforcement does not block the supervised starter.",
       },
       {
         id: "operating-model",

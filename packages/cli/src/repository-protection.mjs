@@ -58,15 +58,14 @@ export function inspectRepositoryProtectionContract(root) {
   }
   const bypass = config?.rules?.bypass;
   if (bypass !== "none") diagnostics.push(diagnostic("RPR009", "error", "Ruleset bypass must be 'none'.", { file: ".companyos/repository-protection.yaml" }));
-  if (!new Set(["pending", "blocked", "verified"]).has(config?.verification?.status)) {
-    diagnostics.push(diagnostic("RPR010", "error", "Repository protection verification.status must be pending, blocked, or verified.", { file: ".companyos/repository-protection.yaml" }));
+  if (!new Set(["pending", "advisory", "enforced"]).has(config?.verification?.status)) {
+    diagnostics.push(diagnostic("RPR010", "error", "Repository protection verification.status must be pending, advisory, or enforced.", { file: ".companyos/repository-protection.yaml" }));
   }
-  if (config?.verification?.status === "blocked" && (
-    typeof config?.verification?.blocker !== "string" || config.verification.blocker.length === 0 ||
+  if (new Set(["advisory", "enforced"]).has(config?.verification?.status) && (
     typeof config?.verification?.checked_at !== "string" || config.verification.checked_at.length === 0 ||
     typeof config?.verification?.checked_by !== "string" || config.verification.checked_by.length === 0
   )) {
-    diagnostics.push(diagnostic("RPR013", "error", "Blocked hosted verification must record blocker, checked_at, and checked_by.", { file: ".companyos/repository-protection.yaml" }));
+    diagnostics.push(diagnostic("RPR013", "error", "Completed hosted verification must record checked_at and checked_by.", { file: ".companyos/repository-protection.yaml" }));
   }
 
   return { config, diagnostics };

@@ -1,0 +1,68 @@
+version: 1
+plan_id: release-v0.3.0-2026-08-23
+status: implemented
+author: codex-agent
+created: 2026-08-23
+title: Release the single-path installer as Oregano v0.3.0
+objective: >-
+  Publish one immutable stable Oregano release whose Codex and Claude Code
+  installer uses the exact package-manager pin, supports GitHub Free without a
+  protection-mode choice, preserves existing professional repository controls,
+  and completes the supervised Vercel, Neon, and Slack starter.
+non_goals:
+  - Publish the private Workbench as an npm package.
+  - Add a floating release branch or mutable latest-stable tag.
+  - Add legacy setup-state compatibility or a migration for unreleased installations.
+  - Authorize unattended repository writes without hosted protection.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - Onboarding has no hidden steps
+  - Readiness is scoped and evidenced
+files_expected:
+  - .oregano/changes/2026-08-23-release-v0.3.0.yaml
+  - package.json
+  - docs/**
+  - packages/cli/package.json
+  - packages/cli/tests/**
+  - packages/testkit/**
+required_approvals:
+  - product-owner
+  - oregano-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-23
+    evidence: explicit-user-instruction-in-codex-task-to-commit-merge-and-publish-a-new-release
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-23
+    evidence: explicit-user-instruction-in-codex-task-to-commit-merge-and-publish-a-new-release
+validation:
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-23-release-v0.3.0.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core and Workbench report exact v0.3.0-compatible versions.
+  - Maintained Workspace fixtures pin Core 0.3.0 and Workbench 0.1.0-experimental.5.
+  - The full public-boundary, documentation, type, runtime, setup, and release suites pass.
+  - Release assets are generated only from the clean exact merged v0.3.0 tag.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - workbench.overview
+migration: >-
+  No Company Workspace has been installed from this contract, so there is no
+  deployed data, setup state, or repository to migrate. Unpublished fixtures
+  move directly to Core 0.3.0 and Workbench 0.1.0-experimental.5.
+rollback: >-
+  Do not mutate or delete the immutable release. Correct a release defect
+  through a newer checked version and direct installers to that exact release;
+  v0.2.0 remains available as historical provenance.
+open_decisions: []

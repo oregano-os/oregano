@@ -259,9 +259,8 @@ export function renderWorkspace(input, coreIdentity) {
     },
     verification: {
       status: "pending",
-      ruleset_id: null,
-      verified_at: null,
-      verified_by: null,
+      checked_at: null,
+      checked_by: null,
     },
   }));
 

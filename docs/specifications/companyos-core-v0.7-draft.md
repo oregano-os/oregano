@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -119,9 +119,11 @@ Every Workspace MUST declare `.companyos/compatibility.yaml` and
 `.companyos/repository-protection.yaml`. In co-checkout mode the compatibility
 contract MUST pin an immutable Core commit and exact Workbench version. A
 floating branch is not a compatibility contract. The protection contract MUST
-declare the minimum hosted ruleset, while provider-side verification remains a
-Platform Administrator responsibility exercised through the `repository`
-scope.
+declare the intended Git workflow and hosted-hardening baseline. Provider-side
+verification records `pending`, `advisory`, or `enforced`; unavailable hosted
+enforcement does not block the Tool-free supervised starter. Hosted enforcement
+MUST be verified before an unattended agent receives repository write, merge,
+or deployment authority.
 
 When Blueprint or Tool Packages are installed, the Workspace MUST version their
 exact origin and managed-file or Tool provenance in the Workspace Package lock.
@@ -308,11 +310,14 @@ A Workspace governance policy MUST:
 
 Repository permissions, required CI, protected branches, and CODEOWNERS SHOULD
 enforce the local policy on the hosting platform. Local files alone are not a
-security boundary against an administrator with write access.
+security boundary against an administrator with write access. The maintained
+starter MUST attempt hosted protection automatically, MUST NOT weaken existing
+provider controls, and MUST report the resulting enforcement status without
+requiring a paid plan for supervised operation.
 
-In `review_mode: steward`, repository protection MUST require zero GitHub
-approvals and MUST NOT require CODEOWNER review; the Change Plan and explicit
-human merge confirmation record the Steward's authority. In
+When Oregano creates hosted protection for `review_mode: steward`, it MUST
+require zero GitHub approvals and MUST NOT require CODEOWNER review; the Change
+Plan and explicit human merge confirmation record the Steward's authority. In
 `review_mode: independent-review`, `two_person_review` means the author plus at
 least one independent authorized reviewer, repository protection MUST require
 one CODEOWNER approval, and the author MUST NOT be the sole approver.

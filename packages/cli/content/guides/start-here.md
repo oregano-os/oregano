@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -26,6 +26,7 @@ availability: experimental
 5. For behavior or security work, create a Change Plan.
 6. Read the object-specific Guide before editing.
 7. Run `companyos inspect` and `companyos validate` after editing.
-8. Submit a pull request; never push directly to the protected branch.
+8. Submit a pull request; never push directly to `main`, whether or not the Git
+   host enforces branch protection.
 9. Follow [Version a Release](version-a-release.md) when a release-bearing
    change modifies Core or Workspace behavior.

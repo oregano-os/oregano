@@ -24,7 +24,7 @@ import {
   renderWorkspace,
 } from "../src/workspace-generator.mjs";
 import { WORKBENCH_VERSION } from "../src/workbench-version.mjs";
-import { CORE_VERSION } from "../src/core-version.mjs";
+import { CORE_VERSION, PACKAGE_MANAGER_SPEC, PNPM_VERSION } from "../src/core-version.mjs";
 
 const REPO = resolve(import.meta.dirname, "..", "..", "..");
 const FIXTURE = join(REPO, "packages", "testkit", "fixtures", "acme-casas");
@@ -39,8 +39,8 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.2.0");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.4");
+  assert.equal(CORE_VERSION, "0.3.0");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.5");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -104,9 +104,9 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.2.0",
+    core: "0.3.0",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.4",
+    workbench: "0.1.0-experimental.5",
     companyos_spec: "0.7-draft",
   });
 
@@ -126,12 +126,24 @@ test("the fixture demonstrates every repository-local security control", () => {
 test("onboarding reports local readiness and keeps hosted controls manual", () => {
   const result = inspectWorkspaceOnboarding(FIXTURE);
   assert.equal(result.summary.readiness, "ready-for-hosted-setup");
-  assert.equal(result.checklist.find((item) => item.id === "git-host-account-and-plan")?.status, "manual");
-  assert.match(result.checklist.find((item) => item.id === "git-host-account-and-plan")?.next ?? "", /GitHub/);
+  assert.equal(result.checklist.find((item) => item.id === "git-host-account")?.status, "manual");
+  assert.match(result.checklist.find((item) => item.id === "git-host-account")?.next ?? "", /GitHub Free is sufficient/);
   assert.equal(result.checklist.find((item) => item.id === "core-and-workbench-pin")?.status, "complete");
-  assert.equal(result.checklist.find((item) => item.id === "github-ruleset")?.status, "manual");
+  assert.equal(result.checklist.find((item) => item.id === "github-protection")?.status, "manual");
   assert.match(result.checklist.find((item) => item.id === "company-instance")?.next ?? "", /Vercel.*Neon\/Postgres/);
 });
+
+test("advisory hosted protection does not block the supervised starter", () => withFixture((workspace) => {
+  const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
+  const protection = YAML.parse(readFileSync(protectionPath, "utf8"));
+  protection.verification = { status: "advisory", checked_at: "2026-08-23T10:00:00.000Z", checked_by: "platform-admin" };
+  writeFileSync(protectionPath, YAML.stringify(protection));
+  const result = inspectWorkspaceOnboarding(workspace);
+  assert.equal(result.summary.readiness, "ready-for-hosted-setup");
+  const hosted = result.checklist.find((item) => item.id === "github-protection");
+  assert.equal(hosted?.status, "manual");
+  assert.match(hosted?.next ?? "", /acceptable for the supervised starter/);
+}));
 
 test("authoring-only onboarding defers runtime-provider accounts", () => withFixture((workspace) => {
   rmSync(join(workspace, "agents", "ops"), { recursive: true, force: true });
@@ -598,7 +610,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.2.0",
+  core_version: "0.3.0",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };
@@ -769,7 +781,9 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   const readme = readFileSync(join(REPO, "README.md"), "utf8");
   const releaseManifest = JSON.parse(readFileSync(join(REPO, "release-manifest.json"), "utf8"));
   const rootPackage = JSON.parse(readFileSync(join(REPO, "package.json"), "utf8"));
+  const checkWorkflow = readFileSync(join(REPO, ".github", "workflows", "check.yml"), "utf8");
   const releaseWorkflow = readFileSync(join(REPO, ".github", "workflows", "release.yml"), "utf8");
+  const releaseScript = readFileSync(join(REPO, "scripts", "prepare-release-assets.mjs"), "utf8");
   assert.match(runbook, /supports Codex and Claude Code/);
   assert.match(runbook, /companyos verify-live/);
   assert.match(runbook, /release-manifest\.json/);
@@ -783,7 +797,23 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.equal(releaseManifest.default_profile, "vercel-neon-slack");
   assert.equal(releaseManifest.requirements.vercel_cli, "56.3.2");
   assert.equal(rootPackage.devDependencies.vercel, releaseManifest.requirements.vercel_cli);
-  assert.match(install, /exact Vercel\s+CLI is included in the locked Oregano dependencies/);
+  assert.equal(PNPM_VERSION, releaseManifest.requirements.pnpm);
+  assert.equal(PACKAGE_MANAGER_SPEC, rootPackage.packageManager);
+  assert.match(rootPackage.packageManager, /^pnpm@11\.16\.0\+sha512\.[0-9a-f]{128}$/);
+  for (const workflow of [checkWorkflow, releaseWorkflow]) {
+    assert.match(workflow, /uses: pnpm\/action-setup@v4/);
+    assert.doesNotMatch(workflow, /version:\s*11\.16\.0/);
+  }
+  assert.match(releaseScript, /rootPackage\.packageManager/);
+  assert.doesNotMatch(releaseScript, /pnpm: "11\.16\.0"/);
+  assert.match(install, /exact Vercel CLI is included in the locked\s+Oregano dependencies/);
+  assert.match(install, /npm exec --yes --package="pnpm@\$exact_pnpm_version"/);
+  assert.doesNotMatch(install, /\bcorepack\b/i);
+  assert.doesNotMatch(install, /--dir \.companyos-bootstrap\/oregano/);
+  assert.doesNotMatch(install, /--(?:answers|state) \.companyos-bootstrap\//);
+  assert.match(install, /setup_root="\$\(pwd -P\)"/);
+  assert.match(install, /oregano_root="\$setup_root\/\.companyos-bootstrap\/oregano"/);
+  assert.ok(install.indexOf("pnpm --version") < install.indexOf('pnpm --dir "$oregano_root" install --frozen-lockfile'));
   assert.match(releaseWorkflow, /immutable-releases/);
   assert.match(releaseWorkflow, /pnpm runner:build/);
   assert.match(releaseWorkflow, /--draft/);

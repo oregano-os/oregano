@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -33,13 +33,16 @@ Checklist states are:
 
 - `complete` — the local deterministic requirement is satisfied;
 - `blocked` — a local error must be corrected;
-- `manual` — an accountable administrator must verify external state;
+- `manual` — external state cannot be proven locally; the maintained setup may
+  establish and record it later, or an accountable administrator may verify it;
 - `deferred` — the capability is intentionally absent, such as operating
   automation in an authoring-only Workspace.
 
-The command is read-only. It does not create GitHub rulesets, identities,
+The command is read-only. It does not create GitHub protection, identities,
 provider accounts, secrets, or Company Instances and never treats a mutable
-file as proof that an external control exists.
+file as proof that an external control exists. The later maintained setup
+attempts hosted GitHub protection automatically and does not require a paid
+GitHub plan for the supervised starter.
 
 The maintained provider examples are GitHub for Git hosting, Vercel for runtime
 hosting, and Neon/Postgres for durable state. `authoring-only` mode does not require runtime

@@ -11,7 +11,8 @@ This runbook finishes only when all of the following are true for one exact
 release candidate:
 
 - the company's Company Workspace is in a private GitHub repository;
-- protected `main` rules, the required CompanyOS check, and Steward-controlled merge are verified;
+- the required CompanyOS check and Steward-controlled merge are verified, and
+  the current hosted-protection status is reported;
 - one supervised, Tool-free Oregano Agent is approved by the Workspace Steward;
 - one Vercel project runs the maintained CompanyOS Runner;
 - one dedicated Neon/Postgres resource persists Instance and chat state;
@@ -39,9 +40,10 @@ OpenClaw component, MCP server, or global hook for this path.
 7. Show the complete deterministic plan and receive its exact confirmation
    before external mutation. Show the operating Workspace and production
    candidate confirmations when the Workbench requests them.
-8. Do not bypass the pull-request, required-check, explicit Steward
-   confirmation, or protected-branch controls. The installing agent cannot
-   supply the human's merge or production authorization.
+8. Do not bypass the pull-request, required-check, or explicit Steward
+   confirmation, and never remove or weaken existing protected-branch
+   controls. The installing agent cannot supply the human's merge or
+   production authorization.
 9. Do not delete or replace an existing file, repository, project, database,
    connector, deployment, or Slack installation to recover from an error.
 10. On failure, explain the named phase and resume from the non-secret state
@@ -73,6 +75,7 @@ Require all of the following:
 - `release_version` and `workbench_version` are exact semantic versions;
 - `tag` is exactly `v<release_version>`;
 - `core_commit` is a 40-character Git SHA; and
+- `requirements.pnpm` is one exact semantic version;
 - `requirements.vercel_cli` is exactly `56.3.2`; and
 - the downloaded runbook's SHA-256 equals
   `checksums.INSTALL-COMPANYOS.md` after removing the `sha256:` prefix.
@@ -82,26 +85,50 @@ Tell the human: “I will install Oregano release `<tag>` at exact commit
 be running in Slack with a private GitHub Workspace, Vercel hosting, and a Neon
 database.”
 
-Check for Git, Node.js 24 or newer, Corepack, and GitHub CLI. The exact Vercel
-CLI is included in the locked Oregano dependencies and does not need a separate
-global installation. A
-missing prerequisite is not a task for the human to diagnose. Explain what is
-missing and ask before installing the exact supported version through the
-platform's ordinary package manager. Never pipe a network download into a
-shell.
+Check for Git, Node.js 24 or newer with npm, and GitHub CLI. The exact pnpm
+version is invoked from npm's temporary package cache; neither pnpm nor another
+package-manager shim needs a global installation. Ignore an existing global
+pnpm. Do not uninstall it, overwrite it, force-link another executable over it,
+or use it for this installation. The exact Vercel CLI is included in the locked
+Oregano dependencies and also needs no global installation. A missing
+prerequisite is not a task for the human to diagnose. Explain what is missing
+and ask before installing the exact supported version through the platform's
+ordinary package manager. Never pipe a network download into a shell.
 
-In the empty setup directory, clone the exact tag into
-`.companyos-bootstrap/oregano`. Verify that `git rev-parse HEAD` equals the
-manifest's `core_commit`, that the tag points to that commit, and that the
-checkout is clean. Then install the locked dependencies:
+In the empty setup directory, record one absolute setup root and use absolute
+paths for every later Workbench input. Replace the two angle-bracket values
+below with the already verified manifest values. Clone the exact tag into the
+private bootstrap directory:
 
 ```bash
+setup_root="$(pwd -P)"
+oregano_root="$setup_root/.companyos-bootstrap/oregano"
+exact_pnpm_version="<requirements.pnpm from the verified manifest>"
+mkdir -p "$setup_root/.companyos-bootstrap"
 git clone --branch <exact-tag> --single-branch \
   https://github.com/oregano-os/oregano.git \
-  .companyos-bootstrap/oregano
-corepack pnpm --dir .companyos-bootstrap/oregano install --frozen-lockfile
-corepack pnpm --dir .companyos-bootstrap/oregano companyos --version
+  "$oregano_root"
 ```
+
+Verify that `git rev-parse HEAD` equals the manifest's `core_commit`, that the
+tag points to that commit, and that the checkout is clean. Require the cloned
+root `package.json` `packageManager` field to start with
+`pnpm@<exact_pnpm_version>+sha512.`. Before installing any dependencies, invoke
+and check the exact pnpm version. Only after that check passes, perform the one
+locked install:
+
+```bash
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- pnpm --version
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" install --frozen-lockfile
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos --version
+```
+
+The first command must print exactly `<exact_pnpm_version>`. Stop before
+`install` when it does not. Ignore any notice that a newer pnpm is available;
+the verified Release pin is authoritative. Do not repair a mismatch by using a
+global pnpm.
 
 Require the checkout's root package version to equal `release_version` and the
 printed Workbench version to equal `workbench_version`. Any mismatch stops the
@@ -125,11 +152,12 @@ Explain the account requirements in novice language:
 
 - A personal GitHub account is sufficient; a GitHub organization is optional
   and should be selected only when the company already has one. Do not ask the
-  human to create an organization merely for CompanyOS. The required private
-  protected repository currently needs GitHub Pro for a personal account or
-  GitHub Team/Enterprise for an organization. Explain that possible subscription
-  cost and stop before resource creation when the selected plan cannot enforce
-  the protection.
+  human to create an organization merely for CompanyOS. GitHub Free is
+  sufficient for the maintained supervised starter. The setup automatically
+  applies hosted protected-`main` controls when the account supports them and
+  otherwise continues with the same pull-request, CompanyOS-check, and Steward
+  confirmation process. Do not ask the human to upgrade GitHub or choose a
+  repository-protection mode.
 - The Workspace repository is private by default.
 - Vercel may use a personal account or an existing company team.
 - Neon is provisioned through Vercel's managed integration in this profile;
@@ -169,9 +197,12 @@ Write only those eight confirmed non-secret values to
 for explicit confirmation before creation:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos create workspace \
-  --answers .companyos-bootstrap/workspace-answers.yaml \
-  --parent . \
+workspace_answers="$setup_root/.companyos-bootstrap/workspace-answers.yaml"
+workspace_root="$setup_root/<target-directory>"
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos create workspace \
+  --answers "$workspace_answers" \
+  --parent "$setup_root" \
   --preview \
   --format json
 ```
@@ -180,13 +211,14 @@ After confirmation, apply the returned `confirmation_hash`, then run local
 verification. This is an internal checkpoint, not completion:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos create workspace \
-  --answers .companyos-bootstrap/workspace-answers.yaml \
-  --parent . \
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos create workspace \
+  --answers "$workspace_answers" \
+  --parent "$setup_root" \
   --confirm <workspace-confirmation-hash> \
   --format json
-corepack pnpm --dir .companyos-bootstrap/oregano companyos bootstrap verify \
-  ./<target-directory>
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos bootstrap verify "$workspace_root"
 ```
 
 ### GitHub destination
@@ -194,9 +226,10 @@ corepack pnpm --dir .companyos-bootstrap/oregano companyos bootstrap verify \
 Say what will happen first:
 
 > I will initialize the generated Workspace as a Git repository, create or
-> adopt one private GitHub repository, push the authoring baseline, and apply
-> protected `main` rules. You remain the responsible Workspace Steward and
-> will confirm the merge after the required CompanyOS check passes.
+> adopt one private GitHub repository, push the authoring baseline, and
+> automatically apply protected `main` rules when GitHub supports them. GitHub
+> Free is sufficient. You remain the responsible Workspace Steward and will
+> confirm the merge after the required CompanyOS check passes.
 
 Ask whether to use the currently authenticated personal GitHub account or an
 existing organization. For a personal account, use the login as
@@ -204,6 +237,9 @@ existing organization. For a personal account, use the login as
 authenticated user and let the human select one. Ask for the repository name.
 Ask explicitly whether this is a new resource (`create`) or a named existing
 private repository (`adopt`). Never silently switch modes.
+Do not overwrite existing repository protection. Accept an existing baseline
+that is at least as strict; otherwise leave the adopted repository unchanged
+and report hosted enforcement as advisory.
 
 ### Vercel destination
 
@@ -257,6 +293,11 @@ provider pricing or budget information. Ask the human to confirm the exact
 Write only the confirmed fields to
 `.companyos-bootstrap/live-answers.yaml`:
 
+```bash
+live_answers="$setup_root/.companyos-bootstrap/live-answers.yaml"
+live_state="$setup_root/.companyos-bootstrap/live-state.json"
+```
+
 ```yaml
 change_date: "2026-08-20"
 steward_email: anna@example.com
@@ -282,19 +323,21 @@ The example values are illustrative only. Never copy them as user answers.
 Run the non-mutating live plan:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos setup \
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos setup \
   --profile vercel-neon-slack \
-  --workspace ./<target-directory> \
-  --answers .companyos-bootstrap/live-answers.yaml \
-  --state .companyos-bootstrap/live-state.json \
+  --workspace "$workspace_root" \
+  --answers "$live_answers" \
+  --state "$live_state" \
   --plan \
   --format json
 ```
 
 Show the human the named GitHub, Vercel, Neon, and Slack resources, create or
-adopt modes, protected-main and required-check controls, model, possible costs,
-security boundary, and rollback behavior. Ask whether to execute exactly this
-plan. After explicit confirmation, pass its hash through `--apply`.
+adopt modes, automatic hosted-protection attempt, required-check controls,
+model, possible costs, security boundary, and rollback behavior. Ask whether
+to execute exactly this plan. After explicit confirmation, pass its hash
+through `--apply`.
 
 ## Phase 4 — execute and resume
 
@@ -304,9 +347,10 @@ in the mode-0600 state file. Relay every `next_action` in plain language,
 perform only that action, and resume with the same state file:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos setup \
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos setup \
   --profile vercel-neon-slack \
-  --state .companyos-bootstrap/live-state.json \
+  --state "$live_state" \
   --resume \
   --format json
 ```
@@ -331,8 +375,8 @@ Expected human gates:
    `--production-confirmation <hash>` only after explicit approval.
 
 If a command reports `blocked`, do not improvise around it. Explain the phase,
-correct the provider permission, unavailable plan, naming collision, hosted
-protection, rejected review, validation error, or health failure, and resume.
+correct the provider permission, naming collision, rejected review, validation
+error, or health failure, and resume.
 Created resources remain user-owned. Deletion is never an automatic recovery
 step.
 
@@ -353,22 +397,23 @@ need to copy a Slack ID or database value.
 Finally run:
 
 ```bash
-corepack pnpm --dir .companyos-bootstrap/oregano companyos verify-live \
-  --state .companyos-bootstrap/live-state.json
+npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
+  pnpm --dir "$oregano_root" companyos verify-live --state "$live_state"
 ```
 
 Do not announce completion unless this exits successfully. State the scope as
 `live-starter-instance` and the readiness as `validated`. Explain that this
-proves the exact private/protected Workspace, immutable version pair, Vercel
-health, Neon persistence, authorized Slack identity, and one real Slack round
-trip. It does not authorize business Tools, unattended workflows, or a general
-claim of enforced production readiness.
+proves the exact private Workspace, checked pull request, explicit Steward
+merge, immutable version pair, Vercel health, Neon persistence, authorized
+Slack identity, and one real Slack round trip. Report hosted GitHub protection
+separately as `enforced` or `advisory`. It does not authorize business Tools,
+unattended workflows, or a general claim of enforced production readiness.
 
 ## Handoff
 
 Give the human:
 
-- the private GitHub repository and protected branch;
+- the private GitHub repository and its detected hosted-protection status;
 - the Vercel project and production URL;
 - the Neon resource name, owner, selected plan, region, and recovery link;
 - the Slack app/connector, workspace, test channel, and uninstall path;
