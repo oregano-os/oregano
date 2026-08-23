@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -51,13 +51,14 @@ The first two commands check the local Workspace contract, immutable Core and
 Workbench pin, governance, CODEOWNERS, CI, and the declared
 repository-protection baseline. They deliberately report hosted facts as
 manual because repository files cannot prove external state. The setup state
-machine obtains and records separate provider and runtime evidence without
-placing credentials in the Workspace or state file.
+machine then attempts hosted protection automatically and records `enforced` or
+`advisory` alongside the other provider and runtime evidence without placing
+credentials in the Workspace or state file.
 
 An authoring-only Workspace is valid with no operating agents and no executable
 workflows. It must not invent automation merely to pass onboarding. The live
-starter makes the move to `operating` as a separate hash-bound and independently
-reviewed change: one supervised Oregano Agent, one Slack workflow, one
+starter makes the move to `operating` as a separate hash-bound, checked, and
+Steward-confirmed change: one supervised Oregano Agent, one Slack workflow, one
 non-secret connection declaration, and no business Tool grants.
 
 ## Maintenance contract

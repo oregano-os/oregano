@@ -192,7 +192,7 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
     outcome: "One private GitHub Company Workspace and one supervised Oregano Company Instance on Vercel with Neon/Postgres and Slack.",
     mutations: [
       `Initialize and push ${normalized.answers.github_owner}/${normalized.answers.github_repository} as a private GitHub repository.`,
-      "Apply the solo-Steward protected-main baseline with pull requests and the required CompanyOS check.",
+      "Detect and preserve hosted protection on an adopted repository, or apply the solo-Steward protected-main baseline to a new repository when GitHub supports it; otherwise retain the same pull-request, CompanyOS-check, and Steward-confirmation process without hosted enforcement.",
       `${normalized.answers.vercel_project_mode === "create" ? "Create" : "Adopt"} Vercel project '${normalized.answers.vercel_project}' in '${normalized.answers.vercel_scope}'.`,
       `${normalized.answers.neon_resource_mode === "create" ? "Create" : "Adopt"} Neon resource '${normalized.answers.neon_resource_name}' on plan '${normalized.answers.neon_plan}'.`,
       `${normalized.answers.slack_connector_mode === "create" ? "Create" : "Adopt"} Slack connector '${normalized.answers.slack_connector_name}' and attach /api/webhooks/slack.`,
@@ -209,6 +209,7 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
     ],
     safety: {
       github_visibility: "private",
+      github_protection: "automatic-best-effort",
       execution_mode: "supervised",
       business_tools: [],
       credentials_in_chat_or_git: false,
@@ -383,23 +384,47 @@ const ensureInitialWorkspaceCommit = (executor, state) => {
 
 const githubRepository = (state) => `${state.answers.github_owner}/${state.answers.github_repository}`;
 
-const inspectGitHubProtection = (executor, repository) => {
-  const protection = parseJson(gh(executor, ["api", `repos/${repository}/branches/main/protection`]).stdout, "GitHub branch protection");
+const assertGitHubProtectionBaseline = (protection) => {
   const contexts = new Set([
     ...(protection?.required_status_checks?.contexts ?? []),
     ...(protection?.required_status_checks?.checks ?? []).map((item) => item?.context).filter(Boolean),
   ]);
+  const approvals = Number(protection?.required_pull_request_reviews?.required_approving_review_count);
   if (!contexts.has("check") || protection?.required_status_checks?.strict !== true || protection?.enforce_admins?.enabled !== true ||
-      protection?.required_pull_request_reviews?.dismiss_stale_reviews !== true || protection?.required_pull_request_reviews?.require_code_owner_reviews !== false ||
-      Number(protection?.required_pull_request_reviews?.required_approving_review_count) !== 0 || protection?.allow_force_pushes?.enabled === true ||
+      protection?.required_pull_request_reviews?.dismiss_stale_reviews !== true || !Number.isInteger(approvals) || approvals < 0 ||
+      protection?.allow_force_pushes?.enabled === true ||
       protection?.allow_deletions?.enabled === true || protection?.required_conversation_resolution?.enabled !== true) {
     throw new Error("GitHub did not report the complete required protected-main baseline after applying it.");
   }
   return protection;
 };
 
+const inspectGitHubProtection = (executor, repository) => assertGitHubProtectionBaseline(
+  parseJson(gh(executor, ["api", `repos/${repository}/branches/main/protection`]).stdout, "GitHub branch protection"),
+);
+
 const applyGitHubProtection = (executor, state) => {
   const repository = githubRepository(state);
+  const existing = gh(executor, ["api", `repos/${repository}/branches/main/protection`], { allowFailure: true });
+  if (existing.status === 0) {
+    try {
+      assertGitHubProtectionBaseline(parseJson(existing.stdout, "GitHub branch protection"));
+      return { status: "enforced", checked_at: now(), source: "existing" };
+    } catch {
+      return {
+        status: "advisory",
+        checked_at: now(),
+        reason: "existing-github-protection-left-unchanged",
+      };
+    }
+  }
+  if (state.answers.github_repository_mode === "adopt") {
+    return {
+      status: "advisory",
+      checked_at: now(),
+      reason: "adopted-repository-protection-left-unchanged",
+    };
+  }
   const payload = JSON.stringify({
     required_status_checks: { strict: true, contexts: ["check"] },
     enforce_admins: true,
@@ -413,8 +438,24 @@ const applyGitHubProtection = (executor, state) => {
     allow_deletions: false,
     required_conversation_resolution: true,
   });
-  gh(executor, ["api", "--method", "PUT", `repos/${repository}/branches/main/protection`, "--input", "-"], { input: payload });
-  inspectGitHubProtection(executor, repository);
+  const applied = gh(executor, ["api", "--method", "PUT", `repos/${repository}/branches/main/protection`, "--input", "-"], { input: payload, allowFailure: true });
+  if (applied.status !== 0) {
+    return {
+      status: "advisory",
+      checked_at: now(),
+      reason: "github-did-not-accept-hosted-protection",
+    };
+  }
+  try {
+    inspectGitHubProtection(executor, repository);
+    return { status: "enforced", checked_at: now(), source: "oregano" };
+  } catch {
+    return {
+      status: "advisory",
+      checked_at: now(),
+      reason: "github-did-not-confirm-hosted-protection",
+    };
+  }
 };
 
 const createOperatingPullRequest = (executor, state) => {
@@ -547,8 +588,7 @@ export async function advanceLiveSetup({
         state.resources.github = { repository, url: repositoryData.url, visibility: "PRIVATE", mode: state.answers.github_repository_mode, authenticated_login: authenticatedLogin };
         savePhase(absoluteStatePath, state, "github-protection");
       } else if (state.phase === "github-protection") {
-        applyGitHubProtection(executor, state);
-        state.resources.github.protection_verified = true;
+        state.resources.github.protection = applyGitHubProtection(executor, state);
         savePhase(absoluteStatePath, state, "vercel-auth");
       } else if (state.phase === "vercel-auth") {
         if (vercel(executor, coreRoot, ["whoami"], { scope: state.answers.vercel_scope, allowFailure: true }).status !== 0) return wait(absoluteStatePath, state, "Vercel needs your browser login before the runtime project can be created.", { type: "browser-login", command: ["vercel", "login"] });
@@ -713,7 +753,8 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
   }
   if (state.phase !== "complete") diagnostics.push(diagnostic("LIVE101", "error", `Live setup is not complete; current phase is '${state.phase}'.`));
   if (state.resources.github?.visibility !== "PRIVATE") diagnostics.push(diagnostic("LIVE102", "error", "GitHub repository is not recorded as private."));
-  if (state.resources.github?.protection_verified !== true) diagnostics.push(diagnostic("LIVE103", "error", "GitHub protected-main enforcement is not verified."));
+  const recordedProtection = state.resources.github?.protection?.status;
+  if (!new Set(["enforced", "advisory"]).has(recordedProtection)) diagnostics.push(diagnostic("LIVE103", "error", "GitHub hosted-protection attempt evidence is missing."));
   if (!state.resources.neon?.id && !state.resources.neon?.uid && !state.resources.neon?.name) diagnostics.push(diagnostic("LIVE104", "error", "Neon resource evidence is missing."));
   if (!state.resources.slack?.uid || !state.resources.slack?.team_id || !state.resources.slack?.user_id) diagnostics.push(diagnostic("LIVE105", "error", "Slack connector or canonical human principal evidence is missing."));
   if (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.merge_authorized_by !== state.resources.github?.authenticated_login || !/^\d{4}-\d{2}-\d{2}T/.test(state.operating?.merge_authorized_at ?? "") || state.operating?.required_check !== "passed") diagnostics.push(diagnostic("LIVE106", "error", "Workspace Steward merge authorization, required check, or immutable merge evidence is missing."));
@@ -725,19 +766,32 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
     } catch (error) { diagnostics.push(diagnostic("LIVE109", "error", safeError(error.message))); }
   } else diagnostics.push(diagnostic("LIVE110", "error", "Production deployment URL is missing."));
   const repository = state.resources.github?.repository;
+  let currentProtection = recordedProtection;
   if (repository) {
     const hosted = gh(executor, ["repo", "view", repository, "--json", "visibility"], { allowFailure: true });
     if (hosted.status !== 0) diagnostics.push(diagnostic("LIVE111", "error", "GitHub repository can no longer be verified with the current login."));
     else if (String(parseJson(hosted.stdout, "GitHub repository").visibility).toUpperCase() !== "PRIVATE") diagnostics.push(diagnostic("LIVE112", "error", "GitHub reports that the Workspace repository is not private."));
-    try { inspectGitHubProtection(executor, repository); }
-    catch (error) { diagnostics.push(diagnostic("LIVE113", "error", safeError(error.message))); }
+    try {
+      inspectGitHubProtection(executor, repository);
+      currentProtection = "enforced";
+    } catch {
+      currentProtection = "advisory";
+      diagnostics.push(diagnostic(
+        "LIVE113",
+        recordedProtection === "enforced" ? "warning" : "info",
+        recordedProtection === "enforced"
+          ? "GitHub no longer reports the previously verified protected-main controls. The supervised starter remains valid, but hosted enforcement is now advisory."
+          : "GitHub does not enforce the protected-main baseline for this private repository. The supervised starter remains valid through its checked pull-request and explicit Steward merge evidence.",
+      ));
+    }
   }
   return {
     verification: {
       ok: !hasErrors(diagnostics),
       scope: "live-starter-instance",
       readiness: !hasErrors(diagnostics) ? "validated" : "not-validated",
-      statement: "Verification proves this exact supervised starter Instance: private protected GitHub Workspace, immutable Core and Workspace provenance, Vercel health, Neon persistence, and one authorized Slack round trip. It does not authorize business Tools, unattended workflows, or claim general enforced production readiness.",
+      github_protection: currentProtection,
+      statement: "Verification proves this exact supervised starter Instance: private GitHub Workspace, checked pull request, explicit Steward merge, immutable Core and Workspace provenance, Vercel health, Neon persistence, and one authorized Slack round trip. Hosted GitHub protection is reported separately and is not required for this Tool-free supervised starter. This does not authorize business Tools, unattended workflows, or claim general enforced production readiness.",
     },
     state: {
       profile: state.profile,

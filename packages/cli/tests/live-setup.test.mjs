@@ -68,6 +68,15 @@ const liveAnswers = (overrides = {}) => ({
   ...overrides,
 });
 
+const enforcedGitHubProtection = {
+  required_status_checks: { strict: true, contexts: ["check"] },
+  enforce_admins: { enabled: true },
+  required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: false, required_approving_review_count: 0 },
+  allow_force_pushes: { enabled: false },
+  allow_deletions: { enabled: false },
+  required_conversation_resolution: { enabled: true },
+};
+
 const operatingAnswers = (overrides = {}) => ({
   change_date: "2026-08-20",
   slack_team_id: "T12345678",
@@ -144,6 +153,7 @@ test("live planning is deterministic and state initialization is confirmation-bo
   assert.equal(first.diagnostics.filter((item) => item.severity === "error").length, 0);
   assert.equal(first.plan.confirmation_hash, second.plan.confirmation_hash);
   assert.equal(first.plan.safety.github_visibility, "private");
+  assert.equal(first.plan.safety.github_protection, "automatic-best-effort");
   assert.deepEqual(first.plan.safety.business_tools, []);
 
   const refused = initializeLiveSetup({ planResult: first, confirmationHash: "0".repeat(64) });
@@ -295,6 +305,140 @@ test("preflight refuses a package manager version other than the repository pin"
   assert.deepEqual(result.next_action.command.slice(0, 6), ["npm", "exec", "--yes", `--package=pnpm@${PNPM_VERSION}`, "--", "pnpm"]);
 }));
 
+test("live setup records hosted GitHub protection when the provider enforces it", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "github-protection-enforced-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 1,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-20T00:00:00.000Z",
+    updated_at: "2026-08-20T00:00:00.000Z",
+    phase: "github-protection",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers(),
+    resources: { github: { repository: "example-company/companyos", visibility: "PRIVATE", authenticated_login: "anna-example" } },
+    operating: {},
+    artifact: {},
+    deployment: {},
+    verification: {},
+    history: [],
+  });
+  let protectionReads = 0;
+  let protectionWrites = 0;
+  const result = await advanceLiveSetup({
+    statePath,
+    executor: {
+      run(file, args) {
+        if (file === "gh" && args.includes("--method")) {
+          protectionWrites += 1;
+          return { status: 0, stdout: "", stderr: "" };
+        }
+        if (file === "gh") {
+          protectionReads += 1;
+          return protectionReads === 1
+            ? { status: 1, stdout: "", stderr: "not configured" }
+            : { status: 0, stdout: JSON.stringify(enforcedGitHubProtection), stderr: "" };
+        }
+        if (file === "vercel") return { status: 1, stdout: "", stderr: "not logged in" };
+        return { status: 0, stdout: "", stderr: "" };
+      },
+    },
+  });
+  assert.equal(result.status, "waiting");
+  assert.equal(result.state.phase, "vercel-auth");
+  assert.equal(result.state.resources.github.protection.status, "enforced");
+  assert.equal(result.state.resources.github.protection.source, "oregano");
+  assert.match(result.state.resources.github.protection.checked_at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(protectionReads, 2);
+  assert.equal(protectionWrites, 1);
+}));
+
+test("existing stronger organization protection is accepted without being overwritten", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "github-protection-existing-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 1,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-20T00:00:00.000Z",
+    updated_at: "2026-08-20T00:00:00.000Z",
+    phase: "github-protection",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers({ github_repository_mode: "adopt" }),
+    resources: { github: { repository: "example-company/companyos", visibility: "PRIVATE", authenticated_login: "anna-example" } },
+    operating: {},
+    artifact: {},
+    deployment: {},
+    verification: {},
+    history: [],
+  });
+  let protectionWrites = 0;
+  const result = await advanceLiveSetup({
+    statePath,
+    executor: {
+      run(file, args) {
+        if (file === "gh" && args.includes("--method")) protectionWrites += 1;
+        if (file === "gh") return {
+          status: 0,
+          stdout: JSON.stringify({
+            ...enforcedGitHubProtection,
+            required_pull_request_reviews: {
+              dismiss_stale_reviews: true,
+              require_code_owner_reviews: true,
+              required_approving_review_count: 1,
+            },
+          }),
+          stderr: "",
+        };
+        if (file === "vercel") return { status: 1, stdout: "", stderr: "not logged in" };
+        return { status: 0, stdout: "", stderr: "" };
+      },
+    },
+  });
+  assert.equal(result.status, "waiting");
+  assert.equal(result.state.resources.github.protection.status, "enforced");
+  assert.equal(result.state.resources.github.protection.source, "existing");
+  assert.equal(protectionWrites, 0);
+}));
+
+test("GitHub Free continues through the same setup path with advisory protection", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "github-protection-advisory-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 1,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-20T00:00:00.000Z",
+    updated_at: "2026-08-20T00:00:00.000Z",
+    phase: "github-protection",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers(),
+    resources: { github: { repository: "example-company/companyos", visibility: "PRIVATE", authenticated_login: "anna-example" } },
+    operating: {},
+    artifact: {},
+    deployment: {},
+    verification: {},
+    history: [],
+  });
+  const result = await advanceLiveSetup({
+    statePath,
+    executor: {
+      run(file) {
+        if (file === "gh") return { status: 1, stdout: "", stderr: "upgrade required" };
+        if (file === "vercel") return { status: 1, stdout: "", stderr: "not logged in" };
+        return { status: 0, stdout: "", stderr: "" };
+      },
+    },
+  });
+  assert.equal(result.status, "waiting");
+  assert.equal(result.state.phase, "vercel-auth");
+  assert.equal(result.next_action.type, "browser-login");
+  assert.equal(result.state.resources.github.protection.status, "advisory");
+  assert.equal(result.state.resources.github.protection.reason, "github-did-not-accept-hosted-protection");
+  assert.doesNotMatch(JSON.stringify(result), /paid|upgrade|GitHub Pro|Enterprise/i);
+}));
+
 test("the create path explicitly adds the Vercel project before linking it", async () => withSetup(async ({ temporary, core }) => {
   const statePath = join(temporary, "vercel-project-state.json");
   const state = {
@@ -351,7 +495,7 @@ test("live verification proves only the exact supervised starter scope", async (
     history: [],
     answers: {},
     resources: {
-      github: { repository: "example-company/companyos", visibility: "PRIVATE", protection_verified: true, authenticated_login: "anna-example" },
+      github: { repository: "example-company/companyos", visibility: "PRIVATE", protection: { status: "enforced", checked_at: "2026-08-21T09:00:00.000Z" }, authenticated_login: "anna-example" },
       vercel: { project: "example-companyos" },
       neon: { id: "store_example", name: "example-companyos-db" },
       slack: { uid: "slack/example-company-oregano", team_id: "T12345678", user_id: "U12345678" },
@@ -367,18 +511,7 @@ test("live verification proves only the exact supervised starter scope", async (
     executor: {
       run(_file, args) {
         if (args[0] === "repo") return { status: 0, stdout: JSON.stringify({ visibility: "PRIVATE" }), stderr: "" };
-        return {
-          status: 0,
-          stdout: JSON.stringify({
-            required_status_checks: { strict: true, contexts: ["check"] },
-            enforce_admins: { enabled: true },
-            required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: false, required_approving_review_count: 0 },
-            allow_force_pushes: { enabled: false },
-            allow_deletions: { enabled: false },
-            required_conversation_resolution: { enabled: true },
-          }),
-          stderr: "",
-        };
+        return { status: 0, stdout: JSON.stringify(enforcedGitHubProtection), stderr: "" };
       },
     },
     fetchImpl: async () => ({
@@ -389,25 +522,52 @@ test("live verification proves only the exact supervised starter scope", async (
   assert.equal(result.verification.ok, true);
   assert.equal(result.verification.scope, "live-starter-instance");
   assert.equal(result.verification.readiness, "validated");
+  assert.equal(result.verification.github_protection, "enforced");
   assert.match(result.verification.statement, /does not authorize business Tools/);
+
+  const enforcementLost = await verifyLiveSetup({
+    statePath,
+    executor: {
+      run(_file, args) {
+        if (args[0] === "repo") return { status: 0, stdout: JSON.stringify({ visibility: "PRIVATE" }), stderr: "" };
+        return { status: 1, stdout: "", stderr: "not available" };
+      },
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ ok: true, status: "ready", artifactHash: "a".repeat(64), coreCommit: CORE_REF, workspaceCommit: "b".repeat(40), resolvedToolSetHash: "c".repeat(64), agent: "oregano", tools: [] }),
+    }),
+  });
+  assert.equal(enforcementLost.verification.ok, true);
+  assert.equal(enforcementLost.verification.github_protection, "advisory");
+  assert.ok(enforcementLost.diagnostics.some((item) => item.code === "LIVE113" && item.severity === "warning"));
+
+  state.resources.github.protection = { status: "advisory", checked_at: "2026-08-21T09:00:00.000Z", reason: "github-did-not-accept-hosted-protection" };
+  writeLiveSetupState(statePath, state);
+  const freePlan = await verifyLiveSetup({
+    statePath,
+    executor: {
+      run(_file, args) {
+        if (args[0] === "repo") return { status: 0, stdout: JSON.stringify({ visibility: "PRIVATE" }), stderr: "" };
+        return { status: 1, stdout: "", stderr: "not available" };
+      },
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({ ok: true, status: "ready", artifactHash: "a".repeat(64), coreCommit: CORE_REF, workspaceCommit: "b".repeat(40), resolvedToolSetHash: "c".repeat(64), agent: "oregano", tools: [] }),
+    }),
+  });
+  assert.equal(freePlan.verification.ok, true);
+  assert.equal(freePlan.verification.readiness, "validated");
+  assert.equal(freePlan.verification.github_protection, "advisory");
+  assert.ok(freePlan.diagnostics.some((item) => item.code === "LIVE113" && item.severity === "info"));
 
   const mismatched = await verifyLiveSetup({
     statePath,
     executor: {
       run(_file, args) {
         if (args[0] === "repo") return { status: 0, stdout: JSON.stringify({ visibility: "PRIVATE" }), stderr: "" };
-        return {
-          status: 0,
-          stdout: JSON.stringify({
-            required_status_checks: { strict: true, contexts: ["check"] },
-            enforce_admins: { enabled: true },
-            required_pull_request_reviews: { dismiss_stale_reviews: true, require_code_owner_reviews: false, required_approving_review_count: 0 },
-            allow_force_pushes: { enabled: false },
-            allow_deletions: { enabled: false },
-            required_conversation_resolution: { enabled: true },
-          }),
-          stderr: "",
-        };
+        return { status: 0, stdout: JSON.stringify(enforcedGitHubProtection), stderr: "" };
       },
     },
     fetchImpl: async () => ({

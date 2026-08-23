@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -83,7 +83,10 @@ entry and never requests, creates, or invites a second reviewer.
    maintained Vercel Runner;
 2. authenticate GitHub in the browser;
 3. initialize and push a private Company Workspace repository;
-4. apply and verify the solo-Steward protected `main` baseline;
+4. detect and preserve protection on an adopted GitHub repository, or
+   automatically apply the solo-Steward protected `main` baseline to a new
+   repository when available, recording either `enforced` or `advisory`
+   without an upgrade prompt;
 5. authenticate Vercel and create or adopt the exact project;
 6. create or adopt a Neon Marketplace resource without pulling its connection
    string to disk;
@@ -109,6 +112,13 @@ This narrow initial-installation profile is not the general Preview or Effect
 Lane orchestrator. It records readiness as `validated`, not globally
 `enforced`, and does not authorize an unattended workflow or external business
 effect.
+
+GitHub Free is sufficient. Hosted branch protection is useful defense in depth
+and is applied automatically when supported, but it is not a second setup mode
+or a completion requirement for this starter. Existing stricter organization
+controls remain unchanged. Hosted enforcement must be established separately
+before a later capability grants an unattended agent repository write, merge,
+or deployment authority.
 
 ## Answer contract
 

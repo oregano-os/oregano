@@ -143,9 +143,8 @@ export function renderOperatingStarter(root, rawInput) {
   repositoryProtection.rules.bypass = "none";
   repositoryProtection.verification = {
     status: "pending",
-    ruleset_id: null,
-    verified_at: null,
-    verified_by: null,
+    checked_at: null,
+    checked_by: null,
   };
   files.set(".companyos/repository-protection.yaml", YAML.stringify(repositoryProtection));
 

@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
   - product-owner
@@ -347,9 +347,9 @@ The experimental `companyos setup --profile vercel-neon-slack` command
 implements one bounded initial-installation subset:
 
 - exact clean Core and Workspace identity plus an immutable Artifact;
-- a private GitHub repository, protected-main verification, a required
-  CompanyOS check, and explicit Workspace Steward merge authorization for the
-  authoring-to-operating change;
+- a private GitHub repository, an automatic hosted-protection attempt recorded
+  as `enforced` or `advisory`, a required CompanyOS check, and explicit
+  Workspace Steward merge authorization for the authoring-to-operating change;
 - explicit create-or-adopt choices for one Vercel project, Neon resource, and
   Slack connection;
 - separate hash-bound confirmations for the setup plan, operating Workspace
@@ -364,6 +364,9 @@ promotion, and no claim of `enforced` readiness. It is therefore suitable only
 for the documented Tool-free supervised starter. Later behavior, integration,
 scope, state, or effect changes remain subject to every applicable requirement
 in this draft, including isolated pre-merge evidence where safely testable.
+Hosted GitHub protection is defense in depth for this bounded starter rather
+than a readiness gate. It becomes mandatory before a future unattended agent
+receives repository write, merge, or deployment authority.
 
 The general implementation Change Plan must still select:
 

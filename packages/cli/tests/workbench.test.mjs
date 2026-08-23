@@ -126,12 +126,24 @@ test("the fixture demonstrates every repository-local security control", () => {
 test("onboarding reports local readiness and keeps hosted controls manual", () => {
   const result = inspectWorkspaceOnboarding(FIXTURE);
   assert.equal(result.summary.readiness, "ready-for-hosted-setup");
-  assert.equal(result.checklist.find((item) => item.id === "git-host-account-and-plan")?.status, "manual");
-  assert.match(result.checklist.find((item) => item.id === "git-host-account-and-plan")?.next ?? "", /GitHub/);
+  assert.equal(result.checklist.find((item) => item.id === "git-host-account")?.status, "manual");
+  assert.match(result.checklist.find((item) => item.id === "git-host-account")?.next ?? "", /GitHub Free is sufficient/);
   assert.equal(result.checklist.find((item) => item.id === "core-and-workbench-pin")?.status, "complete");
-  assert.equal(result.checklist.find((item) => item.id === "github-ruleset")?.status, "manual");
+  assert.equal(result.checklist.find((item) => item.id === "github-protection")?.status, "manual");
   assert.match(result.checklist.find((item) => item.id === "company-instance")?.next ?? "", /Vercel.*Neon\/Postgres/);
 });
+
+test("advisory hosted protection does not block the supervised starter", () => withFixture((workspace) => {
+  const protectionPath = join(workspace, ".companyos", "repository-protection.yaml");
+  const protection = YAML.parse(readFileSync(protectionPath, "utf8"));
+  protection.verification = { status: "advisory", checked_at: "2026-08-23T10:00:00.000Z", checked_by: "platform-admin" };
+  writeFileSync(protectionPath, YAML.stringify(protection));
+  const result = inspectWorkspaceOnboarding(workspace);
+  assert.equal(result.summary.readiness, "ready-for-hosted-setup");
+  const hosted = result.checklist.find((item) => item.id === "github-protection");
+  assert.equal(hosted?.status, "manual");
+  assert.match(hosted?.next ?? "", /acceptable for the supervised starter/);
+}));
 
 test("authoring-only onboarding defers runtime-provider accounts", () => withFixture((workspace) => {
   rmSync(join(workspace, "agents", "ops"), { recursive: true, force: true });

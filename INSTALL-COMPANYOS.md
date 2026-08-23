@@ -11,7 +11,8 @@ This runbook finishes only when all of the following are true for one exact
 release candidate:
 
 - the company's Company Workspace is in a private GitHub repository;
-- protected `main` rules, the required CompanyOS check, and Steward-controlled merge are verified;
+- the required CompanyOS check and Steward-controlled merge are verified, and
+  the current hosted-protection status is reported;
 - one supervised, Tool-free Oregano Agent is approved by the Workspace Steward;
 - one Vercel project runs the maintained CompanyOS Runner;
 - one dedicated Neon/Postgres resource persists Instance and chat state;
@@ -39,9 +40,10 @@ OpenClaw component, MCP server, or global hook for this path.
 7. Show the complete deterministic plan and receive its exact confirmation
    before external mutation. Show the operating Workspace and production
    candidate confirmations when the Workbench requests them.
-8. Do not bypass the pull-request, required-check, explicit Steward
-   confirmation, or protected-branch controls. The installing agent cannot
-   supply the human's merge or production authorization.
+8. Do not bypass the pull-request, required-check, or explicit Steward
+   confirmation, and never remove or weaken existing protected-branch
+   controls. The installing agent cannot supply the human's merge or
+   production authorization.
 9. Do not delete or replace an existing file, repository, project, database,
    connector, deployment, or Slack installation to recover from an error.
 10. On failure, explain the named phase and resume from the non-secret state
@@ -150,11 +152,12 @@ Explain the account requirements in novice language:
 
 - A personal GitHub account is sufficient; a GitHub organization is optional
   and should be selected only when the company already has one. Do not ask the
-  human to create an organization merely for CompanyOS. The required private
-  protected repository currently needs GitHub Pro for a personal account or
-  GitHub Team/Enterprise for an organization. Explain that possible subscription
-  cost and stop before resource creation when the selected plan cannot enforce
-  the protection.
+  human to create an organization merely for CompanyOS. GitHub Free is
+  sufficient for the maintained supervised starter. The setup automatically
+  applies hosted protected-`main` controls when the account supports them and
+  otherwise continues with the same pull-request, CompanyOS-check, and Steward
+  confirmation process. Do not ask the human to upgrade GitHub or choose a
+  repository-protection mode.
 - The Workspace repository is private by default.
 - Vercel may use a personal account or an existing company team.
 - Neon is provisioned through Vercel's managed integration in this profile;
@@ -223,9 +226,10 @@ npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
 Say what will happen first:
 
 > I will initialize the generated Workspace as a Git repository, create or
-> adopt one private GitHub repository, push the authoring baseline, and apply
-> protected `main` rules. You remain the responsible Workspace Steward and
-> will confirm the merge after the required CompanyOS check passes.
+> adopt one private GitHub repository, push the authoring baseline, and
+> automatically apply protected `main` rules when GitHub supports them. GitHub
+> Free is sufficient. You remain the responsible Workspace Steward and will
+> confirm the merge after the required CompanyOS check passes.
 
 Ask whether to use the currently authenticated personal GitHub account or an
 existing organization. For a personal account, use the login as
@@ -233,6 +237,9 @@ existing organization. For a personal account, use the login as
 authenticated user and let the human select one. Ask for the repository name.
 Ask explicitly whether this is a new resource (`create`) or a named existing
 private repository (`adopt`). Never silently switch modes.
+Do not overwrite existing repository protection. Accept an existing baseline
+that is at least as strict; otherwise leave the adopted repository unchanged
+and report hosted enforcement as advisory.
 
 ### Vercel destination
 
@@ -327,9 +334,10 @@ npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
 ```
 
 Show the human the named GitHub, Vercel, Neon, and Slack resources, create or
-adopt modes, protected-main and required-check controls, model, possible costs,
-security boundary, and rollback behavior. Ask whether to execute exactly this
-plan. After explicit confirmation, pass its hash through `--apply`.
+adopt modes, automatic hosted-protection attempt, required-check controls,
+model, possible costs, security boundary, and rollback behavior. Ask whether
+to execute exactly this plan. After explicit confirmation, pass its hash
+through `--apply`.
 
 ## Phase 4 — execute and resume
 
@@ -367,8 +375,8 @@ Expected human gates:
    `--production-confirmation <hash>` only after explicit approval.
 
 If a command reports `blocked`, do not improvise around it. Explain the phase,
-correct the provider permission, unavailable plan, naming collision, hosted
-protection, rejected review, validation error, or health failure, and resume.
+correct the provider permission, naming collision, rejected review, validation
+error, or health failure, and resume.
 Created resources remain user-owned. Deletion is never an automatic recovery
 step.
 
@@ -395,16 +403,17 @@ npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
 
 Do not announce completion unless this exits successfully. State the scope as
 `live-starter-instance` and the readiness as `validated`. Explain that this
-proves the exact private/protected Workspace, immutable version pair, Vercel
-health, Neon persistence, authorized Slack identity, and one real Slack round
-trip. It does not authorize business Tools, unattended workflows, or a general
-claim of enforced production readiness.
+proves the exact private Workspace, checked pull request, explicit Steward
+merge, immutable version pair, Vercel health, Neon persistence, authorized
+Slack identity, and one real Slack round trip. Report hosted GitHub protection
+separately as `enforced` or `advisory`. It does not authorize business Tools,
+unattended workflows, or a general claim of enforced production readiness.
 
 ## Handoff
 
 Give the human:
 
-- the private GitHub repository and protected branch;
+- the private GitHub repository and its detected hosted-protection status;
 - the Vercel project and production URL;
 - the Neon resource name, owner, selected plan, region, and recovery link;
 - the Slack app/connector, workspace, test channel, and uninstall path;

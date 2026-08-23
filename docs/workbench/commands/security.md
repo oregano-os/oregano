@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -24,5 +24,7 @@ and an exact Workbench pin.
 companyos security .
 ```
 
-Local files cannot prove that hosted Git rulesets are active. The command
-therefore reports that external verification remains required.
+Local files cannot prove that hosted Git protection is active. The command
+therefore reports that external verification remains separate. The maintained
+setup attempts hosted protection automatically and records the result;
+unavailable enforcement does not block the Tool-free supervised starter.

@@ -1,0 +1,87 @@
+version: 1
+plan_id: best-effort-github-protection-2026-08-23
+status: implemented
+author: codex-agent
+created: 2026-08-23
+title: Keep the starter installation compatible with GitHub Free
+objective: >-
+  Maintain one private-repository installation path that automatically applies
+  GitHub protected-main controls when the selected account supports them, but
+  completes the supervised starter when hosted enforcement is unavailable.
+non_goals:
+  - Add user-selectable repository-protection modes.
+  - Add legacy fields, migration code, or compatibility handling for unreleased installations.
+  - Weaken the required CompanyOS check, explicit Steward merge confirmation, repository privacy, or immutable release evidence.
+  - Permit unattended repository changes without hosted enforcement.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - Onboarding has no hidden steps
+  - Readiness is scoped and evidenced
+files_expected:
+  - .oregano/changes/2026-08-23-best-effort-github-protection.yaml
+  - INSTALL-COMPANYOS.md
+  - docs/architecture/security-and-governance.md
+  - docs/_generated/**
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/onboard.md
+  - docs/workbench/commands/security.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/configure-repository-protection.md
+  - docs/workbench/guides/start-here.md
+  - packages/cli/content/guides/configure-repository-protection.md
+  - packages/cli/content/guides/start-here.md
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/onboarding.mjs
+  - packages/cli/src/operating-starter.mjs
+  - packages/cli/src/repository-protection.mjs
+  - packages/cli/src/security.mjs
+  - packages/cli/src/workspace-generator.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/fixtures/**/.companyos/repository-protection.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-23
+    evidence: explicit-user-instruction-in-codex-task-to-implement-the-single-free-compatible-installation-path
+validation:
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-23-best-effort-github-protection.yaml
+  - pnpm docs:check
+  - pnpm check
+  - git diff --check
+tests:
+  - GitHub protection is applied and recorded as enforced when the provider accepts the baseline.
+  - A provider refusal records advisory enforcement and continues to Vercel without a plan or upgrade prompt.
+  - Live verification accepts advisory hosted enforcement while still requiring a private repository, a passed CompanyOS check, and explicit Steward merge evidence.
+  - Live verification reports loss of previously enforced protection without overstating hosted enforcement.
+  - Onboarding never blocks a supervised starter because a private-repository protection feature is unavailable.
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.company-workspace
+    - onboarding.index
+    - architecture.security-governance
+    - specification.company-instance-release-promotion-v0.1
+    - specification.companyos-core-v0.7
+    - status.current
+    - command.onboard
+    - command.security
+    - command.setup
+    - command.verify-live
+    - guide.configure-repository-protection
+    - guide.start-here
+rollback: >-
+  Revert the setup, verification, tests, and documentation together through a
+  checked Core change. No Workspace migration or legacy state handling is
+  required because no public installation has completed against this contract.
+open_decisions: []

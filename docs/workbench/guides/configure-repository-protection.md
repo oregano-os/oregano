@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -16,10 +16,10 @@ availability: experimental
 
 # Configure Repository Protection
 
-Local governance files describe required controls; a Platform Administrator
-with `repository` scope enforces them on the Git host. The normal Company
-Workspace baseline is one active branch ruleset targeting `main` with these
-controls:
+Local governance files describe the intended Git workflow and hosted-hardening
+baseline. The maintained setup has one path: it always creates or adopts a
+private repository, follows a checked pull-request process, and automatically
+applies the following controls to `main` when GitHub supports them:
 
 1. require a pull request before merging;
 2. require zero GitHub approvals in the default `steward` review mode;
@@ -31,30 +31,40 @@ controls:
 8. grant no ruleset bypass to Human Contributors, Agent Contributors,
    deployment keys, or contributor bots.
 
-This baseline lets one Workspace Steward operate CompanyOS alone while retaining
-a pull request, a required check, explicit merge confirmation, and protected
-history. An organization may explicitly select `independent-review`; that mode
-requires exactly one CODEOWNER approval and declares `two_person_review: true`
-for security changes.
+The pull request, required check, and explicit Steward confirmation remain part
+of the installer whether hosted enforcement is available or not. When GitHub
+enforces the baseline it additionally protects history from accidental direct
+pushes, force pushes, and deletion. An organization may explicitly select
+`independent-review`; that review policy requires exactly one CODEOWNER approval
+and declares `two_person_review: true` for security changes.
 
-## GitHub account and plan prerequisite
+## One GitHub installation path
 
 Every Human Contributor uses an individual GitHub account. A Platform
 Administrator with `repository` scope needs admin access to the private Company
 Workspace repository; the company or its appointed custodian must retain
 billing and account recovery. Do not use a shared developer account.
 
-GitHub's documented private-repository paths are:
+GitHub Free is sufficient for the Tool-free supervised starter. The installer
+does not ask the human to choose a protection mode or upgrade a plan. It first
+reads existing hosted protection. A baseline that is at least as strict is
+accepted unchanged. Any other existing provider policy is also left unchanged
+rather than overwritten. An adopted repository is never mutated by this
+hardening step. For a newly created repository without protection, the
+installer attempts the solo-Steward baseline once.
 
-- a personal repository on GitHub Pro for an initial personal-account setup; or
-- an organization repository on GitHub Team or Enterprise for visible teams,
-  delegated administration, and the preferred multi-person operating model.
+The resulting status is evidence, not configuration selected by the user:
 
-The provider's actual enforcement result is authoritative. A saved ruleset and
-`Active` label are insufficient while GitHub displays a banner saying the rule
-will not be enforced. Keep verification `blocked` until the banner is gone and
-an adversarial test pull request proves enforcement. Never make a Company
-Workspace public merely to avoid a plan prerequisite.
+- `enforced` means GitHub reports the baseline or stricter controls as active;
+- `advisory` means GitHub did not expose or confirm the requested controls, so
+  the installer continues with its checked pull request and explicit Steward
+  merge evidence; and
+- `pending` means the external attempt has not yet been checked.
+
+Professional organizations may enforce equivalent or stricter rules centrally.
+Oregano detects and respects them. Hosted enforcement becomes mandatory before
+an unattended agent receives repository write, merge, or deployment authority;
+it is not a completion requirement for the supervised starter.
 
 ## Review modes
 
@@ -72,30 +82,32 @@ change repository protection to one required CODEOWNER approval. Change all of
 these fields together through a security-class Change Plan. A second account
 controlled by the same person is not independent.
 
-Neither mode permits a ruleset bypass. Direct pushes, force pushes, and branch
-deletion remain blocked.
+Neither review mode grants a ruleset bypass. When hosted protection is active,
+direct pushes, force pushes, and branch deletion remain blocked.
 
-The desired baseline is also declared in
+The intended baseline is also declared in
 `.companyos/repository-protection.yaml`. `companyos validate`, `companyos
-security`, and `companyos onboard` reject a weaker local declaration. This
-keeps the checklist, documentation, and CI contract aligned; it still does not
-turn a repository file into proof of hosted enforcement.
+security`, and `companyos onboard` reject a weaker declared process. This keeps
+the checklist, documentation, and CI contract aligned; it still does not turn
+a repository file into proof of hosted enforcement.
 
 ## Who does what
 
 - A Human Contributor or Agent Contributor may prepare CODEOWNERS, CI, the
   machine-readable protection contract, and the Change Plan.
-- A Platform Administrator with `repository` scope applies the ruleset in
-  GitHub because that action changes hosted access control.
+- The maintained setup attempts hosted protection through the authenticated
+  Platform Administrator only after the external setup plan is confirmed.
 - The Workspace Steward supplies business authority for protected Workspace
   changes. GitHub administration alone does not grant that authority.
-- The Workbench checks the local half and reports the hosted step as `manual`.
-  An explicit administrator action may use the GitHub UI or REST API; validation
-  never silently uses a developer's GitHub credentials.
+- The Workbench reports the hosted result as separate evidence. Validation never
+  presents a local file as proof that GitHub enforces it.
 
-## Activate the ruleset in GitHub
+## Optional manual hardening
 
-After the protected branch contains the required `check` workflow:
+No manual action is required during the maintained starter. A Platform
+Administrator may establish or repair hosted enforcement later through an
+organization policy, GitHub ruleset, branch protection UI, or REST API. After
+the branch contains the required `check` workflow:
 
 1. Open the repository's **Settings → Rules → Rulesets** page.
 2. Create one branch ruleset, name it `CompanyOS main protection`, set it to
@@ -107,9 +119,9 @@ After the protected branch contains the required `check` workflow:
 5. Save the ruleset, open a test pull request, and verify that a red or absent
    `check` prevents merge. In `independent-review` mode, also verify that the
    missing CODEOWNER approval prevents merge.
-6. Record the ruleset ID, verification time, and Platform Administrator acting
-   with `repository` scope in `.companyos/repository-protection.yaml` through a
-   protected pull request.
+6. Record `verification.status`, `checked_at`, and `checked_by` in
+   `.companyos/repository-protection.yaml` through the normal checked pull
+   request process.
 
 ### Exact GitHub UI settings
 
@@ -138,16 +150,13 @@ Copilot review disabled unless a later approved policy explicitly adds them.
 Deployment success must not be required when the production deployment starts
 only after merging to `main`, because that would create a circular gate.
 
-The equivalent REST operation is `POST /repos/{owner}/{repo}/rulesets`. Keep
-the bypass actor list empty and map the remaining YAML rules one-for-one. Read
-the saved ruleset back through the API and run the same test pull request before
-changing `verification.status` to `verified`.
-
-GitHub rulesets for a private repository require a GitHub plan that supports
-private-repository rulesets. A provider refusal is an external onboarding
-blocker; record `verification.status: blocked` with the provider reason, check
-time, and administrator identity. Never make a company repository public merely
-to avoid it.
+The maintained setup uses `PUT
+/repos/{owner}/{repo}/branches/main/protection` for a new baseline. Keep the
+bypass actor list empty and map the remaining YAML rules one-for-one. Read the
+saved protection back through the API and run the same test pull request before
+recording `verification.status: enforced`. If GitHub does not make hosted
+protection available, record `verification.status: advisory`; do not block the
+supervised starter, make the repository public, or ask for a plan upgrade.
 
 If the repository belongs to a personal GitHub account, CODEOWNERS maps to the
 Steward account. A visible organization team is useful once the repository
@@ -175,11 +184,11 @@ secrets to the deployment identity and Platform Administrators with `instance`
 scope. This is defense in depth, not a reason to complicate the initial branch
 ruleset.
 
-A Platform Administrator with `repository` scope records the configured ruleset
-identifier and verification date outside the mutable proposal branch.
-`companyos security` checks the local half and deliberately reports that hosted
-enforcement still requires external verification.
+A Platform Administrator with `repository` scope records the verification time
+and identity through the checked proposal process. `companyos security` checks
+the local half and deliberately reports hosted enforcement as separate
+evidence.
 
 Official references: [GitHub ruleset rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets),
-[GitHub ruleset REST API](https://docs.github.com/en/rest/repos/rules), and
+[GitHub branch protection REST API](https://docs.github.com/en/rest/branches/branch-protection), and
 [GitHub CODEOWNERS](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).

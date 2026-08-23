@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-23
 owners:
   - oregano-maintainers
 audience:
@@ -56,7 +56,7 @@ personal account.
 
 | Layer | Maintained reference setup | Required when | Acceptance |
 |---|---|---|---|
-| Git hosting and review | One GitHub user account and private repository | Every Workspace | The human creates a GitHub user account if they do not already have one. They select their own username for a personal repository or an existing organization only when their company already uses one. The setup never requires a new organization. The maintained private protected path currently requires GitHub Pro for a personal repository or GitHub Team/Enterprise for an organization. A Platform Administrator with `repository` scope has admin access and the selected plan actually enforces the declared protection. |
+| Git hosting and review | One GitHub user account and private repository | Every Workspace | The human creates a GitHub user account if they do not already have one. They select their own username for a personal repository or an existing organization only when their company already uses one. The setup never requires a new organization or paid GitHub plan. GitHub Free is sufficient for the supervised starter. A Platform Administrator with `repository` scope retains admin and recovery access. The setup applies hosted protection when available and reports whether GitHub enforces it. |
 | Core checkout | GitHub credential or deploy key with read access to Oregano Core | Current co-checkout mode | CI can fetch the immutable Core commit without giving the Company Workspace write access to Core. |
 | Runtime hosting | Vercel account/team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |
 | Model execution | Vercel AI Gateway access in the runtime team | Before deploying a model-backed Instance | The selected model is permitted for the team's billing tier, usage budget and data terms are approved, and a deployed smoke test succeeds. |
@@ -96,7 +96,7 @@ Add these machine-readable control files:
 - `.companyos/governance.yaml` — roles, change classes, and approvals;
 - `.companyos/compatibility.yaml` — exact Core version, immutable Core commit,
   and exact Workbench version;
-- `.companyos/repository-protection.yaml` — required hosted Git baseline;
+- `.companyos/repository-protection.yaml` — intended Git workflow and hosted-hardening baseline;
 - `.github/CODEOWNERS` — technical reviewer routing;
 - `.github/workflows/check.yml` — validation and inspection.
 
@@ -127,17 +127,24 @@ companyos security .
 Resolve every error. `manual` means the required fact lives outside the
 repository; it does not mean the requirement is optional.
 
-## 6. Apply GitHub protection
+## 6. Apply GitHub protection automatically when available
 
-The Platform Administrator with `repository` scope maps the intended Workspace
-or Process Steward to the CODEOWNERS user or team and applies the declared
-ruleset to `main`. Follow
-the version-matched [repository protection Guide](../workbench/guides/configure-repository-protection.md).
-The default `review_mode: steward` keeps pull requests, the required `check`,
-stale-check invalidation, resolved conversations, blocked force pushes, and
-blocked deletion. It requires zero GitHub approvals, so the one Steward can
-confirm and merge their checked pull request without a bypass. CODEOWNERS still
-documents ownership but is not a required-review gate in this mode.
+The maintained setup makes one automatic attempt to apply the declared
+protected-`main` baseline. It accepts an existing baseline that is at least as
+strict and never overwrites existing protection. When GitHub enforces the
+baseline, setup records `enforced`; when the account or repository does not
+provide the feature, setup records `advisory` and continues. This is detected
+state, not a user-selected installation mode, and the agent never asks for a
+GitHub upgrade.
+
+In both outcomes the installer creates the operating change through a pull
+request, waits for the `check`, and requires the Workspace Steward's exact
+merge confirmation. GitHub enforcement adds protection against accidental
+direct pushes, force pushes, and deletion. It becomes a prerequisite only
+before an unattended agent receives repository write, merge, or deployment
+authority. Follow the version-matched [repository protection
+Guide](../workbench/guides/configure-repository-protection.md) for the recorded
+status and professional organization controls.
 
 ## 7. Run the maintained live starter when requested
 
@@ -159,9 +166,10 @@ contract](../specifications/company-instance-release-and-promotion-v0.1-draft.md
 
 Onboarding is locally ready when `companyos onboard` has no errors. The complete
 starter is ready only when `companyos verify-live --state <file>` succeeds with
-scope `live-starter-instance`: the repository is private and protected, the
-required check and explicit Steward merge authorization are recorded, current Vercel health
+scope `live-starter-instance`: the repository is private, the required check
+and explicit Steward merge authorization are recorded, current Vercel health
 matches the exact Artifact and version pair, and a nonce-bound human Slack
-message plus Oregano response are persisted in Neon. This is bounded evidence
-for the supervised starter, not certification of future Tools, unattended
-workflows, or generic production enforcement.
+message plus Oregano response are persisted in Neon. Hosted GitHub protection
+is reported separately as `enforced` or `advisory`; either status is valid for
+this Tool-free supervised starter. This is bounded evidence, not certification
+of future Tools, unattended workflows, or generic production enforcement.
