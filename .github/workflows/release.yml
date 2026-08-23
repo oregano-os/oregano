@@ -37,13 +37,8 @@ jobs:
       - name: Prepare versioned agent-install assets
         run: node scripts/prepare-release-assets.mjs dist/release
 
-      - name: Verify immutable release policy and reviewed branch ancestry
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          test "$(gh api "repos/$GITHUB_REPOSITORY/immutable-releases" \
-            -H "X-GitHub-Api-Version: 2026-03-10" --jq .enabled)" = "true"
-          git merge-base --is-ancestor HEAD origin/main
+      - name: Verify reviewed branch ancestry
+        run: git merge-base --is-ancestor HEAD origin/main
 
       - name: Create draft GitHub Release with all assets
         env:
@@ -67,3 +62,10 @@ jobs:
           else
             gh release edit "$GITHUB_REF_NAME" --draft=false --latest
           fi
+
+      - name: Verify published GitHub Release is immutable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$GITHUB_REF_NAME" \
+            -H "X-GitHub-Api-Version: 2026-03-10" --jq .immutable)" = "true"
