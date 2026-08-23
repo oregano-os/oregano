@@ -33,10 +33,10 @@ const instance: InstanceBuildConfiguration = {
 const build = (root = FIXTURE) => buildCompanyOSArtifact({
   workspaceRoot: root,
   instance,
-  coreVersion: "0.2.0",
+  coreVersion: "0.3.0",
   coreCommit: CORE_COMMIT,
   workspaceCommit: WORKSPACE_COMMIT,
-  workbenchVersion: "0.1.0-experimental.4",
+  workbenchVersion: "0.1.0-experimental.5",
   builtAt: "2026-08-19T12:00:00.000Z",
 });
 
@@ -44,7 +44,7 @@ test("the exact Core, Workspace, and Instance inputs produce one deterministic a
   const first = build();
   const second = build();
   assert.equal(first.artifactHash, second.artifactHash);
-  assert.equal(first.provenance.coreVersion, "0.2.0");
+  assert.equal(first.provenance.coreVersion, "0.3.0");
   assert.equal(first.provenance.workspaceVersion, "0.1.0");
   assert.equal(first.provenance.resolvedToolSetHash, second.provenance.resolvedToolSetHash);
   assert.equal(first.agents.length, 1);
@@ -75,7 +75,7 @@ test("the Builder rejects ambiguous product versions", () => {
     coreVersion: "00.1.0",
     coreCommit: CORE_COMMIT,
     workspaceCommit: WORKSPACE_COMMIT,
-    workbenchVersion: "0.1.0-experimental.4",
+    workbenchVersion: "0.1.0-experimental.5",
   }), /coreVersion must be an exact Semantic Versioning/);
 });
 

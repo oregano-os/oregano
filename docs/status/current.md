@@ -22,7 +22,7 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core uses the `0.2.0` initial-development release line. Every Company
+- Oregano Core uses the `0.3.0` initial-development release line. Every Company
   Workspace advances independently under the canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
@@ -55,7 +55,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.4`; no
+  builds. Its repository release candidate is `0.1.0-experimental.5`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
