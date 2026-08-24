@@ -81,9 +81,10 @@ evidence, historical prototypes, and production gaps.
   Agent name `oregano` from Company Workspace identity and provider-internal
   resource names. This is an internal Workbench boundary, not a public provider
   plugin API. Transitive development dependencies used by the pinned Vercel
-  CLI are constrained to reviewed security releases. This includes a narrow,
-  audited compatibility override for Vercel's legacy HTTP-client dependency
-  without changing the production Runner's direct dependency contract.
+  CLI are constrained through Vercel-parent-scoped security releases. This
+  includes a narrow, audited compatibility override for Vercel's legacy
+  HTTP-client dependency without changing another provider or the production
+  Runner's direct dependency contract.
 - The generated starter contains one supervised `oregano` Agent, one Slack
   workflow, a non-secret Slack connection declaration, and no business Tool
   grants. Its mode-0600 setup state rejects provider credentials, database
