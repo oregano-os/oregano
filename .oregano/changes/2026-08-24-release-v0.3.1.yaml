@@ -29,6 +29,7 @@ vision_principles_affected:
   - Architecture stays portable
   - Readiness is scoped and evidenced
 files_expected:
+  - .github/workflows/check.yml
   - .oregano/changes/**
   - INSTALL-COMPANYOS.md
   - docs/**
@@ -68,6 +69,7 @@ tests:
   - Provider errors redact current credential formats while retaining safe actionable diagnostics.
   - Slack verification requires the fixed Oregano identity and exact nonce-bound response persisted in the same conversation.
   - Documentation contracts fail when a required setup document is absent from the Change Plan or actual diff.
+  - Feature branches receive one pull-request check while main pushes retain the post-merge check.
   - Release assets are generated only from the clean exact merged v0.3.1 tag.
 documentation_impact:
   required: true
