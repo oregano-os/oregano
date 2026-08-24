@@ -13,6 +13,10 @@ objective: >-
 non_goals:
   - Publish the private Workbench as an npm package.
   - Add a public provider plugin registry or alternative provider adapters.
+  - Implement Hetzner, Docker, Railway, Supabase, or an alternative communication provider in this release.
+  - Move provider credentials or customer resource identifiers into Core, a Company Workspace, logs, tests, or documentation.
+  - Introduce automatic destructive replacement, deletion, or secret rotation for provider resources.
+  - Generalize runtime Capability, Tool, evidence, or StateStore contracts around the maintained hosted profile.
   - Authorize business Tools, unattended workflows, or enforced production readiness.
   - Remove compatibility with the readable v0.3.0 setup-state schema.
   - Push, merge, tag, or publish before the product owner approves the exact reviewed release candidate.
@@ -57,6 +61,11 @@ tests:
   - Maintained Workspace fixtures pin Core 0.3.1 and Workbench 0.1.0-experimental.6.
   - The typed setup profile provides exactly one adapter for every required provider role.
   - Interrupted provider mutations reconcile from exact receipts without duplicate creation or destructive replacement.
+  - Provider create responses remain authoritative and eventual-consistency reads poll by immutable identity.
+  - Adopted Vercel projects and production variables fail safely on conflicts and are never silently overwritten.
+  - Production deployment records a structured ready receipt and health polling tolerates temporary non-JSON responses.
+  - Generated GitHub checks validate the Company Workspace checkout rather than the sibling Core checkout.
+  - Provider errors redact current credential formats while retaining safe actionable diagnostics.
   - Slack verification requires the fixed Oregano identity and exact nonce-bound response persisted in the same conversation.
   - Documentation contracts fail when a required setup document is absent from the Change Plan or actual diff.
   - Release assets are generated only from the clean exact merged v0.3.1 tag.
@@ -90,3 +99,5 @@ rollback: >-
   historical provenance, and existing provider resources remain untouched.
 open_decisions:
   - Record one fresh external end-to-end installation from the published assets before recommending v0.3.1 for broad use.
+  - Qualify additional deployment, state-service, and communication adapters only after the private contract has proven stable across maintained releases.
+  - Determine through provider qualification whether Vercel Connect can guarantee the fixed visible Slack name Oregano independently of its internal connector identifier.
