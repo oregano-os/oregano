@@ -59,15 +59,17 @@ personal account.
 | Git hosting and review | One GitHub user account and private repository | Every Workspace | The human creates a GitHub user account if they do not already have one. They select their own username for a personal repository or an existing organization only when their company already uses one. The setup never requires a new organization or paid GitHub plan. GitHub Free is sufficient for the supervised starter. A Platform Administrator with `repository` scope retains admin and recovery access. The setup applies hosted protection when available and reports whether GitHub enforces it. |
 | Core checkout | GitHub credential or deploy key with read access to Oregano Core | Current co-checkout mode | CI can fetch the immutable Core commit without giving the Company Workspace write access to Core. |
 | Runtime hosting | Vercel account/team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |
-| Model execution | Vercel AI Gateway access in the runtime team | Before deploying a model-backed Instance | The selected model is permitted for the team's billing tier, usage budget and data terms are approved, and a deployed smoke test succeeds. |
+| Model execution | Vercel AI Gateway access, or an Anthropic account and dedicated direct API key | Before deploying a model-backed Instance | The explicit route and exact model are approved, usage budget and data terms are accepted, and a deployed model-backed smoke test succeeds. A direct key is entered only in the runtime host secret UI. |
 | Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |
 | Connected systems | For example Slack or Monday installations | Only when declared by an approved connection or Tool grant | Each installation has a named owner, minimum scopes, revocation path, and no secrets in Git. |
 
 Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider
 account. The maintained complete starter does require a Vercel account, consent
 to create or adopt a Neon Marketplace resource, permission to install the Slack
-app in a selected Slack workspace, and access to the selected Vercel AI Gateway
-model. The agent opens or prints the correct authentication flow and waits; the
+app in a selected Slack workspace, and access to the selected model route.
+Gateway uses the Vercel deployment identity. Direct Anthropic bypasses Gateway;
+the human enters `ANTHROPIC_API_KEY` only as a Sensitive Production variable in
+the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the
 human never pastes a password, provider token, database URL, or private key into
 chat.
 
@@ -191,8 +193,9 @@ starter is ready only when `companyos verify-live --state <file>` succeeds with
 scope `live-starter-instance`: the repository is private, the required check
 and explicit Steward merge authorization are recorded, current Vercel health
 matches the exact Artifact and version pair, and a nonce-bound human Slack
-message plus the exact Oregano reply `Setup-Test <nonce> successful.` are
-persisted in Neon in the same conversation. Verification also requires the
+message plus the exact model-backed Oregano reply
+`Setup-Test <nonce> successful.` and non-secret selected-route response evidence
+are persisted in Neon in the same conversation. Verification also requires the
 immutable receipts for the exact provider resources used by the deployment and
 fails closed on an unresolved setup intent. Hosted GitHub protection is
 reported separately as `enforced` or `advisory`; either status is valid for

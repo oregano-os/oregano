@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
+import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { ensureCompanyOSSchema } from "../../../../../state-postgres/migrate.ts";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ export async function GET() {
   try {
     const artifact = loadArtifact();
     const agent = selectedAgent();
+    const modelExecution = resolveModelExecution();
     await ensureCompanyOSSchema();
     const sql = neon(process.env.DATABASE_URL!);
     await sql`select 1`;
@@ -24,7 +26,9 @@ export async function GET() {
       workspaceCommit: artifact.provenance.workspaceCommit,
       resolvedToolSetHash: artifact.provenance.resolvedToolSetHash,
       tools: agent.toolSet.tools.map((item) => ({ grantId: item.grantId, risk: item.risk })),
-      model: process.env.COMPANYOS_MODEL ?? "openai/gpt-5.4-nano",
+      modelRoute: modelExecution.selection.route,
+      modelProvider: modelExecution.selection.provider,
+      model: modelExecution.selection.model,
       meta: "disabled-until-real-connector-binding",
     });
   } catch (error) {

@@ -163,8 +163,13 @@ Explain the account requirements in novice language:
 - Neon is provisioned through Vercel's managed integration in this profile;
   an existing dedicated Neon resource may be adopted explicitly.
 - The human needs permission to install an app in the selected Slack workspace.
-- Vercel AI Gateway is the model route. Do not request a separate OpenAI or
-  Anthropic API key for the maintained Runner.
+- The maintained Runner supports two explicit model routes: `vercel-ai-gateway`
+  and `anthropic-direct`. Gateway uses the Vercel deployment identity and needs
+  no provider key from the human. Direct Anthropic bypasses AI Gateway; the
+  human needs an Anthropic account, billing approval, and a dedicated API key.
+  That key is entered only in the Vercel project's Environment Variables page
+  as the Sensitive Production variable `ANTHROPIC_API_KEY`. Never request its
+  value in chat, a command, a local answers file, setup state, or Git.
 
 If an account does not exist, open its official signup page and wait. The human
 creates and controls the account; the agent does not fabricate identity,
@@ -286,10 +291,19 @@ Oregano.
 
 ### Model and costs
 
-Show the exact model from the release manifest as the tested default. Confirm
-that it is available through the selected Vercel account and show current
-provider pricing or budget information. Ask the human to confirm the exact
-`provider/model` value. Never claim that AI Gateway or the model has zero cost.
+Show the exact model and default route from the release manifest. Ask first for
+one route: `vercel-ai-gateway` or `anthropic-direct`. For Gateway, confirm the
+model is available through the selected Vercel account. For direct Anthropic,
+confirm an Anthropic account, approved billing, and an `anthropic/<model>`
+identifier. Explain that Vercel remains the runtime host and secret store, but
+model traffic goes from the Oregano Runner directly to Anthropic and Anthropic
+bills the usage; this is not Vercel AI Gateway BYOK.
+
+Show current pricing or budget information for the selected route and ask the
+human to confirm the exact `provider/model` value. Never claim that either route
+or model has zero cost. For direct Anthropic, ask whether the Production
+variable will be newly configured or an existing one explicitly adopted; never
+ask for the key value.
 
 ## Phase 3 — create the live plan
 
@@ -318,6 +332,8 @@ neon_region: fra1
 slack_connector_name: oregano
 slack_connector_mode: create
 slack_channel_id: ""
+model_route: vercel-ai-gateway
+model_credential_mode: platform
 model: openai/gpt-5.4-nano
 ```
 
@@ -362,19 +378,25 @@ Expected human gates:
 
 1. GitHub browser login when the CLI is not authenticated.
 2. Vercel browser login and selected team.
-3. Neon plan, region, billing terms, and provider consent.
-4. Slack workspace installation and short-lived user authorization.
-5. Exact operating Workspace confirmation. Show that it contains one
+3. For `anthropic-direct`, creation of a dedicated key in the official
+   [Claude Platform key page](https://platform.claude.com/settings/keys) and its
+   browser-only entry in Vercel as the Sensitive Production variable
+   `ANTHROPIC_API_KEY`. Explain that setup checks only the variable name,
+   presence, and Sensitive classification and never reads or stores its value.
+   Gateway has no such step.
+4. Neon plan, region, billing terms, and provider consent.
+5. Slack workspace installation and short-lived user authorization.
+6. Exact operating Workspace confirmation. Show that it contains one
    supervised `oregano` Agent, one Slack workflow, no business Tools, the
    canonical Slack principal, and the original Workspace Steward. Resume with
    `--operating-confirmation <hash>` only after approval.
-6. Steward merge. Open the generated GitHub pull request and wait for the
+7. Steward merge. Open the generated GitHub pull request and wait for the
    required `check` to pass. Show the exact checked pull request to the
    Workspace Steward. After the Workbench returns the merge candidate hash,
    ask that same human for merge authorization and resume with
    `--merge-confirmation <hash>`.
-7. Production confirmation. Show exact Core commit, Workspace commit, Artifact
-   hash, Vercel project, model, and cost warning. Resume with
+8. Production confirmation. Show exact Core commit, Workspace commit, Artifact
+   hash, Vercel project, model route, model, and cost warning. Resume with
    `--production-confirmation <hash>` only after explicit approval.
 
 If a command reports `blocked`, do not improvise around it. Explain the phase,
@@ -408,7 +430,8 @@ Do not announce completion unless this exits successfully. State the scope as
 `live-starter-instance` and the readiness as `validated`. Explain that this
 proves the exact private Workspace, checked pull request, explicit Steward
 merge, immutable version pair, Vercel health, Neon persistence, authorized
-Slack identity, and one real Slack round trip. Report hosted GitHub protection
+Slack identity, selected model route and model, a model-backed response receipt,
+and one real Slack round trip. Report hosted GitHub protection
 separately as `enforced` or `advisory`. It does not authorize business Tools,
 unattended workflows, or a general claim of enforced production readiness.
 
@@ -421,7 +444,7 @@ Give the human:
 - the Neon resource name, owner, selected plan, region, and recovery link;
 - the Slack app/connector, workspace, test channel, and uninstall path;
 - Core version and commit, Workspace version and commit, Workbench version,
-  Artifact hash, ToolSet hash, and model;
+  Artifact hash, ToolSet hash, model route, and model;
 - the Workspace Steward;
 - the non-secret state-file location and exact resume/status commands; and
 - a reminder that resource deletion, billing changes, connector revocation,

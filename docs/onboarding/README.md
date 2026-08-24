@@ -63,6 +63,14 @@ intent before each provider mutation and an immutable resource receipt after
 it. A resumed run reconciles an unresolved intent by immutable provider
 identity and never creates a second resource from a name-only lookup.
 
+Model execution is selected separately as `vercel-ai-gateway` or
+`anthropic-direct`. Gateway needs no provider key from the human. Direct
+Anthropic bypasses AI Gateway and pauses while the human enters a dedicated key
+only in the Vercel project UI as the Sensitive Production variable
+`ANTHROPIC_API_KEY`; setup records only its reference, presence, and Sensitive
+classification. Completion
+proves the exact route and model through a real model-backed Slack response.
+
 The maintained communication binding always uses the logical Connector UID
 `slack/oregano` and the visible Slack Agent name `Oregano`, independently of
 the Company Workspace name. Live acceptance requires the human's

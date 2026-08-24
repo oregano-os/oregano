@@ -1,0 +1,100 @@
+version: 1
+plan_id: release-v0.3.2-2026-08-24
+status: approved
+author: codex-agent
+created: 2026-08-24
+title: Release selectable Gateway and direct Anthropic execution as Oregano v0.3.2
+objective: >-
+  Publish one immutable stable Oregano patch release that keeps existing
+  Workspaces, setup states, answer files, and Gateway deployments compatible
+  while allowing a new Company Instance to select either Vercel AI Gateway or
+  direct Anthropic execution with browser-only runtime-secret entry and
+  model-backed live verification.
+non_goals:
+  - Upgrade or redeploy an existing Company Workspace or Company Instance automatically.
+  - Add Vercel AI Gateway BYOK, direct OpenAI, Bedrock, Vertex, or another model route.
+  - Publish the private Workbench as an npm package.
+  - Store, read, print, proxy, or migrate any provider credential.
+  - Add a public provider plugin API or an alternative runtime-host profile.
+  - Authorize business Tools, unattended workflows, or enforced production readiness.
+  - Replace, delete, or mutate an existing immutable release.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+  - Readiness is scoped and evidenced
+files_expected:
+  - .oregano/changes/**
+  - INSTALL-COMPANYOS.md
+  - docs/**
+  - package.json
+  - packages/**
+  - pnpm-lock.yaml
+  - release-manifest.json
+  - scripts/prepare-release-assets.mjs
+required_approvals:
+  - product-owner
+  - oregano-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-24
+    evidence: explicit-user-instruction-in-codex-task-to-commit-push-tag-and-publish-a-new-release
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-24
+    evidence: explicit-user-instruction-in-codex-task-to-commit-push-tag-and-publish-a-new-release
+validation:
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas
+  - pnpm companyos plan --check .oregano/changes/2026-08-24-release-v0.3.2.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-08-24-release-v0.3.2.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm audit --audit-level high
+  - pnpm runner:build
+  - git diff --check
+  - node scripts/prepare-release-assets.mjs dist/release
+tests:
+  - Core reports 0.3.2 and Workbench reports 0.1.0-experimental.7.
+  - Maintained Workspace fixtures pin Core 0.3.2 and Workbench 0.1.0-experimental.7.
+  - New setup answers select either Vercel AI Gateway or direct Anthropic explicitly.
+  - Legacy answer files without route fields retain Vercel AI Gateway platform behavior.
+  - Setup-state schemas 1 and 2 remain readable under their original verification claim.
+  - The direct Anthropic route fails closed without ANTHROPIC_API_KEY and never stores its value.
+  - Vercel must report the direct credential as a Sensitive Production variable.
+  - Health, production confirmation, and Neon response evidence bind the exact route and model.
+  - The nonce-bound Slack setup response is produced by a real selected-model call.
+  - Release assets are generated only from the clean exact merged v0.3.2 tag.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.oregano-core
+    - architecture.boundaries
+    - command.setup
+    - command.verify-live
+    - guide.prepare-instance
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - status.current
+    - workbench.overview
+migration: >-
+  Existing Company Workspaces and deployed Company Instances require no data,
+  secret, provider, or Workspace-file migration merely because v0.3.2 exists.
+  Existing setup-state schemas remain readable. A missing model-route variable
+  keeps the prior Gateway behavior, and legacy answer files default to Gateway
+  plus platform credentials. Adopting v0.3.2 remains an explicit compatibility
+  pin and Instance deployment decision. Selecting direct Anthropic is a separate
+  Instance configuration decision that requires browser-only secret entry and
+  production confirmation.
+rollback: >-
+  Before publication, abandon the candidate branch without tagging it. After
+  publication, do not mutate the immutable v0.3.2 release; correct a defect in
+  a newer checked release. Existing v0.3.1 deployments and artifacts remain
+  available and are not changed by this publication.
+open_decisions:
+  - Record one fresh external end-to-end installation from the published v0.3.2 assets before recommending direct Anthropic broadly.

@@ -352,16 +352,20 @@ implements one bounded initial-installation subset:
   Workspace Steward merge authorization for the authoring-to-operating change;
 - explicit create-or-adopt choices for one Vercel project, Neon resource, and
   Slack connection;
+- an explicit `vercel-ai-gateway` or `anthropic-direct` model execution route,
+  with direct credentials confined to the runtime host secret store;
 - separate hash-bound confirmations for the setup plan, operating Workspace
   content, checked merge, and exact production candidate;
-- current deployment health plus one nonce-bound Slack and Neon persistence
-  proof; and
+- current deployment health plus one nonce-bound, model-backed Slack response,
+  non-secret route/model response evidence, and Neon persistence proof; and
 - a supervised Oregano Agent with no business Tool grants.
 
 The Workbench implements this subset through a private typed setup-provider
 boundary with four roles: source host, runtime host, state service, and
-communication provider. The maintained profile currently binds those roles to
-GitHub, Vercel, Neon/Postgres, and Slack. This boundary is installation
+communication provider, plus a typed Runner model-execution selection. The
+maintained profile currently binds those roles to GitHub, Vercel,
+Neon/Postgres, and Slack and supports Vercel AI Gateway or direct Anthropic.
+This boundary is installation
 orchestration only; it is not a public plugin contract and does not alter the
 provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.
 Provider creates require write-ahead intents and immutable receipts so resume

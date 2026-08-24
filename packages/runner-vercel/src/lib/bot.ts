@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
-import { ToolLoopAgent, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
+import { ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
 import { Actions, Button, Card, CardText, Chat, type Author, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
@@ -14,7 +14,9 @@ import type { StateAdapter } from "chat";
 import { loadArtifact, selectedAgent } from "./artifact.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
-import { setupVerificationResponse } from "./setup-verification.ts";
+import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
+import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
+import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 let state: StateAdapter;
@@ -31,6 +33,7 @@ const requireEnv = (name: string): string => {
 interface ConversationEntry {
   role: "user" | "assistant";
   content: string;
+  model_execution?: ModelExecutionEvidence;
 }
 
 interface PendingApproval extends ExecuteToolRequest {
@@ -130,26 +133,35 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   });
   const verificationResponse = setupVerificationResponse(message.text);
   if (verificationResponse) {
-    await state.appendToList(conversationKey, { role: "assistant", content: verificationResponse } satisfies ConversationEntry, {
+    const resolved = resolveModelExecution();
+    const probe = await generateText({
+      model: resolved.model,
+      prompt: setupVerificationPrompt(verificationResponse),
+      temperature: 0,
+      maxOutputTokens: 48,
+    });
+    const generated = probe.text.trim();
+    if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
+    await state.appendToList(conversationKey, { role: "assistant", content: generated, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
-    await thread.post(verificationResponse);
+    await thread.post(generated);
     return;
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(thread.id).slice(0, 24)}`;
-  const model = process.env.COMPANYOS_MODEL ?? "openai/gpt-5.4-nano";
+  const resolved = resolveModelExecution();
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
-    model,
+    model: resolved.model,
     instructions: systemInstructions(),
     tools: resolvedTools(thread, requester, runId, message.id),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
   const result = await modelAgent.generate({ messages });
   const response = result.text.trim() || "The requested CompanyOS operation was processed. Review any approval card above before an effect can occur.";
-  await state.appendToList(conversationKey, { role: "assistant", content: response } satisfies ConversationEntry, {
+  await state.appendToList(conversationKey, { role: "assistant", content: response, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });

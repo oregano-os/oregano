@@ -38,12 +38,19 @@ company thresholds, company policies, or provider credentials.
 The Workbench may maintain a small private setup-adapter boundary for hosted
 installation. A setup profile composes exactly one typed adapter for each
 required role: source host, runtime host, state service, and communication
-provider. These adapters translate provider commands and receipts into the
+provider. A separate typed model-execution selection binds a Runner-supported
+route and credential reference without making model SDKs part of Workspace or
+provider-neutral Tool contracts. These adapters translate provider commands and receipts into the
 provider-neutral Instance evidence above. They are not a public plugin API and
 must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
 runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and
 profile, not a new Core execution model.
+
+The maintained model routes are Vercel AI Gateway and direct Anthropic. Adding
+a direct OpenAI, Bedrock, Vertex, or another model route extends the model
+adapter set and conformance tests; it does not add a fifth installation role or
+permit credentials in Core, a Workspace, or an Artifact.
 
 ## A Company Workspace owns
 

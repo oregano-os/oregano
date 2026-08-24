@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.41",
     "@chat-adapter/slack": "4.38.1",
     "@neondatabase/serverless": "1.1.0",
     "@vercel/connect": "0.8.0",

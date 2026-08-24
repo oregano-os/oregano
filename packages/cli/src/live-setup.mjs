@@ -20,10 +20,12 @@ import { PNPM_VERSION } from "./core-version.mjs";
 import { applyOperatingStarter, previewOperatingStarter } from "./operating-starter.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
 import { VERCEL_NEON_SLACK_PROFILE } from "./setup/profiles/vercel-neon-slack.ts";
+import { setupModelProvider } from "./setup/model-providers.ts";
+import { legacyGatewaySelection, normalizeModelExecution } from "../../runner/model-execution.ts";
 
 export const LIVE_SETUP_PROFILE = VERCEL_NEON_SLACK_PROFILE.id;
 export const LIVE_SETUP_PROVIDER_PROFILE = VERCEL_NEON_SLACK_PROFILE;
-export const LIVE_SETUP_STATE_VERSION = 2;
+export const LIVE_SETUP_STATE_VERSION = 3;
 export const SUPPORTED_VERCEL_CLI_VERSION = VERCEL_NEON_SLACK_PROFILE.runtimeHost.cliVersion;
 
 export const LIVE_SETUP_FIELDS = [
@@ -43,6 +45,8 @@ export const LIVE_SETUP_FIELDS = [
   "slack_connector_name",
   "slack_connector_mode",
   "slack_channel_id",
+  "model_route",
+  "model_credential_mode",
   "model",
 ];
 
@@ -86,6 +90,10 @@ export function normalizeLiveSetupAnswers(raw = {}) {
     if (raw[field] !== undefined && typeof raw[field] !== "string") diagnostics.push(diagnostic("LIVE006", "error", `Live setup field '${field}' must be plain text.`, { field }));
   }
   const answers = Object.fromEntries(LIVE_SETUP_FIELDS.map((field) => [field, clean(raw[field])]));
+  if (!answers.model_route && !answers.model_credential_mode && answers.model) {
+    answers.model_route = "vercel-ai-gateway";
+    answers.model_credential_mode = "platform";
+  }
   for (const [field, label] of [
     ["change_date", "Change date"],
     ["steward_email", "Workspace Steward email"],
@@ -101,7 +109,9 @@ export function normalizeLiveSetupAnswers(raw = {}) {
     ["neon_plan", "Neon plan"],
     ["slack_connector_name", "Slack connector name"],
     ["slack_connector_mode", "Slack connector mode"],
-    ["model", "AI Gateway model"],
+    ["model_route", "Model execution route"],
+    ["model_credential_mode", "Model credential mode"],
+    ["model", "Model"],
   ]) validatePlainLine(answers[field], field, label, diagnostics);
   if (answers.neon_region) validatePlainLine(answers.neon_region, "neon_region", "Neon region", diagnostics);
   if (answers.slack_channel_id) validatePlainLine(answers.slack_channel_id, "slack_channel_id", "Slack test channel ID", diagnostics);
@@ -118,7 +128,13 @@ export function normalizeLiveSetupAnswers(raw = {}) {
   if (answers.neon_plan && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(answers.neon_plan)) diagnostics.push(diagnostic("LIVE014", "error", "Neon plan ID has an invalid shape.", { field: "neon_plan" }));
   if (answers.neon_region && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(answers.neon_region)) diagnostics.push(diagnostic("LIVE015", "error", "Neon region has an invalid shape.", { field: "neon_region" }));
   if (answers.slack_channel_id && !/^[A-Z][A-Z0-9]{5,31}$/.test(answers.slack_channel_id)) diagnostics.push(diagnostic("LIVE016", "error", "Slack channel ID has an invalid shape.", { field: "slack_channel_id" }));
-  if (answers.model && !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(answers.model)) diagnostics.push(diagnostic("LIVE017", "error", "AI Gateway model must use provider/model syntax.", { field: "model" }));
+  if (answers.model && !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(answers.model)) diagnostics.push(diagnostic("LIVE017", "error", "Model must use provider/model syntax.", { field: "model" }));
+  const modelProvider = setupModelProvider(answers.model_route);
+  if (!modelProvider) diagnostics.push(diagnostic("LIVE030", "error", "Model route must be 'vercel-ai-gateway' or 'anthropic-direct'.", { field: "model_route" }));
+  else {
+    if (!modelProvider.allowedCredentialModes.includes(answers.model_credential_mode)) diagnostics.push(diagnostic("LIVE031", "error", `Model route '${answers.model_route}' does not allow credential mode '${answers.model_credential_mode}'.`, { field: "model_credential_mode" }));
+    if (answers.model && !modelProvider.supports(answers.model)) diagnostics.push(diagnostic("LIVE032", "error", `Model '${answers.model}' is not supported by route '${answers.model_route}'.`, { field: "model" }));
+  }
   if (answers.slack_connector_name && answers.slack_connector_name.toLowerCase() !== VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName) diagnostics.push(diagnostic("LIVE029", "error", `The maintained Slack profile requires connector name '${VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName}' so the installed Slack Agent has the fixed visible name oregano.`, { field: "slack_connector_name" }));
   return { answers, diagnostics };
 }
@@ -191,6 +207,7 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
       runtime_host: VERCEL_NEON_SLACK_PROFILE.runtimeHost.provider,
       state_service: VERCEL_NEON_SLACK_PROFILE.stateService.provider,
       communication: VERCEL_NEON_SLACK_PROFILE.communication.provider,
+      model_execution: normalized.answers.model_route,
     },
     workspace,
     workspace_fingerprint: workspaceFingerprint(workspace),
@@ -213,13 +230,17 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
       "Resolve the consenting human's canonical Slack principal with a short-lived user token and discard the token.",
       "Propose one operating, supervised, Tool-free Oregano Slack assistant in a pull request.",
       `Build an immutable Artifact from Core ${core.ref} and the reviewed Workspace commit.`,
-      `Configure Vercel AI Gateway model '${normalized.answers.model}', deploy production only after a separate confirmation, and prove a Slack round trip in Neon.`,
+      normalized.answers.model_route === "anthropic-direct"
+        ? `Use Anthropic model '${normalized.answers.model}' directly from the Vercel Runner. The human places ANTHROPIC_API_KEY only in the Vercel project Production secret UI; Oregano records neither its value nor a copy.`
+        : `Configure Vercel AI Gateway model '${normalized.answers.model}' without a separate model-provider API key.`,
+      "Deploy production only after a separate confirmation and prove a model-backed Slack round trip in Neon.",
     ],
     required_human_actions: [
       "Complete GitHub, Vercel, Neon, and Slack browser login or consent when prompted.",
       "Confirm provider plans and possible usage charges before resource creation.",
       "Confirm the exact operating Workspace preview, the checked pull request merge, and the exact production candidate.",
       "Send the generated Slack verification message after deployment.",
+      ...(normalized.answers.model_route === "anthropic-direct" ? ["Create or select a dedicated Anthropic API key, then paste it directly into the Vercel project Production secret named ANTHROPIC_API_KEY. Never paste it into chat or a local setup file."] : []),
     ],
     safety: {
       github_visibility: "private",
@@ -230,6 +251,8 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
       automatic_resource_deletion: false,
       independent_review_required: false,
       review_mode: "steward",
+      model_route: normalized.answers.model_route,
+      model_credential_in_chat_git_or_state: false,
     },
   };
   plan.confirmation_hash = sha256(JSON.stringify(plan));
@@ -263,7 +286,7 @@ export function writeLiveSetupState(path, state) {
 
 export function readLiveSetupState(path) {
   const state = JSON.parse(readFileSync(path, "utf8"));
-  if (!new Set([1, LIVE_SETUP_STATE_VERSION]).has(state?.schema_version) || state?.profile !== LIVE_SETUP_PROFILE) throw new Error(`${path}: unsupported live setup state.`);
+  if (!new Set([1, 2, LIVE_SETUP_STATE_VERSION]).has(state?.schema_version) || state?.profile !== LIVE_SETUP_PROFILE) throw new Error(`${path}: unsupported live setup state.`);
   assertSafeState(state);
   return state;
 }
@@ -440,11 +463,20 @@ const ensureVercelProjectConfiguration = (executor, coreRoot, scope, project, mo
   };
 };
 
-const vercelEnvironmentNames = (executor, coreRoot, scope, project) => {
+const vercelEnvironmentVariables = (executor, coreRoot, scope, project) => {
   const payload = parseJson(vercel(executor, coreRoot, ["env", "list", "production", "--project", project, "--format", "json"], { scope }).stdout, "Vercel production environment variables");
   const items = Array.isArray(payload) ? payload : payload?.envs ?? payload?.variables ?? payload?.data ?? [];
-  return new Set(items.map((item) => clean(item?.key ?? item?.name)).filter(Boolean));
+  return items.map((item) => ({ name: clean(item?.key ?? item?.name), type: clean(item?.type).toLowerCase() })).filter((item) => item.name);
 };
+
+const vercelEnvironmentNames = (executor, coreRoot, scope, project) =>
+  new Set(vercelEnvironmentVariables(executor, coreRoot, scope, project).map((item) => item.name));
+
+const modelExecutionForState = (state) => state.answers?.model_route
+  ? normalizeModelExecution(state.answers.model_route, state.answers.model)
+  : legacyGatewaySelection(state.answers?.model);
+
+const modelCredentialDashboardUrl = (state) => `https://vercel.com/${encodeURIComponent(state.answers.vercel_scope)}/${encodeURIComponent(state.answers.vercel_project)}/settings/environment-variables`;
 
 export const createVercelEnvironmentVariable = (executor, coreRoot, scope, project, name, value, { sensitive = false } = {}) => {
   const args = ["env", "add", name, "production", "--yes", sensitive ? "--sensitive" : "--no-sensitive"];
@@ -610,10 +642,12 @@ const buildAndConfigureArtifact = (executor, state, statePath, coreRoot) => {
   if (artifact?.provenance?.coreCommit !== state.core.ref || artifact?.provenance?.workspaceCommit !== workspaceCommit || !/^[0-9a-f]{64}$/.test(artifact?.artifactHash ?? "")) throw new Error("Built Artifact provenance does not match the reviewed Core and Workspace commits.");
   const encoded = gzipSync(readFileSync(artifactPath)).toString("base64");
   const project = state.resources.vercel.project;
+  const modelExecution = modelExecutionForState(state);
   const definitions = [
     { name: "COMPANYOS_ARTIFACT_GZIP_BASE64", value: encoded, sensitive: true },
     { name: "SLACK_CONNECTOR", value: state.resources.slack.uid, sensitive: false },
     { name: "COMPANYOS_AGENT_ID", value: VERCEL_NEON_SLACK_PROFILE.communication.agentId, sensitive: false },
+    { name: "COMPANYOS_MODEL_ROUTE", value: modelExecution.route, sensitive: false },
     { name: "COMPANYOS_MODEL", value: state.answers.model, sensitive: false },
     { name: "BOT_USERNAME", value: VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName, sensitive: false },
   ];
@@ -645,6 +679,7 @@ const buildAndConfigureArtifact = (executor, state, statePath, coreRoot) => {
 const expectedHealth = (state, health) => health?.ok === true && health?.status === "ready" &&
   health?.artifactHash === state.artifact.hash && health?.coreCommit === state.artifact.core_commit &&
   health?.workspaceCommit === state.artifact.workspace_commit && health?.agent === "oregano" &&
+  (state.schema_version < 3 || (health?.modelRoute === modelExecutionForState(state).route && health?.model === modelExecutionForState(state).model)) &&
   health?.resolvedToolSetHash === state.artifact.resolved_toolset_hash &&
   Array.isArray(health?.tools) && health.tools.length === 0;
 
@@ -757,6 +792,59 @@ export async function advanceLiveSetup({
         const configuration = ensureVercelProjectConfiguration(executor, coreRoot, state.answers.vercel_scope, state.answers.vercel_project, state.answers.vercel_project_mode);
         state.resources.vercel = { id: clean(projectMetadata.projectId), project: state.answers.vercel_project, scope: state.answers.vercel_scope, mode: state.answers.vercel_project_mode, configuration };
         if (state.answers.vercel_project_mode === "create") completeMutation(absoluteStatePath, state, intentKey, { id: state.resources.vercel.id, project: state.resources.vercel.project });
+        savePhase(absoluteStatePath, state, "model-credential");
+      } else if (state.phase === "model-credential") {
+        const selection = modelExecutionForState(state);
+        const provider = setupModelProvider(selection.route);
+        if (!provider) throw new Error(`Unsupported model execution route '${selection.route}'.`);
+        if (!provider.credentialRef) {
+          state.resources.model = { ...selection, credential_mode: "platform", credential_status: "not-required", checked_at: now() };
+          savePhase(absoluteStatePath, state, "neon");
+          continue;
+        }
+        const environmentVariables = vercelEnvironmentVariables(executor, coreRoot, state.answers.vercel_scope, state.answers.vercel_project);
+        const credentialVariable = environmentVariables.find((item) => item.name === provider.credentialRef);
+        const present = Boolean(credentialVariable);
+        const protectedAsSensitive = credentialVariable?.type === "sensitive";
+        state.resources.model ??= { ...selection, credential_mode: state.answers.model_credential_mode };
+        if (state.answers.model_credential_mode === "configure") {
+          if (!state.resources.model.credential_prompted_at) {
+            if (present) throw new Error(`Vercel production environment variable '${provider.credentialRef}' already exists. Choose credential mode 'adopt' explicitly or use a new project; Oregano did not read or change it.`);
+            state.resources.model.credential_prompted_at = now();
+            writeLiveSetupState(absoluteStatePath, state);
+            return wait(absoluteStatePath, state, "Create a dedicated Anthropic API key, then paste it directly into the Vercel project Production Environment Variables page as the Sensitive variable ANTHROPIC_API_KEY. Do not paste the key into chat or a local file.", {
+              type: "browser-secret-entry",
+              provider: "anthropic",
+              key_creation_url: "https://platform.claude.com/settings/keys",
+              runtime_host: "vercel",
+              url: modelCredentialDashboardUrl(state),
+              environment: "production",
+              variable_name: provider.credentialRef,
+              sensitive: true,
+            });
+          }
+          if (!present) return wait(absoluteStatePath, state, "The Anthropic key is not present yet. Add ANTHROPIC_API_KEY directly to the Vercel project as a Sensitive Production variable, then resume.", {
+            type: "browser-secret-entry",
+            provider: "anthropic",
+            key_creation_url: "https://platform.claude.com/settings/keys",
+            runtime_host: "vercel",
+            url: modelCredentialDashboardUrl(state),
+            environment: "production",
+            variable_name: provider.credentialRef,
+            sensitive: true,
+          });
+        } else if (state.answers.model_credential_mode === "adopt" && !present) {
+          throw new Error(`Vercel production environment variable '${provider.credentialRef}' was not found for explicit adoption. Oregano did not create or substitute a credential.`);
+        }
+        if (!protectedAsSensitive) {
+          throw new Error(`Vercel production environment variable '${provider.credentialRef}' exists but is not classified as Sensitive. Change it in the Vercel project UI; Oregano did not read, replace, or delete it.`);
+        }
+        state.resources.model = {
+          ...selection,
+          credential_mode: state.answers.model_credential_mode,
+          credential_status: "present-sensitive",
+          checked_at: now(),
+        };
         savePhase(absoluteStatePath, state, "neon");
       } else if (state.phase === "neon") {
         const listed = parseJson(vercel(executor, coreRoot, ["integration", "list", "--all", "--integration", "neon", "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel integrations");
@@ -872,10 +960,11 @@ export async function advanceLiveSetup({
         state.artifact = buildAndConfigureArtifact(executor, state, absoluteStatePath, coreRoot);
         savePhase(absoluteStatePath, state, "production-confirmation");
       } else if (state.phase === "production-confirmation") {
-        const candidateHash = sha256(JSON.stringify({ artifact: state.artifact.hash, core: state.artifact.core_commit, workspace: state.artifact.workspace_commit, project: state.resources.vercel.project, model: state.answers.model }));
+        const modelExecution = modelExecutionForState(state);
+        const candidateHash = sha256(JSON.stringify({ artifact: state.artifact.hash, core: state.artifact.core_commit, workspace: state.artifact.workspace_commit, project: state.resources.vercel.project, model_route: modelExecution.route, model: modelExecution.model }));
         state.deployment.production_confirmation_hash = candidateHash;
         writeLiveSetupState(absoluteStatePath, state);
-        if (productionConfirmation !== candidateHash) return wait(absoluteStatePath, state, "The exact production candidate is ready. Confirm deployment after reviewing provider costs and the immutable provenance.", { type: "confirm-production", confirmation_hash: candidateHash, candidate: { artifact_hash: state.artifact.hash, core_commit: state.artifact.core_commit, workspace_commit: state.artifact.workspace_commit, vercel_project: state.resources.vercel.project, model: state.answers.model } });
+        if (productionConfirmation !== candidateHash) return wait(absoluteStatePath, state, "The exact production candidate is ready. Confirm deployment after reviewing provider costs and the immutable provenance.", { type: "confirm-production", confirmation_hash: candidateHash, candidate: { artifact_hash: state.artifact.hash, core_commit: state.artifact.core_commit, workspace_commit: state.artifact.workspace_commit, vercel_project: state.resources.vercel.project, model_route: modelExecution.route, model: modelExecution.model } });
         savePhase(absoluteStatePath, state, "production-deployment");
       } else if (state.phase === "production-deployment") {
         let url = state.deployment.url;
@@ -906,6 +995,8 @@ export async function advanceLiveSetup({
           resolved_toolset_hash: health.resolvedToolSetHash,
           agent: health.agent,
           tools: health.tools,
+          model_route: health.modelRoute,
+          model: health.model,
           checked_at: now(),
         };
         savePhase(absoluteStatePath, state, "slack-verification");
@@ -913,11 +1004,12 @@ export async function advanceLiveSetup({
         const nonce = state.verification.slack_nonce ?? `oregano-${sha256(`${state.plan_hash}:${state.deployment.url}`).slice(0, 12)}`;
         state.verification.slack_nonce = nonce;
         writeLiveSetupState(absoluteStatePath, state);
-        const proof = run(executor, "vercel", ["env", "run", "--environment", "production", "--project", state.resources.vercel.project, "--cwd", coreRoot, "--scope", state.answers.vercel_scope, "--", "node", join(coreRoot, "packages", "cli", "src", "live-database-proof.mjs"), nonce], { cwd: coreRoot, allowFailure: true });
+        const modelExecution = modelExecutionForState(state);
+        const proof = run(executor, "vercel", ["env", "run", "--environment", "production", "--project", state.resources.vercel.project, "--cwd", coreRoot, "--scope", state.answers.vercel_scope, "--", "node", join(coreRoot, "packages", "cli", "src", "live-database-proof.mjs"), nonce, modelExecution.route, modelExecution.model], { cwd: coreRoot, allowFailure: true });
         if (proof.status !== 0) return wait(absoluteStatePath, state, "Send the generated message to Oregano in Slack. The installer will then prove both the user message and Oregano response in Neon.", { type: "slack-round-trip", message: `@Oregano Setup-Test ${nonce}`, channel_id: state.answers.slack_channel_id || null });
         const databaseProof = parseJson(proof.stdout, "Slack database proof");
         if (databaseProof.ok !== true) return wait(absoluteStatePath, state, "The Slack message has not produced a complete persisted round trip yet.", { type: "slack-round-trip", message: `@Oregano Setup-Test ${nonce}`, channel_id: state.answers.slack_channel_id || null });
-        state.verification.database = { ok: true, conversation_entries: databaseProof.conversation_entries, assistant_entries: databaseProof.assistant_entries, exact_response_entries: databaseProof.exact_response_entries, checked_at: now() };
+        state.verification.database = { ok: true, conversation_entries: databaseProof.conversation_entries, assistant_entries: databaseProof.assistant_entries, exact_response_entries: databaseProof.exact_response_entries, model_evidence_entries: databaseProof.model_evidence_entries, checked_at: now() };
         state.verification.scope = "live-starter-instance";
         state.verification.readiness = "validated";
         savePhase(absoluteStatePath, state, "complete");
@@ -958,6 +1050,18 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
     if (unresolvedIntents.length > 0) diagnostics.push(diagnostic("LIVE116", "error", `Provider mutation receipts are incomplete: ${unresolvedIntents.join(", ")}.`));
     if (!new Set(["READY", "SUCCEEDED", "SUCCESS"]).has(state.deployment?.ready_state)) diagnostics.push(diagnostic("LIVE117", "error", "Structured ready deployment evidence is missing."));
   }
+  if (state.schema_version >= 3) {
+    let selection;
+    try { selection = modelExecutionForState(state); }
+    catch (error) { diagnostics.push(diagnostic("LIVE118", "error", safeError(error.message))); }
+    if (selection && (state.resources.model?.route !== selection.route || state.resources.model?.model !== selection.model || state.resources.model?.provider !== selection.provider)) {
+      diagnostics.push(diagnostic("LIVE119", "error", "Model execution provider evidence is missing or mismatched."));
+    }
+    if (selection?.credentialRef && (state.resources.model?.credentialRef !== selection.credentialRef || state.resources.model?.credential_status !== "present-sensitive")) {
+      diagnostics.push(diagnostic("LIVE120", "error", "Direct model credential presence and Sensitive classification evidence is missing. The credential value was not inspected."));
+    }
+    if (Number(state.verification?.database?.model_evidence_entries ?? 0) < 1) diagnostics.push(diagnostic("LIVE121", "error", "Persisted model-backed Slack response evidence is missing."));
+  }
   if (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.merge_authorized_by !== state.resources.github?.authenticated_login || !/^\d{4}-\d{2}-\d{2}T/.test(state.operating?.merge_authorized_at ?? "") || state.operating?.required_check !== "passed") diagnostics.push(diagnostic("LIVE106", "error", "Workspace Steward merge authorization, required check, or immutable merge evidence is missing."));
   if (state.verification?.database?.ok !== true) diagnostics.push(diagnostic("LIVE107", "error", "Persisted Slack round-trip evidence is missing."));
   if (state.deployment?.url) {
@@ -992,7 +1096,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
       scope: "live-starter-instance",
       readiness: !hasErrors(diagnostics) ? "validated" : "not-validated",
       github_protection: currentProtection,
-      statement: "Verification proves this exact supervised starter Instance: private GitHub Workspace, checked pull request, explicit Steward merge, immutable Core and Workspace provenance, Vercel health, Neon persistence, and one authorized Slack round trip. Hosted GitHub protection is reported separately and is not required for this Tool-free supervised starter. This does not authorize business Tools, unattended workflows, or claim general enforced production readiness.",
+      statement: "Verification proves this exact supervised starter Instance: private GitHub Workspace, checked pull request, explicit Steward merge, immutable Core and Workspace provenance, selected model execution route, Vercel health, Neon persistence, and one authorized model-backed Slack round trip. Hosted GitHub protection is reported separately and is not required for this Tool-free supervised starter. This does not authorize business Tools, unattended workflows, or claim general enforced production readiness.",
     },
     state: {
       profile: state.profile,
@@ -1001,6 +1105,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
       vercel: state.resources.vercel,
       neon: state.resources.neon,
       slack: state.resources.slack,
+      model: state.resources.model,
       artifact: state.artifact,
       deployment: state.deployment,
     },

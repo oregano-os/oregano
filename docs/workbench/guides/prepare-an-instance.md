@@ -27,8 +27,9 @@ For the maintained reference setup, the Platform Administrator verifies:
 
 - a Vercel account or team controlled by the company or appointed custodian;
 - one identified Vercel project and deployment identity per isolation decision;
-- Vercel AI Gateway access, an approved usage budget, and confirmed access to
-  the exact selected model for the runtime team's billing tier;
+- one selected model execution route: Vercel AI Gateway access, or a direct
+  Anthropic account with approved billing and a dedicated runtime secret;
+- an approved usage budget and confirmed access to the exact selected model;
 - a Neon/Postgres account and project when durable state is required;
 - separate production and non-production credentials and state unless an
   explicit risk decision permits sharing;
@@ -84,19 +85,28 @@ The maintained Runner requires these Instance values:
 | `DATABASE_URL` | isolated Neon/Postgres connection used by the `companyos` schema |
 | `COMPANYOS_ARTIFACT_GZIP_BASE64` | gzip-compressed immutable Artifact built from clean exact checkouts |
 | `COMPANYOS_PUBLIC_BASE_URL` | canonical deployment origin returned by real artifact-publication evidence |
-| `COMPANYOS_MODEL` | explicit AI Gateway model identifier already verified for the runtime team's billing tier |
+| `COMPANYOS_MODEL_ROUTE` | `vercel-ai-gateway` or `anthropic-direct` |
+| `COMPANYOS_MODEL` | exact `provider/model` identifier approved for the selected route |
+| `ANTHROPIC_API_KEY` | Sensitive Production secret required only by `anthropic-direct`; never part of an Artifact, Workspace, setup answers, or setup state |
 | `COMPANYOS_AGENT_ID` | Agent selected from the Artifact when it contains more than one Agent |
 
 The Slack Connector trigger path is `/api/webhooks/slack`. Health is
 `/api/health`. A release is not accepted until health reports the expected
-Core commit, Workspace commit, Artifact hash, and resolved ToolSet hash; an
+Core commit, Workspace commit, Artifact hash, resolved ToolSet hash, model
+route, and model; an
 authorized roster member reaches the selected Agent; and an unknown identity
 is blocked before model invocation.
 
-The maintained Runner authenticates AI Gateway through the Vercel deployment
-identity. It does not consume `ANTHROPIC_API_KEY` or another direct provider
-key. Supporting a direct provider key requires a separately reviewed Runner
-provider adapter; never place that key in the CompanyOS Artifact.
+For `vercel-ai-gateway`, the Runner authenticates through the Vercel deployment
+identity and consumes no provider API key. For `anthropic-direct`, the Runner
+uses the official Anthropic provider directly and bypasses AI Gateway. The
+Platform Administrator creates a dedicated key in Anthropic and enters it only
+in the Vercel project UI as the Sensitive Production variable
+`ANTHROPIC_API_KEY`; Vercel is acting only as runtime host and secret store.
+Setup observes the variable name, presence, and Sensitive classification, never
+its value. Never place a
+provider key in chat, a command argument, Git, the Workspace, the Artifact, or
+setup state.
 
 An artifact publication is served from `/artifacts/<artifact-id>` only after
 the exact R3 request passes Core authorization and approval consumption. The

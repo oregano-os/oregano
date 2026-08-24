@@ -39,8 +39,8 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.3.1");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.6");
+  assert.equal(CORE_VERSION, "0.3.2");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.7");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -195,9 +195,9 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.3.1",
+    core: "0.3.2",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.6",
+    workbench: "0.1.0-experimental.7",
     companyos_spec: "0.7-draft",
   });
 
@@ -701,7 +701,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.3.1",
+  core_version: "0.3.2",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };
@@ -887,6 +887,8 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.doesNotMatch(install, /codex plugin (?:marketplace )?add|claude plugin (?:marketplace )?add/i);
   assert.equal(releaseManifest.status, "source-template");
   assert.equal(releaseManifest.default_profile, "vercel-neon-slack");
+  assert.equal(releaseManifest.default_model_route, "vercel-ai-gateway");
+  assert.deepEqual(releaseManifest.supported_model_routes, ["vercel-ai-gateway", "anthropic-direct"]);
   assert.equal(releaseManifest.requirements.vercel_cli, "56.3.2");
   assert.equal(rootPackage.devDependencies.vercel, releaseManifest.requirements.vercel_cli);
   assert.equal(PNPM_VERSION, releaseManifest.requirements.pnpm);
