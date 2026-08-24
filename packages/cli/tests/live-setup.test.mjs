@@ -20,6 +20,8 @@ import {
   writeLiveSetupState,
 } from "../src/live-setup.mjs";
 import { assertSetupProviderProfile } from "../src/setup/provider-contracts.ts";
+import { assertSetupModelProviderAdapter } from "../src/setup/model-provider-contracts.ts";
+import { ANTHROPIC_DIRECT_MODEL_PROVIDER, VERCEL_AI_GATEWAY_MODEL_PROVIDER } from "../src/setup/model-providers.ts";
 import {
   applyOperatingStarter,
   normalizeOperatingStarterInput,
@@ -48,7 +50,7 @@ const coreIdentity = (root) => ({
   root,
   repository: "oregano-os/oregano",
   ref: CORE_REF,
-  core_version: "0.3.1",
+  core_version: "0.3.2",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 });
@@ -70,6 +72,8 @@ const liveAnswers = (overrides = {}) => ({
   slack_connector_name: "oregano",
   slack_connector_mode: "create",
   slack_channel_id: "C12345678",
+  model_route: "vercel-ai-gateway",
+  model_credential_mode: "platform",
   model: "openai/gpt-5.4-nano",
   ...overrides,
 });
@@ -127,6 +131,17 @@ test("live setup answers are bounded data with explicit create or adopt choices"
   assert.ok(invalid.diagnostics.some((item) => item.code === "LIVE029"));
 });
 
+test("legacy answer files without model route fields retain the Gateway behavior", () => {
+  const legacy = liveAnswers();
+  delete legacy.model_route;
+  delete legacy.model_credential_mode;
+  const normalized = normalizeLiveSetupAnswers(legacy);
+  assert.deepEqual(normalized.diagnostics, []);
+  assert.equal(normalized.answers.model_route, "vercel-ai-gateway");
+  assert.equal(normalized.answers.model_credential_mode, "platform");
+  assert.equal(normalized.answers.model, "openai/gpt-5.4-nano");
+});
+
 test("the maintained setup profile provides exactly one typed adapter for every provider role", () => {
   assert.doesNotThrow(() => assertSetupProviderProfile(LIVE_SETUP_PROVIDER_PROFILE));
   assert.deepEqual([
@@ -145,6 +160,16 @@ test("the maintained setup profile provides exactly one typed adapter for every 
   assert.equal(LIVE_SETUP_PROVIDER_PROFILE.communication.agentDisplayName, "oregano");
   assert.equal(LIVE_SETUP_PROVIDER_PROFILE.communication.expectedConnectorUid(), "slack/oregano");
   assert.throws(() => assertSetupProviderProfile({ ...LIVE_SETUP_PROVIDER_PROFILE, communication: undefined }), /communication/);
+});
+
+test("model execution routes have typed, secret-aware setup adapters", () => {
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(VERCEL_AI_GATEWAY_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(ANTHROPIC_DIRECT_MODEL_PROVIDER));
+  assert.equal(VERCEL_AI_GATEWAY_MODEL_PROVIDER.credentialRef, null);
+  assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.credentialRef, "ANTHROPIC_API_KEY");
+  assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.secretEntrySurface, "runtime-host-dashboard");
+  assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.supports("anthropic/claude-sonnet-4-5"), true);
+  assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.supports("openai/gpt-5.4-nano"), false);
 });
 
 test("the operating starter is deterministic, Tool-free, and keeps one Steward", () => withSetup(({ workspace }) => {
@@ -570,6 +595,64 @@ test("the create path explicitly adds the Vercel project before linking it", asy
   assert.equal(result.state.phase, "neon");
 }));
 
+test("direct Anthropic pauses for browser-only secret entry and records presence without the key", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "anthropic-direct-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 3,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-24T00:00:00.000Z",
+    updated_at: "2026-08-24T00:00:00.000Z",
+    phase: "model-credential",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers({
+      model_route: "anthropic-direct",
+      model_credential_mode: "configure",
+      model: "anthropic/claude-sonnet-4-5",
+    }),
+    resources: { vercel: { id: "prj_synthetic", project: "example-companyos", scope: "example-company" } },
+    intents: {}, operating: {}, artifact: {}, deployment: {}, verification: {}, history: [],
+  });
+  let credentialPresent = false;
+  let credentialType = "sensitive";
+  const executor = {
+    run(file, args) {
+      assert.equal(file, "vercel");
+      if (args[0] === "env" && args[1] === "list") {
+        return { status: 0, stdout: JSON.stringify(credentialPresent ? [{ key: "ANTHROPIC_API_KEY", type: credentialType }] : []), stderr: "" };
+      }
+      if (args[0] === "integration") return { status: 1, stdout: "", stderr: "stop after credential gate" };
+      return { status: 0, stdout: "{}", stderr: "" };
+    },
+  };
+  const waiting = await advanceLiveSetup({ statePath, executor });
+  assert.equal(waiting.status, "waiting");
+  assert.equal(waiting.state.phase, "model-credential");
+  assert.equal(waiting.next_action.type, "browser-secret-entry");
+  assert.equal(waiting.next_action.variable_name, "ANTHROPIC_API_KEY");
+  assert.equal(waiting.next_action.sensitive, true);
+  assert.equal(waiting.next_action.key_creation_url, "https://platform.claude.com/settings/keys");
+  assert.match(waiting.next_action.url, /settings\/environment-variables$/);
+  assert.doesNotMatch(readFileSync(statePath, "utf8"), /synthetic-test-value|sk-ant/);
+
+  credentialPresent = true;
+  credentialType = "encrypted";
+  const unsafeVariable = await advanceLiveSetup({ statePath, executor });
+  assert.equal(unsafeVariable.status, "blocked");
+  assert.equal(unsafeVariable.state.phase, "model-credential");
+  assert.match(unsafeVariable.message, /not classified as Sensitive/);
+
+  credentialType = "sensitive";
+  const resumed = await advanceLiveSetup({ statePath, executor });
+  assert.equal(resumed.status, "blocked");
+  assert.equal(resumed.state.phase, "neon");
+  assert.equal(resumed.state.resources.model.route, "anthropic-direct");
+  assert.equal(resumed.state.resources.model.provider, "anthropic");
+  assert.equal(resumed.state.resources.model.credential_status, "present-sensitive");
+  assert.equal("credential" in resumed.state.resources.model, false);
+}));
+
 test("an adopted Vercel project with a conflicting runner root is left unchanged", async () => withSetup(async ({ temporary, core, workspace }) => {
   const statePath = join(temporary, "vercel-adopt-conflict-state.json");
   writeLiveSetupState(statePath, {
@@ -909,4 +992,54 @@ test("live verification proves only the exact supervised starter scope", async (
   });
   assert.equal(unresolvedReceipt.verification.ok, false);
   assert.ok(unresolvedReceipt.diagnostics.some((item) => item.code === "LIVE116"));
+}));
+
+test("new live verification binds direct Anthropic route, credential presence, health, and persisted model evidence", async () => withSetup(async ({ temporary }) => {
+  const statePath = join(temporary, "direct-complete-state.json");
+  const state = {
+    schema_version: 3,
+    profile: "vercel-neon-slack",
+    phase: "complete",
+    history: [],
+    answers: liveAnswers({
+      model_route: "anthropic-direct",
+      model_credential_mode: "adopt",
+      model: "anthropic/claude-sonnet-4-5",
+    }),
+    resources: {
+      github: { repository: "example-company/companyos", visibility: "PRIVATE", protection: { status: "enforced", checked_at: "2026-08-24T09:00:00.000Z" }, authenticated_login: "anna-example" },
+      vercel: { project: "example-companyos", configuration: { root_directory: "packages/runner-vercel", framework: "nextjs", source_files_outside_root_directory: true } },
+      neon: { id: "store_example", name: "example-companyos-db" },
+      slack: { uid: "slack/oregano", team_id: "T12345678", user_id: "U12345678", trigger_path: "/api/webhooks/slack", expected_display_name: "oregano" },
+      model: { route: "anthropic-direct", provider: "anthropic", model: "anthropic/claude-sonnet-4-5", credentialRef: "ANTHROPIC_API_KEY", credential_mode: "adopt", credential_status: "present-sensitive" },
+    },
+    intents: {},
+    operating: { merge_commit: "d".repeat(40), merge_authorized_by: "anna-example", merge_authorized_at: "2026-08-24T10:00:00.000Z", required_check: "passed" },
+    artifact: { hash: "a".repeat(64), core_commit: CORE_REF, workspace_commit: "b".repeat(40), resolved_toolset_hash: "c".repeat(64) },
+    deployment: { url: "https://example.vercel.app", ready_state: "READY" },
+    verification: { database: { ok: true, model_evidence_entries: 1 } },
+  };
+  writeLiveSetupState(statePath, state);
+  const executor = {
+    run(_file, args) {
+      if (args[0] === "repo") return { status: 0, stdout: JSON.stringify({ visibility: "PRIVATE" }), stderr: "" };
+      return { status: 0, stdout: JSON.stringify(enforcedGitHubProtection), stderr: "" };
+    },
+  };
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true, status: "ready", artifactHash: "a".repeat(64), coreCommit: CORE_REF,
+      workspaceCommit: "b".repeat(40), resolvedToolSetHash: "c".repeat(64), agent: "oregano", tools: [],
+      modelRoute: "anthropic-direct", model: "anthropic/claude-sonnet-4-5",
+    }),
+  });
+  const verified = await verifyLiveSetup({ statePath, executor, fetchImpl });
+  assert.equal(verified.verification.ok, true);
+
+  state.verification.database.model_evidence_entries = 0;
+  writeLiveSetupState(statePath, state);
+  const missingEvidence = await verifyLiveSetup({ statePath, executor, fetchImpl });
+  assert.equal(missingEvidence.verification.ok, false);
+  assert.ok(missingEvidence.diagnostics.some((item) => item.code === "LIVE121"));
 }));

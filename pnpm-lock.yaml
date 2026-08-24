@@ -61,6 +61,9 @@ importers:
 
   packages/runner-vercel:
     dependencies:
+      '@ai-sdk/anthropic':
+        specifier: 4.0.41
+        version: 4.0.41(zod@4.1.11)
       '@chat-adapter/slack':
         specifier: 4.38.1
         version: 4.38.1(ai@7.0.66(zod@4.1.11))(debug@4.4.3)(zod@4.1.11)
@@ -101,6 +104,12 @@ importers:
 
 packages:
 
+  '@ai-sdk/anthropic@4.0.41':
+    resolution: {integrity: sha512-So62as8fexWMmXMIxvrWVaDLjLRe6EG2+5mmRc1KCPBoyyyFx6zbTcCvxJkViSUHhsGMBDryAm+mfs91n7Jl8g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@4.0.52':
     resolution: {integrity: sha512-SXUM8jzzuTUJRq+EOgPd5to6DSx0EKslVn+IVZHbUEX6k/3vCPNrvjckbK26HnNxHU/STxm+zTSJteqrO+7Z0w==}
     engines: {node: '>=22'}
@@ -109,6 +118,12 @@ packages:
 
   '@ai-sdk/provider-utils@5.0.27':
     resolution: {integrity: sha512-EzAn4pdgG5g0xXtH6lE2zyNmfjDQIDjATkfqzuidEI35g++hh4+07vnjzkT/RmGmIClPZiRj/Q2GMPV2V7mkHw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@5.0.29':
+    resolution: {integrity: sha512-7EIbwXiXKGa7EFk6tDZpuZBs6lxhEJpOuHeqrDb3Vd85uYdjwkdRuHnZDVDIIb2+QTSRmyph2NrXcbvuO/KAjQ==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -2451,6 +2466,12 @@ packages:
 
 snapshots:
 
+  '@ai-sdk/anthropic@4.0.41(zod@4.1.11)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.7
+      '@ai-sdk/provider-utils': 5.0.29(zod@4.1.11)
+      zod: 4.1.11
+
   '@ai-sdk/gateway@4.0.52(zod@4.1.11)':
     dependencies:
       '@ai-sdk/provider': 4.0.7
@@ -2459,6 +2480,15 @@ snapshots:
       zod: 4.1.11
 
   '@ai-sdk/provider-utils@5.0.27(zod@4.1.11)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.7
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.1
+      undici: 7.29.0
+      zod: 4.1.11
+
+  '@ai-sdk/provider-utils@5.0.29(zod@4.1.11)':
     dependencies:
       '@ai-sdk/provider': 4.0.7
       '@standard-schema/spec': 1.1.0

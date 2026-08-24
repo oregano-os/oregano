@@ -39,10 +39,14 @@ runbook. It fails unless fresh or recorded evidence proves:
 - the canonical Slack team and user principal is resolved without a stored credential;
 - a structured Vercel deployment receipt is ready and current health matches
   the exact Artifact, Core commit, Workspace commit, selected Oregano Agent,
-  and empty ToolSet; and
+  empty ToolSet, selected model route, and exact model;
+- direct Anthropic credential-presence and Sensitive-classification evidence
+  exists when that route is selected, without a credential value in setup
+  state; and
 - the nonce-bound human Slack message and Oregano's exact
   `Setup-Test <nonce> successful.` response were persisted in the same Neon
-  conversation.
+  conversation with a non-secret response ID, response model, and token-count
+  evidence from a real selected-model call.
 
 Successful scope is exactly `live-starter-instance`, with readiness
 `validated`. This scope proves one supervised starter deployment. It does not

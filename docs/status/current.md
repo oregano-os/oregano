@@ -22,8 +22,8 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core has prepared the `0.3.1` initial-development release candidate;
-  `v0.3.0` remains the latest stable release until the reviewed candidate is
+- Oregano Core has prepared the `0.3.2` initial-development release candidate;
+  `v0.3.1` remains the latest stable release until the reviewed candidate is
   merged, tagged, and published. Every Company Workspace advances independently
   under the canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
@@ -57,7 +57,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.6`; no
+  builds. Its repository release candidate is `0.1.0-experimental.7`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
@@ -74,6 +74,12 @@ evidence, historical prototypes, and production gaps.
   health verification, and nonce-bound Slack plus Neon persistence proof.
   `companyos verify-live` reports only `live-starter-instance` with readiness
   `validated`.
+- Setup and the maintained Runner now select either Vercel AI Gateway or direct
+  Anthropic execution. Direct Anthropic bypasses Gateway, requires
+  `ANTHROPIC_API_KEY` only as a Sensitive Production runtime variable, and
+  fails closed when it is absent. Health, production confirmation, and the
+  persisted model-backed Slack response bind the exact route and model without
+  storing the secret value.
 - The maintained setup implementation now has a private typed four-role
   provider boundary. Its GitHub, Vercel, Neon, and Slack profile records
   write-ahead intents and immutable receipts, verifies the monorepo runner
@@ -97,8 +103,9 @@ evidence, historical prototypes, and production gaps.
   Artifact, admits only active compiled roster humans before model invocation,
   exposes only the resolved ToolSet, and reauthorizes R3/R4 approval clicks in
   Core. Vercel Connect and Chat SDK provide Slack transport; AI SDK and AI
-  Gateway provide model turns; Postgres provides durable chat, approval, and
-  effect state.
+  Gateway provide model turns; the official Anthropic provider supplies direct
+  Anthropic model turns when selected; Postgres provides durable chat,
+  approval, and effect state.
 - A private pilot has exercised the maintained Vercel Runner, Slack transport,
   immutable Artifact loading, and Postgres-backed state. Customer identifiers,
   deployment URLs, immutable revisions, and operating evidence remain in the
@@ -147,7 +154,7 @@ evidence, historical prototypes, and production gaps.
    legal, account, spend, and recovery decision.
 3. Establish an isolated non-production Instance and Connector authorization
    instead of testing future changes against production state.
-4. Reconcile, validate, tag, and publish the stable immutable `v0.3.1` GitHub
+4. Reconcile, validate, tag, and publish the stable immutable `v0.3.2` GitHub
    Release containing the checksum-bound agent runbook. There is no
    `latest-stable` branch; `releases/latest` is discovery only and installation
    pins the exact tag, commit, and Workbench version.

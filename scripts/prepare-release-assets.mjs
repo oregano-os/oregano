@@ -41,7 +41,9 @@ const manifest = {
   install_runbook: "INSTALL-COMPANYOS.md",
   supported_agent_harnesses: ["codex", "claude-code"],
   default_profile: "vercel-neon-slack",
+  default_model_route: "vercel-ai-gateway",
   default_model: "openai/gpt-5.4-nano",
+  supported_model_routes: ["vercel-ai-gateway", "anthropic-direct"],
   requirements: { node: ">=24", pnpm: pnpmVersion, vercel_cli: "56.3.2", git: true },
   checksums: Object.fromEntries(assetNames.map((name) => [name, `sha256:${sha256(join(output, name))}`])),
 };

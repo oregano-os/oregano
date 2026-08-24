@@ -1,0 +1,101 @@
+version: 1
+plan_id: selectable-model-execution-2026-08-24
+status: approved
+author: codex-agent
+created: 2026-08-24
+title: Make model execution selectable and prove direct Anthropic use
+objective: >-
+  Let a new Company Instance select either the maintained Vercel AI Gateway
+  route or a direct Anthropic route, keep every provider credential exclusively
+  in the runtime host secret store, and require model-backed live evidence for
+  the exact selected route and model before setup can complete.
+non_goals:
+  - Add Vercel AI Gateway BYOK to the maintained first-installation path.
+  - Add direct OpenAI, Bedrock, Vertex, Railway, Docker, or Hetzner deployment adapters.
+  - Store, proxy, print, or transport an Anthropic API key through chat, Git, setup answers, setup state, an Artifact, or command arguments.
+  - Change Company Workspace authority, Agent Tool grants, or the supervised Slack workflow.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+  - The reference stack is concrete, not mandatory
+  - Readiness is scoped and evidenced
+files_expected:
+  - .oregano/changes/2026-08-24-selectable-model-execution.yaml
+  - INSTALL-COMPANYOS.md
+  - docs/_generated/**
+  - docs/architecture/company-instance.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/src/live-database-proof.mjs
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/setup/model-provider-contracts.ts
+  - packages/cli/src/setup/model-providers.ts
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/runner-vercel/package.json
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/model-execution.ts
+  - packages/runner-vercel/src/lib/setup-verification.ts
+  - packages/runner/model-execution.ts
+  - packages/testkit/tests/runner-model-execution.test.ts
+  - packages/testkit/tests/runner-setup-verification.test.ts
+  - pnpm-lock.yaml
+  - release-manifest.json
+  - scripts/prepare-release-assets.mjs
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-24
+    evidence: explicit-user-instruction-in-codex-task-to-implement-gateway-and-direct-anthropic-selection
+validation:
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-24-selectable-model-execution.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - New setup answers record an explicit model execution route and unsupported route/model combinations are rejected.
+  - Legacy answer files that omit both route fields preserve the Vercel AI Gateway platform behavior.
+  - The Gateway route needs no provider API key and keeps the current model-string behavior.
+  - The direct Anthropic route resolves through the Anthropic SDK and fails closed when ANTHROPIC_API_KEY is unavailable.
+  - The user enters ANTHROPIC_API_KEY only in the Vercel project Production secret UI; setup records only its name, presence, and Sensitive classification.
+  - Existing Production variables are never read, overwritten, or silently adopted.
+  - Health and production confirmation bind the exact route and model.
+  - The Slack setup response is produced only after a real model call and persists non-secret model execution evidence in Neon.
+  - Live verification rejects missing or mismatched model execution evidence for new setup state.
+  - Legacy completed setup state remains readable under its original narrower verification claim.
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.index
+    - onboarding.company-workspace
+    - architecture.company-instance
+    - architecture.oregano-core
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - status.current
+    - command.setup
+    - command.verify-live
+    - guide.prepare-instance
+rollback: >-
+  Revert the model contracts, direct adapter, setup schema, Runner selection,
+  evidence checks, dependencies, tests, and documentation together through a
+  checked Core change. Existing Vercel AI Gateway Instances keep their current
+  route. Revoking or deleting an Anthropic key remains an explicit Platform
+  Administrator action in Anthropic and the runtime host secret store.
+open_decisions: []

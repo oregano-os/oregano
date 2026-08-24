@@ -65,8 +65,11 @@ CompanyOS architectural dependency.
 
 Workbench setup code reaches providers through a private typed boundary with
 four roles: source host, runtime host, state service, and communication
-provider. The maintained `vercel-neon-slack` profile binds those roles to
-GitHub, Vercel, Neon/Postgres, and Slack. The boundary exists to keep provider
+provider. Model execution is a separate typed selection because it is consumed
+by the Runner rather than by installation resource orchestration. The maintained
+`vercel-neon-slack` profile binds the four setup roles to GitHub, Vercel,
+Neon/Postgres, and Slack and supports Vercel AI Gateway or direct Anthropic
+execution. The boundary exists to keep provider
 SDK behavior, eventual-consistency handling, and resource receipts out of Core
 runtime semantics. It is deliberately not a public plugin registry: a new
 Hetzner, Docker, Railway, Supabase, or communication binding is introduced as a
@@ -126,10 +129,20 @@ production environment value. The Slack binding uses the fixed Connector UID
 `slack/oregano` and visible Agent name `Oregano`; provider-internal resource
 names may remain company-specific but do not become the Agent identity.
 
+Model execution is bound explicitly as `vercel-ai-gateway` or
+`anthropic-direct`. Gateway uses the Vercel deployment identity. Direct
+Anthropic uses the official Anthropic provider from the Runner and sends model
+traffic directly to Anthropic; Vercel is only the runtime host and secret
+store. Its `ANTHROPIC_API_KEY` value exists only as a Sensitive Production
+runtime variable. Setup records the non-secret reference, presence, and
+Sensitive classification, never the key. Health, production confirmation, and response evidence bind the route
+and exact model.
+
 The path creates an immutable Artifact only from clean exact Core and Workspace
 commits, deploys only after an exact candidate confirmation, verifies current
-health, and requires one nonce-bound Slack input plus the exact reply
-`Setup-Test <nonce> successful.` persisted in the same Neon conversation. Live
+health, and requires one nonce-bound Slack input plus a real selected-model call
+that returns the exact reply `Setup-Test <nonce> successful.`. Both entries and
+non-secret model response evidence are persisted in the same Neon conversation. Live
 verification ties that proof to the immutable provider and deployment receipts
 and fails closed on unresolved setup intents. Its completion scope is
 `live-starter-instance` with derived readiness `validated`. This is not a

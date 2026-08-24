@@ -19,7 +19,7 @@ availability: experimental
 The Workbench is the versioned CLI and Guide library used to build and maintain
 Company Workspaces safely.
 
-The current repository release candidate is `0.1.0-experimental.6`. Verify the
+The current repository release candidate is `0.1.0-experimental.7`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
 contract version; it does not claim that a public package has been published.
 
