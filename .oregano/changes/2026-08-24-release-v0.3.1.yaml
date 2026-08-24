@@ -35,6 +35,8 @@ files_expected:
   - docs/**
   - package.json
   - packages/**
+  - pnpm-lock.yaml
+  - pnpm-workspace.yaml
   - tsconfig.json
 required_approvals:
   - product-owner
@@ -54,6 +56,8 @@ validation:
   - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-08-24-release-v0.3.1.yaml
   - pnpm docs:check
   - pnpm check
+  - pnpm audit --audit-level high
+  - pnpm exec vercel --version
   - pnpm runner:build
   - git diff --check
   - node scripts/prepare-release-assets.mjs dist/release
@@ -70,6 +74,7 @@ tests:
   - Slack verification requires the fixed Oregano identity and exact nonce-bound response persisted in the same conversation.
   - Documentation contracts fail when a required setup document is absent from the Change Plan or actual diff.
   - Feature branches receive one pull-request check while main pushes retain the post-merge check.
+  - The locked installer toolchain excludes every transitive package version covered by the reviewed open high-severity alerts.
   - Release assets are generated only from the clean exact merged v0.3.1 tag.
 documentation_impact:
   required: true

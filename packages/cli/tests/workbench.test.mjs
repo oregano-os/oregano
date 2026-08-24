@@ -90,6 +90,39 @@ test("canonical documentation passes metadata, relation, link, and generated-out
   assert.ok(result.documents.length >= 20);
 });
 
+test("the locked installer toolchain excludes the reviewed transitive advisory versions", () => {
+  const workspaceConfig = YAML.parse(readFileSync(join(REPO, "pnpm-workspace.yaml"), "utf8"));
+  assert.deepEqual(workspaceConfig.overrides, {
+    "@tootallnate/once@2.0.0": "2.0.1",
+    "ajv@>=7.0.0-alpha.0 <8.18.0": "8.18.0",
+    "js-yaml@4.1.1": "4.3.1",
+    "minimatch@10.1.1": "10.2.6",
+    "path-to-regexp@>=4.0.0 <6.3.0": "6.3.0",
+    "path-to-regexp@>=8.0.0 <8.4.0": "8.4.0",
+    "smol-toml@<1.6.1": "1.6.1",
+    "tar@7.5.7": "7.5.22",
+    "undici@<6.28.0": "6.28.0",
+  });
+  const lockfile = YAML.parse(readFileSync(join(REPO, "pnpm-lock.yaml"), "utf8"));
+  const resolvedPackages = new Set([
+    ...Object.keys(lockfile.packages ?? {}),
+    ...Object.keys(lockfile.snapshots ?? {}),
+  ]);
+  for (const vulnerable of [
+    "@tootallnate/once@2.0.0",
+    "ajv@8.6.3",
+    "js-yaml@4.1.1",
+    "minimatch@10.1.1",
+    "path-to-regexp@6.1.0",
+    "path-to-regexp@8.2.0",
+    "path-to-regexp@8.3.0",
+    "smol-toml@1.5.2",
+    "tar@7.5.7",
+    "undici@5.28.4",
+    "undici@5.29.0",
+  ]) assert.equal(resolvedPackages.has(vulnerable), false, `${vulnerable} must not be locked`);
+});
+
 test("Core documentation contracts require declared documents and real same-diff updates", () => {
   const documentation = {
     byId: new Map([

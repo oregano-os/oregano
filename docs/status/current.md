@@ -78,8 +78,12 @@ evidence, historical prototypes, and production gaps.
   provider boundary. Its GitHub, Vercel, Neon, and Slack profile records
   write-ahead intents and immutable receipts, verifies the monorepo runner
   root, refuses production-variable conflicts, and separates the fixed Slack
-  Agent name `oregano` from Company Workspace identity. This is an internal
-  Workbench boundary, not a public provider plugin API.
+  Agent name `oregano` from Company Workspace identity and provider-internal
+  resource names. This is an internal Workbench boundary, not a public provider
+  plugin API. Transitive development dependencies used by the pinned Vercel
+  CLI are constrained to reviewed security releases. This includes a narrow,
+  audited compatibility override for Vercel's legacy HTTP-client dependency
+  without changing the production Runner's direct dependency contract.
 - The generated starter contains one supervised `oregano` Agent, one Slack
   workflow, a non-secret Slack connection declaration, and no business Tool
   grants. Its mode-0600 setup state rejects provider credentials, database
