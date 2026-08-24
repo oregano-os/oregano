@@ -24,6 +24,7 @@
     "packages/state-store/**/*.ts",
     "packages/state-postgres/**/*.ts",
     "packages/runner/**/*.ts",
+    "packages/cli/src/setup/**/*.ts",
     "packages/runner-vercel/src/lib/**/*.ts",
     "packages/testkit/**/*.ts"
   ]

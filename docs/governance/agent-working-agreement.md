@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -23,8 +23,15 @@ specification, relevant Workbench Guide, and the
 3. edits only the authorized repository and paths;
 4. never resolves an open product decision silently;
 5. runs Inspection and Validation;
-6. updates canonical documentation in the same change;
+6. updates canonical documentation in the same change and lists each affected
+   document ID in the Change Plan;
 7. reports tests, remaining risks, and required human approvals.
+
+`companyos inspect-core` resolves every affected document ID and requires that
+document to be changed in the inspected diff. For contracts listed under
+`documentation_contracts` in the Core Change Policy, it also requires the
+complete named document set and any non-canonical runbook files. Passing the
+mechanical check does not replace accountable review of semantic accuracy.
 
 Agents write engineering artifacts in English. They do not expose secrets,
 grant themselves authority, weaken Core safety, or replace a missing Core

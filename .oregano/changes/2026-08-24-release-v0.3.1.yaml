@@ -1,0 +1,110 @@
+version: 1
+plan_id: release-v0.3.1-2026-08-24
+status: approved
+author: codex-agent
+created: 2026-08-24
+title: Release the hardened resumable provider starter as Oregano v0.3.1
+objective: >-
+  Publish one immutable stable Oregano release whose maintained CompanyOS
+  installer uses the private typed setup-provider boundary, resumes external
+  mutations from non-secret intents and exact receipts, preserves provider
+  resources and configuration, exposes the fixed Oregano Slack identity, and
+  proves the exact supervised Slack response in durable state.
+non_goals:
+  - Publish the private Workbench as an npm package.
+  - Add a public provider plugin registry or alternative provider adapters.
+  - Implement Hetzner, Docker, Railway, Supabase, or an alternative communication provider in this release.
+  - Move provider credentials or customer resource identifiers into Core, a Company Workspace, logs, tests, or documentation.
+  - Introduce automatic destructive replacement, deletion, or secret rotation for provider resources.
+  - Generalize runtime Capability, Tool, evidence, or StateStore contracts around the maintained hosted profile.
+  - Authorize business Tools, unattended workflows, or enforced production readiness.
+  - Remove compatibility with the readable v0.3.0 setup-state schema.
+  - Push, merge, tag, or publish before the product owner approves the exact reviewed release candidate.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - Onboarding has no hidden steps
+  - Architecture stays portable
+  - Readiness is scoped and evidenced
+files_expected:
+  - .github/workflows/check.yml
+  - .oregano/changes/**
+  - INSTALL-COMPANYOS.md
+  - docs/**
+  - package.json
+  - packages/**
+  - pnpm-lock.yaml
+  - pnpm-workspace.yaml
+  - tsconfig.json
+required_approvals:
+  - product-owner
+  - oregano-maintainer
+approvals:
+  - role: product-owner
+    approver: fylingpete
+    approved_at: 2026-08-24
+    evidence: explicit-user-confirmation-in-codex-task-to-record-release-approval-push-the-candidate-branch-and-create-the-pull-request
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-24
+    evidence: explicit-user-confirmation-in-codex-task-to-record-release-approval-push-the-candidate-branch-and-create-the-pull-request
+validation:
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas
+  - pnpm companyos plan --check .oregano/changes/2026-08-24-release-v0.3.1.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-08-24-release-v0.3.1.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm audit --audit-level high
+  - pnpm exec vercel --version
+  - pnpm runner:build
+  - git diff --check
+  - node scripts/prepare-release-assets.mjs dist/release
+tests:
+  - Core reports 0.3.1 and Workbench reports 0.1.0-experimental.6.
+  - Maintained Workspace fixtures pin Core 0.3.1 and Workbench 0.1.0-experimental.6.
+  - The typed setup profile provides exactly one adapter for every required provider role.
+  - Interrupted provider mutations reconcile from exact receipts without duplicate creation or destructive replacement.
+  - Provider create responses remain authoritative and eventual-consistency reads poll by immutable identity.
+  - Adopted Vercel projects and production variables fail safely on conflicts and are never silently overwritten.
+  - Production deployment records a structured ready receipt and health polling tolerates temporary non-JSON responses.
+  - Generated GitHub checks validate the Company Workspace checkout rather than the sibling Core checkout.
+  - Provider errors redact current credential formats while retaining safe actionable diagnostics.
+  - Slack verification requires the fixed Oregano identity and exact nonce-bound response persisted in the same conversation.
+  - Documentation contracts fail when a required setup document is absent from the Change Plan or actual diff.
+  - Feature branches receive one pull-request check while main pushes retain the post-merge check.
+  - The locked installer toolchain excludes every transitive package version covered by the reviewed open high-severity alerts.
+  - Release assets are generated only from the clean exact merged v0.3.1 tag.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - command.inspect-core
+    - command.setup
+    - command.verify-live
+    - governance.agent-agreement
+    - governance.versioning
+    - guide.version-release
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - status.current
+    - workbench.overview
+migration: >-
+  Completed v0.3.0 Company Instances require no data migration merely because
+  this patch release exists. The v0.3.0 setup-state schema remains readable and
+  resumable; fresh v0.3.1 installations record the stronger version-2 receipt
+  evidence. Adoption remains a separately reviewed compatibility-pin and
+  Instance deployment change. Never delete, replace, or recreate an existing
+  provider resource when resuming or adopting it.
+rollback: >-
+  Do not mutate or delete an immutable published release. Before publication,
+  abandon the candidate branch without tagging it. After publication, correct
+  a defect through a newer checked release; v0.3.0 remains available as
+  historical provenance, and existing provider resources remain untouched.
+open_decisions:
+  - Record one fresh external end-to-end installation from the published assets before recommending v0.3.1 for broad use.
+  - Qualify additional deployment, state-service, and communication adapters only after the private contract has proven stable across maintained releases.
+  - Determine through provider qualification whether Vercel Connect can guarantee the fixed visible Slack name Oregano independently of its internal connector identifier.

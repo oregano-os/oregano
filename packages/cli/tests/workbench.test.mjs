@@ -9,7 +9,7 @@ import { checkGeneratedDocumentation, inspectDocumentation } from "../src/docs-c
 import { changePlanTemplate, validateChangePlan } from "../src/change-plan.mjs";
 import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { inspectWorkspace } from "../src/inspection.mjs";
-import { inspectCore } from "../src/core-inspection.mjs";
+import { inspectCore, inspectCoreDocumentationImpact } from "../src/core-inspection.mjs";
 import { inspectWorkspaceSecurity } from "../src/security.mjs";
 import { inspectWorkspaceOnboarding } from "../src/onboarding.mjs";
 import { inspectCompatibilityRegistry } from "../src/compatibility-registry.mjs";
@@ -39,8 +39,8 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.3.0");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.5");
+  assert.equal(CORE_VERSION, "0.3.1");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.6");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -90,6 +90,97 @@ test("canonical documentation passes metadata, relation, link, and generated-out
   assert.ok(result.documents.length >= 20);
 });
 
+test("the locked installer toolchain excludes the reviewed transitive advisory versions", () => {
+  const workspaceConfig = YAML.parse(readFileSync(join(REPO, "pnpm-workspace.yaml"), "utf8"));
+  assert.deepEqual(workspaceConfig.overrides, {
+    "@vercel/backends@0.8.25>path-to-regexp": "8.4.0",
+    "@vercel/blob@2.4.0>undici": "6.28.0",
+    "@vercel/express@0.1.116>path-to-regexp": "8.4.0",
+    "@vercel/fun@1.3.0>@tootallnate/once": "2.0.1",
+    "@vercel/fun@1.3.0>path-to-regexp": "8.4.0",
+    "@vercel/fun@1.3.0>tar": "7.5.22",
+    "@vercel/hono@0.2.105>path-to-regexp": "8.4.0",
+    "@vercel/node@5.8.26>path-to-regexp": "6.3.0",
+    "@vercel/node@5.8.26>undici": "6.28.0",
+    "@vercel/python-analysis@0.11.1>js-yaml": "4.3.1",
+    "@vercel/python-analysis@0.11.1>minimatch": "10.2.6",
+    "@vercel/python-analysis@0.11.1>smol-toml": "1.6.1",
+    "@vercel/remix-builder@5.9.1>path-to-regexp": "6.3.0",
+    "@vercel/rust@1.4.0>smol-toml": "1.6.1",
+    "@vercel/static-config@3.4.0>ajv": "8.18.0",
+    "vercel@56.3.2>smol-toml": "1.6.1",
+    "vercel@56.3.2>undici": "6.28.0",
+  });
+  for (const parentSelector of Object.keys(workspaceConfig.overrides)) {
+    assert.match(parentSelector, /^(?:@vercel\/|vercel@)/, `${parentSelector} must be Vercel-scoped`);
+  }
+  const lockfile = YAML.parse(readFileSync(join(REPO, "pnpm-lock.yaml"), "utf8"));
+  const resolvedPackages = new Set([
+    ...Object.keys(lockfile.packages ?? {}),
+    ...Object.keys(lockfile.snapshots ?? {}),
+  ]);
+  for (const vulnerable of [
+    "@tootallnate/once@2.0.0",
+    "ajv@8.6.3",
+    "js-yaml@4.1.1",
+    "minimatch@10.1.1",
+    "path-to-regexp@6.1.0",
+    "path-to-regexp@8.2.0",
+    "path-to-regexp@8.3.0",
+    "smol-toml@1.5.2",
+    "tar@7.5.7",
+    "undici@5.28.4",
+    "undici@5.29.0",
+  ]) assert.equal(resolvedPackages.has(vulnerable), false, `${vulnerable} must not be locked`);
+});
+
+test("Core documentation contracts require declared documents and real same-diff updates", () => {
+  const documentation = {
+    byId: new Map([
+      ["onboarding.index", { relative: "onboarding/README.md" }],
+    ]),
+  };
+  const governance = {
+    documentation_contracts: {
+      live_setup: {
+        paths: ["packages/cli/src/setup/**"],
+        required_documents: ["onboarding.index"],
+        required_files: ["INSTALL-COMPANYOS.md"],
+      },
+    },
+  };
+  const plan = {
+    documentation_impact: {
+      required: true,
+      affected_documents: [],
+    },
+  };
+  const implementationOnly = inspectCoreDocumentationImpact(
+    ["packages/cli/src/setup/profile.ts"],
+    plan,
+    documentation,
+    governance,
+  );
+  assert.ok(implementationOnly.some((item) => item.code === "CFIT016"));
+  assert.ok(implementationOnly.some((item) => item.code === "CFIT017"));
+
+  plan.documentation_impact.affected_documents = ["onboarding.index"];
+  const declaredButUnchanged = inspectCoreDocumentationImpact(
+    ["packages/cli/src/setup/profile.ts", "INSTALL-COMPANYOS.md"],
+    plan,
+    documentation,
+    governance,
+  );
+  assert.ok(declaredButUnchanged.some((item) => item.code === "CFIT014"));
+
+  assert.deepEqual(inspectCoreDocumentationImpact(
+    ["packages/cli/src/setup/profile.ts", "docs/onboarding/README.md", "INSTALL-COMPANYOS.md"],
+    plan,
+    documentation,
+    governance,
+  ), []);
+});
+
 test("the neutral Company Workspace fixture passes validation", () => {
   const result = validateWorkspace(FIXTURE);
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
@@ -104,9 +195,9 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.3.0",
+    core: "0.3.1",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.5",
+    workbench: "0.1.0-experimental.6",
     companyos_spec: "0.7-draft",
   });
 
@@ -610,7 +701,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.3.0",
+  core_version: "0.3.1",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };
@@ -782,6 +873,7 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   const releaseManifest = JSON.parse(readFileSync(join(REPO, "release-manifest.json"), "utf8"));
   const rootPackage = JSON.parse(readFileSync(join(REPO, "package.json"), "utf8"));
   const checkWorkflow = readFileSync(join(REPO, ".github", "workflows", "check.yml"), "utf8");
+  const checkDefinition = YAML.parse(checkWorkflow);
   const releaseWorkflow = readFileSync(join(REPO, ".github", "workflows", "release.yml"), "utf8");
   const releaseScript = readFileSync(join(REPO, "scripts", "prepare-release-assets.mjs"), "utf8");
   assert.match(runbook, /supports Codex and Claude Code/);
@@ -804,6 +896,8 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
     assert.match(workflow, /uses: pnpm\/action-setup@v4/);
     assert.doesNotMatch(workflow, /version:\s*11\.16\.0/);
   }
+  assert.deepEqual(checkDefinition.on.push.branches, ["main"]);
+  assert.ok(Object.hasOwn(checkDefinition.on, "pull_request"));
   assert.match(releaseScript, /rootPackage\.packageManager/);
   assert.doesNotMatch(releaseScript, /pnpm: "11\.16\.0"/);
   assert.match(install, /exact Vercel CLI is included in the locked\s+Oregano dependencies/);

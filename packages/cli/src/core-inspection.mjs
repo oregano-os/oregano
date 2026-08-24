@@ -18,6 +18,54 @@ const REQUIRED_CONTROL_PLANE = [
   "docs/governance/core-change-policy.yaml",
 ];
 
+export function inspectCoreDocumentationImpact(files, plan, documentation, governance) {
+  if (!Array.isArray(files) || !plan) return [];
+  const diagnostics = [];
+  const affected = new Set(plan?.documentation_impact?.affected_documents ?? []);
+
+  for (const documentId of affected) {
+    const document = documentation.byId?.get(documentId);
+    if (!document) {
+      diagnostics.push(diagnostic("CFIT013", "error", `Change Plan references unknown affected document '${documentId}'.`));
+      continue;
+    }
+    const path = `docs/${document.relative}`;
+    if (!files.includes(path)) {
+      diagnostics.push(diagnostic("CFIT014", "error", `Affected canonical document '${documentId}' is not changed in the inspected diff.`, {
+        file: path,
+        hint: "Update the document in the same change or remove the incorrect impact declaration.",
+      }));
+    }
+  }
+
+  for (const [name, contract] of Object.entries(governance?.documentation_contracts ?? {})) {
+    const triggered = (contract.paths ?? []).some((pattern) => {
+      const matcher = globToRegExp(pattern);
+      return files.some((file) => matcher.test(file));
+    });
+    if (!triggered) continue;
+
+    for (const documentId of contract.required_documents ?? []) {
+      if (!documentation.byId?.has(documentId)) {
+        diagnostics.push(diagnostic("CFIT015", "error", `Documentation contract '${name}' references unknown document '${documentId}'.`, {
+          file: "docs/governance/core-change-policy.yaml",
+        }));
+      } else if (!affected.has(documentId)) {
+        diagnostics.push(diagnostic("CFIT016", "error", `Documentation contract '${name}' requires affected document '${documentId}' in the Core Change Plan.`));
+      }
+    }
+    for (const path of contract.required_files ?? []) {
+      if (!files.includes(path)) {
+        diagnostics.push(diagnostic("CFIT017", "error", `Documentation contract '${name}' requires '${path}' to change with the triggering implementation.`, {
+          file: path,
+        }));
+      }
+    }
+  }
+
+  return diagnostics;
+}
+
 export function inspectCore(root, planPath, baseRef) {
   const diagnostics = [];
   for (const path of REQUIRED_CONTROL_PLANE) {
@@ -70,6 +118,7 @@ export function inspectCore(root, planPath, baseRef) {
     for (const file of files ?? []) {
       if (expected.length > 0 && !expected.some((pattern) => globToRegExp(pattern).test(file))) diagnostics.push(diagnostic("CFIT008", "warning", "Changed Core file is not listed in files_expected.", { file }));
     }
+    diagnostics.push(...inspectCoreDocumentationImpact(files, plan, documentation, governance));
   } else if (diffClassification?.effective && ["behavior", "security"].includes(diffClassification.effective)) {
     diagnostics.push(diagnostic("CFIT009", "error", `The actual Core diff is '${diffClassification.effective}' class and requires a Core Change Plan.`));
   }

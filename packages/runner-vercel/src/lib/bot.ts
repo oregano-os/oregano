@@ -14,6 +14,7 @@ import type { StateAdapter } from "chat";
 import { loadArtifact, selectedAgent } from "./artifact.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
+import { setupVerificationResponse } from "./setup-verification.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 let state: StateAdapter;
@@ -127,6 +128,15 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
+  const verificationResponse = setupVerificationResponse(message.text);
+  if (verificationResponse) {
+    await state.appendToList(conversationKey, { role: "assistant", content: verificationResponse } satisfies ConversationEntry, {
+      maxLength: 40,
+      ttlMs: 30 * DAY,
+    });
+    await thread.post(verificationResponse);
+    return;
+  }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(thread.id).slice(0, 24)}`;
   const model = process.env.COMPANYOS_MODEL ?? "openai/gpt-5.4-nano";
@@ -191,7 +201,7 @@ export function getBot(): Chat {
     connectors: [new ArtifactPostgresConnector()],
   });
   botInstance = new Chat({
-    userName: process.env.BOT_USERNAME ?? "companyos",
+    userName: process.env.BOT_USERNAME ?? "oregano",
     adapters: {
       slack: createSlackAdapter({
         ...connectSlackAdapter(requireEnv("SLACK_CONNECTOR")),

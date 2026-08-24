@@ -2,6 +2,24 @@ version: 1
 review_mode: maintainer
 core_defaults:
   may_only_tighten: true
+documentation_contracts:
+  maintained_live_setup:
+    paths:
+      - packages/cli/src/live-setup.mjs
+      - packages/cli/src/live-database-proof.mjs
+      - packages/cli/src/setup/**
+      - packages/runner-vercel/src/lib/setup-verification.ts
+    required_documents:
+      - onboarding.index
+      - onboarding.company-workspace
+      - architecture.company-instance
+      - architecture.boundaries
+      - specification.company-instance-release-promotion-v0.1
+      - status.current
+      - command.setup
+      - command.verify-live
+    required_files:
+      - INSTALL-COMPANYOS.md
 change_classes:
   content:
     paths:

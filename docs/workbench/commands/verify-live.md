@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-23
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -33,9 +33,16 @@ runbook. It fails unless fresh or recorded evidence proves:
   was recorded as `enforced` or `advisory`;
 - the operating change passed the required check and the Workspace Steward authorized its merge;
 - the named Vercel, Neon, and Slack resources are present in setup evidence;
+- the Vercel project receipt records the maintained runner root, the Slack
+  receipt records the exact trigger path and expected visible name `oregano`,
+  and no unresolved provider create intent remains;
 - the canonical Slack team and user principal is resolved without a stored credential;
-- current Vercel health matches the exact Artifact, Core commit, Workspace commit, selected Oregano Agent, and empty ToolSet; and
-- the nonce-bound human Slack message and an Oregano assistant response were persisted in Neon.
+- a structured Vercel deployment receipt is ready and current health matches
+  the exact Artifact, Core commit, Workspace commit, selected Oregano Agent,
+  and empty ToolSet; and
+- the nonce-bound human Slack message and Oregano's exact
+  `Setup-Test <nonce> successful.` response were persisted in the same Neon
+  conversation.
 
 Successful scope is exactly `live-starter-instance`, with readiness
 `validated`. This scope proves one supervised starter deployment. It does not

@@ -276,10 +276,13 @@ Say what will happen:
 > authorization will identify your Slack account for the CompanyOS roster; it
 > will be discarded immediately.
 
-Ask for a simple connector name and explicit `create` or `adopt` mode. A Slack
-channel ID is optional during planning; leave it empty when the human knows
-only the channel name. The final test may use any approved channel to which the
-human adds Oregano.
+Use the fixed connector name `oregano` and ask only for explicit `create` or
+`adopt` mode. This prevents the Company Workspace slug from appearing in the
+installed Agent's Slack name. For adoption, accept only the exact connector UID
+`slack/oregano`; provider resource IDs remain separate. A Slack channel ID is
+optional during planning; leave it empty when the human knows only the channel
+name. The final test may use any approved channel to which the human adds
+Oregano.
 
 ### Model and costs
 
@@ -310,9 +313,9 @@ vercel_project: example-companyos
 vercel_project_mode: create
 neon_resource_name: example-companyos-db
 neon_resource_mode: create
-neon_plan: free
-neon_region: aws-eu-central-1
-slack_connector_name: example-company-oregano
+neon_plan: free_v3
+neon_region: fra1
+slack_connector_name: oregano
 slack_connector_mode: create
 slack_channel_id: ""
 model: openai/gpt-5.4-nano

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -63,6 +63,16 @@ account/team/project and a company-controlled Neon/Postgres project. This makes
 the onboarding path concrete and testable; it does not make either provider a
 CompanyOS architectural dependency.
 
+Workbench setup code reaches providers through a private typed boundary with
+four roles: source host, runtime host, state service, and communication
+provider. The maintained `vercel-neon-slack` profile binds those roles to
+GitHub, Vercel, Neon/Postgres, and Slack. The boundary exists to keep provider
+SDK behavior, eventual-consistency handling, and resource receipts out of Core
+runtime semantics. It is deliberately not a public plugin registry: a new
+Hetzner, Docker, Railway, Supabase, or communication binding is introduced as a
+separately qualified adapter and profile without changing the provider-neutral
+Instance identity, Artifact, Tool, evidence, or readiness contracts.
+
 A replacement runtime host must preserve environment isolation, scoped
 deployment identity, secret injection, immutable deployment provenance,
 observable health, and rollback. A replacement StateStore must preserve the
@@ -100,19 +110,32 @@ Agent, one Slack workflow, a non-secret connection declaration, and an empty
 business ToolSet.
 
 Provider browser authentication and consent remain human actions. The setup
-state contains identifiers, hashes, phase status, and non-secret evidence only;
-database URLs, provider credentials, private keys, immutable Artifact content,
-and short-lived Slack user credentials are excluded. The Slack credential used
-to resolve the consenting human's canonical team and user IDs exists only in
-memory and is discarded after the identity call.
+state contains versioned write-ahead intents, immutable provider receipts,
+identifiers, hashes, phase status, and non-secret evidence only. A provider
+mutation is preceded by an intent and followed immediately by its receipt, so
+resume can reconcile an interrupted operation by immutable identity instead of
+creating a duplicate from a name-only search. Database URLs, provider
+credentials, private keys, immutable Artifact content, and short-lived Slack
+user credentials are excluded. The Slack credential used to resolve the
+consenting human's canonical team and user IDs exists only in memory and is
+discarded after the identity call.
+
+The maintained Vercel project is configured with `packages/runner-vercel` as
+its root, and setup refuses to overwrite a conflicting adopted root or
+production environment value. The Slack binding uses the fixed Connector UID
+`slack/oregano` and visible Agent name `Oregano`; provider-internal resource
+names may remain company-specific but do not become the Agent identity.
 
 The path creates an immutable Artifact only from clean exact Core and Workspace
 commits, deploys only after an exact candidate confirmation, verifies current
-health, and requires one nonce-bound Slack input and persisted assistant output
-in Neon. Its completion scope is `live-starter-instance` with derived readiness
-`validated`. This is not a general deployment or promotion orchestrator and
-does not prove `enforced` readiness, unattended eligibility, arbitrary Tool
-grants, or future provider effects.
+health, and requires one nonce-bound Slack input plus the exact reply
+`Setup-Test <nonce> successful.` persisted in the same Neon conversation. Live
+verification ties that proof to the immutable provider and deployment receipts
+and fails closed on unresolved setup intents. Its completion scope is
+`live-starter-instance` with derived readiness `validated`. This is not a
+general deployment or promotion orchestrator and does not prove `enforced`
+readiness, unattended eligibility, arbitrary Tool grants, or future provider
+effects.
 
 ## Event-driven runtime and Gateway boundary
 

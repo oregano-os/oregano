@@ -1,6 +1,8 @@
-# Typecheck + tests on every push and pull request (Fundament 2). Runs BEFORE
-# anything is deployed: the deploy workflow waits for this one on main, so a red
-# check never reaches production.
+# Typecheck + tests on every pull request and every main push (Fundament 2).
+# Feature-branch pushes are covered by their pull_request run, avoiding two
+# competing status checks for the same candidate. This runs BEFORE anything is
+# deployed: the deploy workflow waits for this one on main, so a red check never
+# reaches production.
 #
 # The DB-backed approval tests skip themselves without DATABASE_URL. The
 # generic Builder, Tool SDK, Resolver, sandbox Connector, and neutrality tests
@@ -9,6 +11,8 @@ name: check
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_call: # the deploy workflow gates on this
 

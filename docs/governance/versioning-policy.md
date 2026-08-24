@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -35,12 +35,20 @@ not a permanent maturity label.
 | Position | Increment when | Example |
 |---|---|---|
 | `MAJOR` | Move to `1.0.0` only after the public contract, migration, recovery, and support gates are explicitly approved. After 1.0, increment for an incompatible public-contract change. | `0.8.4` to `1.0.0`; later `1.6.2` to `2.0.0` |
-| `MINOR` | Add a feature or capability, introduce an incompatible pre-1.0 contract change, or require a Core/Workspace migration or operator decision. | `0.1.4` to `0.2.0` |
-| `PATCH` | Deliver a backward-compatible correction, hardening, documentation or CI improvement, or internal refactor that requires no consumer migration. | `0.1.0` to `0.1.1` |
+| `MINOR` | Introduce a new canonical user-facing contract or operating capability, make an incompatible change to a supported contract, or require a consumer migration or operator decision. | `0.1.4` to `0.2.0` |
+| `PATCH` | Deliver a backward-compatible correction, hardening, documentation or CI improvement, or an internal provider adapter or refactor behind an existing contract that requires no consumer migration. | `0.1.0` to `0.1.1` |
 
 The highest-impact included change determines the release increment. A security
 fix is a patch only when it preserves compatibility; a security change that
 requires migration is a minor release before 1.0.
+
+An internal type boundary, provider-specific implementation correction, or
+additional qualification behind an existing experimental profile does not by
+itself justify a MINOR increment. Count externally adopted contracts and
+migration obligations, not commits, internal modules, or development effort.
+When no supported consumer state or configuration needs intervention, prefer a
+PATCH release. Any incompatible supported state, configuration, or public
+behavior still requires a MINOR release before 1.0.
 
 For a Company Workspace, a new or incompatible workflow, agent contract, Tool
 contract, policy shape, or operating-data migration is a minor change. A

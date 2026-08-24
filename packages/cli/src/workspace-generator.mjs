@@ -280,6 +280,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          path: company-workspace
       - name: Check out pinned Oregano Core
         uses: actions/checkout@v4
         with:
@@ -302,10 +303,10 @@ jobs:
       - name: Validate and inspect Company Workspace
         working-directory: .companyos-core
         run: |
-          pnpm companyos validate "$GITHUB_WORKSPACE"
-          pnpm companyos inspect "$GITHUB_WORKSPACE" --base origin/main --plan auto
-          pnpm companyos security "$GITHUB_WORKSPACE"
-          pnpm companyos onboard "$GITHUB_WORKSPACE"
+          pnpm companyos validate "$GITHUB_WORKSPACE/company-workspace"
+          pnpm companyos inspect "$GITHUB_WORKSPACE/company-workspace" --base origin/main --plan auto
+          pnpm companyos security "$GITHUB_WORKSPACE/company-workspace"
+          pnpm companyos onboard "$GITHUB_WORKSPACE/company-workspace"
 `);
 
   files.set("handbook/index.md", document({
