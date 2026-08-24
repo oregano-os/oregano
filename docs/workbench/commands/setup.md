@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-23
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -71,6 +71,12 @@ required. `--resume` uses that same evidence rather than chat history. A failed
 or interrupted command does not delete resources and must not be replaced by a
 second setup state.
 
+Before each external create, setup records a non-secret write-ahead intent.
+The immutable provider receipt is then stored immediately. Resume reconciles a
+pending intent by provider identity and never repeats a create merely because a
+name search is temporarily stale. Existing resources and production variables
+without an Oregano receipt are treated as conflicts and are left unchanged.
+
 The starter keeps the original human as its only Workspace Steward. The
 installer binds that person's verified Slack principal to the existing roster
 entry and never requests, creates, or invites a second reviewer.
@@ -87,19 +93,25 @@ entry and never requests, creates, or invites a second reviewer.
    automatically apply the solo-Steward protected `main` baseline to a new
    repository when available, recording either `enforced` or `advisory`
    without an upgrade prompt;
-5. authenticate Vercel and create or adopt the exact project;
+5. authenticate Vercel, create or adopt the exact project, and verify the
+   maintained `packages/runner-vercel` Next.js root without changing a
+   conflicting adopted project;
 6. create or adopt a Neon Marketplace resource without pulling its connection
    string to disk;
 7. create or adopt a Slack Vercel Connect resource and attach the verified
    `/api/webhooks/slack` trigger;
-8. request a short-lived Slack user authorization, call `auth.test`, retain only
-   the canonical team and user IDs, and discard the credential;
+8. pause for a browser authorization with only `identity.basic`, request a
+   short-lived Slack user token, call `auth.test`, retain only the canonical
+   team and user IDs, and discard the credential;
 9. preview and apply one supervised, Tool-free Oregano Agent and Slack workflow;
 10. push the operating change through a required-check pull request and obtain
     the Workspace Steward's exact merge confirmation;
 11. build one immutable production Artifact from clean exact Core and Workspace
-    commits and inject it into Vercel as a sensitive environment value;
-12. deploy only after the exact production-candidate confirmation; and
+    commits and create its Vercel environment values without `--force` or
+    overwriting pre-existing production configuration;
+12. deploy only after the exact production-candidate confirmation, retain the
+    structured deployment receipt, wait for provider readiness, and poll the
+    provenance health endpoint through temporary non-JSON responses; and
 13. require a nonce-bound Slack message and persisted assistant response in
     Neon before completion.
 
@@ -136,9 +148,9 @@ vercel_project: example-companyos
 vercel_project_mode: create
 neon_resource_name: example-companyos-db
 neon_resource_mode: create
-neon_plan: free
-neon_region: aws-eu-central-1
-slack_connector_name: example-company-oregano
+neon_plan: free_v3
+neon_region: fra1
+slack_connector_name: oregano
 slack_connector_mode: create
 slack_channel_id: ""
 model: openai/gpt-5.4-nano
@@ -147,3 +159,10 @@ model: openai/gpt-5.4-nano
 The example is a schema illustration, not default company data. Passwords,
 provider credentials, database URLs, private keys, resolved Artifact content,
 and short-lived Slack tokens are rejected from setup state.
+
+The qualified Neon values in this example are provider identifiers, not a
+promise about price or availability. Setup must show the current provider plan,
+region, terms, and possible charges before consent. The maintained Slack
+profile reserves connector name `oregano`; this keeps the installed Agent's
+visible Slack name independent of the Company Workspace name. Provider resource
+IDs remain separate and are recorded only in Instance setup evidence.

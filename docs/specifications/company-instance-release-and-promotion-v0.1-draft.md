@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-23
+updated: 2026-08-24
 owners:
   - oregano-maintainers
   - product-owner
@@ -357,6 +357,15 @@ implements one bounded initial-installation subset:
 - current deployment health plus one nonce-bound Slack and Neon persistence
   proof; and
 - a supervised Oregano Agent with no business Tool grants.
+
+The Workbench implements this subset through a private typed setup-provider
+boundary with four roles: source host, runtime host, state service, and
+communication provider. The maintained profile currently binds those roles to
+GitHub, Vercel, Neon/Postgres, and Slack. This boundary is installation
+orchestration only; it is not a public plugin contract and does not alter the
+provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.
+Provider creates require write-ahead intents and immutable receipts so resume
+does not depend on eventually consistent name searches.
 
 This subset records readiness as `validated`. It has no reusable Preview or
 Effect Lane, no generic pre-production provider-test topology, no unattended

@@ -9,7 +9,7 @@ import { checkGeneratedDocumentation, inspectDocumentation } from "../src/docs-c
 import { changePlanTemplate, validateChangePlan } from "../src/change-plan.mjs";
 import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { inspectWorkspace } from "../src/inspection.mjs";
-import { inspectCore } from "../src/core-inspection.mjs";
+import { inspectCore, inspectCoreDocumentationImpact } from "../src/core-inspection.mjs";
 import { inspectWorkspaceSecurity } from "../src/security.mjs";
 import { inspectWorkspaceOnboarding } from "../src/onboarding.mjs";
 import { inspectCompatibilityRegistry } from "../src/compatibility-registry.mjs";
@@ -39,8 +39,8 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.3.0");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.5");
+  assert.equal(CORE_VERSION, "0.3.1");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.6");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -90,6 +90,53 @@ test("canonical documentation passes metadata, relation, link, and generated-out
   assert.ok(result.documents.length >= 20);
 });
 
+test("Core documentation contracts require declared documents and real same-diff updates", () => {
+  const documentation = {
+    byId: new Map([
+      ["onboarding.index", { relative: "onboarding/README.md" }],
+    ]),
+  };
+  const governance = {
+    documentation_contracts: {
+      live_setup: {
+        paths: ["packages/cli/src/setup/**"],
+        required_documents: ["onboarding.index"],
+        required_files: ["INSTALL-COMPANYOS.md"],
+      },
+    },
+  };
+  const plan = {
+    documentation_impact: {
+      required: true,
+      affected_documents: [],
+    },
+  };
+  const implementationOnly = inspectCoreDocumentationImpact(
+    ["packages/cli/src/setup/profile.ts"],
+    plan,
+    documentation,
+    governance,
+  );
+  assert.ok(implementationOnly.some((item) => item.code === "CFIT016"));
+  assert.ok(implementationOnly.some((item) => item.code === "CFIT017"));
+
+  plan.documentation_impact.affected_documents = ["onboarding.index"];
+  const declaredButUnchanged = inspectCoreDocumentationImpact(
+    ["packages/cli/src/setup/profile.ts", "INSTALL-COMPANYOS.md"],
+    plan,
+    documentation,
+    governance,
+  );
+  assert.ok(declaredButUnchanged.some((item) => item.code === "CFIT014"));
+
+  assert.deepEqual(inspectCoreDocumentationImpact(
+    ["packages/cli/src/setup/profile.ts", "docs/onboarding/README.md", "INSTALL-COMPANYOS.md"],
+    plan,
+    documentation,
+    governance,
+  ), []);
+});
+
 test("the neutral Company Workspace fixture passes validation", () => {
   const result = validateWorkspace(FIXTURE);
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
@@ -104,9 +151,9 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.3.0",
+    core: "0.3.1",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.5",
+    workbench: "0.1.0-experimental.6",
     companyos_spec: "0.7-draft",
   });
 
@@ -610,7 +657,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.3.0",
+  core_version: "0.3.1",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };

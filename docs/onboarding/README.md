@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-23
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -55,6 +55,21 @@ machine then attempts hosted protection automatically and records `enforced` or
 `advisory` alongside the other provider and runtime evidence without placing
 credentials in the Workspace or state file.
 
+The maintained setup profile composes private typed adapters for four roles:
+source host, runtime host, state service, and communication provider. GitHub,
+Vercel, Neon/Postgres, and Slack are the maintained bindings, not Core runtime
+dependencies or a public plugin API. Setup records a non-secret write-ahead
+intent before each provider mutation and an immutable resource receipt after
+it. A resumed run reconciles an unresolved intent by immutable provider
+identity and never creates a second resource from a name-only lookup.
+
+The maintained communication binding always uses the logical Connector UID
+`slack/oregano` and the visible Slack Agent name `Oregano`, independently of
+the Company Workspace name. Live acceptance requires the human's
+nonce-bearing Slack message and the exact Agent reply
+`Setup-Test <nonce> successful.` in the same conversation, both persisted in
+the Instance StateStore.
+
 An authoring-only Workspace is valid with no operating agents and no executable
 workflows. It must not invent automation merely to pass onboarding. The live
 starter makes the move to `operating` as a separate hash-bound, checked, and
@@ -67,4 +82,9 @@ Any change to required Workspace files, compatibility rules, repository
 protection, CI, Workbench commands, Instance preparation, or Contributor entry
 points must update these onboarding pages and the `companyos onboard` checks in
 the same pull request. `companyos docs check` keeps the published navigation
-and bundled Guides synchronized.
+and bundled Guides synchronized. The required Core Change Plan must list every
+affected canonical document explicitly; `companyos inspect-core` fails when a
+changed file is outside that plan. These mechanical checks establish coverage
+and traceability, while reviewers remain responsible for checking that the
+documented behavior matches the implementation rather than merely listing a
+document identifier.

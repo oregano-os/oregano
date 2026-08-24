@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -34,6 +34,16 @@ relations:
 
 Core must not contain company names, board IDs, channel IDs, company roles,
 company thresholds, company policies, or provider credentials.
+
+The Workbench may maintain a small private setup-adapter boundary for hosted
+installation. A setup profile composes exactly one typed adapter for each
+required role: source host, runtime host, state service, and communication
+provider. These adapters translate provider commands and receipts into the
+provider-neutral Instance evidence above. They are not a public plugin API and
+must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
+runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
+Hetzner, Railway, Supabase, or other installation becomes a new adapter and
+profile, not a new Core execution model.
 
 ## A Company Workspace owns
 

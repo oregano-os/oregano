@@ -19,10 +19,12 @@ import { diagnostic } from "./diagnostics.mjs";
 import { PNPM_VERSION } from "./core-version.mjs";
 import { applyOperatingStarter, previewOperatingStarter } from "./operating-starter.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
+import { VERCEL_NEON_SLACK_PROFILE } from "./setup/profiles/vercel-neon-slack.ts";
 
-export const LIVE_SETUP_PROFILE = "vercel-neon-slack";
-export const LIVE_SETUP_STATE_VERSION = 1;
-export const SUPPORTED_VERCEL_CLI_VERSION = "56.3.2";
+export const LIVE_SETUP_PROFILE = VERCEL_NEON_SLACK_PROFILE.id;
+export const LIVE_SETUP_PROVIDER_PROFILE = VERCEL_NEON_SLACK_PROFILE;
+export const LIVE_SETUP_STATE_VERSION = 2;
+export const SUPPORTED_VERCEL_CLI_VERSION = VERCEL_NEON_SLACK_PROFILE.runtimeHost.cliVersion;
 
 export const LIVE_SETUP_FIELDS = [
   "change_date",
@@ -45,18 +47,23 @@ export const LIVE_SETUP_FIELDS = [
 ];
 
 const SENSITIVE_KEY = /(?:^|_)(?:token|password|secret|private_key|database_url|connection_string|artifact_gzip)(?:_|$)/i;
-const CREDENTIAL_VALUE = /(?:postgres(?:ql)?:\/\/[^\s]+:[^\s]+@|xox[baprs]-[A-Za-z0-9-]+|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/;
+const CREDENTIAL_VALUE = /(?:postgres(?:ql)?:\/\/[^\s]+:[^\s]+@|xox[a-z0-9](?:[.-][A-Za-z0-9-]+)+|sk-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)/i;
 const hasErrors = (diagnostics) => diagnostics.some((item) => item.severity === "error");
 const clean = (value) => String(value ?? "").normalize("NFC").trim();
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const now = () => new Date().toISOString();
 const exactPnpmCommand = (coreRoot, ...args) => ["npm", "exec", "--yes", `--package=pnpm@${PNPM_VERSION}`, "--", "pnpm", "--dir", coreRoot, ...args];
 
-const safeError = (value) => clean(value)
+export const safeProviderError = (value) => {
+  const redacted = clean(value)
   .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[REDACTED_DATABASE_URL]")
-  .replace(/xox[baprs]-[A-Za-z0-9-]+/g, "[REDACTED_SLACK_CREDENTIAL]")
-  .replace(/sk-[A-Za-z0-9_-]{20,}/g, "[REDACTED_API_KEY]")
-  .slice(0, 1000);
+  .replace(/xox[a-z0-9](?:[.-][A-Za-z0-9-]+)+/gi, "[REDACTED_SLACK_CREDENTIAL]")
+  .replace(/sk-[A-Za-z0-9_-]{20,}/g, "[REDACTED_API_KEY]");
+  if (redacted.length <= 2400) return redacted;
+  return `${redacted.slice(0, 1200)}\n...[safe diagnostic truncated]...\n${redacted.slice(-1200)}`;
+};
+
+const safeError = safeProviderError;
 
 const validatePlainLine = (value, field, label, diagnostics, max = 160) => {
   if (!value) diagnostics.push(diagnostic("LIVE001", "error", `${label} is required.`, { field }));
@@ -112,6 +119,7 @@ export function normalizeLiveSetupAnswers(raw = {}) {
   if (answers.neon_region && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(answers.neon_region)) diagnostics.push(diagnostic("LIVE015", "error", "Neon region has an invalid shape.", { field: "neon_region" }));
   if (answers.slack_channel_id && !/^[A-Z][A-Z0-9]{5,31}$/.test(answers.slack_channel_id)) diagnostics.push(diagnostic("LIVE016", "error", "Slack channel ID has an invalid shape.", { field: "slack_channel_id" }));
   if (answers.model && !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(answers.model)) diagnostics.push(diagnostic("LIVE017", "error", "AI Gateway model must use provider/model syntax.", { field: "model" }));
+  if (answers.slack_connector_name && answers.slack_connector_name.toLowerCase() !== VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName) diagnostics.push(diagnostic("LIVE029", "error", `The maintained Slack profile requires connector name '${VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName}' so the installed Slack Agent has the fixed visible name oregano.`, { field: "slack_connector_name" }));
   return { answers, diagnostics };
 }
 
@@ -178,6 +186,12 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
   const plan = {
     schema_version: 1,
     profile: LIVE_SETUP_PROFILE,
+    providers: {
+      source_host: VERCEL_NEON_SLACK_PROFILE.sourceHost.provider,
+      runtime_host: VERCEL_NEON_SLACK_PROFILE.runtimeHost.provider,
+      state_service: VERCEL_NEON_SLACK_PROFILE.stateService.provider,
+      communication: VERCEL_NEON_SLACK_PROFILE.communication.provider,
+    },
     workspace,
     workspace_fingerprint: workspaceFingerprint(workspace),
     state_path: effectiveStatePath,
@@ -195,7 +209,7 @@ export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePa
       "Detect and preserve hosted protection on an adopted repository, or apply the solo-Steward protected-main baseline to a new repository when GitHub supports it; otherwise retain the same pull-request, CompanyOS-check, and Steward-confirmation process without hosted enforcement.",
       `${normalized.answers.vercel_project_mode === "create" ? "Create" : "Adopt"} Vercel project '${normalized.answers.vercel_project}' in '${normalized.answers.vercel_scope}'.`,
       `${normalized.answers.neon_resource_mode === "create" ? "Create" : "Adopt"} Neon resource '${normalized.answers.neon_resource_name}' on plan '${normalized.answers.neon_plan}'.`,
-      `${normalized.answers.slack_connector_mode === "create" ? "Create" : "Adopt"} Slack connector '${normalized.answers.slack_connector_name}' and attach /api/webhooks/slack.`,
+      `${normalized.answers.slack_connector_mode === "create" ? "Create" : "Adopt"} Slack connector '${normalized.answers.slack_connector_name}' and attach ${VERCEL_NEON_SLACK_PROFILE.communication.triggerPath}.`,
       "Resolve the consenting human's canonical Slack principal with a short-lived user token and discard the token.",
       "Propose one operating, supervised, Tool-free Oregano Slack assistant in a pull request.",
       `Build an immutable Artifact from Core ${core.ref} and the reviewed Workspace commit.`,
@@ -249,7 +263,7 @@ export function writeLiveSetupState(path, state) {
 
 export function readLiveSetupState(path) {
   const state = JSON.parse(readFileSync(path, "utf8"));
-  if (state?.schema_version !== LIVE_SETUP_STATE_VERSION || state?.profile !== LIVE_SETUP_PROFILE) throw new Error(`${path}: unsupported live setup state.`);
+  if (!new Set([1, LIVE_SETUP_STATE_VERSION]).has(state?.schema_version) || state?.profile !== LIVE_SETUP_PROFILE) throw new Error(`${path}: unsupported live setup state.`);
   assertSafeState(state);
   return state;
 }
@@ -270,6 +284,7 @@ export function initializeLiveSetup({ planResult, confirmationHash }) {
     core: planResult.plan.core,
     answers: planResult.plan.answers,
     resources: {},
+    intents: {},
     operating: {},
     artifact: {},
     deployment: {},
@@ -327,6 +342,50 @@ const resourceIdentity = (value) => ({
   name: resourceName(value),
 });
 
+const primaryResource = (value) => {
+  const items = resourceItems(value);
+  if (items.length > 0) return items[0];
+  return value?.resource ?? value?.connector ?? value?.data ?? value;
+};
+
+const sameResource = (candidate, receipt, expectedName) => {
+  const identity = resourceIdentity(candidate);
+  return Boolean(
+    (receipt?.id && identity.id === receipt.id) ||
+    (receipt?.uid && identity.uid === receipt.uid) ||
+    (!receipt?.id && !receipt?.uid && resourceName(candidate) === expectedName),
+  );
+};
+
+const beginMutation = (statePath, state, key, descriptor) => {
+  state.intents ??= {};
+  const existing = state.intents[key];
+  if (existing) {
+    if (existing.status === "completed") return existing;
+    if (JSON.stringify(existing.target) !== JSON.stringify(descriptor)) {
+      throw new Error(`Refusing to change pending provider mutation '${key}'.`);
+    }
+    return existing;
+  }
+  const intent = { status: "pending", target: descriptor, started_at: now() };
+  state.intents[key] = intent;
+  writeLiveSetupState(statePath, state);
+  return intent;
+};
+
+const completeMutation = (statePath, state, key, receipt) => {
+  state.intents ??= {};
+  state.intents[key] = {
+    ...(state.intents[key] ?? {}),
+    status: "completed",
+    completed_at: now(),
+    receipt,
+  };
+  writeLiveSetupState(statePath, state);
+};
+
+const hasPendingMutation = (state, key) => state.intents?.[key]?.status === "pending";
+
 const stateResult = (statePath, state, status, message, nextAction = null, diagnostics = []) => ({ statePath, state, status, message, next_action: nextAction, diagnostics });
 
 const savePhase = (statePath, state, next, evidence = {}) => {
@@ -343,13 +402,66 @@ const git = (executor, workspace, ...args) => run(executor, "git", ["-C", worksp
 const gh = (executor, args, options = {}) => run(executor, "gh", args, options);
 const vercel = (executor, coreRoot, args, options = {}) => run(executor, "vercel", [...args, "--cwd", coreRoot, "--scope", options.scope], { ...options, cwd: coreRoot });
 
-const addVercelEnv = (executor, coreRoot, scope, project, name, value, { sensitive = false } = {}) => {
-  const args = ["env", "add", name, "production", "--force", "--yes", sensitive ? "--sensitive" : "--no-sensitive"];
+const vercelApi = (executor, coreRoot, scope, endpoint, { method = "GET", body } = {}) => {
+  const args = ["api", endpoint, "--method", method, "--raw"];
+  if (body !== undefined) args.push("--input", "-");
+  const result = vercel(executor, coreRoot, args, { scope, input: body === undefined ? undefined : `${JSON.stringify(body)}\n` });
+  return parseJson(result.stdout, `Vercel API ${method} ${endpoint}`);
+};
+
+const expectedVercelProjectConfiguration = () => ({
+  ...VERCEL_NEON_SLACK_PROFILE.runtimeHost.expectedProjectConfiguration(),
+});
+
+const projectConfigurationMatches = (project, expected) =>
+  clean(project?.rootDirectory) === expected.rootDirectory &&
+  clean(project?.framework) === expected.framework &&
+  project?.sourceFilesOutsideRootDirectory === expected.sourceFilesOutsideRootDirectory;
+
+const ensureVercelProjectConfiguration = (executor, coreRoot, scope, project, mode) => {
+  const endpoint = VERCEL_NEON_SLACK_PROFILE.runtimeHost.projectEndpoint(project);
+  const expected = expectedVercelProjectConfiguration();
+  let current = vercelApi(executor, coreRoot, scope, endpoint);
+  if (!projectConfigurationMatches(current, expected)) {
+    if (mode === "adopt") {
+      throw new Error(`Adopted Vercel project '${project}' does not use the maintained runner root '${expected.rootDirectory}', framework '${expected.framework}', and outside-root source access. Oregano left the project unchanged.`);
+    }
+    vercelApi(executor, coreRoot, scope, endpoint, { method: "PATCH", body: expected });
+    current = vercelApi(executor, coreRoot, scope, endpoint);
+  }
+  if (!projectConfigurationMatches(current, expected)) {
+    throw new Error(`Vercel did not confirm the maintained runner configuration for project '${project}'.`);
+  }
+  return {
+    root_directory: expected.rootDirectory,
+    framework: expected.framework,
+    source_files_outside_root_directory: expected.sourceFilesOutsideRootDirectory,
+    checked_at: now(),
+  };
+};
+
+const vercelEnvironmentNames = (executor, coreRoot, scope, project) => {
+  const payload = parseJson(vercel(executor, coreRoot, ["env", "list", "production", "--project", project, "--format", "json"], { scope }).stdout, "Vercel production environment variables");
+  const items = Array.isArray(payload) ? payload : payload?.envs ?? payload?.variables ?? payload?.data ?? [];
+  return new Set(items.map((item) => clean(item?.key ?? item?.name)).filter(Boolean));
+};
+
+export const createVercelEnvironmentVariable = (executor, coreRoot, scope, project, name, value, { sensitive = false } = {}) => {
+  const args = ["env", "add", name, "production", "--yes", sensitive ? "--sensitive" : "--no-sensitive"];
   run(executor, "vercel", [...args, "--project", project, "--cwd", coreRoot, "--scope", scope], { cwd: coreRoot, input: `${value}\n` });
 };
 
+export class SlackAuthorizationRequiredError extends Error {
+  constructor(connector) {
+    super("Slack user authorization is required before Oregano can verify the consenting human principal.");
+    this.name = "SlackAuthorizationRequiredError";
+    this.connector = connector;
+  }
+}
+
 export async function resolveSlackPrincipal(connector, { executor = createCommandExecutor(), coreRoot, scope, fetchImpl = globalThis.fetch } = {}) {
-  const tokenResult = vercel(executor, coreRoot, ["connect", "token", connector, "--subject", "user", "--format", "json", "--yes"], { scope, sensitiveOutput: true });
+  const tokenResult = vercel(executor, coreRoot, [...VERCEL_NEON_SLACK_PROFILE.communication.userAuthorizationArguments(connector)], { scope, sensitiveOutput: true, allowFailure: true });
+  if (tokenResult.status !== 0) throw new SlackAuthorizationRequiredError(connector);
   const tokenPayload = parseJson(tokenResult.stdout, "Vercel Connect user authorization");
   const credential = clean(tokenPayload.token ?? tokenPayload.accessToken ?? tokenPayload.access_token);
   if (!credential) throw new Error("Vercel Connect did not return a short-lived Slack user credential.");
@@ -382,7 +494,7 @@ const ensureInitialWorkspaceCommit = (executor, state) => {
   }
 };
 
-const githubRepository = (state) => `${state.answers.github_owner}/${state.answers.github_repository}`;
+const githubRepository = (state) => VERCEL_NEON_SLACK_PROFILE.sourceHost.repositoryReference(state.answers.github_owner, state.answers.github_repository);
 
 const assertGitHubProtectionBaseline = (protection) => {
   const contexts = new Set([
@@ -498,11 +610,28 @@ const buildAndConfigureArtifact = (executor, state, statePath, coreRoot) => {
   if (artifact?.provenance?.coreCommit !== state.core.ref || artifact?.provenance?.workspaceCommit !== workspaceCommit || !/^[0-9a-f]{64}$/.test(artifact?.artifactHash ?? "")) throw new Error("Built Artifact provenance does not match the reviewed Core and Workspace commits.");
   const encoded = gzipSync(readFileSync(artifactPath)).toString("base64");
   const project = state.resources.vercel.project;
-  addVercelEnv(executor, coreRoot, state.answers.vercel_scope, project, "COMPANYOS_ARTIFACT_GZIP_BASE64", encoded, { sensitive: true });
-  addVercelEnv(executor, coreRoot, state.answers.vercel_scope, project, "SLACK_CONNECTOR", state.resources.slack.uid);
-  addVercelEnv(executor, coreRoot, state.answers.vercel_scope, project, "COMPANYOS_AGENT_ID", "oregano");
-  addVercelEnv(executor, coreRoot, state.answers.vercel_scope, project, "COMPANYOS_MODEL", state.answers.model);
-  addVercelEnv(executor, coreRoot, state.answers.vercel_scope, project, "BOT_USERNAME", "oregano");
+  const definitions = [
+    { name: "COMPANYOS_ARTIFACT_GZIP_BASE64", value: encoded, sensitive: true },
+    { name: "SLACK_CONNECTOR", value: state.resources.slack.uid, sensitive: false },
+    { name: "COMPANYOS_AGENT_ID", value: VERCEL_NEON_SLACK_PROFILE.communication.agentId, sensitive: false },
+    { name: "COMPANYOS_MODEL", value: state.answers.model, sensitive: false },
+    { name: "BOT_USERNAME", value: VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName, sensitive: false },
+  ];
+  const existingNames = vercelEnvironmentNames(executor, coreRoot, state.answers.vercel_scope, project);
+  state.deployment.environment_receipts ??= [];
+  for (const definition of definitions) {
+    const receipt = state.deployment.environment_receipts.find((item) => item.name === definition.name);
+    if (receipt?.status === "created") continue;
+    const intentKey = `vercel-environment-${sha256(definition.name).slice(0, 12)}`;
+    if (existingNames.has(definition.name)) {
+      const context = hasPendingMutation(state, intentKey) ? "after a pending create attempt" : "without an Oregano setup receipt";
+      throw new Error(`Vercel production environment variable '${definition.name}' already exists ${context}. Oregano cannot verify its value and refused to overwrite or adopt it.`);
+    }
+    beginMutation(statePath, state, intentKey, { provider: "vercel", operation: "create-environment-variable", project, name: definition.name, environment: "production" });
+    createVercelEnvironmentVariable(executor, coreRoot, state.answers.vercel_scope, project, definition.name, definition.value, { sensitive: definition.sensitive });
+    state.deployment.environment_receipts.push({ name: definition.name, status: "created", created_at: now() });
+    completeMutation(statePath, state, intentKey, { name: definition.name, environment: "production" });
+  }
   return {
     hash: artifact.artifactHash,
     core_commit: state.core.ref,
@@ -519,11 +648,29 @@ const expectedHealth = (state, health) => health?.ok === true && health?.status 
   health?.resolvedToolSetHash === state.artifact.resolved_toolset_hash &&
   Array.isArray(health?.tools) && health.tools.length === 0;
 
-const fetchHealth = async (url, fetchImpl = globalThis.fetch) => {
-  const response = await fetchImpl(`${url.replace(/\/$/, "")}/api/health`);
-  const body = await response.json();
-  if (!response.ok) throw new Error(`Company Instance health failed with HTTP ${response.status}: ${safeError(body?.error ?? "not ready")}`);
-  return body;
+export const fetchHealth = async (url, fetchImpl = globalThis.fetch, {
+  attempts = 5,
+  delayMs = 750,
+  sleep = (milliseconds) => new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds)),
+} = {}) => {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetchImpl(`${url.replace(/\/$/, "")}/api/health`);
+      let body;
+      if (typeof response.text === "function") {
+        const raw = await response.text();
+        try { body = JSON.parse(raw); }
+        catch { throw new Error(`Company Instance health returned a temporary non-JSON response with HTTP ${response.status ?? "unknown"}: ${safeError(raw || "empty response")}`); }
+      } else body = await response.json();
+      if (!response.ok) throw new Error(`Company Instance health failed with HTTP ${response.status}: ${safeError(body?.error ?? "not ready")}`);
+      return body;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await sleep(delayMs * attempt);
+    }
+  }
+  throw lastError ?? new Error("Company Instance health did not become ready.");
 };
 
 export async function advanceLiveSetup({
@@ -569,16 +716,18 @@ export async function advanceLiveSetup({
           if (membership !== "active") throw new Error(`The authenticated GitHub user is not an active member of organization '${state.answers.github_owner}'.`);
         }
         const existing = gh(executor, ["repo", "view", repository, "--json", "nameWithOwner,url,visibility"], { allowFailure: true });
-        if (state.answers.github_repository_mode === "create" && existing.status === 0) throw new Error(`GitHub repository '${repository}' already exists; choose adopt explicitly or a new name.`);
+        const intentKey = "github-repository-create";
+        if (state.answers.github_repository_mode === "create" && existing.status === 0 && !hasPendingMutation(state, intentKey) && !state.resources.github?.repository) throw new Error(`GitHub repository '${repository}' already exists; choose adopt explicitly or a new name.`);
         if (state.answers.github_repository_mode === "adopt" && existing.status !== 0) throw new Error(`GitHub repository '${repository}' does not exist and cannot be adopted.`);
         let repositoryData;
         if (existing.status === 0) repositoryData = parseJson(existing.stdout, "GitHub repository");
         else {
+          if (state.answers.github_repository_mode === "create") beginMutation(absoluteStatePath, state, intentKey, { provider: "github", operation: "create-private-repository", repository });
           gh(executor, ["repo", "create", repository, "--private", "--source", state.workspace, "--remote", "origin", "--push"]);
           repositoryData = parseJson(gh(executor, ["repo", "view", repository, "--json", "nameWithOwner,url,visibility"]).stdout, "GitHub repository");
         }
         if (String(repositoryData.visibility).toUpperCase() !== "PRIVATE") throw new Error("GitHub repository visibility is not private.");
-        if (state.answers.github_repository_mode === "adopt") {
+        if (state.answers.github_repository_mode === "adopt" || (state.answers.github_repository_mode === "create" && existing.status === 0 && hasPendingMutation(state, intentKey))) {
           const origin = run(executor, "git", ["-C", state.workspace, "remote", "get-url", "origin"], { allowFailure: true });
           const expectedRemote = `https://github.com/${repository}.git`;
           if (origin.status !== 0) git(executor, state.workspace, "remote", "add", "origin", expectedRemote);
@@ -586,6 +735,7 @@ export async function advanceLiveSetup({
           git(executor, state.workspace, "push", "-u", "origin", "main");
         }
         state.resources.github = { repository, url: repositoryData.url, visibility: "PRIVATE", mode: state.answers.github_repository_mode, authenticated_login: authenticatedLogin };
+        if (state.answers.github_repository_mode === "create") completeMutation(absoluteStatePath, state, intentKey, { repository, url: repositoryData.url, visibility: "PRIVATE" });
         savePhase(absoluteStatePath, state, "github-protection");
       } else if (state.phase === "github-protection") {
         state.resources.github.protection = applyGitHubProtection(executor, state);
@@ -595,50 +745,80 @@ export async function advanceLiveSetup({
         savePhase(absoluteStatePath, state, "vercel-project");
       } else if (state.phase === "vercel-project") {
         const inspect = vercel(executor, coreRoot, ["project", "inspect", state.answers.vercel_project, "--yes"], { scope: state.answers.vercel_scope, allowFailure: true });
-        if (state.answers.vercel_project_mode === "create" && inspect.status === 0) throw new Error(`Vercel project '${state.answers.vercel_project}' already exists; choose adopt explicitly or a new name.`);
+        const intentKey = "vercel-project-create";
+        if (state.answers.vercel_project_mode === "create" && inspect.status === 0 && !hasPendingMutation(state, intentKey) && !state.resources.vercel?.id) throw new Error(`Vercel project '${state.answers.vercel_project}' already exists; choose adopt explicitly or a new name.`);
         if (state.answers.vercel_project_mode === "adopt" && inspect.status !== 0) throw new Error(`Vercel project '${state.answers.vercel_project}' does not exist and cannot be adopted.`);
-        if (state.answers.vercel_project_mode === "create") vercel(executor, coreRoot, ["project", "add", state.answers.vercel_project], { scope: state.answers.vercel_scope });
+        if (state.answers.vercel_project_mode === "create" && inspect.status !== 0) {
+          beginMutation(absoluteStatePath, state, intentKey, { provider: "vercel", operation: "create-project", scope: state.answers.vercel_scope, project: state.answers.vercel_project });
+          vercel(executor, coreRoot, ["project", "add", state.answers.vercel_project], { scope: state.answers.vercel_scope });
+        }
         vercel(executor, coreRoot, ["link", "--project", state.answers.vercel_project, "--team", state.answers.vercel_scope, "--yes"], { scope: state.answers.vercel_scope });
         const projectMetadata = JSON.parse(readFileSync(join(coreRoot, ".vercel", "project.json"), "utf8"));
-        state.resources.vercel = { id: clean(projectMetadata.projectId), project: state.answers.vercel_project, scope: state.answers.vercel_scope, mode: state.answers.vercel_project_mode };
+        const configuration = ensureVercelProjectConfiguration(executor, coreRoot, state.answers.vercel_scope, state.answers.vercel_project, state.answers.vercel_project_mode);
+        state.resources.vercel = { id: clean(projectMetadata.projectId), project: state.answers.vercel_project, scope: state.answers.vercel_scope, mode: state.answers.vercel_project_mode, configuration };
+        if (state.answers.vercel_project_mode === "create") completeMutation(absoluteStatePath, state, intentKey, { id: state.resources.vercel.id, project: state.resources.vercel.project });
         savePhase(absoluteStatePath, state, "neon");
       } else if (state.phase === "neon") {
         const listed = parseJson(vercel(executor, coreRoot, ["integration", "list", "--all", "--integration", "neon", "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel integrations");
-        const existing = resourceItems(listed).find((entry) => resourceName(entry) === state.answers.neon_resource_name);
-        if (state.answers.neon_resource_mode === "create" && existing) throw new Error(`Neon resource '${state.answers.neon_resource_name}' already exists; choose adopt explicitly or another name.`);
+        const intentKey = "neon-resource-create";
+        const receipt = state.resources.neon;
+        const existing = resourceItems(listed).find((entry) => sameResource(entry, receipt, state.answers.neon_resource_name));
+        if (state.answers.neon_resource_mode === "create" && existing && !receipt && !hasPendingMutation(state, intentKey)) throw new Error(`Neon resource '${state.answers.neon_resource_name}' already exists; choose adopt explicitly or another name.`);
         if (state.answers.neon_resource_mode === "adopt" && !existing) throw new Error(`Neon resource '${state.answers.neon_resource_name}' was not found for adoption.`);
-        let resource = existing;
+        let resource = existing ?? receipt;
         if (!resource) {
+          if (hasPendingMutation(state, intentKey)) return wait(absoluteStatePath, state, "The Neon create request was recorded but its immutable resource receipt is not available yet. Wait for provisioning, then resume; Oregano will not create a duplicate.", { type: "wait-for-provider-receipt", provider: "neon", resource_name: state.answers.neon_resource_name });
+          beginMutation(absoluteStatePath, state, intentKey, { provider: "neon", operation: "create-state-resource", name: state.answers.neon_resource_name, plan: state.answers.neon_plan, region: state.answers.neon_region || null });
           const args = ["integration", "add", "neon", "--name", state.answers.neon_resource_name, "--plan", state.answers.neon_plan, "--environment", "production", "--environment", "preview", "--environment", "development", "--no-env-pull", "--format", "json"];
           if (state.answers.neon_region) args.push("--metadata", `region=${state.answers.neon_region}`);
-          parseJson(vercel(executor, coreRoot, args, { scope: state.answers.vercel_scope }).stdout, "Neon resource creation");
-          const refreshed = parseJson(vercel(executor, coreRoot, ["integration", "list", "--all", "--integration", "neon", "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel integrations");
-          resource = resourceItems(refreshed).find((entry) => resourceName(entry) === state.answers.neon_resource_name);
-          if (!resource) throw new Error("Created Neon resource could not be resolved by name after provisioning.");
+          const identity = VERCEL_NEON_SLACK_PROFILE.stateService.normalizeCreateReceipt(parseJson(vercel(executor, coreRoot, args, { scope: state.answers.vercel_scope }).stdout, "Neon resource creation"), state.answers.neon_resource_name);
+          if (!identity.id && !identity.uid && !identity.name) throw new Error("Neon resource creation did not return an immutable resource receipt.");
+          resource = identity;
+          state.resources.neon = { ...resource, mode: state.answers.neon_resource_mode, plan: state.answers.neon_plan, region: state.answers.neon_region || null };
+          completeMutation(absoluteStatePath, state, intentKey, resourceIdentity(resource));
         } else {
-          vercel(executor, coreRoot, ["integration", "resource", "connect", resourceIdentity(resource).id || resourceIdentity(resource).name, state.answers.vercel_project, "--environment", "production", "--environment", "preview", "--environment", "development", "--format", "json", "--yes"], { scope: state.answers.vercel_scope });
+          if (state.answers.neon_resource_mode === "adopt") vercel(executor, coreRoot, ["integration", "resource", "connect", resourceIdentity(resource).id || resourceIdentity(resource).name, state.answers.vercel_project, "--environment", "production", "--environment", "preview", "--environment", "development", "--format", "json", "--yes"], { scope: state.answers.vercel_scope });
+          if (state.answers.neon_resource_mode === "create" && hasPendingMutation(state, intentKey)) completeMutation(absoluteStatePath, state, intentKey, resourceIdentity(resource));
         }
         state.resources.neon = { ...resourceIdentity(resource), mode: state.answers.neon_resource_mode, plan: state.answers.neon_plan, region: state.answers.neon_region || null };
         savePhase(absoluteStatePath, state, "slack");
       } else if (state.phase === "slack") {
         const listed = parseJson(vercel(executor, coreRoot, ["connect", "list", "--all-projects", "--service", "slack", "--search", state.answers.slack_connector_name, "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel Connect list");
-        const existing = resourceItems(listed).find((entry) => resourceName(entry) === state.answers.slack_connector_name || clean(entry?.uid) === `slack/${state.answers.slack_connector_name}`);
-        if (state.answers.slack_connector_mode === "create" && existing) throw new Error(`Slack connector '${state.answers.slack_connector_name}' already exists; choose adopt explicitly or another name.`);
+        const createIntentKey = "slack-connector-create";
+        const receipt = state.resources.slack;
+        const existing = resourceItems(listed).find((entry) => sameResource(entry, receipt, state.answers.slack_connector_name));
+        if (state.answers.slack_connector_mode === "create" && existing && !receipt && !hasPendingMutation(state, createIntentKey)) throw new Error(`Slack connector '${state.answers.slack_connector_name}' already exists; choose adopt explicitly or another name.`);
         if (state.answers.slack_connector_mode === "adopt" && !existing) throw new Error(`Slack connector '${state.answers.slack_connector_name}' was not found for adoption.`);
-        let connector = existing;
+        let connector = existing ?? receipt;
         if (!connector) {
-          parseJson(vercel(executor, coreRoot, ["connect", "create", "slack", "--name", state.answers.slack_connector_name, "--triggers", "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Slack connector creation");
-          const refreshed = parseJson(vercel(executor, coreRoot, ["connect", "list", "--all-projects", "--service", "slack", "--search", state.answers.slack_connector_name, "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel Connect list");
-          connector = resourceItems(refreshed).find((entry) => resourceName(entry) === state.answers.slack_connector_name || clean(entry?.uid) === `slack/${state.answers.slack_connector_name}`);
-          if (!connector) throw new Error("Created Slack connector could not be resolved by name after installation.");
+          if (hasPendingMutation(state, createIntentKey)) return wait(absoluteStatePath, state, "The Slack connector create request was recorded but its immutable receipt is not available yet. Wait for installation, then resume; Oregano will not create a duplicate.", { type: "wait-for-provider-receipt", provider: "slack", connector_name: state.answers.slack_connector_name });
+          beginMutation(absoluteStatePath, state, createIntentKey, { provider: "slack", operation: "create-connector", name: state.answers.slack_connector_name });
+          const createdIdentity = VERCEL_NEON_SLACK_PROFILE.communication.normalizeCreateReceipt(parseJson(vercel(executor, coreRoot, ["connect", "create", "slack", "--name", state.answers.slack_connector_name, "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Slack connector creation"));
+          if (!createdIdentity.id && !createdIdentity.uid) throw new Error("Slack connector creation did not return an immutable connector receipt.");
+          connector = createdIdentity;
+          state.resources.slack = { ...createdIdentity, mode: state.answers.slack_connector_mode, expected_display_name: VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName };
+          completeMutation(absoluteStatePath, state, createIntentKey, createdIdentity);
         }
         const identity = resourceIdentity(connector);
+        const expectedConnectorUid = VERCEL_NEON_SLACK_PROFILE.communication.expectedConnectorUid();
+        if (identity.uid !== expectedConnectorUid) throw new Error(`Slack connector did not preserve the fixed Oregano identity '${expectedConnectorUid}'. Oregano left the connector unchanged; choose or create the connector named '${VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName}'.`);
         const connectorRef = identity.uid.startsWith("slack/") ? identity.uid : identity.id || `slack/${state.answers.slack_connector_name}`;
-        vercel(executor, coreRoot, ["connect", "attach", connectorRef, "--project", state.answers.vercel_project, "--environment", "production", "--triggers", "--trigger-path", "/api/webhooks/slack", "--yes", "--format", "json"], { scope: state.answers.vercel_scope });
-        state.resources.slack = { ...identity, uid: connectorRef, mode: state.answers.slack_connector_mode, trigger_path: "/api/webhooks/slack" };
+        const triggerIntentKey = "slack-trigger-attach";
+        let triggerReceipt = state.resources.slack?.trigger_receipt;
+        if (state.intents?.[triggerIntentKey]?.status !== "completed") {
+          beginMutation(absoluteStatePath, state, triggerIntentKey, { provider: "vercel", operation: "attach-trigger", connector: connectorRef, project: state.answers.vercel_project, path: VERCEL_NEON_SLACK_PROFILE.communication.triggerPath });
+          triggerReceipt = primaryResource(parseJson(vercel(executor, coreRoot, [...VERCEL_NEON_SLACK_PROFILE.communication.triggerAttachmentArguments(connectorRef, state.answers.vercel_project)], { scope: state.answers.vercel_scope }).stdout, "Slack trigger attachment"));
+          completeMutation(absoluteStatePath, state, triggerIntentKey, { connector: connectorRef, project: state.answers.vercel_project, path: VERCEL_NEON_SLACK_PROFILE.communication.triggerPath });
+        }
+        state.resources.slack = { ...identity, uid: connectorRef, mode: state.answers.slack_connector_mode, trigger_path: VERCEL_NEON_SLACK_PROFILE.communication.triggerPath, trigger_receipt: triggerReceipt, expected_display_name: VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName };
         savePhase(absoluteStatePath, state, "slack-identity");
       } else if (state.phase === "slack-identity") {
-        const identity = await resolveSlackPrincipal(state.resources.slack.uid, { executor, coreRoot, scope: state.answers.vercel_scope, fetchImpl });
+        let identity;
+        try { identity = await resolveSlackPrincipal(state.resources.slack.uid, { executor, coreRoot, scope: state.answers.vercel_scope, fetchImpl }); }
+        catch (error) {
+          if (!(error instanceof SlackAuthorizationRequiredError)) throw error;
+          return wait(absoluteStatePath, state, "Slack needs one browser authorization with the minimal identity.basic scope before Oregano can record the consenting human's canonical Slack identity. No token is stored.", { type: "browser-authorization", provider: "slack", command: ["vercel", "connect", "token", state.resources.slack.uid, "--subject", "user", "--scopes", VERCEL_NEON_SLACK_PROFILE.communication.userAuthorizationScopes.join(","), "--yes"] });
+        }
         state.resources.slack.team_id = identity.team_id;
         state.resources.slack.user_id = identity.user_id;
         state.resources.slack.team = identity.team;
@@ -700,12 +880,23 @@ export async function advanceLiveSetup({
       } else if (state.phase === "production-deployment") {
         let url = state.deployment.url;
         if (!url) {
-          const deployed = vercel(executor, coreRoot, ["deploy", "--prod", "--yes", "--project", state.resources.vercel.project], { scope: state.answers.vercel_scope });
-          url = [...`${deployed.stdout}\n${deployed.stderr}`.matchAll(/https:\/\/[^\s]+/g)].at(-1)?.[0];
+          const intentKey = "vercel-production-deployment";
+          if (hasPendingMutation(state, intentKey)) return wait(absoluteStatePath, state, "The production deployment request was recorded without a deployment receipt. Inspect the Vercel project and resume with the existing deployment; Oregano will not create another production deployment automatically.", { type: "reconcile-provider-receipt", provider: "vercel", project: state.resources.vercel.project });
+          beginMutation(absoluteStatePath, state, intentKey, { provider: "vercel", operation: "deploy-production", project: state.resources.vercel.project, artifact_hash: state.artifact.hash });
+          const deployed = parseJson(vercel(executor, coreRoot, ["deploy", "--prod", "--yes", "--project", state.resources.vercel.project, "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel production deployment");
+          const rawUrl = clean(deployed?.url ?? deployed?.deployment?.url);
+          url = rawUrl && !/^https?:\/\//.test(rawUrl) ? `https://${rawUrl}` : rawUrl;
           if (!url) throw new Error("Vercel production deployment did not return a URL.");
+          state.deployment.id = clean(deployed?.id ?? deployed?.deployment?.id);
           state.deployment.url = url;
-          writeLiveSetupState(absoluteStatePath, state);
+          completeMutation(absoluteStatePath, state, intentKey, { id: state.deployment.id || null, url });
         }
+        const inspected = parseJson(vercel(executor, coreRoot, ["inspect", state.deployment.id || url, "--wait", "--timeout", "3m", "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Vercel deployment inspection");
+        const readyState = clean(inspected?.readyState ?? inspected?.state ?? inspected?.status).toUpperCase();
+        if (!new Set(["READY", "SUCCEEDED", "SUCCESS"]).has(readyState)) throw new Error(`Vercel deployment is not ready; provider state is '${readyState || "unknown"}'.`);
+        state.deployment.ready_state = readyState;
+        state.deployment.ready_at = now();
+        writeLiveSetupState(absoluteStatePath, state);
         const health = await fetchHealth(url, fetchImpl);
         if (!expectedHealth(state, health)) throw new Error("Production health does not match the expected Artifact, Core, Workspace, ToolSet, and Agent provenance.");
         state.deployment.health = {
@@ -726,7 +917,7 @@ export async function advanceLiveSetup({
         if (proof.status !== 0) return wait(absoluteStatePath, state, "Send the generated message to Oregano in Slack. The installer will then prove both the user message and Oregano response in Neon.", { type: "slack-round-trip", message: `@Oregano Setup-Test ${nonce}`, channel_id: state.answers.slack_channel_id || null });
         const databaseProof = parseJson(proof.stdout, "Slack database proof");
         if (databaseProof.ok !== true) return wait(absoluteStatePath, state, "The Slack message has not produced a complete persisted round trip yet.", { type: "slack-round-trip", message: `@Oregano Setup-Test ${nonce}`, channel_id: state.answers.slack_channel_id || null });
-        state.verification.database = { ok: true, conversation_entries: databaseProof.conversation_entries, assistant_entries: databaseProof.assistant_entries, checked_at: now() };
+        state.verification.database = { ok: true, conversation_entries: databaseProof.conversation_entries, assistant_entries: databaseProof.assistant_entries, exact_response_entries: databaseProof.exact_response_entries, checked_at: now() };
         state.verification.scope = "live-starter-instance";
         state.verification.readiness = "validated";
         savePhase(absoluteStatePath, state, "complete");
@@ -757,6 +948,16 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
   if (!new Set(["enforced", "advisory"]).has(recordedProtection)) diagnostics.push(diagnostic("LIVE103", "error", "GitHub hosted-protection attempt evidence is missing."));
   if (!state.resources.neon?.id && !state.resources.neon?.uid && !state.resources.neon?.name) diagnostics.push(diagnostic("LIVE104", "error", "Neon resource evidence is missing."));
   if (!state.resources.slack?.uid || !state.resources.slack?.team_id || !state.resources.slack?.user_id) diagnostics.push(diagnostic("LIVE105", "error", "Slack connector or canonical human principal evidence is missing."));
+  if (state.schema_version >= 2) {
+    const expectedProject = expectedVercelProjectConfiguration();
+    const recordedProject = state.resources.vercel?.configuration;
+    if (recordedProject?.root_directory !== expectedProject.rootDirectory || recordedProject?.framework !== expectedProject.framework || recordedProject?.source_files_outside_root_directory !== expectedProject.sourceFilesOutsideRootDirectory) diagnostics.push(diagnostic("LIVE114", "error", "Vercel runner-root configuration evidence is missing or mismatched."));
+    const expectedSlackUid = VERCEL_NEON_SLACK_PROFILE.communication.expectedConnectorUid();
+    if (state.resources.slack?.uid !== expectedSlackUid || state.resources.slack?.trigger_path !== VERCEL_NEON_SLACK_PROFILE.communication.triggerPath || state.resources.slack?.expected_display_name !== VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName) diagnostics.push(diagnostic("LIVE115", "error", "Slack fixed-name or trigger-route evidence is missing or mismatched."));
+    const unresolvedIntents = Object.entries(state.intents ?? {}).filter(([, intent]) => intent?.status !== "completed").map(([key]) => key);
+    if (unresolvedIntents.length > 0) diagnostics.push(diagnostic("LIVE116", "error", `Provider mutation receipts are incomplete: ${unresolvedIntents.join(", ")}.`));
+    if (!new Set(["READY", "SUCCEEDED", "SUCCESS"]).has(state.deployment?.ready_state)) diagnostics.push(diagnostic("LIVE117", "error", "Structured ready deployment evidence is missing."));
+  }
   if (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.merge_authorized_by !== state.resources.github?.authenticated_login || !/^\d{4}-\d{2}-\d{2}T/.test(state.operating?.merge_authorized_at ?? "") || state.operating?.required_check !== "passed") diagnostics.push(diagnostic("LIVE106", "error", "Workspace Steward merge authorization, required check, or immutable merge evidence is missing."));
   if (state.verification?.database?.ok !== true) diagnostics.push(diagnostic("LIVE107", "error", "Persisted Slack round-trip evidence is missing."));
   if (state.deployment?.url) {

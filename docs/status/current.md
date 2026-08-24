@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-23
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -22,8 +22,10 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core uses the `0.3.0` initial-development release line. Every Company
-  Workspace advances independently under the canonical Versioning Policy.
+- Oregano Core has prepared the `0.3.1` initial-development release candidate;
+  `v0.3.0` remains the latest stable release until the reviewed candidate is
+  merged, tagged, and published. Every Company Workspace advances independently
+  under the canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
   artifact. The artifact records both product versions, the SHA pair,
@@ -55,7 +57,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.5`; no
+  builds. Its repository release candidate is `0.1.0-experimental.6`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
@@ -72,6 +74,12 @@ evidence, historical prototypes, and production gaps.
   health verification, and nonce-bound Slack plus Neon persistence proof.
   `companyos verify-live` reports only `live-starter-instance` with readiness
   `validated`.
+- The maintained setup implementation now has a private typed four-role
+  provider boundary. Its GitHub, Vercel, Neon, and Slack profile records
+  write-ahead intents and immutable receipts, verifies the monorepo runner
+  root, refuses production-variable conflicts, and separates the fixed Slack
+  Agent name `oregano` from Company Workspace identity. This is an internal
+  Workbench boundary, not a public provider plugin API.
 - The generated starter contains one supervised `oregano` Agent, one Slack
   workflow, a non-secret Slack connection declaration, and no business Tool
   grants. Its mode-0600 setup state rejects provider credentials, database
@@ -134,13 +142,16 @@ evidence, historical prototypes, and production gaps.
    legal, account, spend, and recovery decision.
 3. Establish an isolated non-production Instance and Connector authorization
    instead of testing future changes against production state.
-4. Reconcile, validate, tag, and publish the next stable immutable GitHub
+4. Reconcile, validate, tag, and publish the stable immutable `v0.3.1` GitHub
    Release containing the checksum-bound agent runbook. There is no
    `latest-stable` branch; `releases/latest` is discovery only and installation
    pins the exact tag, commit, and Workbench version.
-5. Qualify the new `vercel-neon-slack` setup profile through a real external
-   end-to-end installation. Its provider adapters have deterministic and mocked
-   tests but have not yet completed that release qualification.
+5. Re-qualify the hardened `vercel-neon-slack` setup profile through a fresh
+   external end-to-end installation before the next stable release. The prior
+   profile completed a real supervised installation and exposed the provider
+   receipt, runner-root, Slack-authorization, naming, and health-readiness gaps
+   addressed by the current Change Plan; the hardened revision still requires
+   its own release qualification.
 6. Publish a signed Workbench package so Workspace-only Contributors do not
    require a Core source checkout.
 7. Require and qualify hosted repository protection before any future

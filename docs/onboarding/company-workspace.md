@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-23
+updated: 2026-08-24
 owners:
   - oregano-maintainers
 audience:
@@ -155,6 +155,28 @@ Vercel, Neon, and Slack setup only after explicit create-or-adopt selection,
 provider consent, and the applicable confirmation hash. It never places a
 provider credential in Git or setup state.
 
+The profile is assembled from private typed adapters for the source-host,
+runtime-host, state-service, and communication roles. Its maintained bindings
+are GitHub, Vercel, Neon/Postgres, and Slack. Those bindings are Workbench setup
+policy, not Core runtime dependencies and not a public provider extension API.
+A future Hetzner, Docker, Railway, Supabase, or other provider path must satisfy
+the same role contract through a separately qualified adapter and profile.
+
+Before each external create operation, setup writes a non-secret intent to the
+state file; after the provider returns an immutable identity, setup records an
+immutable receipt immediately. Resume reconciles any unresolved intent by that
+identity and refuses an ambiguous name-only match. Adoption verifies that the
+existing Vercel project uses `packages/runner-vercel` as its root and that
+existing production environment values do not conflict; setup does not force
+or overwrite either setting. Provider errors preserve existing resources and
+return actionable, redacted diagnostics.
+
+The Slack binding has the fixed logical Connector UID `slack/oregano`, requests
+the minimum identity authorization needed to resolve the consenting human, and
+keeps the visible Agent name `Oregano` for every Company Workspace. The
+Company Workspace name and provider-internal resource names do not alter that
+identity.
+
 The profile is deliberately narrow: it installs one supervised, Tool-free
 Slack assistant and records readiness as `validated`. It does not implement the
 general Preview or Effect Lane orchestrator, authorize unattended execution, or
@@ -169,7 +191,10 @@ starter is ready only when `companyos verify-live --state <file>` succeeds with
 scope `live-starter-instance`: the repository is private, the required check
 and explicit Steward merge authorization are recorded, current Vercel health
 matches the exact Artifact and version pair, and a nonce-bound human Slack
-message plus Oregano response are persisted in Neon. Hosted GitHub protection
-is reported separately as `enforced` or `advisory`; either status is valid for
+message plus the exact Oregano reply `Setup-Test <nonce> successful.` are
+persisted in Neon in the same conversation. Verification also requires the
+immutable receipts for the exact provider resources used by the deployment and
+fails closed on an unresolved setup intent. Hosted GitHub protection is
+reported separately as `enforced` or `advisory`; either status is valid for
 this Tool-free supervised starter. This is bounded evidence, not certification
 of future Tools, unattended workflows, or generic production enforcement.
