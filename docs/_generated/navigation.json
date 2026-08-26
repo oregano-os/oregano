@@ -304,6 +304,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "guide.operate-builder",
+    "title": "Operate the Builder",
+    "path": "docs/workbench/guides/operate-builder.md",
+    "kind": "guide",
+    "status": "building",
+    "availability": "experimental"
+  },
+  {
     "document_id": "guide.plan-change",
     "title": "Plan a Change",
     "path": "docs/workbench/guides/plan-a-change.md",
@@ -360,6 +368,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "plan.builder-acp-mvp-implementation",
+    "title": "Builder ACP MVP Architecture and Delivery Plan",
+    "path": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "kind": "plan",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "reference.glossary",
     "title": "CompanyOS Glossary",
     "path": "docs/glossary.md",
@@ -380,7 +396,7 @@
     "title": "Builder Governance Specification",
     "path": "docs/specifications/builder-governance.md",
     "kind": "specification",
-    "status": "draft",
+    "status": "building",
     "availability": null
   },
   {

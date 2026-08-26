@@ -67,7 +67,7 @@ export interface LoadedWorkspace {
   workspaceHash: string;
 }
 
-export function loadCompanyWorkspace(root: string): LoadedWorkspace {
+export function loadCompanyWorkspace(root: string, options: { includeBuilder?: boolean } = {}): LoadedWorkspace {
   if (!statSync(root).isDirectory()) throw new Error(`Workspace does not exist: ${root}`);
   const allFiles = Object.fromEntries(walk(root).map((path) => [relative(root, path).replaceAll("\\", "/"), readFileSync(path, "utf8")]));
   const company = parseDocument(join(root, "company.md"));
@@ -79,7 +79,7 @@ export function loadCompanyWorkspace(root: string): LoadedWorkspace {
   const agents: LoadedAgent[] = [];
   for (const [path] of Object.entries(allFiles).filter(([path]) => /^agents\/[^/]+\/instructions\.md$/.test(path))) {
     const id = path.split("/")[1];
-    if (id === "builder") continue;
+    if (id === "builder" && !options.includeBuilder) continue;
     const document = parseDocument(join(root, path));
     const grants = Array.isArray(document.data.tools) ? document.data.tools.map((entry: unknown) => requireString(entry, `${path} grant`)) : [];
     const scopeRead = Array.isArray(document.data.scope?.read) ? document.data.scope.read.map((entry: unknown) => requireString(entry, `${path} scope.read`)) : [];

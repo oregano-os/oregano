@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -36,6 +36,33 @@ flowchart LR
     R --> N["StateStore<br/>reference: Neon/Postgres"]
     R --> K["Bound Connectors<br/>communication and business providers"]
 ```
+
+The optional Builder binding deliberately separates five choices that often
+share one hosted deployment but are not one contract:
+
+```mermaid
+flowchart TB
+    A["Immutable Artifact<br/>Agents + Agent Bindings"] --> R["RunnerAdapter binding<br/>conversation transport"]
+    A --> BS["BuilderService<br/>provider-neutral control"]
+    I["Company Instance configuration"] --> R
+    I --> ER["BuilderExecutionAdapter binding<br/>example: vercel-sandbox"]
+    I --> CP["Coding-agent profile<br/>ACP v1: claude-code or codex"]
+    I --> RS["RepositorySourceAdapter binding<br/>example: github-app or local-git"]
+    I --> PP["ProposalPublisher binding<br/>example: github-app or local-git"]
+    S["Instance secret store"] --> R
+    S --> ER
+    S --> RS
+    S --> PP
+    BS --> ER
+    ER --> CP
+    BS --> RS
+    BS --> PP
+```
+
+Changing the runtime host does not select a repository provider or coding
+agent. Changing Claude Code to Codex does not change the normal Runner. The
+Workspace declares company behavior and the repository identity; the Instance
+binds qualified implementations, installations, and secrets.
 
 Vercel is the maintained reference runtime host, not the Instance itself.
 Neon/Postgres is the maintained reference durable StateStore. Both are
@@ -88,6 +115,19 @@ credentials live in CI secrets. The Workspace declares required logical
 connections, allowed scopes, and secret references but never contains values.
 Local development uses an ignored `.env.local` populated from an approved
 secret source.
+
+For the hosted GitHub repository profile, the service operator creates one
+CompanyOS GitHub App per service environment. Each customer installs that same
+App and selects repositories. The Instance stores only verified installation
+and repository identities. The provider mints separate short-lived,
+single-repository tokens for exact-source reading and checked proposal
+publication; neither token enters the Builder job or coding-agent process.
+
+The isolated Builder worker contains the exactly pinned ACP SDK and Claude
+Code/Codex ACP packages in a qualified image or snapshot. The normal Runner
+contains only orchestration and adapter code. Model keys are general Instance
+provider secrets (`ANTHROPIC_API_KEY` and `OPENAI_API_KEY`), not
+Builder-specific Workspace configuration.
 
 Every release records at least the Instance ID, environment, Core version and
 commit, Workspace version and commit, deployment ID, specification version,

@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -114,6 +114,38 @@ evidence, historical prototypes, and production gaps.
   approved artifacts through a restrictive public Vercel route. This proves
   one real Connector path; it does not prove Meta, Monday, or another provider
   effect.
+- The experimental proposal-only Builder control path is implemented behind
+  explicit Instance configuration. Exact Slack Agent Bindings select Sales,
+  Marketing, Builder, or another compiled Agent deterministically before model
+  invocation; ambiguous and unknown multi-agent routes fail closed and
+  Artifact order is not a fallback.
+- Builder conversation uses the maintained normal Runner. Only the
+  authenticated requester's explicit confirmation of the objective, repository,
+  and exact base creates an idempotent persistent job. Postgres leases,
+  asynchronous execution, recovery, timeout, requester cancellation, terminal
+  state, and source-thread notification are implemented.
+- Provider-neutral repository-source and checked-proposal contracts have local
+  Git and GitHub App implementations. The GitHub profile verifies one selected
+  repository, stores no token, handles suspension, uninstall, and repository
+  removal, mints separate single-repository read and publication tokens, and
+  never passes those credentials to the coding process.
+- The isolated Builder worker uses ACP SDK `1.4.0`, Claude Agent ACP `0.70.0`,
+  or Codex ACP `1.6.2` as exact dependencies. Unit and local live-login probes
+  cover ACP initialization, fresh sessions, structured updates, permission
+  denial, timeout, cancellation, bounded writes, and independently observed
+  diffs. ACP remains private Builder-worker transport, not a Core-wide runtime
+  contract.
+- The first private `BuilderExecutionAdapter` uses Vercel Sandbox `3.1.0`.
+  Live provider probes have proved digest-pinned base execution, deny-all
+  egress, no public ports, credential-header transformation, duplicate
+  reconciliation, coordinator recovery, timeout, cancellation, collection, and
+  cleanup. A provider-neutral in-memory implementation covers conformance and
+  orchestration tests.
+- CompanyOS independently rejects protected paths, reconstructs the actual
+  transferred diff in a trusted checkout, runs the version-pinned Workbench
+  inspection, validation, and security checks, and lets only a trusted outer
+  publisher create the canonical branch, commit, and draft proposal. The coding
+  agent has no merge or deployment authority.
 
 ## Reference-only or historical
 
@@ -143,6 +175,14 @@ evidence, historical prototypes, and production gaps.
 - Blueprint plan/apply/lock/update/remove, remote Package sources, the open
   Registry, signing, publisher identity, advisories, revocation, and
   Marketplace UX remain future stages.
+- The hosted Builder profile is not yet qualified or activated. Its remaining
+  gates are brokered live Claude Code and Codex authentication using the
+  general Instance model keys, creation and pinning of the worker snapshot, a
+  service-owned GitHub App installation against a real private Workspace, and
+  one representative Slack-to-draft-proposal round trip. Sensitive Vercel
+  variables are intentionally non-readable outside a deployment; no gate may
+  broaden a local process to unrelated Production secrets merely to work around
+  that boundary.
 
 ## Highest-priority gaps after the first live pilot
 
@@ -170,6 +210,8 @@ evidence, historical prototypes, and production gaps.
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.
+8. Close the four hosted Builder gates above in an isolated non-production
+   Instance before enabling a production Builder Agent Binding.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

@@ -6,12 +6,14 @@ import { Actions, Button, Card, CardText, Chat, type Author, type Thread } from 
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
+import { builderJobInputForConfirmedProposal } from "../../../runtime/builder/service.ts";
 import { CompanyOSRuntime, type ExecuteToolRequest } from "../../../runtime/companyos-runtime.ts";
+import { createPostgresBuilderJobStore } from "../../../state-postgres/builder-job-store.ts";
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import type { RosterMember } from "../../../state-store/roster.ts";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
 import type { StateAdapter } from "chat";
-import { loadArtifact, selectedAgent } from "./artifact.ts";
+import { loadArtifact, resolvedAgentForConversation } from "./artifact.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
@@ -21,7 +23,6 @@ import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts"
 const DAY = 24 * 60 * 60 * 1000;
 let state: StateAdapter;
 let artifact: CompanyOSArtifact;
-let agent: CompiledAgent;
 let runtime: CompanyOSRuntime;
 
 const requireEnv = (name: string): string => {
@@ -42,6 +43,15 @@ interface PendingApproval extends ExecuteToolRequest {
   requestedBy: string;
 }
 
+interface PendingBuilderConfirmation {
+  readonly requestId: string;
+  readonly requesterPrincipal: string;
+  readonly sourceConversationKey: string;
+  readonly objective: string;
+  readonly repositoryId: string;
+  readonly baseCommit: string;
+}
+
 function rosterMember(author: Author): RosterMember | undefined {
   return findActiveHumanRosterMember(artifact.roster, author);
 }
@@ -57,7 +67,7 @@ function toolName(grantId: string): string {
   return grantId.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
-function systemInstructions(): string {
+function systemInstructions(agent: CompiledAgent): string {
   const materials = Object.entries(agent.materials)
     .map(([path, content]) => `\n<material path="${path}">\n${content}\n</material>`)
     .join("\n");
@@ -69,7 +79,13 @@ function compact(value: unknown): string {
   return text.length > 1400 ? `${text.slice(0, 1400)}…` : text;
 }
 
-function resolvedTools(thread: Thread, requester: string, runId: string, messageId: string): ToolSet {
+function resolvedTools(
+  agent: CompiledAgent,
+  thread: Thread,
+  requester: string,
+  runId: string,
+  messageId: string,
+): ToolSet {
   const output: ToolSet = {};
   for (const resolved of agent.toolSet.tools) {
     const compiled = agent.tools.find((candidate) => candidate.contract.runtimeId === resolved.runtimeId);
@@ -114,6 +130,69 @@ function resolvedTools(thread: Thread, requester: string, runId: string, message
       },
     });
   }
+  if (agent.id === "builder") {
+    const builder = artifact.builder;
+    if (!builder) throw new Error("Builder Agent is compiled without an enabled Instance Builder binding.");
+    output.builder_propose_change = tool({
+      description: [
+        "Prepare the controlled builder.propose_change confirmation.",
+        "Use only after the human's objective and scope are clear.",
+        "This posts a confirmation card and does not start a coding agent.",
+      ].join(" "),
+      inputSchema: jsonSchema({
+        type: "object",
+        additionalProperties: false,
+        required: ["objective"],
+        properties: {
+          objective: {
+            type: "string",
+            minLength: 1,
+            maxLength: 20_000,
+            description: "The exact Company Workspace change objective shown to the human.",
+          },
+        },
+      }),
+      execute: async (input: unknown) => {
+        const objective = typeof input === "object" && input !== null
+          ? (input as { objective?: unknown }).objective
+          : undefined;
+        if (typeof objective !== "string" || objective.trim() === "") {
+          throw new Error("builder.propose_change requires a non-empty objective.");
+        }
+        const requestId = `builder-request-${sha256(`${messageId}:${objective}`).slice(0, 32)}`;
+        const token = randomUUID();
+        const pending: PendingBuilderConfirmation = {
+          requestId,
+          requesterPrincipal: requester,
+          sourceConversationKey: thread.id,
+          objective: objective.trim(),
+          repositoryId: builder.repository.repositoryId,
+          baseCommit: artifact.provenance.workspaceCommit,
+        };
+        await state.set(`builder-confirmation:${token}`, pending, DAY);
+        await thread.post(Card({
+          title: "Confirm CompanyOS Builder proposal",
+          children: [
+            CardText(`Objective: ${pending.objective}`),
+            CardText(`Repository: ${pending.repositoryId}`),
+            CardText(`Exact base: ${pending.baseCommit}`),
+            CardText("Claude Code or Codex starts only after confirmation. It can propose a checked pull request but cannot merge or deploy."),
+            Actions([
+              Button({ id: "companyos.builder.confirm", label: "Start proposal", style: "primary", value: token }),
+              Button({ id: "companyos.builder.cancel", label: "Cancel", style: "danger", value: token }),
+            ]),
+          ],
+        }));
+        return {
+          ok: true,
+          pendingConfirmation: true,
+          operation: "builder.propose_change",
+          requestId,
+          baseCommit: pending.baseCommit,
+        };
+      },
+    });
+  }
   return output;
 }
 
@@ -126,7 +205,8 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   if (!await state.setIfNotExists(`message:${message.id}`, true, 30 * DAY)) return;
   await thread.subscribe();
   const requester = principal(member);
-  const conversationKey = `conversation:${thread.id}`;
+  const agent = resolvedAgentForConversation({ threadId: thread.id, requesterPrincipal: requester });
+  const conversationKey = `conversation:${thread.id}:${agent.id}`;
   await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
@@ -155,8 +235,8 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: systemInstructions(),
-    tools: resolvedTools(thread, requester, runId, message.id),
+    instructions: systemInstructions(agent),
+    tools: resolvedTools(agent, thread, requester, runId, message.id),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
   const result = await modelAgent.generate({ messages });
@@ -198,6 +278,88 @@ function registerHandlers(bot: Chat) {
   await state.delete(`approval:${event.value}`);
   await event.thread.post(`Approved by ${member.name} (${member.role}). Effect evidence: ${compact(result)}`);
   });
+  bot.onAction(["companyos.builder.confirm", "companyos.builder.cancel"], async (event) => {
+    if (!event.thread || !event.value) return;
+    const pending = await state.get<PendingBuilderConfirmation>(`builder-confirmation:${event.value}`);
+    if (!pending) {
+      await event.thread.post("This Builder confirmation is expired or was already resolved.");
+      return;
+    }
+    if (event.thread.id !== pending.sourceConversationKey) {
+      await event.thread.post("Builder confirmation refused: the action belongs to a different conversation.");
+      return;
+    }
+    const member = rosterMember(event.user);
+    if (!member) {
+      await event.thread.post("Builder confirmation refused: this identity is not an active Company Workspace member.");
+      return;
+    }
+    const confirmingPrincipal = principal(member);
+    if (confirmingPrincipal !== pending.requesterPrincipal) {
+      await event.thread.post("Builder confirmation refused: only the authenticated requester may confirm this exact proposal.");
+      return;
+    }
+    if (event.actionId === "companyos.builder.cancel") {
+      await state.delete(`builder-confirmation:${event.value}`);
+      await event.thread.post("Builder proposal cancelled. No coding agent was started.");
+      return;
+    }
+    if (!artifact.builder) {
+      await event.thread.post("Builder confirmation refused: this Company Instance has no enabled Builder binding.");
+      return;
+    }
+    const job = await createPostgresBuilderJobStore().create(
+      builderJobInputForConfirmedProposal(artifact.builder, {
+        requestId: pending.requestId,
+        instanceId: artifact.instance.id,
+        requesterPrincipal: pending.requesterPrincipal,
+        sourceConversationKey: pending.sourceConversationKey,
+        objective: pending.objective,
+        repositoryId: pending.repositoryId,
+        baseCommit: pending.baseCommit,
+      }),
+    );
+    await state.delete(`builder-confirmation:${event.value}`);
+    await event.thread.post(Card({
+      title: "CompanyOS Builder proposal queued",
+      children: [
+        CardText(`Job: ${job.jobId}`),
+        CardText(`Exact base: ${job.baseCommit}`),
+        CardText("The coding worker runs asynchronously; merge and deployment remain human decisions."),
+        Actions([
+          Button({ id: "companyos.builder.stop", label: "Request cancellation", style: "danger", value: job.jobId }),
+        ]),
+      ],
+    }));
+  });
+  bot.onAction("companyos.builder.stop", async (event) => {
+    if (!event.thread || !event.value) return;
+    const member = rosterMember(event.user);
+    if (!member) {
+      await event.thread.post("Builder cancellation refused: this identity is not an active Company Workspace member.");
+      return;
+    }
+    const jobs = createPostgresBuilderJobStore();
+    const job = await jobs.get(event.value);
+    if (!job) {
+      await event.thread.post("Builder cancellation refused: the job does not exist.");
+      return;
+    }
+    if (event.thread.id !== job.sourceConversationKey) {
+      await event.thread.post("Builder cancellation refused: the job belongs to a different conversation.");
+      return;
+    }
+    if (principal(member) !== job.requesterPrincipal) {
+      await event.thread.post("Builder cancellation refused: only the authenticated requester may stop this proposal.");
+      return;
+    }
+    const updated = await jobs.requestCancellation(job.jobId);
+    await event.thread.post(
+      ["published", "failed", "cancelled"].includes(updated.state)
+        ? `Builder job ${updated.jobId} is already ${updated.state}.`
+        : `Cancellation requested for Builder job ${updated.jobId}.`,
+    );
+  });
 }
 
 let botInstance: Chat | undefined;
@@ -206,7 +368,6 @@ export function getBot(): Chat {
   if (botInstance) return botInstance;
   state = createPostgresChatState();
   artifact = loadArtifact();
-  agent = selectedAgent();
   runtime = new CompanyOSRuntime({
     artifact,
     state: createPostgresStateStore(),

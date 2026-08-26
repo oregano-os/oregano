@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -70,6 +70,14 @@ only in the Vercel project UI as the Sensitive Production variable
 `ANTHROPIC_API_KEY`; setup records only its reference, presence, and Sensitive
 classification. Completion
 proves the exact route and model through a real model-backed Slack response.
+
+The optional Builder is configured after the normal Instance is healthy. It
+does not replace the Runner. Add exact Agent Bindings for the Company Agents,
+bind one qualified isolated execution adapter and coding-agent profile, and
+complete the repository-provider installation. The hosted GitHub path uses one
+service-owned CompanyOS GitHub App: the customer installs it and selects
+repositories but never creates an App or copies a token. See [Operate the
+Builder](../workbench/guides/operate-builder.md).
 
 The maintained communication binding always uses the logical Connector UID
 `slack/oregano` and the visible Slack Agent name `Oregano`, independently of

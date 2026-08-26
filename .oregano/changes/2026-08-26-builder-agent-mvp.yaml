@@ -1,0 +1,114 @@
+version: 1
+plan_id: builder-agent-mvp-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement the proposal-only Builder Agent MVP
+objective: >-
+  Implement deterministic Company Agent resolution and the proposal-only
+  Builder path with persistent jobs, portable isolated execution, private ACP
+  v1 profiles, provider-neutral repository source and publication contracts,
+  and the first maintained Vercel Sandbox and GitHub provider boundaries.
+non_goals:
+  - Grant the Builder merge, deployment, repository-administration, or production-state authority.
+  - Use ACP for normal Company Agent conversations or expose ACP as a public CompanyOS contract.
+  - Add model-based Agent routing, dynamic ACP discovery, or automatic Claude-to-Codex fallback.
+  - Make Vercel, GitHub, Anthropic, or OpenAI a Company Workspace or Core contract.
+  - Graduate beyond proposal-only operation before the supervised pilot evidence exists.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - The Workbench guides every Contributor
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
+  - .oregano/changes/2026-08-26-builder-agent-mvp.yaml
+  - docs/plans/2026-08-26-builder-acp-mvp-implementation.md
+  - docs/glossary.md
+  - docs/architecture/overview.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/specifications/builder-governance.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/workbench/overview.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/status/current.md
+  - docs/compatibility/registry.yaml
+  - docs/compatibility/README.md
+  - docs/_generated/**
+  - packages/companyos-builder/**
+  - packages/cli/content/guides/**
+  - packages/runtime/agent-resolver.ts
+  - packages/runtime/builder/**
+  - packages/runtime/repository/**
+  - packages/builder-worker/**
+  - packages/connectors/github-repository.ts
+  - packages/connectors/local-git-repository.ts
+  - packages/state-store/builder-jobs.ts
+  - packages/state-store/repository-installations.ts
+  - packages/state-postgres/**
+  - packages/runner-vercel/package.json
+  - packages/runner-vercel/next.config.ts
+  - packages/runner-vercel/vercel.json
+  - packages/runner-vercel/src/app/api/builder/**
+  - packages/runner-vercel/src/app/api/repository/**
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/**
+  - packages/testkit/**
+  - package.json
+  - pnpm-workspace.yaml
+  - pnpm-lock.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-implement-the-approved-builder-plan
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-builder-agent-mvp.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-builder-agent-mvp.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm builder:check
+  - node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts claude-code
+  - node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts codex
+  - git diff --check
+tests:
+  - Agent resolution is deterministic for exact bindings, thread inheritance, explicit defaults, unknown routes, and ambiguity.
+  - Builder jobs are idempotent, leased atomically, recoverable after stale leases, cancellable, and terminal-state safe.
+  - Repository source adapters materialize an exact commit without credentials, remotes, or provider SDK values in the coding workspace.
+  - Proposal publishers reject unchecked input and publish at most one proposal per Builder job.
+  - Claude Code and Codex use exact ACP v1 profiles inside the portable Builder worker and pass brokered-authentication qualification.
+  - Duplicate execution delivery, provider timeout, cancellation, cleanup, and credential isolation fail closed.
+  - Invalid, protected, or unvalidated diffs create no branch or pull request.
+documentation_impact:
+  required: true
+  affected_documents:
+    - reference.glossary
+    - architecture.overview
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.builder-governance
+    - specification.companyos-core-v0.7
+    - onboarding.index
+    - onboarding.company-workspace
+    - workbench.overview
+    - status.current
+    - compatibility.index
+rollback: >-
+  Disable the Builder binding in the Company Instance, stop and dispose any
+  active Builder sandboxes, revoke the Repository Provider installation, and
+  remove the Builder integration while retaining non-secret job and proposal
+  evidence. No published proposal is merged or deployed automatically.
+open_decisions: []

@@ -2,10 +2,10 @@
 document_id: specification.builder-governance
 title: Builder Governance Specification
 kind: specification
-status: draft
+status: building
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -20,10 +20,11 @@ relations:
 
 # Builder Governance Specification
 
-The Builder Agent changes a Company Workspace from an authorized human request.
-It is not yet implemented. This English draft preserves the useful Builder
-design while aligning it with the repository split and the stronger Workbench
-governance model.
+The Builder Agent proposes Company Workspace changes from an authorized human
+request. The proposal-only control path is implemented and tested; hosted
+GitHub onboarding and live model-backed qualification remain deployment gates.
+This specification distinguishes implemented invariants from unqualified
+provider profiles.
 
 ## 1. Scope and authority
 
@@ -39,6 +40,17 @@ governance class determines who reviews and approves it.
 The old term “owner” is replaced by Workspace Steward for Workspace governance
 and Process Steward for bounded process behavior. Legal ownership grants no
 implicit technical right.
+
+The Builder is selected like any other Company Agent: a deterministic
+`AgentResolver` evaluates exact trusted Agent Bindings. Merely selecting the
+Builder starts only a normal Runner conversation. A coding agent MUST NOT start
+until the authenticated requester confirms the exact objective, repository,
+and base revision through `builder.propose_change`.
+
+Every confirmed request MUST create one idempotent durable Builder job.
+Duplicate delivery MUST NOT create a second execution or proposal. Jobs MUST
+support leases, recovery, timeout, requester-authorized cancellation, terminal
+evidence, and notification back to the source conversation.
 
 ## 2. Change matrix
 
@@ -85,6 +97,19 @@ migration behavior.
    validation, inspection, tests, and documentation checks must pass.
 4. **Runtime boundary:** unattended enforcement mounts only compiled write
    scopes and never grants the Builder production secrets or protected state.
+
+The coding-agent process receives no Git-host, deployment, Slack, StateStore,
+or production-provider credential. A trusted `RepositorySourceAdapter`
+materializes one exact base revision and removes remotes and credentials before
+execution. After execution, CompanyOS reads the actual diff independently.
+Only a separately trusted `ProposalPublisher` may create the canonical branch,
+commit, and draft pull request after all checks pass.
+
+The first isolated worker uses a private five-method
+`BuilderExecutionAdapter`; provider SDK types MUST NOT enter Builder jobs or
+evidence contracts. Stable ACP v1 is the private protocol between that worker
+and one exactly pinned Claude Code or Codex profile. ACP MUST NOT replace
+normal Runner, Tool, approval, repository, or governance contracts.
 
 Agent instructions are useful behavior guidance but are not a security
 boundary. A claim written into a plan or approval file is not proof that the
@@ -148,10 +173,28 @@ this draft.
 - merge/deploy uses the exact reviewed commit pair;
 - rollback restores definition and separately tracks compensation for effects.
 
-## 9. Open decisions
+## 9. Implemented proposal-only profile
+
+The experimental implementation currently includes:
+
+- exact Slack team/channel Agent Bindings with explicit default and
+  fail-closed ambiguity behavior;
+- persistent Postgres Builder jobs and leases;
+- a Vercel Sandbox worker adapter plus an in-memory conformance adapter;
+- exactly pinned ACP SDK, Claude Code ACP, and Codex ACP packages in the
+  isolated worker;
+- local Git and GitHub App repository provider implementations;
+- independent protected-path and changed-path inspection;
+- Workbench inspection, validation, and security checks; and
+- trusted outer draft-proposal publication with no merge or deployment.
+
+This implementation MUST NOT be reported as a maintained hosted Builder profile
+until its snapshot, model-broker, service-owned GitHub App installation, and
+model-backed end-to-end gates pass in the target environment.
+
+## 10. Open decisions
 
 - appoint Process Stewards and Workspace Stewards for each pilot Workspace;
 - choose the isolated preview data and provider topology;
 - define authenticated external approval evidence for future automated merges;
-- implement the catalog/resolver before Tool discovery or grant changes;
 - approve the exact graduation metrics beyond proposal-only mode.

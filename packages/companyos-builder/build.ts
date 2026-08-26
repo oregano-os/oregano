@@ -5,6 +5,7 @@ import { resolveToolSet } from "../toolset-resolver/resolver.ts";
 import { requireExactSemanticVersion } from "../runtime/semantic-version.ts";
 import type { CompanyOSArtifact, InstanceBuildConfiguration } from "./types.ts";
 import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
+import { validateAgentRouting } from "../runtime/agent-resolver.ts";
 
 export function buildCompanyOSArtifact(args: {
   workspaceRoot: string;
@@ -24,7 +25,7 @@ export function buildCompanyOSArtifact(args: {
     assertValidJsonSchema(contract.inputSchema, `${contract.id} input schema`);
     assertValidJsonSchema(contract.outputSchema, `${contract.id} output schema`);
   }
-  const workspace = loadCompanyWorkspace(args.workspaceRoot);
+  const workspace = loadCompanyWorkspace(args.workspaceRoot, { includeBuilder: args.instance.builder?.enabled === true });
   const agents = workspace.agents.map((agent) => {
     const toolSet = resolveToolSet({
       agentId: agent.id,
@@ -44,6 +45,11 @@ export function buildCompanyOSArtifact(args: {
     };
   });
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));
+  const agentRouting = {
+    bindings: [...args.instance.agentBindings].sort((a, b) => a.id.localeCompare(b.id)),
+    defaultAgentId: args.instance.defaultAgentId,
+  };
+  validateAgentRouting(agentRouting, agents.map((agent) => agent.id));
   const withoutHash = {
     schemaVersion: 1 as const,
     company: workspace.company,
@@ -63,6 +69,8 @@ export function buildCompanyOSArtifact(args: {
     bindings: [...args.instance.bindings].sort((a, b) => a.capability.localeCompare(b.capability)),
     roster: workspace.roster,
     agents,
+    agentRouting,
+    builder: args.instance.builder,
   };
   const hashInput = {
     ...withoutHash,

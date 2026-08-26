@@ -5,7 +5,7 @@ kind: reference
 status: building
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -54,3 +54,9 @@ not implementation evidence.
 Adding, stabilizing, deprecating, or removing a public contract is a governed
 Core change. The same Change Plan updates this registry, specifications, tests,
 migration guidance, and current status.
+
+The experimental Agent Binding, Repository Source, and Proposal Publisher
+contracts are registered because Company Instance and future provider
+implementations may rely on them. `BuilderExecutionAdapter` and ACP remain
+private implementation boundaries and are deliberately absent from the public
+registry.

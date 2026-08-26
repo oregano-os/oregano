@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -52,3 +52,32 @@ operational authority layer. It lets contributors publish portable Blueprints,
 Tools, and Connectors while Company Workspaces and Instances retain grants,
 bindings, approvals, and activation. See [Ecosystem and Package
 Architecture](ecosystem-and-packages.md).
+
+## Multi-agent and Builder proposal path
+
+An Instance may compile several Company Agents. Trusted surface facts select
+one Agent through exact Agent Bindings before any model turn; message content
+does not select authority. The Builder is one separately addressable Company
+Agent. Its conversation still uses the normal Runner, while a confirmed
+proposal is delegated asynchronously to an isolated coding worker.
+
+```mermaid
+flowchart LR
+    M["Authenticated Slack message"] --> AR["AgentResolver<br/>exact surface binding"]
+    AR --> SA["Sales, Marketing, or other Agent<br/>normal Runner turn"]
+    AR --> BA["Builder Agent<br/>normal Runner conversation"]
+    BA --> HC["Human confirms exact proposal"]
+    HC --> BJ["Durable Builder job"]
+    BJ --> RS["RepositorySourceAdapter<br/>exact base, credential-free checkout"]
+    RS --> EA["BuilderExecutionAdapter<br/>isolated worker host"]
+    EA --> ACP["Private ACP v1 session<br/>Claude Code or Codex"]
+    ACP --> DV["Independent diff inspection<br/>and Workbench validation"]
+    DV --> PP["ProposalPublisher<br/>trusted outer identity"]
+    PP --> PR["Draft proposal for human review"]
+```
+
+`AgentResolver`, Builder job semantics, repository contracts, validation, and
+proposal authority belong to Core. Runner transport, execution hosting, coding
+agent profile, repository provider, credentials, and installations are
+independent Company Instance bindings. ACP is private worker transport and is
+not a Core-wide agent runtime contract.

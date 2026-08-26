@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-18
+updated: 2026-08-26
 companyos_spec:
   current: 0.7.0
   supported:
@@ -69,6 +69,45 @@ contracts:
       - deterministic-instance-artifact
       - exact-provenance-pair
       - resolved-toolset-provenance
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.agent-binding
+    version: "1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.companyos-core-v0.7
+    implementation: deterministic-artifact-agent-resolver
+    tests:
+      - agent-resolver-routing-contract
+      - multi-agent-fail-closed-contract
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.repository-source
+    version: "1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.builder-governance
+    implementation: local-git-and-github-app-source-adapters
+    tests:
+      - repository-source-adapter-contract
+      - github-installation-isolation-contract
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.proposal-publisher
+    version: "1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.builder-governance
+    implementation: checked-local-git-and-github-app-publishers
+    tests:
+      - checked-proposal-publication-contract
+      - github-publication-isolation-contract
     deprecated: null
     replacement: null
     removal_gate: explicit-oregano-maintainer-breaking-release-approval

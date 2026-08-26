@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -166,9 +166,45 @@ An automated CompanyOS Contributor, such as Codex or Claude Code. An Agent
 Contributor receives no authority from its model, prompt, or contributor type.
 
 ### Builder Agent
-The future governed CompanyOS agent under `agents/builder/` that proposes
-Company Workspace changes from authorized requests. This name is reserved for
-that product component and is not a synonym for Contributor.
+The governed CompanyOS agent under `agents/builder/` that proposes Company
+Workspace changes from authorized requests. It converses through the normal
+Runner and starts an isolated coding job only after explicit confirmation.
+This name is reserved for that product component and is not a synonym for
+Contributor or for the Artifact-building package.
+
+### Agent Binding
+A non-secret Company Instance routing declaration that maps exact trusted
+surface, account, and channel facts to one compiled Company Agent. It assigns
+addressability, not Tool grants or authority.
+
+### AgentResolver
+The deterministic Core mechanism that selects one compiled Company Agent from
+Agent Bindings or an explicit default. It never classifies message content and
+fails closed on unknown or ambiguous multi-agent routes.
+
+### Builder job
+The durable idempotent record created only after a human confirms
+`builder.propose_change`. It binds the requester, source conversation,
+repository, exact base revision, execution adapter, and coding-agent profile.
+
+### BuilderExecutionAdapter
+A private provider-neutral lifecycle boundary for starting, observing,
+cancelling, collecting, and disposing one isolated Builder worker. It is not a
+general Company Agent runtime contract.
+
+### RepositorySourceAdapter
+The provider-neutral contract that materializes one exact repository revision
+as a credential-free local checkout and returns non-secret evidence.
+
+### ProposalPublisher
+The provider-neutral trusted outer capability that publishes one independently
+validated Builder diff as a branch or draft proposal. It owns no merge or
+deployment authority.
+
+### Agent Client Protocol (ACP)
+The stable protocol used privately inside the Builder worker to communicate
+with exactly pinned coding-agent implementations such as Claude Code or Codex.
+ACP is not the CompanyOS Core, Runner, Tool, approval, or governance contract.
 
 ## Authority roles
 

@@ -29,6 +29,7 @@ bindings:
   const configuration = loadInstanceBuildConfiguration(path);
   assert.equal(configuration.instanceId, "fixture-test");
   assert.equal(configuration.bindings[0]?.connector, "oregano/artifact-sandbox");
+  assert.deepEqual(configuration.agentBindings, []);
 }));
 
 test("Instance build declarations reject resolved credentials", () => withFile(`
@@ -39,4 +40,50 @@ api_key: sk-live-value-that-must-never-be-committed
 bindings: []
 `, (path) => {
   assert.throws(() => loadInstanceBuildConfiguration(path), /resolved credentials|credential-like assignment/);
+}));
+
+test("Instance build declarations keep Agent, execution, coding, and repository bindings separate", () => withFile(`
+version: 1
+instance_id: fixture-production
+environment: production
+bindings: []
+agent_bindings:
+  - id: slack-builder
+    agent: builder
+    surface: slack
+    account_id: T1
+    channel_id: C1
+default_agent: oregano
+builder:
+  enabled: true
+  execution:
+    adapter: vercel-sandbox
+    profile: isolated-v1
+  coding_agent:
+    protocol: acp-v1
+    profile: codex
+  repository:
+    repository_id: fixture/workspace
+    source_binding: github-workspace
+    proposal_publisher_binding: github-workspace
+`, (path) => {
+  const configuration = loadInstanceBuildConfiguration(path);
+  assert.deepEqual(configuration.agentBindings, [{
+    id: "slack-builder",
+    agentId: "builder",
+    surface: "slack",
+    accountId: "T1",
+    channelId: "C1",
+  }]);
+  assert.equal(configuration.defaultAgentId, "oregano");
+  assert.deepEqual(configuration.builder, {
+    enabled: true,
+    execution: { adapter: "vercel-sandbox", profile: "isolated-v1" },
+    codingAgent: { protocol: "acp-v1", profile: "codex" },
+    repository: {
+      repositoryId: "fixture/workspace",
+      sourceBinding: "github-workspace",
+      proposalPublisherBinding: "github-workspace",
+    },
+  });
 }));

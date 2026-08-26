@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -27,6 +27,11 @@ relations:
 - schemas and deterministic validators,
 - provider-neutral Capability Contracts and their compatibility policy,
 - standard tools and their minimum risk,
+- deterministic Agent Bindings and fail-closed Agent resolution,
+- persistent Builder job semantics, independent diff inspection, and
+  proposal-only enforcement,
+- provider-neutral repository source and checked proposal publication
+  contracts,
 - Package manifest schemas, Inspectors, resolution contracts, and conformance
   test fixtures,
 - the CompanyOS Workbench and its Guides,
@@ -52,6 +57,13 @@ a direct OpenAI, Bedrock, Vertex, or another model route extends the model
 adapter set and conformance tests; it does not add a fifth installation role or
 permit credentials in Core, a Workspace, or an Artifact.
 
+The private Builder execution boundary is narrower than the normal Runner
+boundary. It starts, observes, cancels, collects, and disposes one isolated
+coding job. Vercel Sandbox is the first maintained adapter, but no Vercel type
+may enter the Builder job contract. ACP v1 is private communication inside that
+worker; it is not the CompanyOS Core contract for selecting or invoking normal
+Company Agents.
+
 ## A Company Workspace owns
 
 - company identity, mission, context, and operating knowledge,
@@ -74,7 +86,14 @@ generic enforcement, deployment code, or operational state.
 - secrets and provider credentials,
 - Connector Package installations, bindings, and the Instance Package ledger,
 - database state, events, approvals, and effects,
-- Slack, Monday, Vercel, Neon, and other provider installations.
+- Slack, Monday, Vercel, Neon, and other provider installations,
+- Agent Binding declarations, Builder execution and coding-profile bindings,
+  repository-provider installations, and their non-secret verified receipts.
+
+The Instance secret store owns general provider credentials, including model
+keys and a service-environment GitHub App private key. A coding worker receives
+neither repository credentials nor deployment, Slack, database, or GitHub App
+authority.
 
 ## A Package Registry owns
 

@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -47,3 +47,10 @@ versioned Workbench distribution. The current co-checkout mode pins its exact
 Core commit and Workbench version together. A future published package will let
 a Workspace Contributor use the same Guides without opening the Oregano Core
 repository.
+
+The Workbench is also the independent validation boundary for Builder
+proposals. The isolated coding agent does not decide that its change is valid.
+After it exits, CompanyOS inspects the actual diff and runs the exact
+Workbench `inspect`, `validate`, and `security` implementation before any
+trusted proposal publisher receives write authority. Operational procedures
+are defined in [Operate the Builder](guides/operate-builder.md).

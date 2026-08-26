@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -72,6 +72,14 @@ the human enters `ANTHROPIC_API_KEY` only as a Sensitive Production variable in
 the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the
 human never pastes a password, provider token, database URL, or private key into
 chat.
+
+The Builder is optional and follows the same rule. General model provider keys
+are entered only in the Instance secret store as `ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY`; neither `BUILDER_ANTHROPIC_API_KEY` nor
+`BUILDER_OPENAI_API_KEY` is used. For
+GitHub self-service, the human installs the service-owned CompanyOS GitHub App
+and selects repositories in GitHub. The callback stores only verified,
+non-secret installation and repository identities.
 
 ## 2. Assign accountable roles
 
@@ -201,3 +209,16 @@ fails closed on an unresolved setup intent. Hosted GitHub protection is
 reported separately as `enforced` or `advisory`; either status is valid for
 this Tool-free supervised starter. This is bounded evidence, not certification
 of future Tools, unattended workflows, or generic production enforcement.
+
+## 9. Optional Builder activation
+
+Activate the Builder only after the normal Runner, roster identity, StateStore,
+exact Workspace revision, and repository review path work. Compile a dedicated
+Builder Agent Binding, an exact repository identity, one source and proposal
+publisher binding, one qualified execution adapter, and one exactly pinned
+coding-agent profile into the Artifact.
+
+Run the profile qualification and follow [Operate the
+Builder](../workbench/guides/operate-builder.md). A successful configuration
+means the Builder can create a checked draft proposal. It does not authorize
+merge or deployment.
