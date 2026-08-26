@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   BuilderAcpTimeoutError,
+  createBuilderAcpPermissionPolicy,
   isPathInsideBuilderWorkspace,
   probeBuilderAcpLaunch,
   runBuilderAcp,
@@ -186,6 +187,31 @@ test("ACP client can allow one bounded change and CompanyOS reads the diff indep
     const diff = execFileSync("git", ["diff", "--no-ext-diff", "--", "fixture.txt"], { cwd, encoding: "utf8" });
     assert.match(diff, /-base/);
     assert.match(diff, /\+changed-by-fake-acp-agent/);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("Codex workspace-write policy allows one generic execute request without claimed paths", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-codex-execute-"));
+  try {
+    await writeFile(join(cwd, "fixture.txt"), "base\n", "utf8");
+    const result = await runBuilderAcp({
+      launch: fakeLaunch,
+      cwd,
+      prompt: "write-fixture-generic-execute",
+      timeoutMs: 5_000,
+      environment,
+      permissionPolicy: createBuilderAcpPermissionPolicy(BUILDER_ACP_PROFILES.codex, cwd),
+    });
+    assert.equal(result.approvedPermissions, 1);
+    assert.equal(result.deniedPermissions, 0);
+    assert.deepEqual(result.permissionEvidence, [{
+      toolKind: "execute",
+      locationScope: "none",
+      optionKinds: ["allow_once", "reject_once"],
+    }]);
+    assert.equal(await readFile(join(cwd, "fixture.txt"), "utf8"), "changed-by-fake-acp-agent\n");
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

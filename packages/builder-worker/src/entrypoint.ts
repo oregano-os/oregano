@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  isPathInsideBuilderWorkspace,
+  createBuilderAcpPermissionPolicy,
   runBuilderAcp,
 } from "../../runtime/builder/acp-client.ts";
 import { resolveBuilderAcpProfile } from "../../runtime/builder/profiles.ts";
@@ -35,13 +35,7 @@ const evidence = await runBuilderAcp({
   prompt: request.prompt,
   timeoutMs: request.timeoutMs,
   environment,
-  permissionPolicy: (permission) => {
-    const locations = permission.toolCall.locations ?? [];
-    const bounded = locations.length > 0
-      && locations.every((location) => isPathInsideBuilderWorkspace(request.workspacePath, location.path));
-    if (!bounded) return undefined;
-    return permission.options.find((option) => option.kind === "allow_once")?.optionId;
-  },
+  permissionPolicy: createBuilderAcpPermissionPolicy(profile, request.workspacePath),
 });
 
 const result: BuilderWorkerResult = {

@@ -64,15 +64,18 @@ const app = acp
     }
 
     const target = join(session.cwd, "fixture.txt");
+    const genericExecute = prompt.includes("generic-execute");
+    const toolKind = genericExecute ? "execute" : "edit";
+    const locations = genericExecute ? undefined : [{ path: target }];
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,
       update: {
         sessionUpdate: "tool_call",
         toolCallId: "write-fixture",
         title: "Write fixture",
-        kind: "edit",
+        kind: toolKind,
         status: "pending",
-        locations: [{ path: target }],
+        locations,
       },
     });
     const permission = await client.request(acp.methods.client.session.requestPermission, {
@@ -80,9 +83,9 @@ const app = acp
       toolCall: {
         toolCallId: "write-fixture",
         title: "Write fixture",
-        kind: "edit",
+        kind: toolKind,
         status: "pending",
-        locations: [{ path: target }],
+        locations,
       },
       options: [
         { optionId: "allow-once", name: "Allow once", kind: "allow_once" },

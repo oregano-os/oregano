@@ -52,6 +52,33 @@ export interface BuilderAcpRunEvidence {
   readonly stderr: string;
 }
 
+export function createBuilderAcpPermissionPolicy(
+  profile: BuilderAcpProfile,
+  workspace: string,
+): NonNullable<BuilderAcpRunRequest["permissionPolicy"]> {
+  return (permission) => {
+    const allowOnce = permission.options.find((option) => option.kind === "allow_once")?.optionId;
+    if (!allowOnce) return undefined;
+
+    const locations = permission.toolCall.locations ?? [];
+    if (locations.length > 0) {
+      return locations.every((location) => isPathInsideBuilderWorkspace(workspace, location.path))
+        ? allowOnce
+        : undefined;
+    }
+
+    // codex-acp 1.6.2 represents a workspace-write shell action as a generic
+    // execute request without file locations. This exception is intentionally
+    // tied to the exact Codex profile and its required sandboxed `agent` mode.
+    return profile.id === "codex"
+      && profile.version === "1.6.2"
+      && profile.sessionMode === "agent"
+      && permission.toolCall.kind === "execute"
+      ? allowOnce
+      : undefined;
+  };
+}
+
 export class BuilderAcpTimeoutError extends Error {
   constructor(timeoutMs: number) {
     super(`Builder ACP run exceeded its ${timeoutMs}ms timeout.`);
