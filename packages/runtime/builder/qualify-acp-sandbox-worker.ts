@@ -49,6 +49,9 @@ function agentEnvironment(profileId: typeof profile.id): Record<string, string> 
     TMPDIR: "/tmp",
   };
   if (profileId === "claude-code") environment.ANTHROPIC_API_KEY = placeholder;
-  else environment.CODEX_API_KEY = placeholder;
+  else {
+    environment.CODEX_API_KEY = placeholder;
+    environment.DEFAULT_AUTH_REQUEST = JSON.stringify({ methodId: "api-key" });
+  }
   return environment;
 }

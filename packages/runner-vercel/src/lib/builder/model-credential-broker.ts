@@ -53,6 +53,7 @@ export function createVercelModelCredentialBinding(
       credentialHeader: "authorization",
       agentEnvironment: {
         CODEX_API_KEY: PLACEHOLDER,
+        DEFAULT_AUTH_REQUEST: JSON.stringify({ methodId: "api-key" }),
         NO_BROWSER: "1",
       },
       networkPolicy: {

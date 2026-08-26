@@ -65,6 +65,7 @@ function workerEnvironment(profileId: typeof profile.id): Record<string, string>
     environment.ANTHROPIC_API_KEY = "companyos-builder-broker-placeholder";
   } else {
     environment.CODEX_API_KEY = "companyos-builder-broker-placeholder";
+    environment.DEFAULT_AUTH_REQUEST = JSON.stringify({ methodId: "api-key" });
   }
   return environment;
 }

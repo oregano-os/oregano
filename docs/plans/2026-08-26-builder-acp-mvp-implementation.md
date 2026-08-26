@@ -760,6 +760,13 @@ case. Brokered model authentication and real-profile cancellation remain open
 qualification gates; the successful local probes used existing local login
 sessions and passed no model API-key environment variables.
 
+The first deployed Codex probe found a second profile difference. Supplying
+`CODEX_API_KEY` does not itself select API-key authentication in
+`codex-acp`; the profile must also provide the fixed non-secret
+`DEFAULT_AUTH_REQUEST` for method `api-key`. CompanyOS now pins that request in
+the Codex worker environment. This is profile configuration, not a new ACP or
+Builder contract, and it carries no credential value.
+
 The repository also contains a fail-closed live model qualification harness.
 It installs only the exact ACP profile in a disposable Sandbox, gives the
 coding process a fixed placeholder credential, and configures a host- and
