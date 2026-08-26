@@ -89,6 +89,7 @@ tests:
   - Builder jobs are idempotent, leased atomically, recoverable after stale leases, cancellable, and terminal-state safe.
   - Repository source adapters materialize an exact commit without credentials, remotes, or provider SDK values in the coding workspace.
   - Proposal publishers reject unchecked input and publish at most one proposal per Builder job.
+  - Optional proposal target branches are validated, stored immutably in the job, shown during confirmation, and enforced together with the exact base commit.
   - Claude Code and Codex use exact ACP v1 profiles inside the portable Builder worker and pass brokered-authentication qualification.
   - Duplicate execution delivery, provider timeout, cancellation, cleanup, and credential isolation fail closed.
   - Invalid, protected, or unvalidated diffs create no branch or pull request.

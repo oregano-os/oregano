@@ -21,6 +21,7 @@ export interface BuilderJobInput {
   readonly objective: string;
   readonly repositoryId: string;
   readonly baseCommit: string;
+  readonly targetBranchName?: string;
   readonly sourceBindingId: string;
   readonly proposalPublisherBindingId: string;
   readonly execution: {
@@ -116,6 +117,9 @@ export function assertBuilderJobInput(input: BuilderJobInput): void {
   if (!/^[0-9a-f]{40}$/.test(input.baseCommit)) {
     throw new Error("Builder job baseCommit must be an exact lowercase 40-character Git commit.");
   }
+  if (input.targetBranchName !== undefined && !isSafeBranchName(input.targetBranchName)) {
+    throw new Error("Builder job targetBranchName is invalid.");
+  }
   if (!Number.isSafeInteger(input.execution.timeoutMs) || input.execution.timeoutMs < 1_000) {
     throw new Error("Builder job execution timeout is invalid.");
   }
@@ -126,6 +130,14 @@ export function assertBuilderJobInput(input: BuilderJobInput): void {
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(input.codingAgent.version)) {
     throw new Error("Builder job coding implementation version must be exact.");
   }
+}
+
+function isSafeBranchName(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._/-]{0,180}$/.test(value)
+    && !value.includes("..")
+    && !value.includes("//")
+    && !value.endsWith("/")
+    && !value.split("/").some((segment) => segment.startsWith(".") || segment.endsWith(".lock"));
 }
 
 export function builderJobFingerprint(input: BuilderJobInput): string {

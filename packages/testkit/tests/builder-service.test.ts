@@ -28,6 +28,7 @@ const configuration: BuilderInstanceConfiguration = {
     repositoryId: "fixture/workspace",
     sourceBinding: "workspace",
     proposalPublisherBinding: "workspace",
+    targetBranchName: "reviewed/workspace",
   },
 };
 
@@ -133,7 +134,7 @@ test("BuilderService transfers a credential-free bundle through trusted validati
     "",
   ].join("\n");
   let validatedInput: { bundle?: string; diff?: string } = {};
-  let publishedInput: { bundle?: string; diff?: string } = {};
+  let publishedInput: { bundle?: string; diff?: string; targetBranchName?: string } = {};
   const source: RepositorySourceAdapter = {
     id: "trusted-fixture",
     version: "1.0.0",
@@ -171,7 +172,11 @@ test("BuilderService transfers a credential-free bundle through trusted validati
     id: "trusted-fixture",
     version: "1.0.0",
     async publish(request) {
-      publishedInput = { bundle: request.sourceBundlePath, diff: request.diff };
+      publishedInput = {
+        bundle: request.sourceBundlePath,
+        diff: request.diff,
+        targetBranchName: request.targetBranchName,
+      };
       return {
         schemaVersion: 1,
         jobId: request.jobId,
@@ -209,6 +214,7 @@ test("BuilderService transfers a credential-free bundle through trusted validati
     assert.equal(validatedInput.diff, patch);
     assert.equal(publishedInput.bundle, validatedInput.bundle);
     assert.equal(publishedInput.diff, patch);
+    assert.equal(publishedInput.targetBranchName, "reviewed/workspace");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

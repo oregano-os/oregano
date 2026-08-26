@@ -94,8 +94,27 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
         builder.repository?.proposal_publisher_binding,
         `${path}: builder.repository.proposal_publisher_binding`,
       ),
+      targetBranchName: optionalBranchName(
+        builder.repository?.target_branch,
+        `${path}: builder.repository.target_branch`,
+      ),
     },
   };
+}
+
+function optionalBranchName(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (
+    typeof value !== "string"
+    || !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(value)
+    || value.includes("..")
+    || value.includes("//")
+    || value.endsWith("/")
+    || value.split("/").some((segment) => segment.startsWith(".") || segment.endsWith(".lock"))
+  ) {
+    throw new Error(`${label} must be a bounded safe branch name.`);
+  }
+  return value;
 }
 
 function requiredIdentifier(value: unknown, label: string): string {

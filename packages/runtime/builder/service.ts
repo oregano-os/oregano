@@ -253,6 +253,7 @@ export class BuilderService {
         bindingId: job.proposalPublisherBindingId,
         repositoryId: job.repositoryId,
         baseCommit: job.baseCommit,
+        ...(job.targetBranchName ? { targetBranchName: job.targetBranchName } : {}),
         ...(sourceBundlePath
           ? { sourceBundlePath, diff: execution.artifacts.diff }
           : { workspacePath }),
@@ -325,6 +326,9 @@ export function builderJobInputForConfirmedProposal(
     objective: request.objective,
     repositoryId: request.repositoryId,
     baseCommit: request.baseCommit,
+    ...(configuration.repository.targetBranchName
+      ? { targetBranchName: configuration.repository.targetBranchName }
+      : {}),
     sourceBindingId: configuration.repository.sourceBinding,
     proposalPublisherBindingId: configuration.repository.proposalPublisherBinding,
     execution: {
@@ -389,6 +393,7 @@ function proposalBody(job: BuilderJob, checked: { checks: readonly { id: string;
     `Requester: \`${job.requesterPrincipal}\``,
     `Request: \`${job.requestId}\``,
     `Base commit: \`${job.baseCommit}\``,
+    ...(job.targetBranchName ? [`Target branch: \`${job.targetBranchName}\``] : []),
     `Coding profile: \`${job.codingAgent.profileId}@${job.codingAgent.version}\``,
     "",
     "### Objective",

@@ -66,6 +66,7 @@ builder:
     repository_id: fixture/workspace
     source_binding: github-workspace
     proposal_publisher_binding: github-workspace
+    target_branch: reviewed/workspace
 `, (path) => {
   const configuration = loadInstanceBuildConfiguration(path);
   assert.deepEqual(configuration.agentBindings, [{
@@ -84,6 +85,29 @@ builder:
       repositoryId: "fixture/workspace",
       sourceBinding: "github-workspace",
       proposalPublisherBinding: "github-workspace",
+      targetBranchName: "reviewed/workspace",
     },
   });
+}));
+
+test("Instance build declarations reject unsafe Builder proposal target branches", () => withFile(`
+version: 1
+instance_id: fixture-production
+environment: production
+bindings: []
+builder:
+  enabled: true
+  execution:
+    adapter: vercel-sandbox
+    profile: isolated-v1
+  coding_agent:
+    protocol: acp-v1
+    profile: codex
+  repository:
+    repository_id: fixture/workspace
+    source_binding: github-workspace
+    proposal_publisher_binding: github-workspace
+    target_branch: ../main
+`, (path) => {
+  assert.throws(() => loadInstanceBuildConfiguration(path), /bounded safe branch name/);
 }));

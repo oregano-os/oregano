@@ -68,6 +68,13 @@ agent. Changing Claude Code to Codex does not change the normal Runner. The
 Workspace declares company behavior and the repository identity; the Instance
 binds qualified implementations, installations, and secrets.
 
+The repository binding may additionally name one optional proposal target
+branch. Without it, proposals target the provider-verified default branch. With
+it, the exact safe branch name is compiled into the Artifact, copied into every
+immutable Builder job, shown during human confirmation, and checked together
+with the exact base commit before publication. This supports supervised stacked
+pilots without making branch selection a model or provider-specific decision.
+
 `TrustedGitExecutionAdapter` is an optional private composition detail behind
 the repository bindings, not a sixth public Instance role. The maintained
 Vercel composition uses a Git-and-Workbench snapshot because its Function

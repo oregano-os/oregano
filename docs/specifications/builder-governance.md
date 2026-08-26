@@ -53,6 +53,12 @@ Duplicate delivery MUST NOT create a second execution or proposal. Jobs MUST
 support leases, recovery, timeout, requester-authorized cancellation, terminal
 evidence, and notification back to the source conversation.
 
+The Instance MAY bind one safe proposal target branch. The target MUST be
+compiled into the Artifact, visible in the human confirmation, immutable in the
+job, and verified with the exact base commit before publication. The model and
+requester MUST NOT choose or alter it during a job. Without that binding, the
+Repository Provider's verified default branch is the target.
+
 ## 2. Change matrix
 
 | Change | Minimum class | Required authority |

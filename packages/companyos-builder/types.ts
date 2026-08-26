@@ -18,6 +18,7 @@ export interface BuilderInstanceConfiguration {
     repositoryId: string;
     sourceBinding: string;
     proposalPublisherBinding: string;
+    targetBranchName?: string;
   };
 }
 

@@ -54,11 +54,18 @@ builder:
     repository_id: acme/company-workspace
     source_binding: github-company-workspace
     proposal_publisher_binding: github-company-workspace
+    target_branch: reviewed/company-workspace
 ```
 
 The same execution adapter can host `claude-code` or `codex`. A future
 qualified worker host can replace `vercel-sandbox` without changing Agent
 routing, ACP, repository, or Builder job semantics.
+
+`target_branch` is optional. Omit it to propose against the repository's
+verified default branch. When a pilot Artifact is built from an exact reviewed
+but not-yet-default Workspace revision, bind that revision's branch explicitly;
+the target is copied into the immutable job, shown in the confirmation card,
+and independently verified by the proposal publisher.
 
 ## Configure secrets and repository installation
 

@@ -50,6 +50,7 @@ interface PendingBuilderConfirmation {
   readonly objective: string;
   readonly repositoryId: string;
   readonly baseCommit: string;
+  readonly targetBranchName?: string;
 }
 
 function rosterMember(author: Author): RosterMember | undefined {
@@ -168,6 +169,9 @@ function resolvedTools(
           objective: objective.trim(),
           repositoryId: builder.repository.repositoryId,
           baseCommit: artifact.provenance.workspaceCommit,
+          ...(builder.repository.targetBranchName
+            ? { targetBranchName: builder.repository.targetBranchName }
+            : {}),
         };
         await state.set(`builder-confirmation:${token}`, pending, DAY);
         await thread.post(Card({
@@ -176,6 +180,7 @@ function resolvedTools(
             CardText(`Objective: ${pending.objective}`),
             CardText(`Repository: ${pending.repositoryId}`),
             CardText(`Exact base: ${pending.baseCommit}`),
+            ...(pending.targetBranchName ? [CardText(`Proposal target: ${pending.targetBranchName}`)] : []),
             CardText("Claude Code or Codex starts only after confirmation. It can propose a checked pull request but cannot merge or deploy."),
             Actions([
               Button({ id: "companyos.builder.confirm", label: "Start proposal", style: "primary", value: token }),

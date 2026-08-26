@@ -36,6 +36,14 @@ test("Builder job creation is idempotent and immutable by request id", async () 
   );
 });
 
+test("Builder job input rejects an unsafe immutable proposal target branch", async () => {
+  const store = new InMemoryBuilderJobStore();
+  await assert.rejects(
+    store.create({ ...input(), targetBranchName: "../main" }),
+    /targetBranchName is invalid/,
+  );
+});
+
 test("Builder leases reject concurrent and stale workers and can be recovered", async () => {
   const store = new InMemoryBuilderJobStore();
   await store.create(input(), new Date("2026-08-26T10:00:00Z"));
