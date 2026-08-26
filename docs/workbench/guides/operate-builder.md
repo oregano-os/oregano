@@ -168,11 +168,13 @@ inspection, and trusted outer publication. Basic live Vercel Sandbox lifecycle,
 duplicate recovery, timeout, and credential-transform mechanics are also
 proved.
 
-The digest-pinned worker snapshot and the service-owned GitHub App source and
-draft-publication path passed live qualification on 2026-08-26. The maintained
-hosted profile remains unqualified until:
+The digest-pinned worker snapshot, both brokered model profiles, and the
+service-owned GitHub App source and draft-publication path passed live
+qualification on 2026-08-26. The protected model runs used the same snapshot,
+verified the expected diff outside ACP, and kept the real general Instance
+model keys outside the coding processes. The maintained hosted profile remains
+inactive until:
 
-- both general model keys pass brokered live ACP jobs in the target environment;
 - deployed source transfer, independent diff validation, and publication use a
   separately trusted Git execution boundary instead of assuming Git exists in
   the Vercel Function runtime;
@@ -180,3 +182,6 @@ hosted profile remains unqualified until:
   installation binding; and
 - one representative Slack-to-draft-proposal round trip succeeds without merge
   or deployment.
+
+Representative model-backed cost and ACP-process-crash recovery remain
+production-readiness measurements.

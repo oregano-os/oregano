@@ -133,8 +133,10 @@ evidence, historical prototypes, and production gaps.
   or Codex ACP `1.6.2` as exact dependencies. Unit and local live-login probes
   cover ACP initialization, fresh sessions, structured updates, permission
   denial, timeout, cancellation, bounded writes, and independently observed
-  diffs. ACP remains private Builder-worker transport, not a Core-wide runtime
-  contract.
+  diffs. Protected staged-deployment probes also prove brokered use of both
+  general Instance model keys while the coding processes receive placeholders
+  rather than the real credentials. ACP remains private Builder-worker
+  transport, not a Core-wide runtime contract.
 - The first private `BuilderExecutionAdapter` uses Vercel Sandbox `3.1.0`.
   Live provider probes have proved digest-pinned base execution, deny-all
   egress, no public ports, credential-header transformation, duplicate
@@ -175,19 +177,19 @@ evidence, historical prototypes, and production gaps.
 - Blueprint plan/apply/lock/update/remove, remote Package sources, the open
   Registry, signing, publisher identity, advisories, revocation, and
   Marketplace UX remain future stages.
-- The hosted Builder profile is not yet qualified or activated. A digest-pinned
+- The hosted Builder profile is not yet activated. A digest-pinned
   worker snapshot and the service-owned GitHub App exact-base source,
   credential isolation, checked draft publication, and publication idempotency
-  gates passed live qualification on 2026-08-26. The remaining gates are
-  brokered live Claude Code and Codex authentication using the general Instance
-  model keys, a trusted Git execution boundary for the deployed coordinator,
-  persistence through the deployed repository-onboarding callback, and one
-  representative Slack-to-draft-proposal round trip. A staged Production build
+  gates passed live qualification on 2026-08-26. Protected staged-deployment
+  runs also passed brokered Claude Code and Codex authentication using the
+  general Instance model keys without placing either real credential in the
+  coding process. The remaining integration gates are a trusted Git execution
+  boundary for the deployed coordinator, persistence through the deployed
+  repository-onboarding callback, and one representative
+  Slack-to-draft-proposal round trip. Representative cost and ACP-process-crash
+  recovery remain production-readiness measurements. A staged Production build
   proved that Git is unavailable in the Vercel Function runtime even though it
-  is available inside the pinned Builder Sandbox snapshot. Sensitive Vercel
-  variables are intentionally non-readable outside a deployment; no gate may
-  broaden a local process to unrelated Production secrets merely to work around
-  either boundary.
+  is available inside the pinned Builder Sandbox snapshot.
 
 ## Highest-priority gaps after the first live pilot
 
@@ -215,8 +217,8 @@ evidence, historical prototypes, and production gaps.
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.
-8. Close the four hosted Builder gates above in an isolated non-production
-   Instance before enabling a production Builder Agent Binding.
+8. Close the three hosted Builder integration gates above in an isolated
+   non-production Instance before enabling a production Builder Agent Binding.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

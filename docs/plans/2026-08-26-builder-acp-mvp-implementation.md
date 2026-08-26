@@ -34,25 +34,27 @@ worker, private ACP profiles, repository contracts, local Git and GitHub App
 providers, independent Workbench validation, trusted outer publication, and
 source-thread terminal reporting have automated coverage.
 
-The worker snapshot was created successfully as
-`snap_j4cFUC1EmFNuEn422dGxP4xXMaUw` from the pinned base image. It contains ACP
+The qualified worker snapshot was created successfully as
+`snap_DhzyVAHNi9moSZDDJMwSO2wjQMzd` from the pinned base image. It contains ACP
 SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
 
 The implementation is intentionally not activated in Production. Remaining
 deployment gates are:
 
-1. run the brokered Claude Code and Codex gates inside a target deployment
-   where Vercel exposes the two Sensitive general model variables at runtime;
-2. install and qualify the service-owned GitHub App against one real private
-   Company Workspace;
+1. move deployed source transfer, post-agent diff inspection, and proposal
+   publication into a separate trusted Git execution boundary;
+2. persist and reuse the verified repository binding through the deployed
+   self-service onboarding callback;
 3. bind the snapshot, cron secret, GitHub provider, Agent routes, and updated
    immutable Artifact in an isolated non-production Instance; and
 4. complete one Slack-to-draft-proposal round trip with no merge or deployment.
 
-Vercel Sensitive values are deliberately non-readable after creation. A local
-qualification MUST NOT import every unrelated Production secret merely to
-obtain the two model keys. Run the model gates in an isolated deployment or
-explicitly approve a narrowly reviewed alternative.
+The service-owned GitHub App passed live exact-base source and idempotent draft
+publication qualification against one selected private Workspace. Both model
+profiles passed protected staged-deployment qualification with the two
+Sensitive general model variables while the coding processes received only
+fixed placeholders. Vercel Sensitive values remain deliberately non-readable
+after creation and must never be imported into a local qualification process.
 
 ## 1. Purpose and approved decisions
 
@@ -631,7 +633,7 @@ creates an avoidable credential-exposure boundary even on a fresh hosted
 runner. Separating untrusted execution from proposal publication is simpler to
 reason about and test.
 
-This decision remains provisional until Stage 0 proves four details:
+Stage 0 evaluates four details:
 
 - the pinned Claude and Codex ACP profiles work with brokered authentication
   while the real provider credential remains outside the Sandbox;
@@ -643,6 +645,12 @@ This decision remains provisional until Stage 0 proves four details:
 - measured duration and compute cost are acceptable for representative Builder
   jobs.
 
+The brokered Claude and Codex profile gate and the private GitHub exact-base
+source and checked-publication gate passed on 2026-08-26. Basic result,
+cleanup, timeout, cancellation, and duplicate-delivery behavior also passed.
+ACP-process-crash injection and representative duration and cost remain open
+production-readiness measurements.
+
 The first Stage-0 execution probe on 2026-08-26 proved the neutral five-method
 adapter lifecycle against Vercel Sandbox SDK `3.1.0`. A real disposable Sandbox
 started from the digest-pinned
@@ -653,10 +661,11 @@ external HTTPS access failed as required, and explicit stop, collection, and
 disposal completed. A second live probe temporarily allowed one qualification
 host, replaced a harmless placeholder `Authorization` header through the
 provider network policy, verified the transformed value at the remote endpoint,
-and restored `deny-all` in a `finally` path. This qualifies the basic provider
-lifecycle and the provider's credential-transform mechanism. It does not yet
-qualify real Claude or Codex model authentication, private repository setup,
-or representative model-backed job cost.
+and restored `deny-all` in a `finally` path. This qualified the basic provider
+lifecycle and the provider's credential-transform mechanism. Later protected
+staged-deployment and GitHub App probes qualified real model authentication and
+private repository setup separately. Representative model-backed job cost
+remains open.
 
 The follow-up provider probe on the same date also exposed and resolved a real
 parallel-delivery race in the provider SDK's non-atomic named `getOrCreate`
@@ -749,16 +758,15 @@ created a fresh session, emitted structured updates and tool events, changed
 one bounded temporary fixture, terminated normally, and produced a Git diff
 that CompanyOS read independently of ACP output.
 
-The probe also found a meaningful implementation difference. Codex completed
-the bounded edit without an ACP permission request; therefore Sandbox and
-post-diff validation remain mandatory security boundaries. Claude emitted one
-path-scoped `edit` permission request. Its path used the canonical macOS
-filesystem spelling while the host fixture used a symlinked spelling. The
+The local probe also found a meaningful implementation difference. Codex
+completed the bounded edit without an ACP permission request; therefore
+Sandbox and post-diff validation remain mandatory security boundaries. Claude
+emitted one path-scoped `edit` permission request. Its path used the canonical
+macOS filesystem spelling while the host fixture used a symlinked spelling. The
 CompanyOS client now canonicalizes existing paths and their parent directories
 before deciding workspace containment, and has a regression test for that
-case. Brokered model authentication and real-profile cancellation remain open
-qualification gates; the successful local probes used existing local login
-sessions and passed no model API-key environment variables.
+case. Those initial local probes used existing local login sessions and passed
+no model API-key environment variables.
 
 The first deployed Codex probe found a second profile difference. Supplying
 `CODEX_API_KEY` does not itself select API-key authentication in
@@ -767,9 +775,14 @@ The first deployed Codex probe found a second profile difference. Supplying
 the Codex worker environment. The deployed probe also proved that relying on an
 implementation default can produce a successful but read-only turn, so the
 Codex profile now requires the advertised ACP session mode `agent` explicitly.
-The Sandbox and the one-shot workspace permission policy remain the actual
-write boundaries. These are profile settings, not new ACP or Builder contracts,
-and neither carries a credential value.
+In that mode `codex-acp` `1.6.2` reports its workspace-write shell actions as
+generic `execute` permission requests without file locations. The policy now
+allows only an offered `allow_once` option for that exact profile, version,
+mode, and tool kind. Location-bearing requests still require every path to be
+inside the workspace, and all other location-free requests fail closed. The
+Sandbox and post-run validation remain the actual security boundaries. These
+are profile settings, not new ACP or Builder contracts, and neither carries a
+credential value.
 
 The repository also contains a fail-closed live model qualification harness.
 It installs only the exact ACP profile in a disposable Sandbox, gives the
@@ -781,10 +794,14 @@ fixed repository fixture. It is addressable only through the exact generated
 URL of a staged Production build, accepts only an exact profile ID, and rejects
 the Production alias. The general `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
 bindings now exist as Sensitive Production variables, but Vercel intentionally
-does not return their values outside a deployment. Their live passes therefore
-remain open until the staged deployment proves platform protection and runs the
-two bounded requests; importing the complete unrelated Production environment
-into a local process is not an acceptable shortcut.
+does not return their values outside a deployment. On 2026-08-26 an
+unauthenticated request to the generated staging URL was denied, then both
+bounded profile requests passed on the same snapshot. Claude made one
+path-scoped one-shot `edit` request. Codex made two location-free one-shot
+`execute` requests under its required workspace-write mode. CompanyOS observed
+the exact expected diff independently in both runs, and neither coding process
+received the real model credential. Importing the complete unrelated
+Production environment into a local process remains prohibited.
 
 The first staged Production build exposed one additional deployment fact:
 Vercel Functions do not provide the `git` executable used by the local

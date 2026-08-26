@@ -26,6 +26,9 @@ vision_principles_affected:
 files_expected:
   - .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - docs/plans/2026-08-26-builder-acp-mvp-implementation.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - packages/cli/content/guides/operate-builder.md
   - packages/runtime/builder/**
   - packages/runner-vercel/package.json
   - packages/runner-vercel/src/lib/builder/**
@@ -67,18 +70,15 @@ tests:
   - Brokered-authentication and private-repository harnesses reject missing dedicated qualification inputs before creating a provider resource.
   - Failure of one profile cannot silently select another profile or protocol.
 documentation_impact:
-  required: false
-  affected_documents: []
-  reason_if_none: >-
-    This Stage-0 spike adds no production behavior or supported public
-    capability. Its findings update the approved informative implementation
-    plan; canonical architecture and operating documentation are a required
-    Stage-1 deliverable before any Runner integration.
+  required: true
+  affected_documents:
+    - status.current
+    - guide.operate-builder
+    - plan.builder-acp-mvp-implementation
 rollback: >-
   Remove the isolated Stage-0 Builder files, exact experimental dependencies,
   tests, and qualification evidence. No Company Workspace, Company Instance,
   database, deployment, or external provider state is changed.
 open_decisions:
-  - Whether both pinned ACP profiles support brokered authentication without the real provider credential entering the worker environment.
   - Whether the hosted Runner bundles a pinned Git implementation or delegates repository-only commands to a separate trusted Sandbox that never runs the coding agent.
   - Whether model-backed representative Builder jobs stay within the required duration and cost envelope and recover cleanly from a process crash during an ACP prompt.
