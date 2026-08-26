@@ -216,7 +216,9 @@ Activate the Builder only after the normal Runner, roster identity, StateStore,
 exact Workspace revision, and repository review path work. Compile a dedicated
 Builder Agent Binding, an exact repository identity, one source and proposal
 publisher binding, one qualified execution adapter, and one exactly pinned
-coding-agent profile into the Artifact.
+coding-agent profile into the Artifact. When the hosted Runner has no Git
+executable, also bind the separately qualified trusted Git snapshot behind the
+repository provider; never add repository credentials to the coding snapshot.
 
 Run the profile qualification and follow [Operate the
 Builder](../workbench/guides/operate-builder.md). A successful configuration

@@ -51,6 +51,9 @@ Core also owns the provider-neutral Builder proposal control path:
   `ProposalPublisher` publishes only independently checked evidence.
 - The private `BuilderExecutionAdapter` controls only isolated worker
   lifecycle. The first maintained implementation uses Vercel Sandbox.
+- Hosted environments without Git may compose a private
+  `TrustedGitExecutionAdapter` behind the repository provider. It acquires and
+  publishes source with brokered credentials but never runs a coding agent.
 - The isolated worker uses stable ACP v1 with exactly pinned Claude Code or
   Codex adapters. ACP does not replace `RunnerAdapter`, Tool, approval,
   StateStore, repository, or governance contracts.

@@ -52,5 +52,7 @@ The Workbench is also the independent validation boundary for Builder
 proposals. The isolated coding agent does not decide that its change is valid.
 After it exits, CompanyOS inspects the actual diff and runs the exact
 Workbench `inspect`, `validate`, and `security` implementation before any
-trusted proposal publisher receives write authority. Operational procedures
-are defined in [Operate the Builder](guides/operate-builder.md).
+trusted outer publication boundary receives write authority. The maintained
+hosted composition reruns those checks in a fresh repository-only trusted Git
+worker before the outer commit and branch push. Operational procedures are
+defined in [Operate the Builder](guides/operate-builder.md).

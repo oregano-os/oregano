@@ -22,9 +22,10 @@ relations:
 
 The Builder Agent proposes Company Workspace changes from an authorized human
 request. The proposal-only control path is implemented and tested; hosted
-GitHub onboarding and live model-backed qualification remain deployment gates.
-This specification distinguishes implemented invariants from unqualified
-provider profiles.
+GitHub onboarding, brokered Claude Code and Codex, and the separate trusted Git
+boundary have passed live Stage-0 qualification. One isolated
+Slack-to-draft-proposal round trip remains an activation gate. This
+specification distinguishes implemented invariants from activated profiles.
 
 ## 1. Scope and authority
 
@@ -105,6 +106,13 @@ execution. After execution, CompanyOS reads the actual diff independently.
 Only a separately trusted `ProposalPublisher` may create the canonical branch,
 commit, and draft pull request after all checks pass.
 
+When the Runner host has no Git executable, the repository provider may use a
+separate private trusted Git worker for complete source acquisition,
+independent Workbench validation, the outer commit, and the bounded branch
+push. Repository credentials are brokered only at that boundary. The coding
+worker receives a credential-free bundle and cannot share a process or
+filesystem with the trusted Git worker.
+
 The first isolated worker uses a private five-method
 `BuilderExecutionAdapter`; provider SDK types MUST NOT enter Builder jobs or
 evidence contracts. Stable ACP v1 is the private protocol between that worker
@@ -184,13 +192,17 @@ The experimental implementation currently includes:
 - exactly pinned ACP SDK, Claude Code ACP, and Codex ACP packages in the
   isolated worker;
 - local Git and GitHub App repository provider implementations;
+- a separate Vercel Sandbox trusted Git adapter that never runs a coding agent;
 - independent protected-path and changed-path inspection;
 - Workbench inspection, validation, and security checks; and
 - trusted outer draft-proposal publication with no merge or deployment.
 
-This implementation MUST NOT be reported as a maintained hosted Builder profile
-until its snapshot, model-broker, service-owned GitHub App installation, and
-model-backed end-to-end gates pass in the target environment.
+This implementation MUST NOT be activated as a maintained hosted Builder
+profile until an isolated Instance Artifact contains an exact Builder Agent
+Binding and completes one representative Slack-to-draft-proposal round trip.
+The two snapshots, model broker, service-owned GitHub App onboarding,
+repository transfer, Workbench validation, and idempotent draft publication
+already passed their bounded Stage-0 live gates.
 
 ## 10. Open decisions
 

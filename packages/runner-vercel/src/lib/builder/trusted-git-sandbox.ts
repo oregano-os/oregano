@@ -52,7 +52,7 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
     try {
       const clone = await sandbox.runCommand({
         cmd: "git",
-        args: ["clone", "--no-checkout", "--filter=blob:none", "--", request.remoteUrl, WORKSPACE_PATH],
+        args: ["clone", "--no-checkout", "--", request.remoteUrl, WORKSPACE_PATH],
         env: gitEnvironment(request.credential),
         timeoutMs: 90_000,
       });
@@ -213,7 +213,7 @@ async function prepareTransferredWorkspace(
   await sanitizeWorkspace(sandbox);
   await requireSuccess(await sandbox.runCommand({
     cmd: "git",
-    args: ["apply", "--binary", "--index", "--whitespace=nowarn", DIFF_PATH],
+    args: ["apply", "--binary", "--whitespace=nowarn", DIFF_PATH],
     cwd: WORKSPACE_PATH,
     timeoutMs: 60_000,
   }), "Trusted Git proposal patch application");

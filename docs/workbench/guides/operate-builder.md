@@ -101,6 +101,20 @@ Store its returned non-secret snapshot ID as
 supported only when the exact ACP and execution-adapter combination passes.
 Never silently fall back from ACP, Claude Code, or Codex to another runtime.
 
+The hosted GitHub provider also needs a separate snapshot that contains Git and
+the pinned Workbench but never runs a coding agent:
+
+```bash
+node --experimental-strip-types packages/runner-vercel/src/lib/builder/create-trusted-git-snapshot.ts
+```
+
+Store that non-secret ID as
+`COMPANYOS_BUILDER_TRUSTED_GIT_SNAPSHOT_ID`. The trusted Git worker performs
+full source acquisition before closing network access, emits a bounded
+credential-free Git bundle, validates the returned diff independently, and
+creates the one outer commit. Real installation tokens exist only in
+host-scoped network-header transforms and never in either process environment.
+
 Qualify a selected private repository with the exact repository identity,
 numeric provider repository and installation IDs, exact base commit, App ID,
 service environment, and one private-key source:
@@ -129,6 +143,15 @@ through `vercel curl` once for `claude-code` and once for `codex`. The endpoint
 accepts no prompt or repository input, runs one fixed fixture through the
 pinned worker snapshot, and is unavailable through the Production alias. Delete
 the staged deployment after retaining its non-secret evidence.
+
+The same endpoint accepts the exact fixed `trusted-git` gate only when its
+bounded repository, installation, base-commit, proposal-branch, and optional
+stacked target-branch settings are present. It calls the same authenticated
+onboarding handler as self-service, rereads the persisted binding, and must
+return the same draft proposal on repetition. Remove the temporary
+qualification settings, staged deployment, and automation bypass immediately
+after evidence capture. Keep both reusable snapshot IDs and the normal
+non-qualification provider bindings.
 
 ## Operate a proposal
 
@@ -172,16 +195,14 @@ The digest-pinned worker snapshot, both brokered model profiles, and the
 service-owned GitHub App source and draft-publication path passed live
 qualification on 2026-08-26. The protected model runs used the same snapshot,
 verified the expected diff outside ACP, and kept the real general Instance
-model keys outside the coding processes. The maintained hosted profile remains
-inactive until:
-
-- deployed source transfer, independent diff validation, and publication use a
-  separately trusted Git execution boundary instead of assuming Git exists in
-  the Vercel Function runtime;
-- the deployed onboarding callback persists and reuses the verified repository
-  installation binding; and
-- one representative Slack-to-draft-proposal round trip succeeds without merge
-  or deployment.
+model keys outside the coding processes. The separate trusted Git snapshot and
+the deployed onboarding handler then passed source transfer, durable binding
+reuse, independent Workbench validation, outer commit, stacked draft
+publication, and repeat-call idempotency against one selected private
+Workspace. The coding workspace contained no repository credential or remote.
+The maintained hosted profile remains inactive until one representative
+Slack-to-draft-proposal round trip succeeds from an isolated Artifact with an
+exact Builder Agent Binding and without merge or deployment.
 
 Representative model-backed cost and ACP-process-crash recovery remain
 production-readiness measurements.

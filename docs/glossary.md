@@ -192,6 +192,12 @@ A private provider-neutral lifecycle boundary for starting, observing,
 cancelling, collecting, and disposing one isolated Builder worker. It is not a
 general Company Agent runtime contract.
 
+### TrustedGitExecutionAdapter
+A private Company Instance boundary for repository-only source acquisition,
+independent validation, and proposal-branch publication when the Runner host
+does not provide Git. It may receive brokered repository credentials, but it
+never runs the coding agent and is not a public Core contract.
+
 ### RepositorySourceAdapter
 The provider-neutral contract that materializes one exact repository revision
 as a credential-free local checkout and returns non-secret evidence.

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { sha256 } from "../../../../runtime/repository/proposal-inspection.ts";
 import { createPostgresRepositoryInstallationStore } from "../../../../state-postgres/repository-installation-store.ts";
 import { getGitHubRepositoryProvider, getTrustedGitExecution } from "./provider-factory.ts";
+import { handleGitHubRepositoryOnboarding } from "./repository-onboarding.ts";
 
 const PLAN_PATH = ".companyos/changes/2026-08-26-builder-trusted-git-qualification.yaml";
 const EVIDENCE_PATH = "handbook/builder-trusted-git-qualification.md";
@@ -16,14 +17,32 @@ export async function qualifyDeployedTrustedGit(): Promise<Readonly<Record<strin
   const temporary = await mkdtemp(join(tmpdir(), "companyos-trusted-git-qualification-"));
   let phase = "verify_installation";
   try {
-    const binding = await provider.verifyInstallation({
-      bindingId: configuration.bindingId,
-      instanceId: configuration.instanceId,
-      installationId: configuration.installationId,
-      repositoryId: configuration.repositoryId,
-      providerRepositoryId: configuration.providerRepositoryId,
-      onboardingPrincipal: configuration.onboardingPrincipal,
-    });
+    const onboardingSecret = process.env.COMPANYOS_REPOSITORY_ONBOARDING_SECRET;
+    if (!onboardingSecret) throw new Error("repository onboarding secret is unavailable");
+    const onboardingResponse = await handleGitHubRepositoryOnboarding(new Request(
+      "https://companyos.invalid/api/repository/github/installations",
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${onboardingSecret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          binding_id: configuration.bindingId,
+          instance_id: configuration.instanceId,
+          installation_id: configuration.installationId,
+          repository_id: configuration.repositoryId,
+          provider_repository_id: configuration.providerRepositoryId,
+          onboarding_principal: configuration.onboardingPrincipal,
+        }),
+      },
+    ));
+    if (!onboardingResponse.ok) {
+      throw new Error(`repository onboarding callback returned ${onboardingResponse.status}`);
+    }
+    const onboardingEvidence = await onboardingResponse.json() as {
+      binding?: { status?: string };
+    };
     const persistedBinding = await createPostgresRepositoryInstallationStore().get(configuration.bindingId);
     if (
       !persistedBinding
@@ -71,6 +90,7 @@ export async function qualifyDeployedTrustedGit(): Promise<Readonly<Record<strin
       sourceBundlePath: source.transfer.path,
       diff,
       branchName: configuration.branchName,
+      targetBranchName: configuration.targetBranchName,
       title: "CompanyOS Builder: qualify isolated trusted Git execution",
       body: [
         "This draft proposal is bounded Stage-0 qualification evidence.",
@@ -81,7 +101,7 @@ export async function qualifyDeployedTrustedGit(): Promise<Readonly<Record<strin
     return {
       repositoryProvider: { id: provider.id, version: provider.version },
       trustedGitExecution: { id: gitExecution.id, version: gitExecution.version },
-      installationPersisted: binding.status === "active" && persistedBinding.status === "active",
+      installationPersisted: onboardingEvidence.binding?.status === "active" && persistedBinding.status === "active",
       exactBaseVerified: source.baseCommit === configuration.baseCommit,
       transferFormat: source.transfer.format,
       repositoryCredentialInCodingWorkspace: source.credentialIsolation.repositoryCredentialPresent,
@@ -92,15 +112,25 @@ export async function qualifyDeployedTrustedGit(): Promise<Readonly<Record<strin
       proposal: {
         draftRequired: true,
         branchName: proposal.branchName,
+        targetBranchName: configuration.targetBranchName,
         proposalCommit: proposal.proposalCommit,
         proposalUrl: proposal.proposalUrl,
       },
     };
-  } catch {
+  } catch (error) {
+    console.error(`[builder-trusted-git-qualification:${phase}] ${safeDiagnostic(error)}`);
     throw new Error(`Deployed trusted Git qualification failed during '${phase}'.`);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
+}
+
+function safeDiagnostic(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error))
+    .replace(/((?:authorization|http\.extraheader)(?:=|:)\s*)(?:basic|bearer)\s+[A-Za-z0-9._~+/=-]+/gi, "$1[redacted]")
+    .replace(/\bgh[a-z]_[A-Za-z0-9_]+\b/g, "[redacted-github-token]")
+    .replace(/-----BEGIN[\s\S]*?PRIVATE KEY-----/g, "[redacted-private-key]")
+    .slice(0, 2_000);
 }
 
 function qualificationConfiguration() {
@@ -118,6 +148,7 @@ function qualificationConfiguration() {
     baseCommit: required("COMPANYOS_BUILDER_QUALIFICATION_BASE_COMMIT"),
     onboardingPrincipal: required("COMPANYOS_BUILDER_QUALIFICATION_ONBOARDING_PRINCIPAL"),
     branchName: required("COMPANYOS_BUILDER_QUALIFICATION_BRANCH"),
+    targetBranchName: required("COMPANYOS_BUILDER_QUALIFICATION_TARGET_BRANCH"),
   };
   if (!/^\d+$/.test(configuration.installationId) || !/^\d+$/.test(configuration.providerRepositoryId)) {
     throw new Error("Qualification provider identifiers must be decimal.");

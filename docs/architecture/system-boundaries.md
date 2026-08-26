@@ -64,6 +64,13 @@ may enter the Builder job contract. ACP v1 is private communication inside that
 worker; it is not the CompanyOS Core contract for selecting or invoking normal
 Company Agents.
 
+Repository-only execution is a separate trust boundary. When the Runner host
+cannot execute Git, a private `TrustedGitExecutionAdapter` may clone and push
+with provider-brokered credentials, transfer only a bounded credential-free Git
+bundle to coding, and rerun diff inspection plus the Workbench before the outer
+commit. It MUST NOT run Claude Code, Codex, or another coding agent, and the
+coding boundary MUST NOT receive its repository credential or remote.
+
 ## A Company Workspace owns
 
 - company identity, mission, context, and operating knowledge,

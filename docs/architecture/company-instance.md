@@ -49,20 +49,30 @@ flowchart TB
     I --> CP["Coding-agent profile<br/>ACP v1: claude-code or codex"]
     I --> RS["RepositorySourceAdapter binding<br/>example: github-app or local-git"]
     I --> PP["ProposalPublisher binding<br/>example: github-app or local-git"]
+    I --> TG["Private trusted Git execution<br/>only when the hosted provider needs it"]
     S["Instance secret store"] --> R
     S --> ER
     S --> RS
     S --> PP
+    S --> TG
     BS --> ER
     ER --> CP
     BS --> RS
     BS --> PP
+    RS --> TG
+    TG --> PP
 ```
 
 Changing the runtime host does not select a repository provider or coding
 agent. Changing Claude Code to Codex does not change the normal Runner. The
 Workspace declares company behavior and the repository identity; the Instance
 binds qualified implementations, installations, and secrets.
+
+`TrustedGitExecutionAdapter` is an optional private composition detail behind
+the repository bindings, not a sixth public Instance role. The maintained
+Vercel composition uses a Git-and-Workbench snapshot because its Function
+runtime has no Git executable. Repository credentials are brokered only into
+that boundary; the separate coding snapshot receives a credential-free bundle.
 
 Vercel is the maintained reference runtime host, not the Instance itself.
 Neon/Postgres is the maintained reference durable StateStore. Both are

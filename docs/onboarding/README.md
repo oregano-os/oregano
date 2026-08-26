@@ -76,8 +76,9 @@ does not replace the Runner. Add exact Agent Bindings for the Company Agents,
 bind one qualified isolated execution adapter and coding-agent profile, and
 complete the repository-provider installation. The hosted GitHub path uses one
 service-owned CompanyOS GitHub App: the customer installs it and selects
-repositories but never creates an App or copies a token. See [Operate the
-Builder](../workbench/guides/operate-builder.md).
+repositories but never creates an App or copies a token. Hosted environments
+without Git also bind a separate trusted Git snapshot that never runs the
+coding agent. See [Operate the Builder](../workbench/guides/operate-builder.md).
 
 The maintained communication binding always uses the logical Connector UID
 `slack/oregano` and the visible Slack Agent name `Oregano`, independently of

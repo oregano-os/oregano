@@ -68,11 +68,12 @@ flowchart LR
     AR --> BA["Builder Agent<br/>normal Runner conversation"]
     BA --> HC["Human confirms exact proposal"]
     HC --> BJ["Durable Builder job"]
-    BJ --> RS["RepositorySourceAdapter<br/>exact base, credential-free checkout"]
-    RS --> EA["BuilderExecutionAdapter<br/>isolated worker host"]
+    BJ --> RS["RepositorySourceAdapter<br/>exact base"]
+    RS --> TG1["Trusted Git execution<br/>credential-brokered source bundle"]
+    TG1 --> EA["BuilderExecutionAdapter<br/>credential-free isolated worker"]
     EA --> ACP["Private ACP v1 session<br/>Claude Code or Codex"]
-    ACP --> DV["Independent diff inspection<br/>and Workbench validation"]
-    DV --> PP["ProposalPublisher<br/>trusted outer identity"]
+    ACP --> TG2["Fresh trusted Git execution<br/>independent Workbench validation"]
+    TG2 --> PP["ProposalPublisher<br/>outer commit and draft identity"]
     PP --> PR["Draft proposal for human review"]
 ```
 
@@ -80,4 +81,6 @@ flowchart LR
 proposal authority belong to Core. Runner transport, execution hosting, coding
 agent profile, repository provider, credentials, and installations are
 independent Company Instance bindings. ACP is private worker transport and is
-not a Core-wide agent runtime contract.
+not a Core-wide agent runtime contract. The maintained hosted GitHub provider
+composes a second private execution adapter for repository-only Git commands;
+that adapter never runs the coding agent and is not a public Core contract.

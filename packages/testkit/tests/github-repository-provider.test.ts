@@ -319,6 +319,7 @@ test("GitHub hosted flow delegates credential-free bundles to a separate trusted
   const root = mkdtempSync(join(tmpdir(), "companyos-github-trusted-git-"));
   const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
   const tokenRequests: Array<Record<string, unknown>> = [];
+  const pullRequests: Array<Record<string, unknown>> = [];
   let tokenSequence = 0;
   const credentials: string[] = [];
   const gitExecution: TrustedGitExecutionAdapter = {
@@ -363,9 +364,22 @@ test("GitHub hosted flow delegates credential-free bundles to a separate trusted
         owner: { login: "acme" },
       });
     }
+    if (url.endsWith("/repos/acme/workspace/git/ref/heads/codex%2Freviewed-workspace")) {
+      return Response.json({
+        ref: "refs/heads/codex/reviewed-workspace",
+        object: { sha: "a".repeat(40) },
+      });
+    }
     if (url.includes("/repos/acme/workspace/pulls?")) return Response.json([]);
     if (url.endsWith("/repos/acme/workspace/pulls") && init?.method === "POST") {
-      return Response.json({ html_url: "https://github.test/acme/workspace/pull/2" });
+      pullRequests.push(JSON.parse(String(init.body)));
+      return Response.json({
+        html_url: "https://github.test/acme/workspace/pull/2",
+        draft: true,
+        head: { sha: "c".repeat(40) },
+        base: { ref: "codex/reviewed-workspace", sha: "a".repeat(40) },
+        created_at: "2026-08-26T10:30:00.000Z",
+      });
     }
     if (url.endsWith("/installation/token") && init?.method === "DELETE") {
       return new Response(null, { status: 204 });
@@ -423,12 +437,14 @@ test("GitHub hosted flow delegates credential-free bundles to a separate trusted
       sourceBundlePath: source.transfer!.path,
       diff,
       branchName: "companyos/builder/trusted-builder-test",
+      targetBranchName: "codex/reviewed-workspace",
       title: "Trusted fixture proposal",
       body: "Checked evidence",
       checked,
     });
     assert.equal(receipt.proposalCommit, "c".repeat(40));
     assert.equal(receipt.proposalUrl, "https://github.test/acme/workspace/pull/2");
+    assert.equal(pullRequests[0]?.base, "codex/reviewed-workspace");
     assert.equal(credentials.length, 2);
     assert.notEqual(credentials[0], credentials[1]);
     assert.deepEqual(tokenRequests.at(-2), { repository_ids: [2002], permissions: { contents: "read" } });

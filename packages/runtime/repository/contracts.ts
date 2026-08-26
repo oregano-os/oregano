@@ -62,6 +62,7 @@ export interface ProposalPublicationRequest {
   readonly sourceBundlePath?: string;
   readonly diff?: string;
   readonly branchName: string;
+  readonly targetBranchName?: string;
   readonly title: string;
   readonly body: string;
   readonly checked: CheckedProposal;
@@ -136,6 +137,9 @@ export function assertProposalPublicationRequest(request: ProposalPublicationReq
   if (!/^companyos\/builder\/[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/.test(request.branchName)) {
     throw new Error("Proposal branch must use the bounded 'companyos/builder/' namespace.");
   }
+  if (request.targetBranchName !== undefined && !isSafeBranchName(request.targetBranchName)) {
+    throw new Error("Proposal targetBranchName is invalid.");
+  }
   if (request.checked.validationPassed !== true || request.checked.checks.length === 0) {
     throw new Error("Proposal publication requires passed validation evidence.");
   }
@@ -148,6 +152,14 @@ export function assertProposalPublicationRequest(request: ProposalPublicationReq
     if (check.status !== "passed" || !check.id) throw new Error("Proposal publication contains a non-passing check.");
     assertSha256(check.evidenceDigest, `check '${check.id}' evidenceDigest`);
   }
+}
+
+function isSafeBranchName(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._/-]{0,180}$/.test(value)
+    && !value.includes("..")
+    && !value.includes("//")
+    && !value.endsWith("/")
+    && !value.split("/").some((segment) => segment.startsWith(".") || segment.endsWith(".lock"));
 }
 
 export function assertGitCommit(value: string, label: string): void {

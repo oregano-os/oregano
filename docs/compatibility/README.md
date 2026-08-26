@@ -59,4 +59,6 @@ The experimental Agent Binding, Repository Source, and Proposal Publisher
 contracts are registered because Company Instance and future provider
 implementations may rely on them. `BuilderExecutionAdapter` and ACP remain
 private implementation boundaries and are deliberately absent from the public
-registry.
+registry. The same is true of `TrustedGitExecutionAdapter`, which is an
+optional hosted repository-provider composition detail rather than a portable
+CompanyOS Package or Instance binding contract.

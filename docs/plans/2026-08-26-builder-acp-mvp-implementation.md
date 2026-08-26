@@ -38,16 +38,17 @@ The qualified worker snapshot was created successfully as
 `snap_DhzyVAHNi9moSZDDJMwSO2wjQMzd` from the pinned base image. It contains ACP
 SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
 
+The separate trusted Git snapshot was created as
+`snap_yWJtTmrkuKxTyv50sjGVDSsSfhLP`. It contains Git and the pinned Workbench,
+never starts Claude Code or Codex, and is independently bound from the coding
+worker snapshot.
+
 The implementation is intentionally not activated in Production. Remaining
 deployment gates are:
 
-1. move deployed source transfer, post-agent diff inspection, and proposal
-   publication into a separate trusted Git execution boundary;
-2. persist and reuse the verified repository binding through the deployed
-   self-service onboarding callback;
-3. bind the snapshot, cron secret, GitHub provider, Agent routes, and updated
+1. bind the snapshots, cron secret, GitHub provider, Agent routes, and updated
    immutable Artifact in an isolated non-production Instance; and
-4. complete one Slack-to-draft-proposal round trip with no merge or deployment.
+2. complete one Slack-to-draft-proposal round trip with no merge or deployment.
 
 The service-owned GitHub App passed live exact-base source and idempotent draft
 publication qualification against one selected private Workspace. Both model
@@ -55,6 +56,10 @@ profiles passed protected staged-deployment qualification with the two
 Sensitive general model variables while the coding processes received only
 fixed placeholders. Vercel Sensitive values remain deliberately non-readable
 after creation and must never be imported into a local qualification process.
+The deployed trusted Git and onboarding path subsequently passed with a
+credential-free bundle, a freshly reread Postgres binding, three independent
+Workbench checks, one outer commit, and repeat-call reuse of stacked draft
+`fylingpete/oregano-hq-companyos#4`.
 
 ## 1. Purpose and approved decisions
 
@@ -736,9 +741,18 @@ bounded checked diff, requests a distinct single-repository publication token,
 requires GitHub to return a draft pull request, and proves that a repeated
 request returns that same proposal. The live supervised pass on 2026-08-26 used
 the service-owned Production App against one selected private Workspace and
-left the exact-base checkout credential-free. It did not export that private
-repository to the coding execution provider. The deployed self-service
-onboarding callback and end-to-end coding transfer remain separate gates.
+left the exact-base checkout credential-free.
+
+A later protected staged-deployment pass invoked the same authenticated
+onboarding handler used by self-service, reread the active binding from
+Postgres, and minted separate single-repository read and publication tokens.
+The trusted Git worker received those credentials only through host-scoped
+network-header transforms, produced a bounded credential-free Git bundle,
+closed network access before handoff, and independently validated the returned
+diff. Publication produced one outer commit and stacked draft
+`fylingpete/oregano-hq-companyos#4`; a repeated request returned the same commit
+and proposal. Neither token entered the coding environment or persisted job
+state.
 
 ### 8.3 ACP profile compatibility
 
@@ -808,12 +822,19 @@ Vercel Functions do not provide the `git` executable used by the local
 repository adapters, trusted diff inspection, and source-bundle preparation.
 The pinned Builder Sandbox snapshot does provide Git. The deployed ACP
 qualification therefore prepares and verifies its fixed fixture through that
-snapshot and can still qualify model brokering independently. The full hosted
-Builder path remains blocked until repository source transfer, trusted
-post-agent inspection, and proposal publication run in a separate trusted Git
-execution boundary. Repository credentials and coding-agent execution must
-remain in different environments; adding Git credentials to the coding Sandbox
-is not an acceptable shortcut.
+snapshot and can still qualify model brokering independently.
+
+The maintained hosted composition now uses a second snapshot through the
+private `TrustedGitExecutionAdapter`. It performs complete source acquisition
+while its host-scoped credential transform is active, produces a Git bundle,
+then runs with deny-all egress for transfer and Workbench validation. The coding
+snapshot receives the bundle but no repository credential or retained remote.
+A fresh trusted Git Sandbox reapplies the independently observed diff, reruns
+the Workbench, creates the canonical outer commit, and pushes only the bounded
+proposal branch before the GitHub provider opens a draft through the API. The
+live pass on 2026-08-26 proved this path and repeat-call idempotency. The
+remaining hosted integration gate is the normal Runner and Slack path into one
+confirmed job in an isolated Instance Artifact.
 
 ## 9. Success and graduation criteria
 

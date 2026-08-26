@@ -183,13 +183,15 @@ evidence, historical prototypes, and production gaps.
   gates passed live qualification on 2026-08-26. Protected staged-deployment
   runs also passed brokered Claude Code and Codex authentication using the
   general Instance model keys without placing either real credential in the
-  coding process. The remaining integration gates are a trusted Git execution
-  boundary for the deployed coordinator, persistence through the deployed
-  repository-onboarding callback, and one representative
-  Slack-to-draft-proposal round trip. Representative cost and ACP-process-crash
-  recovery remain production-readiness measurements. A staged Production build
-  proved that Git is unavailable in the Vercel Function runtime even though it
-  is available inside the pinned Builder Sandbox snapshot.
+  coding process. A second digest-pinned Sandbox snapshot now provides the
+  separate trusted Git execution boundary. A protected staged-deployment run
+  used the real onboarding handler, reread its Postgres binding, transferred a
+  credential-free bundle, passed independent Workbench inspection, validation,
+  and security checks, and created the idempotent stacked draft proposal
+  `fylingpete/oregano-hq-companyos#4`. The remaining activation gate is one
+  representative Slack-to-draft-proposal round trip from an isolated Instance
+  Artifact that actually contains a Builder Agent Binding. Representative cost
+  and ACP-process-crash recovery remain production-readiness measurements.
 
 ## Highest-priority gaps after the first live pilot
 
@@ -217,8 +219,9 @@ evidence, historical prototypes, and production gaps.
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.
-8. Close the three hosted Builder integration gates above in an isolated
-   non-production Instance before enabling a production Builder Agent Binding.
+8. Build an isolated non-production Artifact with an exact Builder Agent
+   Binding and close the remaining Slack-to-draft-proposal gate before enabling
+   any production Builder Agent Binding.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

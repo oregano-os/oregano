@@ -243,6 +243,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
       binding.providerRepositoryId,
       { contents: "write", pull_requests: "write" },
       async (token) => {
+        await this.#assertTargetBranch(token, binding, request);
         const existingPullRequest = await this.#findPullRequest(token, binding, request.branchName);
         if (existingPullRequest) return receiptFromPullRequest(this, request, existingPullRequest);
 
@@ -278,21 +279,15 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
               title: request.title,
               body: request.body,
               head: request.branchName,
-              base: binding.defaultBranch,
+              base: request.targetBranchName ?? binding.defaultBranch,
               draft: true,
             },
           );
-          return {
-            schemaVersion: 1,
-            jobId: request.jobId,
-            provider: { id: this.id, version: this.version },
-            repositoryId: request.repositoryId,
-            baseCommit: request.baseCommit,
-            proposalCommit,
-            branchName: request.branchName,
-            proposalUrl: String(pullRequest.html_url),
-            publishedAt: this.#now().toISOString(),
-          };
+          const receipt = receiptFromPullRequest(this, request, pullRequest);
+          if (receipt.proposalCommit !== proposalCommit) {
+            throw new Error("GitHub proposal returned a different outer commit.");
+          }
+          return receipt;
         } finally {
           await rm(trusted, { recursive: true, force: true });
         }
@@ -416,6 +411,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
       binding.providerRepositoryId,
       { contents: "write", pull_requests: "write" },
       async (token) => {
+        await this.#assertTargetBranch(token, binding, request);
         const existingPullRequest = await this.#findPullRequest(token, binding, request.branchName);
         if (existingPullRequest) return receiptFromPullRequest(this, request, existingPullRequest);
         const result = await gitExecution.publish({
@@ -437,23 +433,36 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
             title: request.title,
             body: request.body,
             head: request.branchName,
-            base: binding.defaultBranch,
+            base: request.targetBranchName ?? binding.defaultBranch,
             draft: true,
           },
         );
-        return {
-          schemaVersion: 1,
-          jobId: request.jobId,
-          provider: { id: this.id, version: this.version },
-          repositoryId: request.repositoryId,
-          baseCommit: request.baseCommit,
-          proposalCommit: result.proposalCommit,
-          branchName: request.branchName,
-          proposalUrl: String(pullRequest.html_url),
-          publishedAt: this.#now().toISOString(),
-        };
+        const receipt = receiptFromPullRequest(this, request, pullRequest);
+        if (receipt.proposalCommit !== result.proposalCommit) {
+          throw new Error("GitHub proposal returned a different trusted outer commit.");
+        }
+        return receipt;
       },
     );
+  }
+
+  async #assertTargetBranch(
+    token: string,
+    binding: RepositoryInstallationBinding,
+    request: ProposalPublicationRequest,
+  ): Promise<void> {
+    if (!request.targetBranchName) return;
+    const reference = await this.#installationRequest<Record<string, any>>(
+      token,
+      "GET",
+      `/repos/${encodeURIComponent(binding.owner)}/${encodeURIComponent(binding.name)}/git/ref/heads/${encodeURIComponent(request.targetBranchName)}`,
+    );
+    if (
+      String(reference.ref ?? "") !== `refs/heads/${request.targetBranchName}`
+      || String(reference.object?.sha ?? "") !== request.baseCommit
+    ) {
+      throw new Error("GitHub proposal target branch does not match the exact validated base commit.");
+    }
   }
 
   async #findPullRequest(
@@ -616,6 +625,12 @@ function receiptFromPullRequest(
   const proposalCommit = String(pullRequest.head?.sha ?? "");
   if (!/^[0-9a-f]{40}$/.test(proposalCommit)) {
     throw new Error("Existing GitHub pull request has no exact proposal commit.");
+  }
+  if (request.targetBranchName && String(pullRequest.base?.ref ?? "") !== request.targetBranchName) {
+    throw new Error("GitHub proposal targets a different branch than the validated request.");
+  }
+  if (request.targetBranchName && String(pullRequest.base?.sha ?? "") !== request.baseCommit) {
+    throw new Error("GitHub proposal target moved from the exact validated base commit.");
   }
   return {
     schemaVersion: 1,

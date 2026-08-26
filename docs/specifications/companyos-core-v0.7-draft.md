@@ -275,7 +275,10 @@ Transitions and leases MUST be guarded and recoverable. Source materialization,
 coding execution, diff validation, and proposal publication MUST be separate
 steps. Repository credentials MUST NOT enter the coding process. Publication
 MUST use independently checked diff evidence through a trusted outer
-publisher, and the Builder MUST NOT merge or deploy its proposal.
+publisher, and the Builder MUST NOT merge or deploy its proposal. A hosted
+repository adapter MAY delegate Git commands to a private trusted execution
+boundary, but that boundary MUST NOT run the coding agent and MUST transfer
+only bounded credential-free source into coding.
 
 ## 10. Company Instance and deployment provenance
 
