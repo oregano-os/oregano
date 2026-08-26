@@ -126,6 +126,7 @@ export async function qualifyDeployedAcp(
       workerStopReason: (worker.evidence as Record<string, unknown> | undefined)?.stopReason ?? "unknown",
       workerPermissionRequests: (worker.evidence as Record<string, unknown> | undefined)?.permissionRequests ?? "unknown",
       workerApprovedPermissions: (worker.evidence as Record<string, unknown> | undefined)?.approvedPermissions ?? "unknown",
+      workerPermissionEvidence: (worker.evidence as Record<string, unknown> | undefined)?.permissionEvidence ?? [],
     };
     if (Object.entries(verification).some(([key, value]) => [
       "exactBase",
