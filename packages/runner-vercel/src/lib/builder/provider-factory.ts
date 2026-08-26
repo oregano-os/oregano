@@ -14,7 +14,7 @@ let githubProvider: GitHubAppRepositoryProvider | undefined;
 let builderService: BuilderService | undefined;
 let trustedGitExecution: VercelSandboxTrustedGitExecutionAdapter | undefined;
 
-function getTrustedGitExecution(): VercelSandboxTrustedGitExecutionAdapter {
+export function getTrustedGitExecution(): VercelSandboxTrustedGitExecutionAdapter {
   trustedGitExecution ??= new VercelSandboxTrustedGitExecutionAdapter();
   return trustedGitExecution;
 }
