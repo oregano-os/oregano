@@ -44,6 +44,7 @@ export async function qualifyDeployedAcp(
   const broker = createVercelModelCredentialBinding(profile.id, credential);
   let sandbox: Sandbox | undefined;
   let phase = "start_sandbox";
+  let safeDetail = "";
   try {
     sandbox = await Sandbox.create({
       name: `companyos-deployed-auth-${profile.id}-${randomUUID()}`,
@@ -115,13 +116,16 @@ export async function qualifyDeployedAcp(
     const diff = await runSandboxGit(sandbox, WORKSPACE_PATH, [
       "diff", "--binary", "--no-ext-diff", baseCommit, "--",
     ]);
-    if (
-      !/^[0-9a-f]{40}$/.test(baseCommit)
-      || content !== `changed-by-${profile.id}-in-sandbox\n`
-      || status !== " M fixture.txt\n"
-      || !diff.includes("diff --git a/fixture.txt b/fixture.txt")
-      || !diff.includes(`+changed-by-${profile.id}-in-sandbox`)
-    ) {
+    const verification = {
+      exactBase: /^[0-9a-f]{40}$/.test(baseCommit),
+      exactContent: content === `changed-by-${profile.id}-in-sandbox\n`,
+      status: status.trimEnd(),
+      oneExpectedPath: status === " M fixture.txt\n",
+      expectedDiffHeader: diff.includes("diff --git a/fixture.txt b/fixture.txt"),
+      expectedDiffAddition: diff.includes(`+changed-by-${profile.id}-in-sandbox`),
+    };
+    if (Object.entries(verification).some(([key, value]) => key !== "status" && value !== true)) {
+      safeDetail = JSON.stringify(verification);
       throw new Error("qualification result differs from the bounded expected change");
     }
     return {
@@ -142,7 +146,7 @@ export async function qualifyDeployedAcp(
       realCredentialSentToCodingProcess: false,
     };
   } catch {
-    throw new Error(`Deployed ACP qualification failed during '${phase}'.`);
+    throw new Error(`Deployed ACP qualification failed during '${phase}'.${safeDetail ? ` ${safeDetail}` : ""}`);
   } finally {
     if (sandbox) {
       await sandbox.updateNetworkPolicy("deny-all").catch(() => undefined);
