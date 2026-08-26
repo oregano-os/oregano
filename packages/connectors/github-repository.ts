@@ -158,7 +158,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
       binding.providerRepositoryId,
       { contents: "read" },
       async (token) => {
-        const credentialEnvironment = gitCredentialEnvironment(token);
+        const credentialEnvironment = gitHubGitCredentialEnvironment(token);
         await runGit(dirname(request.destinationPath), [
           "clone",
           "--no-checkout",
@@ -226,7 +226,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
 
         const trusted = await mkdtemp(join(tmpdir(), "companyos-github-publisher-"));
         try {
-          const credentialEnvironment = gitCredentialEnvironment(token);
+          const credentialEnvironment = gitHubGitCredentialEnvironment(token);
           await runGit(trusted, [
             "clone",
             "--no-checkout",
@@ -448,11 +448,12 @@ export function createGitHubAppConfigurationFromEnvironment(
   return { appId, privateKey, serviceEnvironment };
 }
 
-function gitCredentialEnvironment(token: string): Record<string, string> {
+/** @internal Exported only so the credential boundary can be regression tested. */
+export function gitHubGitCredentialEnvironment(token: string): Record<string, string> {
   return {
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: "http.extraHeader",
-    GIT_CONFIG_VALUE_0: `Authorization: Bearer ${token}`,
+    GIT_CONFIG_VALUE_0: `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`,
   };
 }
 
@@ -475,6 +476,9 @@ function receiptFromPullRequest(
   request: ProposalPublicationRequest,
   pullRequest: Record<string, any>,
 ): ProposalPublicationReceipt {
+  if (pullRequest.draft !== true) {
+    throw new Error("GitHub proposal is not a draft pull request.");
+  }
   const proposalCommit = String(pullRequest.head?.sha ?? "");
   if (!/^[0-9a-f]{40}$/.test(proposalCommit)) {
     throw new Error("Existing GitHub pull request has no exact proposal commit.");

@@ -101,6 +101,21 @@ Store its returned non-secret snapshot ID as
 supported only when the exact ACP and execution-adapter combination passes.
 Never silently fall back from ACP, Claude Code, or Codex to another runtime.
 
+Qualify a selected private repository with the exact repository identity,
+numeric provider repository and installation IDs, exact base commit, App ID,
+service environment, and one private-key source:
+
+```bash
+node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-private-repository.ts
+```
+
+The harness performs a credential-free exact-base materialization. Set
+`COMPANYOS_GITHUB_QUALIFICATION_BRANCH` to a fresh
+`companyos/builder/...` branch only when the operator also authorizes the live
+publication check. That check may create one unmerged draft proposal containing
+only the bounded qualification document and must return the same proposal when
+repeated.
+
 ## Operate a proposal
 
 1. Address the Builder through its bound channel.
@@ -139,11 +154,12 @@ inspection, and trusted outer publication. Basic live Vercel Sandbox lifecycle,
 duplicate recovery, timeout, and credential-transform mechanics are also
 proved.
 
-The maintained hosted profile remains unqualified until:
+The digest-pinned worker snapshot and the service-owned GitHub App source and
+draft-publication path passed live qualification on 2026-08-26. The maintained
+hosted profile remains unqualified until:
 
 - both general model keys pass brokered live ACP jobs in the target environment;
-- a service-owned GitHub App installation passes the exact private-repository
-  source and draft-publication gate;
-- the worker snapshot is created and pinned in that environment; and
+- the deployed onboarding callback persists and reuses the verified repository
+  installation binding; and
 - one representative Slack-to-draft-proposal round trip succeeds without merge
   or deployment.

@@ -79,5 +79,4 @@ rollback: >-
   database, deployment, or external provider state is changed.
 open_decisions:
   - Whether both pinned ACP profiles support brokered authentication without the real provider credential entering the worker environment.
-  - Whether the provider-neutral RepositorySourceAdapter and service-owned GitHub App installation profile materialize an exact private revision without any App or installation credential entering coding-agent execution.
   - Whether model-backed representative Builder jobs stay within the required duration and cost envelope and recover cleanly from a process crash during an ACP prompt.

@@ -5,7 +5,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { GitHubAppRepositoryProvider } from "../../connectors/github-repository.ts";
+import {
+  GitHubAppRepositoryProvider,
+  gitHubGitCredentialEnvironment,
+} from "../../connectors/github-repository.ts";
 import {
   checkedProposalFromInspection,
   inspectProposalWorkspace,
@@ -60,6 +63,18 @@ function providerFixture() {
   });
   return { provider, installations, requests };
 }
+
+test("GitHub Git authentication uses the installation token as an HTTP Basic password", () => {
+  const token = "short-lived-installation-token";
+  const environment = gitHubGitCredentialEnvironment(token);
+  assert.equal(environment.GIT_CONFIG_COUNT, "1");
+  assert.equal(environment.GIT_CONFIG_KEY_0, "http.extraHeader");
+  assert.equal(
+    environment.GIT_CONFIG_VALUE_0,
+    `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`,
+  );
+  assert.equal(environment.GIT_CONFIG_VALUE_0?.includes(token), false);
+});
 
 test("GitHub App onboarding verifies one selected repository and stores no token", async () => {
   const fixture = providerFixture();
@@ -207,6 +222,7 @@ test("GitHub publication uses a separate narrow token and one trusted outer comm
       ).trim();
       return Response.json({
         html_url: "https://github.test/acme/workspace/pull/1",
+        draft: true,
         head: { sha: proposalCommit },
         created_at: "2026-08-26T10:30:00.000Z",
       });

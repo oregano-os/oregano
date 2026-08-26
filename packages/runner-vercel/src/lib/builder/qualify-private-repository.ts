@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -6,6 +6,11 @@ import {
   type GitHubAppConfiguration,
 } from "../../../../connectors/github-repository.ts";
 import { runGit } from "../../../../runtime/repository/git.ts";
+import {
+  checkedProposalFromInspection,
+  inspectProposalWorkspace,
+  sha256,
+} from "../../../../runtime/repository/proposal-inspection.ts";
 import { InMemoryRepositoryInstallationStore } from "../../../../testkit/adapter/in-memory-repository-installations.ts";
 
 const repositoryId = requireEnvironment("COMPANYOS_GITHUB_REPOSITORY");
@@ -59,6 +64,7 @@ try {
   if (head !== baseCommit || remotes !== "" || credentialPattern.test(configuration)) {
     throw new Error("GitHub source adapter did not produce the exact credential-free checkout.");
   }
+  const publication = await qualifyPublication(provider, binding.bindingId, workspacePath);
   process.stdout.write(`${JSON.stringify({
     repositoryId,
     providerRepositoryId,
@@ -71,9 +77,72 @@ try {
     localConfigurationCredentialFree: true,
     installationTokenSentToCodingEnvironment: false,
     privateRepositoryExportedToExecutionProvider: false,
+    ...(publication ? { publication } : {}),
   }, null, 2)}\n`);
 } finally {
   await rm(root, { recursive: true, force: true });
+}
+
+async function qualifyPublication(
+  provider: GitHubAppRepositoryProvider,
+  bindingId: string,
+  workspacePath: string,
+) {
+  const branchName = process.env.COMPANYOS_GITHUB_QUALIFICATION_BRANCH;
+  if (!branchName) return undefined;
+  const qualificationPath = "docs/qualification/companyos-builder-repository-provider.md";
+  await mkdir(join(workspacePath, "docs", "qualification"), { recursive: true });
+  await writeFile(join(workspacePath, qualificationPath), [
+    "# CompanyOS Builder repository-provider qualification",
+    "",
+    "This proposal was created by the CompanyOS Stage-0 qualification harness.",
+    "It proves exact-base publication through a short-lived, single-repository",
+    "GitHub App installation token. It must remain unmerged.",
+    "",
+    `Exact base commit: \`${baseCommit}\``,
+    "",
+  ].join("\n"), { flag: "wx" });
+  const inspection = await inspectProposalWorkspace(workspacePath, baseCommit);
+  if (
+    inspection.changedPaths.length !== 1
+    || inspection.changedPaths[0] !== qualificationPath
+  ) {
+    throw new Error("Private-repository publication qualification produced an unexpected diff.");
+  }
+  const checked = checkedProposalFromInspection(inspection, [{
+    id: "qualification.repository-provider",
+    status: "passed",
+    evidenceDigest: sha256(JSON.stringify({
+      baseCommit,
+      changedPaths: inspection.changedPaths,
+      diffDigest: inspection.diffDigest,
+    })),
+  }]);
+  const receipt = await provider.publish({
+    schemaVersion: 1,
+    jobId: `repository-qualification-${baseCommit.slice(0, 12)}`,
+    requestId: `qualification-${baseCommit}`,
+    instanceId: "qualification",
+    bindingId,
+    repositoryId,
+    baseCommit,
+    workspacePath,
+    branchName,
+    title: "Qualify CompanyOS Builder repository publication",
+    body: [
+      "Stage-0 qualification only.",
+      "",
+      "This draft proves checked proposal publication through the service-owned GitHub App.",
+      "It must not be merged.",
+    ].join("\n"),
+    checked,
+  });
+  return {
+    ...receipt,
+    draftRequired: true,
+    requestedPermissions: { contents: "write", pull_requests: "write" },
+    requestedRepositoryScope: "single-repository",
+  };
 }
 
 function requireEnvironment(name: string): string {

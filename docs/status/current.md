@@ -175,11 +175,13 @@ evidence, historical prototypes, and production gaps.
 - Blueprint plan/apply/lock/update/remove, remote Package sources, the open
   Registry, signing, publisher identity, advisories, revocation, and
   Marketplace UX remain future stages.
-- The hosted Builder profile is not yet qualified or activated. Its remaining
-  gates are brokered live Claude Code and Codex authentication using the
-  general Instance model keys, creation and pinning of the worker snapshot, a
-  service-owned GitHub App installation against a real private Workspace, and
-  one representative Slack-to-draft-proposal round trip. Sensitive Vercel
+- The hosted Builder profile is not yet qualified or activated. A digest-pinned
+  worker snapshot and the service-owned GitHub App exact-base source,
+  credential isolation, checked draft publication, and publication idempotency
+  gates passed live qualification on 2026-08-26. The remaining gates are
+  brokered live Claude Code and Codex authentication using the general Instance
+  model keys, persistence through the deployed repository-onboarding callback,
+  and one representative Slack-to-draft-proposal round trip. Sensitive Vercel
   variables are intentionally non-readable outside a deployment; no gate may
   broaden a local process to unrelated Production secrets merely to work around
   that boundary.

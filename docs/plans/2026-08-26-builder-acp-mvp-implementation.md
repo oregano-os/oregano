@@ -722,10 +722,14 @@ The Stage-0 private-repository harness now invokes the implemented GitHub App
 provider through `RepositorySourceAdapter`, verifies the installation and exact
 selected repository, requests a single-repository read token, materializes the
 exact base, revokes the token, and checks the resulting local Git configuration
-and remotes. It deliberately does not export a real private repository to an
-execution provider without separate authorization. The hosted product gate
-still requires a service-owned App installation created by the real onboarding
-flow and a separately approved end-to-end coding transfer.
+and remotes. With a separately authorized publication branch it creates one
+bounded checked diff, requests a distinct single-repository publication token,
+requires GitHub to return a draft pull request, and proves that a repeated
+request returns that same proposal. The live supervised pass on 2026-08-26 used
+the service-owned Production App against one selected private Workspace and
+left the exact-base checkout credential-free. It did not export that private
+repository to the coding execution provider. The deployed self-service
+onboarding callback and end-to-end coding transfer remain separate gates.
 
 ### 8.3 ACP profile compatibility
 
