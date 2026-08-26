@@ -4,6 +4,10 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   outputFileTracingIncludes: {
+    "/api/builder/qualification": [
+      "../runtime/**/*",
+      "../builder-worker/**/*"
+    ],
     "/api/builder/worker": [
       "../cli/src/**/*",
       "../capabilities/**/*",

@@ -116,6 +116,20 @@ publication check. That check may create one unmerged draft proposal containing
 only the bounded qualification document and must return the same proposal when
 repeated.
 
+When model keys are intentionally non-readable outside Vercel, create a staged
+Production build without assigning any Production domain:
+
+```bash
+vercel --prod --skip-domain
+```
+
+Before invoking `/api/builder/qualification`, prove that an unauthenticated
+request to the generated deployment URL is denied. Invoke the protected URL
+through `vercel curl` once for `claude-code` and once for `codex`. The endpoint
+accepts no prompt or repository input, runs one fixed fixture through the
+pinned worker snapshot, and is unavailable through the Production alias. Delete
+the staged deployment after retaining its non-secret evidence.
+
 ## Operate a proposal
 
 1. Address the Builder through its bound channel.

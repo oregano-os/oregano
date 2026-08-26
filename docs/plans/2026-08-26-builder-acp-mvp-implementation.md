@@ -765,12 +765,15 @@ It installs only the exact ACP profile in a disposable Sandbox, gives the
 coding process a fixed placeholder credential, and configures a host- and
 request-scoped Vercel header transform that holds the real credential outside
 the process. It rejects missing external qualification inputs before creating
-provider resources. The general `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
+provider resources. A deployed variant uses the pinned worker snapshot and one
+fixed repository fixture. It is addressable only through the exact generated
+URL of a staged Production build, accepts only an exact profile ID, and rejects
+the Production alias. The general `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
 bindings now exist as Sensitive Production variables, but Vercel intentionally
 does not return their values outside a deployment. Their live passes therefore
-remain open until the harness runs in an isolated target deployment; importing
-the complete unrelated Production environment into a local process is not an
-acceptable shortcut.
+remain open until the staged deployment proves platform protection and runs the
+two bounded requests; importing the complete unrelated Production environment
+into a local process is not an acceptable shortcut.
 
 ## 9. Success and graduation criteria
 
