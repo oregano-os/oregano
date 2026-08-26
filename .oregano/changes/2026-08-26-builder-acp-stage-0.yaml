@@ -47,6 +47,7 @@ validation:
   - pnpm docs:check
   - pnpm typecheck
   - pnpm runner:typecheck
+  - pnpm runner:build
   - node --experimental-strip-types --test packages/testkit/tests/builder-execution.test.ts
   - node --experimental-strip-types packages/runtime/builder/qualify-acp.ts claude-code
   - node --experimental-strip-types packages/runtime/builder/qualify-acp.ts codex

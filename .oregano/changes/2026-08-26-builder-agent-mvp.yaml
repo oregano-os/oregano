@@ -80,6 +80,7 @@ validation:
   - pnpm docs:check
   - pnpm check
   - pnpm builder:check
+  - pnpm runner:build
   - node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts claude-code
   - node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts codex
   - git diff --check
