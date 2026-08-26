@@ -123,8 +123,17 @@ export async function qualifyDeployedAcp(
       oneExpectedPath: status === " M fixture.txt\n",
       expectedDiffHeader: diff.includes("diff --git a/fixture.txt b/fixture.txt"),
       expectedDiffAddition: diff.includes(`+changed-by-${profile.id}-in-sandbox`),
+      workerStopReason: (worker.evidence as Record<string, unknown> | undefined)?.stopReason ?? "unknown",
+      workerPermissionRequests: (worker.evidence as Record<string, unknown> | undefined)?.permissionRequests ?? "unknown",
+      workerApprovedPermissions: (worker.evidence as Record<string, unknown> | undefined)?.approvedPermissions ?? "unknown",
     };
-    if (Object.entries(verification).some(([key, value]) => key !== "status" && value !== true)) {
+    if (Object.entries(verification).some(([key, value]) => [
+      "exactBase",
+      "exactContent",
+      "oneExpectedPath",
+      "expectedDiffHeader",
+      "expectedDiffAddition",
+    ].includes(key) && value !== true)) {
       safeDetail = JSON.stringify(verification);
       throw new Error("qualification result differs from the bounded expected change");
     }

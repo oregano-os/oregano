@@ -764,8 +764,12 @@ The first deployed Codex probe found a second profile difference. Supplying
 `CODEX_API_KEY` does not itself select API-key authentication in
 `codex-acp`; the profile must also provide the fixed non-secret
 `DEFAULT_AUTH_REQUEST` for method `api-key`. CompanyOS now pins that request in
-the Codex worker environment. This is profile configuration, not a new ACP or
-Builder contract, and it carries no credential value.
+the Codex worker environment. The deployed probe also proved that relying on an
+implementation default can produce a successful but read-only turn, so the
+Codex profile now requires the advertised ACP session mode `agent` explicitly.
+The Sandbox and the one-shot workspace permission policy remain the actual
+write boundaries. These are profile settings, not new ACP or Builder contracts,
+and neither carries a credential value.
 
 The repository also contains a fail-closed live model qualification harness.
 It installs only the exact ACP profile in a disposable Sandbox, gives the

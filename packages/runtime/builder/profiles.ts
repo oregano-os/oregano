@@ -6,6 +6,7 @@ export interface BuilderAcpProfile {
   readonly packageName: string;
   readonly version: string;
   readonly binaryName: string;
+  readonly sessionMode?: "agent";
 }
 
 export const BUILDER_ACP_PROFILES: Readonly<Record<BuilderAcpProfileId, BuilderAcpProfile>> = Object.freeze({
@@ -22,6 +23,7 @@ export const BUILDER_ACP_PROFILES: Readonly<Record<BuilderAcpProfileId, BuilderA
     packageName: "@agentclientprotocol/codex-acp",
     version: "1.6.2",
     binaryName: "codex-acp",
+    sessionMode: "agent",
   }),
 });
 

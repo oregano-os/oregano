@@ -32,6 +32,7 @@ export interface BuilderAcpRunEvidence {
     readonly id: string;
     readonly packageName: string;
     readonly version: string;
+    readonly sessionMode?: string;
   };
   readonly agent: {
     readonly name: string;
@@ -161,6 +162,18 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
       throw new Error(`ACP protocol mismatch: received ${initialized.protocolVersion}.`);
     }
     return context.buildSession({ cwd: request.cwd, mcpServers: [] }).withSession(async (session) => {
+      if (request.launch.profile.sessionMode) {
+        const available = session.modes?.availableModes ?? [];
+        if (!available.some((mode) => mode.id === request.launch.profile.sessionMode)) {
+          throw new Error(
+            `Builder ACP profile '${request.launch.profile.id}' did not advertise required session mode '${request.launch.profile.sessionMode}'.`,
+          );
+        }
+        await context.request(acp.methods.agent.session.setMode, {
+          sessionId: session.sessionId,
+          modeId: request.launch.profile.sessionMode,
+        });
+      }
       cancelActiveSession = () => context.notify(acp.methods.agent.session.cancel, { sessionId: session.sessionId });
       void session.prompt(request.prompt).catch(() => undefined);
       for (;;) {
@@ -172,6 +185,7 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
               id: request.launch.profile.id,
               packageName: request.launch.profile.packageName,
               version: request.launch.profile.version,
+              sessionMode: request.launch.profile.sessionMode,
             },
             agent: {
               name: initialized.agentInfo?.name ?? "unknown",

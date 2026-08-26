@@ -115,6 +115,7 @@ test("execution state survives coordinator replacement and duplicate delivery", 
 test("ACP profile selection is allowlisted and exactly pinned", () => {
   assert.equal(resolveBuilderAcpProfile("claude-code").version, "0.70.0");
   assert.equal(resolveBuilderAcpProfile("codex").version, "1.6.2");
+  assert.equal(resolveBuilderAcpProfile("codex").sessionMode, "agent");
   assert.throws(() => resolveBuilderAcpProfile("latest-agent"), /Unsupported Builder ACP profile/);
   assert.throws(
     () => assertBuilderAcpProfilePin({ ...BUILDER_ACP_PROFILES.codex, version: "^1.6.2" }),
@@ -136,6 +137,7 @@ test("ACP client probes the exact implementation and denies permissions by defau
     });
     assert.equal(result.protocolVersion, 1);
     assert.equal(result.profile.version, "1.6.2");
+    assert.equal(result.profile.sessionMode, "agent");
     assert.equal(result.permissionRequests, 1);
     assert.equal(result.approvedPermissions, 0);
     assert.equal(result.deniedPermissions, 1);

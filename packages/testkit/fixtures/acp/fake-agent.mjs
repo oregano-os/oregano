@@ -22,8 +22,23 @@ const app = acp
   }))
   .onRequest(acp.methods.agent.session.new, ({ params }) => {
     const sessionId = randomUUID();
-    sessions.set(sessionId, { cwd: params.cwd, controller: undefined });
-    return { sessionId };
+    sessions.set(sessionId, { cwd: params.cwd, controller: undefined, mode: "read-only" });
+    return {
+      sessionId,
+      modes: {
+        currentModeId: "read-only",
+        availableModes: [
+          { id: "read-only", name: "Read-only" },
+          { id: "agent", name: "Agent" },
+        ],
+      },
+    };
+  })
+  .onRequest(acp.methods.agent.session.setMode, ({ params }) => {
+    const session = sessions.get(params.sessionId);
+    if (!session || params.modeId !== "agent") throw new Error("Unsupported test session mode.");
+    session.mode = params.modeId;
+    return {};
   })
   .onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
     const session = sessions.get(params.sessionId);
@@ -74,7 +89,9 @@ const app = acp
         { optionId: "reject-once", name: "Reject", kind: "reject_once" },
       ],
     });
-    const allowed = permission.outcome.outcome === "selected" && permission.outcome.optionId === "allow-once";
+    const allowed = session.mode === "agent"
+      && permission.outcome.outcome === "selected"
+      && permission.outcome.optionId === "allow-once";
     if (allowed) await writeFile(target, "changed-by-fake-acp-agent\n", "utf8");
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,
