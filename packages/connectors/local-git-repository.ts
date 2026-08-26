@@ -113,6 +113,7 @@ export class LocalGitProposalPublisher implements ProposalPublisher {
   async publish(request: ProposalPublicationRequest): Promise<ProposalPublicationReceipt> {
     assertProposalPublicationRequest(request);
     const binding = this.binding(request.bindingId, request.repositoryId);
+    if (!request.workspacePath) throw new Error("Local Git publication requires a materialized workspace.");
     const inspection = await inspectProposalWorkspace(request.workspacePath, request.baseCommit);
     if (inspection.diffDigest !== request.checked.validatedDiffDigest) {
       throw new Error("Proposal diff changed after validation.");

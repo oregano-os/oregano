@@ -7,15 +7,25 @@ import {
   sha256,
 } from "../repository/proposal-inspection.ts";
 import type { CheckedProposal } from "../repository/contracts.ts";
+import type { TrustedGitExecutionAdapter } from "../repository/trusted-git-execution.ts";
 
 const execFileAsync = promisify(execFile);
 
 export interface BuilderProposalValidator {
-  validate(args: {
-    job: BuilderJob;
-    workspacePath: string;
-  }): Promise<CheckedProposal>;
+  validate(args: BuilderProposalValidationRequest): Promise<CheckedProposal>;
 }
+
+export type BuilderProposalValidationRequest = {
+  readonly job: BuilderJob;
+  readonly workspacePath: string;
+  readonly sourceBundlePath?: never;
+  readonly diff?: never;
+} | {
+  readonly job: BuilderJob;
+  readonly workspacePath?: never;
+  readonly sourceBundlePath: string;
+  readonly diff: string;
+};
 
 export class CompanyOSWorkbenchProposalValidator implements BuilderProposalValidator {
   readonly #cliPath: string;
@@ -26,7 +36,10 @@ export class CompanyOSWorkbenchProposalValidator implements BuilderProposalValid
     this.#nodeExecutable = args.nodeExecutable ?? process.execPath;
   }
 
-  async validate(args: { job: BuilderJob; workspacePath: string }): Promise<CheckedProposal> {
+  async validate(args: BuilderProposalValidationRequest): Promise<CheckedProposal> {
+    if (!args.workspacePath) {
+      throw new Error("Local Workbench proposal validation requires a materialized workspace.");
+    }
     const inspection = await inspectProposalWorkspace(args.workspacePath, args.job.baseCommit);
     const checks = [];
     for (const command of [
@@ -52,5 +65,25 @@ export class CompanyOSWorkbenchProposalValidator implements BuilderProposalValid
       });
     }
     return checkedProposalFromInspection(inspection, checks);
+  }
+}
+
+export class TrustedGitProposalValidator implements BuilderProposalValidator {
+  readonly #gitExecution: TrustedGitExecutionAdapter;
+
+  constructor(gitExecution: TrustedGitExecutionAdapter) {
+    this.#gitExecution = gitExecution;
+  }
+
+  async validate(args: BuilderProposalValidationRequest): Promise<CheckedProposal> {
+    if (!args.sourceBundlePath || !args.diff) {
+      throw new Error("Trusted Git proposal validation requires a source bundle and diff.");
+    }
+    return await this.#gitExecution.validate({
+      operationId: `${args.job.jobId}:validate`,
+      sourceBundlePath: args.sourceBundlePath,
+      baseCommit: args.job.baseCommit,
+      diff: args.diff,
+    });
   }
 }

@@ -143,7 +143,9 @@ export class BuilderService {
           source: {
             repository: job.repositoryId,
             baseCommit: job.baseCommit,
-            workspacePath,
+            ...(sourceReceipt.transfer?.format === "git-bundle"
+              ? { sourceBundlePath: sourceReceipt.transfer.path }
+              : { workspacePath }),
             contentDigest: sourceReceipt.contentDigest,
           },
           operation: {
@@ -195,8 +197,14 @@ export class BuilderService {
       if (sha256Text(execution.artifacts.diff) !== execution.artifacts.diffDigest) {
         throw new Error("Builder execution diff does not match its transfer digest.");
       }
-      await applyGitPatch(workspacePath, execution.artifacts.diff);
-      const independentlyObserved = await inspectProposalWorkspace(workspacePath, job.baseCommit);
+      const sourceBundlePath = sourceReceipt.transfer?.format === "git-bundle"
+        ? sourceReceipt.transfer.path
+        : undefined;
+      let independentlyObserved: Awaited<ReturnType<typeof inspectProposalWorkspace>> | undefined;
+      if (!sourceBundlePath) {
+        await applyGitPatch(workspacePath, execution.artifacts.diff);
+        independentlyObserved = await inspectProposalWorkspace(workspacePath, job.baseCommit);
+      }
 
       if (job.state === "executing") {
         job = await this.#transition(lease, job, "validating", {
@@ -209,13 +217,22 @@ export class BuilderService {
               finishedAt: execution.finishedAt,
               evidence: execution.evidence,
               transferDiffDigest: execution.artifacts.diffDigest,
-              observedDiffDigest: independentlyObserved.diffDigest,
+              ...(independentlyObserved ? { observedDiffDigest: independentlyObserved.diffDigest } : {}),
             },
           }),
         });
       }
 
-      const checked = await this.#validator.validate({ job, workspacePath });
+      const checked = sourceBundlePath
+        ? await this.#validator.validate({
+          job,
+          sourceBundlePath,
+          diff: execution.artifacts.diff,
+        })
+        : await this.#validator.validate({ job, workspacePath });
+      if (sourceBundlePath && checked.validatedDiffDigest !== execution.artifacts.diffDigest) {
+        throw new Error("Trusted proposal validation observed a different execution diff digest.");
+      }
       if (job.state === "validating") {
         job = await this.#transition(lease, job, "publishing", {
           evidence: mergeEvidence(job.evidence, {
@@ -223,7 +240,7 @@ export class BuilderService {
             execution: {
               adapter: handle.adapter,
               transferDiffDigest: execution.artifacts.diffDigest,
-              observedDiffDigest: independentlyObserved.diffDigest,
+              observedDiffDigest: checked.validatedDiffDigest,
             },
           }),
         });
@@ -236,7 +253,9 @@ export class BuilderService {
         bindingId: job.proposalPublisherBindingId,
         repositoryId: job.repositoryId,
         baseCommit: job.baseCommit,
-        workspacePath,
+        ...(sourceBundlePath
+          ? { sourceBundlePath, diff: execution.artifacts.diff }
+          : { workspacePath }),
         branchName: `companyos/builder/${job.jobId}`,
         title: `CompanyOS Builder: ${boundedTitle(job.objective)}`,
         body: proposalBody(job, checked),

@@ -274,7 +274,7 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
 
   async #ensureWorkerLaunched(record: VercelSandboxRecord): Promise<void> {
     const request = record.request;
-    if (!request?.operation || !request.source.workspacePath || !request.source.contentDigest) return;
+    if (!request?.operation || !request.source.contentDigest) return;
     await this.#loadRecoveredWorker(record);
     if (record.commandId) return;
     const profile = resolveBuilderAcpProfile(request.codingAgent.profileId);
@@ -292,11 +292,9 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
     const temporary = await mkdtemp(join(tmpdir(), "companyos-builder-bundle-"));
     try {
       const bundlePath = join(temporary, "repository.bundle");
-      await execFileAsync("git", ["bundle", "create", bundlePath, "--all"], {
-        cwd: request.source.workspacePath,
-        env: { ...process.env, PATH: process.env.PATH ?? "/usr/bin:/bin", LANG: "C" },
-      });
-      const bundle = await readFile(bundlePath);
+      const bundle = request.source.sourceBundlePath
+        ? await readFile(request.source.sourceBundlePath)
+        : await createLocalSourceBundle(request.source.workspacePath!, bundlePath);
       await record.sandbox.fs.mkdir("/vercel/sandbox/input", { recursive: true });
       await record.sandbox.writeFiles([
         { path: "/vercel/sandbox/input/repository.bundle", content: bundle, mode: 0o600 },
@@ -520,6 +518,14 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
     if (!record) throw new Error(`Unknown Vercel Builder execution '${executionId}'.`);
     return record;
   }
+}
+
+async function createLocalSourceBundle(workspacePath: string, bundlePath: string): Promise<Buffer> {
+  await execFileAsync("git", ["bundle", "create", bundlePath, "--all"], {
+    cwd: workspacePath,
+    env: { ...process.env, PATH: process.env.PATH ?? "/usr/bin:/bin", LANG: "C" },
+  });
+  return await readFile(bundlePath);
 }
 
 function isTerminal(state: BuilderExecutionState): state is BuilderExecutionResult["state"] {

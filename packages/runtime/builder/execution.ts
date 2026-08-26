@@ -13,6 +13,7 @@ export interface BuilderExecutionRequest {
     readonly repository: string;
     readonly baseCommit: string;
     readonly workspacePath?: string;
+    readonly sourceBundlePath?: string;
     readonly contentDigest?: string;
   };
   readonly operation?: {
@@ -84,8 +85,11 @@ export function assertBuilderExecutionRequest(request: BuilderExecutionRequest):
     if (request.limits.timeoutMs < 20_000) {
       throw new Error("Production Builder execution timeout must be at least 20000ms.");
     }
-    if (!request.source.workspacePath?.startsWith("/")) {
-      throw new Error("Production Builder execution requires an absolute materialized workspace path.");
+    const localWorkspace = request.source.workspacePath?.startsWith("/") === true;
+    const transferredBundle = request.source.sourceBundlePath?.startsWith("/") === true
+      && request.source.sourceBundlePath.endsWith(".bundle");
+    if (localWorkspace === transferredBundle) {
+      throw new Error("Production Builder execution requires exactly one local workspace or transferred Git bundle.");
     }
     if (!/^[0-9a-f]{64}$/.test(request.source.contentDigest ?? "")) {
       throw new Error("Production Builder execution requires an exact source content digest.");

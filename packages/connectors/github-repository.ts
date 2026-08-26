@@ -24,6 +24,10 @@ import {
 } from "../runtime/repository/git.ts";
 import { inspectProposalWorkspace, sha256 } from "../runtime/repository/proposal-inspection.ts";
 import type {
+  TrustedGitCredentialBinding,
+  TrustedGitExecutionAdapter,
+} from "../runtime/repository/trusted-git-execution.ts";
+import type {
   RepositoryInstallationBinding,
   RepositoryInstallationStatus,
   RepositoryInstallationStore,
@@ -69,10 +73,12 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
   readonly #installations: RepositoryInstallationStore;
   readonly #fetch: typeof fetch;
   readonly #now: () => Date;
+  readonly #gitExecution: TrustedGitExecutionAdapter | undefined;
 
   constructor(args: {
     configuration: GitHubAppConfiguration;
     installations: RepositoryInstallationStore;
+    gitExecution?: TrustedGitExecutionAdapter;
     fetch?: typeof fetch;
     now?: () => Date;
   }) {
@@ -87,6 +93,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
       webBaseUrl: args.configuration.webBaseUrl ?? "https://github.com",
     };
     this.#installations = args.installations;
+    this.#gitExecution = args.gitExecution;
     this.#fetch = args.fetch ?? fetch;
     this.#now = args.now ?? (() => new Date());
   }
@@ -148,11 +155,20 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     const existing = await readExistingSourceReceipt(request.destinationPath);
     if (existing) {
       assertMatchingSourceReceipt(existing, request, this.id, this.version);
-      await assertSanitizedMaterializedCheckout(request.destinationPath, request.baseCommit);
+      if (existing.transfer?.format === "git-bundle") {
+        if (existing.transfer.path !== join(request.destinationPath, "repository.bundle")) {
+          throw new Error("Existing GitHub source receipt has a different transfer bundle path.");
+        }
+      } else {
+        await assertSanitizedMaterializedCheckout(request.destinationPath, request.baseCommit);
+      }
       return existing;
     }
     await assertRepositoryDestinationAbsent(request.destinationPath);
     await mkdir(dirname(request.destinationPath), { recursive: true });
+    if (this.#gitExecution) {
+      return await this.#materializeThroughTrustedGit(request, binding);
+    }
     return await this.#withInstallationToken(
       binding.installationId,
       binding.providerRepositoryId,
@@ -209,6 +225,12 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     assertProposalPublicationRequest(request);
     const binding = await this.#installations.requireActive(request.bindingId, request.repositoryId);
     this.#assertBindingEnvironment(binding);
+    if (this.#gitExecution && request.sourceBundlePath && request.diff) {
+      return await this.#publishThroughTrustedGit(request, binding);
+    }
+    if (!request.workspacePath) {
+      throw new Error("GitHub local publication requires a materialized workspace.");
+    }
     const inspection = await inspectProposalWorkspace(request.workspacePath, request.baseCommit);
     if (inspection.diffDigest !== request.checked.validatedDiffDigest) {
       throw new Error("Proposal diff changed after validation.");
@@ -336,6 +358,104 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     }
   }
 
+  async #materializeThroughTrustedGit(
+    request: RepositorySourceRequest,
+    binding: RepositoryInstallationBinding,
+  ): Promise<RepositorySourceReceipt> {
+    const gitExecution = this.#gitExecution;
+    if (!gitExecution) throw new Error("Trusted Git execution adapter is unavailable.");
+    await mkdir(request.destinationPath, { recursive: true });
+    const bundlePath = join(request.destinationPath, "repository.bundle");
+    try {
+      const result = await this.#withInstallationToken(
+        binding.installationId,
+        binding.providerRepositoryId,
+        { contents: "read" },
+        async (token) => await gitExecution.materialize({
+          operationId: `${request.requestId}:source`,
+          remoteUrl: `${this.#configuration.webBaseUrl}/${binding.owner}/${binding.name}.git`,
+          baseCommit: request.baseCommit,
+          destinationBundlePath: bundlePath,
+          credential: trustedGitCredentialBinding(this.#configuration.webBaseUrl, token),
+        }),
+      );
+      const receipt: RepositorySourceReceipt = {
+        schemaVersion: 1,
+        requestId: request.requestId,
+        provider: { id: this.id, version: this.version },
+        bindingId: request.bindingId,
+        repositoryId: request.repositoryId,
+        baseCommit: request.baseCommit,
+        workspacePath: request.destinationPath,
+        transfer: { format: "git-bundle", path: bundlePath },
+        contentDigest: result.contentDigest,
+        credentialIsolation: {
+          repositoryCredentialPresent: false,
+          retainedRemotes: 0,
+        },
+        materializedAt: this.#now().toISOString(),
+      };
+      await writeSourceReceipt(request.destinationPath, receipt);
+      return receipt;
+    } catch (error) {
+      await rm(request.destinationPath, { recursive: true, force: true });
+      throw error;
+    }
+  }
+
+  async #publishThroughTrustedGit(
+    request: ProposalPublicationRequest,
+    binding: RepositoryInstallationBinding,
+  ): Promise<ProposalPublicationReceipt> {
+    const gitExecution = this.#gitExecution;
+    if (!gitExecution || !request.sourceBundlePath || !request.diff) {
+      throw new Error("Trusted Git publication inputs are unavailable.");
+    }
+    return await this.#withInstallationToken(
+      binding.installationId,
+      binding.providerRepositoryId,
+      { contents: "write", pull_requests: "write" },
+      async (token) => {
+        const existingPullRequest = await this.#findPullRequest(token, binding, request.branchName);
+        if (existingPullRequest) return receiptFromPullRequest(this, request, existingPullRequest);
+        const result = await gitExecution.publish({
+          operationId: `${request.jobId}:publish`,
+          sourceBundlePath: request.sourceBundlePath!,
+          baseCommit: request.baseCommit,
+          diff: request.diff!,
+          remoteUrl: `${this.#configuration.webBaseUrl}/${binding.owner}/${binding.name}.git`,
+          branchName: request.branchName,
+          title: request.title,
+          checked: request.checked,
+          credential: trustedGitCredentialBinding(this.#configuration.webBaseUrl, token),
+        });
+        const pullRequest = await this.#installationRequest<Record<string, any>>(
+          token,
+          "POST",
+          `/repos/${encodeURIComponent(binding.owner)}/${encodeURIComponent(binding.name)}/pulls`,
+          {
+            title: request.title,
+            body: request.body,
+            head: request.branchName,
+            base: binding.defaultBranch,
+            draft: true,
+          },
+        );
+        return {
+          schemaVersion: 1,
+          jobId: request.jobId,
+          provider: { id: this.id, version: this.version },
+          repositoryId: request.repositoryId,
+          baseCommit: request.baseCommit,
+          proposalCommit: result.proposalCommit,
+          branchName: request.branchName,
+          proposalUrl: String(pullRequest.html_url),
+          publishedAt: this.#now().toISOString(),
+        };
+      },
+    );
+  }
+
   async #findPullRequest(
     token: string,
     binding: RepositoryInstallationBinding,
@@ -454,6 +574,20 @@ export function gitHubGitCredentialEnvironment(token: string): Record<string, st
     GIT_CONFIG_COUNT: "1",
     GIT_CONFIG_KEY_0: "http.extraHeader",
     GIT_CONFIG_VALUE_0: `Authorization: Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`,
+  };
+}
+
+/** @internal Exported only so the brokered trusted-Git boundary can be tested. */
+export function trustedGitCredentialBinding(
+  webBaseUrl: string,
+  token: string,
+): TrustedGitCredentialBinding {
+  const host = new URL(webBaseUrl).hostname;
+  const basic = (password: string) => `Basic ${Buffer.from(`x-access-token:${password}`).toString("base64")}`;
+  return {
+    host,
+    placeholderAuthorization: basic("companyos-repository-broker-placeholder"),
+    realAuthorization: basic(token),
   };
 }
 

@@ -21,6 +21,10 @@ export interface RepositorySourceReceipt {
   readonly repositoryId: string;
   readonly baseCommit: string;
   readonly workspacePath: string;
+  readonly transfer?: {
+    readonly format: "git-bundle";
+    readonly path: string;
+  };
   readonly contentDigest: string;
   readonly credentialIsolation: {
     readonly repositoryCredentialPresent: false;
@@ -54,7 +58,9 @@ export interface ProposalPublicationRequest {
   readonly bindingId: string;
   readonly repositoryId: string;
   readonly baseCommit: string;
-  readonly workspacePath: string;
+  readonly workspacePath?: string;
+  readonly sourceBundlePath?: string;
+  readonly diff?: string;
   readonly branchName: string;
   readonly title: string;
   readonly body: string;
@@ -111,8 +117,21 @@ export function assertProposalPublicationRequest(request: ProposalPublicationReq
     if (!value || value.length > 512) throw new Error(`Proposal publication ${label} is invalid.`);
   }
   assertGitCommit(request.baseCommit, "Proposal publication baseCommit");
-  if (!isAbsolute(request.workspacePath)) {
+  const localWorkspace = request.workspacePath !== undefined;
+  const transferredWorkspace = request.sourceBundlePath !== undefined || request.diff !== undefined;
+  if (localWorkspace === transferredWorkspace) {
+    throw new Error("Proposal publication requires exactly one local workspace or transferred Git bundle input.");
+  }
+  if (localWorkspace && !isAbsolute(request.workspacePath!)) {
     throw new Error("Proposal publication workspacePath must be absolute.");
+  }
+  if (transferredWorkspace) {
+    if (!request.sourceBundlePath || !isAbsolute(request.sourceBundlePath) || !request.sourceBundlePath.endsWith(".bundle")) {
+      throw new Error("Proposal publication sourceBundlePath must be an absolute Git bundle path.");
+    }
+    if (!request.diff || request.diff.trim() === "") {
+      throw new Error("Proposal publication transferred diff must be non-empty.");
+    }
   }
   if (!/^companyos\/builder\/[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/.test(request.branchName)) {
     throw new Error("Proposal branch must use the bounded 'companyos/builder/' namespace.");
