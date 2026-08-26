@@ -180,11 +180,14 @@ evidence, historical prototypes, and production gaps.
   credential isolation, checked draft publication, and publication idempotency
   gates passed live qualification on 2026-08-26. The remaining gates are
   brokered live Claude Code and Codex authentication using the general Instance
-  model keys, persistence through the deployed repository-onboarding callback,
-  and one representative Slack-to-draft-proposal round trip. Sensitive Vercel
+  model keys, a trusted Git execution boundary for the deployed coordinator,
+  persistence through the deployed repository-onboarding callback, and one
+  representative Slack-to-draft-proposal round trip. A staged Production build
+  proved that Git is unavailable in the Vercel Function runtime even though it
+  is available inside the pinned Builder Sandbox snapshot. Sensitive Vercel
   variables are intentionally non-readable outside a deployment; no gate may
   broaden a local process to unrelated Production secrets merely to work around
-  that boundary.
+  either boundary.
 
 ## Highest-priority gaps after the first live pilot
 

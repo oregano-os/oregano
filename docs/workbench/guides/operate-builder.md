@@ -173,6 +173,9 @@ draft-publication path passed live qualification on 2026-08-26. The maintained
 hosted profile remains unqualified until:
 
 - both general model keys pass brokered live ACP jobs in the target environment;
+- deployed source transfer, independent diff validation, and publication use a
+  separately trusted Git execution boundary instead of assuming Git exists in
+  the Vercel Function runtime;
 - the deployed onboarding callback persists and reuses the verified repository
   installation binding; and
 - one representative Slack-to-draft-proposal round trip succeeds without merge

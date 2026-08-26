@@ -112,4 +112,5 @@ rollback: >-
   active Builder sandboxes, revoke the Repository Provider installation, and
   remove the Builder integration while retaining non-secret job and proposal
   evidence. No published proposal is merged or deployed automatically.
-open_decisions: []
+open_decisions:
+  - Whether the hosted Runner bundles a pinned Git implementation or delegates repository-only commands to a separate trusted Sandbox that never runs the coding agent.

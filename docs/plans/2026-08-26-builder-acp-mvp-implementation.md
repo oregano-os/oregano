@@ -775,6 +775,18 @@ remain open until the staged deployment proves platform protection and runs the
 two bounded requests; importing the complete unrelated Production environment
 into a local process is not an acceptable shortcut.
 
+The first staged Production build exposed one additional deployment fact:
+Vercel Functions do not provide the `git` executable used by the local
+repository adapters, trusted diff inspection, and source-bundle preparation.
+The pinned Builder Sandbox snapshot does provide Git. The deployed ACP
+qualification therefore prepares and verifies its fixed fixture through that
+snapshot and can still qualify model brokering independently. The full hosted
+Builder path remains blocked until repository source transfer, trusted
+post-agent inspection, and proposal publication run in a separate trusted Git
+execution boundary. Repository credentials and coding-agent execution must
+remain in different environments; adding Git credentials to the coding Sandbox
+is not an acceptable shortcut.
+
 ## 9. Success and graduation criteria
 
 The proposal-only MVP is successful when:

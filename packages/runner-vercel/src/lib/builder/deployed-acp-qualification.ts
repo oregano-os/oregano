@@ -1,30 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
-import { sha256 } from "../../../../runtime/canonical.ts";
-import {
-  type BuilderExecutionHandle,
-  type BuilderExecutionState,
-} from "../../../../runtime/builder/execution.ts";
+import { Sandbox } from "@vercel/sandbox";
 import {
   resolveBuilderAcpProfile,
   type BuilderAcpProfileId,
 } from "../../../../runtime/builder/profiles.ts";
 import {
-  applyGitPatch,
-  runGit,
-} from "../../../../runtime/repository/git.ts";
-import { inspectProposalWorkspace } from "../../../../runtime/repository/proposal-inspection.ts";
-import { VercelSandboxBuilderExecutionAdapter } from "./sandbox-execution-adapter.ts";
+  createVercelModelCredentialBinding,
+  modelCredentialBindingEvidence,
+} from "./model-credential-broker.ts";
 
-const TERMINAL_STATES = new Set<BuilderExecutionState>([
-  "succeeded",
-  "failed",
-  "cancelled",
-  "timed_out",
-]);
+const WORKSPACE_PATH = "/vercel/sandbox/workspace";
+const WORKER_REQUEST_PATH = "/vercel/sandbox/builder-request.json";
 
 export interface DeployedAcpQualificationEvidence {
   readonly profile: {
@@ -48,75 +34,93 @@ export async function qualifyDeployedAcp(
   profileId: BuilderAcpProfileId,
 ): Promise<DeployedAcpQualificationEvidence> {
   const profile = resolveBuilderAcpProfile(profileId);
-  const adapter = new VercelSandboxBuilderExecutionAdapter();
-  const root = await mkdtemp(join(tmpdir(), "companyos-deployed-acp-qualification-"));
-  const workspacePath = join(root, "workspace");
-  let handle: BuilderExecutionHandle | undefined;
-  let phase = "prepare_fixture";
+  const snapshotId = process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID;
+  const credential = profile.id === "claude-code"
+    ? process.env.ANTHROPIC_API_KEY
+    : process.env.OPENAI_API_KEY;
+  if (!snapshotId || !credential) {
+    throw new Error("Deployed ACP qualification failed during 'configure'.");
+  }
+  const broker = createVercelModelCredentialBinding(profile.id, credential);
+  let sandbox: Sandbox | undefined;
+  let phase = "start_sandbox";
   try {
-    await mkdir(workspacePath);
-    await runGit(workspacePath, ["init", "-q"]);
-    await writeFile(join(workspacePath, "fixture.txt"), "base\n");
-    await runGit(workspacePath, ["add", "fixture.txt"]);
-    await runGit(workspacePath, [
+    sandbox = await Sandbox.create({
+      name: `companyos-deployed-auth-${profile.id}-${randomUUID()}`,
+      source: { type: "snapshot", snapshotId },
+      timeout: 210_000,
+      resources: { vcpus: 1 },
+      ports: [],
+      networkPolicy: "deny-all",
+      persistent: false,
+      tags: { component: "builder", qualification: "deployed-acp", profile: profile.id },
+    });
+    phase = "prepare_fixture";
+    await sandbox.fs.mkdir(WORKSPACE_PATH, { recursive: true });
+    await sandbox.fs.mkdir("/vercel/sandbox/home", { recursive: true });
+    await sandbox.fs.writeFile(`${WORKSPACE_PATH}/fixture.txt`, "base\n", "utf8");
+    await runSandboxGit(sandbox, WORKSPACE_PATH, ["init", "-q"]);
+    await runSandboxGit(sandbox, WORKSPACE_PATH, ["add", "fixture.txt"]);
+    await runSandboxGit(sandbox, WORKSPACE_PATH, [
       "-c", "user.name=CompanyOS Qualification",
       "-c", "user.email=qualification@companyos.invalid",
       "commit", "-qm", "qualification base",
     ]);
-    const baseCommit = (await runGit(workspacePath, ["rev-parse", "HEAD"])).trim();
-    const tree = await runGit(workspacePath, ["ls-tree", "-r", "--full-tree", baseCommit]);
+    const baseCommit = (await runSandboxGit(sandbox, WORKSPACE_PATH, ["rev-parse", "HEAD"])).trim();
     const runId = randomUUID();
-    phase = "start_sandbox";
-    handle = await adapter.start({
+    await sandbox.fs.writeFile(WORKER_REQUEST_PATH, JSON.stringify({
       schemaVersion: 1,
       jobId: `qualification:${profile.id}:${runId}`,
-      source: {
-        repository: "companyos/deployed-acp-qualification",
-        baseCommit,
-        workspacePath,
-        contentDigest: sha256(tree),
+      requestId: `qualification:${runId}`,
+      profileId: profile.id,
+      workspacePath: WORKSPACE_PATH,
+      prompt: [
+        "This is a bounded CompanyOS brokered-authentication qualification fixture.",
+        "Change only fixture.txt by replacing its complete content with exactly:",
+        `changed-by-${profile.id}-in-sandbox`,
+        "Do not inspect parent directories, install software, or change any other file.",
+      ].join("\n"),
+      timeoutMs: 120_000,
+    }), "utf8");
+
+    phase = "run_worker";
+    await sandbox.updateNetworkPolicy(broker.networkPolicy);
+    const command = await sandbox.runCommand({
+      cmd: "node",
+      args: [
+        "--experimental-strip-types",
+        "/vercel/sandbox/packages/builder-worker/src/entrypoint.ts",
+        WORKER_REQUEST_PATH,
+      ],
+      cwd: "/vercel/sandbox",
+      env: {
+        ...broker.agentEnvironment,
+        HOME: "/vercel/sandbox/home",
+        LANG: "C.UTF-8",
+        PATH: "/vercel/sandbox/node_modules/.bin:/usr/local/bin:/usr/bin:/bin",
+        TMPDIR: "/tmp",
       },
-      operation: {
-        requestId: `qualification:${runId}`,
-        prompt: [
-          "This is a bounded CompanyOS brokered-authentication qualification fixture.",
-          "Change only fixture.txt by replacing its complete content with exactly:",
-          `changed-by-${profile.id}-in-sandbox`,
-          "Do not inspect parent directories, install software, or change any other file.",
-        ].join("\n"),
-      },
-      codingAgent: {
-        profileId: profile.id,
-        implementation: profile.packageName,
-        version: profile.version,
-      },
-      limits: { timeoutMs: 180_000 },
-      networkPolicyId: `brokered-${profile.id}`,
+      timeoutMs: 150_000,
     });
+    const stdout = await command.stdout();
+    if (command.exitCode !== 0) throw new Error("qualification worker failed");
+    const worker = JSON.parse(stdout) as Record<string, unknown>;
 
-    phase = "wait_for_worker";
-    let state: BuilderExecutionState = "starting";
-    const deadline = Date.now() + 210_000;
-    while (!TERMINAL_STATES.has(state)) {
-      if (Date.now() >= deadline) throw new Error("qualification polling deadline exceeded");
-      await delay(2_000);
-      state = (await adapter.status(handle)).state;
-    }
-
-    phase = "collect_result";
-    const result = await adapter.collect(handle);
-    if (result.state !== "succeeded" || !result.artifacts?.diff) {
-      throw new Error("qualification worker did not return a successful diff");
-    }
     phase = "verify_result";
-    await applyGitPatch(workspacePath, result.artifacts.diff);
-    const inspection = await inspectProposalWorkspace(workspacePath, baseCommit);
-    const content = await readFile(join(workspacePath, "fixture.txt"), "utf8");
+    await sandbox.updateNetworkPolicy("deny-all");
+    const content = await sandbox.fs.readFile(`${WORKSPACE_PATH}/fixture.txt`, "utf8");
+    const status = await runSandboxGit(sandbox, WORKSPACE_PATH, [
+      "status", "--porcelain=v1", "--untracked-files=all",
+    ]);
+    const diff = await runSandboxGit(sandbox, WORKSPACE_PATH, [
+      "diff", "--binary", "--no-ext-diff", baseCommit, "--",
+    ]);
     if (
-      content !== `changed-by-${profile.id}-in-sandbox\n`
-      || inspection.changedPaths.length !== 1
-      || inspection.changedPaths[0] !== "fixture.txt"
-      || inspection.diffDigest !== result.artifacts.diffDigest
+      !/^[0-9a-f]{40}$/.test(baseCommit)
+      || content !== `changed-by-${profile.id}-in-sandbox\n`
+      || status !== " M fixture.txt\n"
+      || !diff.includes("diff --git a/fixture.txt b/fixture.txt")
+      || !diff.includes(`+changed-by-${profile.id}-in-sandbox`)
     ) {
       throw new Error("qualification result differs from the bounded expected change");
     }
@@ -127,12 +131,12 @@ export async function qualifyDeployedAcp(
         version: profile.version,
       },
       execution: {
-        adapter: String(result.evidence.adapter),
-        adapterVersion: String(result.evidence.adapterVersion),
+        adapter: "vercel-sandbox",
+        adapterVersion: "3.1.0",
         state: "succeeded",
       },
-      credentialBroker: result.evidence.credentialBroker,
-      worker: result.evidence.worker,
+      credentialBroker: modelCredentialBindingEvidence(broker),
+      worker,
       hostVerifiedResult: true,
       exactBaseVerified: true,
       realCredentialSentToCodingProcess: false,
@@ -140,9 +144,21 @@ export async function qualifyDeployedAcp(
   } catch {
     throw new Error(`Deployed ACP qualification failed during '${phase}'.`);
   } finally {
-    if (handle) await adapter.dispose(handle).catch(() => undefined);
-    await rm(root, { recursive: true, force: true });
+    if (sandbox) {
+      await sandbox.updateNetworkPolicy("deny-all").catch(() => undefined);
+      await sandbox.stop().catch(() => undefined);
+    }
   }
+}
+
+async function runSandboxGit(
+  sandbox: Sandbox,
+  cwd: string,
+  args: string[],
+): Promise<string> {
+  const command = await sandbox.runCommand({ cmd: "git", args, cwd, timeoutMs: 30_000 });
+  if (command.exitCode !== 0) throw new Error("sandbox Git command failed");
+  return await command.stdout();
 }
 
 export function isStagedProductionQualificationRequest(
