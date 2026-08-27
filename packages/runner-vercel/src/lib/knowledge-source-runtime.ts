@@ -61,6 +61,19 @@ export function authorizeScheduledKnowledgeRequest(request: Request, secret = pr
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+export function classifyKnowledgeSourceRuntimeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/runtime configuration|SecretRef .* unavailable|unsupported Source identity/i.test(message)) return "runtime-configuration";
+  if (/Source .* (?:conflicts|rebind|revoked|registration)/i.test(message)) return "source-registration";
+  if (/Granola .*?(?:response|API request|folder scope|note list|transcript)/i.test(message)) return "provider-response";
+  if (/cursor|watermark/i.test(message)) return "cursor-or-watermark";
+  if (/identity|outside the configured .*scope/i.test(message)) return "source-identity";
+  if (/Raw Asset|storage|database|DATABASE_URL/i.test(message)) return "storage";
+  if (/integrity|mismatched|reused|duplicate/i.test(message)) return "integrity";
+  if (/lease/i.test(message)) return "lease";
+  return "unclassified";
+}
+
 export class GranolaKnowledgeSourceRuntime {
   readonly #configuration: GranolaRuntimeConfiguration;
   readonly #store: GranolaRuntimeStore;
