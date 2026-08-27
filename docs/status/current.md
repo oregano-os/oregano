@@ -230,6 +230,10 @@ evidence, historical prototypes, and production gaps.
   53 Claims and 10 Page versions from failed attempts remain retained but
   excluded. Candidate loading fails explicitly above its bounded 2,000-Claim
   frontier instead of declaring a truncated phase complete.
+  Productive Compounding contract `2.1.0` starts with a conservative `0.20`
+  lexical-overlap candidate gate. The maintained Vercel adapter advances five
+  pair candidates but only one deep-synthesis subject every 15 minutes; the
+  content-free production total is 353 current candidate pairs per pair phase.
 - Phase 5 production integration now adapts that authorization-first retrieval
   into the existing standard `knowledge.search`, `knowledge.get`, and
   `knowledge.traverse` Tool contracts. Local conformance tests prove that a

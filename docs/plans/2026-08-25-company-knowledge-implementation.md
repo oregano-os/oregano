@@ -1134,6 +1134,13 @@ prompt and model bindings, and current authorized Claim/grading frontier rather
 than a wall-clock bucket. Changed knowledge or execution contracts receive a
 new cycle; unchanged incomplete work retains its cursor.
 
+The initial productive contract `2.1.0` requires policy and subject equality
+plus at least `0.20` deterministic lexical overlap before a Claim pair reaches
+a model. The portable default processes one pair per phase; the maintained
+Vercel adapter advances five pair candidates but only one deep-synthesis subject
+per invocation. A threshold or candidate-rule change requires a new contract
+version so prior phase receipts cannot be reused under different work semantics.
+
 ## 14. Selective review and authority promotion
 
 ### 14.1 What does not require review

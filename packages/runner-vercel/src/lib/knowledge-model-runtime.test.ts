@@ -74,7 +74,7 @@ test("Knowledge model runtime compiles every prompt through profile and exact ta
   const firstCycle = productiveKnowledgeCompoundingCycleId(frontier, configuration);
   assert.equal(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, configuration));
   assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(sha256("changed-frontier"), configuration));
-  assert.match(firstCycle, /^knowledge-compounding@2\.0\.0:[a-f0-9]{16}:[a-f0-9]{16}$/);
+  assert.match(firstCycle, /^knowledge-compounding@2\.1\.0:[a-f0-9]{16}:[a-f0-9]{16}$/);
   const changed = structuredClone(configuration);
   changed.tasks = { ...changed.tasks, "knowledge.working-synthesis": { ...changed.tasks["knowledge.working-synthesis"]!, model: "anthropic/claude-opus-4-8" } };
   assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, changed));

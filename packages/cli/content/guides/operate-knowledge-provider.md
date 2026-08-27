@@ -94,7 +94,10 @@ The portable default processes one model-backed work item per phase on each
 invocation so common serverless hosts remain below their execution limit. Each
 partial phase writes its next cursor; a long-running host may pass a larger
 explicit budget through its own adapter. Receipts expose the phase's aggregate
-work count without exposing Claim identities or content.
+work count without exposing Claim identities or content. The maintained Vercel
+adapter processes five pair candidates but only one deep-synthesis subject per
+invocation. Its initial conservative candidate gate requires at least `0.20`
+deterministic lexical overlap before any pair reaches a model.
 
 Do not enable a scheduler merely because the endpoint deploys. First:
 

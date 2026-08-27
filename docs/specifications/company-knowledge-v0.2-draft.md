@@ -520,7 +520,9 @@ records the aggregate phase work count without Claim content. The in-memory
 candidate frontier is bounded at 2,000 current Claims and fails explicitly
 rather than silently truncating. Model-derived Claims, Timeline Events, and
 working syntheses are eligible only when their successful extraction provenance
-is attached to the current Page version. Working
+is attached to the current Page version. The initial pair-candidate rule
+requires policy and subject equality plus at least `0.20` deterministic lexical
+overlap; changing that rule requires a new Compounding contract version. Working
 synthesis lists only exact supplied Claim identities, uses mutually exclusive
 supporting, contested, and superseded partitions, and receives at most one
 typed correction attempt. An outer `claim:` evidence identity may normalize to

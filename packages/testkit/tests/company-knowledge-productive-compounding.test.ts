@@ -98,6 +98,15 @@ test("productive compounding defaults to one portable work item per phase", () =
   assert.deepEqual(phases.map((phase) => phase.budget), [1, 1, 1, 1, 1]);
 });
 
+test("a larger runtime budget keeps deep synthesis at one bounded subject", () => {
+  const phases = createProductiveKnowledgeCompoundingPhases({
+    store: new MemoryWorkStore(), executor: new FixtureExecutor(), resolveProfile: profile,
+    accessPolicyIds: ["policy:company"], authorizationContextDigest: sha256("authorization"),
+    dataClass: "confidential", phaseBudget: 5,
+  });
+  assert.deepEqual(phases.map((phase) => phase.budget), [5, 5, 5, 1, 5]);
+});
+
 test("productive compounding writes review proposals and immutable working synthesis without canonical mutation methods", async () => {
   const store = new MemoryWorkStore();
   const executor = new FixtureExecutor();

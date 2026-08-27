@@ -48,6 +48,7 @@ type StaticJsonSchema = Exclude<Parameters<typeof jsonSchema>[0], PromiseLike<un
 
 export const KNOWLEDGE_MODEL_CONFIG_ENV = "COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64";
 export const GRANOLA_EXTRACTION_STREAM = `${GRANOLA_RECONCILIATION_STREAM}:extraction`;
+export const VERCEL_KNOWLEDGE_COMPOUNDING_PHASE_BUDGET = 5 as const;
 
 export interface KnowledgeModelRuntimeConfiguration {
   version: 1;
@@ -354,7 +355,7 @@ export class CompanyKnowledgeCompoundingRuntime {
       authorizationContextDigest,
       dataClass: source.requirement.dataClass,
       now: this.#now,
-      phaseBudget: input.phaseBudget,
+      phaseBudget: input.phaseBudget ?? VERCEL_KNOWLEDGE_COMPOUNDING_PHASE_BUDGET,
     });
     const receipts = await runCompoundingCycle({
       cycleId,

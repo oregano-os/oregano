@@ -96,7 +96,7 @@ export interface KnowledgeCompoundingRuntimeInput {
   phaseBudget?: number;
 }
 
-export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION = "2.0.0" as const;
+export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION = "2.1.0" as const;
 export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_PROMPT_IDS = [
   "knowledge.duplicate-classification",
   "knowledge.claim-relation",
@@ -138,8 +138,7 @@ export function selectCompoundingClaimPairs(
       const left = ordered[leftIndex];
       const right = ordered[rightIndex];
       if (!left || !right || left.accessPolicyId !== right.accessPolicyId || !sharedSubject(left, right)) continue;
-      const minimumOverlap = mode === "duplicate" ? 0.2 : 0.1;
-      if (lexicalOverlap(left.claimText, right.claimText) < minimumOverlap) continue;
+      if (lexicalOverlap(left.claimText, right.claimText) < 0.2) continue;
       pairs.push([left, right]);
     }
   }
@@ -410,5 +409,5 @@ export function createProductiveKnowledgeCompoundingPhases(runtime: KnowledgeCom
   // common serverless invocation limits. Long-running hosts may opt into a
   // larger explicit budget without changing phase or receipt semantics.
   const budget = Math.max(1, Math.min(runtime.phaseBudget ?? 1, 50));
-  return [duplicatePhase(runtime, budget), relationPhase(runtime, budget), conflictPhase(runtime, budget), synthesisPhase(runtime, budget), gradingPhase(runtime, budget)];
+  return [duplicatePhase(runtime, budget), relationPhase(runtime, budget), conflictPhase(runtime, budget), synthesisPhase(runtime, Math.min(budget, 1)), gradingPhase(runtime, budget)];
 }
