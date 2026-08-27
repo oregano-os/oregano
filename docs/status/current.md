@@ -234,6 +234,9 @@ evidence, historical prototypes, and production gaps.
   lexical-overlap candidate gate. The maintained Vercel adapter advances five
   pair candidates but only one deep-synthesis subject every 15 minutes; the
   content-free production total is 353 current candidate pairs per pair phase.
+  The initial `2.1.0` frontier backfill is resumable operating backlog until
+  every phase receipt is complete; retrieval exposes only the already-current,
+  successfully proven subset while that background work advances.
 - Phase 5 production integration now adapts that authorization-first retrieval
   into the existing standard `knowledge.search`, `knowledge.get`, and
   `knowledge.traverse` Tool contracts. Local conformance tests prove that a

@@ -1140,6 +1140,10 @@ a model. The portable default processes one pair per phase; the maintained
 Vercel adapter advances five pair candidates but only one deep-synthesis subject
 per invocation. A threshold or candidate-rule change requires a new contract
 version so prior phase receipts cannot be reused under different work semantics.
+An initial frontier backfill may span multiple scheduled invocations. It is
+operating backlog, not a reason to expose stale derived versions: retrieval and
+later phases consume only current, successfully proven model artifacts while
+the durable cursor advances.
 
 ## 14. Selective review and authority promotion
 
