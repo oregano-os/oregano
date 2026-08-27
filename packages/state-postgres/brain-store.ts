@@ -231,20 +231,19 @@ export class PostgresBrainStore implements BrainStore {
         returning page_id`,
     ], { isolationLevel: "Serializable" });
     if (results[0].length === 0) {
-      const existingRows = await sql`select page_type_key, source_id, source_page_key, verification_status,
-          access_policy_id, lifecycle_status, created_at
+      const existingRows = await sql`select
+          page_type_key = ${page.pageTypeKey} as page_type_key_match,
+          source_id = ${page.sourceId} as source_id_match,
+          source_page_key = ${page.sourcePageKey} as source_page_key_match,
+          verification_status = ${page.verificationStatus} as verification_status_match,
+          access_policy_id = ${page.accessPolicyId} as access_policy_id_match,
+          lifecycle_status = ${page.lifecycleStatus} as lifecycle_status_match,
+          created_at = ${page.createdAt} as created_at_match
         from companyos_knowledge.pages where page_id = ${page.pageId} limit 1`;
       const existing = existingRows[0];
-      const mismatches = existing ? [
-        ["page_type_key", String(existing.page_type_key), page.pageTypeKey],
-        ["source_id", String(existing.source_id), page.sourceId],
-        ["source_page_key", String(existing.source_page_key), page.sourcePageKey],
-        ["verification_status", String(existing.verification_status), page.verificationStatus],
-        ["access_policy_id", String(existing.access_policy_id), page.accessPolicyId],
-        ["lifecycle_status", String(existing.lifecycle_status), page.lifecycleStatus],
-        ["created_at", new Date(String(existing.created_at)).toISOString(), page.createdAt],
-      ].filter(([, actual, expected]) => actual !== expected).map(([field]) => field) : ["page_id"];
-      throw new Error(`Brain Page conflicts with immutable fields: ${mismatches.join(",") || "unknown"}.`);
+      const mismatches = existing ? ["page_type_key", "source_id", "source_page_key", "verification_status", "access_policy_id", "lifecycle_status", "created_at"]
+        .filter((field) => existing[`${field}_match`] !== true) : ["page_id"];
+      if (mismatches.length > 0) throw new Error(`Brain Page conflicts with immutable fields: ${mismatches.join(",")}.`);
     }
     if (results[1].length === 0) throw new Error(`Brain Page version '${version.pageVersionId}' conflicts or is not the next version.`);
     return results[1][0]?.inserted === true ? "inserted" : "unchanged";
