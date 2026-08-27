@@ -25,6 +25,7 @@ import { setupVerificationPrompt, setupVerificationResponse } from "./setup-veri
 import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
+const TOOL_EXECUTION_TIMEOUT_MS = 30_000;
 let state: StateAdapter;
 let artifact: CompanyOSArtifact;
 let agent: CompiledAgent;
@@ -248,6 +249,7 @@ export function getBot(): Chat {
     artifact,
     state: createPostgresStateStore(),
     connectors: createCompanyOSRuntimeConnectors(),
+    toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
   botInstance = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",

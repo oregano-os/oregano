@@ -68,6 +68,12 @@ test("a required search must have a successful Tool result before rendering", ()
     route,
     modelText: "",
     toolResults: [],
+    toolFailures: [{ toolName: "oregano_knowledge_search", error: new Error("Company Tool exceeded 5000 ms.") }],
+  }), /Diagnosecode: execution-timeout/u);
+  assert.match(renderKnowledgeTurnResponse({
+    route,
+    modelText: "",
+    toolResults: [],
     toolFailures: [{ toolName: "oregano_knowledge_search", error: { name: "PostgresError", code: "42703", message: "database query failed" } }],
   }), /Diagnosecode: database-42703/u);
   assert.match(renderKnowledgeTurnResponse({

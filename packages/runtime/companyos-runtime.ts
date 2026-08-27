@@ -30,11 +30,23 @@ export class CompanyOSRuntime {
   readonly #state: StateStore;
   readonly #roster: RosterMember[];
   readonly #connectors: ConnectorRegistry;
+  readonly #toolExecutionTimeoutMs?: number;
 
-  constructor(args: { artifact: CompanyOSArtifact; state: StateStore; roster?: RosterMember[]; connectors: Connector[] }) {
+  constructor(args: {
+    artifact: CompanyOSArtifact;
+    state: StateStore;
+    roster?: RosterMember[];
+    connectors: Connector[];
+    toolExecutionTimeoutMs?: number;
+  }) {
+    if (args.toolExecutionTimeoutMs !== undefined && (!Number.isInteger(args.toolExecutionTimeoutMs)
+      || args.toolExecutionTimeoutMs < 100 || args.toolExecutionTimeoutMs > 120_000)) {
+      throw new Error("Tool execution timeout must be an integer from 100 to 120000 ms.");
+    }
     this.#artifact = args.artifact;
     this.#state = args.state;
     this.#roster = args.roster ?? args.artifact.roster;
+    this.#toolExecutionTimeoutMs = args.toolExecutionTimeoutMs;
     this.#connectors = new ConnectorRegistry({
       contracts: args.artifact.capabilityCatalog,
       connectors: args.connectors,
@@ -173,6 +185,7 @@ export class CompanyOSRuntime {
           toolId: tool.contract.runtimeId,
         },
         allowedCapabilities: tool.contract.capabilities,
+        ...(this.#toolExecutionTimeoutMs === undefined ? {} : { timeoutMs: this.#toolExecutionTimeoutMs }),
         invokeCapability: async (capability, input) => {
           const result = await this.#connectors.invoke(capability, input, {
             instanceId: this.#artifact.instance.id,

@@ -113,7 +113,7 @@ function knowledgeToolFailureCode(error: unknown): string {
     ? details.code.toLowerCase()
     : undefined;
   const evidence = `${name} ${message}`.toLowerCase();
-  if (/abort|deadline|timed?\s*out|timeout/u.test(evidence)) return "execution-timeout";
+  if (/abort|deadline|timed?\s*out|timeout|exceeded\s+\d+\s*ms/u.test(evidence)) return "execution-timeout";
   if (/invalid.*(?:tool|function).*input|schema|validation/u.test(evidence)) return "invalid-tool-input";
   if (/postgres|database|neon|sql|relation|connection|econn/u.test(evidence)) return providerCode ? `database-${providerCode}` : "database-unavailable";
   if (/connector|capability/u.test(evidence)) return "connector-unavailable";

@@ -25,8 +25,10 @@ files_expected:
   - packages/state-postgres/knowledge-access-store.ts
   - packages/runner-vercel/src/lib/bot.ts
   - packages/runner-vercel/src/lib/knowledge-turn-routing.ts
+  - packages/runtime/companyos-runtime.ts
   - packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
   - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
   - packages/testkit/tests/slack-knowledge-routing.test.ts
   - docs/status/current.md
 required_approvals:
@@ -46,6 +48,7 @@ tests:
   - Authorization remains fail-closed and is evaluated for every candidate before ranking.
   - Candidate authorization can proceed concurrently instead of one database round trip per record.
   - The Postgres auditor persists every access decision in bounded batches and resolves each caller only after persistence.
+  - The maintained Runner uses an explicit bounded Tool execution timeout large enough for authorized production retrieval.
   - The production Slack request returns a successful cited search result or an explicit authorized no-result response.
 documentation_impact:
   required: true

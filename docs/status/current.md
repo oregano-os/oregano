@@ -299,8 +299,13 @@ evidence, historical prototypes, and production gaps.
   and retains fail-closed audit failure. A payload-free Tool failure code now
   distinguishes timeout, input, database, Connector, isolation, and unknown
   execution classes without exposing a query, excerpt, credential, or provider
-  error text. The diagnostic redeployment and repeated cited Slack probe remain
-  the final Instance qualification steps.
+  error text. Its live probe identified the immediate cause as the isolated
+  Company Tool worker's five-second default, which terminated a still-running
+  authorized retrieval call. The maintained Runner now selects an explicit
+  bounded 30-second Tool execution window; the generic Runtime validates but
+  does not otherwise prescribe a host's optional override. Production
+  redeployment and the repeated cited Slack probe remain the final Instance
+  qualification steps.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human
