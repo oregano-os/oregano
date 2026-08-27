@@ -28,9 +28,12 @@ test("trusted Git qualification fixture matches the independently observed propo
 
     await git(repository, ["apply", "--whitespace=nowarn", patchPath]);
     const inspection = await inspectProposalWorkspace(repository, baseCommit);
+    await git(repository, ["add", "-N", "--all"]);
+    const codingDiff = await git(repository, ["diff", "--binary", "--no-ext-diff", baseCommit, "--"]);
 
     assert.equal(inspection.diff, diff);
     assert.equal(inspection.diffDigest, sha256(diff));
+    assert.equal(codingDiff, diff);
     assert.deepEqual(inspection.changedPaths, [
       ".companyos/changes/2026-08-26-builder-trusted-git-qualification.yaml",
       "handbook/builder-trusted-git-qualification.md",

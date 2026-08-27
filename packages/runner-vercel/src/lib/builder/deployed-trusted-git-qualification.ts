@@ -214,7 +214,7 @@ This unmerged document proves only that source preparation, independent
 Workbench validation, and proposal publication can run outside the coding
 agent environment. It grants no merge or deployment authority.
 `;
-  return newFilePatch(PLAN_PATH, plan) + "\n" + newFilePatch(EVIDENCE_PATH, evidence);
+  return newFilePatch(PLAN_PATH, plan) + newFilePatch(EVIDENCE_PATH, evidence);
 }
 
 function newFilePatch(path: string, content: string): string {

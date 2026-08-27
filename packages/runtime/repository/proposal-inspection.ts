@@ -36,7 +36,10 @@ export async function inspectProposalWorkspace(
   for (const path of untracked.sort()) {
     untrackedDiffs.push(await git(workspacePath, ["diff", "--binary", "--no-index", "--", "/dev/null", path], true));
   }
-  const diff = [trackedDiff, ...untrackedDiffs].filter(Boolean).join("\n");
+  // Git concatenates per-path patch records directly. Preserve that canonical
+  // representation so an untracked-file inspection hashes identically to the
+  // same changes represented through intent-to-add in the coding workspace.
+  const diff = [trackedDiff, ...untrackedDiffs].filter(Boolean).join("");
   const changedPaths = parsePorcelainPaths(status).sort();
   if (changedPaths.length === 0 || diff.trim() === "") {
     throw new Error("Builder proposal contains no independently observed changes.");
