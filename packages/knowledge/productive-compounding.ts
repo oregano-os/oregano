@@ -212,7 +212,10 @@ const validateWorkingSynthesisOutput = (
   const list = (name: string): string[] => {
     const value = output[name];
     if (!Array.isArray(value)) throw new WorkingSynthesisValidationError(`Working synthesis '${name}' is invalid.`);
-    const ids = value.map(String);
+    const ids = value.map(String).map((id) => {
+      const fromEvidenceIdentity = id.startsWith("claim:") ? id.slice("claim:".length) : "";
+      return fromEvidenceIdentity && claimIds.has(fromEvidenceIdentity) ? fromEvidenceIdentity : id;
+    });
     if (ids.some((id) => !claimIds.has(id))) throw new WorkingSynthesisValidationError("Working synthesis cited a Claim outside its authorized subject set.");
     return [...new Set(ids)].sort();
   };

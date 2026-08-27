@@ -156,6 +156,43 @@ test("working synthesis retries one invalid overlapping classification with boun
   assert.deepEqual(store.syntheses[0]?.contestedClaimIds, ["claim:b"]);
 });
 
+test("working synthesis canonicalizes only an exact supplied evidence identity alias", async () => {
+  const store = new MemoryWorkStore();
+  const calls: KnowledgeModelRequest[] = [];
+  const executor: KnowledgeModelExecutor = { execute: async (binding, request) => {
+    calls.push(structuredClone(request));
+    return {
+      output: {
+        title: "Cedar launch",
+        body: "Working synthesis: the launch date is contested.",
+        supportingClaimIds: ["claim:claim:a"],
+        contestedClaimIds: ["claim:claim:b"],
+        supersededClaimIds: [],
+        gaps: [],
+      },
+      responseId: "response:evidence-alias",
+      responseModel: binding.model,
+      inputTokens: 10,
+      outputTokens: 10,
+      costUsd: 0,
+      latencyMs: 1,
+      finishReason: "stop",
+    };
+  } };
+  const phase = createProductiveKnowledgeCompoundingPhases({
+    store,
+    executor,
+    resolveProfile: profile,
+    accessPolicyIds: ["policy:company"],
+    authorizationContextDigest: sha256("authorization"),
+    dataClass: "confidential",
+  }).find((entry) => entry.name === "syntheses")!;
+  await phase.execute({ budget: phase.budget });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(store.syntheses[0]?.supportingClaimIds, ["claim:a"]);
+  assert.deepEqual(store.syntheses[0]?.contestedClaimIds, ["claim:b"]);
+});
+
 test("claim grading runs only for an explicit request and bounded independent evidence", async () => {
   const store = new MemoryWorkStore();
   const executor = new FixtureExecutor();
