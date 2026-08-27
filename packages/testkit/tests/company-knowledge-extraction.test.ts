@@ -94,7 +94,7 @@ test("Core Prompt Registry pins every initial model boundary and keeps evidence 
     assert.match(entry.contentHash, /^[a-f0-9]{64}$/);
     assert.match(entry.systemInstruction, /untrusted quoted data/i);
     assert.match(entry.inputSchemaId, /@1$/);
-    assert.match(entry.outputSchemaId, /@2$/);
+    assert.match(entry.outputSchemaId, entry.promptId === "knowledge.claim-extraction" ? /@3$/ : /@2$/);
     assert.ok(entry.userInstruction.length > 100);
   }
   assert.throws(() => registry.resolveCurrent("knowledge.rerank"), /Unknown Knowledge prompt/);

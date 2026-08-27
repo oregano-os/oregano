@@ -51,8 +51,9 @@ export const KNOWLEDGE_PROMPT_INPUT_SCHEMAS = {
 } as const satisfies Readonly<Record<string, KnowledgePromptJsonSchema>>;
 
 const confidence = { type: "number", minimum: 0, maximum: 1 } as const;
+const discreteEpistemicWeight = { ...confidence, multipleOf: 0.05 } as const;
 
-export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = {
+const claimExtractionOutputSchema = (epistemicWeight: KnowledgePromptJsonSchema) => ({
   ...object({
     page: object({ title: string(500), summary: string(4_000, 0) }),
     facts: {
@@ -65,7 +66,7 @@ export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = {
         evidenceId: string(256),
         locator: { $ref: "#/$defs/locator" },
         extractionConfidence: confidence,
-        epistemicWeight: confidence,
+        epistemicWeight,
         participantRelations: { $ref: "#/$defs/participantRelations" },
       }),
     },
@@ -84,7 +85,7 @@ export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = {
         evidenceId: string(256),
         locator: { $ref: "#/$defs/locator" },
         extractionConfidence: confidence,
-        epistemicWeight: confidence,
+        epistemicWeight,
         participantRelations: { $ref: "#/$defs/participantRelations" },
       }),
     },
@@ -95,7 +96,9 @@ export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = {
     },
   }),
   $defs: { locator, participantRelations },
-} as const satisfies KnowledgePromptJsonSchema;
+} as const satisfies KnowledgePromptJsonSchema);
+
+export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = claimExtractionOutputSchema(discreteEpistemicWeight);
 
 export const KNOWLEDGE_PROMPT_OUTPUT_SCHEMAS = {
   "knowledge.triage.output@2": object({
@@ -105,7 +108,8 @@ export const KNOWLEDGE_PROMPT_OUTPUT_SCHEMAS = {
     rationale: string(1_000),
   }),
   "knowledge.page-classification.output@2": object({ typeKey: string(100), rationale: string(1_000) }),
-  "knowledge.claim-extraction.output@2": KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA,
+  "knowledge.claim-extraction.output@2": claimExtractionOutputSchema(confidence),
+  "knowledge.claim-extraction.output@3": KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA,
   "knowledge.timeline.output@2": object({
     events: { type: "array", maxItems: 200, items: object({ eventType: string(200), description: string(2_000), observedAt: { type: "string", format: "date-time" }, evidenceId: string(256), locator }) },
   }),
