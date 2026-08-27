@@ -18,10 +18,13 @@ test("every generative Knowledge task has exact versioned schemas and a task-spe
   assert.equal(new Set(definitions.map((definition) => definition.inputSchemaId)).size, definitions.length);
   assert.equal(new Set(definitions.map((definition) => definition.outputSchemaId)).size, definitions.length);
   for (const definition of definitions) {
-    assert.equal(definition.version, definition.promptId === "knowledge.claim-extraction" ? "3" : "2");
+    assert.equal(definition.version, definition.promptId === "knowledge.claim-extraction" ? "4" : "2");
     assert.ok(definition.userInstruction.length >= 150);
     assert.equal((definition.outputSchema as { additionalProperties?: unknown }).additionalProperties, false);
   }
+  const extraction = registry.resolveCurrent("knowledge.claim-extraction");
+  const facts = (extraction.outputSchema.properties as { facts: { items: { properties: Record<string, unknown> } } }).facts;
+  assert.deepEqual(facts.items.properties.epistemicWeight, { type: "number", minimum: 0, maximum: 1, multipleOf: 0.05 });
 });
 
 test("the dispatcher fails closed for prompt or schema substitution before execution", () => {
