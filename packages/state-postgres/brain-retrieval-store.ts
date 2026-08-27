@@ -64,6 +64,9 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
         join companyos_knowledge.sources s on s.source_id = p.source_id
         where p.lifecycle_status = 'active' and p.verification_status <> 'rejected'
           and s.status in ('registered','healthy','stale')
+          and (v.model_provenance is null or exists (
+            select 1 from companyos_knowledge.extraction_runs r
+            where r.run_id = v.model_provenance->>'extractionRunId' and r.status = 'succeeded'))
         order by p.page_id`,
       sql`select c.claim_id, c.claim_kind, c.claim_text, c.owner_principal_id, c.primary_holder_id,
           c.source_basis, c.status, c.observed_at, c.valid_until, c.extraction_confidence,
@@ -75,6 +78,9 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
         join companyos_knowledge.claim_evidence e on e.claim_id = c.claim_id
         join companyos_knowledge.sources s on s.source_id = e.source_id
         where c.status not in ('forgotten','deleted') and s.status in ('registered','healthy','stale')
+          and (c.model_provenance is null or exists (
+            select 1 from companyos_knowledge.extraction_runs r
+            where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded'))
         order by c.claim_id, e.evidence_id`,
       sql`select ov.*, i.deletion_state
         from companyos_knowledge.source_object_versions ov
@@ -87,6 +93,9 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
             join companyos_knowledge.page_versions pv on pv.page_version_id = p.current_version_id
             where p.source_id = ov.source_id and pv.source_object_id = ov.provider_object_id
               and pv.source_object_version = ov.provider_version and p.lifecycle_status = 'active'
+              and (pv.model_provenance is null or exists (
+                select 1 from companyos_knowledge.extraction_runs r
+                where r.run_id = pv.model_provenance->>'extractionRunId' and r.status = 'succeeded'))
           )
         order by ov.source_id, ov.provider_object_id, ov.provider_version`,
       sql`select s.synthesis_id, s.subject_type, s.subject_id, s.access_policy_id,
@@ -103,6 +112,9 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
         join companyos_knowledge.sources s on s.source_id = p.source_id
         where t.lifecycle_status = 'active' and p.lifecycle_status = 'active'
           and s.status in ('registered','healthy','stale')
+          and (not (t.evidence ? 'extractionRunId') or exists (
+            select 1 from companyos_knowledge.extraction_runs r
+            where r.run_id = t.evidence->>'extractionRunId' and r.status = 'succeeded'))
         order by t.event_id`,
       sql`select from_type, from_id, to_type, to_id from companyos_knowledge.knowledge_edges
         where lifecycle_status = 'active' order by from_type, from_id, to_type, to_id`,

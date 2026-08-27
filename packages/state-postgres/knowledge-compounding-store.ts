@@ -126,6 +126,9 @@ export class PostgresKnowledgeCompoundingWorkStore implements KnowledgeCompoundi
       left join companyos_knowledge.claim_evidence ce on ce.claim_id = c.claim_id
       where c.access_policy_id = any(${input.accessPolicyIds}::text[])
         and c.status in ('proposed','active','contested','resolved','superseded')
+        and (c.model_provenance is null or exists (
+          select 1 from companyos_knowledge.extraction_runs r
+          where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded'))
       group by c.claim_id
       order by c.claim_id
       limit ${Math.max(1, Math.min(input.limit, 2_000))}`;
@@ -207,6 +210,9 @@ export class PostgresKnowledgeCompoundingWorkStore implements KnowledgeCompoundi
       join companyos_knowledge.claims c on c.claim_id = r.claim_id
       left join companyos_knowledge.claim_evidence own on own.claim_id = c.claim_id
       where r.status = 'pending' and r.access_policy_id = any(${input.accessPolicyIds}::text[])
+        and (c.model_provenance is null or exists (
+          select 1 from companyos_knowledge.extraction_runs er
+          where er.run_id = c.model_provenance->>'extractionRunId' and er.status = 'succeeded'))
       group by r.request_id, c.claim_id
       order by r.requested_at, r.request_id
       limit ${Math.max(1, Math.min(input.limit, 1_000))}`;

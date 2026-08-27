@@ -186,6 +186,16 @@ test("the Postgres BrainStore uses the existing database and serializable write 
   assert.ok(source.match(/isolationLevel: "Serializable"/g)?.length && source.match(/isolationLevel: "Serializable"/g)!.length >= 3);
 });
 
+test("production reads and compounding exclude model artifacts without a successful extraction receipt", () => {
+  const brain = readFileSync(join(process.cwd(), "packages/state-postgres/brain-store.ts"), "utf8");
+  const retrieval = readFileSync(join(process.cwd(), "packages/state-postgres/brain-retrieval-store.ts"), "utf8");
+  const compounding = readFileSync(join(process.cwd(), "packages/state-postgres/knowledge-compounding-store.ts"), "utf8");
+  for (const source of [brain, retrieval, compounding]) {
+    assert.match(source, /extraction_runs/);
+    assert.match(source, /status = 'succeeded'/);
+  }
+});
+
 test("BrainStore rejects registry, Holder, Claim, and proposal identity conflicts", async () => {
   const store = new InMemoryBrainStore();
   const extension: BrainPageTypeDefinition = {
