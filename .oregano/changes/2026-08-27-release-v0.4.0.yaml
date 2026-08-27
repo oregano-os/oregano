@@ -3,41 +3,39 @@ plan_id: release-v0.4.0-2026-08-27
 status: approved
 author: codex-agent
 created: 2026-08-27
-title: Prepare the Company Knowledge operating capability as Oregano v0.4.0
+title: Release Oregano v0.4.0 with governed Company Knowledge
 objective: >-
-  Prepare one immutable minor release candidate containing the generic Company
-  Knowledge Source, storage, authorization, model, retrieval, promotion,
-  recovery, and maintained runtime integration contracts.
+  Publish one immutable minor release containing the generic Company Knowledge
+  Source, storage, authorization, model, retrieval, promotion, recovery, and
+  maintained runtime integration contracts, together with the already approved
+  declarative Product Manager Blueprint and isolated non-production Builder ACP
+  qualification surface included in the candidate.
 non_goals:
-  - Publish or tag the release before the complete candidate passes validation
   - Change an existing immutable release
   - Claim production recovery or alert evidence before the exact Instance is exercised
 placement: core
-change_class: behavior
+change_class: security
 vision_principles_affected:
   - A company-independent Core
   - Evidence beats claims
   - Safety cannot be weakened from a Workspace
   - The runtime is replaceable
 files_expected:
-  - .oregano/changes/2026-08-27-release-v0.4.0.yaml
-  - docs/status/current.md
-  - docs/workbench/overview.md
+  - .oregano/changes/**
+  - INSTALL-COMPANYOS.md
+  - docs/**
   - package.json
-  - packages/cli/package.json
-  - packages/cli/tests/live-setup.test.mjs
-  - packages/cli/tests/knowledge.test.mjs
-  - packages/cli/tests/workbench.test.mjs
-  - packages/testkit/fixtures/acme-casas/package.json
-  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/**
   - pnpm-lock.yaml
+  - tsconfig.json
+  - vercel.json
 required_approvals:
   - oregano-maintainer
 approvals:
   - role: oregano-maintainer
     approver: fylingpete
     approved_at: 2026-08-27
-    evidence: explicit-user-instruction-to-complete-the-company-knowledge-integration
+    evidence: explicit-user-instruction-to-complete-commit-push-and-release-the-company-knowledge-implementation
 validation:
   - pnpm companyos plan --check .oregano/changes/2026-08-27-release-v0.4.0.yaml
   - pnpm companyos versions
@@ -49,11 +47,41 @@ tests:
   - Core reports 0.4.0 and Workbench reports 0.1.0-experimental.8
   - Existing provider, Tool, Workspace, setup, and runtime tests remain compatible
   - Company Knowledge authorization and production runtime conformance tests pass
+  - The declarative Product Manager Blueprint remains inspectable and grants no runtime authority
+  - The isolated Builder ACP qualification surface remains non-activatable in production
   - Release inputs contain no Company Workspace credential or provider payload
 documentation_impact:
   required: true
   affected_documents:
+    - vision.companyos
+    - reference.glossary
+    - architecture.company-instance
+    - architecture.company-workspace
+    - architecture.workbench
+    - architecture.ecosystem-packages
+    - architecture.oregano-core
+    - architecture.overview
+    - architecture.boundaries
+    - governance.versioning
+    - onboarding.index
+    - onboarding.company-workspace
+    - plan.company-knowledge-implementation
+    - plan.builder-acp-mvp-implementation
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.1
+    - specification.company-knowledge-v0.2
+    - specification.tool-architecture
     - status.current
+    - command.build
+    - command.knowledge
+    - command.setup
+    - command.verify-live
+    - guide.author-company-knowledge
+    - guide.connect-knowledge-source
+    - guide.operate-knowledge-provider
+    - guide.prepare-instance
+    - guide.recover-company-knowledge
+    - guide.review-company-knowledge
     - workbench.overview
 migration: >-
   This pre-1.0 minor release adds operating capabilities and requires each
@@ -64,5 +92,4 @@ rollback: >-
   Keep or promote the prior immutable 0.3.2 Artifact and remove the new
   Workspace grants and Instance bindings. Preserve retained Source evidence and
   schema rows; rollback does not authorize deletion.
-open_decisions:
-  - Publish and tag only after the final clean candidate and live qualification evidence are reviewed.
+open_decisions: []

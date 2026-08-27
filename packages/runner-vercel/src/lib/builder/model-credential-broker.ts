@@ -93,4 +93,3 @@ function assertCredential(credential: string): void {
     throw new Error("Builder model credential contains an invalid header character.");
   }
 }
-

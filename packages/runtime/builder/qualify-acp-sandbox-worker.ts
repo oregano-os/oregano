@@ -52,4 +52,3 @@ function agentEnvironment(profileId: typeof profile.id): Record<string, string> 
   else environment.CODEX_API_KEY = placeholder;
   return environment;
 }
-
