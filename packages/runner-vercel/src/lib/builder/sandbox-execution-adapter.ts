@@ -174,7 +174,18 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
         };
       }
       const command = await record.sandbox.getCommand(record.commandId);
-      record.state = command.exitCode === null ? "running" : command.exitCode === 0 ? "succeeded" : "failed";
+      const completedOutput = command.exitCode === null
+        && record.request?.operation
+        && isExpectedBuilderWorkerResult(await command.stdout(), {
+          jobId: record.handle.jobId,
+          requestId: record.request.operation.requestId,
+          profileId: record.request.codingAgent.profileId,
+        });
+      record.state = completedOutput || command.exitCode === 0
+        ? "succeeded"
+        : command.exitCode === null
+          ? "running"
+          : "failed";
       if (isTerminal(record.state)) record.finishedAt ??= new Date().toISOString();
       return { state: record.state, observedAt: new Date().toISOString() };
     }
@@ -561,4 +572,22 @@ function parseWorkerOutput(stdout: string): unknown {
     }
   }
   throw new Error("Builder worker did not emit a structured terminal result.");
+}
+
+export function isExpectedBuilderWorkerResult(
+  stdout: string,
+  expected: { readonly jobId: string; readonly requestId: string; readonly profileId: string },
+): boolean {
+  try {
+    const result = parseWorkerOutput(stdout);
+    if (!result || typeof result !== "object" || Array.isArray(result)) return false;
+    const data = result as Record<string, unknown>;
+    return data.schemaVersion === 1
+      && data.jobId === expected.jobId
+      && data.requestId === expected.requestId
+      && data.profileId === expected.profileId
+      && data.evidence !== undefined;
+  } catch {
+    return false;
+  }
 }
