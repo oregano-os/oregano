@@ -9,6 +9,7 @@ import {
   knowledgeModelAdapterDigest,
   KNOWLEDGE_EXTRACTION_JSON_SCHEMA,
   KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA,
+  productiveKnowledgeCompoundingCycleId,
   qualifyKnowledgePromptFixtures,
   resolveKnowledgeTaskProfile,
 } from "./knowledge-model-runtime.ts";
@@ -69,6 +70,13 @@ test("Knowledge model runtime compiles every prompt through profile and exact ta
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.cited-synthesis").model, "anthropic/claude-opus-4-7");
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-grading").maxOutputTokens, 12_000);
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").qualification, undefined);
+  const firstCycle = productiveKnowledgeCompoundingCycleId("2026-08-27T10:00:00.000Z", configuration);
+  assert.equal(firstCycle, productiveKnowledgeCompoundingCycleId("2026-08-27T11:59:59.999Z", configuration));
+  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId("2026-08-27T12:00:00.000Z", configuration));
+  assert.match(firstCycle, /^2026-08-27T06:00:00\.000Z#[a-f0-9]{16}$/);
+  const changed = structuredClone(configuration);
+  changed.tasks = { ...changed.tasks, "knowledge.working-synthesis": { ...changed.tasks["knowledge.working-synthesis"]!, model: "anthropic/claude-opus-4-8" } };
+  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId("2026-08-27T10:00:00.000Z", changed));
 });
 
 test("Knowledge model runtime inherits the shared CompanyOS recipe configuration when no Knowledge override exists", () => {

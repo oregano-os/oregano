@@ -509,9 +509,13 @@ export class PostgresBrainStore implements BrainStore {
     const rows = await sql`select c.*, h.holder_type, h.display_name from companyos_knowledge.claims c
       left join companyos_knowledge.holders h on h.holder_id = c.primary_holder_id
       where c.claim_id = ${claimId}
-        and (c.model_provenance is null or exists (
-          select 1 from companyos_knowledge.extraction_runs r
-          where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded'))
+        and (c.model_provenance is null or (
+          exists (select 1 from companyos_knowledge.extraction_runs r
+            where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded')
+          and exists (select 1 from companyos_knowledge.claim_evidence current_evidence
+            join companyos_knowledge.pages current_page on current_page.page_id = current_evidence.page_id
+              and current_page.current_version_id = current_evidence.page_version_id
+            where current_evidence.claim_id = c.claim_id and current_page.lifecycle_status = 'active')))
       limit 1`;
     if (!rows[0]) return undefined;
     const row = rows[0];

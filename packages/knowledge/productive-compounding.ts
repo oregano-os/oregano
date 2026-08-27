@@ -95,6 +95,15 @@ export interface KnowledgeCompoundingRuntimeInput {
   phaseBudget?: number;
 }
 
+export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION = "2.0.0" as const;
+export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_PROMPT_IDS = [
+  "knowledge.duplicate-classification",
+  "knowledge.claim-relation",
+  "knowledge.conflict-judgment",
+  "knowledge.working-synthesis",
+  "knowledge.claim-grading",
+] as const;
+
 type Pair = readonly [CompoundingClaim, CompoundingClaim];
 
 const isoNow = (input: KnowledgeCompoundingRuntimeInput): string => input.now?.() ?? new Date().toISOString();
@@ -128,7 +137,8 @@ export function selectCompoundingClaimPairs(
       const left = ordered[leftIndex];
       const right = ordered[rightIndex];
       if (!left || !right || left.accessPolicyId !== right.accessPolicyId || !sharedSubject(left, right)) continue;
-      if (mode === "duplicate" && lexicalOverlap(left.claimText, right.claimText) < 0.2) continue;
+      const minimumOverlap = mode === "duplicate" ? 0.2 : 0.1;
+      if (lexicalOverlap(left.claimText, right.claimText) < minimumOverlap) continue;
       pairs.push([left, right]);
     }
   }
@@ -229,7 +239,7 @@ const validateWorkingSynthesisOutput = (
 
 const pairClaims = async (runtime: KnowledgeCompoundingRuntimeInput, budget: number, mode: "duplicate" | "relation" | "conflict") =>
   selectCompoundingClaimPairs(
-    await runtime.store.listClaims({ accessPolicyIds: runtime.accessPolicyIds, limit: Math.min(Math.max(budget * 4, 20), 200) }),
+    await runtime.store.listClaims({ accessPolicyIds: runtime.accessPolicyIds, limit: 2_000 }),
     mode,
   );
 
@@ -322,7 +332,7 @@ function conflictPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number
 
 function synthesisPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number): CompoundingPhase {
   return { name: "syntheses", scope: "global", budget, execute: async ({ continuation }) => {
-    const claims = await runtime.store.listClaims({ accessPolicyIds: runtime.accessPolicyIds, limit: Math.min(Math.max(budget * 20, 100), 1_000) });
+    const claims = await runtime.store.listClaims({ accessPolicyIds: runtime.accessPolicyIds, limit: 2_000 });
     const groups = new Map<string, CompoundingClaim[]>();
     for (const claim of claims) for (const subjectId of claim.subjectIds) {
       const key = `${claim.accessPolicyId}\0${subjectId}`;

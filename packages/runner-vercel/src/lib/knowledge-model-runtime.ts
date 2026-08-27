@@ -21,6 +21,8 @@ import { KnowledgePromptRegistry, renderKnowledgePromptUserMessage } from "../..
 import { KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA } from "../../../knowledge/prompt-schemas.ts";
 import {
   createProductiveKnowledgeCompoundingPhases,
+  KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION,
+  KNOWLEDGE_PRODUCTIVE_COMPOUNDING_PROMPT_IDS,
   type KnowledgeCompoundingWorkStore,
 } from "../../../knowledge/productive-compounding.ts";
 import {
@@ -50,6 +52,33 @@ export const GRANOLA_EXTRACTION_STREAM = `${GRANOLA_RECONCILIATION_STREAM}:extra
 export interface KnowledgeModelRuntimeConfiguration {
   version: 1;
   tasks: Readonly<Record<string, KnowledgeModelProfileBinding>>;
+}
+
+export function productiveKnowledgeCompoundingCycleId(
+  at: string,
+  configuration: KnowledgeModelRuntimeConfiguration,
+): string {
+  const time = new Date(at);
+  if (Number.isNaN(time.getTime())) throw new Error("Knowledge compounding cycle time is invalid.");
+  const bucket = Math.floor(time.getUTCHours() / 6) * 6;
+  const registry = new KnowledgePromptRegistry();
+  const contractDigest = sha256({
+    version: KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION,
+    prompts: KNOWLEDGE_PRODUCTIVE_COMPOUNDING_PROMPT_IDS.map((promptId) => {
+      const prompt = registry.resolveCurrent(promptId);
+      const profile = resolveKnowledgeTaskProfile(configuration, promptId);
+      return {
+        promptId,
+        promptVersion: prompt.version,
+        promptContentHash: prompt.contentHash,
+        profile: profile.profile,
+        profileVersion: profile.profileVersion,
+        route: profile.route,
+        model: profile.model,
+      };
+    }),
+  });
+  return `${time.toISOString().slice(0, 10)}T${String(bucket).padStart(2, "0")}:00:00.000Z#${contractDigest.slice(0, 16)}`;
 }
 
 const knowledgeProfile = (
@@ -316,9 +345,7 @@ export class CompanyKnowledgeCompoundingRuntime {
     });
     if (!permit) throw new Error("Knowledge compounding authorization was denied.");
     const now = this.#now();
-    const time = new Date(now);
-    const bucket = Math.floor(time.getUTCHours() / 6) * 6;
-    const cycleId = input.cycleId ?? `${time.toISOString().slice(0, 10)}T${String(bucket).padStart(2, "0")}:00:00.000Z`;
+    const cycleId = input.cycleId ?? productiveKnowledgeCompoundingCycleId(now, this.#configuration);
     const authorizationContextDigest = sha256({ principalId: subject.principalId, policyId: policy.policyId, permission: "read", sourceId: source.requirement.sourceId });
     const phases = createProductiveKnowledgeCompoundingPhases({
       store: this.#workStore,

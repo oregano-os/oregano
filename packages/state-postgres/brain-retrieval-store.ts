@@ -76,11 +76,14 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
         from companyos_knowledge.claims c
         left join companyos_knowledge.holders h on h.holder_id = c.primary_holder_id
         join companyos_knowledge.claim_evidence e on e.claim_id = c.claim_id
+        left join companyos_knowledge.pages evidence_page on evidence_page.page_id = e.page_id
         join companyos_knowledge.sources s on s.source_id = e.source_id
         where c.status not in ('forgotten','deleted') and s.status in ('registered','healthy','stale')
-          and (c.model_provenance is null or exists (
-            select 1 from companyos_knowledge.extraction_runs r
-            where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded'))
+          and (c.model_provenance is null or (
+            exists (select 1 from companyos_knowledge.extraction_runs r
+              where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded')
+            and evidence_page.current_version_id = e.page_version_id
+            and evidence_page.lifecycle_status = 'active'))
         order by c.claim_id, e.evidence_id`,
       sql`select ov.*, i.deletion_state
         from companyos_knowledge.source_object_versions ov
@@ -103,7 +106,24 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
           v.contested_claim_ids, v.superseded_claim_ids, v.synthesized_at
         from companyos_knowledge.syntheses s
         join companyos_knowledge.synthesis_versions v on v.synthesis_version_id = s.current_version_id
-        where s.lifecycle_status = 'active' order by s.synthesis_id`,
+        where s.lifecycle_status = 'active'
+          and not exists (
+            select 1 from jsonb_array_elements_text(
+              v.supporting_claim_ids || v.contested_claim_ids || v.superseded_claim_ids
+            ) cited(claim_id)
+            where not exists (
+              select 1 from companyos_knowledge.claims current_claim
+              where current_claim.claim_id = cited.claim_id
+                and (current_claim.model_provenance is null or (
+                  exists (select 1 from companyos_knowledge.extraction_runs current_run
+                    where current_run.run_id = current_claim.model_provenance->>'extractionRunId'
+                      and current_run.status = 'succeeded')
+                  and exists (select 1 from companyos_knowledge.claim_evidence current_evidence
+                    join companyos_knowledge.pages current_page on current_page.page_id = current_evidence.page_id
+                      and current_page.current_version_id = current_evidence.page_version_id
+                    where current_evidence.claim_id = current_claim.claim_id
+                      and current_page.lifecycle_status = 'active')))))
+        order by s.synthesis_id`,
       sql`select t.event_id, t.event_type, t.subject_type, t.subject_id, t.page_version_id,
           t.claim_id, t.source_id, t.observed_at, t.provenance_class, t.evidence,
           t.access_policy_id
@@ -115,6 +135,7 @@ export class PostgresBrainKnowledgeProjectionStore implements BrainKnowledgeProj
           and (not (t.evidence ? 'extractionRunId') or exists (
             select 1 from companyos_knowledge.extraction_runs r
             where r.run_id = t.evidence->>'extractionRunId' and r.status = 'succeeded'))
+          and (not (t.evidence ? 'extractionRunId') or t.page_version_id = p.current_version_id)
         order by t.event_id`,
       sql`select from_type, from_id, to_type, to_id from companyos_knowledge.knowledge_edges
         where lifecycle_status = 'active' order by from_type, from_id, to_type, to_id`,

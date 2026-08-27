@@ -34,8 +34,10 @@ class MemoryWorkStore implements KnowledgeCompoundingWorkStore {
   grades: ClaimGradingResultWrite[] = [];
   gradingRequests: ClaimGradingWorkItem[] = [];
   deferred: Array<{ requestId: string; reason: string }> = [];
+  listLimits: number[] = [];
 
   async listClaims(input: { accessPolicyIds: string[]; limit: number }) {
+    this.listLimits.push(input.limit);
     return claims.filter((claim) => input.accessPolicyIds.includes(claim.accessPolicyId)).slice(0, input.limit);
   }
   async putClaimPairProposal(proposal: ClaimPairProposalWrite) { this.pairProposals.push(structuredClone(proposal)); return "inserted" as const; }
@@ -75,6 +77,9 @@ test("compounding candidate selection is deterministic, policy-contained, and su
   const second = selectCompoundingClaimPairs([...claims].reverse(), "duplicate");
   assert.deepEqual(first.map((pair) => pair.map((claim) => claim.claimId)), [["claim:a", "claim:b"]]);
   assert.deepEqual(second.map((pair) => pair.map((claim) => claim.claimId)), [["claim:a", "claim:b"]]);
+  const unrelated = { ...claims[0]!, claimId: "claim:unrelated", claimText: "Hiring policy requires two approvals" };
+  assert.deepEqual(selectCompoundingClaimPairs([...claims, unrelated], "relation").map((pair) => pair.map((claim) => claim.claimId)), [["claim:a", "claim:b"]]);
+  assert.deepEqual(selectCompoundingClaimPairs([...claims, unrelated], "conflict").map((pair) => pair.map((claim) => claim.claimId)), [["claim:a", "claim:b"]]);
 });
 
 test("productive compounding defaults to one portable work item per phase", () => {
@@ -109,6 +114,7 @@ test("productive compounding writes review proposals and immutable working synth
   assert.equal(store.syntheses[0]?.subjectIdentity, "page:cedar");
   assert.deepEqual(store.syntheses[0]?.contestedClaimIds, ["claim:b"]);
   assert.equal(Object.hasOwn(store as object, "putClaim"), false);
+  assert.equal(store.listLimits.every((limit) => limit === 2_000), true);
 });
 
 test("working synthesis retries one invalid overlapping classification with bounded feedback", async () => {
@@ -254,4 +260,15 @@ test("the maintained Vercel adapters schedule reconcile, extraction, and compoun
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };
   assert.deepEqual(root.crons, expected);
   assert.deepEqual(runner.crons, expected);
+});
+
+test("Postgres reads only successful model artifacts attached to the current Page version", () => {
+  const retrieval = readFileSync(join(import.meta.dirname, "../../state-postgres/brain-retrieval-store.ts"), "utf8");
+  const compounding = readFileSync(join(import.meta.dirname, "../../state-postgres/knowledge-compounding-store.ts"), "utf8");
+  const exact = readFileSync(join(import.meta.dirname, "../../state-postgres/brain-store.ts"), "utf8");
+  assert.match(retrieval, /evidence_page\.current_version_id = e\.page_version_id/);
+  assert.match(retrieval, /t\.page_version_id = p\.current_version_id/);
+  assert.match(retrieval, /jsonb_array_elements_text/);
+  assert.match(compounding, /current_page\.current_version_id = current_evidence\.page_version_id/g);
+  assert.match(exact, /current_page\.current_version_id = current_evidence\.page_version_id/);
 });
