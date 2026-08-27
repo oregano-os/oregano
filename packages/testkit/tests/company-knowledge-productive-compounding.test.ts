@@ -77,6 +77,18 @@ test("compounding candidate selection is deterministic, policy-contained, and su
   assert.deepEqual(second.map((pair) => pair.map((claim) => claim.claimId)), [["claim:a", "claim:b"]]);
 });
 
+test("productive compounding defaults to one portable work item per phase", () => {
+  const phases = createProductiveKnowledgeCompoundingPhases({
+    store: new MemoryWorkStore(),
+    executor: new FixtureExecutor(),
+    resolveProfile: profile,
+    accessPolicyIds: ["policy:company"],
+    authorizationContextDigest: sha256("authorization"),
+    dataClass: "confidential",
+  });
+  assert.deepEqual(phases.map((phase) => phase.budget), [1, 1, 1, 1, 1]);
+});
+
 test("productive compounding writes review proposals and immutable working synthesis without canonical mutation methods", async () => {
   const store = new MemoryWorkStore();
   const executor = new FixtureExecutor();

@@ -391,6 +391,9 @@ function gradingPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number)
 export function createProductiveKnowledgeCompoundingPhases(runtime: KnowledgeCompoundingRuntimeInput): readonly CompoundingPhase[] {
   if (runtime.accessPolicyIds.length === 0 || new Set(runtime.accessPolicyIds).size !== runtime.accessPolicyIds.length) throw new Error("Knowledge compounding requires unique authorized access policies.");
   if (!/^[a-f0-9]{64}$/.test(runtime.authorizationContextDigest)) throw new Error("Knowledge compounding requires an authorization context digest.");
-  const budget = Math.max(1, Math.min(runtime.phaseBudget ?? 10, 50));
+  // One model-backed work item per phase keeps the portable default inside
+  // common serverless invocation limits. Long-running hosts may opt into a
+  // larger explicit budget without changing phase or receipt semantics.
+  const budget = Math.max(1, Math.min(runtime.phaseBudget ?? 1, 50));
   return [duplicatePhase(runtime, budget), relationPhase(runtime, budget), conflictPhase(runtime, budget), synthesisPhase(runtime, budget), gradingPhase(runtime, budget)];
 }
