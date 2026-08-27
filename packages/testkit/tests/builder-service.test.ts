@@ -106,6 +106,15 @@ test("BuilderService runs a confirmed job to one checked outer proposal", async 
       "source",
       "validation",
     ]);
+    const executionEvidence = (published?.evidence as any).execution;
+    assert.equal(executionEvidence.executionId, (executing.executionHandle as any).executionId);
+    assert.equal(executionEvidence.state, "succeeded");
+    assert.deepEqual(executionEvidence.evidence, { profile: "codex" });
+    assert.equal(executionEvidence.transferDiffDigest, sha256(patch));
+    assert.equal(
+      executionEvidence.observedDiffDigest,
+      (published?.evidence as any).validation.validatedDiffDigest,
+    );
     const proposalCommit = git(repository, ["rev-parse", `refs/heads/companyos/builder/${job.jobId}`]);
     assert.equal(git(repository, ["show", `${proposalCommit}:company.md`]), "changed by builder");
   } finally {

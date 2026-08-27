@@ -5,7 +5,7 @@ kind: plan
 status: approved
 authority: informative
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -25,7 +25,7 @@ relations:
 
 # Builder ACP MVP Architecture and Delivery Plan
 
-## Implementation status on 2026-08-26
+## Implementation status on 2026-08-27
 
 The proposal-only MVP described here is now implemented on the isolated
 `codex/builder-acp-stage-0` branch. Deterministic Agent resolution, explicit
@@ -34,21 +34,25 @@ worker, private ACP profiles, repository contracts, local Git and GitHub App
 providers, independent Workbench validation, trusted outer publication, and
 source-thread terminal reporting have automated coverage.
 
-The qualified worker snapshot was created successfully as
-`snap_DhzyVAHNi9moSZDDJMwSO2wjQMzd` from the pinned base image. It contains ACP
+The current qualified worker snapshot was created successfully as
+`snap_VgcFhKlxv53rgiwoOGmFS7sBc7Yp` from the pinned base image. It contains ACP
 SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
 
-The separate trusted Git snapshot was created as
-`snap_yWJtTmrkuKxTyv50sjGVDSsSfhLP`. It contains Git and the pinned Workbench,
+The current separate trusted Git snapshot was created as
+`snap_8qXUUTT8rn7NF45Yx8KzGgIbwEsb`. It contains Git and the pinned Workbench,
 never starts Claude Code or Codex, and is independently bound from the coding
-worker snapshot.
+worker snapshot. Snapshot identifiers are non-secret provider receipts, not
+Core or Workspace configuration.
 
-The implementation is intentionally not activated in Production. Remaining
-deployment gates are:
+The implementation is intentionally not activated in a customer production
+Company Instance. The isolated non-production qualification Instance completed
+both deployment gates:
 
-1. bind the snapshots, cron secret, GitHub provider, Agent routes, and updated
-   immutable Artifact in an isolated non-production Instance; and
-2. complete one Slack-to-draft-proposal round trip with no merge or deployment.
+1. it bound the snapshots, cron secret, GitHub provider, exact Slack Agent
+   route, and immutable Artifact; and
+2. one authenticated Slack request required explicit confirmation and produced
+   checked draft `fylingpete/oregano-hq-companyos#6` against exact base
+   `b3024615d91cb1342d3eeab469a2bf61780f72dd`, with no merge or deployment.
 
 The service-owned GitHub App passed live exact-base source and idempotent draft
 publication qualification against one selected private Workspace. Both model
@@ -60,6 +64,22 @@ The deployed trusted Git and onboarding path subsequently passed with a
 credential-free bundle, a freshly reread Postgres binding, three independent
 Workbench checks, one outer commit, and repeat-call reuse of stacked draft
 `fylingpete/oregano-hq-companyos#4`.
+
+The representative Slack job exposed and resolved three integration defects
+before the successful run: an ACP-owned handle kept a completed detached worker
+alive, an expired worker marker could otherwise remain non-terminal, and the
+coding and trusted Git boundaries serialized adjacent new-file patches
+differently. The worker now flushes and exits deterministically, coordinator
+output polling is bounded, missing persisted markers fail closed, and one
+canonical patch representation is checked on both sides. The successful job
+completed in 298.240 seconds end to end. Its one-vCPU, 2 GB coding Sandbox was
+alive for 264.182 seconds, consumed 8.401 active CPU seconds, received 578,626
+bytes, and sent 2,182,878 bytes. At the [Vercel Sandbox list
+rates](https://vercel.com/pricing) published on 2026-08-27, that is
+approximately USD 0.00374 of provider compute, memory,
+network, and creation usage before included quotas and excluding Claude model
+cost. Per-job model-token attribution and deliberate ACP-process-crash
+injection remain production-readiness measurements.
 
 ## 1. Purpose and approved decisions
 
@@ -653,8 +673,14 @@ Stage 0 evaluates four details:
 The brokered Claude and Codex profile gate and the private GitHub exact-base
 source and checked-publication gate passed on 2026-08-26. Basic result,
 cleanup, timeout, cancellation, and duplicate-delivery behavior also passed.
-ACP-process-crash injection and representative duration and cost remain open
-production-readiness measurements.
+The representative Slack-backed job then passed on 2026-08-27 in 298.240
+seconds end to end. Its coding Sandbox ran for 264.182 seconds with 8.401 active
+CPU seconds, 2 GB provisioned memory, 578,626 ingress bytes, and 2,182,878
+egress bytes. Using the Vercel Sandbox list rates published that day, the
+measured provider resource use is approximately USD 0.00374 before included
+quotas and excluding the Claude model call. Per-job model-token attribution and
+deliberate ACP-process-crash injection remain open production-readiness
+measurements.
 
 The first Stage-0 execution probe on 2026-08-26 proved the neutral five-method
 adapter lifecycle against Vercel Sandbox SDK `3.1.0`. A real disposable Sandbox
@@ -833,8 +859,9 @@ A fresh trusted Git Sandbox reapplies the independently observed diff, reruns
 the Workbench, creates the canonical outer commit, and pushes only the bounded
 proposal branch before the GitHub provider opens a draft through the API. The
 live pass on 2026-08-26 proved this path and repeat-call idempotency. The
-remaining hosted integration gate is the normal Runner and Slack path into one
-confirmed job in an isolated Instance Artifact.
+normal Runner and Slack integration gate then passed on 2026-08-27 through one
+confirmed job in an isolated Instance Artifact and checked draft
+`fylingpete/oregano-hq-companyos#6`.
 
 ## 9. Success and graduation criteria
 

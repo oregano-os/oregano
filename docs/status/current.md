@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -141,13 +141,17 @@ evidence, historical prototypes, and production gaps.
   Live provider probes have proved digest-pinned base execution, deny-all
   egress, no public ports, credential-header transformation, duplicate
   reconciliation, coordinator recovery, timeout, cancellation, collection, and
-  cleanup. A provider-neutral in-memory implementation covers conformance and
-  orchestration tests.
+  cleanup. Detached workers flush one structured result and exit explicitly;
+  coordinator output polling is bounded, and an unavailable persisted worker
+  marker fails closed. A provider-neutral in-memory implementation covers
+  conformance and orchestration tests.
 - CompanyOS independently rejects protected paths, reconstructs the actual
   transferred diff in a trusted checkout, runs the version-pinned Workbench
   inspection, validation, and security checks, and lets only a trusted outer
   publisher create the canonical branch, commit, and draft proposal. The coding
-  agent has no merge or deployment authority.
+  agent has no merge or deployment authority. Coding and trusted Git boundaries
+  use one canonical adjacent-patch representation, and execution evidence is
+  retained when validation and publication evidence are added.
 
 ## Reference-only or historical
 
@@ -177,8 +181,9 @@ evidence, historical prototypes, and production gaps.
 - Blueprint plan/apply/lock/update/remove, remote Package sources, the open
   Registry, signing, publisher identity, advisories, revocation, and
   Marketplace UX remain future stages.
-- The hosted Builder profile is not yet activated. A digest-pinned
-  worker snapshot and the service-owned GitHub App exact-base source,
+- The hosted Builder profile is not yet activated in a customer production
+  Company Instance. A digest-pinned worker snapshot and the service-owned
+  GitHub App exact-base source,
   credential isolation, checked draft publication, and publication idempotency
   gates passed live qualification on 2026-08-26. Protected staged-deployment
   runs also passed brokered Claude Code and Codex authentication using the
@@ -188,10 +193,14 @@ evidence, historical prototypes, and production gaps.
   used the real onboarding handler, reread its Postgres binding, transferred a
   credential-free bundle, passed independent Workbench inspection, validation,
   and security checks, and created the idempotent stacked draft proposal
-  `fylingpete/oregano-hq-companyos#4`. The remaining activation gate is one
-  representative Slack-to-draft-proposal round trip from an isolated Instance
-  Artifact that actually contains a Builder Agent Binding. Representative cost
-  and ACP-process-crash recovery remain production-readiness measurements.
+  `fylingpete/oregano-hq-companyos#4`. On 2026-08-27, an isolated Instance
+  Artifact with an exact Slack Builder Agent Binding completed the normal
+  Runner, explicit confirmation, Claude ACP, independent validation, and draft
+  publication path as `fylingpete/oregano-hq-companyos#6`, with no merge or
+  deployment. The job took 298.240 seconds end to end; its coding Sandbox ran
+  for 264.182 seconds and used 8.401 active CPU seconds. Per-job model-token
+  attribution, deliberate ACP-process-crash injection, and a wider supervised
+  proposal history remain production-readiness measurements.
 
 ## Highest-priority gaps after the first live pilot
 
@@ -219,9 +228,9 @@ evidence, historical prototypes, and production gaps.
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.
-8. Build an isolated non-production Artifact with an exact Builder Agent
-   Binding and close the remaining Slack-to-draft-proposal gate before enabling
-   any production Builder Agent Binding.
+8. Add per-job model-token attribution, inject an ACP-process crash, and review
+   10–20 supervised Builder proposals before enabling any customer production
+   Builder Agent Binding.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

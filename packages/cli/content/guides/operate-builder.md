@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -180,14 +180,22 @@ canonical outer commit and draft proposal only after independent validation.
 The durable job ledger records `queued`, `preparing_source`, `executing`,
 `validating`, `publishing`, and terminal `published`, `failed`, or `cancelled`
 states. Workers claim bounded leases; a replacement coordinator recovers the
-same named execution from its opaque handle. Duplicate request IDs with
-different immutable input fail closed.
+same named execution from its opaque handle. A completed detached worker
+flushes one job-bound structured result and exits explicitly. Coordinator
+output polling is bounded, and a missing persisted worker marker fails closed
+instead of leaving the job in `executing`. Duplicate request IDs with different
+immutable input fail closed.
 
 For a failed job, inspect only redacted terminal reason, provider receipts,
 exact profile versions, source digest, observed diff digest, and Workbench
 check digests. Never copy a provider credential into logs or a retry request.
 Retry by creating a new confirmed request at an exact current base unless the
 existing idempotent job is still recoverable.
+
+When coding and trusted Git workers report different diff digests, do not
+publish. Both boundaries must hash the same canonical byte sequence, including
+adjacent new-file patches. Treat any mismatch as a failed job and retain both
+redacted digests for diagnosis.
 
 ## Current qualification status
 
@@ -198,18 +206,26 @@ inspection, and trusted outer publication. Basic live Vercel Sandbox lifecycle,
 duplicate recovery, timeout, and credential-transform mechanics are also
 proved.
 
-The digest-pinned worker snapshot, both brokered model profiles, and the
-service-owned GitHub App source and draft-publication path passed live
-qualification on 2026-08-26. The protected model runs used the same snapshot,
-verified the expected diff outside ACP, and kept the real general Instance
-model keys outside the coding processes. The separate trusted Git snapshot and
-the deployed onboarding handler then passed source transfer, durable binding
-reuse, independent Workbench validation, outer commit, stacked draft
-publication, and repeat-call idempotency against one selected private
-Workspace. The coding workspace contained no repository credential or remote.
-The maintained hosted profile remains inactive until one representative
-Slack-to-draft-proposal round trip succeeds from an isolated Artifact with an
-exact Builder Agent Binding and without merge or deployment.
+The current worker snapshot is `snap_VgcFhKlxv53rgiwoOGmFS7sBc7Yp`; the
+current trusted Git snapshot is `snap_8qXUUTT8rn7NF45Yx8KzGgIbwEsb`. Both
+brokered model profiles and the service-owned GitHub App source and
+draft-publication path passed live qualification. The protected model runs
+kept the real general Instance model keys outside the coding processes. The
+separate trusted Git worker and deployed onboarding handler passed source
+transfer, durable binding reuse, independent Workbench validation, outer
+commit, stacked draft publication, and repeat-call idempotency against one
+selected private Workspace. The coding workspace contained no repository
+credential or remote.
 
-Representative model-backed cost and ACP-process-crash recovery remain
-production-readiness measurements.
+On 2026-08-27, the isolated qualification Instance completed the remaining
+Slack-to-draft gate through the normal Runner, an exact Builder Agent Binding,
+explicit confirmation, Claude ACP, independent validation, and checked draft
+`fylingpete/oregano-hq-companyos#6`, with no merge or deployment. The job took
+298.240 seconds end to end. Its one-vCPU, 2 GB coding Sandbox ran for 264.182
+seconds, used 8.401 active CPU seconds, and incurred approximately USD 0.00374
+of listed provider compute, memory, network, and creation usage before included
+quotas and excluding Claude model cost.
+
+The hosted profile remains inactive in customer production. Per-job model-token
+attribution, deliberate ACP-process-crash recovery, and a supervised history of
+10–20 representative proposals remain production-readiness measurements.

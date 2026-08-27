@@ -419,5 +419,16 @@ function mergeEvidence(
   const base = current && typeof current === "object" && !Array.isArray(current)
     ? current as Readonly<Record<string, unknown>>
     : {};
-  return { ...base, ...patch };
+  const merged: Record<string, unknown> = { ...base };
+  for (const [section, value] of Object.entries(patch)) {
+    const existing = base[section];
+    merged[section] = isEvidenceRecord(existing) && isEvidenceRecord(value)
+      ? { ...existing, ...value }
+      : value;
+  }
+  return merged;
+}
+
+function isEvidenceRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
 }
