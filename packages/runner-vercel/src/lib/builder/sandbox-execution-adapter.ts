@@ -167,10 +167,12 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
     if (record.request?.operation || record.sandbox.tags?.mode === "worker") {
       await this.#loadRecoveredWorker(record);
       if (!record.commandId) {
+        record.state = "failed";
+        record.finishedAt ??= new Date().toISOString();
         return {
-          state: "starting",
+          state: record.state,
           observedAt: new Date().toISOString(),
-          detail: "Builder worker launch marker is not available yet.",
+          detail: "Builder worker launch marker is unavailable for the persisted execution handle.",
         };
       }
       const command = await record.sandbox.getCommand(record.commandId);
