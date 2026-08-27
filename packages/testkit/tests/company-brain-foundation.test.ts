@@ -145,6 +145,7 @@ test("Facts are principal-scoped, evidence-bound, active, and retry-idempotent",
   assert.equal(first.status, "active");
   assert.equal(first.derivation, "principal-memory");
   assert.equal(first.claimId, retried.claimId);
+  assert.equal(createBrainClaim({ ...input, epistemicWeight: 0.83 }).epistemicWeight, 0.85);
 
   assert.throws(() => createBrainClaim({ ...input, ownerPrincipalId: "" }), /owner principal ID is required/);
   assert.throws(() => createBrainClaim({ ...input, evidence: [], unresolvedEvidenceReason: "" }), /exact evidence/);

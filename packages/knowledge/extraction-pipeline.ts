@@ -135,6 +135,17 @@ interface ModelExtractionOutput {
   timeline?: KnowledgeExtractionResult["timeline"];
 }
 
+const CANONICAL_HOLDER_PATTERN = /^(world|brain|people\/[a-z0-9._-]+|companies\/[a-z0-9._-]+)$/;
+
+const canonicalHolder = (value: Record<string, unknown>): EpistemicHolder => {
+  const holderId = typeof value.holderId === "string" ? value.holderId.trim() : "";
+  const holderType = value.holderType;
+  if (!CANONICAL_HOLDER_PATTERN.test(holderId)) throw new Error("Extracted Take Holder is not canonical.");
+  const expectedType = holderId === "world" ? "world" : holderId === "brain" ? "system" : holderId.startsWith("people/") ? "person" : "company";
+  if (holderType !== expectedType) throw new Error("Extracted Take Holder type does not match its canonical identity.");
+  return { holderId, holderType: expectedType, displayName: holderId };
+};
+
 const object = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object.`);
   return value as Record<string, unknown>;
@@ -168,8 +179,10 @@ const validateExtractionOutput = (value: unknown, text: string, evidenceId: stri
     if (memoryClass === "fact" && (typeof claim.ownerPrincipalId !== "string" || !claim.ownerPrincipalId.trim())) throw new Error("Extracted Fact requires its principal owner.");
     if (memoryClass === "take") {
       const holder = object(claim.holder, "Extracted Take Holder");
-      if (typeof holder.holderId !== "string" || typeof holder.displayName !== "string" || !["person", "team", "company", "world", "system", "unresolved"].includes(String(holder.holderType))) throw new Error("Extracted Take requires exactly one valid Holder.");
+      const normalizedHolder = canonicalHolder(holder);
       if (!['source-literal', 'model-derived'].includes(String(claim.derivation))) throw new Error("Extracted Take derivation is invalid.");
+      if (claim.derivation === "model-derived" && normalizedHolder.holderId !== "brain") throw new Error("A model-derived Take requires the brain Holder.");
+      claim.holder = normalizedHolder;
     }
     return { ...(claim as unknown as ModelClaimOutput), memoryClass, locator: validateLocator(claim.locator, text), participantRelations };
   };
@@ -255,8 +268,14 @@ export async function extractRawEvidenceToBrain(input: {
   const participantRelations: KnowledgeExtractionResult["participantRelations"] = [];
   for (const candidate of output.claims) {
     const evidence = [{ evidenceId: sha256({ runId, evidenceId: candidate.evidenceId, locator: candidate.locator, claimText: candidate.claimText }), sourceId: input.evidence.envelope.sourceId, providerObjectId: input.evidence.envelope.providerObjectId, providerVersion: input.evidence.envelope.providerVersion, contentDigest: input.evidence.envelope.contentDigest, observedAt: input.evidence.envelope.observedAt, locator: candidate.locator, pageId: record.page.pageId, pageVersionId: record.version.pageVersionId }];
+    let primaryHolder = candidate.holder;
+    if (primaryHolder) {
+      const existingHolder = await input.brainStore.getHolder(primaryHolder.holderId);
+      if (existingHolder && existingHolder.holderType !== primaryHolder.holderType) throw new Error("Canonical Holder conflicts with an existing Holder type.");
+      primaryHolder = existingHolder ?? primaryHolder;
+    }
     const claim = candidate.memoryClass === "fact" ? createBrainClaim({ memoryClass: "fact", claimKind: candidate.claimKind as FactClaimKind, claimText: candidate.claimText, ownerPrincipalId: candidate.ownerPrincipalId ?? input.ownerPrincipalId, scope: { kind: "principal" }, evidence, observedAt: input.evidence.envelope.observedAt, extractionConfidence: candidate.extractionConfidence, epistemicWeight: candidate.epistemicWeight, accessPolicyId: record.page.accessPolicyId, createdBy: `model:${runId}`, modelProvenance: provenance })
-      : createBrainClaim({ memoryClass: "take", claimKind: candidate.claimKind as TakeClaimKind, claimText: candidate.claimText, primaryHolder: candidate.holder!, derivation: candidate.derivation!, evidence, observedAt: input.evidence.envelope.observedAt, extractionConfidence: candidate.extractionConfidence, epistemicWeight: candidate.epistemicWeight, accessPolicyId: record.page.accessPolicyId, createdBy: `model:${runId}`, modelProvenance: provenance });
+      : createBrainClaim({ memoryClass: "take", claimKind: candidate.claimKind as TakeClaimKind, claimText: candidate.claimText, primaryHolder: primaryHolder!, derivation: candidate.derivation!, evidence, observedAt: input.evidence.envelope.observedAt, extractionConfidence: candidate.extractionConfidence, epistemicWeight: candidate.epistemicWeight, accessPolicyId: record.page.accessPolicyId, createdBy: `model:${runId}`, modelProvenance: provenance });
     await input.brainStore.putClaim(claim); claims.push(claim);
     for (const relation of candidate.participantRelations ?? []) {
       const outputRelation = { claimId: claim.claimId, ...relation };
