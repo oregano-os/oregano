@@ -227,7 +227,9 @@ evidence, historical prototypes, and production gaps.
   compounding gates on 2026-08-27. All 21 current Source Objects have successful
   extraction receipts under pipeline `2.0.0` and Claim-extraction prompt `6`.
   Prompt qualification `eac0b9add2ae9a1f02daea0059347a66db0cef92a154aaa57cfc37bbc64fea5c`
-  passed all 13 fixtures, including Working Synthesis prompt `4`. Cycle
+  passed all 13 then-current fixtures, including historical Working Synthesis
+  prompt `4`. Current prompt `5` subsequently completed two real bounded
+  Sonnet segments with exact component receipts. Cycle
   `2026-08-27T06:00:00.000Z` completed all five productive phases, and an
   immediate retry returned the same five complete receipt identities. Failed
   historical extraction attempts and older successful derived versions remain
@@ -243,13 +245,16 @@ evidence, historical prototypes, and production gaps.
   that shared gate with exact/`0.45` duplicate, `0.20` relation, and same-kind
   `0.15` conflict gates plus durable result reuse. The maintained schedule is
   inside a bounded 02:00–05:59 UTC nightly continuation window rather than
-  every 15 minutes around the clock. The first controlled `2.2.0` production
-  run recorded 20 rated executions at USD `0.08614200` before one deep task
-  exceeded the hosted execution window. No result or execution-ledger row was
-  created for that incomplete task. Abandoned reservations are now closed
-  conservatively after ten minutes and remain as content-free audit evidence;
-  successful retries use a newly bounded task output limit. The initial
-  frontier backfill remains resumable operating backlog until
+  every 15 minutes around the clock. Deployment
+  `dpl_EdrL7WjYjF3C2MgNJ6KnBKACdq3k` proved segment prompt `5`, and the final
+  production cron exposes `*/15 2-5 * * *`. Controlled alignment and backfill
+  runs have 89 successful rated executions totaling USD `0.51841000`, zero
+  active reservations, and five failed full-Subject trials retained without a
+  result or execution-ledger row. Their USD `1.07439900` failed-reservation sum
+  is a conservative budget charge and upper bound, not a claim about final
+  provider billing. Abandoned reservations close after ten minutes and remain
+  as content-free audit evidence. The initial frontier backfill remains
+  resumable operating backlog until
   every phase receipt is complete; retrieval exposes only the already-current,
   successfully proven subset while that background work advances.
 - Phase 5 production integration now adapts that authorization-first retrieval
