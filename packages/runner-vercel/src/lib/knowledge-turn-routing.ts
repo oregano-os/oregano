@@ -19,6 +19,29 @@ export interface KnowledgeStepChoice {
   readonly activeTools?: readonly string[];
 }
 
+export interface CompletedToolResult {
+  readonly toolName: string;
+  readonly output: unknown;
+}
+
+interface KnowledgeSearchCitation {
+  readonly path: string;
+  readonly fragment_id: string;
+  readonly heading?: string;
+}
+
+interface KnowledgeSearchHit {
+  readonly excerpt: string;
+  readonly citation: KnowledgeSearchCitation;
+}
+
+interface KnowledgeSearchOutput {
+  readonly query: string;
+  readonly hits: readonly KnowledgeSearchHit[];
+  readonly gaps?: readonly string[];
+  readonly degradations?: readonly string[];
+}
+
 const normalize = (value: string): string => value
   .normalize("NFKD")
   .replace(/\p{Diacritic}/gu, "")
@@ -71,10 +94,92 @@ export function knowledgeStepChoice(route: KnowledgeTurnRoute, stepNumber: numbe
   return { toolChoice: "auto" };
 }
 
-export function requiredKnowledgeToolExecuted(
-  route: KnowledgeTurnRoute,
-  toolCalls: readonly { readonly toolName: string }[],
-): boolean {
-  return route.kind === "auto" || toolCalls.some((call) => call.toolName === route.toolName);
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
 }
 
+function stringArray(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : undefined;
+}
+
+function knowledgeSearchOutput(value: unknown): KnowledgeSearchOutput | undefined {
+  const runtimeResult = record(value);
+  const candidate = record(runtimeResult?.output ?? value);
+  if (!candidate || typeof candidate.query !== "string" || !Array.isArray(candidate.hits)) return undefined;
+  const hits: KnowledgeSearchHit[] = [];
+  for (const valueHit of candidate.hits) {
+    const hit = record(valueHit);
+    const citation = record(hit?.citation);
+    if (!hit || typeof hit.excerpt !== "string" || !citation
+      || typeof citation.path !== "string" || typeof citation.fragment_id !== "string") return undefined;
+    hits.push({
+      excerpt: hit.excerpt,
+      citation: {
+        path: citation.path,
+        fragment_id: citation.fragment_id,
+        ...(typeof citation.heading === "string" ? { heading: citation.heading } : {}),
+      },
+    });
+  }
+  return {
+    query: candidate.query,
+    hits,
+    ...(stringArray(candidate.gaps) ? { gaps: stringArray(candidate.gaps) } : {}),
+    ...(stringArray(candidate.degradations) ? { degradations: stringArray(candidate.degradations) } : {}),
+  };
+}
+
+const falseToolUnavailableClaim = /(?:keine\s+(?:such|tool)[\w/-]*funktionalit[aä]t|keine\s+registrierten\s+tools|wissenssuche[\s\S]{0,80}\bnicht\s+ausf[uü]hren|(?:cannot|can't|unable to)[\s\S]{0,80}(?:search|tool)|no\s+(?:registered\s+)?tools?\s+(?:are\s+)?available)/iu;
+
+function citesAtLeastOneHit(text: string, hits: readonly KnowledgeSearchHit[]): boolean {
+  return hits.some((hit) => text.includes(hit.citation.path) && text.includes(hit.citation.fragment_id));
+}
+
+function extractiveKnowledgeResponse(output: KnowledgeSearchOutput): string {
+  if (output.hits.length === 0) {
+    const diagnostics = [...(output.gaps ?? []), ...(output.degradations ?? [])];
+    return [
+      `Die Company-Knowledge-Suche nach „${output.query}“ wurde ausgeführt, hat aber keine autorisierten Treffer gefunden.`,
+      ...(diagnostics.length > 0 ? [`Hinweise: ${diagnostics.join("; ")}`] : []),
+    ].join("\n");
+  }
+  const hits = output.hits.slice(0, 5).map((hit, index) => {
+    const heading = hit.citation.heading ? ` · ${hit.citation.heading}` : "";
+    return `${index + 1}. ${hit.excerpt}\n   Quelle: ${hit.citation.path}${heading} · Fragment-ID: ${hit.citation.fragment_id}`;
+  });
+  return [
+    `Die Company-Knowledge-Suche nach „${output.query}“ hat folgende autorisierte Fundstellen geliefert:`,
+    "",
+    ...hits,
+  ].join("\n");
+}
+
+/**
+ * Enforces a successful, structurally valid search result before a required
+ * Knowledge answer can leave the runner. A grounded model answer is retained;
+ * otherwise an extractive response is rendered from authorized Tool output.
+ */
+export function renderKnowledgeTurnResponse(input: {
+  readonly route: KnowledgeTurnRoute;
+  readonly modelText: string;
+  readonly toolResults: readonly CompletedToolResult[];
+}): string {
+  const modelText = input.modelText.trim();
+  if (input.route.kind === "auto") {
+    return modelText || "The requested CompanyOS operation was processed. Review any approval card above before an effect can occur.";
+  }
+  const requiredToolName = input.route.toolName;
+  const completed = input.toolResults.find((result) => result.toolName === requiredToolName);
+  if (!completed) {
+    return "Die registrierte Company-Knowledge-Suche wurde ausgewählt, aber nicht erfolgreich ausgeführt. Deshalb wurde keine Wissensantwort veröffentlicht.";
+  }
+  const searchOutput = knowledgeSearchOutput(completed.output);
+  if (!searchOutput) {
+    return "Die Company-Knowledge-Suche wurde ausgeführt, lieferte aber kein gültiges Suchergebnis. Deshalb wurde keine Wissensantwort veröffentlicht.";
+  }
+  if (searchOutput.hits.length > 0 && modelText && !falseToolUnavailableClaim.test(modelText)
+    && citesAtLeastOneHit(modelText, searchOutput.hits)) return modelText;
+  return extractiveKnowledgeResponse(searchOutput);
+}

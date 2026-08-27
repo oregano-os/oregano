@@ -7,8 +7,10 @@ title: Require the granted Knowledge search Tool for explicit Slack knowledge tu
 objective: >-
   Keep the existing Oregano Slack Agent as the single conversational entrypoint
   while deterministically requiring its granted read-only Knowledge search Tool
-  for explicit Company Knowledge requests, so the model cannot answer that such
-  a registered Tool is unavailable without attempting the authorized lookup.
+  for explicit Company Knowledge requests, then require a successful validated
+  Tool result before rendering, so the model cannot answer that such a
+  registered Tool is unavailable after attempting or completing the authorized
+  lookup.
 non_goals:
   - Add a channel-to-Agent dispatcher or a separate Knowledge Agent.
   - Force a Knowledge lookup for greetings, general advice, or unrelated conversation.
@@ -52,7 +54,10 @@ tests:
   - A missing search grant fails closed to ordinary automatic Tool selection rather than inventing authority.
   - Greetings and general advice do not force a Knowledge lookup.
   - Later Tool-loop steps return to automatic selection so exact get and graph traversal remain available when relevant.
-  - A required lookup that produces no matching Tool call cannot render a false substantive answer.
+  - A required lookup that produces no successful matching Tool result cannot render a false substantive answer.
+  - A structurally invalid search result fails closed without rendering model claims.
+  - A false Tool-unavailable model answer is replaced with authorized excerpts carrying source paths and fragment IDs.
+  - A successful empty search renders an explicit no-result state rather than an unsupported answer.
 documentation_impact:
   required: true
   affected_documents:

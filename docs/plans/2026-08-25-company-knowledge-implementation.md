@@ -958,9 +958,13 @@ about company evidence, it deterministically requires Oregano's already-granted
 `knowledge.search` Tool on only the first model step. This narrow Tool route is
 not an Agent dispatcher: it neither selects an Agent by channel nor creates a
 special Knowledge Agent. Later steps return to automatic selection for exact
-get and bounded traversal. A required search that is absent from the completed
-Tool calls renders an explicit unavailable state instead of the model's
-unsupported assertion that no Tool exists.
+get and bounded traversal. A required search without a completed successful
+Tool result renders an explicit execution-failure state instead of the model's
+unsupported assertion that no Tool exists. A model Tool call alone is
+insufficient. The adapter validates the completed search result; when the
+model ignores that result, claims the Tool is unavailable, or omits every
+returned citation, it renders only the authorized excerpts with source path and
+fragment ID. A valid empty result renders an explicit no-result state.
 
 When a turn uses Knowledge results, the Runtime records a run-scoped authorized
 context receipt containing only the durable identities, versions, labels, and

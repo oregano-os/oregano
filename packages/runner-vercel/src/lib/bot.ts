@@ -20,7 +20,7 @@ import { loadArtifact, selectedAgent } from "./artifact.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
-import { knowledgeStepChoice, requiredKnowledgeToolExecuted, resolveKnowledgeTurnRoute } from "./knowledge-turn-routing.ts";
+import { knowledgeStepChoice, renderKnowledgeTurnResponse, resolveKnowledgeTurnRoute } from "./knowledge-turn-routing.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts";
 
@@ -181,9 +181,11 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
     messages,
     ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
   });
-  const response = requiredKnowledgeToolExecuted(knowledgeRoute, result.toolCalls)
-    ? result.text.trim() || "The requested CompanyOS operation was processed. Review any approval card above before an effect can occur."
-    : "The requested Company Knowledge lookup did not execute. No knowledge answer was rendered. Please retry or ask the Instance operator to inspect the Agent Tool route.";
+  const response = renderKnowledgeTurnResponse({
+    route: knowledgeRoute,
+    modelText: result.text,
+    toolResults: result.toolResults,
+  });
   await state.appendToList(conversationKey, { role: "assistant", content: response, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,

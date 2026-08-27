@@ -268,11 +268,15 @@ evidence, historical prototypes, and production gaps.
   and incorrectly state that no search Tool was available. The maintained
   Slack adapter now requires the already-granted search Tool on the first model
   step for explicit searches and high-confidence company-evidence questions,
-  returns later steps to automatic selection, and withholds a substantive
-  answer if that required Tool call is absent. Production deployment
-  `dpl_GVhABy2xPrVx9oRqg8jnAkLhvUkw` is ready and exposes the same three R0
-  Knowledge grants for Oregano. Repeating the cited Slack probe remains
-  Instance qualification work.
+  returns later steps to automatic selection, and distinguishes a Tool call
+  from a successful validated Tool result. A second live probe proved that a
+  call-only gate was insufficient: the model could still render a false Tool-
+  unavailable answer after the call. The corrected response gate withholds
+  substantive output after execution failure, rejects malformed search output,
+  and replaces an ignored successful result with authorized cited excerpts.
+  Production deployment `dpl_GVhABy2xPrVx9oRqg8jnAkLhvUkw` remains the
+  call-only baseline; the corrected deployment and repeated cited Slack probe
+  remain Instance qualification work.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human

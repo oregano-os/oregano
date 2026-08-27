@@ -614,10 +614,14 @@ question. This is turn-level Tool selection inside the existing Agent, not
 channel-to-Agent dispatch and not a separate Knowledge Agent. The requirement
 MUST be derived only from the human turn and the resolved ToolSet, MUST NOT add
 a grant, and MUST return to automatic Tool selection after the first step so
-bounded exact reads and traversal remain available. If the required Tool does
-not execute, the adapter MUST withhold a substantive knowledge answer rather
-than claim that a registered Tool is unavailable or answer from an empty
-evidence set.
+bounded exact reads and traversal remain available. The adapter MUST distinguish
+a model Tool call from a successfully completed and structurally valid Tool
+result. If the required Tool does not complete successfully, the adapter MUST
+withhold a substantive knowledge answer rather than claim that a registered
+Tool is unavailable or answer from an empty evidence set. If a successful Tool
+result exists but the model emits a false unavailable claim or omits a returned
+citation, the adapter MUST fail closed or render only authorized extractive
+results with their source identities.
 
 The model returns a structured Knowledge Answer Envelope containing:
 

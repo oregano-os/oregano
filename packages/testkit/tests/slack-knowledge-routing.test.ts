@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   knowledgeStepChoice,
-  requiredKnowledgeToolExecuted,
+  renderKnowledgeTurnResponse,
   resolveKnowledgeTurnRoute,
 } from "../../runner-vercel/src/lib/knowledge-turn-routing.ts";
 
@@ -52,13 +52,80 @@ test("ordinary conversation and an Agent without the search grant retain automat
   }), { kind: "auto" });
 });
 
-test("a required search must be present in the completed Tool calls before rendering", () => {
+test("a required search must have a successful Tool result before rendering", () => {
   const route = resolveKnowledgeTurnRoute({
     text: "Search Company Knowledge for Company Brain.",
     tools: [searchTool],
   });
-  assert.equal(requiredKnowledgeToolExecuted(route, []), false);
-  assert.equal(requiredKnowledgeToolExecuted(route, [{ toolName: "oregano_knowledge_get" }]), false);
-  assert.equal(requiredKnowledgeToolExecuted(route, [{ toolName: "oregano_knowledge_search" }]), true);
-  assert.equal(requiredKnowledgeToolExecuted({ kind: "auto" }, []), true);
+  assert.match(renderKnowledgeTurnResponse({ route, modelText: "I cannot search.", toolResults: [] }), /nicht erfolgreich ausgeführt/u);
+  assert.match(renderKnowledgeTurnResponse({
+    route,
+    modelText: "I used a different Tool.",
+    toolResults: [{ toolName: "oregano_knowledge_get", output: { output: { found: false } } }],
+  }), /nicht erfolgreich ausgeführt/u);
+  assert.equal(renderKnowledgeTurnResponse({ route: { kind: "auto" }, modelText: "Hallo!", toolResults: [] }), "Hallo!");
+});
+
+test("a grounded model answer with a returned citation is retained", () => {
+  const route = resolveKnowledgeTurnRoute({
+    text: "Search Company Knowledge for Company Brain.",
+    tools: [searchTool],
+  });
+  const response = renderKnowledgeTurnResponse({
+    route,
+    modelText: "The policy is documented in handbook/brain.md, fragment brain-1.",
+    toolResults: [{
+      toolName: "oregano_knowledge_search",
+      output: { output: {
+        query: "Company Brain",
+        hits: [{ excerpt: "The Company Brain compounds working knowledge.", citation: { path: "handbook/brain.md", fragment_id: "brain-1" } }],
+        gaps: [],
+        degradations: [],
+      } },
+    }],
+  });
+  assert.equal(response, "The policy is documented in handbook/brain.md, fragment brain-1.");
+});
+
+test("a false Tool-unavailable answer is replaced with authorized cited excerpts", () => {
+  const route = resolveKnowledgeTurnRoute({
+    text: "Durchsuche das Company Knowledge nach Company Brain.",
+    tools: [searchTool],
+  });
+  const response = renderKnowledgeTurnResponse({
+    route,
+    modelText: "Ich kann die Wissenssuche nicht ausführen, weil keine Such-Funktionalität verfügbar ist.",
+    toolResults: [{
+      toolName: "oregano_knowledge_search",
+      output: { output: {
+        query: "Company Brain",
+        hits: [{
+          excerpt: "Working knowledge is reviewed before promotion.",
+          citation: { path: "knowledge/review.md", fragment_id: "review-7", heading: "Review" },
+        }],
+        gaps: [],
+        degradations: [],
+      } },
+    }],
+  });
+  assert.match(response, /Working knowledge is reviewed before promotion\./u);
+  assert.match(response, /knowledge\/review\.md · Review · Fragment-ID: review-7/u);
+  assert.doesNotMatch(response, /keine Such-Funktionalität/u);
+});
+
+test("a completed search without hits returns an explicit grounded no-result response", () => {
+  const route = resolveKnowledgeTurnRoute({
+    text: "Search Company Knowledge for absent topic.",
+    tools: [searchTool],
+  });
+  const response = renderKnowledgeTurnResponse({
+    route,
+    modelText: "I found the answer elsewhere.",
+    toolResults: [{
+      toolName: "oregano_knowledge_search",
+      output: { output: { query: "absent topic", hits: [], gaps: ["no lexical match"], degradations: [] } },
+    }],
+  });
+  assert.match(response, /keine autorisierten Treffer/u);
+  assert.match(response, /no lexical match/u);
 });
