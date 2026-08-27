@@ -28,6 +28,8 @@ const WORKER_REQUEST_PATH = "/vercel/sandbox/builder-request.json";
 const WORKER_COMMAND_PATH = "/vercel/sandbox/builder-command.json";
 const WORKSPACE_PATH = "/vercel/sandbox/workspace";
 const MAX_DIFF_BYTES = 5 * 1024 * 1024;
+const MAX_WORKER_STDOUT_BYTES = 64 * 1024;
+const WORKER_OUTPUT_PEEK_MS = 250;
 const execFileAsync = promisify(execFile);
 
 export interface VercelSandboxBuilderConfiguration {
@@ -178,7 +180,7 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
       const command = await record.sandbox.getCommand(record.commandId);
       const completedOutput = command.exitCode === null
         && record.request?.operation
-        && isExpectedBuilderWorkerResult(await command.stdout(), {
+        && isExpectedBuilderWorkerResult(await readAvailableStdout(command), {
           jobId: record.handle.jobId,
           requestId: record.request.operation.requestId,
           profileId: record.request.codingAgent.profileId,
@@ -574,6 +576,28 @@ function parseWorkerOutput(stdout: string): unknown {
     }
   }
   throw new Error("Builder worker did not emit a structured terminal result.");
+}
+
+async function readAvailableStdout(
+  command: Awaited<ReturnType<Sandbox["getCommand"]>>,
+): Promise<string> {
+  const abort = new AbortController();
+  const timeout = setTimeout(() => abort.abort(), WORKER_OUTPUT_PEEK_MS);
+  const logs = command.logs({ signal: abort.signal });
+  let stdout = "";
+  try {
+    for await (const entry of logs) {
+      if (entry.stream !== "stdout") continue;
+      stdout = (stdout + entry.data).slice(-MAX_WORKER_STDOUT_BYTES);
+      if (stdout.includes("\n")) break;
+    }
+  } catch (error) {
+    if (!abort.signal.aborted) throw error;
+  } finally {
+    clearTimeout(timeout);
+    logs.close();
+  }
+  return stdout;
 }
 
 export function isExpectedBuilderWorkerResult(
