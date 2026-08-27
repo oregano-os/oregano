@@ -8,16 +8,72 @@ const connection = () => {
   return neon(url);
 };
 
-export class PostgresKnowledgeAccessAuditor implements KnowledgeAccessAuditor {
-  async record(decision: KnowledgeAccessDecision): Promise<void> {
-    await connection()`insert into companyos_knowledge.access_decision_events
+const ACCESS_DECISION_BATCH_SIZE = 100;
+
+type PendingAccessDecision = {
+  readonly decision: KnowledgeAccessDecision;
+  readonly resolve: () => void;
+  readonly reject: (error: unknown) => void;
+};
+
+export type KnowledgeAccessDecisionBatchWriter = (
+  decisions: readonly KnowledgeAccessDecision[],
+) => Promise<void>;
+
+const writePostgresAccessDecisionBatch: KnowledgeAccessDecisionBatchWriter = async (decisions) => {
+  if (decisions.length === 0) return;
+  const sql = connection();
+  await sql.transaction((transaction) => decisions.map((decision) => transaction`
+    insert into companyos_knowledge.access_decision_events
       (decision_id, decided_at, principal_id, principal_type, group_ids, permission,
         policy_ids, object_type, object_id_hash, outcome, reason)
-      values (${decision.decisionId}, ${decision.decidedAt}, ${decision.principalId},
-        ${decision.principalType}, ${JSON.stringify(decision.groupIds)}, ${decision.permission},
-        ${JSON.stringify(decision.policyIds)}, ${decision.objectType}, ${decision.objectIdHash},
-        ${decision.outcome}, ${decision.reason})
-      on conflict (decision_id) do nothing`;
+    values (${decision.decisionId}, ${decision.decidedAt}, ${decision.principalId},
+      ${decision.principalType}, ${JSON.stringify(decision.groupIds)}, ${decision.permission},
+      ${JSON.stringify(decision.policyIds)}, ${decision.objectType}, ${decision.objectIdHash},
+      ${decision.outcome}, ${decision.reason})
+    on conflict (decision_id) do nothing`));
+};
+
+export class PostgresKnowledgeAccessAuditor implements KnowledgeAccessAuditor {
+  readonly #writeBatch: KnowledgeAccessDecisionBatchWriter;
+  readonly #pending: PendingAccessDecision[] = [];
+  #scheduled = false;
+  #flushing = false;
+
+  constructor(options: { writeBatch?: KnowledgeAccessDecisionBatchWriter } = {}) {
+    this.#writeBatch = options.writeBatch ?? writePostgresAccessDecisionBatch;
+  }
+
+  record(decision: KnowledgeAccessDecision): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.#pending.push({ decision: structuredClone(decision), resolve, reject });
+      this.#schedule();
+    });
+  }
+
+  #schedule(): void {
+    if (this.#scheduled || this.#flushing) return;
+    this.#scheduled = true;
+    queueMicrotask(() => { void this.#flush(); });
+  }
+
+  async #flush(): Promise<void> {
+    this.#scheduled = false;
+    if (this.#flushing || this.#pending.length === 0) return;
+    this.#flushing = true;
+    const pending = this.#pending.splice(0);
+    try {
+      for (let offset = 0; offset < pending.length; offset += ACCESS_DECISION_BATCH_SIZE) {
+        const batch = pending.slice(offset, offset + ACCESS_DECISION_BATCH_SIZE);
+        await this.#writeBatch(batch.map((entry) => entry.decision));
+      }
+      pending.forEach((entry) => entry.resolve());
+    } catch (error) {
+      pending.forEach((entry) => entry.reject(error));
+    } finally {
+      this.#flushing = false;
+      this.#schedule();
+    }
   }
 }
 

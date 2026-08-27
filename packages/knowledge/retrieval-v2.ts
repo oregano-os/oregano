@@ -138,9 +138,18 @@ export class KnowledgeRetrievalServiceV2 {
   }
 
   async #authorized(subject: KnowledgeAccessSubject | undefined, capability: KnowledgeCapability): Promise<KnowledgeRetrievalRecordV2[]> {
-    const output: KnowledgeRetrievalRecordV2[] = [];
-    for (const record of this.#records) if (await this.#authorization.canRead({ subject, policyId: record.accessPolicyId, objectId: record.identity, capability })) output.push(structuredClone(record));
-    return output;
+    const decisions = await Promise.all(this.#records.map(async (record) => ({
+      record,
+      permitted: await this.#authorization.canRead({
+        subject,
+        policyId: record.accessPolicyId,
+        objectId: record.identity,
+        capability,
+      }),
+    })));
+    return decisions
+      .filter((decision) => decision.permitted)
+      .map((decision) => structuredClone(decision.record));
   }
 
   async #search(input: { query: string; subject?: KnowledgeAccessSubject; limit?: number; graphLimit?: number; costMode?: "fast" | "balanced" | "deep"; expandQuery?: boolean; rerank?: boolean }, capability: "search" | "context-pack"): Promise<{ hits: KnowledgeRetrievalHitV2[]; degradations: string[]; operationReceiptIds: string[] }> {

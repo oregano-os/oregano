@@ -69,6 +69,36 @@ test("authorization filters before semantic ranking, graph augmentation, context
   assert.ok(authorizationCalls.some((entry) => entry.startsWith("delta:")));
 });
 
+test("candidate authorization is complete and concurrent before ranking", async () => {
+  const candidates = Array.from({ length: 48 }, (_, index) => record(
+    `repo:candidate-${index}`,
+    `Candidate ${index}`,
+    `Company Brain candidate ${index}.`,
+    index % 7 === 0 ? "policy:denied" : "policy:company",
+  ));
+  let active = 0;
+  let maximumActive = 0;
+  const calls: string[] = [];
+  const service = new KnowledgeRetrievalServiceV2({
+    records: candidates,
+    authorization: {
+      canRead: async ({ objectId, policyId }) => {
+        calls.push(objectId);
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        active -= 1;
+        return policyId !== "policy:denied";
+      },
+    },
+  });
+
+  const searched = await service.search({ query: "Company Brain", limit: 48 });
+  assert.equal(calls.length, candidates.length, "every candidate must receive an authorization decision");
+  assert.ok(maximumActive > 1, "independent authorization decisions should not create one database round trip per candidate");
+  assert.equal(searched.hits.some((hit) => Number(hit.identity.split("-").at(-1)) % 7 === 0), false);
+});
+
 test("timeline and explanation use their own authorization capabilities", async () => {
   const calls: string[] = [];
   const timelineRecords = [

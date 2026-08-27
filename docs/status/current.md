@@ -289,8 +289,15 @@ evidence, historical prototypes, and production gaps.
   while correcting the team-bound Slack identity. Production deployment
   `dpl_5Xu3fmDJuLRpvZ6ChcwHR9RXJhLR` is ready at the canonical alias with
   Artifact `f1c4276d51c622267fa560a1c0ed92470911366857ff64a8c8e2f2c77cd4c68c`
-  and the same three R0 Knowledge grants. The repeated cited Slack probe remains
-  the final Instance qualification step.
+  and the same three R0 Knowledge grants. The repeated cited Slack probe then
+  passed roster admission and selected the registered search Tool, but exposed
+  serial per-record authorization auditing as the next execution bottleneck.
+  Core now evaluates every candidate authorization decision before ranking as
+  before, while persisting every immutable object-scoped audit decision through
+  bounded Postgres batches instead of one Neon HTTP round trip per candidate.
+  The change neither caches nor skips decisions and retains fail-closed audit
+  failure. Production redeployment and the repeated cited Slack probe remain
+  the final Instance qualification steps.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human

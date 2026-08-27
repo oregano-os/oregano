@@ -1,0 +1,57 @@
+version: 1
+plan_id: bound-knowledge-access-audit-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Bound Company Knowledge authorization latency without reducing audit evidence
+objective: >-
+  Complete the registered Slack Company Knowledge search within the production
+  Agent execution window by evaluating record authorization concurrently and
+  persisting every access decision through bounded Postgres batches.
+non_goals:
+  - Change Knowledge policies, roster membership, visibility, or Tool grants.
+  - Skip, sample, deduplicate, or weaken per-object access-decision evidence.
+  - Change ranking, citations, model routing, or source retention.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-27-bound-knowledge-access-audit.yaml
+  - packages/knowledge/retrieval-v2.ts
+  - packages/state-postgres/knowledge-access-store.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+  - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - docs/status/current.md
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-mach-du-das
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-27-bound-knowledge-access-audit.yaml
+  - node packages/cli/src/cli.mjs inspect-core --plan .oregano/changes/2026-08-27-bound-knowledge-access-audit.yaml
+  - node packages/cli/src/cli.mjs docs check
+  - pnpm test
+  - git diff --check
+tests:
+  - Authorization remains fail-closed and is evaluated for every candidate before ranking.
+  - Candidate authorization can proceed concurrently instead of one database round trip per record.
+  - The Postgres auditor persists every access decision in bounded batches and resolves each caller only after persistence.
+  - The production Slack request returns a successful cited search result or an explicit authorized no-result response.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+migration: >-
+  No database schema or Company Workspace migration is required. The existing
+  access_decision_events table receives the same immutable decision rows through
+  bounded transactions instead of one HTTP database request per candidate.
+rollback: >-
+  Restore sequential authorization and single-row audit inserts, redeploy the
+  prior runner, and retain all already-recorded decision events.
+open_decisions: []

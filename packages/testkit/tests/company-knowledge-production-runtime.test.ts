@@ -9,6 +9,7 @@ import type { SourceBindingV2, SourceRequirementV2 } from "../../knowledge/sourc
 import { createUnifiedKnowledgeProvider, type BrainKnowledgeProjection } from "../../knowledge/unified-provider.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 import { createCompanyOSRuntimeConnectors } from "../../runner-vercel/src/lib/bot.ts";
+import { PostgresKnowledgeAccessAuditor } from "../../state-postgres/knowledge-access-store.ts";
 import { activateVerifiedKnowledgeSnapshot } from "../../state-postgres/knowledge-store.ts";
 import { assertPermittedSourceRebinding } from "../../state-postgres/source-pipeline-store.ts";
 
@@ -103,6 +104,32 @@ test("unified production retrieval authorizes Company Knowledge before search, g
 
 test("production Agent runtime registers both the Artifact and Company Knowledge connectors", () => {
   assert.deepEqual(createCompanyOSRuntimeConnectors().map((connector) => connector.id), ["oregano/artifact-postgres", "oregano/knowledge-postgres"]);
+});
+
+test("the Postgres access auditor persists every decision through bounded batches", async () => {
+  const batches: string[][] = [];
+  const auditor = new PostgresKnowledgeAccessAuditor({
+    writeBatch: async (decisions) => {
+      batches.push(decisions.map((decision) => decision.decisionId));
+    },
+  });
+  const decisions = Array.from({ length: 205 }, (_, index) => ({
+    decisionId: `decision:${index}`,
+    decidedAt: now,
+    principalId: "human:peter",
+    principalType: "human" as const,
+    groupIds: ["company:active"],
+    permission: "read" as const,
+    policyIds: ["policy:company"],
+    objectType: "document" as const,
+    objectIdHash: sha256(`object:${index}`),
+    outcome: "permit" as const,
+    reason: "visibility-baseline",
+  }));
+
+  await Promise.all(decisions.map((decision) => auditor.record(decision)));
+  assert.deepEqual(batches.map((batch) => batch.length), [100, 100, 5]);
+  assert.deepEqual(batches.flat(), decisions.map((decision) => decision.decisionId));
 });
 
 test("source-backed retrieval stays available while a malformed Handbook snapshot is explicitly degraded", async () => {
