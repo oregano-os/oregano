@@ -7,6 +7,7 @@ import type {
   SessionRecord,
 } from "../knowledge/session-corpus.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 
 const connection = () => {
   const value = process.env.DATABASE_URL;
@@ -14,7 +15,7 @@ const connection = () => {
   return neon(value);
 };
 
-const iso = (value: unknown): string => new Date(String(value)).toISOString();
+const iso = postgresTimestampToIso;
 
 export class PostgresSessionCorpusStore implements SessionCorpusStore {
   async putSession(session: SessionRecord): Promise<"inserted" | "unchanged"> {

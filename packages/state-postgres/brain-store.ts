@@ -28,6 +28,7 @@ import type {
   BrainWriteResult,
 } from "../knowledge/brain-store.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 
 const connection = () => {
   const url = process.env.DATABASE_URL;
@@ -58,7 +59,7 @@ const mapPage = (row: Record<string, unknown>): BrainPage => ({
   verificationStatus: row.verification_status as BrainPage["verificationStatus"],
   accessPolicyId: String(row.page_access_policy_id ?? row.access_policy_id),
   lifecycleStatus: row.lifecycle_status as BrainPage["lifecycleStatus"],
-  createdAt: new Date(String(row.page_created_at ?? row.created_at)).toISOString(),
+  createdAt: postgresTimestampToIso(row.page_created_at ?? row.created_at),
 });
 
 const mapPageVersion = (row: Record<string, unknown>): BrainPageVersion => ({
@@ -70,8 +71,8 @@ const mapPageVersion = (row: Record<string, unknown>): BrainPageVersion => ({
   body: String(row.body),
   metadata: json<Record<string, unknown>>(row.metadata),
   contentDigest: String(row.content_digest),
-  observedAt: new Date(String(row.observed_at)).toISOString(),
-  createdAt: new Date(String(row.version_created_at ?? row.created_at)).toISOString(),
+  observedAt: postgresTimestampToIso(row.observed_at),
+  createdAt: postgresTimestampToIso(row.version_created_at ?? row.created_at),
   sourceObjectId: String(row.source_object_id),
   sourceObjectVersion: String(row.source_object_version),
   accessPolicyId: String(row.version_access_policy_id ?? row.access_policy_id),
@@ -84,7 +85,7 @@ const mapEvidence = (row: Record<string, unknown>): ClaimEvidence => ({
   providerObjectId: String(row.provider_object_id),
   providerVersion: String(row.provider_version),
   contentDigest: String(row.content_digest),
-  observedAt: new Date(String(row.observed_at)).toISOString(),
+  observedAt: postgresTimestampToIso(row.observed_at),
   locator: json<ClaimEvidence["locator"]>(row.locator),
   pageId: optionalString(row.page_id),
   pageVersionId: optionalString(row.page_version_id),
@@ -98,7 +99,7 @@ const mapEntity = (row: Record<string, unknown>): EntityIdentity => ({
   creationBasis: row.creation_basis as EntityIdentity["creationBasis"],
   creationReceiptId: String(row.creation_receipt_id),
   lifecycleStatus: row.lifecycle_status as EntityIdentity["lifecycleStatus"],
-  createdAt: new Date(String(row.created_at)).toISOString(),
+  createdAt: postgresTimestampToIso(row.created_at),
 });
 
 const mapEntityMembership = (row: Record<string, unknown>): EntityIdentityMembership => ({
@@ -109,7 +110,7 @@ const mapEntityMembership = (row: Record<string, unknown>): EntityIdentityMember
   proofReceiptId: String(row.proof_receipt_id),
   pageAccessPolicyId: String(row.page_access_policy_id),
   status: row.status as EntityIdentityMembership["status"],
-  createdAt: new Date(String(row.created_at)).toISOString(),
+  createdAt: postgresTimestampToIso(row.created_at),
 });
 
 const mapEntityProposal = (row: Record<string, unknown>): EntityIdentityProposal => ({
@@ -122,7 +123,7 @@ const mapEntityProposal = (row: Record<string, unknown>): EntityIdentityProposal
   evidenceReceiptIds: json<string[]>(row.evidence_receipt_ids),
   candidateAccessPolicyId: String(row.candidate_access_policy_id),
   createdBy: String(row.created_by),
-  createdAt: new Date(String(row.created_at)).toISOString(),
+  createdAt: postgresTimestampToIso(row.created_at),
   modelProvenance: row.model_provenance ? json<EntityIdentityProposal["modelProvenance"]>(row.model_provenance) : undefined,
   status: "proposed",
 });
@@ -522,9 +523,9 @@ export class PostgresBrainStore implements BrainStore {
       derivation: row.source_basis as BrainClaim["derivation"],
       evidence,
       unresolvedEvidenceReason: optionalString(row.unresolved_evidence_reason),
-      observedAt: new Date(String(row.observed_at)).toISOString(),
-      validFrom: row.valid_from ? new Date(String(row.valid_from)).toISOString() : undefined,
-      validUntil: row.valid_until ? new Date(String(row.valid_until)).toISOString() : undefined,
+      observedAt: postgresTimestampToIso(row.observed_at),
+      validFrom: row.valid_from ? postgresTimestampToIso(row.valid_from) : undefined,
+      validUntil: row.valid_until ? postgresTimestampToIso(row.valid_until) : undefined,
       extractionConfidence: Number(row.extraction_confidence),
       epistemicWeight: Number(row.epistemic_weight),
       accessPolicyId: String(row.access_policy_id),
@@ -614,7 +615,7 @@ export class PostgresBrainStore implements BrainStore {
       subjectId: String(row.subject_id),
       pageVersionId: String(row.page_version_id),
       sourceId: String(row.source_id),
-      observedAt: new Date(String(row.observed_at)).toISOString(),
+      observedAt: postgresTimestampToIso(row.observed_at),
       provenanceClass: row.provenance_class as BrainTimelineEvent["provenanceClass"],
       evidence: json<Record<string, unknown>>(row.evidence),
       accessPolicyId: String(row.access_policy_id),
@@ -656,7 +657,7 @@ export class PostgresBrainStore implements BrainStore {
       outcomeEvidence: json<ClaimResolutionProposal["outcomeEvidence"]>(rows[0].outcome_evidence),
       judgeReceiptId: String(rows[0].judge_receipt_id),
       proposedBy: String(rows[0].proposed_by),
-      proposedAt: new Date(String(rows[0].proposed_at)).toISOString(),
+      proposedAt: postgresTimestampToIso(rows[0].proposed_at),
       status: "proposed",
       autoApplicable: false,
     };

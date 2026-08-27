@@ -12,6 +12,7 @@ import type {
 } from "../knowledge/source-contracts.ts";
 import { sourceRetentionUntil } from "../knowledge/source-contracts.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 
 const connection = () => {
   const url = process.env.DATABASE_URL;
@@ -24,8 +25,8 @@ const mapObservation = (row: Record<string, unknown>): RuntimeObservation => ({
   subject: String(row.subject),
   content: String(row.content),
   contentDigest: String(row.content_digest),
-  observedAt: new Date(String(row.observed_at)).toISOString(),
-  expiresAt: row.expires_at ? new Date(String(row.expires_at)).toISOString() : undefined,
+  observedAt: postgresTimestampToIso(row.observed_at),
+  expiresAt: row.expires_at ? postgresTimestampToIso(row.expires_at) : undefined,
   runId: String(row.run_id),
   agentId: String(row.agent_id),
   evidence: row.evidence as Record<string, unknown>,
@@ -175,7 +176,7 @@ export class PostgresKnowledgeSourceStore implements KnowledgeSourceStore {
     const checkedAt = new Date().toISOString();
     if (rows[0].status === "revoked") return { ok: false, sourceId, status: "revoked", checkedAt, reason: "Source binding is revoked." };
     const requirement = rows[0].requirement as unknown as KnowledgeSourceRequirement;
-    const lastSuccessfulSync = rows[0].last_successful_sync ? new Date(String(rows[0].last_successful_sync)).toISOString() : undefined;
+    const lastSuccessfulSync = rows[0].last_successful_sync ? postgresTimestampToIso(rows[0].last_successful_sync) : undefined;
     if (!lastSuccessfulSync) return { ok: false, sourceId, status: "error", checkedAt, reason: "Source has no successful synchronization receipt." };
     if (Date.now() - Date.parse(lastSuccessfulSync) > requirement.staleAfterHours * 3_600_000) {
       return { ok: false, sourceId, status: "stale", checkedAt, lastSuccessfulSync, reason: `Last successful synchronization exceeds ${requirement.staleAfterHours} hour(s).` };

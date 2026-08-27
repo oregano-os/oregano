@@ -11,6 +11,7 @@ import type {
 } from "../knowledge/productive-compounding.ts";
 import { canonicalJson, sha256 } from "../runtime/canonical.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 
 const connection = () => {
   const url = process.env.DATABASE_URL;
@@ -26,7 +27,7 @@ const lock = (lockKey: string): { phase: string; scope: "source" | "mixed" | "gl
   return { phase: scope === "source" ? "source-lane" : scopeId, scope, scopeId };
 };
 
-const iso = (value: unknown): string => new Date(String(value)).toISOString();
+const iso = postgresTimestampToIso;
 const json = <T>(value: unknown): T => value as T;
 
 export class PostgresCompoundingStateStore implements CompoundingStateStore {

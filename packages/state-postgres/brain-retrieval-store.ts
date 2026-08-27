@@ -4,6 +4,7 @@ import type { BrainKnowledgeProjection, BrainKnowledgeProjectionStore } from "..
 import type { KnowledgeDeltaV2, KnowledgeResultLabel, KnowledgeRetrievalRecordV2 } from "../knowledge/retrieval-v2.ts";
 import { sha256 } from "../runtime/canonical.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 import { enrichPostgresKnowledgeSubject } from "./knowledge-access-store.ts";
 import { mapStoredSourceRawEvidence } from "./source-pipeline-store.ts";
 
@@ -15,7 +16,7 @@ const connection = () => {
   return neon(url);
 };
 
-const iso = (value: unknown): string => new Date(String(value)).toISOString();
+const iso = postgresTimestampToIso;
 const optionalString = (value: unknown): string | undefined => value === null || value === undefined ? undefined : String(value);
 const segment = (value: string): string => encodeURIComponent(value);
 const lines = (value: string): number => Math.max(1, value.split("\n").length);
