@@ -180,8 +180,13 @@ non-qualification provider bindings.
 2. Clarify the exact objective in the normal Runner conversation.
 3. Review the confirmation card's repository and exact base commit.
 4. Select **Start proposal**. This is the first point at which a job exists.
-5. Use **Request cancellation** when required. The request is authenticated
-   against the original requester and is applied by the asynchronous worker.
+   The same card changes to **CompanyOS Builder proposal queued** and no longer
+   offers **Start proposal** or the confirmation **Cancel** action. If the
+   original confirmation remains actionable, do not click it again; retain the
+   job identifier and diagnose the Chat-provider message update.
+5. Use **Request cancellation** on the queued card when required. The request
+   is authenticated against the original requester and is applied by the
+   asynchronous worker.
 6. Wait for the terminal message in the same source thread.
 7. Review the draft proposal, Change Plan, diff, Workbench evidence, and CI.
 8. Apply the normal human merge and deployment governance.

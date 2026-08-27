@@ -54,6 +54,14 @@ Duplicate delivery MUST NOT create a second execution or proposal. Jobs MUST
 support leases, recovery, timeout, requester-authorized cancellation, terminal
 evidence, and notification back to the source conversation.
 
+After an authorized confirmation or cancellation succeeds, the Runner MUST
+replace the original interactive confirmation message through its neutral Chat
+adapter. A queued replacement MUST remove the confirmation actions and MAY
+retain only the authenticated job-cancellation action; a cancelled replacement
+MUST contain no actions. The pending confirmation MUST be consumed only after
+that replacement succeeds, so a transient Chat-provider failure remains safely
+retryable while durable job idempotency prevents duplicate execution.
+
 The Instance MAY bind one safe proposal target branch. The target MUST be
 compiled into the Artifact, visible in the human confirmation, immutable in the
 job, and verified with the exact base commit before publication. The model and

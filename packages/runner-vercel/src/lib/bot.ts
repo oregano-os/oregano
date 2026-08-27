@@ -16,6 +16,11 @@ import type { StateAdapter } from "chat";
 import { loadArtifact, resolvedAgentForConversation } from "./artifact.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
+import {
+  builderCancelledActionCard,
+  builderQueuedActionCard,
+  resolveBuilderActionCard,
+} from "./builder/action-cards.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts";
@@ -305,8 +310,16 @@ function registerHandlers(bot: Chat) {
       return;
     }
     if (event.actionId === "companyos.builder.cancel") {
-      await state.delete(`builder-confirmation:${event.value}`);
-      await event.thread.post("Builder proposal cancelled. No coding agent was started.");
+      await resolveBuilderActionCard(
+        event,
+        builderCancelledActionCard({
+          objective: pending.objective,
+          repositoryId: pending.repositoryId,
+          baseCommit: pending.baseCommit,
+          ...(pending.targetBranchName ? { targetBranchName: pending.targetBranchName } : {}),
+        }),
+        () => state.delete(`builder-confirmation:${event.value}`),
+      );
       return;
     }
     if (!artifact.builder) {
@@ -324,18 +337,11 @@ function registerHandlers(bot: Chat) {
         baseCommit: pending.baseCommit,
       }),
     );
-    await state.delete(`builder-confirmation:${event.value}`);
-    await event.thread.post(Card({
-      title: "CompanyOS Builder proposal queued",
-      children: [
-        CardText(`Job: ${job.jobId}`),
-        CardText(`Exact base: ${job.baseCommit}`),
-        CardText("The coding worker runs asynchronously; merge and deployment remain human decisions."),
-        Actions([
-          Button({ id: "companyos.builder.stop", label: "Request cancellation", style: "danger", value: job.jobId }),
-        ]),
-      ],
-    }));
+    await resolveBuilderActionCard(
+      event,
+      builderQueuedActionCard(job),
+      () => state.delete(`builder-confirmation:${event.value}`),
+    );
   });
   bot.onAction("companyos.builder.stop", async (event) => {
     if (!event.thread || !event.value) return;
