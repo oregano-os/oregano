@@ -64,6 +64,7 @@ export function authorizeScheduledKnowledgeRequest(request: Request, secret = pr
 export function classifyKnowledgeSourceRuntimeError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/runtime configuration|SecretRef .* unavailable|unsupported Source identity/i.test(message)) return "runtime-configuration";
+  if (/binding .* not active for ingestion/i.test(message)) return "binding-state";
   if (/Source .* (?:conflicts|rebind|revoked|registration)/i.test(message)) return "source-registration";
   if (/Granola .*?(?:response|API request|folder scope|note list|transcript)/i.test(message)) return "provider-response";
   if (/cursor|watermark/i.test(message)) return "cursor-or-watermark";
