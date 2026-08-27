@@ -46,6 +46,10 @@ export const KNOWLEDGE_PROMPT_INPUT_SCHEMAS = {
   "knowledge.duplicate.input@1": object({ leftIdentity: string(256), rightIdentity: string(256) }),
   "knowledge.cited-synthesis.input@1": object({ query: string(4_000), contextReceiptId: string(256) }),
   "knowledge.working-synthesis.input@1": object({ subjectIdentity: string(256) }),
+  "knowledge.working-synthesis.input@2": object({
+    subjectIdentity: string(256),
+    validationFeedbackCode: { type: "string", enum: ["claim-partitions-must-be-disjoint-and-bounded"] },
+  }, ["subjectIdentity"]),
   "knowledge.conflict.input@1": object({ leftClaimId: string(256), rightClaimId: string(256) }),
   "knowledge.claim-grading.input@1": object({ claimId: string(256), outcomeEvidenceIds: stringArray(100) }),
   "knowledge.query-expansion.input@1": object({ query: string(4_000), maxVariants: { type: "integer", minimum: 1, maximum: 8 } }),

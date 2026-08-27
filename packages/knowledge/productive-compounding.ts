@@ -203,6 +203,27 @@ const phaseResult = (processed: number, next: number, total: number, evidence: u
   evidenceDigest: sha256(evidence),
 });
 
+class WorkingSynthesisValidationError extends Error {}
+
+const validateWorkingSynthesisOutput = (
+  output: Record<string, unknown>,
+  claimIds: ReadonlySet<string>,
+): Pick<WorkingSynthesisWrite, "supportingClaimIds" | "contestedClaimIds" | "supersededClaimIds"> => {
+  const list = (name: string): string[] => {
+    const value = output[name];
+    if (!Array.isArray(value)) throw new WorkingSynthesisValidationError(`Working synthesis '${name}' is invalid.`);
+    const ids = value.map(String);
+    if (ids.some((id) => !claimIds.has(id))) throw new WorkingSynthesisValidationError("Working synthesis cited a Claim outside its authorized subject set.");
+    return [...new Set(ids)].sort();
+  };
+  const supportingClaimIds = list("supportingClaimIds");
+  const contestedClaimIds = list("contestedClaimIds");
+  const supersededClaimIds = list("supersededClaimIds");
+  const classified = [...supportingClaimIds, ...contestedClaimIds, ...supersededClaimIds];
+  if (new Set(classified).size !== classified.length) throw new WorkingSynthesisValidationError("Working synthesis classified the same Claim more than once.");
+  return { supportingClaimIds, contestedClaimIds, supersededClaimIds };
+};
+
 const pairClaims = async (runtime: KnowledgeCompoundingRuntimeInput, budget: number, mode: "duplicate" | "relation" | "conflict") =>
   selectCompoundingClaimPairs(
     await runtime.store.listClaims({ accessPolicyIds: runtime.accessPolicyIds, limit: Math.min(Math.max(budget * 4, 20), 200) }),
@@ -311,27 +332,27 @@ function synthesisPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: numbe
     for (const [key, group] of selected) {
       const [accessPolicyId, subjectIdentity] = key.split("\0") as [string, string];
       const claimIds = new Set(group.map((claim) => claim.claimId));
-      const executed = await invoke(runtime, "knowledge.working-synthesis", { subjectIdentity }, group.map(claimEvidence), { subjectIdentity, claimIds: [...claimIds].sort() });
-      const output = executed.output as Record<string, unknown>;
-      const list = (name: string): string[] => {
-        const value = output[name];
-        if (!Array.isArray(value)) throw new Error(`Working synthesis '${name}' is invalid.`);
-        const ids = value.map(String);
-        if (ids.some((id) => !claimIds.has(id))) throw new Error("Working synthesis cited a Claim outside its authorized subject set.");
-        return [...new Set(ids)].sort();
-      };
-      const supportingClaimIds = list("supportingClaimIds");
-      const contestedClaimIds = list("contestedClaimIds");
-      const supersededClaimIds = list("supersededClaimIds");
-      const classified = [...supportingClaimIds, ...contestedClaimIds, ...supersededClaimIds];
-      if (new Set(classified).size !== classified.length) throw new Error("Working synthesis classified the same Claim more than once.");
+      const evidence = group.map(claimEvidence);
+      const identity = { subjectIdentity, claimIds: [...claimIds].sort() };
+      let executed = await invoke(runtime, "knowledge.working-synthesis", { subjectIdentity }, evidence, identity);
+      let output = executed.output as Record<string, unknown>;
+      let classification: ReturnType<typeof validateWorkingSynthesisOutput>;
+      try {
+        classification = validateWorkingSynthesisOutput(output, claimIds);
+      } catch (error) {
+        if (!(error instanceof WorkingSynthesisValidationError)) throw error;
+        executed = await invoke(runtime, "knowledge.working-synthesis", {
+          subjectIdentity,
+          validationFeedbackCode: "claim-partitions-must-be-disjoint-and-bounded",
+        }, evidence, { ...identity, validationAttempt: 2 });
+        output = executed.output as Record<string, unknown>;
+        classification = validateWorkingSynthesisOutput(output, claimIds);
+      }
       const synthesis: WorkingSynthesisWrite = {
         subjectIdentity,
         title: String(output.title),
         body: String(output.body),
-        supportingClaimIds,
-        contestedClaimIds,
-        supersededClaimIds,
+        ...classification,
         gaps: Array.isArray(output.gaps) ? output.gaps.map(String) : [],
         accessPolicyId,
         modelReceipt: executed.receipt,

@@ -99,6 +99,51 @@ test("productive compounding writes review proposals and immutable working synth
   assert.equal(Object.hasOwn(store as object, "putClaim"), false);
 });
 
+test("working synthesis retries one invalid overlapping classification with bounded feedback", async () => {
+  const store = new MemoryWorkStore();
+  const calls: KnowledgeModelRequest[] = [];
+  const executor: KnowledgeModelExecutor = { execute: async (binding, request) => {
+    calls.push(structuredClone(request));
+    const invalid = calls.length === 1;
+    return {
+      output: {
+        title: "Cedar launch",
+        body: "Working synthesis: the launch date is contested.",
+        supportingClaimIds: ["claim:a"],
+        contestedClaimIds: invalid ? ["claim:a", "claim:b"] : ["claim:b"],
+        supersededClaimIds: [],
+        gaps: [],
+      },
+      responseId: `response:${calls.length}`,
+      responseModel: binding.model,
+      inputTokens: 10,
+      outputTokens: 10,
+      costUsd: 0,
+      latencyMs: 1,
+      finishReason: "stop",
+    };
+  } };
+  const phase = createProductiveKnowledgeCompoundingPhases({
+    store,
+    executor,
+    resolveProfile: profile,
+    accessPolicyIds: ["policy:company"],
+    authorizationContextDigest: sha256("authorization"),
+    dataClass: "confidential",
+    now: () => "2026-08-27T12:00:00.000Z",
+  }).find((entry) => entry.name === "syntheses")!;
+  await phase.execute({ budget: phase.budget });
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0]?.taskInput, { subjectIdentity: "page:cedar" });
+  assert.deepEqual(calls[1]?.taskInput, {
+    subjectIdentity: "page:cedar",
+    validationFeedbackCode: "claim-partitions-must-be-disjoint-and-bounded",
+  });
+  assert.notEqual(calls[0]?.idempotencyKey, calls[1]?.idempotencyKey);
+  assert.deepEqual(store.syntheses[0]?.supportingClaimIds, ["claim:a"]);
+  assert.deepEqual(store.syntheses[0]?.contestedClaimIds, ["claim:b"]);
+});
+
 test("claim grading runs only for an explicit request and bounded independent evidence", async () => {
   const store = new MemoryWorkStore();
   const executor = new FixtureExecutor();

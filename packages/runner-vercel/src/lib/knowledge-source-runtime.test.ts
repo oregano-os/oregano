@@ -71,6 +71,7 @@ test("Knowledge source runtime failures expose bounded categories rather than pr
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Source 'source:test' conflicts with an existing requirement.")), "source-registration");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Source binding 'source:test' is not active for ingestion.")), "binding-state");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Knowledge model provider call failed (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa).")), "model-provider");
+  assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Working synthesis classified the same Claim more than once.")), "model-output");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Brain Page conflicts with immutable fields: created_at.")), "source-identity");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Granola API request failed after bounded retry (HTTP 503).")), "provider-response");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("unexpected protected provider detail")), "unclassified");
