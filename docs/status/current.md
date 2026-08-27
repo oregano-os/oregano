@@ -281,9 +281,15 @@ evidence, historical prototypes, and production gaps.
   Maintainer-approved cutover now attaches `slack/oregano` only to
   `oregano-hq-companyos`, removes the obsolete trigger destination, leaves the
   unused replacement connector unattached, and aligns the production
-  `SLACK_CONNECTOR` reference. Production deployment
-  `dpl_J3DHypFFR91F5KS6qWKc2GFTXeF2` is ready at the canonical alias and exposes
-  the same three R0 Knowledge grants. The repeated cited Slack probe remains
+  `SLACK_CONNECTOR` reference. The first CompanyOS-routed turn then failed
+  closed because the Workspace still named a principal from the obsolete Slack
+  tenant. The Workspace Steward explicitly approved replacement with the
+  principal read from the installed Oregano Workspace; Workspace commit
+  `5e6ccaea98307a8f9884ccd7af1fcdd6b8ca813b` preserves the same role and rights
+  while correcting the team-bound Slack identity. Production deployment
+  `dpl_5Xu3fmDJuLRpvZ6ChcwHR9RXJhLR` is ready at the canonical alias with
+  Artifact `f1c4276d51c622267fa560a1c0ed92470911366857ff64a8c8e2f2c77cd4c68c`
+  and the same three R0 Knowledge grants. The repeated cited Slack probe remains
   the final Instance qualification step.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
