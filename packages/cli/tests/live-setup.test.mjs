@@ -19,9 +19,19 @@ import {
   verifyLiveSetup,
   writeLiveSetupState,
 } from "../src/live-setup.mjs";
-import { assertSetupProviderProfile } from "../src/setup/provider-contracts.ts";
+import { assertSetupProviderProfile, defineSetupProviderProfile } from "../src/setup/provider-contracts.ts";
 import { assertSetupModelProviderAdapter } from "../src/setup/model-provider-contracts.ts";
-import { ANTHROPIC_DIRECT_MODEL_PROVIDER, VERCEL_AI_GATEWAY_MODEL_PROVIDER } from "../src/setup/model-providers.ts";
+import {
+  ANTHROPIC_DIRECT_MODEL_PROVIDER,
+  GOOGLE_DIRECT_MODEL_PROVIDER,
+  GROQ_MODEL_PROVIDER,
+  MISTRAL_MODEL_PROVIDER,
+  NVIDIA_MODEL_PROVIDER,
+  OPENAI_DIRECT_MODEL_PROVIDER,
+  OPENROUTER_MODEL_PROVIDER,
+  SETUP_MODEL_PROVIDERS,
+  VERCEL_AI_GATEWAY_MODEL_PROVIDER,
+} from "../src/setup/model-providers.ts";
 import {
   applyOperatingStarter,
   normalizeOperatingStarterInput,
@@ -32,6 +42,10 @@ import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { WORKBENCH_VERSION } from "../src/workbench-version.mjs";
 import { PNPM_VERSION } from "../src/core-version.mjs";
 import { parseRoster } from "../../state-store/roster.ts";
+import {
+  COMPANY_DATABASE_MANIFEST,
+  COMPANY_DATABASE_MANIFEST_DIGEST,
+} from "../../state-postgres/database-bootstrap.ts";
 
 const CORE_REF = "1234567890abcdef1234567890abcdef12345678";
 
@@ -50,7 +64,7 @@ const coreIdentity = (root) => ({
   root,
   repository: "oregano-os/oregano",
   ref: CORE_REF,
-  core_version: "0.3.2",
+  core_version: "0.4.0",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 });
@@ -75,6 +89,22 @@ const liveAnswers = (overrides = {}) => ({
   model_route: "vercel-ai-gateway",
   model_credential_mode: "platform",
   model: "openai/gpt-5.4-nano",
+  ...overrides,
+});
+
+const databaseQualification = (overrides = {}) => ({
+  receiptVersion: 1,
+  status: "qualified",
+  manifestId: COMPANY_DATABASE_MANIFEST.id,
+  manifestVersion: COMPANY_DATABASE_MANIFEST.version,
+  manifestDigest: COMPANY_DATABASE_MANIFEST_DIGEST,
+  qualifiedAt: "2026-08-26T12:00:00.000Z",
+  schemas: {
+    companyos: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length },
+    companyosKnowledge: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length },
+  },
+  corePageTypeCount: COMPANY_DATABASE_MANIFEST.corePageTypes.length,
+  features: { vector: false },
   ...overrides,
 });
 
@@ -152,6 +182,8 @@ test("the maintained setup profile provides exactly one typed adapter for every 
   ], ["source-host", "runtime-host", "state-service", "communication"]);
   assert.equal(LIVE_SETUP_PROVIDER_PROFILE.runtimeHost.projectRoot, "packages/runner-vercel");
   assert.equal(LIVE_SETUP_PROVIDER_PROFILE.runtimeHost.environmentConflictPolicy, "refuse");
+  assert.equal(LIVE_SETUP_PROVIDER_PROFILE.stateService.databaseDialect, "postgresql");
+  assert.equal(LIVE_SETUP_PROVIDER_PROFILE.stateService.databaseSecretRef, "DATABASE_URL");
   assert.deepEqual(LIVE_SETUP_PROVIDER_PROFILE.runtimeHost.expectedProjectConfiguration(), {
     rootDirectory: "packages/runner-vercel",
     framework: "nextjs",
@@ -159,17 +191,110 @@ test("the maintained setup profile provides exactly one typed adapter for every 
   });
   assert.equal(LIVE_SETUP_PROVIDER_PROFILE.communication.agentDisplayName, "oregano");
   assert.equal(LIVE_SETUP_PROVIDER_PROFILE.communication.expectedConnectorUid(), "slack/oregano");
+  const wrapped = LIVE_SETUP_PROVIDER_PROFILE.runtimeHost.secretBoundCommand({
+    environment: "production",
+    project: "example-companyos",
+    scope: "example-company",
+    cwd: "/example/core",
+    command: ["node", "companyos", "database", "prepare"],
+  });
+  assert.equal(wrapped.executable, "vercel");
+  assert.deepEqual(wrapped.args.slice(0, 2), ["env", "run"]);
+  assert.deepEqual(wrapped.args.slice(-4), ["node", "companyos", "database", "prepare"]);
+  assert.equal(wrapped.args.includes("pull"), false);
   assert.throws(() => assertSetupProviderProfile({ ...LIVE_SETUP_PROVIDER_PROFILE, communication: undefined }), /communication/);
+});
+
+test("an alternative runtime profile can inject the same database preparation without Vercel", () => {
+  const alternative = defineSetupProviderProfile({
+    ...LIVE_SETUP_PROVIDER_PROFILE,
+    id: "container-postgres-console",
+    runtimeHost: {
+      ...LIVE_SETUP_PROVIDER_PROFILE.runtimeHost,
+      provider: "container",
+      cliVersion: "1.0.0",
+      projectRoot: "packages/runner-container",
+      framework: "node",
+      secretBoundCommand(input) {
+        return { executable: "company-runtime", args: ["exec", "--environment", input.environment, "--", ...input.command] };
+      },
+    },
+    stateService: {
+      ...LIVE_SETUP_PROVIDER_PROFILE.stateService,
+      provider: "postgres-console",
+    },
+    communication: {
+      ...LIVE_SETUP_PROVIDER_PROFILE.communication,
+      provider: "console",
+    },
+  });
+  const command = alternative.runtimeHost.secretBoundCommand({
+    environment: "production",
+    project: "ignored-by-fixture",
+    scope: "ignored-by-fixture",
+    cwd: "/example/core",
+    command: ["node", "companyos", "database", "prepare"],
+  });
+  assert.equal(command.executable, "company-runtime");
+  assert.equal(command.args.includes("vercel"), false);
+  assert.deepEqual(command.args.slice(-4), ["node", "companyos", "database", "prepare"]);
 });
 
 test("model execution routes have typed, secret-aware setup adapters", () => {
   assert.doesNotThrow(() => assertSetupModelProviderAdapter(VERCEL_AI_GATEWAY_MODEL_PROVIDER));
   assert.doesNotThrow(() => assertSetupModelProviderAdapter(ANTHROPIC_DIRECT_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(OPENAI_DIRECT_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(GOOGLE_DIRECT_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(OPENROUTER_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(GROQ_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(MISTRAL_MODEL_PROVIDER));
+  assert.doesNotThrow(() => assertSetupModelProviderAdapter(NVIDIA_MODEL_PROVIDER));
   assert.equal(VERCEL_AI_GATEWAY_MODEL_PROVIDER.credentialRef, null);
   assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.credentialRef, "ANTHROPIC_API_KEY");
+  assert.equal(OPENAI_DIRECT_MODEL_PROVIDER.credentialRef, "OPENAI_API_KEY");
+  assert.equal(GOOGLE_DIRECT_MODEL_PROVIDER.credentialRef, "GOOGLE_GENERATIVE_AI_API_KEY");
+  assert.equal(OPENROUTER_MODEL_PROVIDER.credentialRef, "OPENROUTER_API_KEY");
+  assert.equal(Object.keys(SETUP_MODEL_PROVIDERS).length, 13);
   assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.secretEntrySurface, "runtime-host-dashboard");
   assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.supports("anthropic/claude-sonnet-4-5"), true);
   assert.equal(ANTHROPIC_DIRECT_MODEL_PROVIDER.supports("openai/gpt-5.4-nano"), false);
+});
+
+test("maintained setup accepts matching OpenAI and Google direct recipes", () => {
+  const openai = normalizeLiveSetupAnswers(liveAnswers({
+    model_route: "openai-direct",
+    model_credential_mode: "configure",
+    model: "openai/gpt-5.4-mini",
+  }));
+  assert.deepEqual(openai.diagnostics.filter((item) => item.severity === "error"), []);
+  const google = normalizeLiveSetupAnswers(liveAnswers({
+    model_route: "google-direct",
+    model_credential_mode: "adopt",
+    model: "google/gemini-2.5-flash",
+  }));
+  assert.deepEqual(google.diagnostics.filter((item) => item.severity === "error"), []);
+  const mismatch = normalizeLiveSetupAnswers(liveAnswers({
+    model_route: "google-direct",
+    model_credential_mode: "configure",
+    model: "openai/gpt-5.4-mini",
+  }));
+  assert.ok(mismatch.diagnostics.some((item) => item.code === "LIVE032"));
+});
+
+test("maintained setup accepts named compatible cloud recipes", () => {
+  const openrouter = normalizeLiveSetupAnswers(liveAnswers({
+    model_route: "openrouter",
+    model_credential_mode: "configure",
+    model: "openrouter/anthropic/claude-sonnet-4.6",
+  }));
+  assert.deepEqual(openrouter.diagnostics.filter((item) => item.severity === "error"), []);
+
+  const nvidia = normalizeLiveSetupAnswers(liveAnswers({
+    model_route: "nvidia",
+    model_credential_mode: "adopt",
+    model: "nvidia/nvidia/nemotron-3-super-120b-a12b",
+  }));
+  assert.deepEqual(nvidia.diagnostics.filter((item) => item.severity === "error"), []);
 });
 
 test("the operating starter is deterministic, Tool-free, and keeps one Steward", () => withSetup(({ workspace }) => {
@@ -774,6 +899,94 @@ test("a pending Neon create intent reconciles by identity and never creates a du
   assert.equal(result.state.intents["neon-resource-create"].status, "completed");
 }));
 
+test("database preparation uses the profile secret process and records only qualification evidence", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "database-prepare-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 4,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-26T00:00:00.000Z",
+    updated_at: "2026-08-26T00:00:00.000Z",
+    phase: "database-prepare",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers(),
+    resources: {
+      vercel: { id: "prj_synthetic", project: "example-companyos" },
+      neon: { id: "store_synthetic", uid: "neon/store-synthetic", name: "example-companyos-db" },
+    },
+    intents: {},
+    operating: {}, artifact: {}, deployment: {}, verification: {}, history: [],
+  });
+  let bootstrapCommands = 0;
+  const executor = {
+    run(file, args) {
+      if (file === "vercel" && args[0] === "env" && args[1] === "run") {
+        bootstrapCommands += 1;
+        assert.equal(args.includes("pull"), false);
+        assert.equal(args.includes("database"), true);
+        assert.equal(args.includes("prepare"), true);
+        return { status: 0, stdout: JSON.stringify({ ok: true, operation: "upgrade", previous_manifest_versions: ["1.2.0"], qualification: databaseQualification() }), stderr: "" };
+      }
+      if (file === "vercel" && args[0] === "connect") return { status: 1, stdout: "", stderr: "stop after database bootstrap" };
+      return { status: 0, stdout: "{}", stderr: "" };
+    },
+  };
+  const result = await advanceLiveSetup({ statePath, executor });
+  assert.equal(result.status, "blocked");
+  assert.equal(result.state.phase, "slack");
+  assert.equal(bootstrapCommands, 1);
+  assert.equal(result.state.intents["database-prepare"].status, "completed");
+  assert.equal(result.state.verification.database_schema.qualification.manifestDigest, COMPANY_DATABASE_MANIFEST_DIGEST);
+  assert.equal(result.state.verification.database_schema.operation, "upgrade");
+  assert.equal(result.state.verification.database_schema.state_service.id, "store_synthetic");
+  assert.doesNotMatch(readFileSync(statePath, "utf8"), /DATABASE_URL|postgres(?:ql)?:\/\//i);
+}));
+
+test("a pending legacy database intent safely resumes through idempotent preparation", async () => withSetup(async ({ temporary, core, workspace }) => {
+  const statePath = join(temporary, "database-bootstrap-resume-state.json");
+  writeLiveSetupState(statePath, {
+    schema_version: 4,
+    profile: "vercel-neon-slack",
+    plan_hash: "a".repeat(64),
+    created_at: "2026-08-26T00:00:00.000Z",
+    updated_at: "2026-08-26T00:00:00.000Z",
+    phase: "database-bootstrap",
+    workspace,
+    core: coreIdentity(core),
+    answers: liveAnswers(),
+    resources: {
+      vercel: { id: "prj_synthetic", project: "example-companyos" },
+      neon: { id: "store_synthetic", uid: "neon/store-synthetic", name: "example-companyos-db" },
+    },
+    intents: {
+      "database-bootstrap": {
+        status: "pending",
+        target: { provider: "neon", operation: "bootstrap-company-instance-database", manifest: "companyos-postgres@1.0.0" },
+        started_at: "2026-08-26T00:00:00.000Z",
+      },
+    },
+    operating: {}, artifact: {}, deployment: {}, verification: {}, history: [],
+  });
+  let bootstrapCommands = 0;
+  const result = await advanceLiveSetup({
+    statePath,
+    executor: {
+      run(file, args) {
+        if (file === "vercel" && args[0] === "env" && args[1] === "run") {
+          bootstrapCommands += 1;
+          return { status: 0, stdout: JSON.stringify({ ok: true, operation: "bootstrap", qualification: databaseQualification() }), stderr: "" };
+        }
+        if (file === "vercel" && args[0] === "connect") return { status: 1, stdout: "", stderr: "stop after database bootstrap" };
+        return { status: 0, stdout: "{}", stderr: "" };
+      },
+    },
+  });
+  assert.equal(result.state.phase, "slack");
+  assert.equal(bootstrapCommands, 1);
+  assert.equal(result.state.intents["database-bootstrap"].status, "completed");
+}));
+
 test("Slack creation trusts its exact receipt, attaches one explicit route, and pauses for browser identity authorization", async () => withSetup(async ({ temporary, core, workspace }) => {
   const statePath = join(temporary, "slack-receipt-state.json");
   writeLiveSetupState(statePath, {
@@ -994,10 +1207,10 @@ test("live verification proves only the exact supervised starter scope", async (
   assert.ok(unresolvedReceipt.diagnostics.some((item) => item.code === "LIVE116"));
 }));
 
-test("new live verification binds direct Anthropic route, credential presence, health, and persisted model evidence", async () => withSetup(async ({ temporary }) => {
+test("new live verification binds database qualification, direct model credentials, health, and persisted evidence", async () => withSetup(async ({ temporary }) => {
   const statePath = join(temporary, "direct-complete-state.json");
   const state = {
-    schema_version: 3,
+    schema_version: 4,
     profile: "vercel-neon-slack",
     phase: "complete",
     history: [],
@@ -1017,7 +1230,13 @@ test("new live verification binds direct Anthropic route, credential presence, h
     operating: { merge_commit: "d".repeat(40), merge_authorized_by: "anna-example", merge_authorized_at: "2026-08-24T10:00:00.000Z", required_check: "passed" },
     artifact: { hash: "a".repeat(64), core_commit: CORE_REF, workspace_commit: "b".repeat(40), resolved_toolset_hash: "c".repeat(64) },
     deployment: { url: "https://example.vercel.app", ready_state: "READY" },
-    verification: { database: { ok: true, model_evidence_entries: 1 } },
+    verification: {
+      database: { ok: true, model_evidence_entries: 1 },
+      database_schema: {
+        qualification: databaseQualification(),
+        state_service: { provider: "neon", id: "store_example", name: "example-companyos-db" },
+      },
+    },
   };
   writeLiveSetupState(statePath, state);
   const executor = {
@@ -1032,6 +1251,7 @@ test("new live verification binds direct Anthropic route, credential presence, h
       ok: true, status: "ready", artifactHash: "a".repeat(64), coreCommit: CORE_REF,
       workspaceCommit: "b".repeat(40), resolvedToolSetHash: "c".repeat(64), agent: "oregano", tools: [],
       modelRoute: "anthropic-direct", model: "anthropic/claude-sonnet-4-5",
+      databaseManifestDigest: COMPANY_DATABASE_MANIFEST_DIGEST,
     }),
   });
   const verified = await verifyLiveSetup({ statePath, executor, fetchImpl });
@@ -1042,4 +1262,11 @@ test("new live verification binds direct Anthropic route, credential presence, h
   const missingEvidence = await verifyLiveSetup({ statePath, executor, fetchImpl });
   assert.equal(missingEvidence.verification.ok, false);
   assert.ok(missingEvidence.diagnostics.some((item) => item.code === "LIVE121"));
+
+  state.verification.database.model_evidence_entries = 1;
+  delete state.verification.database_schema;
+  writeLiveSetupState(statePath, state);
+  const missingDatabaseQualification = await verifyLiveSetup({ statePath, executor, fetchImpl });
+  assert.equal(missingDatabaseQualification.verification.ok, false);
+  assert.ok(missingDatabaseQualification.diagnostics.some((item) => item.code === "LIVE122"));
 }));

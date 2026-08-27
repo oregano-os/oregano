@@ -3,6 +3,8 @@ import { assertValidJsonSchema } from "../capabilities/validation.ts";
 import { sha256 } from "../runtime/canonical.ts";
 import { resolveToolSet } from "../toolset-resolver/resolver.ts";
 import { requireExactSemanticVersion } from "../runtime/semantic-version.ts";
+import { buildKnowledgeBundle } from "../knowledge/okf.ts";
+import { STANDARD_KNOWLEDGE_TOOLS } from "../standard-tools/knowledge.ts";
 import type { CompanyOSArtifact, InstanceBuildConfiguration } from "./types.ts";
 import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 
@@ -25,11 +27,13 @@ export function buildCompanyOSArtifact(args: {
     assertValidJsonSchema(contract.outputSchema, `${contract.id} output schema`);
   }
   const workspace = loadCompanyWorkspace(args.workspaceRoot);
+  const knowledgeBundle = buildKnowledgeBundle({ workspaceRoot: args.workspaceRoot, workspaceCommit: args.workspaceCommit });
   const agents = workspace.agents.map((agent) => {
     const toolSet = resolveToolSet({
       agentId: agent.id,
       grants: agent.grants,
       companyTools: agent.tools.map((tool) => tool.contract),
+      standardTools: STANDARD_KNOWLEDGE_TOOLS.map((tool) => tool.contract),
       capabilityCatalog: CORE_CAPABILITY_CATALOG,
       allowedCapabilities: workspace.allowedCapabilities,
       bindings: args.instance.bindings,
@@ -38,9 +42,11 @@ export function buildCompanyOSArtifact(args: {
     return {
       id: agent.id,
       instructions: agent.instructions,
-      materials: scopedMaterials(workspace, agent.scopeRead),
+      materials: scopedMaterials(workspace, agent.scopeRead, {
+        excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
+      }),
       toolSet,
-      tools: agent.tools.filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
+      tools: [...agent.tools, ...STANDARD_KNOWLEDGE_TOOLS].filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
     };
   });
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));
@@ -61,6 +67,14 @@ export function buildCompanyOSArtifact(args: {
     },
     capabilityCatalog: [...CORE_CAPABILITY_CATALOG],
     bindings: [...args.instance.bindings].sort((a, b) => a.capability.localeCompare(b.capability)),
+    knowledge: {
+      bundleSchemaVersion: knowledgeBundle.schemaVersion,
+      okfVersion: knowledgeBundle.okfVersion,
+      bundleHash: knowledgeBundle.bundleHash,
+      policyHash: knowledgeBundle.policyHash,
+      documentCount: knowledgeBundle.documentCount,
+      fragmentCount: knowledgeBundle.fragmentCount,
+    },
     roster: workspace.roster,
     agents,
   };

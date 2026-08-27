@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
   - product-owner
@@ -352,8 +352,13 @@ implements one bounded initial-installation subset:
   Workspace Steward merge authorization for the authoring-to-operating change;
 - explicit create-or-adopt choices for one Vercel project, Neon resource, and
   Slack connection;
-- an explicit `vercel-ai-gateway` or `anthropic-direct` model execution route,
-  with direct credentials confined to the runtime host secret store;
+- database preparation that detects first bootstrap, additive upgrade, or
+  already-current verification for both maintained schemas, an immutable
+  versioned manifest, and a non-secret read-only qualification receipt before
+  runtime deployment;
+- an explicit `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
+  `google-direct` model execution recipe, with direct credentials confined to
+  the runtime host secret store;
 - separate hash-bound confirmations for the setup plan, operating Workspace
   content, checked merge, and exact production candidate;
 - current deployment health plus one nonce-bound, model-backed Slack response,
@@ -364,12 +369,43 @@ The Workbench implements this subset through a private typed setup-provider
 boundary with four roles: source host, runtime host, state service, and
 communication provider, plus a typed Runner model-execution selection. The
 maintained profile currently binds those roles to GitHub, Vercel,
-Neon/Postgres, and Slack and supports Vercel AI Gateway or direct Anthropic.
+Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,
+and named compatible cloud recipes. Generic OpenAI-compatible, LiteLLM,
+Ollama, and llama-server recipes are available outside the bounded one-prompt
+profile when their endpoints are explicitly reachable from the runtime.
 This boundary is installation
 orchestration only; it is not a public plugin contract and does not alter the
 provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.
 Provider creates require write-ahead intents and immutable receipts so resume
 does not depend on eventually consistent name searches.
+
+For this subset, StateStore provisioning and schema preparation are distinct
+operations. A new Instance MUST create or explicitly adopt exactly one
+PostgreSQL StateStore, bind its `DATABASE_URL` only through the selected
+runtime host's secret environment, and successfully run the provider-neutral
+database prepare operation before setup advances. Prepare MUST inspect the
+catalog and immutable ledger, select `bootstrap` for an empty database,
+`upgrade` for a supported predecessor, or read-only `verify` for the current
+manifest, and fail closed for an unknown or conflicting state. Bootstrap MUST
+remain the empty-database primitive. Preparation MUST cover both `companyos`
+and `companyos_knowledge`, record the exact immutable manifest, be idempotent,
+and fail closed if the same manifest version has different content. Setup state
+MUST retain only the selected operation, previous manifest versions, provider
+resource identity, and bounded non-secret qualification receipt.
+Runtime health and completion verification MUST use read-only qualification,
+MUST match the receipt's manifest digest, and MUST NOT perform schema DDL. The
+maintained Vercel profile's `vercel env run` transport is one adapter binding,
+not a requirement on a conforming alternative runtime host.
+
+The current bounded subset targets additive manifest
+`companyos-postgres@1.4.0`, which preserves predecessors `1.3.0`, `1.2.0`,
+`1.1.0`, and `1.0.0`, qualifies 55 required Knowledge relations, and assigns unresolved
+existing access-policy identities to quarantine. The successor adds durable
+Source Events, provider ACL snapshots, pipeline receipts, completed watermarks,
+synchronization leases, lifecycle requests, and an integrity-linked change stream. Deployment
+qualification proves schema readiness only. Runtime authorization and
+provider-ACL mapping conformance are separate release evidence and MUST pass
+before a sensitive Source is enabled.
 
 This subset records readiness as `validated`. It has no reusable Preview or
 Effect Lane, no generic pre-production provider-test topology, no unattended

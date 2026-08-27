@@ -1,0 +1,67 @@
+version: 1
+plan_id: company-knowledge-phase-6-handbook-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement focused Handbook promotion and Decision Receipts
+objective: >-
+  Turn selected working knowledge into exact, reviewable Handbook changes only
+  through attributable human authority or an exact pre-authorized
+  digest-bound Decision Receipt, with cross-document effect detection and
+  replay-safe materialization.
+non_goals:
+  - Let ordinary extraction or synthesis publish official company truth.
+  - Require a reviewer to inspect every source object or extracted Claim.
+  - Delete Brain evidence after an accepted, rejected, or superseded promotion.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Human authority stays attributable
+  - Safety cannot be weakened from a Workspace
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-6-handbook.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/compatibility/registry.yaml
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - packages/knowledge/handbook-promotion.ts
+  - packages/testkit/tests/company-knowledge-handbook-promotion.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-6-handbook.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-6-handbook.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-handbook-promotion.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Promotion candidates bind exact evidence, base content, proposed content, conflicts, consequences, and affected files.
+  - Only an active human with promote authority can issue an accepted Decision Receipt.
+  - Decision Receipts cannot replay against a different source set, base, diff, or proposed content.
+  - Cross-document effects fail closed when the materialization set is incomplete.
+  - Rejected and superseded candidates remain archived and do not delete evidence.
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.company-knowledge-implementation
+    - specification.company-knowledge-v0.2
+    - status.current
+migration: >-
+  Use the existing promotion_candidates and decision_receipts tables. Candidate
+  and receipt identities are content-addressed; no prior Brain or Handbook
+  history is rewritten.
+rollback: >-
+  Stop materialization and revert a committed Handbook change through normal
+  Git governance. Retain candidates, receipts, evidence, and the exact commit
+  history needed to explain the rollback.
+open_decisions: []

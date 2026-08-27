@@ -1,0 +1,54 @@
+version: 1
+plan_id: atomic-knowledge-snapshot-activation-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Make Knowledge snapshot replacement atomically ordered
+objective: >-
+  Replace an active verified Knowledge snapshot without violating the database
+  invariant that permits at most one active snapshot.
+non_goals:
+  - Delete the prior snapshot or any Source evidence.
+  - Activate an unverified snapshot.
+  - Change Knowledge Bundle contents or authority.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+files_expected:
+  - .oregano/changes/2026-08-27-atomic-knowledge-snapshot-activation.yaml
+  - packages/state-postgres/knowledge-store.ts
+  - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-to-complete-the-live-company-knowledge-integration
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-atomic-knowledge-snapshot-activation.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-atomic-knowledge-snapshot-activation.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Snapshot replacement retires the prior active row before activating the verified target.
+  - Both state transitions run in one serializable transaction.
+  - An unverified or missing target leaves the prior active snapshot unchanged.
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: >-
+    Canonical documentation already requires verified atomic snapshot cutover
+    with rollback. This corrects the Postgres ordering to match that contract.
+migration: >-
+  No schema migration is required. Existing staged and verified snapshots can be
+  activated through the corrected transaction.
+rollback: >-
+  Reactivate any prior verified snapshot using the same atomic operation. No
+  snapshot or evidence row is deleted.
+open_decisions: []

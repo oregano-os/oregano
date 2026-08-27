@@ -1,0 +1,103 @@
+version: 1
+plan_id: company-knowledge-phase-3c-ingestion-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement the shared durable Source ingestion pipeline
+objective: >-
+  Persist and deduplicate Source Events before provider access, normalize and
+  enforce provider ACL evidence, validate inline and Raw Asset content, run
+  bounded sanity gates, store immutable Raw Evidence, emit chained change-stream
+  and processing receipts, preserve complete-watermark semantics, and implement
+  governed soft deletion, restoration, purge, and legal-hold behavior through
+  one provider-neutral in-memory and Postgres contract.
+non_goals:
+  - Extract Pages or Claims, invoke a model, synthesize answers, or promote Handbook content.
+  - Activate Granola or another production provider.
+  - Treat provider deletion as authorization to purge retained Company Brain evidence.
+  - Permit content or an unresolved ACL to bypass quarantine.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-3c-ingestion.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/compatibility/registry.yaml
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - packages/knowledge/source-contracts-v2.ts
+  - packages/knowledge/source-ingestion-v2.ts
+  - packages/knowledge/source-pipeline-store.ts
+  - packages/knowledge/source-sanity.ts
+  - packages/knowledge/in-memory-source-pipeline-store.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-schema-phase-three.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/state-postgres/source-pipeline-store.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/knowledge-source-ingestion-v2.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-3c-ingestion.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-3c-ingestion.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/knowledge-source-ingestion-v2.test.ts packages/testkit/tests/company-database-bootstrap.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - A Source Event is durable before any fetch and exact retry creates no duplicate Event, object version, Raw Asset, receipt, or change entry.
+  - A reused delivery identity or provider object version with changed canonical content fails closed.
+  - Unknown or conflicting external ACL mappings produce administrator-only quarantine and never model-ready evidence.
+  - Deny entries survive normalization and derived policy never widens its Source root.
+  - Invalid digest, media, size, encoding, credential, repetition, or prompt-injection content is rejected or quarantined before later processing.
+  - Partial or failed batches do not advance a completed cursor or watermark.
+  - Provider deletion marks absence without purging retained evidence.
+  - Authorized soft deletion has a dependency preview, 72-hour restoration window, legal-hold block, scheduled purge, and payload-free receipts.
+  - Change-stream entries form one deterministic integrity chain and contain no protected payload.
+  - The additive database manifest remains idempotent and prior manifest identities remain immutable.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.setup
+    - command.verify-live
+migration: >-
+  Add an immutable additive companyos-postgres manifest successor containing
+  Source Events, ACL snapshots, pipeline receipts, watermarks, lifecycle
+  requests, and the Knowledge change stream. Preserve all prior Source,
+  envelope, Raw Asset, policy, and manifest rows. Existing V1 paths remain
+  readable until Phase 3D routes them through the new pipeline.
+rollback: >-
+  Stop accepting or leasing new V2 Source Events and retain every event,
+  object version, ACL snapshot, receipt, change entry, lifecycle request, and
+  prior manifest. Continue serving only previously qualified authorized
+  Knowledge paths; never fall back to provider-specific direct ingestion.
+open_decisions:
+  - Qualify a maintained external Raw Asset adapter before enabling source objects larger than the configured inline database boundary.

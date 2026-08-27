@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -63,12 +63,32 @@ intent before each provider mutation and an immutable resource receipt after
 it. A resumed run reconciles an unresolved intent by immutable provider
 identity and never creates a second resource from a name-only lookup.
 
-Model execution is selected separately as `vercel-ai-gateway` or
-`anthropic-direct`. Gateway needs no provider key from the human. Direct
-Anthropic bypasses AI Gateway and pauses while the human enters a dedicated key
-only in the Vercel project UI as the Sensitive Production variable
-`ANTHROPIC_API_KEY`; setup records only its reference, presence, and Sensitive
-classification. Completion
+A new Company Instance does not need a database before setup begins. The state
+service adapter first creates or explicitly adopts one PostgreSQL resource and
+binds its connection only in the runtime host's secret environment. The next
+phase invokes the provider-neutral `companyos database prepare` operation
+through that environment. Prepare detects an empty, older, or current database
+and selects `bootstrap`, `upgrade`, or read-only `verify`. It creates or
+upgrades the `companyos` and `companyos_knowledge` schemas, records their
+immutable schema manifest, and returns a bounded non-secret qualification
+receipt. Runtime health and
+`companyos database verify` are read-only and fail closed when the prepared
+manifest or required schema objects are missing. The maintained Vercel profile
+uses `vercel env run`; another runtime profile must provide an equivalent
+secret-bound command without making Vercel part of the database contract.
+The current manifest is additive `companyos-postgres@1.4.0`: it preserves the
+immutable `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions, qualifies 55 required
+Knowledge tables, and adds durable Source event, ACL, receipt, watermark,
+change-stream, synchronization-lease, and lifecycle state. Unresolved policies and ACL mappings remain
+in quarantine. Schema qualification does not authorize retrieval; runtime
+subject and policy conformance remain separate gates.
+
+Model execution is selected separately as `vercel-ai-gateway`,
+`anthropic-direct`, `openai-direct`, or `google-direct`. Gateway needs no
+provider key from the human. Direct recipes bypass AI Gateway and pause while
+the human enters a dedicated provider key only in the Vercel project UI under
+the documented Sensitive Production variable; setup records only its
+reference, presence, and Sensitive classification. Completion
 proves the exact route and model through a real model-backed Slack response.
 
 The maintained communication binding always uses the logical Connector UID
@@ -96,3 +116,20 @@ changed file is outside that plan. These mechanical checks establish coverage
 and traceability, while reviewers remain responsible for checking that the
 documented behavior matches the implementation rather than merely listing a
 document identifier.
+
+## Optional Company Knowledge adoption
+
+New Workspaces contain empty `brain/inbox/` and `brain/archive/` directories.
+To adopt Company Knowledge, author indexed OKF in `handbook/`, validate with
+`companyos knowledge inspect`, and confirm that all content is suitable for the
+shared active-roster scope. Operating adoption builds a separate bundle,
+applies `companyos_knowledge` through the existing Neon connection, stages and
+verifies the bundle, and activates its exact hash.
+
+After the local corpus is operating, an approved Workspace may declare one
+read-only repository knowledge source. Its Instance binding uses an
+`env:NAME` SecretRef and `contents:read`; verify it before the first explicit
+sync. Synced objects remain raw review envelopes and never bypass the
+maximum-three human review queue. Hybrid retrieval requires no external
+credential: the default adapter is local, and optional vector-index failure is
+reported while lexical retrieval stays available.

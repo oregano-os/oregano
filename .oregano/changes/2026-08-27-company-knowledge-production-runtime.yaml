@@ -1,0 +1,78 @@
+version: 1
+plan_id: company-knowledge-production-runtime-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Activate authorized Company Knowledge in the production Agent runtime
+objective: >-
+  Make durable Company Knowledge from registered Sources available through the
+  existing authorization-first Knowledge Tool contracts, persist all structured
+  extraction outputs, and wire the production Agent runtime to the provider.
+non_goals:
+  - Bypass Company Knowledge policies or expose quarantined Source content.
+  - Change Handbook authority or make model-derived Claims official truth.
+  - Delete production fixtures or durable Source evidence.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-27-company-knowledge-production-runtime.yaml
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/status/current.md
+  - packages/knowledge/brain-store.ts
+  - packages/knowledge/contracts.ts
+  - packages/knowledge/extraction-pipeline.ts
+  - packages/knowledge/in-memory-brain-store.ts
+  - packages/knowledge/unified-provider.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/state-postgres/brain-retrieval-store.ts
+  - packages/state-postgres/brain-store.ts
+  - packages/testkit/tests/company-knowledge-extraction.test.ts
+  - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-in-codex-task-to-complete-the-company-knowledge-integration
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-company-knowledge-production-runtime.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-company-knowledge-production-runtime.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-extraction.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Source-derived Pages, Claims, Syntheses, Timeline Events, and current Raw Evidence are projected deterministically.
+  - Orphaned test fixtures and inactive or revoked Sources are excluded from the production projection.
+  - Authorization filters records before search, get, and graph traversal.
+  - Agent Knowledge Tools resolve through the production Connector and return stable citations.
+  - Participant relations and Timeline Events persist idempotently with extraction evidence.
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.company-knowledge-implementation
+    - status.current
+    - onboarding.index
+    - onboarding.company-workspace
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - command.setup
+    - command.verify-live
+migration: >-
+  No additive database migration is required. Existing Claim relation, Timeline,
+  Page, Claim, Source, ACL, Synthesis, and change-stream tables are used.
+rollback: >-
+  Remove the production Knowledge Connector binding and fall back to the existing
+  active Handbook snapshot provider. Durable evidence and extraction outputs remain
+  unchanged and can be reprojected.
+open_decisions:
+  - Production semantic retrieval remains lexical until a separately qualified embedding route is activated.

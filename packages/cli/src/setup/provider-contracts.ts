@@ -21,6 +21,19 @@ export interface RuntimeProjectConfiguration {
   readonly sourceFilesOutsideRootDirectory: boolean;
 }
 
+export interface SecretBoundCommand {
+  readonly executable: string;
+  readonly args: readonly string[];
+}
+
+export interface SecretBoundCommandInput {
+  readonly environment: string;
+  readonly project: string;
+  readonly scope: string;
+  readonly cwd: string;
+  readonly command: readonly string[];
+}
+
 export interface SourceHostAdapter extends SetupProviderAdapter {
   readonly role: "source-host";
   readonly privateRepositoryRequired: true;
@@ -36,12 +49,15 @@ export interface RuntimeHostAdapter extends SetupProviderAdapter {
   readonly environmentConflictPolicy: "refuse";
   projectEndpoint(project: string): string;
   expectedProjectConfiguration(): RuntimeProjectConfiguration;
+  secretBoundCommand(input: SecretBoundCommandInput): SecretBoundCommand;
 }
 
 export interface StateServiceAdapter extends SetupProviderAdapter {
   readonly role: "state-service";
   readonly qualifiedPlan: string;
   readonly qualifiedRegion: string;
+  readonly databaseDialect: "postgresql";
+  readonly databaseSecretRef: "DATABASE_URL";
   normalizeCreateReceipt(payload: unknown, expectedName: string): ProviderResourceReceipt;
 }
 
@@ -99,6 +115,8 @@ export function assertSetupProviderProfile(value: unknown): asserts value is Set
   }
   requireText(profile.stateService?.qualifiedPlan, "a qualified state-service plan");
   requireText(profile.stateService?.qualifiedRegion, "a qualified state-service region");
+  if (profile.stateService?.databaseDialect !== "postgresql") throw new Error("The maintained State Service requires the PostgreSQL dialect contract.");
+  if (profile.stateService?.databaseSecretRef !== "DATABASE_URL") throw new Error("The maintained State Service requires the DATABASE_URL SecretRef.");
   requireText(profile.communication?.agentId, "an internal agent id");
   requireText(profile.communication?.agentDisplayName, "an agent display name");
   requireText(profile.communication?.triggerPath, "a communication trigger path");
@@ -112,6 +130,7 @@ export function assertSetupProviderProfile(value: unknown): asserts value is Set
     ["sourceHost.repositoryReference", profile.sourceHost?.repositoryReference],
     ["runtimeHost.projectEndpoint", profile.runtimeHost?.projectEndpoint],
     ["runtimeHost.expectedProjectConfiguration", profile.runtimeHost?.expectedProjectConfiguration],
+    ["runtimeHost.secretBoundCommand", profile.runtimeHost?.secretBoundCommand],
     ["stateService.normalizeCreateReceipt", profile.stateService?.normalizeCreateReceipt],
     ["communication.expectedConnectorUid", profile.communication?.expectedConnectorUid],
     ["communication.normalizeCreateReceipt", profile.communication?.normalizeCreateReceipt],

@@ -49,6 +49,8 @@ export const GENERATED_WORKSPACE_PATHS = [
   ".gitignore",
   "AGENTS.md",
   "agents/builder/instructions.md",
+  "brain/archive/.gitkeep",
+  "brain/inbox/.gitkeep",
   "company.md",
   "connections/.gitkeep",
   "handbook/index.md",
@@ -225,7 +227,7 @@ export function renderWorkspace(input, coreIdentity) {
     },
     change_classes: {
       content: {
-        paths: ["handbook/**", "agents/*/skills/**"],
+        paths: ["handbook/**", "brain/**", "agents/*/skills/**"],
         approval: "process-steward",
       },
       behavior: {
@@ -324,6 +326,7 @@ jobs:
       identities: { github: codeowner.slice(1) },
       may_approve: ["R1", "R2", "R3", "R4"],
       may_see: ["business", "personal"],
+      groups: ["companyos:knowledge-admin"],
     }],
   }, `# Roster\n\nThe initial Workspace Steward is declared in this document's structured data.\nProvider identities must be verified through their provider before they\nauthorize a hosted change.`));
   files.set("policies/risk-levels.md", document({
@@ -340,7 +343,7 @@ jobs:
     tools: [],
   }, `# Builder\n\nPropose bounded, reviewable Company Workspace changes through the CompanyOS\nWorkbench. This entrypoint has no operating Tool grants and no provider access.`));
 
-  for (const path of [".companyos/changes/.gitkeep", "workflows/.gitkeep", "schedules/.gitkeep", "connections/.gitkeep"]) files.set(path, "");
+  for (const path of [".companyos/changes/.gitkeep", "brain/inbox/.gitkeep", "brain/archive/.gitkeep", "workflows/.gitkeep", "schedules/.gitkeep", "connections/.gitkeep"]) files.set(path, "");
   return files;
 }
 

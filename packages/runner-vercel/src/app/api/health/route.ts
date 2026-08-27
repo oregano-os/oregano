@@ -1,7 +1,6 @@
-import { neon } from "@neondatabase/serverless";
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
-import { ensureCompanyOSSchema } from "../../../../../state-postgres/migrate.ts";
+import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +8,8 @@ export async function GET() {
   try {
     const artifact = loadArtifact();
     const agent = selectedAgent();
-    const modelExecution = resolveModelExecution();
-    await ensureCompanyOSSchema();
-    const sql = neon(process.env.DATABASE_URL!);
-    await sql`select 1`;
+    const modelExecution = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
+    const database = await qualifyCompanyDatabase();
     return Response.json({
       ok: true,
       status: "ready",
@@ -29,6 +26,10 @@ export async function GET() {
       modelRoute: modelExecution.selection.route,
       modelProvider: modelExecution.selection.provider,
       model: modelExecution.selection.model,
+      databaseManifestId: database.manifestId,
+      databaseManifestVersion: database.manifestVersion,
+      databaseManifestDigest: database.manifestDigest,
+      databaseFeatures: database.features,
       meta: "disabled-until-real-connector-binding",
     });
   } catch (error) {

@@ -12,6 +12,18 @@
 
 create schema if not exists companyos;
 
+-- Immutable entries identify each database bootstrap or upgrade manifest that
+-- was accepted for this Company Instance. Secrets and connection values never
+-- enter this ledger.
+create table if not exists companyos.schema_manifests (
+  manifest_id       text not null,
+  manifest_version  text not null,
+  manifest_digest   text not null,
+  features          jsonb not null,
+  applied_at        timestamptz not null default now(),
+  primary key (manifest_id, manifest_version)
+);
+
 create table if not exists companyos.workflow_runs (
   run_id                 text primary key,
   workflow               text not null,

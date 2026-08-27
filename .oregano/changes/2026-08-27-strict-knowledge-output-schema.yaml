@@ -1,0 +1,54 @@
+version: 1
+plan_id: strict-knowledge-output-schema-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Qualify Knowledge schemas against strict model providers
+objective: >-
+  Make the Knowledge smoke-test and extraction JSON schemas valid for strict
+  structured-output providers without changing the output contract.
+non_goals:
+  - Change the selected provider, model, prompt, or extracted knowledge taxonomy.
+  - Relax schema validation or accept additional model output.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-27-strict-knowledge-output-schema.yaml
+  - packages/runner-vercel/src/lib/knowledge-model-runtime.ts
+  - packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-to-complete-the-live-company-knowledge-integration
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-strict-knowledge-output-schema.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-strict-knowledge-output-schema.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Every constant node in the extraction and smoke-test schemas declares its string type.
+  - Every enum node declares its string type and strict schemas contain no unsupported oneOf union.
+  - The exact production Vercel AI Gateway model accepts the smoke-test schema.
+  - Existing extraction output validation remains unchanged.
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: >-
+    This corrects provider compatibility while preserving the documented model
+    recipe, prompt, schema semantics, and output contract.
+migration: >-
+  No database or Workspace migration is required. Redeploy the corrected Runner
+  and record a fresh model smoke-test receipt.
+rollback: >-
+  Redeploy the prior Artifact and Runner. No data is written by the smoke test;
+  already persisted extraction evidence remains unchanged.
+open_decisions: []

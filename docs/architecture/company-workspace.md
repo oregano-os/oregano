@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -62,3 +62,29 @@ and unattended workflows may coexist in one operating Workspace.
 Company content may be written in the company's declared working language.
 Engineering metadata, schemas, governance, change records, and contributor-facing
 instructions remain English.
+
+## Company Knowledge layout
+
+Curated shared knowledge uses OKF v0.1 under `handbook/`. Each searchable file
+has `type: concept|playbook|note`, a non-empty `description`, a non-empty body,
+and a stable Handbook-relative path. `handbook/index.md` references every OKF
+file. Relative links must resolve inside the Handbook. The index and roster are
+operational Handbook files and are not searchable OKF in V1.
+
+Raw, unverified material belongs in `brain/inbox/`; review outcomes belong in
+`brain/archive/`. Neither directory enters the active Knowledge Bundle.
+Promotion is always a reviewed Workspace diff. The V1 knowledge scope is
+shared by active roster members, so salary, personnel-file, medical, legally
+privileged, or otherwise narrower material is excluded until a later
+fine-grained authorization contract exists.
+
+A reviewed `connections/*.md` knowledge-source requirement may declare one
+repository document source, data owner, retention, path/size bounds, and
+freshness target. Provider identity, ref, scopes, and an `env:NAME` SecretRef
+live in the Company Instance binding, not the Workspace. Fetched material
+remains a Source Envelope until human review produces and governance accepts an
+ordinary OKF Workspace diff.
+
+Retention is either indefinite (`retention: retain`) or finite
+(`retention_days: N`). Indefinite retention prevents automatic source-content
+purge even after provider deletion; legal hold is a separate temporary control.

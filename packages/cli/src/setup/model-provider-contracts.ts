@@ -5,8 +5,10 @@ export type ModelCredentialMode = "platform" | "configure" | "adopt";
 export interface SetupModelProviderAdapter {
   readonly route: ModelExecutionRoute;
   readonly executionProvider: string;
+  readonly displayName: string;
   readonly allowedCredentialModes: readonly ModelCredentialMode[];
   readonly credentialRef: string | null;
+  readonly keyCreationUrl: string | null;
   readonly secretEntrySurface: "none" | "runtime-host-dashboard";
   supports(model: string): boolean;
 }
@@ -21,14 +23,18 @@ export function assertSetupModelProviderAdapter(value: unknown): asserts value i
   const adapter = value as Partial<SetupModelProviderAdapter>;
   requireText(adapter.route, "a route");
   requireText(adapter.executionProvider, "an execution provider");
+  requireText(adapter.displayName, "a display name");
   if (!Array.isArray(adapter.allowedCredentialModes) || adapter.allowedCredentialModes.length === 0) {
     throw new Error("Model provider adapter requires at least one credential mode.");
   }
   if (!adapter.allowedCredentialModes.every((mode) => ["platform", "configure", "adopt"].includes(mode))) {
     throw new Error("Model provider adapter declares an unsupported credential mode.");
   }
-  if (adapter.secretEntrySurface === "runtime-host-dashboard") requireText(adapter.credentialRef, "a credential reference");
-  else if (adapter.secretEntrySurface !== "none" || adapter.credentialRef !== null) {
+  if (adapter.secretEntrySurface === "runtime-host-dashboard") {
+    requireText(adapter.credentialRef, "a credential reference");
+    const keyCreationUrl = requireText(adapter.keyCreationUrl, "a key creation URL");
+    if (!keyCreationUrl.startsWith("https://")) throw new Error("Model provider key creation URL must use HTTPS.");
+  } else if (adapter.secretEntrySurface !== "none" || adapter.credentialRef !== null || adapter.keyCreationUrl !== null) {
     throw new Error("A credential-free model provider adapter must not declare a credential reference.");
   }
   if (typeof adapter.supports !== "function") throw new Error("Model provider adapter requires supports().");

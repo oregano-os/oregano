@@ -4,7 +4,7 @@ export type JsonValue = null | boolean | number | string | JsonValue[] | { [key:
 
 export interface JsonSchema {
   [keyword: string]: unknown;
-  type?: "object" | "array" | "string" | "number" | "integer" | "boolean" | "null";
+  type?: "object" | "array" | "string" | "number" | "integer" | "boolean" | "null" | Array<"object" | "array" | "string" | "number" | "integer" | "boolean" | "null">;
   properties?: Record<string, JsonSchema>;
   required?: string[];
   additionalProperties?: boolean;
@@ -45,6 +45,12 @@ export interface CapabilityCallContext {
   agentId: string;
   toolId: string;
   idempotencyKey?: string;
+  subject?: {
+    principalId: string;
+    principalType: "human" | "agent" | "service";
+    status: "active" | "inactive" | "unresolved" | "revoked";
+    groupIds: string[];
+  };
 }
 
 export interface CapabilityResult {

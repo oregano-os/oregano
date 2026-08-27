@@ -1,0 +1,88 @@
+version: 1
+plan_id: company-knowledge-phase-3a-source-connector-2-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Define Source Connector 2.0 and preserve V1 compatibility
+objective: >-
+  Publish the provider-neutral Source Connector 2.0 contract for pull, webhook,
+  and hybrid sources; add strict requirement, binding, event, object, ACL, raw
+  asset, receipt, and lifecycle types and validators; preserve the existing
+  repository source through an explicit V1 compatibility adapter; and replace
+  the implementation plan's target language with a normative Company Knowledge
+  v0.2 specification before provider implementations adopt the contract.
+non_goals:
+  - Activate a new external source or resolve a production credential.
+  - Persist or process Source Events before the Phase 3C pipeline exists.
+  - Load arbitrary Connector implementation modules from a Workspace or registry.
+  - Grant a Tool, activate ingestion, or publish source material to the Handbook.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Public contracts are portable and maintained
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-3a-source-connector-2.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/compatibility/registry.yaml
+  - docs/glossary.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - packages/knowledge/source-contracts-v2.ts
+  - packages/testkit/tests/knowledge-source-contract-v2.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-3a-source-connector-2.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-3a-source-connector-2.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/knowledge-source-contract-v2.test.ts packages/testkit/tests/knowledge-source.test.ts
+  - git diff --check
+tests:
+  - GitHub, Granola, local-file, and Session Source fixtures validate without provider payloads in the common event contract.
+  - Unknown contract versions, source kinds, delivery modes, events, MIME types, ACL modes, and SecretRef shapes fail closed.
+  - Source Event delivery identities and normalized V1 object identities are deterministic.
+  - Exactly one bounded inline value or digest-bound Raw Asset reference is accepted for fetched content.
+  - Resolved credential values never enter normalized requirements, bindings, events, receipts, or compatibility output.
+  - A V1 repository requirement and binding normalize explicitly to the V2 contract without changing the stable Source identity.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - reference.glossary
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.setup
+    - command.verify-live
+migration: >-
+  This phase adds a new contract and compatibility adapter only. Existing V1
+  requirements, bindings, source rows, envelopes, cursors, and receipts remain
+  unchanged. A later Phase 3D change resolves them through the adapter and the
+  shared pipeline without rewriting immutable history.
+rollback: >-
+  Stop accepting Source Connector 2.0 declarations and continue resolving the
+  existing experimental repository V1 contract. Retain all V1 source state and
+  remove no durable evidence.
+open_decisions:
+  - Select maintained large-object storage adapters during Phase 3C qualification.

@@ -1,0 +1,73 @@
+version: 1
+plan_id: company-knowledge-phase-4-model-structure-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement model profiles, Prompt Registry, and structured extraction
+objective: >-
+  Convert authorized Raw Evidence into versioned Pages, Claims, identities,
+  relations, and timeline proposals through provider-neutral model profiles and
+  versioned prompt contracts while preserving deterministic fast paths,
+  evidence validation, idempotency, and the boundary between working knowledge
+  and official authority.
+non_goals:
+  - Bind Core to a model vendor SDK or maintained runtime provider.
+  - Allow a model to publish Handbook authority or activate inferred identity links.
+  - Require universal human review for literal evidence extraction.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-4-model-structure.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/compatibility/registry.yaml
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - packages/knowledge/knowledge-model-execution.ts
+  - packages/knowledge/prompt-registry.ts
+  - packages/knowledge/extraction-pipeline.ts
+  - packages/testkit/tests/company-knowledge-extraction.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-4-model-structure.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-4-model-structure.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-extraction.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Deterministic Page classification and exact identity paths make no model call.
+  - Prompt structures, output schemas, and content hashes are version-pinned.
+  - Every model call resolves an active qualified task profile and records bounded execution evidence.
+  - Returned type, Holder, identity, and evidence locators validate against the authorized input.
+  - Model-derived gradeable Takes and fuzzy identity links remain proposals.
+  - Extraction retries are idempotent by input, prompt, schema, and model-profile identity.
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.company-knowledge-implementation
+    - specification.company-knowledge-v0.2
+    - status.current
+migration: >-
+  Use the existing additive Page, Page-version, Claim, Holder, entity, timeline,
+  edge, and extraction-run foundation. No historical model output is
+  reinterpreted and no live model profile is activated by this change.
+rollback: >-
+  Disable extraction workers and model profile bindings while retaining Raw
+  Evidence, immutable extraction receipts, prior Pages, Claims, and proposals.
+  Derived projections can be rebuilt without changing authority.
+open_decisions:
+  - Exact production models and budgets for each task profile remain Instance qualification choices.

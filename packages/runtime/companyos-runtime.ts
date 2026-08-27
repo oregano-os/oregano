@@ -6,7 +6,7 @@ import { ConnectorRegistry } from "../connectors/registry.ts";
 import { sha256 } from "./canonical.ts";
 import { executeApprovedAction } from "../state-store/action-approval.ts";
 import type { StateStore } from "../state-store/interface.ts";
-import { authorizePrincipalApproval, type RosterMember } from "../state-store/roster.ts";
+import { authorizePrincipalApproval, findByCanonicalPrincipal, type RosterMember } from "../state-store/roster.ts";
 import { executeIsolatedCompanyTool } from "../tool-sdk/isolated-runner.ts";
 
 export interface ExecuteToolRequest {
@@ -16,6 +16,8 @@ export interface ExecuteToolRequest {
   grantId: string;
   input: unknown;
   approvingPrincipal?: string;
+  /** Canonical principal on whose behalf the Tool is executing. */
+  subjectPrincipal?: string;
 }
 
 export type RejectApprovalResult =
@@ -48,6 +50,21 @@ export class CompanyOSRuntime {
     const tool = agent.tools.find((candidate) => candidate.contract.runtimeId === resolved.runtimeId);
     if (!tool) throw new Error(`Resolved Tool '${resolved.runtimeId}' has no compiled implementation.`);
     return { agent, tool, risk: resolved.risk };
+  }
+
+  #resolveAccessSubject(principal?: string) {
+    if (!principal) return { principalId: "unresolved", principalType: "service" as const, status: "unresolved" as const, groupIds: [] };
+    const member = findByCanonicalPrincipal(this.#roster, principal);
+    if (!member) return { principalId: principal, principalType: "service" as const, status: "unresolved" as const, groupIds: [] };
+    const active = /^(aktiv|active)$/i.test(member.status);
+    const principalType = member.type === "agent" ? "agent" as const : member.type === "service" ? "service" as const : "human" as const;
+    const roleGroup = `role:${member.role.trim().toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+    return {
+      principalId: principal,
+      principalType,
+      status: active ? "active" as const : "inactive" as const,
+      groupIds: [...new Set([...(member.groups ?? []), ...(active ? ["company:active"] : []), `type:${principalType}`, roleGroup])].sort(),
+    };
   }
 
   async #ensureRun(request: Pick<ExecuteToolRequest, "runId" | "agentId">): Promise<void> {
@@ -142,6 +159,7 @@ export class CompanyOSRuntime {
     const inputHash = sha256(request.input);
     const idempotencyKey = `${tool.contract.runtimeId}:${request.runId}:${inputHash}`;
     const capabilityEvidence: Record<string, unknown>[] = [];
+    const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal);
     const invoke = async () => {
       const output = await executeIsolatedCompanyTool({
         compiledSource: tool.compiledSource,
@@ -163,6 +181,7 @@ export class CompanyOSRuntime {
             agentId: request.agentId,
             toolId: tool.contract.runtimeId,
             idempotencyKey,
+            subject: accessSubject,
           });
           capabilityEvidence.push(result.evidence);
           return result.output;

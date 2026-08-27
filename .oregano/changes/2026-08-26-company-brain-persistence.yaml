@@ -1,0 +1,83 @@
+version: 1
+plan_id: company-brain-persistence-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Add provider-neutral Company Brain persistence
+objective: >-
+  Continue the approved Company Brain foundation with deterministic integrity
+  checks and a provider-neutral BrainStore implemented in memory and in the
+  existing Company Instance Postgres database. Persist Page versions, Holders,
+  Facts, Takes, exact evidence, and resolution proposals atomically and
+  idempotently without exposing a new Agent-facing or sensitive-data surface.
+non_goals:
+  - Add Agent-facing Brain read or write Capabilities or Tools.
+  - Enable sensitive ingestion or retrieval before fine-grained authorization is implemented and qualified.
+  - Run model extraction, salience, synthesis, compounding, or automated Claim resolution.
+  - Implement cross-source entity identity, timeline, Session Corpus, or Handbook promotion in this increment.
+  - Apply the migration to a production database without separate operating approval and exact Instance evidence.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-26-company-brain-persistence.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/specifications/company-knowledge-v0.1-draft.md
+  - docs/status/current.md
+  - packages/knowledge/brain-contracts.ts
+  - packages/knowledge/brain-store.ts
+  - packages/knowledge/in-memory-brain-store.ts
+  - packages/state-postgres/brain-store.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/testkit/tests/company-brain-persistence.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-continue-company-brain-development
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-brain-persistence.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-brain-persistence.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-brain-foundation.test.ts packages/testkit/tests/company-brain-persistence.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Deterministic Page, Page-version, Claim, and resolution-proposal identities reject tampering.
+  - Registering the same Page type or writing the same Page version is idempotent.
+  - Reusing a Page type, Page identity, version number, Holder identity, Claim identity, or proposal identity with different content fails closed.
+  - Page versions are immutable and the current pointer advances without deleting history.
+  - Page version gaps and concurrent duplicate writes cannot create partial logical state.
+  - Facts retain principal or session scope and Takes retain exactly one epistemic Holder.
+  - Model-derived Takes remain proposed after persistence.
+  - Claims and exact evidence persist as one logical write.
+  - Resolution proposals remain non-auto-applicable and cannot exist without their exact Claim.
+  - Postgres writes use the existing DATABASE_URL and companyos_knowledge schema in serializable transactions.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.1
+    - status.current
+migration: >-
+  Add only compatibility columns and constraints required by the persistence
+  contract to the existing companyos_knowledge schema. Existing Knowledge
+  snapshots, source rows, review decisions, and observations remain unchanged.
+  Applying the migration does not activate a Brain Capability or expose data.
+rollback: >-
+  Disable Brain writers and retain all newly written evidence tables dormant.
+  The active OKF Knowledge Provider remains the read-path fallback. Destructive
+  table or row removal requires a separate approved export-and-deletion change.
+open_decisions:
+  - Complete the remaining Phase 1 entity, timeline, extraction-run, synthesis, and export-ledger stores.
+  - Select a disposable Postgres or Neon branch for live migration qualification.
+  - Complete fine-grained authorization before any Agent-facing Brain read or sensitive write path.

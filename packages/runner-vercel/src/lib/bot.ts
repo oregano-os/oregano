@@ -5,8 +5,13 @@ import { ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type 
 import { Actions, Button, Card, CardText, Chat, type Author, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
+import { KnowledgeProviderConnector } from "../../../connectors/knowledge.ts";
+import { createUnifiedKnowledgeProvider } from "../../../knowledge/unified-provider.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { CompanyOSRuntime, type ExecuteToolRequest } from "../../../runtime/companyos-runtime.ts";
+import { PostgresBrainKnowledgeProjectionStore } from "../../../state-postgres/brain-retrieval-store.ts";
+import { PostgresKnowledgeAccessAuditor } from "../../../state-postgres/knowledge-access-store.ts";
+import { createPostgresKnowledgeProvider } from "../../../state-postgres/knowledge-store.ts";
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import type { RosterMember } from "../../../state-store/roster.ts";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
@@ -86,6 +91,7 @@ function resolvedTools(thread: Thread, requester: string, runId: string, message
           agentId: agent.id,
           grantId: resolved.grantId,
           input,
+          subjectPrincipal: requester,
         };
         if (RISK_ORDER[resolved.risk] < RISK_ORDER.R3) return await runtime.execute(request);
         const approval = await runtime.requestApproval(request);
@@ -133,12 +139,14 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   });
   const verificationResponse = setupVerificationResponse(message.text);
   if (verificationResponse) {
-    const resolved = resolveModelExecution();
+    const resolved = resolveModelExecution({ profile: "utility", task: "setup.verification", requiredCapability: "language" });
     const probe = await generateText({
       model: resolved.model,
       prompt: setupVerificationPrompt(verificationResponse),
       temperature: 0,
       maxOutputTokens: 48,
+      ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
+      ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
     });
     const generated = probe.text.trim();
     if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
@@ -151,15 +159,20 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(thread.id).slice(0, 24)}`;
-  const resolved = resolveModelExecution();
+  const resolved = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
     instructions: systemInstructions(),
     tools: resolvedTools(thread, requester, runId, message.id),
+    ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
+    ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
-  const result = await modelAgent.generate({ messages });
+  const result = await modelAgent.generate({
+    messages,
+    ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
+  });
   const response = result.text.trim() || "The requested CompanyOS operation was processed. Review any approval card above before an effect can occur.";
   await state.appendToList(conversationKey, { role: "assistant", content: response, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
@@ -202,6 +215,15 @@ function registerHandlers(bot: Chat) {
 
 let botInstance: Chat | undefined;
 
+export function createCompanyOSRuntimeConnectors() {
+  const knowledge = createUnifiedKnowledgeProvider({
+    handbook: createPostgresKnowledgeProvider(),
+    brain: new PostgresBrainKnowledgeProjectionStore(),
+    accessAuditor: new PostgresKnowledgeAccessAuditor(),
+  });
+  return [new ArtifactPostgresConnector(), new KnowledgeProviderConnector(knowledge)];
+}
+
 export function getBot(): Chat {
   if (botInstance) return botInstance;
   state = createPostgresChatState();
@@ -210,7 +232,7 @@ export function getBot(): Chat {
   runtime = new CompanyOSRuntime({
     artifact,
     state: createPostgresStateStore(),
-    connectors: [new ArtifactPostgresConnector()],
+    connectors: createCompanyOSRuntimeConnectors(),
   });
   botInstance = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",

@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -21,7 +21,7 @@ relations:
 # `companyos build`
 
 ```bash
-companyos build <workspace> --instance <instance.yaml> --output <artifact.json>
+companyos build <workspace> --instance <instance.yaml> --output <artifact.json> [--knowledge-output <knowledge.json>]
 ```
 
 The command compiles one exact CompanyOS pairing. Both the Oregano Core and
@@ -36,10 +36,15 @@ deployment environment.
 The build validates Tool and Capability JSON Schemas, compiles restricted
 Company Tools, resolves each agent grant against the Workspace allowlist and
 Instance bindings, scopes agent material, embeds the roster, and writes one
-content-addressed artifact. It fails closed on unknown, duplicate, ambiguous,
+content-addressed control Artifact plus a separate immutable Knowledge Bundle.
+The control Artifact records the Knowledge Bundle and policy hashes. Agents
+with Knowledge Tool grants retrieve OKF through the bound provider instead of
+receiving searchable Handbook files as prompt material. The command fails
+closed on unknown, duplicate, ambiguous,
 unbound, forbidden, or invalid inputs.
 
 The output path must not already exist. The artifact is a deployment input, not
 a new source of operating truth. A successful build establishes reproducible
-build evidence; it does not prove a provider deployment or `enforced` Instance
+build evidence; it does not activate the Knowledge Bundle and does not prove a
+provider deployment or `enforced` Instance
 readiness.

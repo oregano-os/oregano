@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -65,11 +65,11 @@ CompanyOS architectural dependency.
 
 Workbench setup code reaches providers through a private typed boundary with
 four roles: source host, runtime host, state service, and communication
-provider. Model execution is a separate typed selection because it is consumed
-by the Runner rather than by installation resource orchestration. The maintained
+provider. Model execution uses the separate Core recipe registry because it is
+consumed by the Runner rather than by installation resource orchestration. The maintained
 `vercel-neon-slack` profile binds the four setup roles to GitHub, Vercel,
-Neon/Postgres, and Slack and supports Vercel AI Gateway or direct Anthropic
-execution. The boundary exists to keep provider
+Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,
+and named compatible cloud execution. The boundary exists to keep provider
 SDK behavior, eventual-consistency handling, and resource receipts out of Core
 runtime semantics. It is deliberately not a public plugin registry: a new
 Hetzner, Docker, Railway, Supabase, or communication binding is introduced as a
@@ -88,6 +88,38 @@ credentials live in CI secrets. The Workspace declares required logical
 connections, allowed scopes, and secret references but never contains values.
 Local development uses an ignored `.env.local` populated from an approved
 secret source.
+
+Database setup distinguishes resource provisioning from schema preparation.
+The State Service adapter first creates or explicitly adopts one database
+resource. The runtime-host adapter then starts the provider-neutral
+`companyos database prepare` operation in a secret-bound process. Prepare
+detects whether the database is empty, behind the current manifest, or already
+current and selects `bootstrap`, `upgrade`, or read-only `verify`
+accordingly. Bootstrap is the empty-database primitive; preparation creates or
+upgrades both maintained schemas and records an immutable version-manifest
+ledger entry. `companyos database verify` performs the corresponding explicit
+read-only catalog qualification. Setup state retains only the selected
+operation, previous manifest versions, resource identity, manifest identity
+and digest, feature evidence, counts, and qualification time. It never
+retains `DATABASE_URL`. The maintained Vercel adapter uses `vercel env run` as
+its secret transport, while another qualified runtime adapter may provide an
+equivalent process without changing the database manifest.
+
+Production health is read-only with respect to schema. It verifies the exact
+recorded manifest and required schema objects and cannot create or alter tables
+as a side effect of a readiness request.
+
+The current additive database manifest is `companyos-postgres@1.4.0`. It
+retains the immutable `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities
+and contains 55 required `companyos_knowledge` tables. Phase 3 adds durable Source
+Events, provider ACL snapshots, bounded pipeline receipts, completed
+watermarks, an integrity-linked Knowledge change stream, and governed source
+lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
+stream so overlapping schedules cannot process the same partition concurrently.
+Runtime readiness is a separate gate: the Core-resolved
+subject and groups must pass policy intersection before retrieval, graph
+traversal, review hydration, citations, or model context. Unknown mappings and
+quarantine fail closed.
 
 Every release records at least the Instance ID, environment, Core version and
 commit, Workspace version and commit, deployment ID, specification version,
@@ -129,14 +161,25 @@ production environment value. The Slack binding uses the fixed Connector UID
 `slack/oregano` and visible Agent name `Oregano`; provider-internal resource
 names may remain company-specific but do not become the Agent identity.
 
-Model execution is bound explicitly as `vercel-ai-gateway` or
-`anthropic-direct`. Gateway uses the Vercel deployment identity. Direct
-Anthropic uses the official Anthropic provider from the Runner and sends model
-traffic directly to Anthropic; Vercel is only the runtime host and secret
-store. Its `ANTHROPIC_API_KEY` value exists only as a Sensitive Production
-runtime variable. Setup records the non-secret reference, presence, and
-Sensitive classification, never the key. Health, production confirmation, and response evidence bind the route
-and exact model.
+Model execution resolves through the Core recipe registry. The maintained
+setup binds Gateway, native Anthropic/OpenAI/Google, or a named compatible
+cloud recipe. The registry also supports explicitly configured LiteLLM,
+Ollama, llama-server, and generic OpenAI-compatible endpoints; those endpoints
+must be reachable from the selected runtime and are not assumed to exist on a
+Vercel deployment. Gateway uses the Vercel deployment identity. Native routes
+use official provider adapters; named compatible routes reuse one shared
+OpenAI-compatible transport with per-provider credentials and endpoints.
+Vercel is only the runtime host and secret store in this profile. Provider
+API-key values exist only as Sensitive Production runtime variables. Setup
+records the non-secret reference, presence, and Sensitive classification,
+never the key. Health, production confirmation, and response evidence bind the
+route and exact model.
+
+`COMPANYOS_MODEL_CONFIG_BASE64` may bind exact tasks, profiles, and a default.
+Those bindings override the simple `COMPANYOS_MODEL_ROUTE` and
+`COMPANYOS_MODEL` pair. Without either form, key-aware resolution uses the
+documented Anthropic-then-OpenAI priority before the Gateway default. No
+resolved request silently fails over across providers.
 
 The path creates an immutable Artifact only from clean exact Core and Workspace
 commits, deploys only after an exact candidate confirmation, verifies current
@@ -206,3 +249,26 @@ external checks. Only deployment and runtime evidence can establish
 `enforced`. The same Instance may run supervised and unattended workflows;
 readiness for unattended execution is evaluated against the stricter workflow
 and effect requirements instead of inferred from a global profile.
+
+## Knowledge state in the Company Instance database
+
+Company Knowledge V1 does not create a second database. The existing
+`DATABASE_URL` contains `companyos` for control state and
+`companyos_knowledge` for snapshots, documents, fragments, lexical/graph and
+optional vector projections, index receipts, review candidates, source
+bindings/receipts/object versions/inventory, and Runtime Observation lifecycle
+evidence. Its inactive Brain foundation additionally owns versioned Pages,
+Claims, Holders, entity identity, ACL records, raw assets, timelines, sourced
+and inferred edges, syntheses, promotion and decision evidence, sessions,
+extraction runs, cursors, calibration, merge, and export ledgers. Every query
+qualifies its schema. Source bindings persist SecretRefs, never resolved
+credentials.
+
+A bundle is staged idempotently by hash, verified against stored counts, and
+only then activated. Exactly one verified snapshot is active. Documents,
+fragments, graph edges, lexical indexes, and embeddings are rebuildable
+projections; review decisions, source receipts and versions, observation
+events, deletion requests, legal holds, and activation receipts are durable
+Instance evidence. Rollback explicitly reactivates a prior verified snapshot.
+`pgvector` creation is optional and its absence keeps lexical retrieval active
+with a recorded degradation.

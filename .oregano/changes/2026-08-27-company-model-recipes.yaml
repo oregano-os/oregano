@@ -1,0 +1,93 @@
+version: 1
+plan_id: company-model-recipes-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Unify CompanyOS model execution through provider recipes
+objective: >-
+  Replace runner-specific model selection with one small provider-recipe
+  registry, deterministic task/profile resolution, and shared execution path
+  for every direct CompanyOS language-model call. Add named compatible cloud,
+  proxy, and local recipes without duplicating transports while keeping
+  provider credentials outside committed configuration.
+non_goals:
+  - Build a model data-class policy engine, approval workflow, or hard cost-budget service.
+  - Add silent cross-provider runtime failover.
+  - Make Vercel mandatory for direct provider execution.
+  - Change Knowledge authorization, evidence validation, or Handbook authority.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - The reference stack is concrete, not mandatory
+files_expected:
+  - .oregano/changes/2026-08-27-company-model-recipes.yaml
+  - INSTALL-COMPANYOS.md
+  - docs/**
+  - package.json
+  - pnpm-lock.yaml
+  - packages/cli/**
+  - packages/knowledge/**
+  - packages/runner/**
+  - packages/runner-vercel/**
+  - packages/testkit/**
+  - tsconfig.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-in-codex-task-to-implement-the-simplified-recipe-model
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-company-model-recipes.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-company-model-recipes.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/model-recipes.test.ts
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/model-execution.test.ts packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - pnpm test
+  - git diff --check
+tests:
+  - Explicit task bindings override profile and default bindings deterministically.
+  - Explicit configuration overrides legacy environment selection and key-aware defaults.
+  - Anthropic and OpenAI keys select documented defaults only when no explicit binding exists.
+  - A recipe rejects unsupported model identifiers and missing credentials before provider invocation.
+  - Named compatible recipes resolve provider-specific credentials, default endpoints, and arbitrary provider-native model IDs.
+  - Ollama, llama-server, and LiteLLM permit absent optional credentials while remaining explicit routes.
+  - Maintained live setup accepts named compatible cloud routes but does not imply that localhost is reachable from a hosted runtime.
+  - Knowledge utility and reasoning profiles may use different recipes and models.
+  - Setup, interactive Agent, and Knowledge calls resolve through the same recipe registry.
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.index
+    - onboarding.company-workspace
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.setup
+    - command.verify-live
+    - guide.prepare-instance
+    - guide.operate-knowledge-provider
+    - reference.glossary
+    - plan.company-knowledge-implementation
+migration: >-
+  COMPANYOS_MODEL_ROUTE and COMPANYOS_MODEL remain supported. The optional
+  COMPANYOS_MODEL_CONFIG_BASE64 configuration adds default, profile, and exact
+  task bindings. Existing Knowledge profile objects remain readable while the
+  runtime stops requiring their legacy qualification, data-class allowlist,
+  SecretRef list, and hard cost-budget fields.
+rollback: >-
+  Remove the unified model configuration and continue using the legacy
+  COMPANYOS_MODEL_ROUTE and COMPANYOS_MODEL pair. Disable direct routes whose
+  provider packages or credentials are unavailable. Knowledge evidence and
+  model receipts remain intact because no stored authority or source payload
+  is rewritten.
+open_decisions:
+  - Exact production models for each task profile remain Company Instance configuration.

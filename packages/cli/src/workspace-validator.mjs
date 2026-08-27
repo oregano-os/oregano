@@ -8,6 +8,8 @@ import { inspectRepositoryProtectionContract } from "./repository-protection.mjs
 import { inspectAndCompileCompanyTool } from "../../tool-sdk/source-inspector.ts";
 import { scanCredentialIndicators } from "../../security/credential-scanner.ts";
 import { isExactSemanticVersion } from "../../runtime/semantic-version.ts";
+import { inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
+import { loadKnowledgeSourceRequirement } from "../../knowledge/source-config.ts";
 
 const REQUIRED_PATHS = [
   "company.md",
@@ -83,6 +85,9 @@ export function validateWorkspace(root) {
     if (!Array.isArray(member.may_approve)) diagnostics.push(diagnostic("WS009", "error", `Roster member '${member.name ?? "unknown"}' needs may_approve as a list.`, { file: "handbook/roster.md" }));
     for (const level of member.may_approve ?? []) {
       if (!/^R[0-4]$/.test(level)) diagnostics.push(diagnostic("WS010", "error", `Unknown approval level '${level}' for '${member.name ?? "unknown"}'.`, { file: "handbook/roster.md" }));
+    }
+    if (member.groups !== undefined && (!Array.isArray(member.groups) || member.groups.some((group) => typeof group !== "string" || !group.trim()))) {
+      diagnostics.push(diagnostic("WS041", "error", `Roster member '${member.name ?? "unknown"}' groups must be stable non-empty string ids.`, { file: "handbook/roster.md" }));
     }
   }
 
@@ -162,6 +167,16 @@ export function validateWorkspace(root) {
     if (!handbookIndex.includes(basename(document.relative))) diagnostics.push(diagnostic("WS027", "warning", `Handbook file is missing from handbook/index.md.`, { file: document.relative }));
   }
 
+  const knowledge = inspectKnowledgeWorkspace({ workspaceRoot: root });
+  for (const entry of knowledge.diagnostics) {
+    diagnostics.push(diagnostic(entry.code, entry.severity, entry.message, { file: entry.path }));
+  }
+
+  for (const source of documents.filter((item) => item.relative.startsWith("connections/") && item.data?.type === "knowledge-source")) {
+    try { loadKnowledgeSourceRequirement(join(root, source.relative)); }
+    catch (error) { diagnostics.push(diagnostic("WS040", "error", error.message, { file: source.relative })); }
+  }
+
   for (const path of walkFiles(root, { skip: [".git", "node_modules"] })) {
     const relative = relativePath(root, path);
     if (/^\.env(?:\.|$)/.test(basename(path))) diagnostics.push(diagnostic("SEC001", "error", "Environment files must never be committed to a Company Workspace.", { file: relative }));
@@ -216,6 +231,8 @@ export function validateWorkspace(root) {
       unattended_workflows: workflowDocs.filter((workflow) => workflow.data?.execution_mode === "unattended").length,
       agents: agents.length,
       company_tools: toolDocs.length,
+      knowledge_documents: knowledge.bundle?.documentCount ?? 0,
+      knowledge_fragments: knowledge.bundle?.fragmentCount ?? 0,
     },
   };
 }

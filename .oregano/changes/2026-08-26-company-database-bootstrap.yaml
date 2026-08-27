@@ -1,0 +1,104 @@
+version: 1
+plan_id: company-database-bootstrap-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Add provider-neutral Company Instance database bootstrap
+objective: >-
+  Make a newly provisioned or explicitly adopted Company Instance StateStore
+  ready before runtime deployment by bootstrapping the existing companyos and
+  companyos_knowledge schemas, recording an immutable version-manifest entry,
+  verifying required schema objects and the 19 Core Page types, and persisting
+  a non-secret qualification receipt in setup state. Keep secret transport in
+  the selected runtime profile; the maintained Vercel profile uses vercel env
+  run without making Vercel part of the database contract.
+non_goals:
+  - Create another production database or alter the selected live provider resource in this increment.
+  - Add a second Brain database, database URL, runtime, or control plane.
+  - Expose, persist, print, or pull the resolved DATABASE_URL or other provider secrets.
+  - Claim qualification for every PostgreSQL host or driver; this increment qualifies the maintained Neon/Postgres implementation and an alternative adapter fixture.
+  - Enable Agent-facing Brain reads, sensitive ingestion, or fine-grained authorization.
+  - Drop, truncate, rewrite, or delete existing schema objects or company data.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Explicit boundaries over implicit coupling
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Secrets stay outside the Workspace
+files_expected:
+  - .oregano/changes/2026-08-26-company-database-bootstrap.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - INSTALL-COMPANYOS.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/setup/provider-contracts.ts
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/migrate.ts
+  - packages/state-postgres/schema.sql
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-continue-with-provider-neutral-setup-and-empty-database-bootstrap
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-database-bootstrap.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-database-bootstrap.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-database-bootstrap.test.ts packages/cli/tests/live-setup.test.mjs
+  - pnpm check
+  - git diff --check
+tests:
+  - The database manifest is deterministic, versioned, and contains no credential value.
+  - Empty-database bootstrap creates both schemas, required tables, indexes, constraints, and all 19 Core Page types.
+  - Repeating bootstrap is idempotent and a manifest-version collision with different content fails closed.
+  - Qualification is read-only and fails closed for missing required objects or Page types.
+  - The setup provider contract separates StateStore provisioning from runtime-host secret injection.
+  - The maintained profile wraps bootstrap with vercel env run without pulling an environment file.
+  - An alternative fixture produces a non-Vercel secret-bound command for the same logical bootstrap operation.
+  - Live setup records only a non-secret qualification receipt before advancing beyond StateStore setup.
+  - A pending bootstrap intent can safely resume without duplicating or deleting state.
+  - Runtime health verifies the prepared database and performs no schema DDL.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - status.current
+    - command.setup
+    - command.verify-live
+    - plan.company-knowledge-implementation
+    - specification.company-instance-release-promotion-v0.1
+migration: >-
+  Add one companyos.schema_manifests ledger table to the maintained Postgres
+  schema. New Instances create it during first bootstrap; existing Instances
+  add it idempotently during their next approved schema upgrade. Both paths
+  retain all existing companyos and companyos_knowledge objects and data.
+rollback: >-
+  Stop setup before deployment when qualification fails. Existing Instances may
+  ignore the additive manifest ledger and continue using their prior verified
+  runtime path. Do not remove schemas, ledger rows, Brain evidence, or Handbook
+  snapshots; any destructive rollback requires a separate approved change.
+open_decisions:
+  - Select the first fully qualified non-Vercel runtime profile beyond the conformance fixture.
+  - Select and qualify any additional PostgreSQL driver before claiming support for a non-Neon StateStore.

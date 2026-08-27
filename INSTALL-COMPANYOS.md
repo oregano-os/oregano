@@ -15,7 +15,9 @@ release candidate:
   the current hosted-protection status is reported;
 - one supervised, Tool-free Oregano Agent is approved by the Workspace Steward;
 - one Vercel project runs the maintained CompanyOS Runner;
-- one dedicated Neon/Postgres resource persists Instance and chat state;
+- one dedicated Neon/Postgres resource is created or explicitly adopted,
+  bootstrapped with both maintained schemas, and qualified before it persists
+  Instance, Company Knowledge, and chat state;
 - one Slack installation is attached through Vercel Connect;
 - the consenting Workspace Steward's canonical Slack identity is in the roster;
 - production health reports the expected Core, Workspace, Artifact, and ToolSet provenance; and
@@ -163,13 +165,14 @@ Explain the account requirements in novice language:
 - Neon is provisioned through Vercel's managed integration in this profile;
   an existing dedicated Neon resource may be adopted explicitly.
 - The human needs permission to install an app in the selected Slack workspace.
-- The maintained Runner supports two explicit model routes: `vercel-ai-gateway`
-  and `anthropic-direct`. Gateway uses the Vercel deployment identity and needs
-  no provider key from the human. Direct Anthropic bypasses AI Gateway; the
-  human needs an Anthropic account, billing approval, and a dedicated API key.
-  That key is entered only in the Vercel project's Environment Variables page
-  as the Sensitive Production variable `ANTHROPIC_API_KEY`. Never request its
-  value in chat, a command, a local answers file, setup state, or Git.
+- The maintained Runner supports `vercel-ai-gateway`, `anthropic-direct`,
+  `openai-direct`, and `google-direct`. Gateway uses the Vercel deployment
+  identity and needs no provider key from the human. Direct recipes bypass AI
+  Gateway; the human needs the selected provider account, accepted billing and
+  data terms, and a dedicated API key. That key is entered only in the Vercel
+  project's Environment Variables page under the recipe's documented
+  Sensitive Production variable. Never request its value in chat, a command,
+  a local answers file, setup state, or Git.
 
 If an account does not exist, open its official signup page and wait. The human
 creates and controls the account; the agent does not fabricate identity,
@@ -292,18 +295,19 @@ Oregano.
 ### Model and costs
 
 Show the exact model and default route from the release manifest. Ask first for
-one route: `vercel-ai-gateway` or `anthropic-direct`. For Gateway, confirm the
-model is available through the selected Vercel account. For direct Anthropic,
-confirm an Anthropic account, approved billing, and an `anthropic/<model>`
-identifier. Explain that Vercel remains the runtime host and secret store, but
-model traffic goes from the Oregano Runner directly to Anthropic and Anthropic
-bills the usage; this is not Vercel AI Gateway BYOK.
+one route: `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
+`google-direct`. For Gateway, confirm the model is available through the
+selected Vercel account. For a direct recipe, confirm the matching provider
+account, accepted billing, and a matching `provider/<model>` identifier.
+Explain that Vercel remains the runtime host and secret store, but model
+traffic goes from the Oregano Runner directly to the selected provider and
+that provider bills the usage; this is not Vercel AI Gateway BYOK.
 
-Show current pricing or budget information for the selected route and ask the
-human to confirm the exact `provider/model` value. Never claim that either route
-or model has zero cost. For direct Anthropic, ask whether the Production
-variable will be newly configured or an existing one explicitly adopted; never
-ask for the key value.
+Show current pricing information for the selected route and ask the human to
+confirm the exact `provider/model` value. Never claim that a route or model has
+zero cost. For a direct recipe, ask whether the documented Production variable
+will be newly configured or an existing one explicitly adopted; never ask for
+the key value.
 
 ## Phase 3 — create the live plan
 
@@ -374,17 +378,32 @@ npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
   --format json
 ```
 
+The database normally does not exist when a new installation starts. During
+this phase, setup first creates or explicitly adopts the selected Neon/Postgres
+resource and binds `DATABASE_URL` directly in Vercel. It then runs
+`companyos database prepare` inside the Vercel secret environment. Prepare
+inspects the catalog and manifest ledger, then selects `bootstrap` for an empty
+database, `upgrade` for a supported older database, or read-only `verify` for
+an already current database. It adds missing maintained objects without
+deleting or rewriting company data. It creates or upgrades both `companyos`
+and `companyos_knowledge`, records
+the exact schema manifest, verifies it, and writes only the non-secret
+qualification receipt to setup state. It never pulls or prints the connection
+value. A conforming non-Vercel profile performs the same logical operation
+through its own secret-injection mechanism.
+
 Expected human gates:
 
 1. GitHub browser login when the CLI is not authenticated.
 2. Vercel browser login and selected team.
-3. For `anthropic-direct`, creation of a dedicated key in the official
-   [Claude Platform key page](https://platform.claude.com/settings/keys) and its
-   browser-only entry in Vercel as the Sensitive Production variable
-   `ANTHROPIC_API_KEY`. Explain that setup checks only the variable name,
-   presence, and Sensitive classification and never reads or stores its value.
-   Gateway has no such step.
-4. Neon plan, region, billing terms, and provider consent.
+3. For a direct recipe, creation of a dedicated key in the official provider
+   key page and its browser-only entry in Vercel under the recipe's Sensitive
+   Production variable: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or
+   `GOOGLE_GENERATIVE_AI_API_KEY`. Explain that setup checks only the variable
+   name, presence, and Sensitive classification and never reads or stores its
+   value. Gateway has no such step.
+4. Neon plan, region, billing terms, provider consent, and successful
+   database preparation and qualification.
 5. Slack workspace installation and short-lived user authorization.
 6. Exact operating Workspace confirmation. Show that it contains one
    supervised `oregano` Agent, one Slack workflow, no business Tools, the
@@ -431,7 +450,7 @@ Do not announce completion unless this exits successfully. State the scope as
 proves the exact private Workspace, checked pull request, explicit Steward
 merge, immutable version pair, Vercel health, Neon persistence, authorized
 Slack identity, selected model route and model, a model-backed response receipt,
-and one real Slack round trip. Report hosted GitHub protection
+the qualified database manifest, and one real Slack round trip. Report hosted GitHub protection
 separately as `enforced` or `advisory`. It does not authorize business Tools,
 unattended workflows, or a general claim of enforced production readiness.
 
@@ -442,6 +461,8 @@ Give the human:
 - the private GitHub repository and its detected hosted-protection status;
 - the Vercel project and production URL;
 - the Neon resource name, owner, selected plan, region, and recovery link;
+- the non-secret database manifest identity, digest, qualification timestamp,
+  and optional feature status;
 - the Slack app/connector, workspace, test channel, and uninstall path;
 - Core version and commit, Workspace version and commit, Workbench version,
   Artifact hash, ToolSet hash, model route, and model;
