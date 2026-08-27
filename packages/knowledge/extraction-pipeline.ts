@@ -68,6 +68,19 @@ export class InMemoryKnowledgeExtractionRunStore implements KnowledgeExtractionR
   }
 }
 
+export function knowledgeExtractionRunIdentity(input: {
+  evidence: SourceRawEvidenceV2;
+  reasoningProfile: KnowledgeModelProfileBinding;
+  authorizationContextDigest: string;
+  promptRegistry?: KnowledgePromptRegistry;
+}) {
+  const extractionPrompt = (input.promptRegistry ?? new KnowledgePromptRegistry()).resolveCurrent("knowledge.claim-extraction");
+  const modelIdentity = `${input.reasoningProfile.profile}@${input.reasoningProfile.profileVersion}:${input.reasoningProfile.route}:${input.reasoningProfile.model}`;
+  const inputDigest = sha256({ envelope: input.evidence.envelope, contentDigest: input.evidence.envelope.contentDigest, authorizationContextDigest: input.authorizationContextDigest });
+  const runKey = sha256({ inputDigest, prompt: extractionPrompt.contentHash, schema: extractionPrompt.outputSchemaId, modelIdentity });
+  return { extractionPrompt, modelIdentity, inputDigest, runKey, runId: sha256({ runKey, attemptClass: "canonical" }) };
+}
+
 const pathTypeRules: Array<[RegExp, string]> = [
   [/(?:^|\/)(?:people|persons)(?:\/|$)/i, "person"],
   [/(?:^|\/)(?:companies|organizations)(?:\/|$)/i, "company"],
@@ -216,13 +229,14 @@ export async function extractRawEvidenceToBrain(input: {
   const text = input.evidence.content && "inlineText" in input.evidence.content ? input.evidence.content.inlineText : undefined;
   if (!text) throw new Error("This extraction path requires authorized inline Raw Evidence.");
   const prompts = input.promptRegistry ?? new KnowledgePromptRegistry();
-  const extractionPrompt = prompts.resolveCurrent("knowledge.claim-extraction");
-  const modelIdentity = `${input.profiles.reasoning.profile}@${input.profiles.reasoning.profileVersion}:${input.profiles.reasoning.route}:${input.profiles.reasoning.model}`;
-  const inputDigest = sha256({ envelope: input.evidence.envelope, contentDigest: input.evidence.envelope.contentDigest, authorizationContextDigest: input.authorizationContextDigest });
-  const runKey = sha256({ inputDigest, prompt: extractionPrompt.contentHash, schema: extractionPrompt.outputSchemaId, modelIdentity });
+  const { extractionPrompt, modelIdentity, inputDigest, runKey, runId } = knowledgeExtractionRunIdentity({
+    evidence: input.evidence,
+    reasoningProfile: input.profiles.reasoning,
+    authorizationContextDigest: input.authorizationContextDigest,
+    promptRegistry: prompts,
+  });
   const existing = await input.runStore.getByRunKey(runKey);
   if (existing?.status === "succeeded" && existing.result) return existing.result;
-  const runId = sha256({ runKey, attemptClass: "canonical" });
   const now = new Date(input.now ?? new Date().toISOString()).toISOString();
   const modelReceipts: KnowledgeModelExecutionReceipt[] = [];
   let type = classifyPageTypeDeterministically({ declaredType: input.declaredPageType, locator: input.evidence.envelope.locator, sourceKind: input.sourceKind });
@@ -263,9 +277,9 @@ export async function extractRawEvidenceToBrain(input: {
     versionCreatedAt: now, sourceObjectId: input.evidence.envelope.providerObjectId, sourceObjectVersion: input.evidence.envelope.providerVersion,
     modelProvenance: provenance,
   });
-  await input.brainStore.putPageVersion(record);
   const claims: BrainClaim[] = [];
   const participantRelations: KnowledgeExtractionResult["participantRelations"] = [];
+  const storedRelations: BrainClaimRelation[] = [];
   for (const candidate of output.claims) {
     const evidence = [{ evidenceId: sha256({ runId, evidenceId: candidate.evidenceId, locator: candidate.locator, claimText: candidate.claimText }), sourceId: input.evidence.envelope.sourceId, providerObjectId: input.evidence.envelope.providerObjectId, providerVersion: input.evidence.envelope.providerVersion, contentDigest: input.evidence.envelope.contentDigest, observedAt: input.evidence.envelope.observedAt, locator: candidate.locator, pageId: record.page.pageId, pageVersionId: record.version.pageVersionId }];
     let primaryHolder = candidate.holder;
@@ -276,7 +290,7 @@ export async function extractRawEvidenceToBrain(input: {
     }
     const claim = candidate.memoryClass === "fact" ? createBrainClaim({ memoryClass: "fact", claimKind: candidate.claimKind as FactClaimKind, claimText: candidate.claimText, ownerPrincipalId: candidate.ownerPrincipalId ?? input.ownerPrincipalId, scope: { kind: "principal" }, evidence, observedAt: input.evidence.envelope.observedAt, extractionConfidence: candidate.extractionConfidence, epistemicWeight: candidate.epistemicWeight, accessPolicyId: record.page.accessPolicyId, createdBy: `model:${runId}`, modelProvenance: provenance })
       : createBrainClaim({ memoryClass: "take", claimKind: candidate.claimKind as TakeClaimKind, claimText: candidate.claimText, primaryHolder: primaryHolder!, derivation: candidate.derivation!, evidence, observedAt: input.evidence.envelope.observedAt, extractionConfidence: candidate.extractionConfidence, epistemicWeight: candidate.epistemicWeight, accessPolicyId: record.page.accessPolicyId, createdBy: `model:${runId}`, modelProvenance: provenance });
-    await input.brainStore.putClaim(claim); claims.push(claim);
+    claims.push(claim);
     for (const relation of candidate.participantRelations ?? []) {
       const outputRelation = { claimId: claim.claimId, ...relation };
       participantRelations.push(outputRelation);
@@ -287,9 +301,10 @@ export async function extractRawEvidenceToBrain(input: {
         entityId: relation.principalId,
         evidence: { extractionRunId: runId, pageVersionId: record.version.pageVersionId },
       };
-      await input.brainStore.putClaimRelation(storedRelation);
+      storedRelations.push(storedRelation);
     }
   }
+  const timelineEvents: BrainTimelineEvent[] = [];
   for (const [index, event] of (output.timeline ?? []).entries()) {
     const storedEvent: BrainTimelineEvent = {
       eventId: sha256({ runId, pageVersionId: record.version.pageVersionId, index, event }),
@@ -304,9 +319,13 @@ export async function extractRawEvidenceToBrain(input: {
       accessPolicyId: record.page.accessPolicyId,
       lifecycleStatus: "active",
     };
-    await input.brainStore.putTimelineEvent(storedEvent);
+    timelineEvents.push(storedEvent);
   }
   const result: KnowledgeExtractionResult = { runId, page: record.page, pageVersion: record.version, claims, participantRelations, timeline: output.timeline ?? [], modelReceipts };
+  await input.brainStore.putPageVersion(record);
+  for (const claim of claims) await input.brainStore.putClaim(claim);
+  for (const relation of storedRelations) await input.brainStore.putClaimRelation(relation);
+  for (const event of timelineEvents) await input.brainStore.putTimelineEvent(event);
   await input.runStore.put({ runId, runKey, inputDigest, promptVersions: modelReceipts.map((entry) => `${entry.promptId}@${entry.promptVersion}`), schemaVersion: extractionPrompt.outputSchemaId, modelProfileIdentity: modelIdentity, status: "succeeded", result, receiptIds: modelReceipts.map((entry) => entry.receiptId) });
   return result;
 }

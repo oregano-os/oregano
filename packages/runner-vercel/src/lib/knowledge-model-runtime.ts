@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Output, generateText, jsonSchema } from "ai";
 import { KnowledgeAuthorizer } from "../../../knowledge/access-control.ts";
 import { runCompoundingCycle, type CompoundingStateStore } from "../../../knowledge/compounding.ts";
-import { extractRawEvidenceToBrain } from "../../../knowledge/extraction-pipeline.ts";
+import { extractRawEvidenceToBrain, knowledgeExtractionRunIdentity } from "../../../knowledge/extraction-pipeline.ts";
 import {
   executeKnowledgeModel,
   validateKnowledgeModelProfile,
@@ -378,17 +378,21 @@ export class GranolaKnowledgeExtractionRuntime {
       let current = 0;
       let deferred = 0;
       const extractionTasks: Array<ReturnType<typeof extractRawEvidenceToBrain>> = [];
+      const profiles = {
+        utility: resolveKnowledgeTaskProfile(this.#configuration, "knowledge.page-classification"),
+        reasoning: resolveKnowledgeTaskProfile(this.#configuration, "knowledge.claim-extraction"),
+      };
       for (const object of objects) {
         if (object.deletionState !== "present") continue;
         const evidence = await this.#sourceStore.currentRawEvidence(sourceId, object.providerObjectId);
         if (!evidence || !evidence.modelReady || evidence.payloadState !== "active") { deferred += 1; continue; }
-        const pageId = sha256({ sourceId, sourcePageKey: object.providerObjectId });
-        const page = await this.#brainStore.getPage(pageId);
-        if (page?.version.sourceObjectVersion === object.providerVersion) { current += 1; continue; }
         if (!evidence.content || !("inlineText" in evidence.content)) { deferred += 1; continue; }
-        if (extractionTasks.length >= limit) continue;
         const permit = await authorizer.authorize({ subject, permission: "read", policyIds: [evidence.envelope.accessPolicyId], objectType: "model-context", objectId: `${sourceId}:${object.providerObjectId}:${object.providerVersion}` });
         if (!permit) { deferred += 1; continue; }
+        const authorizationContextDigest = sha256({ principalId: subject.principalId, policyId: evidence.envelope.accessPolicyId, providerObjectId: object.providerObjectId, providerVersion: object.providerVersion });
+        const identity = knowledgeExtractionRunIdentity({ evidence, reasoningProfile: profiles.reasoning, authorizationContextDigest });
+        if ((await this.#runStore.getByRunKey(identity.runKey))?.status === "succeeded") { current += 1; continue; }
+        if (extractionTasks.length >= limit) continue;
         extractionTasks.push(extractRawEvidenceToBrain({
           evidence,
           sourceKind: source.requirement.sourceKind,
@@ -396,11 +400,8 @@ export class GranolaKnowledgeExtractionRuntime {
           brainStore: this.#brainStore,
           runStore: this.#runStore,
           modelExecutor: this.#executor,
-          profiles: {
-            utility: resolveKnowledgeTaskProfile(this.#configuration, "knowledge.page-classification"),
-            reasoning: resolveKnowledgeTaskProfile(this.#configuration, "knowledge.claim-extraction"),
-          },
-          authorizationContextDigest: sha256({ principalId: subject.principalId, policyId: evidence.envelope.accessPolicyId, providerObjectId: object.providerObjectId, providerVersion: object.providerVersion }),
+          profiles,
+          authorizationContextDigest,
           dataClass: source.requirement.dataClass,
         }));
       }
