@@ -241,8 +241,10 @@ Change Plan: those instructions conflict and the Builder must fail closed.
 
 When coding and trusted Git workers report different diff digests, do not
 publish. Both boundaries must hash the same canonical byte sequence, including
-adjacent new-file patches. Treat any mismatch as a failed job and retain both
-redacted digests for diagnosis.
+adjacent new-file patches and one global path order for mixed tracked changes
+and new files. Both sides use intent-to-add followed by the same binary global
+diff against the exact base. Treat any remaining mismatch as a failed job and
+retain both redacted digests for diagnosis.
 
 ## Current qualification status
 

@@ -142,6 +142,11 @@ execution. After execution, CompanyOS reads the actual diff independently.
 Only a separately trusted `ProposalPublisher` may create the canonical branch,
 commit, and draft pull request after all checks pass.
 
+The coding boundary and trusted Git boundary MUST hash the same canonical patch
+bytes. Both use intent-to-add followed by one binary global diff against the
+exact base, preserving a single Git path order across tracked changes and new
+files. A digest mismatch MUST fail closed before publication.
+
 When the Runner host has no Git executable, the repository provider may use a
 separate private trusted Git worker for complete source acquisition,
 independent Workbench validation, the outer commit, and the bounded branch

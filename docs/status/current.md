@@ -161,8 +161,10 @@ evidence, historical prototypes, and production gaps.
   inspection, validation, and security checks, and lets only a trusted outer
   publisher create the canonical branch, commit, and draft proposal. The coding
   agent has no merge or deployment authority. Coding and trusted Git boundaries
-  use one canonical adjacent-patch representation, and execution evidence is
-  retained when validation and publication evidence are added.
+  use intent-to-add plus one binary global diff against the exact base, so
+  adjacent new files and mixed tracked/new changes preserve one canonical path
+  order and digest. Execution evidence is retained when validation and
+  publication evidence are added.
 
 ## Reference-only or historical
 

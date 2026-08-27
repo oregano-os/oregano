@@ -1,0 +1,61 @@
+version: 1
+plan_id: builder-canonical-mixed-diff-2026-08-27
+status: implemented
+author: codex-agent
+created: 2026-08-27
+title: Canonicalize mixed tracked and new Builder proposal diffs
+objective: >-
+  Make trusted proposal inspection produce the same globally path-ordered Git
+  patch as the isolated coding worker when a proposal contains both tracked
+  changes and new governance or documentation files.
+non_goals:
+  - Weaken independent diff-digest comparison or fail-closed publication.
+  - Retry or publish the already failed Builder job.
+  - Change Builder authority, target branch selection, merge, or deployment behavior.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-27-builder-canonical-mixed-diff.yaml
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/runtime/repository/proposal-inspection.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-in-codex-task-to-fix-and-run-the-failing-test
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-builder-canonical-mixed-diff.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-builder-canonical-mixed-diff.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.test.ts
+  - git diff --check
+tests:
+  - Trusted inspection and coding collection hash identical bytes for only-new-file proposals.
+  - Trusted inspection and coding collection hash identical bytes for mixed tracked and new-file proposals whose paths interleave globally.
+  - Forbidden paths are rejected before proposal publication.
+  - A live confirmed HQ Builder proposal reaches one terminal card and a checked draft proposal without merge or deployment.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - status.current
+    - guide.operate-builder
+rollback: >-
+  Revert the shared global-diff inspection and its regression test, restore the
+  tracked-plus-untracked concatenation, and keep independent digest comparison
+  fail-closed. Any already published proposal remains subject to its recorded
+  exact digest and human review.
+open_decisions: []

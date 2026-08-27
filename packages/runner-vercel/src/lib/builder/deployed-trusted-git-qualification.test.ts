@@ -43,6 +43,41 @@ test("trusted Git qualification fixture matches the independently observed propo
   }
 });
 
+test("trusted inspection preserves one global order for mixed tracked and new files", async () => {
+  const fixture = await mkdtemp(join(tmpdir(), "companyos-trusted-git-mixed-fixture-"));
+  const repository = join(fixture, "repository");
+  try {
+    await mkdir(repository);
+    await git(repository, ["init", "--initial-branch=main"]);
+    await git(repository, ["config", "user.name", "CompanyOS Test"]);
+    await git(repository, ["config", "user.email", "companyos-test@example.invalid"]);
+    await writeFile(join(repository, "company.md"), "# Company\n", "utf8");
+    await git(repository, ["add", "company.md"]);
+    await git(repository, ["commit", "-m", "Create fixture"]);
+    const baseCommit = (await git(repository, ["rev-parse", "HEAD"])).trim();
+
+    await mkdir(join(repository, ".companyos", "changes"), { recursive: true });
+    await writeFile(
+      join(repository, ".companyos", "changes", "proposal.yaml"),
+      "version: 1\nstatus: approved\n",
+      "utf8",
+    );
+    await writeFile(join(repository, "company.md"), "# Company\n\nBuilder smoke test.\n", "utf8");
+    const inspection = await inspectProposalWorkspace(repository, baseCommit);
+    const codingDiff = await git(repository, ["diff", "--binary", "--no-ext-diff", baseCommit, "--"]);
+
+    assert.equal(inspection.diff, codingDiff);
+    assert.equal(inspection.diffDigest, sha256(codingDiff));
+    assert.deepEqual(inspection.changedPaths, [
+      ".companyos/changes/proposal.yaml",
+      "company.md",
+    ]);
+    assert.ok(codingDiff.indexOf("a/.companyos/changes/proposal.yaml") < codingDiff.indexOf("a/company.md"));
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
 async function git(cwd: string, args: string[]): Promise<string> {
   const result = await execFileAsync("git", args, {
     cwd,

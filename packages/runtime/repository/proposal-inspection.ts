@@ -30,20 +30,8 @@ export async function inspectProposalWorkspace(
   const resolved = (await git(workspacePath, ["rev-parse", "--verify", `${baseCommit}^{commit}`])).trim();
   if (resolved !== baseCommit) throw new Error("Proposal workspace does not contain the exact requested base commit.");
   const status = await git(workspacePath, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-  const trackedDiff = await git(workspacePath, ["diff", "--binary", "--no-ext-diff", baseCommit, "--"]);
-  const untracked = parsePorcelainPaths(status).filter((path) => statusIncludesUntracked(status, path));
-  const untrackedDiffs: string[] = [];
-  for (const path of untracked.sort()) {
-    untrackedDiffs.push(await git(workspacePath, ["diff", "--binary", "--no-index", "--", "/dev/null", path], true));
-  }
-  // Git concatenates per-path patch records directly. Preserve that canonical
-  // representation so an untracked-file inspection hashes identically to the
-  // same changes represented through intent-to-add in the coding workspace.
-  const diff = [trackedDiff, ...untrackedDiffs].filter(Boolean).join("");
   const changedPaths = parsePorcelainPaths(status).sort();
-  if (changedPaths.length === 0 || diff.trim() === "") {
-    throw new Error("Builder proposal contains no independently observed changes.");
-  }
+  if (changedPaths.length === 0) throw new Error("Builder proposal contains no independently observed changes.");
   for (const path of changedPaths) {
     if (path.startsWith("/") || path.split("/").includes("..") || path.includes("\u0000")) {
       throw new Error(`Builder proposal contains unsafe path '${path}'.`);
@@ -52,6 +40,13 @@ export async function inspectProposalWorkspace(
       throw new Error(`Builder proposal changes forbidden path '${path}'.`);
     }
   }
+  // The coding worker uses this exact intent-to-add plus global-diff sequence.
+  // Reusing it here preserves Git's single path order when tracked changes and
+  // new files are interleaved, rather than concatenating two differently
+  // ordered patch groups and producing a false digest mismatch.
+  await git(workspacePath, ["add", "-N", "--all"]);
+  const diff = await git(workspacePath, ["diff", "--binary", "--no-ext-diff", baseCommit, "--"]);
+  if (diff.trim() === "") throw new Error("Builder proposal contains no independently observed changes.");
   return {
     baseCommit,
     diff,
@@ -79,23 +74,18 @@ export function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-async function git(cwd: string, args: string[], allowNonZero = false): Promise<string> {
-  try {
-    const result = await execFileAsync("git", args, {
-      cwd,
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-      env: {
-        NODE_ENV: process.env.NODE_ENV ?? "production",
-        PATH: process.env.PATH ?? "/usr/bin:/bin",
-        LANG: "C",
-      },
-    });
-    return result.stdout;
-  } catch (error) {
-    if (allowNonZero && isExecError(error) && error.code === 1) return error.stdout ?? "";
-    throw error;
-  }
+async function git(cwd: string, args: string[]): Promise<string> {
+  const result = await execFileAsync("git", args, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+    env: {
+      NODE_ENV: process.env.NODE_ENV ?? "production",
+      PATH: process.env.PATH ?? "/usr/bin:/bin",
+      LANG: "C",
+    },
+  });
+  return result.stdout;
 }
 
 function parsePorcelainPaths(status: string): string[] {
@@ -113,12 +103,4 @@ function parsePorcelainPaths(status: string): string[] {
     }
   }
   return [...new Set(paths)];
-}
-
-function statusIncludesUntracked(status: string, path: string): boolean {
-  return status.split("\u0000").some((entry) => entry.startsWith("?? ") && entry.slice(3) === path);
-}
-
-function isExecError(error: unknown): error is { code?: number; stdout?: string } {
-  return !!error && typeof error === "object";
 }
