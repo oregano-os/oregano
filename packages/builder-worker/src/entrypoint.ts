@@ -45,7 +45,12 @@ const result: BuilderWorkerResult = {
   profileId: request.profileId,
   evidence,
 };
-process.stdout.write(`${JSON.stringify(result)}\n`);
+await writeResult(result);
+
+// runBuilderAcp has already stopped the ACP child process tree. Exit explicitly
+// after flushing the only worker result so an SDK-owned stream handle cannot
+// keep an otherwise completed detached Sandbox command alive until timeout.
+process.exit(0);
 
 function workerEnvironment(profileId: typeof profile.id): Record<string, string> {
   const environment: Record<string, string> = {
@@ -62,4 +67,13 @@ function workerEnvironment(profileId: typeof profile.id): Record<string, string>
     environment.DEFAULT_AUTH_REQUEST = JSON.stringify({ methodId: "api-key" });
   }
   return environment;
+}
+
+async function writeResult(result: BuilderWorkerResult): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    process.stdout.write(`${JSON.stringify(result)}\n`, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
 }

@@ -29,6 +29,7 @@ files_expected:
   - docs/status/current.md
   - docs/workbench/guides/operate-builder.md
   - packages/cli/content/guides/operate-builder.md
+  - packages/builder-worker/**
   - packages/runtime/builder/**
   - packages/runner-vercel/package.json
   - packages/runner-vercel/src/lib/builder/**
