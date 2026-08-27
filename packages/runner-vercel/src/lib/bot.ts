@@ -185,6 +185,9 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
     route: knowledgeRoute,
     modelText: result.text,
     toolResults: result.toolResults,
+    toolFailures: result.content
+      .filter((part) => part.type === "tool-error")
+      .map((part) => ({ toolName: part.toolName, error: part.error })),
   });
   await state.appendToList(conversationKey, { role: "assistant", content: response, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,

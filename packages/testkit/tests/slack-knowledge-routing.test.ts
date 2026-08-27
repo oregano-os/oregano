@@ -57,7 +57,19 @@ test("a required search must have a successful Tool result before rendering", ()
     text: "Search Company Knowledge for Company Brain.",
     tools: [searchTool],
   });
-  assert.match(renderKnowledgeTurnResponse({ route, modelText: "I cannot search.", toolResults: [] }), /nicht erfolgreich ausgeführt/u);
+  assert.match(renderKnowledgeTurnResponse({ route, modelText: "I cannot search.", toolResults: [] }), /Diagnosecode: missing-tool-result/u);
+  assert.match(renderKnowledgeTurnResponse({
+    route,
+    modelText: "",
+    toolResults: [],
+    toolFailures: [{ toolName: "oregano_knowledge_search", error: new DOMException("The operation timed out", "TimeoutError") }],
+  }), /Diagnosecode: execution-timeout/u);
+  assert.match(renderKnowledgeTurnResponse({
+    route,
+    modelText: "",
+    toolResults: [],
+    toolFailures: [{ toolName: "oregano_knowledge_search", error: { name: "PostgresError", code: "42703", message: "database query failed" } }],
+  }), /Diagnosecode: database-42703/u);
   assert.match(renderKnowledgeTurnResponse({
     route,
     modelText: "I used a different Tool.",

@@ -7,7 +7,8 @@ title: Bound Company Knowledge authorization latency without reducing audit evid
 objective: >-
   Complete the registered Slack Company Knowledge search within the production
   Agent execution window by evaluating record authorization concurrently and
-  persisting every access decision through bounded Postgres batches.
+  persisting every access decision through bounded Postgres batches, while
+  exposing a payload-free failure code when a required Tool still fails.
 non_goals:
   - Change Knowledge policies, roster membership, visibility, or Tool grants.
   - Skip, sample, deduplicate, or weaken per-object access-decision evidence.
@@ -22,8 +23,11 @@ files_expected:
   - .oregano/changes/2026-08-27-bound-knowledge-access-audit.yaml
   - packages/knowledge/retrieval-v2.ts
   - packages/state-postgres/knowledge-access-store.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/knowledge-turn-routing.ts
   - packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
   - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - packages/testkit/tests/slack-knowledge-routing.test.ts
   - docs/status/current.md
 required_approvals:
   - oregano-maintainer

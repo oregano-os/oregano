@@ -24,6 +24,11 @@ export interface CompletedToolResult {
   readonly output: unknown;
 }
 
+export interface FailedToolResult {
+  readonly toolName: string;
+  readonly error: unknown;
+}
+
 interface KnowledgeSearchCitation {
   readonly path: string;
   readonly fragment_id: string;
@@ -100,6 +105,22 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+function knowledgeToolFailureCode(error: unknown): string {
+  const details = record(error);
+  const name = error instanceof Error ? error.name : typeof details?.name === "string" ? details.name : "UnknownError";
+  const message = error instanceof Error ? error.message : typeof details?.message === "string" ? details.message : "";
+  const providerCode = typeof details?.code === "string" && /^[A-Za-z0-9_-]{1,32}$/.test(details.code)
+    ? details.code.toLowerCase()
+    : undefined;
+  const evidence = `${name} ${message}`.toLowerCase();
+  if (/abort|deadline|timed?\s*out|timeout/u.test(evidence)) return "execution-timeout";
+  if (/invalid.*(?:tool|function).*input|schema|validation/u.test(evidence)) return "invalid-tool-input";
+  if (/postgres|database|neon|sql|relation|connection|econn/u.test(evidence)) return providerCode ? `database-${providerCode}` : "database-unavailable";
+  if (/connector|capability/u.test(evidence)) return "connector-unavailable";
+  if (/isolat|child process|tool sdk|company tool/u.test(evidence)) return "isolated-runtime-failure";
+  return providerCode ? `runtime-${providerCode}` : `runtime-${name.replace(/[^A-Za-z0-9_-]/g, "-").toLowerCase()}`;
+}
+
 function stringArray(value: unknown): readonly string[] | undefined {
   return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : undefined;
 }
@@ -165,6 +186,7 @@ export function renderKnowledgeTurnResponse(input: {
   readonly route: KnowledgeTurnRoute;
   readonly modelText: string;
   readonly toolResults: readonly CompletedToolResult[];
+  readonly toolFailures?: readonly FailedToolResult[];
 }): string {
   const modelText = input.modelText.trim();
   if (input.route.kind === "auto") {
@@ -173,7 +195,9 @@ export function renderKnowledgeTurnResponse(input: {
   const requiredToolName = input.route.toolName;
   const completed = input.toolResults.find((result) => result.toolName === requiredToolName);
   if (!completed) {
-    return "Die registrierte Company-Knowledge-Suche wurde ausgewählt, aber nicht erfolgreich ausgeführt. Deshalb wurde keine Wissensantwort veröffentlicht.";
+    const failed = input.toolFailures?.find((result) => result.toolName === requiredToolName);
+    const code = failed ? knowledgeToolFailureCode(failed.error) : "missing-tool-result";
+    return `Die registrierte Company-Knowledge-Suche wurde ausgewählt, aber nicht erfolgreich ausgeführt. Deshalb wurde keine Wissensantwort veröffentlicht. Diagnosecode: ${code}.`;
   }
   const searchOutput = knowledgeSearchOutput(completed.output);
   if (!searchOutput) {
