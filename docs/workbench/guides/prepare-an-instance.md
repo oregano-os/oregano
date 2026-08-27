@@ -156,13 +156,16 @@ fails over to another provider. Run the model smoke test after changing a
 recipe, key, endpoint, or model.
 
 `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` uses the same JSON shape and is
-compiled against every prompt in the Core Knowledge Prompt Registry. It is the
+compiled against all 13 generative prompts in Core Prompt Registry `2.0.0`. It is the
 right place to pin a direct provider for retained evidence without changing the
 interactive Agent model. The maintained Anthropic task-tier preset uses Haiku
 4.5 for utility classification and expansion, Sonnet 4.6 for extraction and
 evidence reasoning, and Opus 4.7 for explicit deep synthesis. Anthropic is not
 an embedding or cross-encoder reranking provider; configure those capabilities
 separately or retain the declared lexical fallback.
+The prompt dispatcher validates exact prompt, input-schema, and output-schema
+identities before execution. Cross-encoder reranking remains a separate
+capability and is not part of the 13 task bindings.
 
 An artifact publication is served from `/artifacts/<artifact-id>` only after
 the exact R3 request passes Core authorization and approval consumption. The

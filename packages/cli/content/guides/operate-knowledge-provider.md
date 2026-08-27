@@ -45,6 +45,13 @@ those tiers and exact task overrides remain possible. Embedding and optional
 cross-encoder reranking are separate capability adapters and are never
 fabricated from an Anthropic language model.
 
+Prompt Registry `2.0.0` compiles 13 generative Knowledge tasks. Runtime
+dispatch requires the exact prompt version and content hash plus the declared
+input and output schema IDs; any substitution fails before the provider call.
+The Runner validates bounded structured task input, renders the task-specific
+user instruction, and quotes numbered source evidence as untrusted JSON.
+Reranking is never compiled as a language-model task.
+
 Named compatible recipes use one shared transport but keep separate routes,
 credential references, default endpoints, model namespaces, and capability
 declarations. Their advisory model lists do not form a hard allowlist: a

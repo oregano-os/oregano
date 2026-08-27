@@ -153,10 +153,10 @@ const validateExtractionOutput = (value: unknown, text: string, evidenceId: stri
   const page = object(root.page, "Extraction output.page");
   if (typeof page.title !== "string" || !page.title.trim() || page.title.length > 500) throw new Error("Extraction output Page title is invalid.");
   if (page.summary !== undefined && (typeof page.summary !== "string" || page.summary.length > 4_000)) throw new Error("Extraction output Page summary is invalid.");
-  if (!Array.isArray(root.claims) || root.claims.length > 500) throw new Error("Extraction output Claims must be a bounded array.");
-  const claims = root.claims.map((raw, index): ModelClaimOutput => {
-    const claim = object(raw, `Extraction output.claims[${index}]`);
-    if (!['fact', 'take'].includes(String(claim.memoryClass)) || typeof claim.claimText !== "string" || !claim.claimText.trim() || claim.claimText.length > 10_000) throw new Error("Extraction output Claim identity is invalid.");
+  if (!Array.isArray(root.facts) || root.facts.length > 200 || !Array.isArray(root.takes) || root.takes.length > 200) throw new Error("Extraction output Facts and Takes must be bounded arrays.");
+  const validateClaim = (raw: unknown, memoryClass: "fact" | "take", index: number): ModelClaimOutput => {
+    const claim = object(raw, `Extraction output.${memoryClass === "fact" ? "facts" : "takes"}[${index}]`);
+    if (typeof claim.claimText !== "string" || !claim.claimText.trim() || claim.claimText.length > 10_000) throw new Error("Extraction output Claim identity is invalid.");
     if (claim.evidenceId !== evidenceId) throw new Error("Model Claim cited evidence outside its authorized context.");
     if (typeof claim.extractionConfidence !== "number" || claim.extractionConfidence < 0 || claim.extractionConfidence > 1) throw new Error("Model Claim confidence is invalid.");
     if (typeof claim.epistemicWeight !== "number" || claim.epistemicWeight < 0 || claim.epistemicWeight > 1) throw new Error("Model Claim epistemic weight is invalid.");
@@ -165,14 +165,18 @@ const validateExtractionOutput = (value: unknown, text: string, evidenceId: stri
       if (!['speaker', 'author', 'subject', 'approver', 'owner', 'beneficiary', 'affected-party'].includes(String(relation.relation)) || typeof relation.principalId !== "string" || !relation.principalId.trim()) throw new Error("Claim participant relation is invalid.");
       return { relation: relation.relation as KnowledgeExtractionResult["participantRelations"][number]["relation"], principalId: relation.principalId };
     }) : (() => { throw new Error("Claim participant relations must be an array."); })());
-    if (claim.memoryClass === "fact" && (typeof claim.ownerPrincipalId !== "string" || !claim.ownerPrincipalId.trim())) throw new Error("Extracted Fact requires its principal owner.");
-    if (claim.memoryClass === "take") {
+    if (memoryClass === "fact" && (typeof claim.ownerPrincipalId !== "string" || !claim.ownerPrincipalId.trim())) throw new Error("Extracted Fact requires its principal owner.");
+    if (memoryClass === "take") {
       const holder = object(claim.holder, "Extracted Take Holder");
       if (typeof holder.holderId !== "string" || typeof holder.displayName !== "string" || !["person", "team", "company", "world", "system", "unresolved"].includes(String(holder.holderType))) throw new Error("Extracted Take requires exactly one valid Holder.");
       if (!['source-literal', 'model-derived'].includes(String(claim.derivation))) throw new Error("Extracted Take derivation is invalid.");
     }
-    return { ...(claim as unknown as ModelClaimOutput), locator: validateLocator(claim.locator, text), participantRelations };
-  });
+    return { ...(claim as unknown as ModelClaimOutput), memoryClass, locator: validateLocator(claim.locator, text), participantRelations };
+  };
+  const claims = [
+    ...root.facts.map((raw, index) => validateClaim(raw, "fact", index)),
+    ...root.takes.map((raw, index) => validateClaim(raw, "take", index)),
+  ];
   const timeline = root.timeline === undefined ? [] : (Array.isArray(root.timeline) ? root.timeline.map((rawEvent) => {
     const event = object(rawEvent, "Timeline event");
     if (typeof event.eventType !== "string" || typeof event.description !== "string" || typeof event.observedAt !== "string" || Number.isNaN(Date.parse(event.observedAt))) throw new Error("Timeline event is invalid.");
@@ -199,7 +203,7 @@ export async function extractRawEvidenceToBrain(input: {
   const text = input.evidence.content && "inlineText" in input.evidence.content ? input.evidence.content.inlineText : undefined;
   if (!text) throw new Error("This extraction path requires authorized inline Raw Evidence.");
   const prompts = input.promptRegistry ?? new KnowledgePromptRegistry();
-  const extractionPrompt = prompts.resolve("knowledge.claim-extraction", "1");
+  const extractionPrompt = prompts.resolveCurrent("knowledge.claim-extraction");
   const modelIdentity = `${input.profiles.reasoning.profile}@${input.profiles.reasoning.profileVersion}:${input.profiles.reasoning.route}:${input.profiles.reasoning.model}`;
   const inputDigest = sha256({ envelope: input.evidence.envelope, contentDigest: input.evidence.envelope.contentDigest, authorizationContextDigest: input.authorizationContextDigest });
   const runKey = sha256({ inputDigest, prompt: extractionPrompt.contentHash, schema: extractionPrompt.outputSchemaId, modelIdentity });
@@ -210,10 +214,11 @@ export async function extractRawEvidenceToBrain(input: {
   const modelReceipts: KnowledgeModelExecutionReceipt[] = [];
   let type = classifyPageTypeDeterministically({ declaredType: input.declaredPageType, locator: input.evidence.envelope.locator, sourceKind: input.sourceKind });
   if (!type.typeKey) {
-    const definition = prompts.resolve("knowledge.page-classification", "1");
+    const definition = prompts.resolveCurrent("knowledge.page-classification");
     const executed = await executeKnowledgeModel({ executor: input.modelExecutor, profile: input.profiles.utility, requiredProfile: definition.profile, completedAt: now, request: {
       task: definition.task, promptId: definition.promptId, promptVersion: definition.version, promptContentHash: definition.contentHash,
-      outputSchemaId: definition.outputSchemaId, systemInstruction: `${definition.systemInstruction}\nAllowed type keys: ${CORE_BRAIN_PAGE_TAXONOMY.map((entry) => entry.key).join(", ")}.`,
+      inputSchemaId: definition.inputSchemaId, outputSchemaId: definition.outputSchemaId, systemInstruction: definition.systemInstruction,
+      taskInput: { allowedTypeKeys: CORE_BRAIN_PAGE_TAXONOMY.filter((entry) => entry.status === "active").map((entry) => entry.key) },
       evidenceBlocks: [{ evidenceId: "evidence:source", content: text, contentDigest: sha256(text) }], authorizationContextDigest: input.authorizationContextDigest,
       dataClass: input.dataClass, idempotencyKey: `${runKey}:classification`,
     } });
@@ -225,7 +230,8 @@ export async function extractRawEvidenceToBrain(input: {
   }
   const executed = await executeKnowledgeModel({ executor: input.modelExecutor, profile: input.profiles.reasoning, requiredProfile: extractionPrompt.profile, completedAt: now, request: {
     task: extractionPrompt.task, promptId: extractionPrompt.promptId, promptVersion: extractionPrompt.version, promptContentHash: extractionPrompt.contentHash,
-    outputSchemaId: extractionPrompt.outputSchemaId, systemInstruction: extractionPrompt.systemInstruction,
+    inputSchemaId: extractionPrompt.inputSchemaId, outputSchemaId: extractionPrompt.outputSchemaId, systemInstruction: extractionPrompt.systemInstruction,
+    taskInput: { defaultOwnerPrincipalId: input.ownerPrincipalId, sourceKind: input.sourceKind, observedAt: input.evidence.envelope.observedAt },
     evidenceBlocks: [{ evidenceId: "evidence:source", content: text, contentDigest: sha256(text) }], authorizationContextDigest: input.authorizationContextDigest,
     dataClass: input.dataClass, idempotencyKey: runKey,
   } });

@@ -5,7 +5,7 @@ kind: plan
 status: approved
 authority: informative
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -815,7 +815,6 @@ This is optional Instance configuration, not a provider restriction in Core:
 | `knowledge.duplicate-classification` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
 | `knowledge.conflict-judgment` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
 | `knowledge.query-expansion` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
-| `knowledge.rerank` when an explicit generative rerank is requested | `utility` | `anthropic/claude-haiku-4-5-20251001` |
 | `knowledge.claim-extraction` | `reasoning` | `anthropic/claude-sonnet-4-6` |
 | `knowledge.timeline-extraction` | `reasoning` | `anthropic/claude-sonnet-4-6` |
 | `knowledge.claim-relation` | `reasoning` | `anthropic/claude-sonnet-4-6` |
@@ -828,9 +827,8 @@ This is optional Instance configuration, not a provider restriction in Core:
 Exact task bindings may override this tier mapping. `embedding` remains a
 separate non-generative capability because Anthropic does not supply an
 embedding model through this recipe. The ordinary evaluated `reranker` path
-also remains a separate cross-encoder capability; the registered generative
-rerank prompt is not a substitute for that adapter and is not enabled by
-default retrieval.
+also remains a separate cross-encoder capability and is not represented as a
+generative Prompt Registry task.
 
 ### 12.5 Normative model-use matrix
 
@@ -842,24 +840,24 @@ cost policy, and its regression evidence.
 | Task | Required execution | Prompt contract | Failure or fallback | Permitted effect |
 |---|---|---|---|---|
 | sanity, encoding, size, credential, and ACL gates | deterministic | none | quarantine or explicit validation failure | no model-visible context until passed |
-| source-processing triage | deterministic rules first; optional `utility` verdict for ambiguous or expensive material | `knowledge.triage@1` | `deferred` or `unreliable`; never a terminal low-value decision | select processing depth only |
-| Page-type classification | frontmatter, Connector metadata, registry aliases, and path rules first; `utility` only when unresolved | `knowledge.classify-page@1` | `note` or unresolved proposal according to declared source policy | versioned Page type or review proposal; never a new undeclared type |
-| Fact, Take, typed metric, Holder, and participant extraction | `reasoning` structured extraction | `knowledge.extract-claims@1` | retryable extraction state; Raw Evidence remains retained and searchable when authorized | scoped Facts, source-literal Takes, or bounded proposals under Section 12.1 |
-| timeline extraction | deterministic provider timestamps and explicit date fields first; `reasoning` for events expressed in prose | `knowledge.extract-timeline@1` | retain the Page without inferred events and mark extraction incomplete | cited timeline events only |
+| source-processing triage | deterministic rules first; optional `utility` verdict for ambiguous or expensive material | `knowledge.triage@2` | `deferred` or `unreliable`; never a terminal low-value decision | select processing depth only |
+| Page-type classification | frontmatter, Connector metadata, registry aliases, and path rules first; `utility` only when unresolved | `knowledge.page-classification@2` | `note` or unresolved proposal according to declared source policy | versioned Page type or review proposal; never a new undeclared type |
+| Fact, Take, typed metric, Holder, and participant extraction | `reasoning` structured extraction | `knowledge.claim-extraction@2` | retryable extraction state; Raw Evidence remains retained and searchable when authorized | scoped Facts, source-literal Takes, or bounded proposals under Section 12.1 |
+| timeline extraction | deterministic provider timestamps and explicit date fields first; `reasoning` for events expressed in prose | `knowledge.timeline-extraction@2` | retain the Page without inferred events and mark extraction incomplete | cited timeline events only |
 | exact duplicate detection | stable provider identity and content digest | none | fail closed without consolidation | exact duplicate receipt |
-| semantic duplicate or supersession classification | embedding candidate generation, deterministic high-confidence equivalence where declared, then `utility` or `reasoning` only for the ambiguous band | `knowledge.classify-claim-relation@1` | `independent` or `unresolved`; never merge on model failure | duplicate, supersession, or merge proposal with candidate IDs |
-| cross-source entity identity | deterministic provider or administrator mapping first; model only proposes ambiguous candidates | `knowledge.propose-identity@1` | unresolved identity | proposal only |
+| semantic duplicate or supersession classification | embedding candidate generation, deterministic high-confidence equivalence where declared, then `utility` or `reasoning` only for the ambiguous band | `knowledge.duplicate-classification@2` and `knowledge.claim-relation@2` | `distinct` or `uncertain`; never merge on model failure | duplicate, supersession, or merge proposal with candidate IDs |
+| cross-source entity identity | deterministic provider or administrator mapping first; model only proposes ambiguous candidates | `knowledge.identity-link@2` | unresolved identity | proposal only |
 | exact references and backlinks | deterministic parser | none | explicit unresolved link diagnostic | sourced graph edge |
-| inferred relationships | optional `reasoning` extraction | `knowledge.propose-links@1` | no inferred edge | provenance-marked inferred edge or proposal only |
+| inferred relationships | optional `reasoning` extraction | `knowledge.inferred-link@2` | no inferred edge | provenance-marked inferred edge or proposal only |
 | retrieval salience and rank boosts | deterministic formula over separate authority, freshness, activity, confidence, contradiction, and relevance signals | none | omit the unavailable signal and report degradation | ranking only; never retention, access, or authority |
 | lexical, semantic, RRF, graph augmentation, collapse, and diversity | deterministic plus `embedding` where enabled | none | lexical fallback with explicit degradation | bounded authorized evidence set |
-| query expansion | disabled in `fast` and `balanced` by default; optional `utility` call in `deep` | `knowledge.query-expand@1` | original query only | additional sanitized candidate queries |
+| query expansion | disabled in `fast` and `balanced` by default; optional `utility` call in `deep` | `knowledge.query-expansion@2` | original query only | additional sanitized candidate queries |
 | reranking | optional `reranker` in an evaluated cost mode | none | preserve pre-rerank order and report degradation | bounded rank change only |
-| contradiction judgment | deterministic candidate selection followed by a bounded `utility` verdict only for plausible pairs | `knowledge.detect-conflict@1` | unresolved conflict candidate | conflict evidence or proposal; no Claim deletion |
+| contradiction judgment | deterministic candidate selection followed by a bounded `utility` verdict only for plausible pairs | `knowledge.conflict-judgment@2` | unresolved conflict candidate | conflict evidence or proposal; no Claim deletion |
 | interactive Agent answer | existing Agent model turn over an authorized context built from Knowledge Tool results | `knowledge.answer@1` compiled fragment | cited extractive response, explicit unavailable state, or stated gap | conversational answer only |
-| explicit answer synthesis | `deep` through `knowledge.synthesize` | `knowledge.answer@1` | typed `unavailable` or declared extractive fallback | structured answer; persistence is separate |
-| durable working synthesis | `deep` background task | `knowledge.working-synthesis@1` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
-| Claim grading and calibration narrative | deterministic evidence selection followed by `reasoning` or `deep` judgment | `knowledge.grade-claim@1` and, later, `knowledge.calibration-summary@1` | `unresolvable` or retryable failure | evidence-bound resolution or calibration proposal only |
+| explicit answer synthesis | `deep` through `knowledge.synthesize` | `knowledge.cited-synthesis@2` | typed `unavailable` or declared extractive fallback | structured answer; persistence is separate |
+| durable working synthesis | `deep` background task | `knowledge.working-synthesis@2` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
+| Claim grading and calibration narrative | deterministic evidence selection followed by `reasoning` or `deep` judgment | `knowledge.claim-grading@2`; calibration summary remains later work | `unresolvable` or retryable failure | evidence-bound resolution or calibration proposal only |
 
 Embedding generation and cross-encoder reranking share recipe identity,
 credential lookup, and execution evidence, but use capability-specific
@@ -887,25 +885,35 @@ The initial registry contains:
 
 | Prompt ID | Required structured result |
 |---|---|
-| `knowledge.triage@1` | `process`, `defer`, reasons, and confidence; the result changes processing effort only |
-| `knowledge.classify-page@1` | one declared Page type or `unresolved`, confidence, and evidence fields used |
-| `knowledge.extract-claims@1` | atomic Claims, Claim kind, exact Holder or unresolved Holder, participant relations, typed value, validity, confidence, notability, and exact source locator |
-| `knowledge.extract-timeline@1` | bounded events with time, kind, participants, source locator, and confidence |
-| `knowledge.classify-claim-relation@1` | `duplicate`, `supersede`, `independent`, or `unresolved`, referencing only supplied candidate IDs |
-| `knowledge.propose-identity@1` | ranked identity candidates or unresolved, referencing only supplied entity IDs |
-| `knowledge.propose-links@1` | typed inferred relationships with exact supporting evidence or an empty result |
-| `knowledge.detect-conflict@1` | conflict, compatible, or unresolved with both supplied Claim identities and evidence |
-| `knowledge.query-expand@1` | at most two sanitized alternative queries; never instructions or filters |
-| `knowledge.answer@1` | answer, structured citations, material conflicts, gaps, freshness, and authority labels |
-| `knowledge.working-synthesis@1` | versioned current state, supporting Claims, dissent, relevant superseded history, gaps, and citations |
-| `knowledge.grade-claim@1` | `correct`, `incorrect`, `partial`, or `unresolvable`, confidence, reasoning, and evidence identities |
-| `knowledge.calibration-summary@1` | bounded narrative patterns computed from an exact deterministic scorecard; no authority or access consequence |
+| `knowledge.triage@2` | processing tier, `process`, `defer`, or `retry`, reason codes, and rationale; the result changes processing effort only |
+| `knowledge.page-classification@2` | one declared Page type and rationale |
+| `knowledge.claim-extraction@2` | separate atomic Fact and Take arrays, exact owner or Holder, derivation, participant relations, confidence, weight, and exact locator |
+| `knowledge.timeline-extraction@2` | bounded events with time, kind, source identity, and exact locator |
+| `knowledge.claim-relation@2` | support, contradiction, refinement, or supersession proposals referencing only supplied Claim IDs |
+| `knowledge.identity-link@2` | same, different, or uncertain identity proposals referencing only supplied Page and Entity IDs |
+| `knowledge.inferred-link@2` | typed inferred relationships referencing only supplied object IDs |
+| `knowledge.duplicate-classification@2` | distinct, duplicate, supersedes, or uncertain for one supplied pair; never a merge operation |
+| `knowledge.conflict-judgment@2` | conflict, compatible, or uncertain with both supplied Claim identities and severity |
+| `knowledge.query-expansion@2` | at most the caller's bounded number of sanitized alternative queries; never instructions or filters |
+| `knowledge.cited-synthesis@2` | answer to the supplied query, structured citations, material conflicts, gaps, freshness, and authority labels |
+| `knowledge.working-synthesis@2` | versioned current state, supporting, contested, and superseded Claims, plus gaps |
+| `knowledge.claim-grading@2` | correct, incorrect, partial, or unresolvable, confidence, rationale, and evidence identities |
 
 Evidence is wrapped as typed data and explicitly cannot modify system or Agent
 instructions. A prompt output is untrusted until its schema, referenced IDs,
 source locators, authorization intersection, and permitted effect validate.
 Changing prompt semantics or output shape requires a new prompt or schema
 version and must not reinterpret stored prior outputs.
+
+Registry `2.0.0` dispatches by exact prompt ID and version, content hash, input
+schema ID, and output schema ID. It validates bounded structured task input
+before a provider call and renders that input separately from numbered,
+untrusted evidence. Each task owns its user instruction and strict output
+schema. The initial offline evaluation suite covers all 13 generative tasks,
+including the Fact/Take boundary, duplicate classification, temporal conflict
+handling, working synthesis, cited authority, and query expansion, with
+deterministic precision, recall, and F1 metrics. Reranking remains outside this
+registry on the dedicated `reranker` capability.
 
 ### 12.7 Knowledge Answer Contract
 

@@ -1,4 +1,5 @@
 import { canonicalJson, sha256 } from "../runtime/canonical.ts";
+import { KnowledgePromptRegistry } from "./prompt-registry.ts";
 
 export const KNOWLEDGE_MODEL_EXECUTION_CONTRACT_VERSION = "1.0.0" as const;
 export const KNOWLEDGE_MODEL_TASK_PROFILES = ["utility", "reasoning", "deep", "embedding", "reranker"] as const;
@@ -29,8 +30,10 @@ export interface KnowledgeModelRequest {
   promptId: string;
   promptVersion: string;
   promptContentHash: string;
+  inputSchemaId: string;
   outputSchemaId: string;
   systemInstruction: string;
+  taskInput: Readonly<Record<string, unknown>>;
   evidenceBlocks: Array<{ evidenceId: string; content: string; contentDigest: string }>;
   authorizationContextDigest: string;
   dataClass: "business" | "confidential" | "restricted" | "personal";
@@ -59,6 +62,7 @@ export interface KnowledgeModelExecutionReceipt {
   promptId: string;
   promptVersion: string;
   promptContentHash: string;
+  inputSchemaId: string;
   outputSchemaId: string;
   inputDigest: string;
   authorizationContextDigest: string;
@@ -107,6 +111,8 @@ export async function executeKnowledgeModel(input: {
   const profile = validateKnowledgeModelProfile(input.profile, input.requiredProfile);
   if (profile.state === "revoked") throw new Error(`Knowledge model profile '${profile.profile}' is revoked.`);
   if (!digestPattern.test(input.request.promptContentHash) || !digestPattern.test(input.request.authorizationContextDigest)) throw new Error("Knowledge model request contains an invalid prompt or authorization digest.");
+  new KnowledgePromptRegistry().resolveExecution(input.request);
+  if (canonicalJson(input.request.taskInput).length > 65_536) throw new Error("Knowledge model task input exceeds its bounded size.");
   const evidenceIds = new Set<string>();
   for (const block of input.request.evidenceBlocks) {
     if (!block.evidenceId.trim() || evidenceIds.has(block.evidenceId) || sha256(block.content) !== block.contentDigest) throw new Error("Knowledge model evidence blocks failed identity or digest validation.");
@@ -117,7 +123,9 @@ export async function executeKnowledgeModel(input: {
     promptId: input.request.promptId,
     promptVersion: input.request.promptVersion,
     promptContentHash: input.request.promptContentHash,
+    inputSchemaId: input.request.inputSchemaId,
     outputSchemaId: input.request.outputSchemaId,
+    taskInput: input.request.taskInput,
     evidence: input.request.evidenceBlocks.map(({ evidenceId, contentDigest }) => ({ evidenceId, contentDigest })),
     authorizationContextDigest: input.request.authorizationContextDigest,
     dataClass: input.request.dataClass,
@@ -140,6 +148,7 @@ export async function executeKnowledgeModel(input: {
     promptId: input.request.promptId,
     promptVersion: input.request.promptVersion,
     promptContentHash: input.request.promptContentHash,
+    inputSchemaId: input.request.inputSchemaId,
     outputSchemaId: input.request.outputSchemaId,
     inputDigest,
     authorizationContextDigest: input.request.authorizationContextDigest,

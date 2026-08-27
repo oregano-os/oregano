@@ -1,4 +1,4 @@
-import { sha256 } from "../runtime/canonical.ts";
+import { canonicalJson, sha256 } from "../runtime/canonical.ts";
 import type { KnowledgeAccessSubject } from "./contracts.ts";
 import { normalizeSearchText } from "./search.ts";
 import { executeKnowledgeModel, type KnowledgeModelExecutionReceipt, type KnowledgeModelExecutor, type KnowledgeModelProfileBinding } from "./knowledge-model-execution.ts";
@@ -306,9 +306,21 @@ export async function synthesizeKnowledgeAnswer(input: {
   now?: string;
 }): Promise<{ envelope: KnowledgeAnswerEnvelopeV2; receipt?: KnowledgeModelExecutionReceipt }> {
   if (!input.grant) throw new Error("knowledge.synthesize requires an explicit grant.");
+  const query = input.query.trim();
+  if (!query) throw new Error("Knowledge synthesis query is empty.");
   if (input.context.records.length === 0) return { envelope: validateKnowledgeAnswerEnvelope({ context: input.context, envelope: { contractVersion: KNOWLEDGE_RETRIEVAL_V2_CONTRACT_VERSION, status: "unavailable", answer: "", citations: [], labels: [], gaps: ["no-authorized-evidence"], conflicts: [], freshness: "unknown", contextReceiptId: input.context.receipt.receiptId } }) };
-  const prompt = new KnowledgePromptRegistry().resolve("knowledge.cited-synthesis", "1");
-  const executed = await executeKnowledgeModel({ executor: input.executor, profile: input.profile, requiredProfile: prompt.profile, completedAt: input.now, request: { task: prompt.task, promptId: prompt.promptId, promptVersion: prompt.version, promptContentHash: prompt.contentHash, outputSchemaId: prompt.outputSchemaId, systemInstruction: prompt.systemInstruction, evidenceBlocks: input.context.records.map((record) => ({ evidenceId: record.identity, content: record.excerpt, contentDigest: sha256(record.excerpt) })), authorizationContextDigest: input.authorizationContextDigest, dataClass: input.dataClass, idempotencyKey: sha256({ query: input.query, contextReceiptId: input.context.receipt.receiptId }) } });
+  const prompt = new KnowledgePromptRegistry().resolveCurrent("knowledge.cited-synthesis");
+  const evidenceBlocks = input.context.records.map((record) => {
+    const content = canonicalJson({ title: record.title, excerpt: record.excerpt, label: record.label, contentDigest: record.contentDigest });
+    return { evidenceId: record.identity, content, contentDigest: sha256(content) };
+  });
+  const executed = await executeKnowledgeModel({ executor: input.executor, profile: input.profile, requiredProfile: prompt.profile, completedAt: input.now, request: {
+    task: prompt.task, promptId: prompt.promptId, promptVersion: prompt.version, promptContentHash: prompt.contentHash,
+    inputSchemaId: prompt.inputSchemaId, outputSchemaId: prompt.outputSchemaId, systemInstruction: prompt.systemInstruction,
+    taskInput: { query, contextReceiptId: input.context.receipt.receiptId }, evidenceBlocks,
+    authorizationContextDigest: input.authorizationContextDigest, dataClass: input.dataClass,
+    idempotencyKey: sha256({ query, contextReceiptId: input.context.receipt.receiptId }),
+  } });
   if (executed.receipt.outcome !== "succeeded") {
     const fallback: KnowledgeAnswerEnvelopeV2 = { contractVersion: KNOWLEDGE_RETRIEVAL_V2_CONTRACT_VERSION, status: "extractive-fallback", answer: input.context.records.map((record) => record.excerpt).join("\n\n"), citations: input.context.records.map(({ identity, contentDigest }) => ({ identity, contentDigest })), labels: [...new Set(input.context.records.map((record) => record.label))], gaps: [`model-${executed.receipt.outcome}`], conflicts: [], freshness: "mixed", contextReceiptId: input.context.receipt.receiptId, modelReceiptId: executed.receipt.receiptId };
     return { envelope: validateKnowledgeAnswerEnvelope({ envelope: fallback, context: input.context }), receipt: executed.receipt };
