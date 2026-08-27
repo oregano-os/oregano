@@ -6,6 +6,7 @@ import { InMemorySourcePipelineStore } from "../../../knowledge/in-memory-source
 import { SOURCE_CONNECTOR_V2_CONTRACT_VERSION, type SourceBindingV2, type SourceRequirementV2 } from "../../../knowledge/source-contracts-v2.ts";
 import {
   authorizeScheduledKnowledgeRequest,
+  classifyKnowledgeSourceRuntimeError,
   decodeGranolaRuntimeConfiguration,
   GranolaKnowledgeSourceRuntime,
   type GranolaRuntimeConfiguration,
@@ -63,6 +64,12 @@ test("Granola runtime configuration remains SecretRef-only and scheduler authori
   assert.equal(authorizeScheduledKnowledgeRequest(new Request("https://company.test", { headers: { authorization: "Bearer expected" } }), "expected"), true);
   assert.equal(authorizeScheduledKnowledgeRequest(new Request("https://company.test", { headers: { authorization: "Bearer wrong" } }), "expected"), false);
   assert.throws(() => decodeGranolaRuntimeConfiguration(Buffer.from(JSON.stringify({ ...configuration, token: "forbidden" })).toString("base64")), /unsupported shape/);
+});
+
+test("Knowledge source runtime failures expose bounded categories rather than provider messages", () => {
+  assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Source 'source:test' conflicts with an existing requirement.")), "source-registration");
+  assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Granola API request failed after bounded retry (HTTP 503).")), "provider-response");
+  assert.equal(classifyKnowledgeSourceRuntimeError(new Error("unexpected protected provider detail")), "unclassified");
 });
 
 test("Granola runtime resumes bounded provider-wide reconciliation under one durable lease", async () => {
