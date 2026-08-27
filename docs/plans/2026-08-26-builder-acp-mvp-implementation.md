@@ -38,8 +38,9 @@ The current qualified worker snapshot was created successfully as
 `snap_XhgH5ozYTOR5L5GTI3e8ST1G3hvy` from the pinned base image. It contains ACP
 SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
 
-The current separate trusted Git snapshot was created as
-`snap_8qXUUTT8rn7NF45Yx8KzGgIbwEsb`. It contains Git and the pinned Workbench,
+The current separate trusted Git snapshot was recreated after the canonical
+mixed-diff validation fix as `snap_ELocj6iQRrgRzFnOJPeGNcAs7H8k`. It contains
+Git and the pinned Workbench,
 never starts Claude Code or Codex, and is independently bound from the coding
 worker snapshot. Snapshot identifiers are non-secret provider receipts, not
 Core or Workspace configuration.

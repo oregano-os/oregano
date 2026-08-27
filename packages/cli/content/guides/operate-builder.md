@@ -121,6 +121,8 @@ full source acquisition before closing network access, emits a bounded
 credential-free Git bundle, validates the returned diff independently, and
 creates the one outer commit. Real installation tokens exist only in
 host-scoped network-header transforms and never in either process environment.
+Recreate and rebind this snapshot whenever trusted Git or Workbench validation
+code changes; deploying the Runner alone does not update the pinned snapshot.
 
 Qualify a selected private repository with the exact repository identity,
 numeric provider repository and installation IDs, exact base commit, App ID,
@@ -256,7 +258,7 @@ duplicate recovery, timeout, and credential-transform mechanics are also
 proved.
 
 The current worker snapshot is `snap_XhgH5ozYTOR5L5GTI3e8ST1G3hvy`; the
-current trusted Git snapshot is `snap_8qXUUTT8rn7NF45Yx8KzGgIbwEsb`. Both
+current trusted Git snapshot is `snap_ELocj6iQRrgRzFnOJPeGNcAs7H8k`. Both
 brokered model profiles and the service-owned GitHub App source and
 draft-publication path passed live qualification. The protected model runs
 kept the real general Instance model keys outside the coding processes. The
