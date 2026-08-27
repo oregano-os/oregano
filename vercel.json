@@ -3,5 +3,19 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --dir packages/runner-vercel build",
-  "outputDirectory": "packages/runner-vercel/.next"
+  "outputDirectory": "packages/runner-vercel/.next",
+  "crons": [
+    {
+      "path": "/api/knowledge/sources/granola/reconcile",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/knowledge/sources/granola/extract",
+      "schedule": "15 */6 * * *"
+    },
+    {
+      "path": "/api/knowledge/compounding",
+      "schedule": "30 */6 * * *"
+    }
+  ]
 }

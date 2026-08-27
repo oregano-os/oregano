@@ -86,6 +86,10 @@ principal and policy before loading Claims. It persists leases, resumable phase
 receipts, semantic duplicate proposals, Claim-relation proposals, conflict
 proposals, immutable working-synthesis versions, and explicit grading results.
 It never accepts a proposal, mutates a canonical Claim, or writes the Handbook.
+The portable default processes one model-backed work item per phase on each
+invocation so common serverless hosts remain below their execution limit. Each
+partial phase writes its next cursor; a long-running host may pass a larger
+explicit budget through its own adapter.
 
 Do not enable a scheduler merely because the endpoint deploys. First:
 
@@ -98,7 +102,9 @@ Do not enable a scheduler merely because the endpoint deploys. First:
 6. verify retrying the same cycle reuses complete receipts.
 
 Any runtime host may bind the same operation to its scheduler. The Vercel route
-is a maintained adapter, not a Core dependency. Leave the schedule disabled on
+is a maintained adapter, not a Core dependency. Its schedule runs reconciliation
+at minute `0`, extraction at minute `15`, and compounding at minute `30` of every
+six-hour window. Leave the schedule disabled on
 qualification failure, authorization denial, missing migration, or an
 unexpected proposal/synthesis count.
 
@@ -120,13 +126,19 @@ The portable runtime operations are:
 - `GET` or `POST /api/knowledge/sources/granola/reconcile` claims a durable
   lease, resumes its cursor, reads at most two 30-note pages per invocation,
   applies a 24-hour overlap, stores complete note and transcript evidence, and
-  advances the watermark only after a successful complete page; and
+  advances the watermark only after a successful complete page;
+- `GET` or `POST /api/knowledge/sources/granola/extract` processes at most two
+  changed Source Objects per invocation, splits evidence above 50,000
+  characters at line boundaries, restores validated chunk locators to
+  source-global lines, and considers an object current only for the exact
+  successful pipeline, prompt, model, and policy receipt; and
 - `POST /api/knowledge/sources/granola/webhook` verifies the untouched request
   body and Standard Webhooks headers, persists the reference event before
   acknowledgement, and fetches content asynchronously.
 
-The reference Vercel adapter schedules reconciliation every six hours. Another
-runtime host may bind the same operations to its scheduler, secret store, and
+The reference Vercel adapter schedules reconciliation, extraction, and
+compounding in staggered six-hour windows. Another runtime host may bind the
+same operations to its scheduler, secret store, and
 HTTP ingress without changing the Source, event, Raw Evidence, Raw Asset,
 watermark, or lease contracts. A successful initial backfill MUST be followed
 by aggregate checks for source status, processed/failed/quarantined counts,

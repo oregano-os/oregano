@@ -243,3 +243,15 @@ test("the additive schema persists compounding state and proposals without destr
   }
   assert.doesNotMatch(migration, /\b(?:drop|truncate|delete)\b/i);
 });
+
+test("the maintained Vercel adapters schedule reconcile, extraction, and compounding in order", () => {
+  const expected = [
+    { path: "/api/knowledge/sources/granola/reconcile", schedule: "0 */6 * * *" },
+    { path: "/api/knowledge/sources/granola/extract", schedule: "15 */6 * * *" },
+    { path: "/api/knowledge/compounding", schedule: "30 */6 * * *" },
+  ];
+  const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
+  const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };
+  assert.deepEqual(root.crons, expected);
+  assert.deepEqual(runner.crons, expected);
+});

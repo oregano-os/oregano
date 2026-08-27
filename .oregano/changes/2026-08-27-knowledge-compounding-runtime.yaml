@@ -31,6 +31,7 @@ files_expected:
   - packages/runner-vercel/**
   - packages/state-postgres/**
   - packages/testkit/**
+  - vercel.json
 required_approvals:
   - oregano-maintainer
 approvals:

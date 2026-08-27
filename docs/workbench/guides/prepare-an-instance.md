@@ -179,6 +179,13 @@ after preparation. Do not enable compounding until the model smoke test, all 13
 synthetic prompt fixtures, one real authorized extraction, one manual
 compounding cycle, and same-cycle retry evidence have passed.
 
+After those gates pass, the maintained Vercel adapter schedules reconciliation,
+extraction, and compounding at minutes `0`, `15`, and `30` of each six-hour
+window. Vercel injects the Sensitive `CRON_SECRET` as the bearer authorization
+for those protected routes. A non-Vercel host MUST bind the same three portable
+operations to its own scheduler and SecretRef implementation; database setup
+and Core Knowledge do not depend on Vercel Cron.
+
 An artifact publication is served from `/artifacts/<artifact-id>` only after
 the exact R3 request passes Core authorization and approval consumption. The
 route applies a restrictive content-security policy. Paid-provider effects are

@@ -450,6 +450,18 @@ validated Page, Claim, Timeline, participant, and edge proposals. The run is
 idempotent by Source Object version, extraction contract, prompt version, model
 route, and policy identity.
 
+Evidence above 50,000 characters is split only at line boundaries. Model
+locators are one-based inside the bounded chunk, validate against that chunk,
+and are restored deterministically to source-global line positions before any
+derived object becomes readable. A semantic locator or identity validation
+failure receives at most one typed correction attempt. All outputs for the run
+validate before the successful run receipt is recorded.
+
+A model-derived Page version, Claim, Timeline Event, or working input is
+readable or compoundable only when its model provenance references a successful
+extraction run. Failed-run artifacts remain audit and recovery evidence; they
+are never treated as active knowledge and their age does not trigger deletion.
+
 The initial prompt set covers:
 
 - processing triage;
@@ -496,6 +508,14 @@ canonical grade, widen access, delete evidence, or publish Handbook authority.
 Duplicate, relation, conflict, and grade results enter reviewable proposal
 state; a working synthesis creates a new cited version and preserves all prior
 versions.
+
+The portable phase budget defaults to one model-backed work item per phase and
+persists a continuation after each invocation. Runtime adapters for
+long-running hosts MAY select a larger explicit bounded budget. Working
+synthesis lists only exact supplied Claim identities, uses mutually exclusive
+supporting, contested, and superseded partitions, and receives at most one
+typed correction attempt. An outer `claim:` evidence identity may normalize to
+its suffix only when that suffix exactly matches an authorized Claim identity.
 
 Outcome grading MUST begin with a durable explicit request naming the exact
 Claim and outcome-evidence identities. Only independent evidence observed

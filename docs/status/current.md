@@ -141,15 +141,15 @@ evidence, historical prototypes, and production gaps.
 - Company Knowledge Phase 3E Granola ingestion is implemented in Core and live
   for the `oregano-hq-companyos` production Instance. The administrator-created
   Workspace API Key is held only in the runtime secret store; the binding is
-  being corrected from legacy `personal`/`public` metadata to the exact
-  `workspace` scope. The active provider-wide requirement imports every
+  qualified with the exact `workspace` scope. The active provider-wide requirement imports every
   note visible to that key under the fixed company policy with `retain`
   lifecycle. The initial reconciliation on 2026-08-26 processed 21 of 21 notes,
   zero failed or quarantined, stored 1,134,874 bytes of complete note and
   transcript Raw Evidence, and advanced one completed durable watermark. All
   21 payloads fit below the inline boundary; the durable Postgres Raw Asset
   path remains active for larger future transcripts. A six-hour leased overlap
-  reconciliation schedule and signed webhook route are deployed. Webhook
+  reconciliation schedule, a staggered extraction and compounding schedule,
+  and a signed webhook route are deployed. Webhook
   delivery remains pending until its separate provider signing SecretRef is
   installed; scheduled reconciliation is already operational.
 - Company Knowledge Phase 3F implements exact local-file ingestion and the
@@ -195,7 +195,8 @@ evidence, historical prototypes, and production gaps.
   non-default grant. Scoped compounding distinguishes Source, mixed, and
   global idempotency and lock domains.
 - Productive Company Knowledge compounding is implemented behind a protected
-  Runner operation but is not yet scheduled. The Core now performs bounded,
+  Runner operation and scheduled by the maintained Vercel adapter after the
+  production gates passed. The Core now performs bounded,
   authorization-prepared duplicate classification, Claim-relation proposals,
   conflict proposals, immutable working-synthesis refresh, and explicit
   outcome-grading requests. Additive Postgres state persists leases,
@@ -203,7 +204,22 @@ evidence, historical prototypes, and production gaps.
   cannot mutate canonical Claims, accept its own proposal, or create Handbook
   authority. The live fixture-qualification operation evaluates all 13 current
   Prompt Registry tasks with precision, recall, F1, exact model route, and
-  receipt identity before an operator enables the schedule.
+  receipt identity before an operator enables the schedule. The portable
+  default processes one model-backed work item per phase and persists a
+  continuation after every successful invocation; long-running hosts may opt
+  into a larger explicit budget. Working-synthesis Claim partitions are
+  mutually exclusive, exact-subject-bounded, and receive at most one typed
+  correction attempt.
+- The linked production Instance completed the real Granola extraction and
+  compounding gates on 2026-08-27. All 21 current Source Objects have successful
+  extraction receipts under pipeline `2.0.0` and Claim-extraction prompt `6`.
+  Prompt qualification `eac0b9add2ae9a1f02daea0059347a66db0cef92a154aaa57cfc37bbc64fea5c`
+  passed all 13 fixtures, including Working Synthesis prompt `4`. Cycle
+  `2026-08-27T06:00:00.000Z` completed all five productive phases, and an
+  immediate retry returned the same five complete receipt identities. Failed
+  historical extraction attempts remain retained as audit evidence but are
+  excluded from retrieval and compounding unless their referenced extraction
+  run succeeded.
 - Phase 5 production integration now adapts that authorization-first retrieval
   into the existing standard `knowledge.search`, `knowledge.get`, and
   `knowledge.traverse` Tool contracts. Local conformance tests prove that a

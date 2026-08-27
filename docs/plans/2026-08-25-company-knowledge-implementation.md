@@ -842,7 +842,7 @@ cost policy, and its regression evidence.
 | sanity, encoding, size, credential, and ACL gates | deterministic | none | quarantine or explicit validation failure | no model-visible context until passed |
 | source-processing triage | deterministic rules first; optional `utility` verdict for ambiguous or expensive material | `knowledge.triage@2` | `deferred` or `unreliable`; never a terminal low-value decision | select processing depth only |
 | Page-type classification | frontmatter, Connector metadata, registry aliases, and path rules first; `utility` only when unresolved | `knowledge.page-classification@2` | `note` or unresolved proposal according to declared source policy | versioned Page type or review proposal; never a new undeclared type |
-| Fact, Take, typed metric, Holder, and participant extraction | `reasoning` structured extraction | `knowledge.claim-extraction@2` | retryable extraction state; Raw Evidence remains retained and searchable when authorized | scoped Facts, source-literal Takes, or bounded proposals under Section 12.1 |
+| Fact, Take, typed metric, Holder, and participant extraction | `reasoning` structured extraction | `knowledge.claim-extraction@6` | retryable extraction state; Raw Evidence remains retained and searchable when authorized | scoped Facts, source-literal Takes, or bounded proposals under Section 12.1 |
 | timeline extraction | deterministic provider timestamps and explicit date fields first; `reasoning` for events expressed in prose | `knowledge.timeline-extraction@2` | retain the Page without inferred events and mark extraction incomplete | cited timeline events only |
 | exact duplicate detection | stable provider identity and content digest | none | fail closed without consolidation | exact duplicate receipt |
 | semantic duplicate or supersession classification | embedding candidate generation, deterministic high-confidence equivalence where declared, then `utility` or `reasoning` only for the ambiguous band | `knowledge.duplicate-classification@2` and `knowledge.claim-relation@2` | `distinct` or `uncertain`; never merge on model failure | duplicate, supersession, or merge proposal with candidate IDs |
@@ -856,7 +856,7 @@ cost policy, and its regression evidence.
 | contradiction judgment | deterministic candidate selection followed by a bounded `utility` verdict only for plausible pairs | `knowledge.conflict-judgment@2` | unresolved conflict candidate | conflict evidence or proposal; no Claim deletion |
 | interactive Agent answer | existing Agent model turn over an authorized context built from Knowledge Tool results | `knowledge.answer@1` compiled fragment | cited extractive response, explicit unavailable state, or stated gap | conversational answer only |
 | explicit answer synthesis | `deep` through `knowledge.synthesize` | `knowledge.cited-synthesis@2` | typed `unavailable` or declared extractive fallback | structured answer; persistence is separate |
-| durable working synthesis | `deep` background task | `knowledge.working-synthesis@2` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
+| durable working synthesis | `deep` background task | `knowledge.working-synthesis@4` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
 | Claim grading and calibration narrative | deterministic evidence selection followed by `reasoning` or `deep` judgment | `knowledge.claim-grading@2`; calibration summary remains later work | `unresolvable` or retryable failure | evidence-bound resolution or calibration proposal only |
 
 Embedding generation and cross-encoder reranking share recipe identity,
@@ -887,7 +887,7 @@ The initial registry contains:
 |---|---|
 | `knowledge.triage@2` | processing tier, `process`, `defer`, or `retry`, reason codes, and rationale; the result changes processing effort only |
 | `knowledge.page-classification@2` | one declared Page type and rationale |
-| `knowledge.claim-extraction@2` | separate atomic Fact and Take arrays, exact owner or Holder, derivation, participant relations, confidence, weight, and exact locator |
+| `knowledge.claim-extraction@6` | separate atomic Fact and Take arrays, exact owner or Holder, derivation, participant relations, confidence, discrete weight, and exact bounded locator |
 | `knowledge.timeline-extraction@2` | bounded events with time, kind, source identity, and exact locator |
 | `knowledge.claim-relation@2` | support, contradiction, refinement, or supersession proposals referencing only supplied Claim IDs |
 | `knowledge.identity-link@2` | same, different, or uncertain identity proposals referencing only supplied Page and Entity IDs |
@@ -896,7 +896,7 @@ The initial registry contains:
 | `knowledge.conflict-judgment@2` | conflict, compatible, or uncertain with both supplied Claim identities and severity |
 | `knowledge.query-expansion@2` | at most the caller's bounded number of sanitized alternative queries; never instructions or filters |
 | `knowledge.cited-synthesis@2` | answer to the supplied query, structured citations, material conflicts, gaps, freshness, and authority labels |
-| `knowledge.working-synthesis@2` | versioned current state, supporting, contested, and superseded Claims, plus gaps |
+| `knowledge.working-synthesis@4` | versioned current state with exact, mutually exclusive supporting, contested, and superseded Claim identities, plus gaps |
 | `knowledge.claim-grading@2` | correct, incorrect, partial, or unresolvable, confidence, rationale, and evidence identities |
 
 Evidence is wrapped as typed data and explicitly cannot modify system or Agent
@@ -2219,11 +2219,12 @@ Core. Source Connector 2.0, exact registry resolution, the shared durable event
 pipeline, governed lifecycle, GitHub V1/V2, Granola hybrid ingestion, exact
 local input, idempotent Session transfer, temporary cleanup, and explicit
 durable Session archive paths have contract tests. The linked production
-Instance has received and qualified manifest `1.4.0`. Its real Granola binding
+Instance has received and qualified manifest `1.5.0`. Its real Granola binding
 is provider-wide, uses an administrator-created Workspace API Key with the
 exact `workspace` scope, fixed company
 policy, permanent retention, a durable Postgres Raw Asset adapter, protected
-runtime routes, a six-hour scheduler, resumable leases, and one completed
+runtime routes, staggered six-hour reconciliation, extraction, and compounding
+schedules, resumable leases, and one completed
 watermark. The initial synchronization processed 21 of 21 notes with complete
 transcripts, zero failures, and zero quarantine outcomes. The signed webhook
 route is deployed but awaits the separate provider webhook signing SecretRef.
@@ -2390,11 +2391,14 @@ tests cover authorization-first search, get, traversal, stable citations, and
 runtime Connector presence. Production semantic and reranker adapters,
 calibrated lexical thresholds, live Workspace grants, and cited Slack
 qualification remain Instance integration work. Persisted productive
-compounding is now implemented with durable leases, continuations, receipts,
+compounding is implemented with durable leases, continuations, receipts,
 review-only Claim-pair proposals, versioned working syntheses, and explicit
-grading requests. The protected Runner endpoint remains unscheduled until the
-direct-provider smoke test, all 13 live prompt fixtures, the additive 1.5.0
-migration, and one real source-to-Claim-to-synthesis run have qualified.
+grading requests. On 2026-08-27 the direct-provider smoke tests, all 13 live
+prompt fixtures, the additive 1.5.0 migration, a 21-object extraction backfill,
+one complete real source-to-Claim-to-synthesis cycle, and an identical receipt
+retry all qualified. The maintained Vercel adapter therefore enables the
+staggered six-hour schedule; non-Vercel hosts bind the same protected portable
+operations through their own scheduler and secret store.
 
 ### Phase 6 — Handbook promotion and Decision Receipts
 
@@ -2477,18 +2481,20 @@ Exit criteria:
 - the active Handbook snapshot is reproducible; and
 - rollback to the prior Instance and snapshot state is tested.
 
-Implementation status on 2026-08-26: `database prepare` now distinguishes an
+Implementation status on 2026-08-27: `database prepare` distinguishes an
 absent database, an additive upgrade, and an already current database. The
-linked production Instance upgraded to manifest `companyos-postgres@1.4.0`
+linked production Instance upgraded to manifest `companyos-postgres@1.5.0`
 with digest
-`6c0b3366540c8b1c0a3d889ef8c180c32d15d4e1bb92dbbbd8b10e94ddbce16c`
-and passed a separate read-only qualification: 12 Control tables, 55 required
+`bb3dcef272ce2c33ae1a479171a648ea6e79ab01b04ca37dce998a5e0e404cea`
+and passed a separate read-only qualification: 12 Control tables, 59 required
 Knowledge tables plus vector, and 19 Core Page types. The immutable ledger
-preserves every predecessor through `1.3.0`. Deterministic export and cutover
-receipt contracts are implemented, and the real Granola initial backfill is
-complete. A production recipe/model smoke test, automatic extraction from the
-live change stream, Handbook activation, backup, and tested rollback are
-still required before a complete live Knowledge cutover can be claimed.
+preserves every predecessor. Deterministic export and cutover receipt contracts
+are implemented. The real Granola backfill, current extraction of all 21 Source
+Objects, direct-model smoke and 13-fixture qualification, complete productive
+compounding, identical-receipt retry, and maintained Vercel schedule are live.
+Handbook activation, backup, tested rollback, and the first qualified
+non-Vercel production host remain Instance work before a complete live
+Knowledge cutover can be claimed.
 
 ### Phase 8 — Hardening and operating evidence
 

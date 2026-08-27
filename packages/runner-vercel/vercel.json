@@ -9,6 +9,10 @@
     {
       "path": "/api/knowledge/sources/granola/extract",
       "schedule": "15 */6 * * *"
+    },
+    {
+      "path": "/api/knowledge/compounding",
+      "schedule": "30 */6 * * *"
     }
   ]
 }
