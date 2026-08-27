@@ -21,6 +21,7 @@ import {
   builderQueuedActionCard,
   resolveBuilderActionCard,
 } from "./builder/action-cards.ts";
+import { runnerTurnPresentation } from "./builder/presentation.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts";
@@ -250,12 +251,12 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
   const result = await modelAgent.generate({ messages });
-  const response = result.text.trim() || "The requested CompanyOS operation was processed. Review any approval card above before an effect can occur.";
-  await state.appendToList(conversationKey, { role: "assistant", content: response, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
+  const presentation = runnerTurnPresentation(result.text, result.toolResults);
+  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
-  await thread.post(response);
+  if (presentation.visibleResponse) await thread.post(presentation.visibleResponse);
 }
 
 function registerHandlers(bot: Chat) {

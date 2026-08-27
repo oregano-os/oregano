@@ -76,6 +76,13 @@ job without a retained message identity MAY receive a fallback post in the same
 source thread; fallback delivery is at-least-once when persistence fails after
 the provider accepted the post.
 
+When `builder.propose_change` successfully posts the confirmation card, that
+card MUST be the sole visible Runner acknowledgement for the turn. The Runner
+MUST NOT also post model-generated confirmation prose. It MUST retain a
+deterministic internal conversation-history entry so subsequent turns know that
+the card is awaiting the requester's explicit action. If card creation fails,
+normal error or model communication MUST remain visible.
+
 The Instance MAY bind one safe proposal target branch. The target MUST be
 compiled into the Artifact, visible in the human confirmation, immutable in the
 job, and verified with the exact base commit before publication. The model and

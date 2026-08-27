@@ -178,7 +178,9 @@ non-qualification provider bindings.
 
 1. Address the Builder through its bound channel.
 2. Clarify the exact objective in the normal Runner conversation.
-3. Review the confirmation card's repository and exact base commit.
+3. Review the confirmation card's repository and exact base commit. Once this
+   card is posted, it is the sole visible acknowledgement; the Runner does not
+   add a second model-authored restatement below it.
 4. Select **Start proposal**. This is the first point at which a job exists.
    The same card changes to **CompanyOS Builder proposal queued** and no longer
    offers **Start proposal** or the confirmation **Cancel** action. If the

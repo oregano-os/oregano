@@ -127,7 +127,10 @@ evidence, historical prototypes, and production gaps.
   delivery has its own persistent lease, bounded retry metadata, and backoff;
   it resolves the queued Chat card to a final action-free outcome without
   making terminal execution claimable again. Legacy jobs without a retained
-  message identity use a same-thread fallback post.
+  message identity use a same-thread fallback post. A successfully posted
+  Builder confirmation card is the sole visible acknowledgement for its turn;
+  redundant generated confirmation prose is retained neither as a second Chat
+  message nor as operator-facing status.
 - Provider-neutral repository-source and checked-proposal contracts have local
   Git and GitHub App implementations. The GitHub profile verifies one selected
   repository, stores no token, handles suspension, uninstall, and repository
