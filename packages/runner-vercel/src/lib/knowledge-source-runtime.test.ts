@@ -70,6 +70,7 @@ test("Granola runtime configuration remains SecretRef-only and scheduler authori
 test("Knowledge source runtime failures expose bounded categories rather than provider messages", () => {
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Source 'source:test' conflicts with an existing requirement.")), "source-registration");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Source binding 'source:test' is not active for ingestion.")), "binding-state");
+  assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Knowledge model provider call failed (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa).")), "model-provider");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Granola API request failed after bounded retry (HTTP 503).")), "provider-response");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("unexpected protected provider detail")), "unclassified");
   assert.deepEqual(describeKnowledgeSourceRuntimeError(Object.assign(new Error("Source 'source:private' conflicts with digest aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa at https://provider.test/path?token=hidden"), { code: "23505", constraint: "source_key" })), {

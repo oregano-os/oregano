@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { GranolaKnowledgeExtractionRuntime } from "../../../../../../lib/knowledge-model-runtime.ts";
-import { authorizeScheduledKnowledgeRequest } from "../../../../../../lib/knowledge-source-runtime.ts";
+import { authorizeScheduledKnowledgeRequest, classifyKnowledgeSourceRuntimeError, describeKnowledgeSourceRuntimeError } from "../../../../../../lib/knowledge-source-runtime.ts";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -12,7 +12,7 @@ async function handle(request: Request) {
   try {
     return Response.json(await new GranolaKnowledgeExtractionRuntime().process(), { status: 200 });
   } catch (error) {
-    return Response.json({ ok: false, error: "extraction-failed", errorDigest: errorDigest(error) }, { status: 503 });
+    return Response.json({ ok: false, error: "extraction-failed", reasonCode: classifyKnowledgeSourceRuntimeError(error), diagnostic: describeKnowledgeSourceRuntimeError(error), errorDigest: errorDigest(error) }, { status: 503 });
   }
 }
 
