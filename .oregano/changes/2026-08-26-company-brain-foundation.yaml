@@ -1,0 +1,81 @@
+version: 1
+plan_id: company-brain-foundation-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Start the Company Brain schema and contract foundation
+objective: >-
+  Start the approved Company Brain implementation with an additive Core
+  foundation for the versioned 19-type Page taxonomy, immutable Page versions,
+  principal-scoped Facts, single-Holder Takes, proposal-gated model-derived
+  Takes, exact Claim evidence, participant relations, one-way consolidation,
+  and evidence-bound resolution proposals in the existing
+  companyos_knowledge schema.
+non_goals:
+  - Expose the new Brain records through Agent-facing read or write Capabilities.
+  - Enable sensitive-source ingestion before fine-grained authorization is implemented and qualified.
+  - Implement model extraction, automated grading, synthesis, retention cleanup, or Handbook promotion in this increment.
+  - Replace OKF or change the exact Handbook commit as the singular curated authority.
+  - Introduce a second database, runtime, or provider-specific Agent contract.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-26-company-brain-foundation.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/specifications/company-knowledge-v0.1-draft.md
+  - docs/status/current.md
+  - packages/knowledge/brain-contracts.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/testkit/tests/company-brain-foundation.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-create-a-development-branch-and-start-implementation
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-brain-foundation.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-brain-foundation.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-brain-foundation.test.ts
+  - git diff --check
+tests:
+  - The Core taxonomy contains exactly 19 unique base Page types and remains extensible without a database enum rewrite.
+  - Unknown classifications fall back to note while registered extension types and explicit aliases resolve deterministically.
+  - Facts require an owning principal and explicit principal or session scope.
+  - Takes always carry one resolved or explicitly unresolved epistemic Holder.
+  - Source-literal Takes activate only with exact evidence and a resolved Holder.
+  - Model-derived Takes remain proposed even when extraction confidence is high.
+  - Fact consolidation requires a durable receipt before producing an active Take.
+  - Claim identifiers are deterministic and retries do not duplicate the logical Claim.
+  - Resolution verdicts are evidence-bound proposals and cannot auto-apply in this increment.
+  - The additive SQL schema remains idempotent and does not change existing snapshot or OKF tables.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.1
+    - status.current
+migration: >-
+  Apply only additive tables in the existing companyos_knowledge schema through
+  the existing DATABASE_URL. Seed the versioned Core taxonomy idempotently.
+  Existing snapshots, source rows, Runtime Observations, and review decisions
+  remain readable and unchanged. No new Brain read or write path is activated
+  by applying this migration alone.
+rollback: >-
+  Disable all new Brain writers before rollback. Because the new tables are not
+  exposed in this increment, rollback may leave them dormant and retained. A
+  later destructive removal requires separate approval and export evidence;
+  existing OKF snapshots and provider behavior remain the active fallback.
+open_decisions:
+  - Select the first extraction model and prompt versions only after authorization and evaluation fixtures exist.
+  - Select activation policies for any model-derived proposal class in a later separately approved change.
+  - Complete fine-grained ACL enforcement before enabling sensitive Brain ingestion or retrieval.

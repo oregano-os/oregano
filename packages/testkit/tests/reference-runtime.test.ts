@@ -210,6 +210,17 @@ test("the runtime refuses an installed but ungranted Tool", async () => {
   }), /not in agent 'growth' resolved ToolSet/);
 });
 
+test("the runtime accepts only an explicitly bounded Tool execution window", () => {
+  const base = {
+    artifact: build(),
+    state: new InMemoryStateStore(),
+    connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()],
+  };
+  assert.doesNotThrow(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 30_000 }));
+  assert.throws(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 99 }), /100 to 120000 ms/u);
+  assert.throws(() => new CompanyOSRuntime({ ...base, toolExecutionTimeoutMs: 120_001 }), /100 to 120000 ms/u);
+});
+
 test("an approved Connector failure is recorded as failed, never left dispatched", async () => {
   const state = new InMemoryStateStore();
   const runtime = new CompanyOSRuntime({

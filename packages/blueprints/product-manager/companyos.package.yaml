@@ -1,0 +1,35 @@
+schema_version: 1
+id: oregano/product-manager
+version: 0.1.0
+kind: blueprint
+name: Product Manager
+description: Evidence-governed conversation analysis and PRD drafting Components.
+license: Apache-2.0
+publisher:
+  id: oregano
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - agents/product-manager/instructions.md
+  workflows:
+    - workflows/conversation-product-discovery.md
+  skills:
+    - agents/product-manager/skills/product-discovery-to-prd/SKILL.md
+requires:
+  tools: []
+  capabilities:
+    - communication.message.publish
+    - conversation.read
+    - knowledge.record
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures:
+    - tests/fixtures/feature-candidate.yaml
+    - tests/fixtures/no-feature.yaml
+    - tests/fixtures/prd-draft.yaml
+    - tests/fixtures/untrusted-instructions.yaml

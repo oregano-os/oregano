@@ -1,0 +1,82 @@
+version: 1
+plan_id: company-brain-entity-identity-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Add cross-source Company Brain entity identity
+objective: >-
+  Continue the approved Company Brain implementation with stable cross-source
+  Entity identities, Page-to-Entity memberships proven by deterministic or
+  reviewed evidence, and focused proposals for fuzzy, embedding, or
+  model-derived matches. Extend the provider-neutral BrainStore and existing
+  companyos_knowledge schema without exposing a new Agent-facing read path.
+non_goals:
+  - Treat a Page identity as proof of a cross-source real-world Entity identity.
+  - Let name similarity, semantic similarity, embeddings, or model judgment activate a membership automatically.
+  - Implement broad Page merges, content deduplication, Timeline Events, or Claim consolidation in this increment.
+  - Widen access because two Pages are linked to the same Entity.
+  - Enable sensitive ingestion or retrieval before fine-grained authorization is qualified.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-26-company-brain-entity-identity.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/specifications/company-knowledge-v0.1-draft.md
+  - docs/status/current.md
+  - packages/knowledge/brain-contracts.ts
+  - packages/knowledge/brain-store.ts
+  - packages/knowledge/in-memory-brain-store.ts
+  - packages/state-postgres/brain-store.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/testkit/tests/company-brain-entity-identity.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-continue-company-brain-development
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-brain-entity-identity.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-brain-entity-identity.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-brain-entity-identity.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Entity identities have deterministic stable IDs and reject content drift under identity reuse.
+  - A source-specific Page remains independently versioned after joining an Entity.
+  - Provider identifiers, administrator mappings, deterministic rules, and accepted review decisions may create memberships.
+  - Name similarity, embedding similarity, and model judgment can create only proposals.
+  - A model-derived proposal requires exact model, prompt, and extraction-run provenance.
+  - A proposal never creates a membership before an attributable accept decision.
+  - An accepted decision creates exactly one membership bound to the candidate Page, target Entity, and decision receipt.
+  - A rejected decision creates no membership and an incompatible second decision fails closed.
+  - One source-specific Page cannot silently join two different Entity identities.
+  - Every membership retains the Page access-policy identity so a later derived view can intersect rather than widen access.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.1
+    - status.current
+migration: >-
+  Add entity_identities, entity_identity_members, and
+  entity_identity_proposals to the existing companyos_knowledge schema. The
+  migration is additive and does not backfill or auto-link existing Pages.
+  Existing Brain, source, and OKF rows remain unchanged.
+rollback: >-
+  Disable Entity writers and ignore the additive identity tables. Retain
+  identities, proposals, decisions, and membership receipts as dormant
+  evidence. Removing or merging an Entity remains a separate governed change.
+open_decisions:
+  - Implement ACL-policy intersection before exposing Entity-derived retrieval.
+  - Calibrate fuzzy and embedding proposal thresholds from evaluation evidence.
+  - Add reversible multi-Page merge semantics separately from identity membership.

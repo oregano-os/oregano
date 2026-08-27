@@ -1,0 +1,4 @@
+interface:
+  display_name: "Product Discovery to PRD"
+  short_description: "Turn customer evidence into governed product decisions"
+  default_prompt: "Analyze the supplied customer conversation, classify it as no_feature, feature_candidate, or prd_draft, and use the bundled PRD template only when evidence supports a draft."

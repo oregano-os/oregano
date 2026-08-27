@@ -1,0 +1,146 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { sha256 } from "../../../runtime/canonical.ts";
+import { CORE_KNOWLEDGE_PROMPT_FIXTURES } from "../../../knowledge/prompt-evaluation.ts";
+import { KNOWLEDGE_MODEL_EXECUTION_CONTRACT_VERSION, type KnowledgeModelExecutor, type KnowledgeModelProfileBinding } from "../../../knowledge/knowledge-model-execution.ts";
+import { KnowledgePromptRegistry } from "../../../knowledge/prompt-registry.ts";
+import {
+  decodeKnowledgeModelRuntimeConfiguration,
+  knowledgeModelAdapterDigest,
+  KNOWLEDGE_EXTRACTION_JSON_SCHEMA,
+  KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA,
+  productiveKnowledgeCompoundingCycleId,
+  qualifyKnowledgePromptFixtures,
+  resolveKnowledgeTaskProfile,
+} from "./knowledge-model-runtime.ts";
+
+const qualifiedAt = "2026-08-26T18:00:00.000Z";
+const route = "vercel-ai-gateway";
+const model = "openai/gpt-5.4-nano";
+const adapterDigest = knowledgeModelAdapterDigest(route, model);
+const profile = (name: "utility" | "reasoning"): KnowledgeModelProfileBinding => ({
+  contractVersion: KNOWLEDGE_MODEL_EXECUTION_CONTRACT_VERSION,
+  profile: name,
+  profileVersion: "1.0.0",
+  route,
+  model,
+  secretRefs: [],
+  allowedDataClasses: ["business", "confidential", "restricted", "personal"],
+  maxInputTokens: 200_000,
+  maxOutputTokens: 16_000,
+  maxCostUsd: 5,
+  state: "active",
+  qualification: { qualifiedAt, receiptId: sha256(`${name}:qualification`), adapterDigest },
+});
+
+test("Knowledge model runtime keeps legacy utility and reasoning bindings readable", () => {
+  const configuration = { version: 1 as const, utility: profile("utility"), reasoning: profile("reasoning") };
+  const encoded = Buffer.from(JSON.stringify(configuration)).toString("base64");
+  const decoded = decodeKnowledgeModelRuntimeConfiguration(encoded);
+  assert.equal(Object.keys(decoded.tasks).length, 13);
+  assert.deepEqual(resolveKnowledgeTaskProfile(decoded, "knowledge.page-classification"), configuration.utility);
+  assert.deepEqual(resolveKnowledgeTaskProfile(decoded, "knowledge.claim-extraction"), configuration.reasoning);
+  assert.equal(resolveKnowledgeTaskProfile(decoded, "knowledge.working-synthesis").profile, "deep");
+  assert.equal(resolveKnowledgeTaskProfile(decoded, "knowledge.working-synthesis").model, configuration.reasoning.model);
+  assert.throws(() => decodeKnowledgeModelRuntimeConfiguration(Buffer.from(JSON.stringify({ ...configuration, token: "forbidden" })).toString("base64")), /unsupported shape/);
+  assert.equal(adapterDigest, sha256({ adapter: "oregano/model-recipe-knowledge", version: "1.0.0", route, model }));
+});
+
+test("Knowledge model runtime compiles every prompt through profile and exact task recipes", () => {
+  const knowledge = Buffer.from(JSON.stringify({
+    version: 1,
+    profiles: {
+      utility: { route: "anthropic-direct", model: "anthropic/claude-haiku-4-5-20251001", maxOutputTokens: 2_000 },
+      reasoning: { route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6", maxOutputTokens: 8_000 },
+      deep: { route: "anthropic-direct", model: "anthropic/claude-opus-4-7", maxOutputTokens: 16_000 },
+    },
+    tasks: {
+      "knowledge.claim-grading": { route: "anthropic-direct", model: "anthropic/claude-opus-4-7", maxOutputTokens: 12_000 },
+    },
+  })).toString("base64");
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(knowledge, {
+    ANTHROPIC_API_KEY: "synthetic-anthropic-key",
+  });
+  assert.equal(Object.keys(configuration.tasks).length, 13);
+  assert.deepEqual(
+    [resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").model, resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").maxOutputTokens],
+    ["anthropic/claude-haiku-4-5-20251001", 2_000],
+  );
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-extraction").model, "anthropic/claude-sonnet-4-6");
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.cited-synthesis").model, "anthropic/claude-opus-4-7");
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-grading").maxOutputTokens, 12_000);
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").qualification, undefined);
+  const frontier = sha256("frontier");
+  const firstCycle = productiveKnowledgeCompoundingCycleId(frontier, configuration);
+  assert.equal(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, configuration));
+  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(sha256("changed-frontier"), configuration));
+  assert.match(firstCycle, /^knowledge-compounding@2\.2\.0:[a-f0-9]{16}:[a-f0-9]{16}$/);
+  const changed = structuredClone(configuration);
+  changed.tasks = { ...changed.tasks, "knowledge.working-synthesis": { ...changed.tasks["knowledge.working-synthesis"]!, model: "anthropic/claude-opus-4-8" } };
+  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, changed));
+});
+
+test("Knowledge model runtime inherits the shared CompanyOS recipe configuration when no Knowledge override exists", () => {
+  const shared = Buffer.from(JSON.stringify({
+    version: 1,
+    profiles: { reasoning: { route: "openai-direct", model: "openai/gpt-5.4-mini", maxOutputTokens: 8_000 } },
+  })).toString("base64");
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(undefined, {
+    COMPANYOS_MODEL_CONFIG_BASE64: shared,
+    OPENAI_API_KEY: "synthetic-openai-key",
+  });
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-extraction").model, "openai/gpt-5.4-mini");
+});
+
+test("maintained Anthropic defaults keep background working synthesis bounded on Sonnet", () => {
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(undefined, {
+    ANTHROPIC_API_KEY: "synthetic-anthropic-key",
+  });
+  const working = resolveKnowledgeTaskProfile(configuration, "knowledge.working-synthesis");
+  const cited = resolveKnowledgeTaskProfile(configuration, "knowledge.cited-synthesis");
+  assert.deepEqual(
+    [working.profile, working.model, working.maxOutputTokens, working.timeoutMs, working.retries],
+    ["deep", "anthropic/claude-sonnet-4-6", 4_000, 240_000, 0],
+  );
+  assert.equal(cited.model, "anthropic/claude-opus-4-7");
+});
+
+test("Knowledge structured-output schemas type every constant for strict provider validation", () => {
+  const constantNodes: Array<Record<string, unknown>> = [];
+  const enumNodes: Array<Record<string, unknown>> = [];
+  const forbiddenOneOfNodes: Array<Record<string, unknown>> = [];
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object") return;
+    const node = value as Record<string, unknown>;
+    if (Object.hasOwn(node, "const")) constantNodes.push(node);
+    if (Object.hasOwn(node, "enum")) enumNodes.push(node);
+    if (Object.hasOwn(node, "oneOf")) forbiddenOneOfNodes.push(node);
+    Object.values(node).forEach(visit);
+  };
+  for (const definition of new KnowledgePromptRegistry().list()) visit(definition.outputSchema);
+  visit(KNOWLEDGE_EXTRACTION_JSON_SCHEMA);
+  visit(KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA);
+  assert.ok(constantNodes.length >= 3);
+  assert.ok(constantNodes.every((node) => node.type === "string"));
+  assert.ok(enumNodes.length >= 5);
+  assert.ok(enumNodes.every((node) => node.type === "string"));
+  assert.deepEqual(forbiddenOneOfNodes, []);
+});
+
+test("live fixture qualification covers every current prompt and reports bounded non-secret metrics", async () => {
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(Buffer.from(JSON.stringify({ version: 1, utility: profile("utility"), reasoning: profile("reasoning") })).toString("base64"));
+  const executor: KnowledgeModelExecutor = { execute: async (binding, request) => {
+    const fixture = CORE_KNOWLEDGE_PROMPT_FIXTURES.find((entry) => entry.promptId === request.promptId);
+    if (!fixture) throw new Error("Missing fixture.");
+    return { output: fixture.referenceOutput, responseId: `response:${fixture.fixtureId}`, responseModel: binding.model, inputTokens: 10, outputTokens: 10, costUsd: 0, latencyMs: 1, finishReason: "stop" as const };
+  } };
+  const result = await qualifyKnowledgePromptFixtures({ executor, configuration, now: () => "2026-08-27T12:00:00.000Z" });
+  assert.equal(result.ok, true);
+  assert.equal(result.fixtureCount, 13);
+  assert.equal(result.results.every((entry) => entry.qualified && entry.metrics.f1 === 1), true);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic-anthropic-key|source evidence/i);
+});

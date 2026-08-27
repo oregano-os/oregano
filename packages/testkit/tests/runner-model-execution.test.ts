@@ -8,15 +8,21 @@ test("Gateway and direct Anthropic execution are distinct normalized routes", ()
     route: "vercel-ai-gateway",
     provider: "vercel-ai-gateway",
     model: "openai/gpt-5.4-nano",
+    transport: "ai-gateway",
     credentialRef: null,
+    baseUrlRef: null,
+    recipeVersion: "1.0.0",
   });
   assert.deepEqual(normalizeModelExecution("anthropic-direct", "anthropic/claude-sonnet-4-5"), {
     route: "anthropic-direct",
     provider: "anthropic",
     model: "anthropic/claude-sonnet-4-5",
+    transport: "anthropic-messages",
     credentialRef: "ANTHROPIC_API_KEY",
+    baseUrlRef: null,
+    recipeVersion: "1.0.0",
   });
-  assert.throws(() => normalizeModelExecution("anthropic-direct", "openai/gpt-5.4-nano"), /only anthropic/);
+  assert.throws(() => normalizeModelExecution("anthropic-direct", "openai/gpt-5.4-nano"), /not supported/);
 });
 
 test("direct Anthropic requires its runtime secret while Gateway does not", () => {

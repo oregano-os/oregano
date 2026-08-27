@@ -1,0 +1,74 @@
+version: 1
+plan_id: company-knowledge-phase-5-retrieval-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement salience, synthesis, retrieval, context, delta, and compounding
+objective: >-
+  Provide authorization-first, explainable Company Knowledge retrieval and
+  cited synthesis while separating processing effort, rank salience,
+  retention, deletion, and authority, and add an idempotent scoped compounding
+  cycle for bounded background maintenance.
+non_goals:
+  - Let ranking or model failure delete durable knowledge.
+  - Expose internal context packs or generative synthesis without explicit grants.
+  - Treat a working synthesis as Handbook authority.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-5-retrieval.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/compatibility/registry.yaml
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - packages/knowledge/salience.ts
+  - packages/knowledge/retrieval-v2.ts
+  - packages/knowledge/compounding.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-5-retrieval.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-5-retrieval.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Authorization filters candidates before lexical, semantic, graph, rerank, context, and citation stages.
+  - Timeline, explanation, and context construction use their own authorization capabilities.
+  - Deep query expansion and optional reranking are bounded, disabled by default, and bind execution receipts into the Context Receipt.
+  - Processing tier and retrieval salience never alter retention, deletion, or authority.
+  - Empty evidence cannot produce a substantive answer and citations must belong to the exact context receipt.
+  - Context packs are deterministic and deltas resume with at-least-once keyset semantics.
+  - Failed model and ambiguous duplicate outcomes remain retryable proposals.
+  - Source, mixed, and global compounding phases use distinct idempotency and lock scopes.
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.company-knowledge-implementation
+    - specification.company-knowledge-v0.2
+    - status.current
+migration: >-
+  Use existing synthesis, merge-ledger, change-stream, cursor, extraction-run,
+  and projection tables. Retrieval projections are rebuildable and no durable
+  evidence or authority state is rewritten.
+rollback: >-
+  Disable the V2 retrieval and compounding capabilities, retain their receipts
+  and durable synthesis versions, and rebuild projections from Raw Evidence,
+  Pages, Claims, and the active Handbook snapshot.
+open_decisions:
+  - Production semantic and reranker adapters remain subject to measured qualification.

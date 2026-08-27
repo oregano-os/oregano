@@ -1,0 +1,98 @@
+version: 1
+plan_id: company-brain-phase-1-schema-completion-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Complete the Company Brain Phase 1 durable schema
+objective: >-
+  Complete the additive Company Brain schema foundation in the existing
+  Company Instance database. Introduce a new immutable database manifest
+  version for ACL foundations, raw assets, merge and calibration evidence,
+  timelines, knowledge edges, working syntheses, promotion and decision
+  evidence, sessions, extraction runs, resumable cursors, and deterministic
+  export ledgers. Upgrade existing Source and Claim rows fail-closed without
+  enabling sensitive retrieval or Agent-facing Brain capabilities.
+non_goals:
+  - Enable sensitive-source ingestion, Agent-facing retrieval, or model context access.
+  - Implement ACL authorization decisions, ranking, extraction, synthesis generation, promotion, or cleanup workers.
+  - Backfill existing source content into Pages, Claims, timelines, edges, or syntheses.
+  - Apply this new manifest to a live Company Instance in this increment.
+  - Drop, truncate, rewrite, or delete existing schema objects or company data.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Explicit boundaries over implicit coupling
+  - Evidence beats claims
+  - Secure and governed by default
+  - One database and one authority model
+files_expected:
+  - .oregano/changes/2026-08-26-company-brain-phase-1-schema-completion.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-knowledge-v0.1-draft.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-schema-phase-one.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/testkit/tests/company-brain-foundation.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-continue-implementation-according-to-the-approved-plan
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-brain-phase-1-schema-completion.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-brain-phase-1-schema-completion.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-brain-foundation.test.ts packages/testkit/tests/company-database-bootstrap.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - The historical manifest version remains immutable and the new version has a different deterministic digest.
+  - Empty bootstrap creates every Phase 1 table, required index, constraint, and Core Page type.
+  - Existing databases upgrade additively and retain prior manifest ledger rows.
+  - Existing Sources, Source Object versions, Claims, and Claim evidence receive the quarantine policy by default.
+  - Manifest qualification fails closed for a missing table, index, constraint, Page type, or current ledger row.
+  - Repeating the upgrade is idempotent and never mutates an existing manifest identity with different content.
+  - Runtime health remains read-only and no new schema object enables an Agent-facing read path.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - plan.company-knowledge-implementation
+    - specification.company-knowledge-v0.1
+    - specification.company-instance-release-promotion-v0.1
+    - status.current
+    - command.setup
+    - command.verify-live
+migration: >-
+  Add a new immutable companyos-postgres manifest version. Apply only additive
+  CREATE TABLE, CREATE INDEX, ADD COLUMN, and guarded ADD CONSTRAINT operations.
+  Seed one reserved quarantine policy before assigning it as the default to
+  existing Source, Source Object, Claim, and Claim-evidence rows. Preserve all
+  prior manifest ledger entries and existing Company Knowledge projections.
+rollback: >-
+  Disable use of the new Brain tables and continue serving the prior verified
+  Handbook snapshot. Retain all added tables, columns, manifest rows, and
+  evidence. Do not drop or rewrite schema objects; a destructive rollback
+  requires a separate approved plan and verified backup.
+open_decisions:
+  - Select the first authorization engine implementation and policy compilation format in Phase 2.
+  - Select the durable object-storage adapter before storing large raw assets outside Postgres.

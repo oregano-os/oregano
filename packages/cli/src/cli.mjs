@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
@@ -37,6 +37,25 @@ import { WORKBENCH_VERSION } from "./workbench-version.mjs";
 import { CORE_VERSION } from "./core-version.mjs";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import { loadInstanceBuildConfiguration } from "../../companyos-builder/instance-loader.ts";
+import { buildKnowledgeBundle, inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
+import { inspectCurationInbox, proposeKnowledgePromotion } from "../../knowledge/curation.ts";
+import { createPostgresKnowledgeProvider, decidePostgresKnowledgeReview, getPostgresKnowledgeReviewCandidate, listPersistedKnowledgeReviewCandidateIds, persistKnowledgeReviewCandidates, rebuildPostgresKnowledgeDerived } from "../../state-postgres/knowledge-store.ts";
+import { InMemoryKnowledgeProvider } from "../../knowledge/in-memory-provider.ts";
+import { runRetrievalRegression } from "../../knowledge/regression.ts";
+import { loadKnowledgeSourceBinding, loadKnowledgeSourceRequirement, resolveEnvironmentSecret } from "../../knowledge/source-config.ts";
+import { createMaintainedSourceConnectorRegistry } from "../../connectors/source-registry-maintained.ts";
+import { PostgresKnowledgeSourceStore } from "../../state-postgres/knowledge-source-store.ts";
+import { proposeSourcedKnowledgePromotion } from "../../knowledge/source-ingestion.ts";
+import { PostgresSourcePipelineStore } from "../../state-postgres/source-pipeline-store.ts";
+import { createPostgresInlineRawAssetStager } from "../../state-postgres/raw-asset-adapter.ts";
+import { syncChangedSourceV2, syncPullSourceV2 } from "../../knowledge/source-sync-v2.ts";
+import { ingestExactSourceInputV2, purgeSourceLifecycleDeletion, requestSourceLifecycleDeletion, restoreSourceLifecycleDeletion, setSourceLifecycleLegalHold } from "../../knowledge/source-ingestion-v2.ts";
+import { cleanupExpiredSessionCorpus, transferSessionStopBuffer } from "../../knowledge/session-corpus.ts";
+import { PostgresSessionCorpusStore } from "../../state-postgres/session-corpus-store.ts";
+import { createRuntimeObservation, proposeRuntimeObservationPromotion, runtimeObservationsToReviewCandidates } from "../../knowledge/observations.ts";
+import { findByCanonicalPrincipal, parseRoster } from "../../state-store/roster.ts";
+import { bootstrapCompanyDatabase, prepareCompanyDatabase, qualifyCompanyDatabase } from "../../state-postgres/database-bootstrap.ts";
+import { KNOWLEDGE_ADMIN_GROUP_ID } from "../../knowledge/access-control.ts";
 
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(sourceRoot, "..", "..", "..");
@@ -71,7 +90,32 @@ Usage:
   companyos setup --profile vercel-neon-slack --state <file> --status [--format human|json]
   companyos verify-live --state <file> [--format human|json]
   companyos package inspect <path> [--format human|json]
-  companyos build <workspace> --instance <file> --output <file>
+  companyos database prepare [--format human|json]
+  companyos database bootstrap [--format human|json]
+  companyos database verify [--format human|json]
+  companyos build <workspace> --instance <file> --output <file> [--knowledge-output <file>]
+  companyos knowledge inspect <workspace> [--format human|json]
+  companyos knowledge build <workspace> --output <file>
+  companyos knowledge review <workspace> [--format human|json]
+  companyos knowledge decide <workspace> --candidate <id> --decision accepted|rejected|superseded --principal <principal>
+  companyos knowledge propose <workspace> --candidate <id> --output <file> --principal <principal>
+  companyos knowledge stage --bundle <file> [--format human|json]
+  companyos knowledge verify --snapshot <hash> [--format human|json]
+  companyos knowledge activate --snapshot <hash> [--format human|json]
+  companyos knowledge rebuild --snapshot <hash> [--format human|json]
+  companyos knowledge regression <workspace> --ledger <yaml|json> [--format human|json]
+  companyos knowledge source verify|sync|health|revoke --requirement <file> --binding <file> [--workspace <path>] [--format human|json]
+  companyos knowledge source ingest --requirement <file> --binding <file> --input <exact-file> --object <stable-id> --media-type <type>
+  companyos knowledge source delete-request|delete-restore|legal-hold|delete-apply --requirement <file> --binding <file> --workspace <path> --principal <principal>
+  companyos knowledge session transfer --input <exact-stop-buffer-json>
+  companyos knowledge session cleanup [--now <iso>]
+  companyos knowledge session archive --corpus <id> --requirement <file> --binding <file>
+  companyos knowledge observation record --input <yaml|json> [--format human|json]
+  companyos knowledge observation review [--persist] [--format human|json]
+  companyos knowledge observation expire [--now <iso>] [--format human|json]
+  companyos knowledge observation delete-request --observation <id> --principal <principal> --reason <text>
+  companyos knowledge observation legal-hold --observation <id> --principal <principal> --enabled true|false
+  companyos knowledge observation delete-apply --observation <id>
 `;
 
 const exitWithDiagnostics = (diagnostics, options) => {
@@ -90,6 +134,38 @@ const targetWorkspace = (candidate) => {
 const optionValue = (name) => {
   const index = args.indexOf(name);
   return index >= 0 ? args[index + 1] : undefined;
+};
+
+const knowledgeAdminSubject = (workspace, principal) => {
+  if (!principal) throw new Error("This Knowledge review operation requires --principal <principal>.");
+  const roster = parseRoster(readFileSync(join(workspace, "handbook", "roster.md"), "utf8"));
+  const member = findByCanonicalPrincipal(roster, principal);
+  if (!member || member.type === "agent" || !/^(?:active|aktiv)$/i.test(member.status)) {
+    throw new Error(`Knowledge review principal '${principal}' is not an active human in handbook/roster.md.`);
+  }
+  if (!member.groups?.includes(KNOWLEDGE_ADMIN_GROUP_ID)) {
+    throw new Error(`Knowledge review principal '${principal}' is not in the '${KNOWLEDGE_ADMIN_GROUP_ID}' group.`);
+  }
+  return { principalId: principal, principalType: "human", status: "active", groupIds: [...new Set([...(member.groups ?? []), "company:active"])].sort() };
+};
+
+const readStructuredFile = (path) => {
+  const raw = readFileSync(resolve(path), "utf8");
+  return /\.json$/i.test(path) ? JSON.parse(raw) : YAML.parse(raw);
+};
+
+const sourceConfiguration = (operation = "inspect") => {
+  const requirementPath = optionValue("--requirement");
+  const bindingPath = optionValue("--binding");
+  if (!requirementPath || !bindingPath) throw new Error("Knowledge source commands require --requirement <file> and --binding <file>.");
+  const requirement = loadKnowledgeSourceRequirement(resolve(requirementPath));
+  const binding = loadKnowledgeSourceBinding(resolve(bindingPath), requirement);
+  const registry = createMaintainedSourceConnectorRegistry({
+    resolveSecret: resolveEnvironmentSecret,
+    rawAssetStager: createPostgresInlineRawAssetStager(),
+  });
+  const resolution = registry.resolve({ requirement, binding, operation });
+  return { requirement, binding, connector: resolution.connector, resolution };
 };
 
 const printCreationPreview = (result) => {
@@ -211,6 +287,347 @@ try {
     const target = targetWorkspace(action);
     const result = validateWorkspace(target);
     exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
+  } else if (command === "database") {
+    if (!new Set(["prepare", "bootstrap", "verify"]).has(action)) throw new Error("Use `companyos database prepare`, `companyos database bootstrap`, or `companyos database verify`.");
+    const preparation = action === "prepare" ? await prepareCompanyDatabase() : undefined;
+    const qualification = preparation?.qualification ?? (action === "bootstrap" ? await bootstrapCompanyDatabase() : await qualifyCompanyDatabase());
+    const result = { ok: true, operation: preparation?.operation ?? action, ...(preparation ? { previous_manifest_versions: preparation.previousManifestVersions } : {}), qualification };
+    process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
+  } else if (command === "knowledge") {
+    if (action === "inspect") {
+      const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
+      const result = inspectKnowledgeWorkspace({ workspaceRoot: target });
+      const summary = result.bundle ? {
+        ok: true,
+        okf_version: result.bundle.okfVersion,
+        bundle_hash: result.bundle.bundleHash,
+        documents: result.bundle.documentCount,
+        fragments: result.bundle.fragmentCount,
+        diagnostics: result.diagnostics,
+      } : { ok: false, diagnostics: result.diagnostics };
+      if (format === "json") process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
+      else {
+        for (const entry of result.diagnostics) process.stdout.write(`${entry.severity.toUpperCase()} ${entry.code} ${entry.path ?? "workspace"}: ${entry.message}\n`);
+        if (result.bundle) process.stdout.write(`OKF ${result.bundle.okfVersion}: ${result.bundle.documentCount} document(s), ${result.bundle.fragmentCount} fragment(s), bundle ${result.bundle.bundleHash}\n`);
+      }
+      if (!result.bundle) process.exitCode = 1;
+    } else if (action === "build") {
+      const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
+      const output = optionValue("--output");
+      if (!output) throw new Error("companyos knowledge build requires --output <file>.");
+      const workspaceCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: target, encoding: "utf8" }).trim();
+      if (execFileSync("git", ["status", "--porcelain", "--", "."], { cwd: target, encoding: "utf8" }).trim()) {
+        throw new Error("Company Knowledge build requires a clean Company Workspace so the recorded commit is reproducible.");
+      }
+      const bundle = buildKnowledgeBundle({ workspaceRoot: target, workspaceCommit });
+      const outputPath = resolve(output);
+      mkdirSync(dirname(outputPath), { recursive: true });
+      writeFileSync(outputPath, `${JSON.stringify(bundle, null, 2)}\n`, { flag: "wx" });
+      process.stdout.write(`Built Company Knowledge bundle ${bundle.bundleHash} at ${outputPath}\n`);
+    } else if (action === "review") {
+      const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
+      const persist = args.includes("--persist");
+      const provider = persist ? createPostgresKnowledgeProvider() : undefined;
+      const currentBundle = buildKnowledgeBundle({ workspaceRoot: target, workspaceCommit: "review-preview" });
+      const active = provider ? await provider.activeSnapshot() : undefined;
+      const previousCandidateIds = persist ? await listPersistedKnowledgeReviewCandidateIds() : [];
+      const candidates = inspectCurationInbox({ workspaceRoot: target, activeBundle: active?.bundle ?? currentBundle, previousCandidateIds });
+      const inserted = persist ? await persistKnowledgeReviewCandidates(candidates) : 0;
+      const result = { ok: true, mode: persist ? "persisted" : "preview", maximum_candidates: 3, inserted, candidates };
+      if (format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      else {
+        process.stdout.write(`Review ${persist ? "queue" : "preview"}: ${candidates.length} candidate(s), maximum 3.${persist ? ` ${inserted} new candidate(s) persisted.` : " No Workspace files were changed."}\n`);
+        for (const candidate of candidates) process.stdout.write(`- ${candidate.status.toUpperCase()} ${candidate.sourcePath} -> ${candidate.route}: ${candidate.reason}\n`);
+      }
+    } else if (action === "decide") {
+      const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
+      const candidateId = optionValue("--candidate");
+      const decision = optionValue("--decision");
+      const decidedBy = optionValue("--principal");
+      if (!candidateId || !new Set(["accepted", "rejected", "superseded"]).has(decision) || !decidedBy) {
+        throw new Error("companyos knowledge decide requires --candidate <id> --decision accepted|rejected|superseded --principal <principal>.");
+      }
+      const subject = knowledgeAdminSubject(target, decidedBy);
+      const candidate = await decidePostgresKnowledgeReview({
+        candidateId,
+        decision,
+        decidedBy,
+        decidedAt: new Date().toISOString(),
+        note: optionValue("--note"),
+      }, subject);
+      process.stdout.write(`${JSON.stringify({ ok: true, candidate, next: decision === "accepted" ? "Create and review a Workspace diff; this decision does not publish or activate knowledge." : "Archive the reviewed outcome in the Company Workspace." }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "propose") {
+      const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
+      const candidateId = optionValue("--candidate");
+      const output = optionValue("--output");
+      const principal = optionValue("--principal");
+      if (!candidateId || !output || !principal) throw new Error("companyos knowledge propose requires --candidate <id> --output <file> --principal <principal>.");
+      const subject = knowledgeAdminSubject(target, principal);
+      const candidate = await getPostgresKnowledgeReviewCandidate(candidateId, subject);
+      if (!candidate) throw new Error(`Unknown Knowledge review candidate '${candidateId}'.`);
+      const sourceStore = new PostgresKnowledgeSourceStore();
+      let proposal;
+      if (candidate.sourceObject) {
+        const reference = candidate.sourceObject;
+        const envelope = await sourceStore.getEnvelope(reference.sourceId, reference.providerObjectId, reference.providerVersion);
+        if (!envelope) throw new Error(`Source envelope for candidate '${candidateId}' is missing or no longer current.`);
+        proposal = proposeSourcedKnowledgePromotion({ candidate, envelope, destinationPath: optionValue("--destination") });
+      } else if (candidate.runtimeObservationId) {
+        const observation = await sourceStore.getObservation(candidate.runtimeObservationId);
+        if (!observation) throw new Error(`Runtime Observation for candidate '${candidateId}' is missing.`);
+        proposal = proposeRuntimeObservationPromotion({ candidate, observation, destinationPath: optionValue("--destination") });
+      } else {
+        proposal = proposeKnowledgePromotion({ workspaceRoot: target, candidate, destinationPath: optionValue("--destination") });
+      }
+      const outputPath = resolve(output);
+      mkdirSync(dirname(outputPath), { recursive: true });
+      writeFileSync(outputPath, `${JSON.stringify(proposal, null, 2)}\n`, { flag: "wx" });
+      process.stdout.write(`Wrote review-only Knowledge promotion proposal ${proposal.proposalId} at ${outputPath}\n`);
+    } else if (action === "stage") {
+      const bundlePath = optionValue("--bundle");
+      if (!bundlePath) throw new Error("companyos knowledge stage requires --bundle <file>.");
+      const bundle = JSON.parse(readFileSync(resolve(bundlePath), "utf8"));
+      const snapshot = await createPostgresKnowledgeProvider().stage(bundle);
+      process.stdout.write(`${JSON.stringify({ ok: true, snapshot_hash: snapshot.snapshotHash, status: snapshot.status }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "verify") {
+      const snapshotHash = optionValue("--snapshot");
+      if (!snapshotHash) throw new Error("companyos knowledge verify requires --snapshot <hash>.");
+      const snapshot = await createPostgresKnowledgeProvider().verify(snapshotHash);
+      process.stdout.write(`${JSON.stringify({ ok: true, snapshot_hash: snapshot.snapshotHash, status: snapshot.status }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "activate") {
+      const snapshotHash = optionValue("--snapshot");
+      if (!snapshotHash) throw new Error("companyos knowledge activate requires --snapshot <hash>.");
+      const snapshot = await createPostgresKnowledgeProvider().activate(snapshotHash);
+      process.stdout.write(`${JSON.stringify({ ok: true, snapshot_hash: snapshot.snapshotHash, status: snapshot.status }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "rebuild") {
+      const snapshotHash = optionValue("--snapshot");
+      if (!snapshotHash) throw new Error("companyos knowledge rebuild requires --snapshot <hash>.");
+      const result = await rebuildPostgresKnowledgeDerived({ snapshotHash });
+      process.stdout.write(`${JSON.stringify({ ok: true, ...result }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "regression") {
+      const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
+      const ledgerPath = optionValue("--ledger");
+      if (!ledgerPath) throw new Error("companyos knowledge regression requires --ledger <yaml|json>.");
+      const ledger = readStructuredFile(ledgerPath);
+      if (ledger?.version !== 1 || !Array.isArray(ledger?.cases)) throw new Error("Retrieval regression ledger must declare version: 1 and a cases list.");
+      const bundle = buildKnowledgeBundle({ workspaceRoot: target, workspaceCommit: "regression-preview" });
+      const provider = new InMemoryKnowledgeProvider();
+      await provider.stage(bundle); await provider.verify(bundle.bundleHash); await provider.activate(bundle.bundleHash);
+      const result = await runRetrievalRegression(provider, ledger);
+      process.stdout.write(`${JSON.stringify({ ok: result.passed, snapshot_hash: bundle.bundleHash, ...result }, null, 2)}\n`);
+      if (!result.passed) process.exitCode = 1;
+    } else if (action === "source") {
+      const sourceAction = value;
+      const lifecycleAction = ["delete-request", "delete-restore", "legal-hold", "delete-apply"].includes(sourceAction);
+      const { requirement, binding, connector, resolution } = sourceConfiguration(lifecycleAction ? "inspect" : sourceAction === "ingest" ? "sync" : sourceAction);
+      if (!("descriptor" in connector)) throw new Error("The maintained Source registry did not resolve a Source Connector 2.0 implementation.");
+      if (sourceAction === "verify") {
+        const result = await connector.verify();
+        process.stdout.write(`${JSON.stringify({ ...result, resolution_receipt: resolution.receipt }, null, 2)}\n`);
+      } else if (sourceAction === "health") {
+        const provider = await connector.health();
+        const result = {
+          ok: provider.ok,
+          sourceId: requirement.sourceId,
+          resolution: resolution.receipt,
+          provider,
+          persistence: process.env.DATABASE_URL
+            ? { status: "available", note: "Durable event and watermark evidence is evaluated during synchronization." }
+            : { status: "unavailable", reason: "DATABASE_URL is not set; durable state could not be evaluated." },
+        };
+        process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        if (!result.ok) process.exitCode = 1;
+      } else if (sourceAction === "ingest") {
+        const inputPath = optionValue("--input");
+        const objectId = optionValue("--object");
+        const mediaType = optionValue("--media-type");
+        if (!inputPath || !objectId || !mediaType) throw new Error("companyos knowledge source ingest requires --input, --object, and --media-type.");
+        const exactPath = resolve(inputPath);
+        if (!statSync(exactPath).isFile()) throw new Error("Local Source ingestion accepts exactly one regular file, never a directory or crawl root.");
+        const store = new PostgresSourcePipelineStore();
+        await store.registerSource(resolution.normalizedRequirement, resolution.normalizedBinding);
+        await store.putReceipt(resolution.receipt);
+        const result = await ingestExactSourceInputV2({
+          exactInput: { providerObjectId: objectId, mediaType, bytes: readFileSync(exactPath), observedAt: optionValue("--observed-at") ?? new Date().toISOString() },
+          requirement: resolution.normalizedRequirement,
+          connector,
+          store,
+          workerId: `cli:${process.pid}`,
+        });
+        process.stdout.write(`${JSON.stringify({ ok: ["processed", "quarantined", "duplicate"].includes(result.outcome), source_id: requirement.sourceId, object_id: objectId, result }, null, 2)}\n`);
+        if (!["processed", "quarantined", "duplicate"].includes(result.outcome)) process.exitCode = 1;
+      } else if (sourceAction === "sync") {
+        const target = targetWorkspace(optionValue("--workspace"));
+        const store = new PostgresSourcePipelineStore();
+        await store.registerSource(resolution.normalizedRequirement, resolution.normalizedBinding);
+        await store.putReceipt(resolution.receipt);
+        const result = resolution.normalizedRequirement.deliveryMode === "pull" && connector.enumerate
+          ? await syncPullSourceV2({
+              connector,
+              store,
+              requirement: resolution.normalizedRequirement,
+              binding: resolution.normalizedBinding,
+              workerId: `cli:${process.pid}`,
+            })
+          : await syncChangedSourceV2({
+              connector,
+              store,
+              requirement: resolution.normalizedRequirement,
+              workerId: `cli:${process.pid}`,
+            });
+        process.stdout.write(`${JSON.stringify({ ok: result.complete, workspace: target, connector_resolution: resolution.receipt, ...result }, null, 2)}\n`);
+        if (!result.complete) process.exitCode = 1;
+      } else if (sourceAction === "revoke") {
+        const store = new PostgresSourcePipelineStore();
+        await store.registerSource(resolution.normalizedRequirement, resolution.normalizedBinding);
+        const receipt = await connector.revoke();
+        await store.putReceipt(receipt);
+        await store.setSourceStatus(requirement.sourceId, "revoked");
+        process.stdout.write(`${JSON.stringify({ ok: true, source_id: requirement.sourceId, resolution_receipt_id: resolution.receipt.receiptId, receipt_id: receipt.receiptId, status: "revoked" }, null, 2)}\n`);
+      } else if (lifecycleAction) {
+        const target = targetWorkspace(optionValue("--workspace"));
+        const principal = optionValue("--principal");
+        if (!principal) throw new Error(`companyos knowledge source ${sourceAction} requires --principal <principal>.`);
+        const subject = knowledgeAdminSubject(target, principal);
+        const store = new PostgresSourcePipelineStore();
+        if (sourceAction === "delete-request") {
+          const objectId = optionValue("--object");
+          const reason = optionValue("--reason");
+          if (!objectId || !reason) throw new Error("companyos knowledge source delete-request requires --object <provider-object-id> and --reason <text>.");
+          const evidence = await store.currentRawEvidence(requirement.sourceId, objectId);
+          if (!evidence) throw new Error(`Unknown current Source Object '${objectId}'.`);
+          const request = await requestSourceLifecycleDeletion({
+            store,
+            sourceId: requirement.sourceId,
+            targetKind: "source-object",
+            targetId: objectId,
+            targetVersion: optionValue("--version") ?? evidence.envelope.providerVersion,
+            requestedBy: subject.principalId,
+            reason,
+            accessPolicyId: evidence.envelope.accessPolicyId,
+            connectorId: connector.descriptor.connectorId,
+            connectorVersion: connector.descriptor.connectorVersion,
+          });
+          process.stdout.write(`${JSON.stringify({ ok: true, request }, null, 2)}\n`);
+        } else {
+          const requestId = optionValue("--request");
+          if (!requestId) throw new Error(`companyos knowledge source ${sourceAction} requires --request <request-id>.`);
+          if (sourceAction === "delete-restore") {
+            const result = await restoreSourceLifecycleDeletion({ store, requestId, connectorId: connector.descriptor.connectorId, connectorVersion: connector.descriptor.connectorVersion });
+            process.stdout.write(`${JSON.stringify({ ok: result === "restored" || result === "unchanged", request_id: requestId, result, principal: subject.principalId }, null, 2)}\n`);
+          } else if (sourceAction === "legal-hold") {
+            const enabled = optionValue("--enabled");
+            if (!new Set(["true", "false"]).has(enabled)) throw new Error("companyos knowledge source legal-hold requires --enabled true|false.");
+            const result = await setSourceLifecycleLegalHold({ store, requestId, enabled: enabled === "true", actor: subject.principalId, connectorId: connector.descriptor.connectorId, connectorVersion: connector.descriptor.connectorVersion });
+            process.stdout.write(`${JSON.stringify({ ok: result === "updated" || result === "unchanged", request_id: requestId, result, principal: subject.principalId }, null, 2)}\n`);
+          } else {
+            const result = await purgeSourceLifecycleDeletion({ store, requestId, connectorId: connector.descriptor.connectorId, connectorVersion: connector.descriptor.connectorVersion });
+            process.stdout.write(`${JSON.stringify({ ok: result === "purged" || result === "unchanged", request_id: requestId, result, principal: subject.principalId }, null, 2)}\n`);
+          }
+        }
+      } else throw new Error("Use `companyos knowledge source verify|sync|ingest|health|revoke|delete-request|delete-restore|legal-hold|delete-apply`.");
+    } else if (action === "session") {
+      const sessionAction = value;
+      const corpusStore = new PostgresSessionCorpusStore();
+      if (sessionAction === "transfer") {
+        const inputPath = optionValue("--input");
+        if (!inputPath) throw new Error("companyos knowledge session transfer requires --input <exact-stop-buffer-json>.");
+        const exactPath = resolve(inputPath);
+        if (!statSync(exactPath).isFile()) throw new Error("Session transfer accepts exactly one regular stop-buffer file.");
+        const buffer = JSON.parse(readFileSync(exactPath, "utf8"));
+        const result = await transferSessionStopBuffer({
+          buffer,
+          corpusStore,
+          stopBufferStore: { remove: async (bufferId) => {
+            if (bufferId !== buffer.bufferId) return false;
+            unlinkSync(exactPath);
+            return true;
+          } },
+        });
+        process.stdout.write(`${JSON.stringify({ ok: true, corpus_id: result.corpus.corpusId, receipt_id: result.receipt.receiptId, stop_buffer_removed: true }, null, 2)}\n`);
+      } else if (sessionAction === "cleanup") {
+        const result = await cleanupExpiredSessionCorpus({ corpusStore, now: optionValue("--now") });
+        process.stdout.write(`${JSON.stringify({ ok: true, expired: result.expired, receipt_id: result.receipt.receiptId }, null, 2)}\n`);
+      } else if (sessionAction === "archive") {
+        const corpusId = optionValue("--corpus");
+        if (!corpusId) throw new Error("companyos knowledge session archive requires --corpus <id>.");
+        const corpus = await corpusStore.getCorpus(corpusId);
+        if (!corpus || corpus.lifecycleStatus !== "active" || !corpus.content) throw new Error(`Active Session Corpus '${corpusId}' is unavailable.`);
+        const { connector, resolution } = sourceConfiguration("sync");
+        if (!("descriptor" in connector) || !connector.stageExactInput) throw new Error("Session archive requires an exact-input Source Connector 2.0 implementation.");
+        if (resolution.normalizedRequirement.retention.mode !== "retain") throw new Error("Explicit Session archive requires a durable retain Source policy.");
+        const sourceStore = new PostgresSourcePipelineStore();
+        await sourceStore.registerSource(resolution.normalizedRequirement, resolution.normalizedBinding);
+        await sourceStore.putReceipt(resolution.receipt);
+        const result = await ingestExactSourceInputV2({
+          exactInput: { providerObjectId: `session:${corpus.sessionId}`, mediaType: corpus.normalizedFormat, bytes: Buffer.from(corpus.content, "utf8"), observedAt: corpus.transferredAt },
+          requirement: resolution.normalizedRequirement,
+          connector,
+          store: sourceStore,
+          workerId: `cli:${process.pid}`,
+        });
+        if (!["processed", "quarantined", "duplicate"].includes(result.outcome)) throw new Error("Explicit Session archive did not reach durable Raw Evidence.");
+        const receiptId = result.receiptIds.at(-1);
+        if (!receiptId) throw new Error("Explicit Session archive lacks a durable receipt.");
+        await corpusStore.markArchived(corpus.sessionId, corpus.corpusId, receiptId);
+        process.stdout.write(`${JSON.stringify({ ok: true, corpus_id: corpus.corpusId, source_object_id: `session:${corpus.sessionId}`, receipt_id: receiptId, result }, null, 2)}\n`);
+      } else throw new Error("Use `companyos knowledge session transfer|cleanup|archive`.");
+    } else if (action === "observation") {
+      const observationAction = value;
+      const store = new PostgresKnowledgeSourceStore();
+      if (observationAction === "record") {
+        const inputPath = optionValue("--input");
+        if (!inputPath) throw new Error("companyos knowledge observation record requires --input <yaml|json>.");
+        const data = readStructuredFile(inputPath);
+        const observation = createRuntimeObservation({
+          subject: data.subject,
+          content: data.content,
+          observedAt: data.observed_at ?? data.observedAt,
+          expiresAt: data.expires_at ?? data.expiresAt,
+          runId: data.run_id ?? data.runId,
+          agentId: data.agent_id ?? data.agentId,
+          evidence: data.evidence ?? {},
+          supersedes: data.supersedes,
+          personalData: data.personal_data ?? data.personalData,
+        });
+        const inserted = await store.recordObservation(observation);
+        process.stdout.write(`${JSON.stringify({ ok: true, inserted, observation }, null, 2)}\n`);
+      } else if (observationAction === "review") {
+        const active = await createPostgresKnowledgeProvider().activeSnapshot();
+        if (!active) throw new Error("Runtime Observation review requires an active Company Knowledge snapshot.");
+        const previousCandidateIds = await listPersistedKnowledgeReviewCandidateIds();
+        const observations = await store.listObservationPromotionCandidates(3);
+        const candidates = runtimeObservationsToReviewCandidates({ observations, activeBundle: active.bundle, previousCandidateIds });
+        const persist = args.includes("--persist");
+        const inserted = persist ? await persistKnowledgeReviewCandidates(candidates) : 0;
+        process.stdout.write(`${JSON.stringify({ ok: true, mode: persist ? "persisted" : "preview", maximum_candidates: 3, inserted, candidates }, null, 2)}\n`);
+      } else if (observationAction === "expire") {
+        const now = optionValue("--now") ?? new Date().toISOString();
+        const expired = await store.expireObservations(now);
+        process.stdout.write(`${JSON.stringify({ ok: true, expired, at: now }, null, 2)}\n`);
+      } else if (observationAction === "delete-request") {
+        const observationId = optionValue("--observation");
+        const principal = optionValue("--principal");
+        const reason = optionValue("--reason");
+        if (!observationId || !principal || !reason) throw new Error("Observation deletion request requires --observation, --principal, and --reason.");
+        const requestId = await store.requestObservationDeletion(observationId, principal, reason);
+        process.stdout.write(`${JSON.stringify({ ok: true, observation_id: observationId, request_id: requestId }, null, 2)}\n`);
+      } else if (observationAction === "legal-hold") {
+        const observationId = optionValue("--observation");
+        const principal = optionValue("--principal");
+        const enabled = optionValue("--enabled");
+        if (!observationId || !principal || !new Set(["true", "false"]).has(enabled)) throw new Error("Observation legal hold requires --observation, --principal, and --enabled true|false.");
+        const changed = await store.setObservationLegalHold(observationId, enabled === "true", principal);
+        process.stdout.write(`${JSON.stringify({ ok: changed, observation_id: observationId, legal_hold: enabled === "true" }, null, 2)}\n`);
+        if (!changed) process.exitCode = 1;
+      } else if (observationAction === "delete-apply") {
+        const observationId = optionValue("--observation");
+        if (!observationId) throw new Error("Observation deletion apply requires --observation <id>.");
+        const result = await store.applyObservationDeletion(observationId);
+        process.stdout.write(`${JSON.stringify({ ok: result === "deleted", observation_id: observationId, result }, null, 2)}\n`);
+        if (result !== "deleted") process.exitCode = 1;
+      } else throw new Error("Use `companyos knowledge observation record|review|expire|delete-request|legal-hold|delete-apply`.");
+    } else throw new Error("Use `companyos knowledge inspect|build|review|decide|propose|stage|verify|activate|rebuild|regression|source|session|observation`.");
   } else if (command === "build") {
     const target = targetWorkspace(action);
     const instanceIndex = args.indexOf("--instance");
@@ -232,9 +649,19 @@ try {
       workspaceCommit,
       workbenchVersion: WORKBENCH_VERSION,
     });
+    const knowledgeOutputPath = optionValue("--knowledge-output")
+      ? resolve(optionValue("--knowledge-output"))
+      : `${outputPath.replace(/\.json$/, "")}.knowledge.json`;
+    if (existsSync(outputPath) || existsSync(knowledgeOutputPath)) {
+      throw new Error("CompanyOS build output paths must not already exist.");
+    }
     mkdirSync(dirname(outputPath), { recursive: true });
     writeFileSync(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, { flag: "wx" });
+    const knowledgeBundle = buildKnowledgeBundle({ workspaceRoot: target, workspaceCommit });
+    mkdirSync(dirname(knowledgeOutputPath), { recursive: true });
+    writeFileSync(knowledgeOutputPath, `${JSON.stringify(knowledgeBundle, null, 2)}\n`, { flag: "wx" });
     process.stdout.write(`Built CompanyOS artifact ${artifact.artifactHash} at ${outputPath}\n`);
+    process.stdout.write(`Built Company Knowledge bundle ${knowledgeBundle.bundleHash} at ${knowledgeOutputPath}\n`);
   } else if (command === "inspect") {
     const planIndex = args.indexOf("--plan");
     const plan = planIndex >= 0 ? args[planIndex + 1] : undefined;

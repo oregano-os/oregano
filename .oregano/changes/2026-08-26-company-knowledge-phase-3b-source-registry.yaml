@@ -1,0 +1,95 @@
+version: 1
+plan_id: company-knowledge-phase-3b-source-registry-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Resolve maintained Source Connectors through governed Instance state
+objective: >-
+  Add an exact-version Source Connector registry and factory boundary, enforce
+  binding lifecycle and implementation qualification before Source Connector
+  2.0 activation, route every generic source command through the same registry,
+  preserve the experimental repository V1 path through an explicit legacy
+  registration, and emit deterministic non-secret resolution receipts.
+non_goals:
+  - Load arbitrary Connector code or publish a Connector marketplace.
+  - Persist Source Events or implement the Phase 3C processing queue.
+  - Migrate the GitHub implementation itself to the Source Connector 2.0 method surface.
+  - Activate Granola or another new provider.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Package lifecycle is reproducible and reversible
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-3b-source-registry.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/compatibility/registry.yaml
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/knowledge.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/cli/src/cli.mjs
+  - packages/connectors/source-registry.ts
+  - packages/connectors/source-registry-maintained.ts
+  - packages/knowledge/source-config.ts
+  - packages/testkit/tests/knowledge-source-registry.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-3b-source-registry.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-3b-source-registry.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/knowledge-source-registry.test.ts packages/testkit/tests/knowledge-source-contract-v2.test.ts packages/testkit/tests/knowledge-source.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Duplicate, missing, ambiguous, incompatible, revoked, inactive, or unqualified V2 bindings fail before a Connector factory or provider call.
+  - An active V2 binding must match the exact qualified implementation digest.
+  - Verification can resolve a bound V2 implementation without activating ingestion.
+  - Existing repository V1 requirements resolve only through the explicit compatibility registration and receipt.
+  - Generic source CLI code imports the maintained registry boundary and no provider implementation.
+  - Resolution evidence contains stable identifiers and digests but no SecretRef value or provider credential.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.knowledge
+    - command.setup
+    - command.verify-live
+    - guide.connect-knowledge-source
+migration: >-
+  Generic source commands move behind the registry without changing existing V1
+  requirement, binding, Source, envelope, cursor, or receipt rows. V2 ingestion
+  requires an active binding with qualification matching the exact maintained
+  implementation. The existing experimental V1 repository binding remains a
+  named compatibility registration until Phase 3D migrates its implementation.
+rollback: >-
+  Disable V2 Source activation and retain the explicit V1 maintained
+  registration. Restore the prior generic command wiring only if the registry
+  cannot resolve the exact V1 implementation; do not fall back to dynamic or
+  Workspace-controlled module loading.
+open_decisions: []

@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -59,7 +59,7 @@ personal account.
 | Git hosting and review | One GitHub user account and private repository | Every Workspace | The human creates a GitHub user account if they do not already have one. They select their own username for a personal repository or an existing organization only when their company already uses one. The setup never requires a new organization or paid GitHub plan. GitHub Free is sufficient for the supervised starter. A Platform Administrator with `repository` scope retains admin and recovery access. The setup applies hosted protection when available and reports whether GitHub enforces it. |
 | Core checkout | GitHub credential or deploy key with read access to Oregano Core | Current co-checkout mode | CI can fetch the immutable Core commit without giving the Company Workspace write access to Core. |
 | Runtime hosting | Vercel account/team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |
-| Model execution | Vercel AI Gateway access, or an Anthropic account and dedicated direct API key | Before deploying a model-backed Instance | The explicit route and exact model are approved, usage budget and data terms are accepted, and a deployed model-backed smoke test succeeds. A direct key is entered only in the runtime host secret UI. |
+| Model execution | Gateway access, a supported cloud-provider account and dedicated key, or an explicitly reachable compatible endpoint | Before deploying a model-backed Instance | The explicit recipe and exact route-prefixed model are selected, billing and data terms are accepted, and a deployed model-backed smoke test succeeds. A required key is entered only in the runtime host secret UI. |
 | Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |
 | Connected systems | For example Slack or Monday installations | Only when declared by an approved connection or Tool grant | Each installation has a named owner, minimum scopes, revocation path, and no secrets in Git. |
 
@@ -67,9 +67,9 @@ Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provide
 account. The maintained complete starter does require a Vercel account, consent
 to create or adopt a Neon Marketplace resource, permission to install the Slack
 app in a selected Slack workspace, and access to the selected model route.
-Gateway uses the Vercel deployment identity. Direct Anthropic bypasses Gateway;
-the human enters `ANTHROPIC_API_KEY` only as a Sensitive Production variable in
-the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the
+Gateway uses the Vercel deployment identity. Direct recipes bypass Gateway;
+the human enters the provider key only under its documented Sensitive
+Production variable in the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the
 human never pastes a password, provider token, database URL, or private key into
 chat.
 
@@ -164,6 +164,42 @@ policy, not Core runtime dependencies and not a public provider extension API.
 A future Hetzner, Docker, Railway, Supabase, or other provider path must satisfy
 the same role contract through a separately qualified adapter and profile.
 
+For a new Instance, the selected database normally does not exist before this
+setup. The State Service phase therefore creates or explicitly adopts one
+resource and binds its `DATABASE_URL` only in the runtime secret environment.
+The next phase runs `companyos database prepare` through that runtime profile.
+Prepare detects an empty, older, or current database and selects `bootstrap`,
+`upgrade`, or read-only `verify`; callers do not have to guess which lifecycle
+operation applies. It creates or upgrades both `companyos` and
+`companyos_knowledge`, records the exact version-manifest entry, and performs
+read-only qualification before setup may continue. Setup records only the
+selected operation, previous manifest versions, and non-secret manifest,
+feature, object-count, provider-resource, and timestamp evidence. The
+maintained Vercel path uses
+`vercel env run`; this is an adapter detail rather than a requirement for other
+runtime hosts.
+
+The current additive manifest is `companyos-postgres@1.6.0`, succeeding the
+immutable `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions. It qualifies 62
+required Knowledge tables, including stable groups, durable Source Events, ACL
+snapshots, pipeline receipts, completed watermarks, lifecycle requests, an
+integrity-linked change stream, durable synchronization leases, compounding
+receipts, review-only Claim-pair proposals, explicit grading requests,
+model-task results, spend reservations, and execution ledger rows. Unresolved
+existing Source and Claim evidence remains under the reserved quarantine
+policy. Applying schema never grants access by itself; runtime subject
+resolution and authorization conformance remain mandatory.
+
+Knowledge Source activation follows database preparation; it is not a database
+migration step. A new setup may begin with no database at all: the State
+Service first creates or adopts the PostgreSQL resource, `database prepare`
+creates the current schemas, and read-only verification qualifies them. Only
+then may setup install a SecretRef-only Source binding, deploy its runtime
+handlers, obtain provider qualification evidence, change the binding to
+`active`, run the initial backfill, and verify aggregate object and watermark
+state. Each runtime profile supplies its own secret and scheduler adapters; the
+Source contract itself does not require Vercel.
+
 Before each external create operation, setup writes a non-secret intent to the
 state file; after the provider returns an immutable identity, setup records an
 immutable receipt immediately. Resume reconciles any unresolved intent by that
@@ -201,3 +237,35 @@ fails closed on an unresolved setup intent. Hosted GitHub protection is
 reported separately as `enforced` or `advisory`; either status is valid for
 this Tool-free supervised starter. This is bounded evidence, not certification
 of future Tools, unattended workflows, or generic production enforcement.
+
+## 9. Add Company Knowledge when needed
+
+1. Write reviewed OKF concepts under `handbook/` and update
+   `handbook/index.md` in the same change.
+2. Keep unverified source material in `brain/inbox/`; exclude credentials.
+   Personal or otherwise sensitive raw input remains in administrator-only
+   quarantine until policy mapping and human review are complete.
+3. Run `companyos knowledge inspect .` and `companyos knowledge review .`.
+4. Permit `knowledge.search`/`knowledge.get` and optionally
+   `knowledge.traverse`, grant the corresponding standard Tools to selected
+   Agents, and bind those Capabilities to
+   `oregano/knowledge-postgres@3.0.0` in the Instance.
+5. Build the control Artifact and separate Knowledge Bundle, then stage,
+   verify, and activate the bundle through the existing `DATABASE_URL`.
+6. Prove one cited query, one exact get, one explicit zero-result gap, and one
+   negative access case for every declared authorization group.
+
+7. Optionally add one reviewed repository Source requirement, bind
+   `oregano/github-repository-source@1.0.0` through an `env:NAME` SecretRef,
+   verify it, and run an explicit sync. Treat every resulting envelope as raw
+   review input.
+8. Run a retrieval regression ledger and record backup/rebuild evidence before
+   relying on hybrid or source-backed operation.
+
+Declare stable `groups` on roster members. A new Workspace assigns its Steward
+to `companyos:knowledge-admin`; keep that group tightly held because it may
+review quarantined candidates. Restricted OKF uses `visibility` plus
+`allowed_groups` or `allowed_principals`. Never use display names, paths, tags,
+or prompt text as access control. A sensitive Source Connector remains disabled
+until its external-principal and provider-ACL mappings pass negative conformance
+tests, even when the Core authorization tests pass.

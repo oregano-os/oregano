@@ -1,0 +1,75 @@
+version: 1
+plan_id: anthropic-knowledge-task-routing-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Route Company Knowledge tasks through direct Anthropic recipes
+objective: >-
+  Compile every registered Company Knowledge prompt task through the shared
+  model-recipe resolver, preserve exact task overrides, and configure the
+  Oregano Company Instance to use direct Anthropic utility, reasoning, and
+  deep models without routing transcript content through an AI gateway.
+non_goals:
+  - Send production Granola transcript content during this change.
+  - Use an Anthropic language model as an embedding or cross-encoder reranking adapter.
+  - Add silent provider fallback or duplicate the Core model-recipe registry.
+  - Change Knowledge authorization, retention, review, or Handbook authority.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - The reference stack is concrete, not mandatory
+files_expected:
+  - .oregano/changes/2026-08-27-anthropic-knowledge-task-routing.yaml
+  - docs/**
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/knowledge/**
+  - packages/runner/**
+  - packages/runner-vercel/**
+  - packages/testkit/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-to-use-anthropic-direct-and-task-specific-models
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-anthropic-knowledge-task-routing.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-anthropic-knowledge-task-routing.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/model-recipes.test.ts
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - pnpm test
+  - git diff --check
+tests:
+  - Every registered Knowledge prompt compiles to one validated model binding.
+  - Task bindings override profile and default bindings through the shared resolver.
+  - Utility, reasoning, and deep tasks resolve independently.
+  - Direct Anthropic execution fails closed when ANTHROPIC_API_KEY is absent.
+  - Smoke tests cover every distinct configured Knowledge language model without evidence payloads.
+  - Embedding and reranker profiles are not fabricated from Anthropic language models.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - guide.operate-knowledge-provider
+    - guide.prepare-instance
+    - plan.company-knowledge-implementation
+migration: >-
+  COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64 accepts the same version-1
+  default/profile/task binding shape as COMPANYOS_MODEL_CONFIG_BASE64. Legacy
+  Knowledge configuration containing top-level utility and reasoning profile
+  objects remains readable and is compiled into task bindings.
+rollback: >-
+  Remove the Knowledge-specific configuration and let Knowledge tasks inherit
+  the shared CompanyOS model configuration. Existing evidence, Pages, Claims,
+  receipts, and source cursors remain intact.
+open_decisions:
+  - Select and qualify a separate embedding provider if semantic retrieval must replace the current lexical fallback.
+  - Activate a cross-encoder reranker only after retrieval evaluation proves sufficient value.

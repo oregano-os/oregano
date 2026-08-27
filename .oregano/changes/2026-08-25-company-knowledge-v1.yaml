@@ -1,0 +1,95 @@
+version: 1
+plan_id: company-knowledge-v1-2026-08-25
+status: implemented
+author: codex-agent
+created: 2026-08-25
+title: Implement native Company Knowledge V1
+objective: >-
+  Add deterministic OKF validation and bundling, an isolated knowledge schema
+  in the existing Company Instance database, provider-neutral search/get
+  capabilities, standard Knowledge Tools, and a bounded human-review curation
+  loop without introducing a second runtime or database.
+non_goals:
+  - Add external source ingestion in V1.
+  - Add embeddings, vector search, or graph traversal in V1.
+  - Add document-, department-, or fragment-level authorization in V1.
+  - Allow raw notes or model output to become active company knowledge automatically.
+  - Store knowledge in a second Neon database.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Company policy remains inspectable
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-25-company-knowledge-v1.yaml
+  - docs/**
+  - packages/capabilities/**
+  - packages/cli/**
+  - packages/companyos-builder/**
+  - packages/connectors/**
+  - packages/knowledge/**
+  - packages/standard-tools/**
+  - packages/state-postgres/**
+  - packages/testkit/**
+  - tsconfig.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-25
+    evidence: explicit-user-instruction-in-codex-task-to-implement-the-approved-company-knowledge-plan
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-25-company-knowledge-v1.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-25-company-knowledge-v1.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm test
+  - pnpm check
+  - git diff --check
+tests:
+  - OKF parsing, validation, links, index reachability, and bundle hashing are deterministic.
+  - Knowledge fragments have stable identifiers and exact source locators.
+  - Raw inbox content never appears in an active Knowledge Bundle.
+  - Snapshot staging, verification, activation, rollback, search, and get fail closed.
+  - Lexical search returns bounded cited evidence and explicit zero-result gaps.
+  - Standard Knowledge Tools resolve only when explicitly granted and bound.
+  - Curation emits at most three review candidates and preserves human review boundaries.
+documentation_impact:
+  required: true
+  affected_documents:
+    - reference.glossary
+    - governance.versioning
+    - architecture.overview
+    - architecture.boundaries
+    - architecture.oregano-core
+    - architecture.company-workspace
+    - architecture.company-instance
+    - architecture.ecosystem-packages
+    - specification.tool-architecture
+    - specification.company-knowledge-v0.1
+    - onboarding.index
+    - onboarding.company-workspace
+    - status.current
+    - workbench.overview
+    - command.knowledge
+    - command.build
+    - guide.author-company-knowledge
+    - guide.review-company-knowledge
+    - guide.operate-knowledge-provider
+migration: >-
+  Existing Workspaces remain valid and produce an empty Knowledge Bundle when
+  they contain no OKF concepts. Adopting Company Knowledge adds curated OKF
+  documents under handbook/, grants and permits the two read capabilities,
+  binds the maintained provider in the Instance, and applies the idempotent
+  companyos_knowledge schema migration to the existing DATABASE_URL.
+rollback: >-
+  Activate the previously verified snapshot, remove Knowledge Tool grants and
+  bindings, and rebuild the control artifact. Derived documents and fragments
+  may be deleted and rebuilt from their immutable Workspace bundle; review
+  decisions and Core events are retained.
+open_decisions:
+  - Define the external Source Connector envelope only after the native V1 read and review paths have operating evidence.
+  - Define fine-grained knowledge authorization before admitting content outside the shared roster scope.

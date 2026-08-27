@@ -1,0 +1,77 @@
+version: 1
+plan_id: knowledge-compounding-runtime-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Activate persisted Company Knowledge compounding and model qualification
+objective: >-
+  Add a persisted, leased, bounded Company Knowledge maintenance runtime that
+  generates reviewable Claim-pair proposals, refreshes immutable working
+  syntheses, processes explicit outcome-grading requests, and qualifies every
+  registered generative prompt against synthetic fixtures without granting a
+  model merge, resolution, access, deletion, or Handbook authority.
+non_goals:
+  - Automatically accept a semantic duplicate, merge Claims, or resolve a conflict.
+  - Grade a Claim without an explicit request and exact outcome evidence.
+  - Change Raw Evidence retention, authorization, or Handbook promotion.
+  - Add embedding or cross-encoder reranking providers.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Humans decide, agents execute
+files_expected:
+  - .oregano/changes/2026-08-27-knowledge-compounding-runtime.yaml
+  - docs/**
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/knowledge/**
+  - packages/runner-vercel/**
+  - packages/state-postgres/**
+  - packages/testkit/**
+  - vercel.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-go-ahead-after-review-of-the-next-runtime-steps
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-knowledge-compounding-runtime.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-knowledge-compounding-runtime.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - pnpm test
+  - git diff --check
+tests:
+  - Global and mixed phases execute once per cycle and persist retry-safe receipts.
+  - Candidate selection is deterministic, bounded, and authorization-prepared.
+  - Duplicate, relation, and conflict model results remain proposals only.
+  - Working synthesis versions reference only supplied Claims and preserve prior versions.
+  - Claim grading requires an explicit request and exact outcome evidence.
+  - Prompt qualification runs every current fixture and reports non-secret task metrics.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.2
+    - plan.company-knowledge-implementation
+    - status.current
+    - guide.operate-knowledge-provider
+    - guide.prepare-instance
+migration: >-
+  Add companyos-postgres@1.5.0 with additive compounding lease, receipt,
+  Claim-pair proposal, and grading-request tables. Existing 1.0.0 through
+  1.4.0 manifest history and all durable Knowledge objects remain unchanged.
+rollback: >-
+  Disable the compounding schedule and qualification route, then revert the
+  runtime code. Additive tables and immutable receipts may remain unused;
+  existing retrieval, extraction, evidence, and Handbook behavior continues.
+open_decisions:
+  - Calibrate lexical candidate thresholds with production evidence before enabling semantic candidate adapters.
+  - Select a later embedding and cross-encoder reranker provider only if retrieval evaluation demonstrates value.

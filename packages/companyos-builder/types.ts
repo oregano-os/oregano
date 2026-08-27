@@ -41,6 +41,14 @@ export interface CompanyOSArtifact {
   };
   capabilityCatalog: CapabilityContract[];
   bindings: CapabilityBinding[];
+  knowledge?: {
+    bundleSchemaVersion: 3;
+    okfVersion: "0.1";
+    bundleHash: string;
+    policyHash: string;
+    documentCount: number;
+    fragmentCount: number;
+  };
   roster: RosterMember[];
   agents: CompiledAgent[];
   artifactHash: string;

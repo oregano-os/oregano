@@ -1,0 +1,76 @@
+version: 1
+plan_id: task-specific-knowledge-prompts-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Execute Company Knowledge tasks with task-specific prompts and schemas
+objective: >-
+  Replace the generic Knowledge extraction invocation with a versioned prompt
+  dispatcher that validates each task's prompt, input schema, output schema,
+  structured task input, and evidence before provider execution; pass the
+  original query into cited synthesis; keep reranking on its dedicated
+  capability boundary; and add fixture-based prompt quality metrics.
+non_goals:
+  - Change Knowledge authorization, Raw Evidence retention, review, or Handbook authority.
+  - Add a generative reranking fallback.
+  - Activate or call a production language model during validation.
+  - Add silent provider fallback or provider-specific prompt behavior.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Humans decide, agents execute
+files_expected:
+  - .oregano/changes/2026-08-27-task-specific-knowledge-prompts.yaml
+  - docs/**
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/knowledge/**
+  - packages/runner-vercel/**
+  - packages/testkit/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-approval-to-implement-the-reviewed-six-item-prompt-work
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-task-specific-knowledge-prompts.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-task-specific-knowledge-prompts.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-prompts.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-extraction.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - pnpm test
+  - git diff --check
+tests:
+  - Every generative Knowledge task resolves one exact prompt and one strict output schema.
+  - Prompt, input-schema, and output-schema mismatches fail before a provider call.
+  - Claim extraction returns distinct Fact and Take collections with exact evidence locators.
+  - Cited synthesis receives the normalized user query as structured task input.
+  - The language-model task registry contains no reranking task.
+  - Synthetic prompt fixtures produce deterministic precision, recall, and F1 metrics.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.2
+    - plan.company-knowledge-implementation
+    - status.current
+    - guide.operate-knowledge-provider
+migration: >-
+  Knowledge prompt registry version 2 uses version-2 prompt and output-schema
+  identities plus explicit version-1 input-schema identities. New execution
+  receipts include inputSchemaId and a digest of bounded structured task input.
+  Existing receipts and durable Knowledge records remain readable and are not
+  rewritten. Runtime task configuration continues to bind stable prompt IDs.
+rollback: >-
+  Revert the dispatcher and registry changes. Existing evidence, Pages, Claims,
+  source cursors, model receipts, and provider configuration remain intact.
+open_decisions:
+  - Run the offline prompt fixtures against each production model before activating a changed model recipe.

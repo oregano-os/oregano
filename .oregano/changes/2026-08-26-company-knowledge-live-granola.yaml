@@ -1,0 +1,127 @@
+version: 1
+plan_id: company-knowledge-live-granola-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Activate provider-wide Granola ingestion in the production runner
+objective: >-
+  Extend the maintained Granola Source profile from mandatory folder filtering
+  to an explicit provider-wide scope, preserve complete transcripts through a
+  qualified durable Raw Asset adapter, and add portable runtime handlers for
+  signed webhook ingestion, reconciliation, qualification, health, and initial
+  backfill without exposing Instance secrets or provider payloads.
+non_goals:
+  - Grant provider-derived per-note ACLs that the public API cannot prove.
+  - Make Granola content curated Handbook authority without governed promotion.
+  - Store credentials, raw notes, or transcripts in Git, Artifacts, logs, receipts, or diagnostics.
+  - Make Vercel part of the provider-neutral Source or Raw Asset contracts.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-live-granola.yaml
+  - docs/architecture/company-instance.md
+  - docs/architecture/company-workspace.md
+  - docs/architecture/system-boundaries.md
+  - docs/compatibility/registry.yaml
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/knowledge.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/connectors/granola-knowledge-source-v2.ts
+  - packages/knowledge/source-config.ts
+  - packages/knowledge/source-contracts-v2.ts
+  - packages/knowledge/source-ingestion-v2.ts
+  - packages/knowledge/source-pipeline-store.ts
+  - packages/knowledge/source-sync-v2.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/webhook/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/reconcile/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/qualification/route.ts
+  - packages/runner-vercel/src/lib/knowledge-source-runtime.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-schema-phase-four.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/state-postgres/raw-asset-adapter.ts
+  - packages/state-postgres/source-pipeline-store.ts
+  - packages/testkit/tests/companyos-builder.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/knowledge-source-contract-v2.test.ts
+  - packages/testkit/tests/knowledge-source-granola-v2.test.ts
+  - packages/testkit/tests/knowledge-source-ingestion-v2.test.ts
+  - packages/runner-vercel/src/lib/knowledge-source-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-after-confirming-the-production-granola-secret
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-live-granola.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-live-granola.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/knowledge-source-contract-v2.test.ts packages/testkit/tests/knowledge-source-granola-v2.test.ts packages/testkit/tests/knowledge-source-ingestion-v2.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Provider-wide scope is explicit and cannot be confused with an empty folder allowlist.
+  - Personal plus public scope retrieves all notes visible to the bound user while fixed CompanyOS policy remains authoritative for destination access.
+  - Folder-filtered profiles remain compatible and reject out-of-scope note fetches.
+  - Complete transcripts below the asset ceiling are retained, including transcripts above the inline ceiling.
+  - Raw Asset writes are digest-idempotent, policy-bound, authorized before read, and payload-free in receipts and logs.
+  - Webhook signatures are verified over raw bytes before parsing and events are durably accepted before acknowledgement.
+  - Reconciliation uses overlap, bounded pagination, leases, durable watermarks, and idempotent processing.
+  - Runtime qualification and health return non-secret evidence only.
+  - Runtime handlers reject unauthorized scheduler requests and unavailable or unqualified bindings.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.company-workspace
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - plan.company-knowledge-implementation
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.knowledge
+    - command.setup
+    - command.verify-live
+    - guide.connect-knowledge-source
+    - guide.operate-knowledge-provider
+migration: >-
+  The Source Connector 2.0 requirement gains an explicit provider-wide
+  workspace scope while retaining the existing exact-container scope. The
+  database change is additive and stores Raw Asset payloads in the existing
+  Company Instance database behind the provider-neutral adapter. Existing
+  Source identities, folder-filtered requirements, events, evidence, policies,
+  receipts, and watermarks remain valid.
+rollback: >-
+  Disable the Granola runtime handlers and revoke the active Instance binding.
+  Retain accepted Raw Evidence, Raw Assets, receipts, and watermarks. Revert to
+  a folder-filtered Source requirement or a prior deployment without deleting
+  provider data or previously accepted CompanyOS evidence.
+open_decisions: []

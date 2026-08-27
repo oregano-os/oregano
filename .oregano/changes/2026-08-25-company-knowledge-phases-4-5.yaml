@@ -1,0 +1,95 @@
+version: 1
+plan_id: company-knowledge-phases-4-5-2026-08-25
+status: implemented
+author: codex-agent
+created: 2026-08-25
+title: Implement Company Knowledge phases 4 and 5
+objective: >-
+  Extend native Company Knowledge with policy-bound hybrid retrieval,
+  deterministic graph traversal, retrieval regression evidence, a maintained
+  read-only GitHub repository Source Connector, durable source reconciliation,
+  and governed runtime-observation lifecycle contracts.
+non_goals:
+  - Add fine-grained knowledge authorization from phase 6.
+  - Allow a Source Connector or runtime observation to publish directly to OKF.
+  - Require external embedding data egress or an embedding credential.
+  - Add a second database or a second Agent-facing knowledge surface.
+  - Add more than one maintained external source type.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Company policy remains inspectable
+files_expected:
+  - .oregano/changes/2026-08-25-company-knowledge-phases-4-5.yaml
+  - docs/**
+  - packages/capabilities/**
+  - packages/cli/**
+  - packages/companyos-builder/**
+  - packages/connectors/**
+  - packages/knowledge/**
+  - packages/standard-tools/**
+  - packages/state-postgres/**
+  - packages/testkit/**
+  - tsconfig.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-25
+    evidence: explicit-user-instruction-in-codex-task-to-build-phases-4-and-5
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-25-company-knowledge-phases-4-5.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-25-company-knowledge-phases-4-5.yaml
+  - pnpm docs:check
+  - pnpm check
+  - git diff --check
+tests:
+  - Hybrid ranking is deterministic and degrades explicitly to lexical-only retrieval.
+  - External embedding adapters fail closed unless data egress is explicitly allowed.
+  - Graph edges, backlinks, orphan diagnostics, and bounded traversal are deterministic.
+  - Retrieval regression ledgers report stable query and citation metrics.
+  - The GitHub source connector is read-only, scoped, cursor-idempotent, retry-bounded, and receipt-producing.
+  - Source objects enter quarantine and review, never the active snapshot directly.
+  - Indefinite source retention blocks automatic purge independently of legal hold.
+  - Runtime observations support supersede, expire, deletion request, legal hold, and promotion-candidate states.
+  - Rebuild and rollback preserve immutable source, snapshot, and review evidence.
+documentation_impact:
+  required: true
+  affected_documents:
+    - vision.companyos
+    - reference.glossary
+    - architecture.overview
+    - architecture.boundaries
+    - architecture.oregano-core
+    - architecture.company-workspace
+    - architecture.company-instance
+    - architecture.ecosystem-packages
+    - specification.tool-architecture
+    - specification.company-knowledge-v0.1
+    - onboarding.index
+    - onboarding.company-workspace
+    - status.current
+    - workbench.overview
+    - command.knowledge
+    - guide.author-company-knowledge
+    - guide.review-company-knowledge
+    - guide.operate-knowledge-provider
+    - guide.connect-knowledge-source
+    - guide.recover-company-knowledge
+migration: >-
+  Apply additive companyos_knowledge tables and columns through the existing
+  DATABASE_URL. pgvector is attempted as an optional derived-index feature;
+  failure keeps lexical retrieval active with explicit degradation evidence.
+  Existing V1 snapshots remain readable and can be retired or rolled back.
+rollback: >-
+  Disable hybrid mode and source bindings, reactivate a prior verified
+  snapshot, and retain source receipts, cursors, review decisions, observation
+  history, deletion requests, and legal-hold evidence. Optional vector rows and
+  graph projections are rebuildable from immutable bundles and source receipts.
+open_decisions:
+  - Select an external semantic embedding provider only after a separately approved data-egress decision.
+  - Define phase 6 authorization before connecting a source with content outside the shared roster scope.

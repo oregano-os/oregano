@@ -12,6 +12,10 @@ export function ensureCompanyOSSchema(): Promise<void> {
   migration ??= (async () => {
     const sql = neon(databaseUrl());
     await sql`create schema if not exists companyos`;
+    await sql`create table if not exists companyos.schema_manifests (
+      manifest_id text not null, manifest_version text not null, manifest_digest text not null,
+      features jsonb not null, applied_at timestamptz not null default now(),
+      primary key (manifest_id, manifest_version))`;
     await sql`create table if not exists companyos.workflow_runs (
       run_id text primary key, workflow text not null, workflow_version text not null,
       company_commit text, company_snapshot_hash text not null, agent_definition_hash text not null,

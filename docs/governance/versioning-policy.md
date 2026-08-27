@@ -101,8 +101,6 @@ An Agent Contributor preparing a release MUST:
 [Semantic Versioning 2.0.0](https://semver.org/) defines `0.y.z` for initial
 development and defines optional pre-release identifiers. OpenClaw's official
 release history began at [`v0.1.1`](https://github.com/openclaw/openclaw/releases/tag/v0.1.1)
-without a pre-release suffix before later changing schemes. Gbrain's repository
-began with [`v0.1.0`](https://github.com/garrytan/gbrain/commit/b22cbd349ac2787ca47da98a7026a3a923f82006)
-and later adopted a project-specific four-part scheme. CompanyOS keeps the
-portable three-part SemVer contract instead of copying either project's later
-release cadence.
+without a pre-release suffix before later changing schemes. CompanyOS keeps the
+portable three-part SemVer contract instead of copying project-specific release
+cadences.

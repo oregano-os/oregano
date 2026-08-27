@@ -130,9 +130,14 @@ export function loadCompanyWorkspace(root: string): LoadedWorkspace {
   };
 }
 
-export function scopedMaterials(workspace: LoadedWorkspace, patterns: string[]): Record<string, string> {
+export function scopedMaterials(
+  workspace: LoadedWorkspace,
+  patterns: string[],
+  options: { excludeKnowledgeDocuments?: boolean } = {},
+): Record<string, string> {
   const expressions = patterns.map(globExpression);
   return Object.fromEntries(Object.entries(workspace.allFiles)
     .filter(([path]) => expressions.some((expression) => expression.test(path)))
+    .filter(([path]) => !options.excludeKnowledgeDocuments || !path.startsWith("handbook/") || path === "handbook/roster.md")
     .sort(([a], [b]) => a.localeCompare(b)));
 }

@@ -1,0 +1,104 @@
+version: 1
+plan_id: company-knowledge-phase-3d-github-v2-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Route the maintained GitHub Source Connector through Source Connector 2.0
+objective: >-
+  Preserve repository Source identities and V1 configuration compatibility
+  while implementing a native V2 GitHub Connector and routing repository
+  verification, immutable tree enumeration, blob fetch, ACL evidence,
+  reconciliation, receipts, retries, and completed watermarks through the
+  shared durable Source pipeline.
+non_goals:
+  - Extract Pages or Claims from repository evidence.
+  - Activate a live repository or resolve a production credential.
+  - Add repository write access or infer provider ACLs that GitHub does not expose per blob.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-3d-github-v2.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/compatibility/registry.yaml
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/knowledge.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/cli/src/cli.mjs
+  - packages/connectors/github-knowledge-source-v2.ts
+  - packages/connectors/source-registry-maintained.ts
+  - packages/connectors/source-registry.ts
+  - packages/knowledge/in-memory-source-pipeline-store.ts
+  - packages/knowledge/source-ingestion-v2.ts
+  - packages/knowledge/source-pipeline-store.ts
+  - packages/knowledge/source-sync-v2.ts
+  - packages/state-postgres/source-pipeline-store.ts
+  - packages/testkit/tests/knowledge-source-github-v2.test.ts
+  - packages/testkit/tests/knowledge-source-ingestion-v2.test.ts
+  - packages/testkit/tests/knowledge-source-registry.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-3d-github-v2.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-3d-github-v2.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/knowledge-source-github-v2.test.ts packages/testkit/tests/knowledge-source-registry.test.ts packages/testkit/tests/knowledge-source-ingestion-v2.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - V1 and V2 repository registrations resolve to Source Connector V2 implementations with exact identities.
+  - Immutable tree cursors fail closed on tampering, tree drift, truncation, and invalid paths.
+  - Blob fetch remains read-only, SecretRef-bound, size-bounded, UTF-8 validated, and receipt-producing.
+  - Repeating or restarting a sync creates no duplicate Raw Evidence or change entry.
+  - Only a complete fresh inventory marks absent provider objects deleted.
+  - Reappearance of an unchanged provider version restores inventory presence without rewriting immutable Raw Evidence.
+  - The generic CLI does not construct or special-case a provider Connector.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - plan.company-knowledge-implementation
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.knowledge
+    - command.setup
+    - command.verify-live
+    - guide.connect-knowledge-source
+migration: >-
+  Existing V1 requirements and bindings retain Source, Connector, object, and
+  provider-version identities. The exact V1 registry entry now creates a V2
+  implementation in compatibility mode. New native bindings use Connector
+  version 2.0.0 and require exact implementation qualification and active
+  state. Existing immutable envelopes and receipts are never rewritten.
+rollback: >-
+  Disable new repository synchronization while retaining all Source Events,
+  Raw Evidence, receipts, inventory state, and watermarks. The V1 configuration
+  parser and registry identity remain available, but ingestion must not fall
+  back to the retired provider-specific persistence path.
+open_decisions:
+  - A real bounded repository sync still requires an approved SecretRef and target repository binding.

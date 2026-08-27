@@ -1,0 +1,95 @@
+version: 1
+plan_id: knowledge-maintenance-alignment-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Make Company Knowledge maintenance nightly, delta-aware, cached, and budgeted
+objective: >-
+  Replace repeated broad model compounding with a nightly, resumable maintenance
+  cycle that uses task-specific deterministic candidate gates, durable
+  content-addressed judgment reuse, rated execution receipts, and enforced spend
+  budgets while preserving all Raw Evidence and keeping every model result
+  reviewable and non-authoritative.
+non_goals:
+  - Delete Raw Evidence, Claims, model results, or historical maintenance receipts.
+  - Automatically accept a duplicate, relation, conflict, Claim resolution, or Handbook promotion.
+  - Activate a paid embedding provider without an explicit Company Instance binding and qualification.
+  - Add personal-memory scoring, emotional weighting, or self-modifying agent behavior.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-27-knowledge-maintenance-alignment.yaml
+  - docs/**
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/knowledge/**
+  - packages/runner/**
+  - packages/runner-vercel/**
+  - packages/state-postgres/**
+  - packages/testkit/**
+  - vercel.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-to-implement-the-reviewed-maintenance-alignment
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-knowledge-maintenance-alignment.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-knowledge-maintenance-alignment.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-database-bootstrap.test.ts
+  - pnpm test
+  - git diff --check
+tests:
+  - Unchanged task inputs reuse one durable content-addressed result across maintenance cycles.
+  - Prompt, schema, model, policy, authorization, evidence, or rule changes invalidate reuse.
+  - Duplicate, relation, and conflict phases use distinct deterministic candidate gates.
+  - Exact duplicate handling and supported Fact consolidation do not require a language-model call.
+  - Cheap triage runs before ambiguous pair judgment and its result is cached.
+  - The maintained direct-Anthropic background synthesis uses a bounded Sonnet
+    task override and exits before the hosted lease if the provider stalls.
+  - Large synthesis Subjects resume as deterministic bounded Claim segments
+    and merge only after every component result and receipt is available.
+  - Every successful productive model call writes a rated execution receipt before its result is cached.
+  - Daily and per-cycle spend limits stop new paid calls but still allow cache hits.
+  - The hosted scheduler runs source delta work separately and advances model maintenance nightly.
+  - Embedding capability remains disabled and explicitly degraded until an adapter is bound and qualified.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.2
+    - plan.company-knowledge-implementation
+    - status.current
+    - guide.operate-knowledge-provider
+    - guide.prepare-instance
+    - onboarding.index
+    - onboarding.company-workspace
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - command.setup
+    - command.verify-live
+migration: >-
+  Add companyos-postgres@1.6.0 as an additive successor to 1.5.0. The new
+  manifest adds durable model-task result cache and execution-ledger tables and
+  their supporting indexes. Existing schemas, durable knowledge, receipts, and
+  the immutable 1.5.0 manifest entry remain unchanged.
+rollback: >-
+  Disable the nightly maintenance schedule and revert the runtime selection and
+  budget code. The additive cache and ledger tables may remain unused. Existing
+  1.5.0 data, source reconciliation, extraction, retrieval, and Handbook
+  behavior continue without deletion or rewrite.
+open_decisions:
+  - Select and qualify an embedding adapter before enabling semantic candidate clustering.
+  - Calibrate the initial nightly and daily spend ceilings with observed production receipts.

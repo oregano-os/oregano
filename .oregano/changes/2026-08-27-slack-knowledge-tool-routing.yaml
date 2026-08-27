@@ -1,0 +1,75 @@
+version: 1
+plan_id: slack-knowledge-tool-routing-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Require the granted Knowledge search Tool for explicit Slack knowledge turns
+objective: >-
+  Keep the existing Oregano Slack Agent as the single conversational entrypoint
+  while deterministically requiring its granted read-only Knowledge search Tool
+  for explicit Company Knowledge requests, then require a successful validated
+  Tool result before rendering, so the model cannot answer that such a
+  registered Tool is unavailable after attempting or completing the authorized
+  lookup.
+non_goals:
+  - Add a channel-to-Agent dispatcher or a separate Knowledge Agent.
+  - Force a Knowledge lookup for greetings, general advice, or unrelated conversation.
+  - Change Knowledge authorization, database schemas, Connector bindings, or retention.
+  - Add a second synthesis model call to ordinary interactive answers.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-27-slack-knowledge-tool-routing.yaml
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/knowledge-turn-routing.ts
+  - packages/testkit/tests/slack-knowledge-routing.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-after-reviewing-the-bounded-routing-change
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-slack-knowledge-tool-routing.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-slack-knowledge-tool-routing.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/slack-knowledge-routing.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - pnpm test
+  - git diff --check
+tests:
+  - The exact failed German Slack request deterministically requires the granted Knowledge search Tool on the first model step.
+  - Explicit English Company Knowledge requests follow the same route.
+  - A missing search grant fails closed to ordinary automatic Tool selection rather than inventing authority.
+  - Greetings and general advice do not force a Knowledge lookup.
+  - Later Tool-loop steps return to automatic selection so exact get and graph traversal remain available when relevant.
+  - A required lookup that produces no successful matching Tool result cannot render a false substantive answer.
+  - A structurally invalid search result fails closed without rendering model claims.
+  - A false Tool-unavailable model answer is replaced with authorized excerpts carrying source paths and fragment IDs.
+  - A successful empty search renders an explicit no-result state rather than an unsupported answer.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.2
+    - plan.company-knowledge-implementation
+    - status.current
+migration: >-
+  No database, Artifact, Workspace, Tool, Connector, or secret migration is
+  required. Existing Agents without the standard Knowledge search grant retain
+  automatic Tool selection.
+rollback: >-
+  Remove the deterministic first-step Tool choice and retain the existing
+  automatic Tool loop. No durable Knowledge, conversation, or access evidence
+  is changed or deleted.
+open_decisions: []

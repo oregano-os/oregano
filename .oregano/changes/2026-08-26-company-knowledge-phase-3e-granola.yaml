@@ -1,0 +1,103 @@
+version: 1
+plan_id: company-knowledge-phase-3e-granola-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement the maintained Granola hybrid Source Connector
+objective: >-
+  Add a company-independent Granola Source Connector 2.0 implementation for
+  signed reference-only webhooks and overlapping API reconciliation, with exact
+  folder scope, bounded note and transcript fetch, shared durable event
+  ingestion, fixed-policy or quarantine access, retries, deduplication, and
+  payload-free receipts.
+non_goals:
+  - Create a live webhook endpoint or resolve an Oregano company credential.
+  - Claim that the Granola API exposes per-note principal ACLs or an independently observable workspace ID.
+  - Persist an oversized transcript before a Raw Asset adapter is qualified.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-3e-granola.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/compatibility/registry.yaml
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/knowledge.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/connectors/granola-knowledge-source-v2.ts
+  - packages/connectors/source-registry-maintained.ts
+  - packages/connectors/source-registry.ts
+  - packages/knowledge/source-contracts-v2.ts
+  - packages/knowledge/source-ingestion-v2.ts
+  - packages/knowledge/source-sync-v2.ts
+  - packages/testkit/tests/knowledge-source-contract-v2.test.ts
+  - packages/testkit/tests/knowledge-source-granola-v2.test.ts
+  - packages/testkit/tests/knowledge-source-registry.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-3e-granola.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-3e-granola.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/knowledge-source-granola-v2.test.ts packages/testkit/tests/knowledge-source-contract-v2.test.ts packages/testkit/tests/knowledge-source-registry.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Standard Webhooks signatures are checked over the exact raw body with bounded timestamp skew before JSON parsing.
+  - Supported webhook deliveries persist reference-only Source Events before acknowledgement and replay idempotently.
+  - Reconciliation uses updated-after overlap, page size at most 30, provider cursors, and complete-watermark semantics.
+  - Webhook and reconciliation identities for one provider revision converge on one immutable Raw Evidence version.
+  - Fetch validates note identity, provider update identity, configured folder ancestry, summary, participants, and transcript pagination.
+  - Provider errors and rate limits retry within bounds without logging or receipting payloads or credentials.
+  - Oversized transcripts fail closed until a durable Raw Asset adapter is qualified.
+  - Provider-principal ACL mode is rejected because the public API does not expose sufficient per-note principal evidence.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - plan.company-knowledge-implementation
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.knowledge
+    - command.setup
+    - command.verify-live
+    - guide.connect-knowledge-source
+migration: >-
+  Add a new exact maintained Connector registration only. No existing Source,
+  event, envelope, receipt, policy, or database-manifest identity changes.
+  Activation requires a V2 meeting/hybrid requirement, exact qualified active
+  Instance binding, API-key and webhook-signing SecretRefs, fixed root policy or
+  quarantine, and provider scope evidence.
+rollback: >-
+  Revoke or deactivate the Granola binding and stop accepting deliveries while
+  retaining all already accepted Source Events, Raw Evidence, policies,
+  receipts, and watermarks. Reconciliation can recover missed events after a
+  newly qualified binding is activated.
+open_decisions:
+  - Live workspace identity must use an attributable Granola administrator receipt because the public API does not independently return a workspace identifier.
+  - Large transcripts remain fail-closed until the Instance has a qualified durable Raw Asset adapter.

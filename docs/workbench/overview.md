@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -19,7 +19,7 @@ availability: experimental
 The Workbench is the versioned CLI and Guide library used to build and maintain
 Company Workspaces safely.
 
-The current repository release candidate is `0.1.0-experimental.7`. Verify the
+The current repository release candidate is `0.1.0-experimental.8`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
 contract version; it does not claim that a public package has been published.
 
@@ -38,6 +38,7 @@ contract version; it does not claim that a public package has been published.
 | `companyos versions` | Report the exact Core, Workspace, Workbench, and specification versions | experimental |
 | `companyos package inspect` | Inspect a local Package without mutation; Blueprint is supported, Tool and Connector are recognition-only | experimental |
 | `companyos build` | Compile an exact Core, Workspace, and non-secret Instance declaration into an immutable resolved artifact | experimental |
+| `companyos knowledge` | Inspect/build OKF, test retrieval, operate snapshots and derived indexes, synchronize a repository source, and govern observations/review | experimental |
 | `companyos create workspace` | Interactively or through the agent answers-file transport, preview and create one valid authoring-only Company Workspace | experimental |
 | `companyos create` for other objects | Scaffold valid CompanyOS objects inside an existing Workspace | deferred |
 | `companyos analyze` | Analyze workflow structure and behavior | planned |
