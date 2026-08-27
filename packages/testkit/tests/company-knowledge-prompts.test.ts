@@ -18,7 +18,7 @@ test("every generative Knowledge task has exact versioned schemas and a task-spe
   assert.equal(new Set(definitions.map((definition) => definition.inputSchemaId)).size, definitions.length);
   assert.equal(new Set(definitions.map((definition) => definition.outputSchemaId)).size, definitions.length);
   for (const definition of definitions) {
-    assert.equal(definition.version, definition.promptId === "knowledge.claim-extraction" ? "4" : "2");
+    assert.equal(definition.version, definition.promptId === "knowledge.claim-extraction" ? "5" : "2");
     assert.ok(definition.userInstruction.length >= 150);
     assert.equal((definition.outputSchema as { additionalProperties?: unknown }).additionalProperties, false);
   }

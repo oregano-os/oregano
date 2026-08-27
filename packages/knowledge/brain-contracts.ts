@@ -602,10 +602,9 @@ export function createBrainClaim(input: BrainClaimInput): BrainClaim {
   const validFrom = input.validFrom ? iso(input.validFrom, "Claim validFrom") : undefined;
   const validUntil = input.validUntil ? iso(input.validUntil, "Claim validUntil") : undefined;
   if (validFrom && validUntil && Date.parse(validUntil) < Date.parse(validFrom)) throw new Error("Claim validUntil cannot precede validFrom.");
-  if (input.extractionConfidence < 0 || input.extractionConfidence > 1) throw new Error("Claim extractionConfidence must be between 0 and 1.");
-  if (input.epistemicWeight < 0 || input.epistemicWeight > 1 || Math.abs(input.epistemicWeight * 20 - Math.round(input.epistemicWeight * 20)) > 1e-9) {
-    throw new Error("Claim epistemicWeight must be between 0 and 1 in 0.05 increments.");
-  }
+  if (!Number.isFinite(input.extractionConfidence) || input.extractionConfidence < 0 || input.extractionConfidence > 1) throw new Error("Claim extractionConfidence must be between 0 and 1.");
+  if (!Number.isFinite(input.epistemicWeight)) throw new Error("Claim epistemicWeight must be finite.");
+  const epistemicWeight = Math.round(Math.max(0, Math.min(1, input.epistemicWeight)) * 20) / 20;
   const evidence = normalizeEvidence(input.evidence);
   const unresolvedEvidenceReason = input.unresolvedEvidenceReason?.trim() || undefined;
   if (evidence.length === 0 && !unresolvedEvidenceReason) throw new Error("A Claim requires exact evidence or an explicit unresolved-evidence reason.");
@@ -621,7 +620,7 @@ export function createBrainClaim(input: BrainClaimInput): BrainClaim {
     validFrom,
     validUntil,
     extractionConfidence: input.extractionConfidence,
-    epistemicWeight: input.epistemicWeight,
+    epistemicWeight,
     accessPolicyId: required(input.accessPolicyId, "Claim access policy ID"),
     createdBy: required(input.createdBy, "Claim creator"),
     modelProvenance,

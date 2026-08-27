@@ -52,8 +52,18 @@ export const KNOWLEDGE_PROMPT_INPUT_SCHEMAS = {
 
 const confidence = { type: "number", minimum: 0, maximum: 1 } as const;
 const discreteEpistemicWeight = { ...confidence, multipleOf: 0.05 } as const;
+const legacyHolder = object({
+  holderId: string(256),
+  holderType: { type: "string", enum: ["person", "team", "company", "world", "system", "unresolved"] },
+  displayName: string(500),
+});
+const canonicalHolder = object({
+  holderId: { type: "string", pattern: "^(world|brain|people/[a-z0-9._-]+|companies/[a-z0-9._-]+)$", maxLength: 256 },
+  holderType: { type: "string", enum: ["person", "company", "world", "system"] },
+  displayName: string(256),
+});
 
-const claimExtractionOutputSchema = (epistemicWeight: KnowledgePromptJsonSchema) => ({
+const claimExtractionOutputSchema = (epistemicWeight: KnowledgePromptJsonSchema, holder: KnowledgePromptJsonSchema) => ({
   ...object({
     page: object({ title: string(500), summary: string(4_000, 0) }),
     facts: {
@@ -76,11 +86,7 @@ const claimExtractionOutputSchema = (epistemicWeight: KnowledgePromptJsonSchema)
       items: object({
         claimKind: { type: "string", enum: ["fact", "take", "bet", "hunch"] },
         claimText: string(10_000),
-        holder: object({
-          holderId: string(256),
-          holderType: { type: "string", enum: ["person", "team", "company", "world", "system", "unresolved"] },
-          displayName: string(500),
-        }),
+        holder,
         derivation: { type: "string", enum: ["source-literal", "model-derived"] },
         evidenceId: string(256),
         locator: { $ref: "#/$defs/locator" },
@@ -98,7 +104,7 @@ const claimExtractionOutputSchema = (epistemicWeight: KnowledgePromptJsonSchema)
   $defs: { locator, participantRelations },
 } as const satisfies KnowledgePromptJsonSchema);
 
-export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = claimExtractionOutputSchema(discreteEpistemicWeight);
+export const KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA = claimExtractionOutputSchema(discreteEpistemicWeight, canonicalHolder);
 
 export const KNOWLEDGE_PROMPT_OUTPUT_SCHEMAS = {
   "knowledge.triage.output@2": object({
@@ -108,8 +114,9 @@ export const KNOWLEDGE_PROMPT_OUTPUT_SCHEMAS = {
     rationale: string(1_000),
   }),
   "knowledge.page-classification.output@2": object({ typeKey: string(100), rationale: string(1_000) }),
-  "knowledge.claim-extraction.output@2": claimExtractionOutputSchema(confidence),
-  "knowledge.claim-extraction.output@3": KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA,
+  "knowledge.claim-extraction.output@2": claimExtractionOutputSchema(confidence, legacyHolder),
+  "knowledge.claim-extraction.output@3": claimExtractionOutputSchema(discreteEpistemicWeight, legacyHolder),
+  "knowledge.claim-extraction.output@4": KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA,
   "knowledge.timeline.output@2": object({
     events: { type: "array", maxItems: 200, items: object({ eventType: string(200), description: string(2_000), observedAt: { type: "string", format: "date-time" }, evidenceId: string(256), locator }) },
   }),

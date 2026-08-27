@@ -72,13 +72,13 @@ const output = {
   takes: [
     {
       claimKind: "bet", claimText: "The launch will increase retention.",
-      holder: { holderId: "holder:bob", holderType: "person", displayName: "Bob" }, derivation: "source-literal",
+      holder: { holderId: "people/bob", holderType: "person", displayName: "people/bob" }, derivation: "source-literal",
       evidenceId: "evidence:source", locator: { kind: "line", start: 2, end: 2 }, extractionConfidence: 0.9, epistemicWeight: 0.7,
       participantRelations: [{ relation: "speaker", principalId: "human:bob" }],
     },
     {
       claimKind: "hunch", claimText: "Retention impact may depend on onboarding quality.",
-      holder: { holderId: "holder:system", holderType: "system", displayName: "Extraction model" }, derivation: "model-derived",
+      holder: { holderId: "brain", holderType: "system", displayName: "brain" }, derivation: "model-derived",
       evidenceId: "evidence:source", locator: { kind: "line", start: 2, end: 2 }, extractionConfidence: 0.55, epistemicWeight: 0.5,
       participantRelations: [],
     },
@@ -94,7 +94,7 @@ test("Core Prompt Registry pins every initial model boundary and keeps evidence 
     assert.match(entry.contentHash, /^[a-f0-9]{64}$/);
     assert.match(entry.systemInstruction, /untrusted quoted data/i);
     assert.match(entry.inputSchemaId, /@1$/);
-    assert.match(entry.outputSchemaId, entry.promptId === "knowledge.claim-extraction" ? /@3$/ : /@2$/);
+    assert.match(entry.outputSchemaId, entry.promptId === "knowledge.claim-extraction" ? /@4$/ : /@2$/);
     assert.ok(entry.userInstruction.length > 100);
   }
   assert.throws(() => registry.resolveCurrent("knowledge.rerank"), /Unknown Knowledge prompt/);
@@ -133,7 +133,7 @@ test("structured extraction is idempotent, evidence-bound, and keeps inferred gr
   assert.equal(first.claims[0].status, "active");
   assert.equal(first.claims[1].status, "active");
   assert.equal(first.claims[2].status, "proposed");
-  assert.equal(first.claims[1].primaryHolder?.holderId, "holder:bob");
+  assert.equal(first.claims[1].primaryHolder?.holderId, "people/bob");
   assert.ok(first.participantRelations.some((entry) => entry.relation === "owner" && entry.principalId === "human:project-lead"));
   assert.notEqual(first.claims[0].ownerPrincipalId, first.participantRelations.find((entry) => entry.relation === "owner")?.principalId);
   assert.equal((await brainStore.listClaimRelations(first.claims[0].claimId)).length, 2);
