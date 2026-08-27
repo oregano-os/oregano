@@ -18,7 +18,7 @@ test("every generative Knowledge task has exact versioned schemas and a task-spe
   assert.equal(new Set(definitions.map((definition) => definition.inputSchemaId)).size, definitions.length);
   assert.equal(new Set(definitions.map((definition) => definition.outputSchemaId)).size, definitions.length);
   for (const definition of definitions) {
-    assert.equal(definition.version, "2");
+    assert.equal(definition.version, definition.promptId === "knowledge.claim-extraction" ? "3" : "2");
     assert.ok(definition.userInstruction.length >= 150);
     assert.equal((definition.outputSchema as { additionalProperties?: unknown }).additionalProperties, false);
   }
@@ -71,7 +71,7 @@ test("prompt fixtures expose deterministic precision, recall, and F1 quality gat
     const definition = registry.resolveCurrent(fixture.promptId);
     assert.equal(definition.fixtureSetId, fixture.fixtureSetId);
     registry.resolveExecution(asPromptRequestMetadata(fixture, definition));
-    const actualSignals = knowledgePromptOutputSignals(fixture.promptId, fixture.referenceOutput);
+    const actualSignals = knowledgePromptOutputSignals(fixture.promptId, fixture.referenceOutput, fixture.taskInput);
     const perfect = evaluateKnowledgePromptSignals(fixture.expectedSignals, actualSignals);
     assert.equal(perfect.precision, 1);
     assert.equal(perfect.recall, 1);

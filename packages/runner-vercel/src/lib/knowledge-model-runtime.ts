@@ -172,7 +172,7 @@ export async function qualifyKnowledgePromptFixtures(input: {
         idempotencyKey: sha256({ fixtureId: fixture.fixtureId, promptContentHash: prompt.contentHash, model: profile.model }),
       },
     });
-    const signals = knowledgePromptOutputSignals(fixture.promptId, executed.output);
+    const signals = knowledgePromptOutputSignals(fixture.promptId, executed.output, fixture.taskInput);
     const metrics = evaluateKnowledgePromptSignals(fixture.expectedSignals, signals);
     results.push({
       fixtureId: fixture.fixtureId,
@@ -182,6 +182,8 @@ export async function qualifyKnowledgePromptFixtures(input: {
       receiptId: executed.receipt.receiptId,
       outcome: executed.receipt.outcome,
       minimumF1: fixture.minimumF1,
+      expectedSignals: fixture.expectedSignals,
+      actualSignals: signals,
       metrics,
       qualified: executed.receipt.outcome === "succeeded" && metrics.f1 >= fixture.minimumF1,
     });
