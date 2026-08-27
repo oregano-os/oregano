@@ -65,6 +65,9 @@ export function classifyKnowledgeSourceRuntimeError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/runtime configuration|SecretRef .* unavailable|unsupported Source identity/i.test(message)) return "runtime-configuration";
   if (/binding .* not active for ingestion/i.test(message)) return "binding-state";
+  if (/Knowledge model provider call failed/i.test(message)) return "model-provider";
+  if (/Knowledge model|model output|extraction .*invalid|locator|structured/i.test(message)) return "model-output";
+  if (/authoriz/i.test(message)) return "authorization";
   if (/Source .* (?:conflicts|rebind|revoked|registration)/i.test(message)) return "source-registration";
   if (/Granola .*?(?:response|API request|folder scope|note list|transcript)/i.test(message)) return "provider-response";
   if (/cursor|watermark/i.test(message)) return "cursor-or-watermark";
