@@ -70,6 +70,38 @@ It does not activate a model profile, approve data egress, send source evidence,
 or create Handbook authority. Knowledge authorization still completes before
 every real evidence block is sent to a model.
 
+Then call `POST /api/knowledge/model/qualification`. The protected operation
+runs every current synthetic Prompt Registry fixture through its exact task
+binding and returns only route/model identities, receipt IDs, and precision,
+recall, and F1 metrics. It does not send company evidence. A smoke test proves
+transport readiness; fixture qualification proves the configured models can
+satisfy the maintained prompt contracts. Both must succeed after a model,
+prompt, route, or provider change.
+
+## Productive compounding operation
+
+`GET` or `POST /api/knowledge/compounding` runs one bounded six-hour cycle for
+the exact active company source binding. The operation authorizes the company
+principal and policy before loading Claims. It persists leases, resumable phase
+receipts, semantic duplicate proposals, Claim-relation proposals, conflict
+proposals, immutable working-synthesis versions, and explicit grading results.
+It never accepts a proposal, mutates a canonical Claim, or writes the Handbook.
+
+Do not enable a scheduler merely because the endpoint deploys. First:
+
+1. prepare and read-only qualify `companyos-postgres@1.5.0`;
+2. pass the distinct-model smoke test;
+3. pass all 13 live synthetic fixtures;
+4. reconcile and extract one real authorized source object;
+5. run one manually authorized compounding cycle and inspect aggregate receipt,
+   proposal, and synthesis counts without printing payloads; and
+6. verify retrying the same cycle reuses complete receipts.
+
+Any runtime host may bind the same operation to its scheduler. The Vercel route
+is a maintained adapter, not a Core dependency. Leave the schedule disabled on
+qualification failure, authorization denial, missing migration, or an
+unexpected proposal/synthesis count.
+
 ## Granola runtime operation
 
 The maintained Runner reads one SecretRef-only binding from

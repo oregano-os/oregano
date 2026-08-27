@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sha256 } from "../../../runtime/canonical.ts";
-import { KNOWLEDGE_MODEL_EXECUTION_CONTRACT_VERSION, type KnowledgeModelProfileBinding } from "../../../knowledge/knowledge-model-execution.ts";
+import { CORE_KNOWLEDGE_PROMPT_FIXTURES } from "../../../knowledge/prompt-evaluation.ts";
+import { KNOWLEDGE_MODEL_EXECUTION_CONTRACT_VERSION, type KnowledgeModelExecutor, type KnowledgeModelProfileBinding } from "../../../knowledge/knowledge-model-execution.ts";
 import { KnowledgePromptRegistry } from "../../../knowledge/prompt-registry.ts";
 import {
   decodeKnowledgeModelRuntimeConfiguration,
   knowledgeModelAdapterDigest,
   KNOWLEDGE_EXTRACTION_JSON_SCHEMA,
   KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA,
+  qualifyKnowledgePromptFixtures,
   resolveKnowledgeTaskProfile,
 } from "./knowledge-model-runtime.ts";
 
@@ -105,4 +107,18 @@ test("Knowledge structured-output schemas type every constant for strict provide
   assert.ok(enumNodes.length >= 5);
   assert.ok(enumNodes.every((node) => node.type === "string"));
   assert.deepEqual(forbiddenOneOfNodes, []);
+});
+
+test("live fixture qualification covers every current prompt and reports bounded non-secret metrics", async () => {
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(Buffer.from(JSON.stringify({ version: 1, utility: profile("utility"), reasoning: profile("reasoning") })).toString("base64"));
+  const executor: KnowledgeModelExecutor = { execute: async (binding, request) => {
+    const fixture = CORE_KNOWLEDGE_PROMPT_FIXTURES.find((entry) => entry.promptId === request.promptId);
+    if (!fixture) throw new Error("Missing fixture.");
+    return { output: fixture.referenceOutput, responseId: `response:${fixture.fixtureId}`, responseModel: binding.model, inputTokens: 10, outputTokens: 10, costUsd: 0, latencyMs: 1, finishReason: "stop" as const };
+  } };
+  const result = await qualifyKnowledgePromptFixtures({ executor, configuration, now: () => "2026-08-27T12:00:00.000Z" });
+  assert.equal(result.ok, true);
+  assert.equal(result.fixtureCount, 13);
+  assert.equal(result.results.every((entry) => entry.qualified && entry.metrics.f1 === 1), true);
+  assert.doesNotMatch(JSON.stringify(result), /synthetic-anthropic-key|source evidence/i);
 });

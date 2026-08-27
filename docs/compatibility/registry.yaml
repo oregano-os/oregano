@@ -330,6 +330,23 @@ contracts:
     deprecated: null
     replacement: null
     removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-compounding
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-27
+    specification: specification.company-knowledge-v0.2
+    implementation: persisted-leased-proposal-only-compounding-runtime
+    tests:
+      - deterministic-policy-and-subject-contained-candidates
+      - resumable-idempotent-phase-receipts
+      - proposal-only-duplicate-relation-and-conflict-results
+      - immutable-working-synthesis-versions
+      - explicit-outcome-grading-requests
+      - live-prompt-fixture-qualification
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
   - id: companyos.handbook-promotion
     version: "2.0.0"
     stability: experimental
