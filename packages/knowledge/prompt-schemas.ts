@@ -38,6 +38,7 @@ export const KNOWLEDGE_PROMPT_INPUT_SCHEMAS = {
   "knowledge.triage.input@1": object({ sourceKind: string(64), contentCharacters: { type: "integer", minimum: 0, maximum: 20_000_000 } }),
   "knowledge.page-classification.input@1": object({ allowedTypeKeys: stringArray(100, 100) }),
   "knowledge.claim-extraction.input@1": object({ defaultOwnerPrincipalId: string(256), sourceKind: string(64), observedAt: { type: "string", format: "date-time" } }),
+  "knowledge.claim-extraction.input@2": object({ defaultOwnerPrincipalId: string(256), sourceKind: string(64), observedAt: { type: "string", format: "date-time" }, evidenceLineCount: { type: "integer", minimum: 1, maximum: 2_000_000 } }),
   "knowledge.timeline.input@1": object({ sourceKind: string(64) }),
   "knowledge.claim-relation.input@1": object({ claimIds: stringArray(200) }),
   "knowledge.identity-link.input@1": object({ pageIds: stringArray(200), entityIds: stringArray(200) }),

@@ -101,7 +101,7 @@ test("Core Prompt Registry pins every initial model boundary and keeps evidence 
   for (const entry of registry.list()) {
     assert.match(entry.contentHash, /^[a-f0-9]{64}$/);
     assert.match(entry.systemInstruction, /untrusted quoted data/i);
-    assert.match(entry.inputSchemaId, /@1$/);
+    assert.match(entry.inputSchemaId, entry.promptId === "knowledge.claim-extraction" ? /@2$/ : /@1$/);
     assert.match(entry.outputSchemaId, entry.promptId === "knowledge.claim-extraction" ? /@4$/ : /@2$/);
     assert.ok(entry.userInstruction.length > 100);
   }
@@ -126,7 +126,7 @@ test("structured extraction is idempotent, evidence-bound, and keeps inferred gr
   const executor: KnowledgeModelExecutor = { execute: async (_profile, request) => {
     calls += 1;
     assert.equal(request.evidenceBlocks.length, 1);
-    assert.deepEqual(request.taskInput, { defaultOwnerPrincipalId: "human:alice", sourceKind: "meeting", observedAt: now });
+    assert.deepEqual(request.taskInput, { defaultOwnerPrincipalId: "human:alice", sourceKind: "meeting", observedAt: now, evidenceLineCount: 3 });
     return { output, responseId: "response-1", responseModel: "test/reasoning", inputTokens: 100, outputTokens: 50, costUsd: 0.01, latencyMs: 10, finishReason: "stop" };
   } };
   const brainStore = new InMemoryBrainStore();
@@ -187,9 +187,11 @@ test("revoked model profiles fail closed and returned locators cannot escape the
 
   const invalid = structuredClone(output);
   invalid.facts[0].locator = { kind: "line", start: 1, end: 999 };
+  let invalidCalls = 0;
   await assert.rejects(() => extractRawEvidenceToBrain({
     evidence, sourceKind: "meeting", ownerPrincipalId: "human:alice", brainStore: new InMemoryBrainStore(), runStore: new InMemoryKnowledgeExtractionRunStore(),
-    modelExecutor: { execute: async () => ({ output: invalid, responseId: "response-invalid", responseModel: "test/reasoning", inputTokens: 10, outputTokens: 10, costUsd: 0, latencyMs: 1, finishReason: "stop" }) },
+    modelExecutor: { execute: async () => ({ output: invalid, responseId: `response-invalid-${++invalidCalls}`, responseModel: "test/reasoning", inputTokens: 10, outputTokens: 10, costUsd: 0, latencyMs: 1, finishReason: "stop" }) },
     profiles: { utility: profile("utility"), reasoning: profile("reasoning") }, authorizationContextDigest: sha256("auth"), dataClass: "restricted", now,
   }), /outside the authorized bounded input/i);
+  assert.equal(invalidCalls, 2);
 });

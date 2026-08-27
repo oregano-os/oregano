@@ -300,16 +300,29 @@ export async function extractRawEvidenceToBrain(input: {
     type = { typeKey: output.typeKey, basis: "unresolved" };
   }
   const chunks = chunkKnowledgeEvidenceText(text);
-  const executions = await Promise.all(chunks.map((chunk, index) => executeKnowledgeModel({ executor: input.modelExecutor, profile: input.profiles.reasoning, requiredProfile: extractionPrompt.profile, completedAt: now, request: {
-    task: extractionPrompt.task, promptId: extractionPrompt.promptId, promptVersion: extractionPrompt.version, promptContentHash: extractionPrompt.contentHash,
-    inputSchemaId: extractionPrompt.inputSchemaId, outputSchemaId: extractionPrompt.outputSchemaId, systemInstruction: extractionPrompt.systemInstruction,
-    taskInput: { defaultOwnerPrincipalId: input.ownerPrincipalId, sourceKind: input.sourceKind, observedAt: input.evidence.envelope.observedAt },
-    evidenceBlocks: [{ evidenceId: "evidence:source", content: chunk.content, contentDigest: sha256(chunk.content) }], authorizationContextDigest: input.authorizationContextDigest,
-    dataClass: input.dataClass, idempotencyKey: `${runKey}:chunk:${index}`,
-  } })));
-  modelReceipts.push(...executions.map((entry) => entry.receipt));
-  if (executions.some((entry) => entry.receipt.outcome !== "succeeded")) throw new Error("Claim extraction model did not succeed for every bounded evidence chunk.");
-  const chunkOutputs = executions.map((entry, index) => offsetExtractionOutput(validateExtractionOutput(entry.output, chunks[index]!.content, "evidence:source"), chunks[index]!.lineOffset));
+  const executions = await Promise.all(chunks.map(async (chunk, index) => {
+    const receipts: KnowledgeModelExecutionReceipt[] = [];
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const executed = await executeKnowledgeModel({ executor: input.modelExecutor, profile: input.profiles.reasoning, requiredProfile: extractionPrompt.profile, completedAt: now, request: {
+        task: extractionPrompt.task, promptId: extractionPrompt.promptId, promptVersion: extractionPrompt.version, promptContentHash: extractionPrompt.contentHash,
+        inputSchemaId: extractionPrompt.inputSchemaId, outputSchemaId: extractionPrompt.outputSchemaId, systemInstruction: extractionPrompt.systemInstruction,
+        taskInput: { defaultOwnerPrincipalId: input.ownerPrincipalId, sourceKind: input.sourceKind, observedAt: input.evidence.envelope.observedAt, evidenceLineCount: chunk.content.split("\n").length },
+        evidenceBlocks: [{ evidenceId: "evidence:source", content: chunk.content, contentDigest: sha256(chunk.content) }], authorizationContextDigest: input.authorizationContextDigest,
+        dataClass: input.dataClass, idempotencyKey: `${runKey}:chunk:${index}:attempt:${attempt}`,
+      } });
+      receipts.push(executed.receipt);
+      try {
+        if (executed.receipt.outcome !== "succeeded") throw new Error(`Claim extraction model ${executed.receipt.outcome}.`);
+        return { output: offsetExtractionOutput(validateExtractionOutput(executed.output, chunk.content, "evidence:source"), chunk.lineOffset), receipts };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("Claim extraction chunk failed bounded validation retries.");
+  }));
+  modelReceipts.push(...executions.flatMap((entry) => entry.receipts));
+  const chunkOutputs = executions.map((entry) => entry.output);
   const output: ModelExtractionOutput = {
     page: chunkOutputs[0]!.page,
     claims: chunkOutputs.flatMap((entry) => entry.claims),

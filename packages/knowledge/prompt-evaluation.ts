@@ -94,7 +94,7 @@ export const CORE_KNOWLEDGE_PROMPT_FIXTURES: readonly KnowledgePromptEvaluationF
   },
   {
     fixtureId: "fact-take-boundary@1", fixtureSetId: "knowledge.claim-extraction.fixtures@1", promptId: "knowledge.claim-extraction",
-    taskInput: { defaultOwnerPrincipalId: "human:alice", sourceKind: "meeting", observedAt: "2026-08-27T10:00:00.000Z" },
+    taskInput: { defaultOwnerPrincipalId: "human:alice", sourceKind: "meeting", observedAt: "2026-08-27T10:00:00.000Z", evidenceLineCount: 2 },
     evidenceBlocks: [{ evidenceId: "evidence:source", content: "Alice (principal ID human:alice): I will publish the plan Friday.\nBob (Holder ID people/bob): I predict adoption will increase." }],
     referenceOutput: { facts: [{ claimKind: "commitment", ownerPrincipalId: "human:alice", locator: { kind: "line", start: 1, end: 1 } }], takes: [{ claimKind: "bet", holder: { holderId: "people/bob" }, derivation: "source-literal", locator: { kind: "line", start: 2, end: 2 } }] },
     expectedSignals: ["fact:commitment:human:alice:line:1-1", "take:bet:people/bob:source-literal:line:2-2"], minimumF1: 0.8,
