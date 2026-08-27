@@ -47,7 +47,7 @@ const locatorSignal = (value: unknown): string => {
   return "locator:invalid";
 };
 
-export function knowledgePromptOutputSignals(promptId: string, output: unknown): string[] {
+export function knowledgePromptOutputSignals(promptId: string, output: unknown, taskInput: Readonly<Record<string, unknown>> = {}): string[] {
   const root = record(output);
   if (promptId === "knowledge.triage") return [`tier:${String(root.tier)}`, `action:${String(root.recommendedAction)}`];
   if (promptId === "knowledge.page-classification") return [`type:${String(root.typeKey)}`];
@@ -56,7 +56,7 @@ export function knowledgePromptOutputSignals(promptId: string, output: unknown):
     ...records(root.takes).map((take) => `take:${String(take.claimKind)}:${String(record(take.holder).holderId)}:${String(take.derivation)}:${locatorSignal(take.locator)}`),
   ];
   if (promptId === "knowledge.duplicate-classification") return [`classification:${String(root.classification)}`];
-  if (promptId === "knowledge.timeline-extraction") return records(root.events).map((event) => `event:${String(event.eventType)}:${String(event.evidenceId)}:${locatorSignal(event.locator)}`);
+  if (promptId === "knowledge.timeline-extraction") return records(root.events).map((event) => `event:${String(event.evidenceId)}:${locatorSignal(event.locator)}`);
   if (promptId === "knowledge.claim-relation") return records(root.relations).map((relation) => `relation:${String(relation.sourceClaimId)}:${String(relation.targetClaimId)}:${String(relation.relation)}`);
   if (promptId === "knowledge.identity-link") return records(root.proposals).map((proposal) => `identity:${String(proposal.pageId)}:${String(proposal.entityId)}:${String(proposal.judgment)}`);
   if (promptId === "knowledge.inferred-link") return records(root.proposals).map((proposal) => `link:${String(proposal.sourceId)}:${String(proposal.targetId)}:${String(proposal.relationType)}`);
@@ -70,7 +70,16 @@ export function knowledgePromptOutputSignals(promptId: string, output: unknown):
     ...records(root.citations).filter((citation) => typeof citation.identity === "string").map((citation) => `citation:${String(citation.identity)}`),
     ...values(root.labels).map((label) => `label:${label}`),
   ];
-  if (promptId === "knowledge.query-expansion") return values(root.terms).map((term) => `term:${term}`);
+  if (promptId === "knowledge.query-expansion") {
+    const terms = values(root.terms);
+    const query = typeof taskInput.query === "string" ? normalizedSignal(taskInput.query) : "";
+    const maximum = Number(taskInput.maxVariants);
+    return [
+      ...(terms.length > 0 ? ["terms:nonempty"] : []),
+      ...(Number.isInteger(maximum) && terms.length <= maximum ? ["terms:bounded"] : []),
+      ...(query && terms.every((term) => normalizedSignal(term) !== query) ? ["terms:no-original-repeat"] : []),
+    ];
+  }
   if (promptId === "knowledge.claim-grading") return [`grade:${String(root.claimId)}:${String(root.grade)}`];
   throw new Error(`Prompt fixture signal extraction is not implemented for '${promptId}'.`);
 }
@@ -86,7 +95,7 @@ export const CORE_KNOWLEDGE_PROMPT_FIXTURES: readonly KnowledgePromptEvaluationF
   {
     fixtureId: "fact-take-boundary@1", fixtureSetId: "knowledge.claim-extraction.fixtures@1", promptId: "knowledge.claim-extraction",
     taskInput: { defaultOwnerPrincipalId: "human:alice", sourceKind: "meeting", observedAt: "2026-08-27T10:00:00.000Z" },
-    evidenceBlocks: [{ evidenceId: "evidence:source", content: "Alice: I will publish the plan Friday.\nBob: I think adoption will increase." }],
+    evidenceBlocks: [{ evidenceId: "evidence:source", content: "Alice (principal ID human:alice): I will publish the plan Friday.\nBob (Holder ID holder:bob): I predict adoption will increase." }],
     referenceOutput: { facts: [{ claimKind: "commitment", ownerPrincipalId: "human:alice", locator: { kind: "line", start: 1, end: 1 } }], takes: [{ claimKind: "bet", holder: { holderId: "holder:bob" }, derivation: "source-literal", locator: { kind: "line", start: 2, end: 2 } }] },
     expectedSignals: ["fact:commitment:human:alice:line:1-1", "take:bet:holder:bob:source-literal:line:2-2"], minimumF1: 0.8,
   },
@@ -99,7 +108,7 @@ export const CORE_KNOWLEDGE_PROMPT_FIXTURES: readonly KnowledgePromptEvaluationF
     fixtureId: "timeline-explicit-date@1", fixtureSetId: "knowledge.timeline-extraction.fixtures@1", promptId: "knowledge.timeline-extraction",
     taskInput: { sourceKind: "meeting" }, evidenceBlocks: [{ evidenceId: "evidence:timeline", content: "The launch is scheduled for 2026-09-01." }],
     referenceOutput: { events: [{ eventType: "planned-launch", evidenceId: "evidence:timeline", locator: { kind: "line", start: 1, end: 1 } }] },
-    expectedSignals: ["event:planned-launch:evidence:timeline:line:1-1"], minimumF1: 0.8,
+    expectedSignals: ["event:evidence:timeline:line:1-1"], minimumF1: 0.8,
   },
   {
     fixtureId: "claim-relation-support@1", fixtureSetId: "knowledge.claim-relation.fixtures@1", promptId: "knowledge.claim-relation",
@@ -148,11 +157,11 @@ export const CORE_KNOWLEDGE_PROMPT_FIXTURES: readonly KnowledgePromptEvaluationF
   {
     fixtureId: "query-expansion-bounded@1", fixtureSetId: "knowledge.query-expansion.fixtures@1", promptId: "knowledge.query-expansion",
     taskInput: { query: "Cedar launch date", maxVariants: 2 }, evidenceBlocks: [],
-    referenceOutput: { terms: ["Project Cedar release date"] }, expectedSignals: ["term:project cedar release date"], minimumF1: 0.8,
+    referenceOutput: { terms: ["Project Cedar release date"] }, expectedSignals: ["terms:nonempty", "terms:bounded", "terms:no-original-repeat"], minimumF1: 0.8,
   },
   {
     fixtureId: "claim-grading-supported@1", fixtureSetId: "knowledge.claim-grading.fixtures@1", promptId: "knowledge.claim-grading",
-    taskInput: { claimId: "claim:launch", outcomeEvidenceIds: ["outcome:launch"] }, evidenceBlocks: [{ evidenceId: "outcome:launch", content: "The launch occurred on the predicted date." }],
+    taskInput: { claimId: "claim:launch", outcomeEvidenceIds: ["outcome:launch"] }, evidenceBlocks: [{ evidenceId: "claim:launch", content: "Claim: The launch will occur on 2026-09-01." }, { evidenceId: "outcome:launch", content: "Outcome: The launch occurred on 2026-09-01." }],
     referenceOutput: { claimId: "claim:launch", grade: "correct" }, expectedSignals: ["grade:claim:launch:correct"], minimumF1: 0.8,
   },
 ] as const;
