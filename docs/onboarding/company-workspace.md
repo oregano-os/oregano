@@ -179,12 +179,13 @@ maintained Vercel path uses
 `vercel env run`; this is an adapter detail rather than a requirement for other
 runtime hosts.
 
-The current additive manifest is `companyos-postgres@1.5.0`, succeeding the
-immutable `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions. It qualifies 59
+The current additive manifest is `companyos-postgres@1.6.0`, succeeding the
+immutable `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions. It qualifies 62
 required Knowledge tables, including stable groups, durable Source Events, ACL
 snapshots, pipeline receipts, completed watermarks, lifecycle requests, an
 integrity-linked change stream, durable synchronization leases, compounding
-receipts, review-only Claim-pair proposals, and explicit grading requests. Unresolved
+receipts, review-only Claim-pair proposals, explicit grading requests,
+model-task results, spend reservations, and execution ledger rows. Unresolved
 existing Source and Claim evidence remains under the reserved quarantine
 policy. Applying schema never grants access by itself; runtime subject
 resolution and authorization conformance remain mandatory.

@@ -50,6 +50,12 @@ export const KNOWLEDGE_PROMPT_INPUT_SCHEMAS = {
     subjectIdentity: string(256),
     validationFeedbackCode: { type: "string", enum: ["claim-partitions-must-be-disjoint-and-bounded"] },
   }, ["subjectIdentity"]),
+  "knowledge.working-synthesis.input@3": object({
+    subjectIdentity: string(256),
+    chunkIndex: { type: "integer", minimum: 1, maximum: 10_000 },
+    chunkCount: { type: "integer", minimum: 1, maximum: 10_000 },
+    validationFeedbackCode: { type: "string", enum: ["claim-partitions-must-be-disjoint-and-bounded"] },
+  }, ["subjectIdentity", "chunkIndex", "chunkCount"]),
   "knowledge.conflict.input@1": object({ leftClaimId: string(256), rightClaimId: string(256) }),
   "knowledge.claim-grading.input@1": object({ claimId: string(256), outcomeEvidenceIds: stringArray(100) }),
   "knowledge.query-expansion.input@1": object({ query: string(4_000), maxVariants: { type: "integer", minimum: 1, maximum: 8 } }),

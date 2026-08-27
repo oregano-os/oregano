@@ -74,7 +74,7 @@ test("Knowledge model runtime compiles every prompt through profile and exact ta
   const firstCycle = productiveKnowledgeCompoundingCycleId(frontier, configuration);
   assert.equal(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, configuration));
   assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(sha256("changed-frontier"), configuration));
-  assert.match(firstCycle, /^knowledge-compounding@2\.1\.0:[a-f0-9]{16}:[a-f0-9]{16}$/);
+  assert.match(firstCycle, /^knowledge-compounding@2\.2\.0:[a-f0-9]{16}:[a-f0-9]{16}$/);
   const changed = structuredClone(configuration);
   changed.tasks = { ...changed.tasks, "knowledge.working-synthesis": { ...changed.tasks["knowledge.working-synthesis"]!, model: "anthropic/claude-opus-4-8" } };
   assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, changed));
@@ -90,6 +90,19 @@ test("Knowledge model runtime inherits the shared CompanyOS recipe configuration
     OPENAI_API_KEY: "synthetic-openai-key",
   });
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-extraction").model, "openai/gpt-5.4-mini");
+});
+
+test("maintained Anthropic defaults keep background working synthesis bounded on Sonnet", () => {
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(undefined, {
+    ANTHROPIC_API_KEY: "synthetic-anthropic-key",
+  });
+  const working = resolveKnowledgeTaskProfile(configuration, "knowledge.working-synthesis");
+  const cited = resolveKnowledgeTaskProfile(configuration, "knowledge.cited-synthesis");
+  assert.deepEqual(
+    [working.profile, working.model, working.maxOutputTokens, working.timeoutMs, working.retries],
+    ["deep", "anthropic/claude-sonnet-4-6", 4_000, 240_000, 0],
+  );
+  assert.equal(cited.model, "anthropic/claude-opus-4-7");
 });
 
 test("Knowledge structured-output schemas type every constant for strict provider validation", () => {

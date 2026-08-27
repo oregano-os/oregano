@@ -52,10 +52,11 @@ runbook. It fails unless fresh or recorded evidence proves:
   evidence from a real selected-model call.
 
 The current Core target receipt identifies additive manifest
-`companyos-postgres@1.5.0` and its 59 required Knowledge tables. The linked
+`companyos-postgres@1.6.0` and its 62 required Knowledge tables. The linked
 `oregano-hq-companyos` Instance applied this manifest and passed a separate
-read-only verification on 2026-08-27; vector availability brings the observed
-Knowledge table count to 60. Another Instance remains on its exact
+read-only verification on 2026-08-27 with digest
+`b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`;
+vector availability brings the observed Knowledge table count to 63. Another Instance remains on its exact
 older manifest until `database prepare` records an additive upgrade and a
 separate read-only verification. This is schema evidence, not authorization
 evidence.

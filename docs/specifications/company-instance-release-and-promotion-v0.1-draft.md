@@ -398,8 +398,8 @@ maintained Vercel profile's `vercel env run` transport is one adapter binding,
 not a requirement on a conforming alternative runtime host.
 
 The current bounded subset targets additive manifest
-`companyos-postgres@1.5.0`, which preserves predecessors `1.4.0`, `1.3.0`, `1.2.0`,
-`1.1.0`, and `1.0.0`, qualifies 59 required Knowledge relations, and assigns unresolved
+`companyos-postgres@1.6.0`, which preserves predecessors `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,
+`1.1.0`, and `1.0.0`, qualifies 62 required Knowledge relations, and assigns unresolved
 existing access-policy identities to quarantine. The successor adds durable
 Source Events, provider ACL snapshots, pipeline receipts, completed watermarks,
 synchronization leases, lifecycle requests, and an integrity-linked change stream. Deployment

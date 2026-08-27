@@ -109,15 +109,16 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-The current additive database manifest is `companyos-postgres@1.5.0`. It
-retains the immutable `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities
-and contains 59 required `companyos_knowledge` tables. Phase 3 adds durable Source
+The current additive database manifest is `companyos-postgres@1.6.0`. It
+retains the immutable `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities
+and contains 62 required `companyos_knowledge` tables. Phase 3 adds durable Source
 Events, provider ACL snapshots, bounded pipeline receipts, completed
 watermarks, an integrity-linked Knowledge change stream, and governed source
 lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
 stream so overlapping schedules cannot process the same partition concurrently.
 Phase 5 adds durable compounding leases and receipts, review-only Claim-pair
-proposals, and explicit grading requests.
+proposals, and explicit grading requests. Phase 6 adds policy-bound model-task
+results, atomic spend reservations, and a rated execution ledger.
 Runtime readiness is a separate gate: the Core-resolved
 subject and groups must pass policy intersection before retrieval, graph
 traversal, review hydration, citations, or model context. Unknown mappings and

@@ -96,11 +96,18 @@ const PHASE_FIVE_KNOWLEDGE_TABLES = [
   "compounding_receipts",
 ] as const;
 
+const PHASE_SIX_KNOWLEDGE_TABLES = [
+  "model_execution_ledger",
+  "model_spend_reservations",
+  "model_task_results",
+] as const;
+
 const PHASE_ONE_MANIFEST_KNOWLEDGE_TABLES = [...FOUNDATION_KNOWLEDGE_TABLES, ...PHASE_ONE_KNOWLEDGE_TABLES].sort();
 const PHASE_TWO_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_ONE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_TWO_KNOWLEDGE_TABLES].sort();
 const PHASE_THREE_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_TWO_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_THREE_KNOWLEDGE_TABLES].sort();
 const PHASE_FOUR_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_THREE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_FOUR_KNOWLEDGE_TABLES].sort();
-const KNOWLEDGE_TABLES = [...PHASE_FOUR_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_FIVE_KNOWLEDGE_TABLES].sort();
+const PHASE_FIVE_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_FOUR_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_FIVE_KNOWLEDGE_TABLES].sort();
+const KNOWLEDGE_TABLES = [...PHASE_FIVE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_SIX_KNOWLEDGE_TABLES].sort();
 
 const PHASE_TWO_REQUIRED_INDEXES = [
   "companyos.chat_lists_key_sequence_idx",
@@ -151,12 +158,19 @@ const PHASE_FOUR_REQUIRED_INDEXES = [
   "companyos_knowledge.knowledge_source_sync_leases_due_idx",
 ] as const;
 
-const REQUIRED_INDEXES = [
+const PHASE_FIVE_REQUIRED_INDEXES = [
   ...PHASE_FOUR_REQUIRED_INDEXES,
   "companyos_knowledge.knowledge_claim_grading_requests_queue_idx",
   "companyos_knowledge.knowledge_claim_pair_proposals_queue_idx",
   "companyos_knowledge.knowledge_compounding_leases_due_idx",
   "companyos_knowledge.knowledge_compounding_receipts_cycle_idx",
+] as const;
+
+const REQUIRED_INDEXES = [
+  ...PHASE_FIVE_REQUIRED_INDEXES,
+  "companyos_knowledge.knowledge_model_execution_ledger_spend_idx",
+  "companyos_knowledge.knowledge_model_spend_reservations_budget_idx",
+  "companyos_knowledge.knowledge_model_task_results_policy_idx",
 ] as const;
 
 const PHASE_TWO_REQUIRED_CONSTRAINTS = [
@@ -294,11 +308,31 @@ export const COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST = createHash("sha256")
   .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_FOUR))
   .digest("hex");
 
-export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+export const COMPANY_DATABASE_MANIFEST_PHASE_FIVE = Object.freeze({
   schemaVersion: 1,
   id: "companyos-postgres",
   version: "1.5.0",
   predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version,
+  migrationMode: "additive",
+  schemas: Object.freeze({
+    companyos: Object.freeze({ tables: CONTROL_TABLES }),
+    companyos_knowledge: Object.freeze({ tables: Object.freeze(PHASE_FIVE_MANIFEST_KNOWLEDGE_TABLES) }),
+  }),
+  requiredIndexes: PHASE_FIVE_REQUIRED_INDEXES,
+  requiredConstraints: REQUIRED_CONSTRAINTS,
+  corePageTypes: Object.freeze(CORE_PAGE_TYPE_KEYS),
+  optionalFeatures: Object.freeze(["vector"]),
+});
+
+export const COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST = createHash("sha256")
+  .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_FIVE))
+  .digest("hex");
+
+export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+  schemaVersion: 1,
+  id: "companyos-postgres",
+  version: "1.6.0",
+  predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version,
   migrationMode: "additive",
   schemas: Object.freeze({
     companyos: Object.freeze({ tables: CONTROL_TABLES }),
@@ -348,6 +382,7 @@ const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_PHASE_TWO.version, COMPANY_DATABASE_MANIFEST_PHASE_TWO_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_THREE.version, COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST],
+  [COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version, COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST],
   [COMPANY_DATABASE_MANIFEST.version, COMPANY_DATABASE_MANIFEST_DIGEST],
 ]);
 

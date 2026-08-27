@@ -148,9 +148,8 @@ evidence, historical prototypes, and production gaps.
   transcript Raw Evidence, and advanced one completed durable watermark. All
   21 payloads fit below the inline boundary; the durable Postgres Raw Asset
   path remains active for larger future transcripts. A six-hour leased overlap
-  reconciliation and extraction schedule, a 15-minute resumable Compounding
-  schedule,
-  and a signed webhook route are deployed. Webhook
+  reconciliation and extraction schedule, a nightly resumable model-maintenance
+  schedule, and a signed webhook route are deployed. Webhook
   delivery remains pending until its separate provider signing SecretRef is
   installed; scheduled reconciliation is already operational.
 - Company Knowledge Phase 3F implements exact local-file ingestion and the
@@ -168,9 +167,10 @@ evidence, historical prototypes, and production gaps.
   explicit LiteLLM, Ollama, and llama-server routes; and a generic
   OpenAI-compatible escape hatch share one resolver. Named recipes retain
   provider-specific credentials, default endpoints, model namespaces, and
-  capability declarations without creating separate transports. Formal model
-  qualification, provider data-class
-  matrices, and hard cost-budget enforcement are not part of the runtime.
+  capability declarations without creating separate transports. Productive
+  Knowledge maintenance adds rated execution receipts and hard per-cycle and
+  UTC-day spend limits for exactly priced model recipes; broader provider
+  qualification and provider data-class matrices remain Instance concerns.
   Prompt Registry `2.0.0` now dispatches all 13 generative Knowledge tasks by
   exact prompt version, content hash, input schema, and output schema. Each
   task has its own user instruction and strict structured result; mismatches
@@ -196,12 +196,15 @@ evidence, historical prototypes, and production gaps.
   non-default grant. Scoped compounding distinguishes Source, mixed, and
   global idempotency and lock domains.
 - Productive Company Knowledge compounding is implemented behind a protected
-  Runner operation and scheduled by the maintained Vercel adapter after the
-  production gates passed. The Core now performs bounded,
+  Runner operation. The maintained adapter now separates six-hour source delta
+  work from the nightly model-maintenance lane. The Core performs bounded,
   authorization-prepared duplicate classification, Claim-relation proposals,
   conflict proposals, immutable working-synthesis refresh, and explicit
-  outcome-grading requests. Additive Postgres state persists leases,
-  resumable receipts, Claim-pair proposals, and grading requests. Model output
+  outcome-grading requests. Exact normalized duplicates are deterministic;
+  expensive relation and synthesis work receives cheap cached triage first.
+  Additive Postgres state persists leases, resumable receipts, Claim-pair
+  proposals, grading requests, policy-bound model results, spend reservations,
+  and rated execution ledger rows. Model output
   cannot mutate canonical Claims, accept its own proposal, or create Handbook
   authority. The live fixture-qualification operation evaluates all 13 current
   Prompt Registry tasks with precision, recall, F1, exact model route, and
@@ -211,10 +214,15 @@ evidence, historical prototypes, and production gaps.
   into a larger explicit budget. Cycle identity binds the exact Compounding
   contract, prompt/model configuration, and current authorized Knowledge
   frontier, so incomplete work resumes across time windows and changed inputs
-  never reuse stale complete receipts. Receipts include content-free phase
+  never reuse stale complete receipts. Unchanged prompt, schema, rule, model,
+  input, evidence, authorization, data-class, and policy identities reuse the
+  original validated result across cycles before any new spend reservation.
+  Uncached work is bounded by configurable cycle and UTC-day budgets. Receipts include content-free phase
   totals. Working-synthesis Claim partitions are
   mutually exclusive, exact-subject-bounded, and receive at most one typed
-  correction attempt.
+  correction attempt. Subjects above 40 Claims use deterministic Claim-ID
+  segments; every segment is independently cached and receipt-bound, and the
+  last segment merges all cached components without a second synthesis model.
 - The linked production Instance completed the real Granola extraction and
   compounding gates on 2026-08-27. All 21 current Source Objects have successful
   extraction receipts under pipeline `2.0.0` and Claim-extraction prompt `6`.
@@ -230,11 +238,18 @@ evidence, historical prototypes, and production gaps.
   53 Claims and 10 Page versions from failed attempts remain retained but
   excluded. Candidate loading fails explicitly above its bounded 2,000-Claim
   frontier instead of declaring a truncated phase complete.
-  Productive Compounding contract `2.1.0` starts with a conservative `0.20`
-  lexical-overlap candidate gate. The maintained Vercel adapter advances five
-  pair candidates but only one deep-synthesis subject every 15 minutes; the
-  content-free production total is 353 current candidate pairs per pair phase.
-  The initial `2.1.0` frontier backfill is resumable operating backlog until
+  Historical Productive Compounding contract `2.1.0` produced a content-free
+  total of 353 current candidate pairs per pair phase. Contract `2.2.0` replaces
+  that shared gate with exact/`0.45` duplicate, `0.20` relation, and same-kind
+  `0.15` conflict gates plus durable result reuse. The maintained schedule is
+  inside a bounded 02:00–05:59 UTC nightly continuation window rather than
+  every 15 minutes around the clock. The first controlled `2.2.0` production
+  run recorded 20 rated executions at USD `0.08614200` before one deep task
+  exceeded the hosted execution window. No result or execution-ledger row was
+  created for that incomplete task. Abandoned reservations are now closed
+  conservatively after ten minutes and remain as content-free audit evidence;
+  successful retries use a newly bounded task output limit. The initial
+  frontier backfill remains resumable operating backlog until
   every phase receipt is complete; retrieval exposes only the already-current,
   successfully proven subset while that background work advances.
 - Phase 5 production integration now adapts that authorization-first retrieval
@@ -266,8 +281,8 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.5.0` additive manifest preserves the immutable `1.4.0`,
-  `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  `companyos-postgres@1.6.0` additive manifest preserves the immutable `1.5.0`,
+  `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares both `companyos` and `companyos_knowledge`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
@@ -281,7 +296,14 @@ evidence, historical prototypes, and production gaps.
   relations and Session lifecycle receipts for 54 required Knowledge tables.
   Phase 4 adds one durable Source reconciliation lease relation for 55 required
   Knowledge tables. Phase 5 adds four compounding lease, receipt, pair-proposal,
-  and grading-request relations for 59 required Knowledge tables. On 2026-08-27
+  and grading-request relations for 59 required Knowledge tables. Phase 6 adds
+  three model-result cache, spend-reservation, and execution-ledger relations
+  for 62 required Knowledge tables. On 2026-08-27 the linked production Instance
+  upgraded additively to 1.6.0 and passed a separate read-only qualification
+  with digest
+  `b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`,
+  12 Control tables, 62 required Knowledge tables plus `pgvector` for an
+  observed total of 63, and 19 Core Page types. Earlier on 2026-08-27
   the linked production Instance upgraded additively to 1.5.0 and passed a
   separate read-only qualification with digest
   `bb3dcef272ce2c33ae1a479171a648ea6e79ab01b04ca37dce998a5e0e404cea`,

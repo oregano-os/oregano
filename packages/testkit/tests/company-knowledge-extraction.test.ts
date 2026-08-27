@@ -101,7 +101,8 @@ test("Core Prompt Registry pins every initial model boundary and keeps evidence 
   for (const entry of registry.list()) {
     assert.match(entry.contentHash, /^[a-f0-9]{64}$/);
     assert.match(entry.systemInstruction, /untrusted quoted data/i);
-    const currentInputSchema = ["knowledge.claim-extraction", "knowledge.working-synthesis"].includes(entry.promptId) ? /@2$/ : /@1$/;
+    const currentInputSchema = entry.promptId === "knowledge.claim-extraction" ? /@2$/
+      : entry.promptId === "knowledge.working-synthesis" ? /@3$/ : /@1$/;
     assert.match(entry.inputSchemaId, currentInputSchema);
     assert.match(entry.outputSchemaId, entry.promptId === "knowledge.claim-extraction" ? /@4$/ : /@2$/);
     assert.ok(entry.userInstruction.length > 100);

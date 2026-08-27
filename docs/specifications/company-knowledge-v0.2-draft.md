@@ -43,9 +43,9 @@ Instance-specific activation evidence and are not implied by that Core status.
 
 The existing Source Connector `1.0.0`, Knowledge Provider and Tool contract
 `3.0.0`, Runtime Observation `1.0.0`, OKF `0.1`, and historical database
-manifests through `companyos-postgres@1.4.0` remain supported until their
+manifests through `companyos-postgres@1.5.0` remain supported until their
 documented replacement gates are met. The current additive schema target is
-`companyos-postgres@1.5.0`. Unknown major versions fail closed.
+`companyos-postgres@1.6.0`. Unknown major versions fail closed.
 
 ## 2. Authority layers
 
@@ -397,8 +397,10 @@ does not depend on Vercel or one model provider.
 Provider recipes reference runtime environment variable names but contain no
 credential values. Knowledge authorization and evidence validation occur
 before model invocation as defined in Section 6; the recipe layer does not add
-a second data-class policy engine, formal model-approval workflow, or hard
-cost-budget service. Setup MAY execute an explicit bounded smoke test for the
+a second data-class policy engine or formal model-approval workflow. Productive
+maintenance applies its separate content-addressed result cache, rated spend
+ledger, and hard cycle and daily reservations after recipe resolution. Setup
+MAY execute an explicit bounded smoke test for the
 selected recipe and model, but a smoke test is technical readiness evidence,
 not company authority or an activation approval.
 
@@ -426,8 +428,8 @@ input. Reranking is not a Prompt Registry task; it remains an optional,
 dedicated capability adapter.
 
 Each Knowledge execution receipt records the task, prompt, input and output
-schemas, model route, exact model, token use, authorized structured-input and
-evidence digest, time, and outcome. It is
+schemas, model route, exact model, token use, cost status, pricing version when
+rated, authorized structured-input and evidence digest, time, and outcome. It is
 ordinary non-secret execution evidence, not a separate immutable audit system
 or model-activation prerequisite. It contains no protected prompt body, source
 payload, or credential reference value.
@@ -488,8 +490,9 @@ Processing triage and retrieval salience are separate:
 - retrieval salience is deterministic from evidence density, recency,
   stability, authority layer, contradiction, notability, and query relevance.
 
-Exact duplicate detection runs first. Semantic duplicate detection may produce
-a candidate after a measured threshold. Material Claim merges, cross-source
+Exact normalized Claim duplicate detection runs first without a model. Semantic
+duplicate detection may produce a candidate after a task-specific measured
+threshold. Material Claim merges, cross-source
 Entity membership, and conflicts remain proposals unless a deterministic proof
 path exists. New evidence may reopen a prior resolution or synthesis.
 
@@ -502,7 +505,14 @@ contracts receive a new identity. Every
 phase is leased, resumable, cursor-based, and receipt-producing. Retry reuses
 the same idempotency identity.
 
-The maintained productive cycle executes semantic duplicate classification,
+A serverless maintained adapter MAY invoke the same continuation repeatedly
+inside a bounded nightly window instead of holding one process for the full
+cycle. Such ticks MUST use the same cycle, lease, cursor, cache, and spend
+identities and MUST NOT run as round-the-clock model polling. A long-running
+host MAY execute the same portable cycle continuously until complete.
+
+The maintained productive cycle executes cheap cached triage before expensive
+relation and synthesis work, semantic duplicate classification,
 Claim-relation proposals, conflict proposals, immutable working-synthesis
 versions, and explicitly requested outcome grading. Authorization completes
 before candidate Claims or evidence blocks are assembled. Candidate pairs are
@@ -511,7 +521,28 @@ The model cannot merge Claims, accept a relation, resolve a conflict, change a
 canonical grade, widen access, delete evidence, or publish Handbook authority.
 Duplicate, relation, conflict, and grade results enter reviewable proposal
 state; a working synthesis creates a new cited version and preserves all prior
-versions.
+versions. A Subject with more than 40 current Claims is split into stable
+Claim-ID-ordered segments. Each segment has its own content-addressed triage,
+prompt result, and execution receipt. The final segment deterministically
+replays prior segment results from cache and merges them without another model
+call; the synthesis version binds every component receipt and every classified
+Claim identity.
+
+Before any productive model call, Core computes a cache identity from the exact
+task, prompt and schema versions, candidate-rule version, model route and model,
+profile version, structured input, evidence identities and content digests,
+authorization context, data class, and access policy. An authorized cache hit
+reuses the original validated output and execution receipt across maintenance
+cycles. A change to any bound identity creates a cache miss. Cache entries are
+derived, policy-bound evidence and never grant authority.
+
+An uncached productive call requires a rated price and an atomic spend
+reservation under both the cycle and UTC-day ceilings. Success commits the
+validated result, immutable execution ledger row, token counts, rated cost, and
+pricing version before making the cache result reusable. A failed call records
+a conservative charged reservation and a payload-free failure digest. Budget
+exhaustion defers new paid work; it never blocks an authorized cache hit and
+never deletes or deactivates knowledge.
 
 The portable phase budget defaults to one model-backed work item per phase and
 persists a continuation after each invocation. Runtime adapters for
@@ -520,9 +551,14 @@ records the aggregate phase work count without Claim content. The in-memory
 candidate frontier is bounded at 2,000 current Claims and fails explicitly
 rather than silently truncating. Model-derived Claims, Timeline Events, and
 working syntheses are eligible only when their successful extraction provenance
-is attached to the current Page version. The initial pair-candidate rule
-requires policy and subject equality plus at least `0.20` deterministic lexical
-overlap; changing that rule requires a new Compounding contract version. Working
+is attached to the current Page version. Productive Compounding contract
+`2.2.0` uses separate deterministic gates: duplicate candidates require exact
+normalized text or at least `0.45` lexical overlap; relation candidates require
+at least `0.20`; conflict candidates require the same Claim kind and at least
+`0.15`. Every pair also requires policy and subject equality. A later qualified
+embedding adapter may add candidates inside the same authorization boundary;
+its absence is an explicit degradation, not permission to broaden lexical
+comparison. Changing these rules requires a new Compounding contract version. Working
 synthesis lists only exact supplied Claim identities, uses mutually exclusive
 supporting, contested, and superseded partitions, and receives at most one
 typed correction attempt. An outer `claim:` evidence identity may normalize to
@@ -532,6 +568,12 @@ Outcome grading MUST begin with a durable explicit request naming the exact
 Claim and outcome-evidence identities. Only independent evidence observed
 after the Claim is eligible. Missing, same-source, pre-dating, or unauthorized
 evidence defers the request without invoking the grading model.
+
+Source reconciliation and delta extraction remain independent freshness work.
+The expensive productive maintenance cycle runs primarily in the nightly lane,
+with resumable cursors, leases, time bounds, and spend bounds. Initial or repair
+backfills use an explicitly invoked bounded drain; they are not implemented by
+running the full model cycle every few minutes indefinitely.
 
 ## 15. Retrieval, Timeline, graph, and deltas
 

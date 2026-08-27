@@ -783,8 +783,10 @@ maintained Gateway default. Key-aware selection checks Anthropic before OpenAI
 only when no explicit binding exists. One resolved request never silently
 fails over to another provider. The recipe layer does not duplicate Knowledge
 authorization as a data-class policy engine, require formal model approval, or
-enforce hard monetary budgets. Optional maximum output, timeout, and retry
-settings remain ordinary execution controls.
+enforce hard monetary budgets itself. Productive maintenance adds a separate
+content-addressed result cache, rated spend ledger, and atomic cycle and daily
+reservations after the recipe resolves. Optional maximum output, timeout, and
+retry settings remain ordinary execution controls.
 
 The maintained profiles are:
 
@@ -822,7 +824,7 @@ This is optional Instance configuration, not a provider restriction in Core:
 | `knowledge.inferred-link` | `reasoning` | `anthropic/claude-sonnet-4-6` |
 | `knowledge.claim-grading` | `reasoning` | `anthropic/claude-sonnet-4-6` |
 | `knowledge.cited-synthesis` | `deep` | `anthropic/claude-opus-4-7` |
-| `knowledge.working-synthesis` | `deep` | `anthropic/claude-opus-4-7` |
+| `knowledge.working-synthesis` | `deep` | `anthropic/claude-sonnet-4-6` (maintained background task override; 4,000 output tokens, 240-second call boundary, no provider retry) |
 
 Exact task bindings may override this tier mapping. `embedding` remains a
 separate non-generative capability because Anthropic does not supply an
@@ -856,7 +858,7 @@ cost policy, and its regression evidence.
 | contradiction judgment | deterministic candidate selection followed by a bounded `utility` verdict only for plausible pairs | `knowledge.conflict-judgment@2` | unresolved conflict candidate | conflict evidence or proposal; no Claim deletion |
 | interactive Agent answer | existing Agent model turn over an authorized context built from Knowledge Tool results | `knowledge.answer@1` compiled fragment | cited extractive response, explicit unavailable state, or stated gap | conversational answer only |
 | explicit answer synthesis | `deep` through `knowledge.synthesize` | `knowledge.cited-synthesis@2` | typed `unavailable` or declared extractive fallback | structured answer; persistence is separate |
-| durable working synthesis | `deep` background task | `knowledge.working-synthesis@4` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
+| durable working synthesis | `deep` background task | `knowledge.working-synthesis@5` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
 | Claim grading and calibration narrative | deterministic evidence selection followed by `reasoning` or `deep` judgment | `knowledge.claim-grading@2`; calibration summary remains later work | `unresolvable` or retryable failure | evidence-bound resolution or calibration proposal only |
 
 Embedding generation and cross-encoder reranking share recipe identity,
@@ -896,7 +898,7 @@ The initial registry contains:
 | `knowledge.conflict-judgment@2` | conflict, compatible, or uncertain with both supplied Claim identities and severity |
 | `knowledge.query-expansion@2` | at most the caller's bounded number of sanitized alternative queries; never instructions or filters |
 | `knowledge.cited-synthesis@2` | answer to the supplied query, structured citations, material conflicts, gaps, freshness, and authority labels |
-| `knowledge.working-synthesis@4` | versioned current state with exact, mutually exclusive supporting, contested, and superseded Claim identities, plus gaps |
+| `knowledge.working-synthesis@5` | hash-deterministic Claim segments, concise versioned state with exact, mutually exclusive supporting, contested, and superseded Claim identities, plus gaps |
 | `knowledge.claim-grading@2` | correct, incorrect, partial, or unresolvable, confidence, rationale, and evidence identities |
 
 Evidence is wrapped as typed data and explicitly cannot modify system or Agent
@@ -1134,13 +1136,20 @@ prompt and model bindings, and current authorized Claim/grading frontier rather
 than a wall-clock bucket. Changed knowledge or execution contracts receive a
 new cycle; unchanged incomplete work retains its cursor.
 
-The initial productive contract `2.1.0` requires policy and subject equality
-plus at least `0.20` deterministic lexical overlap before a Claim pair reaches
-a model. The portable default processes one pair per phase; the maintained
+Productive contract `2.2.0` requires policy and subject equality and then uses
+task-specific gates: exact normalized duplicate or `0.45` duplicate overlap,
+`0.20` relation overlap, and same-kind `0.15` conflict overlap. Exact normalized
+duplicates produce deterministic proposals without a model. Expensive relation
+and synthesis work first passes the cached `utility` triage contract. Every
+model result is reused across cycles only when prompt, schema, rule, model,
+input, evidence, authorization, data class, and policy identities are unchanged.
+The portable default processes one pair per phase; the maintained
 Vercel adapter advances five pair candidates but only one deep-synthesis subject
 per invocation. A threshold or candidate-rule change requires a new contract
 version so prior phase receipts cannot be reused under different work semantics.
-An initial frontier backfill may span multiple scheduled invocations. It is
+The maintained schedule runs expensive maintenance nightly; an initial or repair
+frontier backfill uses an explicitly invoked bounded drain rather than a permanent
+high-frequency model schedule. It is
 operating backlog, not a reason to expose stale derived versions: retrieval and
 later phases consume only current, successfully proven model artifacts while
 the durable cursor advances.
@@ -1857,6 +1866,7 @@ or extends these current assumptions:
 | Implemented: repository synchronization persists Source Events before fetch and uses shared Raw Evidence, ACL, receipt, watermark, lifecycle, and change-stream state | Route every later webhook, hybrid, local, and Session delivery through the same boundary |
 | Implemented and live: Granola signed reference webhooks, explicit provider-wide or folder-scoped fetch, complete transcript pagination, leased overlap reconciliation, durable Raw Asset fallback, qualified SecretRefs, and fixed policy | Install the provider webhook signing SecretRef, retain scheduled reconciliation as gap recovery, and qualify the same contracts on each additional runtime host |
 | Implemented and live: additive manifest `companyos-postgres@1.5.0` preserves the qualified 1.4.0 production predecessor and adds four durable compounding relations for 59 required Knowledge tables | Qualify the same provider-neutral preparation contract on the first maintained non-Vercel runtime and any additional PostgreSQL driver before advertising those implementations |
+| Implemented and live: additive manifest `companyos-postgres@1.6.0` preserves 1.5.0 and adds policy-bound task-result cache, spend-reservation, and execution-ledger relations for 62 required Knowledge tables | Deploy the nightly runtime schedule and inspect the first rated execution ledger without exposing payloads |
 
 ## 23. Delivery phases
 
@@ -2238,8 +2248,7 @@ Instance has received and qualified manifest `1.5.0`. Its real Granola binding
 is provider-wide, uses an administrator-created Workspace API Key with the
 exact `workspace` scope, fixed company
 policy, permanent retention, a durable Postgres Raw Asset adapter, protected
-runtime routes, six-hour reconciliation and extraction plus 15-minute
-Compounding continuation schedules, resumable leases, and one completed
+runtime routes, six-hour reconciliation and extraction, resumable leases, and one completed
 watermark. The initial synchronization processed 21 of 21 notes with complete
 transcripts, zero failures, and zero quarantine outcomes. The signed webhook
 route is deployed but awaits the separate provider webhook signing SecretRef.
@@ -2411,9 +2420,10 @@ review-only Claim-pair proposals, versioned working syntheses, and explicit
 grading requests. On 2026-08-27 the direct-provider smoke tests, all 13 live
 prompt fixtures, the additive 1.5.0 migration, a 21-object extraction backfill,
 one complete real source-to-Claim-to-synthesis cycle, and an identical receipt
-retry all qualified. The maintained Vercel adapter therefore enables six-hour
-reconciliation/extraction and 15-minute Compounding continuation; non-Vercel
-hosts bind the same protected portable
+retry all qualified. The `2.2.0` maintenance change replaces the permanent
+15-minute model continuation with nightly, delta-aware, cached, and budgeted
+maintenance-window continuations while retaining six-hour reconciliation and
+extraction; non-Vercel hosts bind the same protected portable
 operations through their own scheduler and secret store.
 
 ### Phase 6 — Handbook promotion and Decision Receipts
@@ -2508,6 +2518,12 @@ preserves every predecessor. Deterministic export and cutover receipt contracts
 are implemented. The real Granola backfill, current extraction of all 21 Source
 Objects, direct-model smoke and 13-fixture qualification, complete productive
 compounding, identical-receipt retry, and maintained Vercel schedule are live.
+The additive `1.6.0` implementation adds three policy-bound cache and spend
+relations. The linked production Instance upgraded and passed separate read-only
+qualification on 2026-08-27 with manifest digest
+`b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`,
+12 Control tables, 62 required Knowledge tables plus vector, and 19 Core Page
+types.
 Handbook activation, backup, tested rollback, and the first qualified
 non-Vercel production host remain Instance work before a complete live
 Knowledge cutover can be claimed.

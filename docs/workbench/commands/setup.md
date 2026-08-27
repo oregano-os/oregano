@@ -136,11 +136,12 @@ counts, Core Page-type count, optional feature availability, and timestamp;
 they never return the connection value. Runtime health invokes verification,
 not bootstrap.
 
-The current additive target is `companyos-postgres@1.5.0`. It retains the
-immutable `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` predecessors, qualifies 59 required
+The current additive target is `companyos-postgres@1.6.0`. It retains the
+immutable `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` predecessors, qualifies 62 required
 `companyos_knowledge` tables, and prepares durable Source event, ACL, receipt,
 watermark, synchronization-lease, change-stream, lifecycle, compounding,
-Claim-pair-proposal, and grading-request state in addition to the fail-closed
+Claim-pair-proposal, grading-request, model-result-cache, spend-reservation, and
+execution-ledger state in addition to the fail-closed
 authorization foundation. Setup does not treat that schema receipt as
 permission to expose content; runtime authorization and Source ACL mapping
 remain separate conformance gates.
@@ -158,6 +159,13 @@ passed separate read-only qualification with digest
 `bb3dcef272ce2c33ae1a479171a648ea6e79ab01b04ca37dce998a5e0e404cea`,
 12 Control tables, 59 required Knowledge tables plus the optional vector table,
 and all 19 Core Page types. Every predecessor through `1.4.0` remains in the
+immutable manifest ledger.
+
+Later on 2026-08-27 the linked Instance applied additive manifest `1.6.0` and
+passed separate read-only qualification with digest
+`b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`,
+12 Control tables, 62 required Knowledge tables plus the optional vector table,
+and all 19 Core Page types. Every predecessor through `1.5.0` remains in the
 immutable manifest ledger.
 
 The command contract is independent from Vercel. A different qualified setup

@@ -13,6 +13,8 @@ export interface KnowledgeModelProfileBinding {
   model: string;
   maxInputTokens?: number;
   maxOutputTokens: number;
+  timeoutMs?: number;
+  retries?: number;
   /** @deprecated Credentials are owned by the provider recipe, not task bindings. */
   secretRefs?: string[];
   /** @deprecated Knowledge authorization runs before invocation; recipes do not implement a data-class policy engine. */
@@ -47,6 +49,8 @@ export interface KnowledgeModelProviderResult {
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
+  costStatus?: "rated" | "unrated";
+  pricingVersion?: string;
   latencyMs: number;
   finishReason: "stop" | "length" | "refusal" | "tool" | "error";
 }
@@ -71,6 +75,10 @@ export interface KnowledgeModelExecutionReceipt {
   inputTokens: number;
   outputTokens: number;
   costUsd: number;
+  costStatus: "rated" | "unrated";
+  pricingVersion?: string;
+  timeoutMs?: number;
+  retries?: number;
   latencyMs: number;
   outcome: "succeeded" | "refused" | "truncated" | "failed";
   completedAt: string;
@@ -94,6 +102,8 @@ export function validateKnowledgeModelProfile(value: KnowledgeModelProfileBindin
   if (value.allowedDataClasses && (value.allowedDataClasses.length === 0 || new Set(value.allowedDataClasses).size !== value.allowedDataClasses.length)) throw new Error("Knowledge model profile has invalid legacy data classes.");
   if (value.maxInputTokens !== undefined) boundedInteger(value.maxInputTokens, 1, 2_000_000, "Knowledge model input token limit");
   boundedInteger(value.maxOutputTokens, 1, 200_000, "Knowledge model output token limit");
+  if (value.timeoutMs !== undefined) boundedInteger(value.timeoutMs, 100, 600_000, "Knowledge model timeout");
+  if (value.retries !== undefined) boundedInteger(value.retries, 0, 10, "Knowledge model retries");
   if (value.maxCostUsd !== undefined && (!Number.isFinite(value.maxCostUsd) || value.maxCostUsd < 0 || value.maxCostUsd > 1_000)) throw new Error("Knowledge model legacy cost metadata is invalid.");
   if (value.qualification) {
     if (Number.isNaN(Date.parse(value.qualification.qualifiedAt)) || !value.qualification.receiptId.trim() || !digestPattern.test(value.qualification.adapterDigest)) throw new Error("Knowledge model qualification evidence is invalid.");
@@ -135,6 +145,9 @@ export async function executeKnowledgeModel(input: {
   boundedInteger(result.inputTokens, 0, profile.maxInputTokens ?? 2_000_000, "Knowledge model actual input tokens");
   boundedInteger(result.outputTokens, 0, profile.maxOutputTokens, "Knowledge model actual output tokens");
   if (!Number.isFinite(result.costUsd) || result.costUsd < 0) throw new Error("Knowledge model execution returned invalid cost metadata.");
+  const costStatus = result.costStatus ?? "rated";
+  if (costStatus === "unrated" && result.costUsd !== 0) throw new Error("Unrated Knowledge model execution cannot claim a monetary cost.");
+  if (result.pricingVersion !== undefined && (!result.pricingVersion.trim() || result.pricingVersion.length > 128)) throw new Error("Knowledge model pricing version is invalid.");
   if (!Number.isFinite(result.latencyMs) || result.latencyMs < 0) throw new Error("Knowledge model execution latency is invalid.");
   const outcome = result.finishReason === "refusal" ? "refused" : result.finishReason === "length" ? "truncated" : result.finishReason === "stop" ? "succeeded" : "failed";
   const completedAt = new Date(input.completedAt ?? new Date().toISOString()).toISOString();
@@ -157,6 +170,10 @@ export async function executeKnowledgeModel(input: {
     inputTokens: result.inputTokens,
     outputTokens: result.outputTokens,
     costUsd: result.costUsd,
+    costStatus,
+    ...(result.pricingVersion ? { pricingVersion: result.pricingVersion } : {}),
+    ...(profile.timeoutMs === undefined ? {} : { timeoutMs: profile.timeoutMs }),
+    ...(profile.retries === undefined ? {} : { retries: profile.retries }),
     latencyMs: result.latencyMs,
     outcome,
     completedAt,

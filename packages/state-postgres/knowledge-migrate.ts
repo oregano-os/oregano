@@ -4,6 +4,7 @@ import { COMPANY_BRAIN_PHASE_TWO_SCHEMA_STATEMENTS } from "./knowledge-schema-ph
 import { COMPANY_KNOWLEDGE_PHASE_THREE_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-three.ts";
 import { COMPANY_KNOWLEDGE_PHASE_FOUR_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-four.ts";
 import { COMPANY_KNOWLEDGE_PHASE_FIVE_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-five.ts";
+import { COMPANY_KNOWLEDGE_PHASE_SIX_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-six.ts";
 
 export interface CompanyKnowledgeSchemaFeatures { vector: boolean }
 
@@ -267,6 +268,7 @@ export function ensureCompanyKnowledgeSchema(): Promise<CompanyKnowledgeSchemaFe
     for (const statement of COMPANY_KNOWLEDGE_PHASE_THREE_SCHEMA_STATEMENTS) await sql.query(statement);
     for (const statement of COMPANY_KNOWLEDGE_PHASE_FOUR_SCHEMA_STATEMENTS) await sql.query(statement);
     for (const statement of COMPANY_KNOWLEDGE_PHASE_FIVE_SCHEMA_STATEMENTS) await sql.query(statement);
+    for (const statement of COMPANY_KNOWLEDGE_PHASE_SIX_SCHEMA_STATEMENTS) await sql.query(statement);
     let vector = false;
     try {
       await sql`create extension if not exists vector`;

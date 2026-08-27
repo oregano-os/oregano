@@ -142,7 +142,7 @@ export const CORE_KNOWLEDGE_PROMPT_FIXTURES: readonly KnowledgePromptEvaluationF
   },
   {
     fixtureId: "working-synthesis-contested@1", fixtureSetId: "knowledge.working-synthesis.fixtures@1", promptId: "knowledge.working-synthesis",
-    taskInput: { subjectIdentity: "project:cedar" },
+    taskInput: { subjectIdentity: "project:cedar", chunkIndex: 1, chunkCount: 1 },
     evidenceBlocks: [{ evidenceId: "claim:supported", content: "Launch checklist is complete." }, { evidenceId: "claim:contested", content: "One reviewer disputes readiness." }],
     referenceOutput: { supportingClaimIds: ["claim:supported"], contestedClaimIds: ["claim:contested"], supersededClaimIds: [] },
     expectedSignals: ["supporting:claim:supported", "contested:claim:contested"], minimumF1: 0.8,

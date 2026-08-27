@@ -7,6 +7,7 @@ import {
   type KnowledgeModelProfileBinding,
 } from "./knowledge-model-execution.ts";
 import { KnowledgePromptRegistry } from "./prompt-registry.ts";
+import { estimateKnowledgeModelCost } from "./model-pricing.ts";
 
 export interface CompoundingClaim {
   claimId: string;
@@ -60,6 +61,7 @@ export interface WorkingSynthesisWrite {
   gaps: string[];
   accessPolicyId: string;
   modelReceipt: KnowledgeModelExecutionReceipt;
+  componentModelReceipts?: KnowledgeModelExecutionReceipt[];
   synthesizedAt: string;
 }
 
@@ -75,6 +77,39 @@ export interface ClaimGradingResultWrite {
   proposedAt: string;
 }
 
+export interface CachedKnowledgeModelTaskResult {
+  cacheKey: string;
+  task: string;
+  promptId: string;
+  promptVersion: string;
+  promptContentHash: string;
+  inputDigest: string;
+  authorizationContextDigest: string;
+  dataClass: KnowledgeCompoundingRuntimeInput["dataClass"];
+  route: string;
+  model: string;
+  profileVersion: string;
+  accessPolicyId: string;
+  output: unknown;
+  executionReceipt: KnowledgeModelExecutionReceipt;
+  createdAt: string;
+}
+
+export interface ModelSpendReservation {
+  reservationId: string;
+  cycleId: string;
+  cacheKey: string;
+  task: string;
+  route: string;
+  model: string;
+  accessPolicyId: string;
+  estimatedCostUsd: number;
+  pricingVersion: string;
+  cycleBudgetUsd: number;
+  dailyBudgetUsd: number;
+  reservedAt: string;
+}
+
 export interface KnowledgeCompoundingWorkStore {
   getFrontierDigest(input: { accessPolicyIds: string[] }): Promise<string>;
   listClaims(input: { accessPolicyIds: string[]; limit: number }): Promise<CompoundingClaim[]>;
@@ -83,6 +118,11 @@ export interface KnowledgeCompoundingWorkStore {
   listPendingGradingRequests(input: { accessPolicyIds: string[]; limit: number }): Promise<ClaimGradingWorkItem[]>;
   completeGradingRequest(result: ClaimGradingResultWrite): Promise<"inserted" | "unchanged">;
   deferGradingRequest(requestId: string, reason: string): Promise<void>;
+  getCachedModelTaskResult(input: { cacheKey: string; accessPolicyIds: string[]; usedAt: string }): Promise<CachedKnowledgeModelTaskResult | undefined>;
+  reserveModelSpend(reservation: ModelSpendReservation): Promise<"reserved" | "existing" | "denied">;
+  commitModelTaskResult(input: { reservationId: string; cycleId: string; result: CachedKnowledgeModelTaskResult }): Promise<"inserted" | "unchanged">;
+  failModelSpend(input: { reservationId: string; failedAt: string; failureDigest: string }): Promise<void>;
+  getModelSpend(input: { cycleId: string; since: string }): Promise<{ cycleCostUsd: number; periodCostUsd: number }>;
 }
 
 export interface KnowledgeCompoundingRuntimeInput {
@@ -94,10 +134,16 @@ export interface KnowledgeCompoundingRuntimeInput {
   dataClass: "business" | "confidential" | "restricted" | "personal";
   now?: () => string;
   phaseBudget?: number;
+  cycleId?: string;
+  cycleBudgetUsd?: number;
+  dailyBudgetUsd?: number;
 }
 
-export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION = "2.1.0" as const;
+export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION = "2.2.0" as const;
+export const KNOWLEDGE_COMPOUNDING_CANDIDATE_RULE_VERSION = "2.0.0" as const;
+export const KNOWLEDGE_WORKING_SYNTHESIS_CLAIM_CHUNK_SIZE = 40 as const;
 export const KNOWLEDGE_PRODUCTIVE_COMPOUNDING_PROMPT_IDS = [
+  "knowledge.triage",
   "knowledge.duplicate-classification",
   "knowledge.claim-relation",
   "knowledge.conflict-judgment",
@@ -112,6 +158,8 @@ const isoNow = (input: KnowledgeCompoundingRuntimeInput): string => input.now?.(
 const words = (value: string): Set<string> => new Set(
   value.toLocaleLowerCase("en").match(/[\p{L}\p{N}]{3,}/gu) ?? [],
 );
+
+const normalizedClaimText = (value: string): string => (value.toLocaleLowerCase("en").match(/[\p{L}\p{N}]+/gu) ?? []).join(" ");
 
 const lexicalOverlap = (left: string, right: string): number => {
   const a = words(left);
@@ -138,7 +186,11 @@ export function selectCompoundingClaimPairs(
       const left = ordered[leftIndex];
       const right = ordered[rightIndex];
       if (!left || !right || left.accessPolicyId !== right.accessPolicyId || !sharedSubject(left, right)) continue;
-      if (lexicalOverlap(left.claimText, right.claimText) < 0.2) continue;
+      const overlap = lexicalOverlap(left.claimText, right.claimText);
+      const exact = normalizedClaimText(left.claimText) === normalizedClaimText(right.claimText);
+      if (mode === "duplicate" && !exact && overlap < 0.45) continue;
+      if (mode === "relation" && (exact || overlap < 0.20)) continue;
+      if (mode === "conflict" && (exact || left.claimKind !== right.claimKind || overlap < 0.15)) continue;
       pairs.push([left, right]);
     }
   }
@@ -167,30 +219,145 @@ async function invoke(
   taskInput: Record<string, unknown>,
   evidenceBlocks: Array<{ evidenceId: string; content: string; contentDigest: string }>,
   identity: Record<string, unknown>,
+  accessPolicyId: string,
 ) {
   const prompt = new KnowledgePromptRegistry().resolveCurrent(promptId);
-  const executed = await executeKnowledgeModel({
-    executor: runtime.executor,
-    profile: runtime.resolveProfile(promptId),
-    requiredProfile: prompt.profile,
-    completedAt: isoNow(runtime),
-    request: {
-      task: prompt.task,
+  const profile = runtime.resolveProfile(promptId);
+  const request = {
+    task: prompt.task,
+    promptId: prompt.promptId,
+    promptVersion: prompt.version,
+    promptContentHash: prompt.contentHash,
+    inputSchemaId: prompt.inputSchemaId,
+    outputSchemaId: prompt.outputSchemaId,
+    systemInstruction: prompt.systemInstruction,
+    taskInput,
+    evidenceBlocks,
+    authorizationContextDigest: runtime.authorizationContextDigest,
+    dataClass: runtime.dataClass,
+    idempotencyKey: sha256({ promptId, ...identity }),
+  } as const;
+  const cacheKey = sha256({
+    contractVersion: KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION,
+    candidateRuleVersion: KNOWLEDGE_COMPOUNDING_CANDIDATE_RULE_VERSION,
+    prompt: {
       promptId: prompt.promptId,
       promptVersion: prompt.version,
       promptContentHash: prompt.contentHash,
       inputSchemaId: prompt.inputSchemaId,
       outputSchemaId: prompt.outputSchemaId,
-      systemInstruction: prompt.systemInstruction,
-      taskInput,
-      evidenceBlocks,
+    },
+    profile: {
+      profile: profile.profile,
+      profileVersion: profile.profileVersion,
+      route: profile.route,
+      model: profile.model,
+      maxOutputTokens: profile.maxOutputTokens,
+      timeoutMs: profile.timeoutMs,
+      retries: profile.retries,
+    },
+    taskInput,
+    evidence: evidenceBlocks.map(({ evidenceId, contentDigest }) => ({ evidenceId, contentDigest })),
+    authorizationContextDigest: runtime.authorizationContextDigest,
+    dataClass: runtime.dataClass,
+    accessPolicyId,
+  });
+  const usedAt = isoNow(runtime);
+  const cached = await runtime.store.getCachedModelTaskResult({ cacheKey, accessPolicyIds: runtime.accessPolicyIds, usedAt });
+  if (cached) return { output: cached.output, receipt: cached.executionReceipt, prompt, cacheHit: true as const };
+
+  const cycleId = runtime.cycleId ?? `manual:${runtime.authorizationContextDigest}`;
+  const inputCharacters = canonicalJson({ taskInput, evidenceBlocks: evidenceBlocks.map(({ content }) => content) }).length;
+  const outputReservation = prompt.profile === "deep" ? 8_000 : prompt.profile === "reasoning" ? 4_000 : 2_000;
+  const estimated = estimateKnowledgeModelCost({
+    route: profile.route,
+    model: profile.model,
+    inputCharacters,
+    maximumOutputTokens: Math.min(profile.maxOutputTokens, outputReservation),
+  });
+  if ((runtime.cycleBudgetUsd !== undefined || runtime.dailyBudgetUsd !== undefined) && !estimated) {
+    throw new Error(`Knowledge maintenance model '${profile.route}:${profile.model}' has no qualified price.`);
+  }
+  const reservationId = sha256({ cycleId, cacheKey });
+  const reservation = await runtime.store.reserveModelSpend({
+    reservationId,
+    cycleId,
+    cacheKey,
+    task: prompt.task,
+    route: profile.route,
+    model: profile.model,
+    accessPolicyId,
+    estimatedCostUsd: estimated?.estimatedCostUsd ?? 0,
+    pricingVersion: estimated?.pricingVersion ?? "unrated-unenforced",
+    cycleBudgetUsd: runtime.cycleBudgetUsd ?? 1_000,
+    dailyBudgetUsd: runtime.dailyBudgetUsd ?? 1_000,
+    reservedAt: usedAt,
+  });
+  if (reservation === "denied") throw new KnowledgeMaintenanceBudgetExceededError();
+  if (reservation === "existing") {
+    const replay = await runtime.store.getCachedModelTaskResult({ cacheKey, accessPolicyIds: runtime.accessPolicyIds, usedAt });
+    if (replay) return { output: replay.output, receipt: replay.executionReceipt, prompt, cacheHit: true as const };
+    throw new Error("Knowledge maintenance spend reservation exists without a reusable result.");
+  }
+  try {
+    const executionProfile = { ...profile, maxOutputTokens: Math.min(profile.maxOutputTokens, outputReservation) };
+    const executed = await executeKnowledgeModel({
+    executor: runtime.executor,
+    profile: executionProfile,
+    requiredProfile: prompt.profile,
+    completedAt: usedAt,
+    request,
+  });
+    if (executed.receipt.outcome !== "succeeded") throw new Error(`Knowledge compounding task '${promptId}' did not succeed.`);
+    if ((runtime.cycleBudgetUsd !== undefined || runtime.dailyBudgetUsd !== undefined) && executed.receipt.costStatus !== "rated") {
+      throw new Error(`Knowledge maintenance model '${profile.route}:${profile.model}' returned unrated spend.`);
+    }
+    const result: CachedKnowledgeModelTaskResult = {
+      cacheKey,
+      task: prompt.task,
+      promptId: prompt.promptId,
+      promptVersion: prompt.version,
+      promptContentHash: prompt.contentHash,
+      inputDigest: executed.receipt.inputDigest,
       authorizationContextDigest: runtime.authorizationContextDigest,
       dataClass: runtime.dataClass,
-      idempotencyKey: sha256({ promptId, ...identity }),
-    },
-  });
-  if (executed.receipt.outcome !== "succeeded") throw new Error(`Knowledge compounding task '${promptId}' did not succeed.`);
-  return { ...executed, prompt };
+      route: profile.route,
+      model: profile.model,
+      profileVersion: profile.profileVersion,
+      accessPolicyId,
+      output: executed.output,
+      executionReceipt: executed.receipt,
+      createdAt: usedAt,
+    };
+    await runtime.store.commitModelTaskResult({ reservationId, cycleId, result });
+    return { ...executed, prompt, cacheHit: false as const };
+  } catch (error) {
+    await runtime.store.failModelSpend({ reservationId, failedAt: isoNow(runtime), failureDigest: sha256(error instanceof Error ? error.message : String(error)) });
+    throw error;
+  }
+}
+
+export class KnowledgeMaintenanceBudgetExceededError extends Error {
+  constructor() { super("Knowledge maintenance spend budget is exhausted."); }
+}
+
+const proposalWithStableIdentity = (
+  runtime: KnowledgeCompoundingRuntimeInput,
+  base: Omit<ClaimPairProposalWrite, "proposalId" | "createdAt">,
+): ClaimPairProposalWrite => ({ proposalId: sha256(base), ...base, createdAt: isoNow(runtime) });
+
+async function shouldProcessExpensiveWork(
+  runtime: KnowledgeCompoundingRuntimeInput,
+  accessPolicyId: string,
+  evidenceBlocks: Array<{ evidenceId: string; content: string; contentDigest: string }>,
+  identity: Record<string, unknown>,
+): Promise<boolean> {
+  const result = await invoke(runtime, "knowledge.triage", {
+    sourceKind: "knowledge-maintenance",
+    contentCharacters: evidenceBlocks.reduce((total, block) => total + block.content.length, 0),
+  }, evidenceBlocks, { triageFor: identity }, accessPolicyId);
+  const output = result.output as Record<string, unknown>;
+  return output.recommendedAction === "process";
 }
 
 const confidence = (value: unknown): number => {
@@ -251,19 +418,41 @@ function duplicatePhase(runtime: KnowledgeCompoundingRuntimeInput, budget: numbe
     const selected = pairs.slice(start, start + budget);
     const proposalIds: string[] = [];
     for (const [left, right] of selected) {
-      const executed = await invoke(runtime, "knowledge.duplicate-classification", { leftIdentity: left.claimId, rightIdentity: right.claimId }, [claimEvidence(left), claimEvidence(right)], { leftClaimId: left.claimId, rightClaimId: right.claimId });
+      if (normalizedClaimText(left.claimText) === normalizedClaimText(right.claimText)) {
+        const deterministicReceiptId = sha256({
+          ruleVersion: KNOWLEDGE_COMPOUNDING_CANDIDATE_RULE_VERSION,
+          rule: "exact-normalized-claim-duplicate",
+          left: claimEvidence(left).contentDigest,
+          right: claimEvidence(right).contentDigest,
+        });
+        const proposal = proposalWithStableIdentity(runtime, {
+          leftClaimId: left.claimId,
+          rightClaimId: right.claimId,
+          proposalKind: "duplicate",
+          judgment: "duplicate",
+          confidence: 1,
+          rationale: "The normalized Claim text is identical within the same subject and access policy.",
+          details: { classification: "duplicate", method: "deterministic-exact-normalized-text", ruleVersion: KNOWLEDGE_COMPOUNDING_CANDIDATE_RULE_VERSION },
+          modelReceiptId: deterministicReceiptId,
+          promptIdentity: `deterministic.exact-duplicate@${KNOWLEDGE_COMPOUNDING_CANDIDATE_RULE_VERSION}`,
+          accessPolicyId: left.accessPolicyId,
+        });
+        await runtime.store.putClaimPairProposal(proposal);
+        proposalIds.push(proposal.proposalId);
+        continue;
+      }
+      const executed = await invoke(runtime, "knowledge.duplicate-classification", { leftIdentity: left.claimId, rightIdentity: right.claimId }, [claimEvidence(left), claimEvidence(right)], { leftClaimId: left.claimId, rightClaimId: right.claimId }, left.accessPolicyId);
       const output = executed.output as Record<string, unknown>;
       if (output.leftIdentity !== left.claimId || output.rightIdentity !== right.claimId) throw new Error("Duplicate classification changed a supplied Claim identity.");
       const judgment = String(output.classification);
       if (!["distinct", "duplicate", "supersedes", "uncertain"].includes(judgment)) throw new Error("Duplicate classification returned an invalid judgment.");
       if (judgment === "distinct") continue;
-      const base = {
+      const proposal = proposalWithStableIdentity(runtime, {
         leftClaimId: left.claimId, rightClaimId: right.claimId, proposalKind: "duplicate" as const,
         judgment, confidence: confidence(output.confidence), rationale: String(output.rationale),
         details: { classification: judgment }, modelReceiptId: executed.receipt.receiptId,
-        promptIdentity: promptIdentity(executed.prompt), accessPolicyId: left.accessPolicyId, createdAt: isoNow(runtime),
-      };
-      const proposal = { proposalId: sha256(base), ...base };
+        promptIdentity: promptIdentity(executed.prompt), accessPolicyId: left.accessPolicyId,
+      });
       await runtime.store.putClaimPairProposal(proposal);
       proposalIds.push(proposal.proposalId);
     }
@@ -279,7 +468,9 @@ function relationPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number
     const proposalIds: string[] = [];
     for (const [left, right] of selected) {
       const allowed = new Set([left.claimId, right.claimId]);
-      const executed = await invoke(runtime, "knowledge.claim-relation", { claimIds: [...allowed] }, [claimEvidence(left), claimEvidence(right)], { leftClaimId: left.claimId, rightClaimId: right.claimId });
+      const evidence = [claimEvidence(left), claimEvidence(right)];
+      if (!await shouldProcessExpensiveWork(runtime, left.accessPolicyId, evidence, { task: "claim-relation", leftClaimId: left.claimId, rightClaimId: right.claimId })) continue;
+      const executed = await invoke(runtime, "knowledge.claim-relation", { claimIds: [...allowed] }, evidence, { leftClaimId: left.claimId, rightClaimId: right.claimId }, left.accessPolicyId);
       const relations = (executed.output as { relations?: unknown[] }).relations ?? [];
       if (!Array.isArray(relations)) throw new Error("Claim relation output is invalid.");
       for (const raw of relations) {
@@ -288,13 +479,12 @@ function relationPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number
         const targetClaimId = String(relation.targetClaimId);
         const judgment = String(relation.relation);
         if (!allowed.has(sourceClaimId) || !allowed.has(targetClaimId) || sourceClaimId === targetClaimId || !["supports", "contradicts", "refines", "supersedes"].includes(judgment)) throw new Error("Claim relation escaped its bounded candidate pair.");
-        const base = {
+        const proposal = proposalWithStableIdentity(runtime, {
           leftClaimId: sourceClaimId, rightClaimId: targetClaimId, proposalKind: "relation" as const,
           judgment, confidence: confidence(relation.confidence), rationale: String(relation.rationale),
           details: { relation: judgment }, modelReceiptId: executed.receipt.receiptId,
-          promptIdentity: promptIdentity(executed.prompt), accessPolicyId: left.accessPolicyId, createdAt: isoNow(runtime),
-        };
-        const proposal = { proposalId: sha256(base), ...base };
+          promptIdentity: promptIdentity(executed.prompt), accessPolicyId: left.accessPolicyId,
+        });
         await runtime.store.putClaimPairProposal(proposal);
         proposalIds.push(proposal.proposalId);
       }
@@ -310,20 +500,19 @@ function conflictPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number
     const selected = pairs.slice(start, start + budget);
     const proposalIds: string[] = [];
     for (const [left, right] of selected) {
-      const executed = await invoke(runtime, "knowledge.conflict-judgment", { leftClaimId: left.claimId, rightClaimId: right.claimId }, [claimEvidence(left), claimEvidence(right)], { leftClaimId: left.claimId, rightClaimId: right.claimId });
+      const executed = await invoke(runtime, "knowledge.conflict-judgment", { leftClaimId: left.claimId, rightClaimId: right.claimId }, [claimEvidence(left), claimEvidence(right)], { leftClaimId: left.claimId, rightClaimId: right.claimId }, left.accessPolicyId);
       const output = executed.output as Record<string, unknown>;
       if (output.leftClaimId !== left.claimId || output.rightClaimId !== right.claimId) throw new Error("Conflict judgment changed a supplied Claim identity.");
       const judgment = String(output.judgment);
       const severity = String(output.severity);
       if (!["conflict", "compatible", "uncertain"].includes(judgment) || !["none", "low", "medium", "high"].includes(severity)) throw new Error("Conflict judgment is invalid.");
       if (judgment === "compatible") continue;
-      const base = {
+      const proposal = proposalWithStableIdentity(runtime, {
         leftClaimId: left.claimId, rightClaimId: right.claimId, proposalKind: "conflict" as const,
         judgment, severity, confidence: judgment === "conflict" ? 1 : 0.5, rationale: String(output.rationale),
         details: { judgment, severity }, modelReceiptId: executed.receipt.receiptId,
-        promptIdentity: promptIdentity(executed.prompt), accessPolicyId: left.accessPolicyId, createdAt: isoNow(runtime),
-      };
-      const proposal = { proposalId: sha256(base), ...base };
+        promptIdentity: promptIdentity(executed.prompt), accessPolicyId: left.accessPolicyId,
+      });
       await runtime.store.putClaimPairProposal(proposal);
       proposalIds.push(proposal.proposalId);
     }
@@ -340,42 +529,86 @@ function synthesisPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: numbe
       groups.set(key, [...(groups.get(key) ?? []), claim]);
     }
     const ordered = [...groups.entries()].filter(([, entries]) => entries.length > 1).sort(([a], [b]) => a.localeCompare(b));
+    const work = ordered.flatMap(([key, entries]) => {
+      const sorted = [...entries].sort((left, right) => left.claimId.localeCompare(right.claimId));
+      const chunkCount = Math.ceil(sorted.length / KNOWLEDGE_WORKING_SYNTHESIS_CLAIM_CHUNK_SIZE);
+      return Array.from({ length: chunkCount }, (_, chunkIndex) => ({
+        key,
+        group: sorted,
+        chunkIndex,
+        chunkCount,
+        chunk: sorted.slice(
+          chunkIndex * KNOWLEDGE_WORKING_SYNTHESIS_CLAIM_CHUNK_SIZE,
+          (chunkIndex + 1) * KNOWLEDGE_WORKING_SYNTHESIS_CLAIM_CHUNK_SIZE,
+        ),
+      }));
+    });
     const start = offset(continuation);
-    const selected = ordered.slice(start, start + budget);
+    const selected = work.slice(start, start + budget);
     const synthesisIds: string[] = [];
-    for (const [key, group] of selected) {
+    for (const item of selected) {
+      const { key, group, chunkIndex, chunkCount, chunk } = item;
       const [accessPolicyId, subjectIdentity] = key.split("\0") as [string, string];
-      const claimIds = new Set(group.map((claim) => claim.claimId));
-      const evidence = group.map(claimEvidence);
-      const identity = { subjectIdentity, claimIds: [...claimIds].sort() };
-      let executed = await invoke(runtime, "knowledge.working-synthesis", { subjectIdentity }, evidence, identity);
-      let output = executed.output as Record<string, unknown>;
-      let classification: ReturnType<typeof validateWorkingSynthesisOutput>;
-      try {
-        classification = validateWorkingSynthesisOutput(output, claimIds);
-      } catch (error) {
-        if (!(error instanceof WorkingSynthesisValidationError)) throw error;
-        executed = await invoke(runtime, "knowledge.working-synthesis", {
-          subjectIdentity,
-          validationFeedbackCode: "claim-partitions-must-be-disjoint-and-bounded",
-        }, evidence, { ...identity, validationAttempt: 2 });
-        output = executed.output as Record<string, unknown>;
-        classification = validateWorkingSynthesisOutput(output, claimIds);
+      const executeChunk = async (claimsInChunk: CompoundingClaim[], index: number) => {
+        const claimIds = new Set(claimsInChunk.map((claim) => claim.claimId));
+        const evidence = claimsInChunk.map(claimEvidence);
+        const identity = { subjectIdentity, chunkIndex: index + 1, chunkCount, claimIds: [...claimIds].sort() };
+        if (!await shouldProcessExpensiveWork(runtime, accessPolicyId, evidence, { task: "working-synthesis", ...identity })) return undefined;
+        const taskInput = { subjectIdentity, chunkIndex: index + 1, chunkCount };
+        let executed = await invoke(runtime, "knowledge.working-synthesis", taskInput, evidence, identity, accessPolicyId);
+        let output = executed.output as Record<string, unknown>;
+        let classification: ReturnType<typeof validateWorkingSynthesisOutput>;
+        try {
+          classification = validateWorkingSynthesisOutput(output, claimIds);
+        } catch (error) {
+          if (!(error instanceof WorkingSynthesisValidationError)) throw error;
+          executed = await invoke(runtime, "knowledge.working-synthesis", {
+            ...taskInput,
+            validationFeedbackCode: "claim-partitions-must-be-disjoint-and-bounded",
+          }, evidence, { ...identity, validationAttempt: 2 }, accessPolicyId);
+          output = executed.output as Record<string, unknown>;
+          classification = validateWorkingSynthesisOutput(output, claimIds);
+        }
+        return { executed, output, classification };
+      };
+      const current = await executeChunk(chunk, chunkIndex);
+      if (!current || chunkIndex + 1 < chunkCount) continue;
+
+      // The final segment deterministically replays prior content-addressed
+      // segment results from cache and merges them without another model call.
+      const components = [] as NonNullable<Awaited<ReturnType<typeof executeChunk>>>[];
+      for (let index = 0; index < chunkCount; index += 1) {
+        const claimsInChunk = group.slice(
+          index * KNOWLEDGE_WORKING_SYNTHESIS_CLAIM_CHUNK_SIZE,
+          (index + 1) * KNOWLEDGE_WORKING_SYNTHESIS_CLAIM_CHUNK_SIZE,
+        );
+        const component = index === chunkIndex ? current : await executeChunk(claimsInChunk, index);
+        if (component) components.push(component);
       }
+      if (components.length !== chunkCount) continue;
+      const classifications = components.map((component) => component.classification);
       const synthesis: WorkingSynthesisWrite = {
         subjectIdentity,
-        title: String(output.title),
-        body: String(output.body),
-        ...classification,
-        gaps: Array.isArray(output.gaps) ? output.gaps.map(String) : [],
+        title: String(components[0]!.output.title),
+        body: components.length === 1
+          ? String(components[0]!.output.body)
+          : components.map((component, index) => `## Evidence segment ${index + 1} of ${components.length}\n\n${String(component.output.body)}`).join("\n\n"),
+        supportingClaimIds: [...new Set(classifications.flatMap((entry) => entry.supportingClaimIds))].sort(),
+        contestedClaimIds: [...new Set(classifications.flatMap((entry) => entry.contestedClaimIds))].sort(),
+        supersededClaimIds: [...new Set(classifications.flatMap((entry) => entry.supersededClaimIds))].sort(),
+        gaps: [...new Set(components.flatMap((component) => Array.isArray(component.output.gaps) ? component.output.gaps.map(String) : []))].sort(),
         accessPolicyId,
-        modelReceipt: executed.receipt,
+        modelReceipt: components.at(-1)!.executed.receipt,
+        componentModelReceipts: components.map((component) => component.executed.receipt),
         synthesizedAt: isoNow(runtime),
       };
       await runtime.store.putWorkingSynthesis(synthesis);
       synthesisIds.push(sha256(synthesis));
     }
-    return phaseResult(selected.length, start + selected.length, ordered.length, { subjects: selected.map(([key]) => key), synthesisIds });
+    return phaseResult(selected.length, start + selected.length, work.length, {
+      chunks: selected.map((item) => ({ key: item.key, chunkIndex: item.chunkIndex + 1, chunkCount: item.chunkCount })),
+      synthesisIds,
+    });
   } };
 }
 
@@ -390,7 +623,7 @@ function gradingPhase(runtime: KnowledgeCompoundingRuntimeInput, budget: number)
         await runtime.store.deferGradingRequest(request.requestId, "no-independent-postdating-outcome-evidence");
         continue;
       }
-      const executed = await invoke(runtime, "knowledge.claim-grading", { claimId: request.claim.claimId, outcomeEvidenceIds: request.outcomeEvidenceIds }, [claimEvidence(request.claim), ...request.outcomeEvidence.map(({ evidenceId, content, contentDigest }) => ({ evidenceId, content, contentDigest }))], { requestId: request.requestId, claimId: request.claim.claimId, evidenceIds: request.outcomeEvidenceIds });
+      const executed = await invoke(runtime, "knowledge.claim-grading", { claimId: request.claim.claimId, outcomeEvidenceIds: request.outcomeEvidenceIds }, [claimEvidence(request.claim), ...request.outcomeEvidence.map(({ evidenceId, content, contentDigest }) => ({ evidenceId, content, contentDigest }))], { requestId: request.requestId, claimId: request.claim.claimId, evidenceIds: request.outcomeEvidenceIds }, request.accessPolicyId);
       const output = executed.output as Record<string, unknown>;
       const outcome = String(output.grade) as ClaimGradingResultWrite["outcome"];
       const supportingEvidenceIds = Array.isArray(output.supportingEvidenceIds) ? output.supportingEvidenceIds.map(String) : [];

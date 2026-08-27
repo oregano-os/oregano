@@ -40,10 +40,25 @@ silently fails over across providers.
 The maintained direct-Anthropic preset maps `utility` to
 `anthropic/claude-haiku-4-5-20251001`, `reasoning` to
 `anthropic/claude-sonnet-4-6`, and `deep` to
-`anthropic/claude-opus-4-7`. The Prompt Registry maps every task to one of
-those tiers and exact task overrides remain possible. Embedding and optional
+`anthropic/claude-opus-4-7`. The maintained background
+`knowledge.working-synthesis` task is an explicit exception: it stays a
+quality-sensitive `deep` task but uses Sonnet with 4,000 output tokens, no
+provider retry, and a 240-second call boundary so one hosted continuation can
+finish or fail cleanly before its 300-second host lease. Interactive cited
+synthesis retains Opus. The Prompt Registry maps every task to one of those
+tiers and exact task overrides remain possible. Embedding and optional
 cross-encoder reranking are separate capability adapters and are never
 fabricated from an Anthropic language model.
+
+Working Synthesis never sends an unbounded Subject to one call. Current Claims
+are sorted by stable identity into groups of at most 40. Each group receives a
+separate cached result and receipt; the last group merges all prior cached
+components deterministically into one immutable synthesis version.
+
+The maintained serverless schedule advances those durable continuations every
+15 minutes only during the 02:00–05:59 UTC nightly window. It does not run
+model maintenance every 15 minutes throughout the day. A long-running host can
+drive the same portable cycle until completion in one background worker.
 
 Prompt Registry `2.0.0` compiles 13 generative Knowledge tasks. Runtime
 dispatch requires the exact prompt version and content hash plus the declared
@@ -80,7 +95,7 @@ prompt, route, or provider change.
 
 ## Productive compounding operation
 
-`GET` or `POST /api/knowledge/compounding` advances one bounded cycle for the
+`GET` or `POST /api/knowledge/compounding` advances one bounded maintenance cycle for the
 exact active company source binding. The cycle identity combines the productive
 Compounding contract, exact prompt and model bindings, and a digest of the
 current authorized Claim and grading-request frontier. It therefore resumes
@@ -96,24 +111,42 @@ partial phase writes its next cursor; a long-running host may pass a larger
 explicit budget through its own adapter. Receipts expose the phase's aggregate
 work count without exposing Claim identities or content. The maintained Vercel
 adapter processes five pair candidates but only one deep-synthesis subject per
-invocation. Its initial conservative candidate gate requires at least `0.20`
-deterministic lexical overlap before any pair reaches a model.
+invocation. Contract `2.2.0` uses different gates for different work: exact
+normalized duplicates are deterministic, ambiguous duplicates require at least
+`0.45` lexical overlap, relations require `0.20`, and conflicts require the same
+Claim kind plus `0.15`. Policy and subject must match for every pair. Expensive
+relation and synthesis work first passes the cached `knowledge.triage` task.
+
+Every productive task result is content-addressed by its prompt, schema,
+candidate-rule, model, input, evidence-digest, authorization, data-class, and
+access-policy identities. An authorized cache hit reuses the original validated
+output before spend reservation, including after a new frontier cycle begins.
+Uncached work reserves rated spend atomically and writes a policy-bound result,
+execution ledger row, token counts, pricing version, and actual rated cost.
+`COMPANYOS_KNOWLEDGE_CYCLE_BUDGET_USD` defaults to `5` and
+`COMPANYOS_KNOWLEDGE_DAILY_BUDGET_USD` defaults to `10`. Budget exhaustion
+defers new paid calls but cannot delete evidence or invalidate a cache hit. The
+maintained price catalog is versioned; another model is not eligible for
+budgeted maintenance until its price is qualified.
 
 Do not enable a scheduler merely because the endpoint deploys. First:
 
-1. prepare and read-only qualify `companyos-postgres@1.5.0`;
+1. prepare and read-only qualify `companyos-postgres@1.6.0`;
 2. pass the distinct-model smoke test;
 3. pass all 13 live synthetic fixtures;
 4. reconcile and extract one real authorized source object;
 5. run one manually authorized compounding cycle and inspect aggregate receipt,
    proposal, and synthesis counts without printing payloads; and
-6. verify retrying the same cycle reuses complete receipts.
+6. verify retrying the same cycle reuses complete receipts and that a new cycle
+   reuses unchanged task results without increasing rated spend.
 
 Any runtime host may bind the same operation to its scheduler. The Vercel route
 is a maintained adapter, not a Core dependency. Its schedule runs reconciliation
-at minute `0` and extraction at minute `15` of every six-hour window. It advances
-one small Compounding batch every 15 minutes so an incomplete frontier cycle
-keeps the same cursor across reconciliation windows. Leave the schedule disabled on
+at minute `0` and extraction at minute `15` of every six-hour window. Expensive
+maintenance advances nightly at `02:00` UTC. Initial and repair backfills use
+repeated explicitly authorized bounded invocations until their durable cursors
+complete; they do not permanently increase the model-maintenance frequency.
+Leave the schedule disabled on
 qualification failure, authorization denial, missing migration, or an
 unexpected proposal/synthesis count.
 
@@ -146,7 +179,7 @@ The portable runtime operations are:
   acknowledgement, and fetches content asynchronously.
 
 The reference Vercel adapter schedules six-hour reconciliation and extraction
-plus 15-minute resumable Compounding batches. Another runtime host may bind the
+plus nightly resumable maintenance. Another runtime host may bind the
 same operations to its scheduler, secret store, and
 HTTP ingress without changing the Source, event, Raw Evidence, Raw Asset,
 watermark, or lease contracts. A successful initial backfill MUST be followed

@@ -18,11 +18,13 @@ import {
   knowledgePromptOutputSignals,
 } from "../../../knowledge/prompt-evaluation.ts";
 import { KnowledgePromptRegistry, renderKnowledgePromptUserMessage } from "../../../knowledge/prompt-registry.ts";
+import { rateKnowledgeModelTokens } from "../../../knowledge/model-pricing.ts";
 import { KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA } from "../../../knowledge/prompt-schemas.ts";
 import {
   createProductiveKnowledgeCompoundingPhases,
   KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION,
   KNOWLEDGE_PRODUCTIVE_COMPOUNDING_PROMPT_IDS,
+  KnowledgeMaintenanceBudgetExceededError,
   type KnowledgeCompoundingWorkStore,
 } from "../../../knowledge/productive-compounding.ts";
 import {
@@ -49,6 +51,17 @@ type StaticJsonSchema = Exclude<Parameters<typeof jsonSchema>[0], PromiseLike<un
 export const KNOWLEDGE_MODEL_CONFIG_ENV = "COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64";
 export const GRANOLA_EXTRACTION_STREAM = `${GRANOLA_RECONCILIATION_STREAM}:extraction`;
 export const VERCEL_KNOWLEDGE_COMPOUNDING_PHASE_BUDGET = 5 as const;
+export const KNOWLEDGE_MAINTENANCE_CYCLE_BUDGET_ENV = "COMPANYOS_KNOWLEDGE_CYCLE_BUDGET_USD" as const;
+export const KNOWLEDGE_MAINTENANCE_DAILY_BUDGET_ENV = "COMPANYOS_KNOWLEDGE_DAILY_BUDGET_USD" as const;
+export const DEFAULT_KNOWLEDGE_MAINTENANCE_CYCLE_BUDGET_USD = 5 as const;
+export const DEFAULT_KNOWLEDGE_MAINTENANCE_DAILY_BUDGET_USD = 10 as const;
+
+const moneyBudget = (value: string | undefined, fallback: number, label: string): number => {
+  if (value === undefined) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 10_000) throw new Error(`${label} must be between 0 and 10000 USD.`);
+  return parsed;
+};
 
 export interface KnowledgeModelRuntimeConfiguration {
   version: 1;
@@ -74,6 +87,9 @@ export function productiveKnowledgeCompoundingCycleId(
         profileVersion: profile.profileVersion,
         route: profile.route,
         model: profile.model,
+        maxOutputTokens: profile.maxOutputTokens,
+        timeoutMs: profile.timeoutMs,
+        retries: profile.retries,
       };
     }),
   });
@@ -91,23 +107,49 @@ const knowledgeProfile = (
   route: selection.route,
   model: selection.model,
   maxOutputTokens: selection.maxOutputTokens ?? defaultMaxOutputTokens,
+  ...(selection.timeoutMs === undefined ? {} : { timeoutMs: selection.timeoutMs }),
+  ...(selection.retries === undefined ? {} : { retries: selection.retries }),
 });
 
 const defaultMaxOutputTokens = (profile: KnowledgeModelTaskProfile): number =>
   profile === "utility" ? 4_000 : profile === "deep" ? 32_000 : 16_000;
+
+const applyMaintainedKnowledgeTaskDefault = (
+  promptId: string,
+  profile: KnowledgeModelTaskProfile,
+  selection: ModelExecutionSelection,
+  configuration: ModelRuntimeConfiguration | undefined,
+  environment: Readonly<Record<string, string | undefined>>,
+): ModelExecutionSelection => {
+  const explicitlyBound = Boolean(
+    configuration?.tasks?.[promptId]
+    || configuration?.profiles?.[profile]
+    || configuration?.default
+    || environment.COMPANYOS_MODEL_ROUTE
+    || environment.COMPANYOS_MODEL,
+  );
+  if (explicitlyBound || promptId !== "knowledge.working-synthesis" || selection.route !== "anthropic-direct") return selection;
+  return {
+    ...selection,
+    model: "anthropic/claude-sonnet-4-6",
+    maxOutputTokens: 4_000,
+    timeoutMs: 240_000,
+    retries: 0,
+  };
+};
 
 const compileKnowledgeTasks = (
   configuration: ModelRuntimeConfiguration | undefined,
   environment: Readonly<Record<string, string | undefined>>,
 ): Readonly<Record<string, KnowledgeModelProfileBinding>> => Object.fromEntries(
   new KnowledgePromptRegistry().list().map((definition) => {
-    const selection = resolveModelExecutionSelection({
+    const selection = applyMaintainedKnowledgeTaskDefault(definition.promptId, definition.profile, resolveModelExecutionSelection({
       profile: definition.profile,
       task: definition.promptId,
       requiredCapability: "structured-output",
       configuration,
       environment,
-    });
+    }), configuration, environment);
     return [definition.promptId, knowledgeProfile(definition.profile, selection, defaultMaxOutputTokens(definition.profile))];
   }),
 );
@@ -230,6 +272,8 @@ export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
         route: profile.route as ModelExecutionRoute,
         model: profile.model,
         maxOutputTokens: profile.maxOutputTokens,
+        ...(profile.timeoutMs === undefined ? {} : { timeoutMs: profile.timeoutMs }),
+        ...(profile.retries === undefined ? {} : { retries: profile.retries }),
       },
       requiredCapability: "structured-output",
     });
@@ -242,19 +286,29 @@ export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
         output: Output.object({ schema: jsonSchema(definition.outputSchema as unknown as StaticJsonSchema) }),
         temperature: 0,
         maxOutputTokens: profile.maxOutputTokens,
-        ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
-        ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
+        ...(profile.retries === undefined ? {} : { maxRetries: profile.retries }),
+        ...(profile.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(profile.timeoutMs) }),
       });
       const finishReason = result.finishReason === "stop" ? "stop" as const
         : result.finishReason === "length" ? "length" as const
           : result.finishReason === "content-filter" ? "refusal" as const : "error" as const;
+      const inputTokens = result.usage.inputTokens ?? 0;
+      const outputTokens = result.usage.outputTokens ?? 0;
+      const rated = rateKnowledgeModelTokens({
+        route: resolved.selection.route,
+        model: resolved.selection.model,
+        inputTokens,
+        outputTokens,
+      });
       return {
         output: result.output,
         responseId: result.response.id,
         responseModel: result.response.modelId,
-        inputTokens: result.usage.inputTokens ?? 0,
-        outputTokens: result.usage.outputTokens ?? 0,
-        costUsd: 0,
+        inputTokens,
+        outputTokens,
+        costUsd: rated?.costUsd ?? 0,
+        costStatus: rated ? "rated" as const : "unrated" as const,
+        ...(rated ? { pricingVersion: rated.pricingVersion } : {}),
         latencyMs: Date.now() - started,
         finishReason,
       };
@@ -328,7 +382,7 @@ export class CompanyKnowledgeCompoundingRuntime {
     this.#now = input.now ?? (() => new Date().toISOString());
   }
 
-  async process(input: { cycleId?: string; phaseBudget?: number } = {}) {
+  async process(input: { cycleId?: string; phaseBudget?: number; cycleBudgetUsd?: number; dailyBudgetUsd?: number } = {}) {
     const source = decodeGranolaRuntimeConfiguration();
     if (source.binding.state !== "active") throw new Error("The configured company Knowledge source is not active for compounding.");
     const policy = await this.#sourceStore.getPolicy(source.requirement.access.rootPolicyId);
@@ -346,6 +400,8 @@ export class CompanyKnowledgeCompoundingRuntime {
     const now = this.#now();
     const frontierDigest = await this.#workStore.getFrontierDigest({ accessPolicyIds: [policy.policyId] });
     const cycleId = input.cycleId ?? productiveKnowledgeCompoundingCycleId(frontierDigest, this.#configuration);
+    const cycleBudgetUsd = input.cycleBudgetUsd ?? moneyBudget(process.env[KNOWLEDGE_MAINTENANCE_CYCLE_BUDGET_ENV], DEFAULT_KNOWLEDGE_MAINTENANCE_CYCLE_BUDGET_USD, "Knowledge maintenance cycle budget");
+    const dailyBudgetUsd = input.dailyBudgetUsd ?? moneyBudget(process.env[KNOWLEDGE_MAINTENANCE_DAILY_BUDGET_ENV], DEFAULT_KNOWLEDGE_MAINTENANCE_DAILY_BUDGET_USD, "Knowledge maintenance daily budget");
     const authorizationContextDigest = sha256({ principalId: subject.principalId, policyId: policy.policyId, permission: "read", sourceId: source.requirement.sourceId });
     const phases = createProductiveKnowledgeCompoundingPhases({
       store: this.#workStore,
@@ -356,20 +412,34 @@ export class CompanyKnowledgeCompoundingRuntime {
       dataClass: source.requirement.dataClass,
       now: this.#now,
       phaseBudget: input.phaseBudget ?? VERCEL_KNOWLEDGE_COMPOUNDING_PHASE_BUDGET,
-    });
-    const receipts = await runCompoundingCycle({
       cycleId,
-      sourceIds: [source.requirement.sourceId],
-      phases,
-      state: this.#state,
-      owner: `compounding:${randomUUID()}`,
-      now: this.#now,
+      cycleBudgetUsd,
+      dailyBudgetUsd,
     });
+    let receipts = [] as Awaited<ReturnType<typeof runCompoundingCycle>>;
+    let budgetExhausted = false;
+    try {
+      receipts = await runCompoundingCycle({
+        cycleId,
+        sourceIds: [source.requirement.sourceId],
+        phases,
+        state: this.#state,
+        owner: `compounding:${randomUUID()}`,
+        now: this.#now,
+      });
+    } catch (error) {
+      if (!(error instanceof KnowledgeMaintenanceBudgetExceededError)) throw error;
+      budgetExhausted = true;
+    }
+    const dayStart = `${now.slice(0, 10)}T00:00:00.000Z`;
+    const spend = await this.#workStore.getModelSpend({ cycleId, since: dayStart });
     return {
       ok: true,
       cycleId,
       complete: receipts.length === phases.length && receipts.every((receipt) => receipt.complete),
       processed: receipts.reduce((sum, receipt) => sum + receipt.processed, 0),
+      budgetExhausted,
+      spend: { ...spend, cycleBudgetUsd, dailyBudgetUsd },
       receipts: receipts.map((receipt) => ({ receiptId: receipt.receiptId, phase: receipt.phase, processed: receipt.processed, total: receipt.total, complete: receipt.complete, continuation: receipt.continuation })),
     };
   }

@@ -88,6 +88,8 @@ The maintained Runner requires these Instance values:
 | `COMPANYOS_PUBLIC_BASE_URL` | canonical deployment origin returned by real artifact-publication evidence |
 | `COMPANYOS_MODEL_CONFIG_BASE64` | optional Base64 JSON with exact task, profile, and default recipe bindings |
 | `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` | optional Knowledge-only configuration using the same binding shape; overrides the shared model configuration for Knowledge tasks |
+| `COMPANYOS_KNOWLEDGE_CYCLE_BUDGET_USD` | optional productive-maintenance cycle ceiling; defaults to `5` USD |
+| `COMPANYOS_KNOWLEDGE_DAILY_BUDGET_USD` | optional UTC-day productive-maintenance ceiling; defaults to `10` USD |
 | `COMPANYOS_GRANOLA_SOURCE_CONFIG_BASE64` | Secret-free active Source requirement and binding used by the maintained Granola ingestion and compounding adapter |
 | `GRANOLA_API_KEY` | Sensitive workspace API key resolved only inside the Granola provider call |
 | `CRON_SECRET` | Sensitive bearer secret protecting scheduled Knowledge qualification, reconciliation, extraction, and compounding operations |
@@ -145,7 +147,13 @@ argument, Git, the Workspace, the Artifact, or setup state.
     "deep": { "route": "anthropic-direct", "model": "anthropic/claude-opus-4-7" }
   },
   "tasks": {
-    "knowledge.claim-extraction": { "route": "openai-direct", "model": "openai/gpt-5.4-mini" }
+    "knowledge.working-synthesis": {
+      "route": "anthropic-direct",
+      "model": "anthropic/claude-sonnet-4-6",
+      "maxOutputTokens": 4000,
+      "timeoutMs": 240000,
+      "retries": 0
+    }
   }
 }
 ```
@@ -171,17 +179,18 @@ identities before execution. Cross-encoder reranking remains a separate
 capability and is not part of the 13 task bindings.
 
 Database preparation targets additive manifest
-`companyos-postgres@1.5.0`. It creates the existing control and Knowledge
-schemas plus durable compounding leases, receipts, Claim-pair proposals, and
-explicit grading requests when the database is initially absent, or upgrades
+`companyos-postgres@1.6.0`. It creates the existing control and Knowledge
+schemas plus durable compounding state, policy-bound model-result cache, spend
+reservations, and execution ledger when the database is initially absent, or upgrades
 an older supported manifest in place. Run the separate read-only qualification
 after preparation. Do not enable compounding until the model smoke test, all 13
 synthetic prompt fixtures, one real authorized extraction, one manual
-compounding cycle, and same-cycle retry evidence have passed.
+compounding cycle, same-cycle retry evidence, and cross-cycle unchanged-result
+reuse have passed.
 
 After those gates pass, the maintained Vercel adapter schedules reconciliation
 at minute `0` and extraction at minute `15` of each six-hour window, plus one
-small resumable Compounding batch every 15 minutes. Vercel injects the Sensitive
+resumable maintenance batch nightly at `02:00` UTC. Vercel injects the Sensitive
 `CRON_SECRET` as the bearer authorization
 for those protected routes. A non-Vercel host MUST bind the same three portable
 operations to its own scheduler and SecretRef implementation; database setup
