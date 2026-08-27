@@ -304,8 +304,14 @@ evidence, historical prototypes, and production gaps.
   authorized retrieval call. The maintained Runner now selects an explicit
   bounded 30-second Tool execution window; the generic Runtime validates but
   does not otherwise prescribe a host's optional override. Production
-  redeployment and the repeated cited Slack probe remain the final Instance
-  qualification steps.
+  deployment `dpl_DNFCv9ToKhWsBLhN181jkJf9rTVu` is ready at the canonical
+  alias. The repeated Slack probe on 2026-08-27 then completed the registered
+  search and returned three authorized Company Brain results from Claims and
+  Working Syntheses, each with its exact Company Knowledge path and fragment
+  identity. This qualifies roster admission, required Tool routing, isolated
+  execution, Postgres retrieval and ACL audit, result validation, citation
+  enforcement, and Slack delivery together for the current production
+  Artifact.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human
