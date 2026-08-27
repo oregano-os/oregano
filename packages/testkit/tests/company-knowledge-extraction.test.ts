@@ -151,6 +151,27 @@ test("structured extraction is idempotent, evidence-bound, and keeps inferred gr
   assert.equal(timeline[0].pageVersionId, first.pageVersion.pageVersionId);
 });
 
+test("large evidence executes bounded chunks and restores global line locators", async () => {
+  const longText = Array.from({ length: 6_000 }, (_, index) => `transcript line ${index + 1}`).join("\n");
+  const longEvidence = {
+    ...evidence,
+    envelope: { ...evidence.envelope, size: Buffer.byteLength(longText), contentDigest: sha256(longText) },
+    content: { inlineText: longText },
+  };
+  let calls = 0;
+  const result = await extractRawEvidenceToBrain({
+    evidence: longEvidence, sourceKind: "meeting", ownerPrincipalId: "human:alice",
+    brainStore: new InMemoryBrainStore(), runStore: new InMemoryKnowledgeExtractionRunStore(),
+    modelExecutor: { execute: async () => ({ output, responseId: `response-${++calls}`, responseModel: "test/reasoning", inputTokens: 100, outputTokens: 50, costUsd: 0.01, latencyMs: 10, finishReason: "stop" }) },
+    profiles: { utility: profile("utility"), reasoning: profile("reasoning") }, authorizationContextDigest: sha256("auth"), dataClass: "restricted", now,
+  });
+  assert.ok(calls > 1);
+  assert.equal(result.modelReceipts.length, calls);
+  const firstClaimInSecondChunk = result.claims[output.facts.length + output.takes.length]!;
+  assert.equal(firstClaimInSecondChunk.evidence[0]?.locator.kind, "line");
+  assert.ok(firstClaimInSecondChunk.evidence[0]?.locator.kind === "line" && firstClaimInSecondChunk.evidence[0].locator.start > 2);
+});
+
 test("revoked model profiles fail closed and returned locators cannot escape the authorized evidence", async () => {
   const prompt = new KnowledgePromptRegistry().resolveCurrent("knowledge.triage");
   const request = { task: prompt.task, promptId: prompt.promptId, promptVersion: prompt.version, promptContentHash: prompt.contentHash, inputSchemaId: prompt.inputSchemaId, outputSchemaId: prompt.outputSchemaId, systemInstruction: prompt.systemInstruction, taskInput: { sourceKind: "meeting", contentCharacters: text.length }, evidenceBlocks: [], authorizationContextDigest: sha256("auth"), dataClass: "restricted" as const, idempotencyKey: "test" };
