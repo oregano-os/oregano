@@ -135,16 +135,20 @@ evidence, historical prototypes, and production gaps.
   denial, timeout, cancellation, bounded writes, and independently observed
   diffs. Protected staged-deployment probes also prove brokered use of both
   general Instance model keys while the coding processes receive placeholders
-  rather than the real credentials. ACP remains private Builder-worker
-  transport, not a Core-wide runtime contract.
+  rather than the real credentials. Successful fresh sessions now retain
+  job-bound input, output, thought, cached-read, cached-write, and total token
+  counts plus an explicit reported-or-unavailable provider-cost status. ACP
+  remains private Builder-worker transport, not a Core-wide runtime contract.
 - The first private `BuilderExecutionAdapter` uses Vercel Sandbox `3.1.0`.
   Live provider probes have proved digest-pinned base execution, deny-all
   egress, no public ports, credential-header transformation, duplicate
   reconciliation, coordinator recovery, timeout, cancellation, collection, and
   cleanup. Detached workers flush one structured result and exit explicitly;
   coordinator output polling is bounded, and an unavailable persisted worker
-  marker fails closed. A provider-neutral in-memory implementation covers
-  conformance and orchestration tests.
+  marker fails closed. A deliberate live ACP-process `SIGKILL` was recovered
+  from the same persisted handle by a replacement coordinator as a terminal
+  failure with no diff, followed by Sandbox disposal. A provider-neutral
+  in-memory implementation covers conformance and orchestration tests.
 - CompanyOS independently rejects protected paths, reconstructs the actual
   transferred diff in a trusted checkout, runs the version-pinned Workbench
   inspection, validation, and security checks, and lets only a trusted outer
@@ -198,9 +202,16 @@ evidence, historical prototypes, and production gaps.
   Runner, explicit confirmation, Claude ACP, independent validation, and draft
   publication path as `fylingpete/oregano-hq-companyos#6`, with no merge or
   deployment. The job took 298.240 seconds end to end; its coding Sandbox ran
-  for 264.182 seconds and used 8.401 active CPU seconds. Per-job model-token
-  attribution, deliberate ACP-process-crash injection, and a wider supervised
-  proposal history remain production-readiness measurements.
+  for 264.182 seconds and used 8.401 active CPU seconds. On the final qualified
+  worker snapshot, a separate fixed Claude job recorded 110,033 total tokens
+  (10 input, 455 output, 103,466 cached read, and 6,102 cached write) and a
+  provider-reported estimated model cost of USD 0.1019435. That is a direct ACP
+  receipt from the Anthropic-backed run, not Vercel compute pricing or a billing
+  statement. Profiles that do not report a cost record `unavailable` instead
+  of a locally inferred price. A second live job injected `SIGKILL` after
+  job-bound prompt-start evidence; a replacement coordinator recovered
+  `failed`, produced no checked diff, and disposed the Sandbox. A wider
+  supervised proposal history remains a production-readiness measurement.
 
 ## Highest-priority gaps after the first live pilot
 
@@ -228,9 +239,9 @@ evidence, historical prototypes, and production gaps.
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.
-8. Add per-job model-token attribution, inject an ACP-process crash, and review
-   10–20 supervised Builder proposals before enabling any customer production
-   Builder Agent Binding.
+8. Reconcile provider-reported model-cost receipts with provider billing and
+   review 10–20 supervised Builder proposals before enabling any customer
+   production Builder Agent Binding.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

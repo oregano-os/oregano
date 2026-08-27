@@ -35,7 +35,7 @@ providers, independent Workbench validation, trusted outer publication, and
 source-thread terminal reporting have automated coverage.
 
 The current qualified worker snapshot was created successfully as
-`snap_VgcFhKlxv53rgiwoOGmFS7sBc7Yp` from the pinned base image. It contains ACP
+`snap_XhgH5ozYTOR5L5GTI3e8ST1G3hvy` from the pinned base image. It contains ACP
 SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
 
 The current separate trusted Git snapshot was created as
@@ -78,8 +78,23 @@ bytes, and sent 2,182,878 bytes. At the [Vercel Sandbox list
 rates](https://vercel.com/pricing) published on 2026-08-27, that is
 approximately USD 0.00374 of provider compute, memory,
 network, and creation usage before included quotas and excluding Claude model
-cost. Per-job model-token attribution and deliberate ACP-process-crash
-injection remain production-readiness measurements.
+cost.
+
+The final fixed Claude qualification on that same snapshot recorded one fresh
+job with 110,033 total tokens: 10 input, 455 output, 103,466 cached read, 6,102
+cached write, and no thought tokens. Claude ACP reported an estimated model
+cost of USD 0.1019435 through `usage_update`. This is direct job-bound model
+evidence, not Vercel resource pricing or a provider billing statement. Every
+successful profile now records a cost status; a profile such as the current
+Codex ACP that does not expose cost records `unavailable` instead of using an
+invented local price.
+
+A parallel final gate waited for exact job-bound `prompt_started` evidence,
+sent `SIGKILL` only to the recorded Claude ACP process, and instantiated a new
+execution coordinator. The replacement recovered the persisted handle as
+`failed`, retained the redacted progress receipt, produced no checked diff, and
+disposed the isolated Sandbox. Retry deliberately requires a new confirmed job
+rather than resuming a partially executed coding turn.
 
 ## 1. Purpose and approved decisions
 
@@ -678,9 +693,12 @@ seconds end to end. Its coding Sandbox ran for 264.182 seconds with 8.401 active
 CPU seconds, 2 GB provisioned memory, 578,626 ingress bytes, and 2,182,878
 egress bytes. Using the Vercel Sandbox list rates published that day, the
 measured provider resource use is approximately USD 0.00374 before included
-quotas and excluding the Claude model call. Per-job model-token attribution and
-deliberate ACP-process-crash injection remain open production-readiness
-measurements.
+quotas and excluding the Claude model call. A separate final fixed Claude job
+then recorded 110,033 job-bound tokens and an ACP-reported estimated model cost
+of USD 0.1019435. A deliberate ACP-process `SIGKILL` on the same snapshot was
+recovered by a replacement coordinator as a terminal failure with no diff and
+deterministic Sandbox disposal. Stage 0 therefore passed both model-accounting
+and process-crash recovery gates.
 
 The first Stage-0 execution probe on 2026-08-26 proved the neutral five-method
 adapter lifecycle against Vercel Sandbox SDK `3.1.0`. A real disposable Sandbox
@@ -695,8 +713,9 @@ provider network policy, verified the transformed value at the remote endpoint,
 and restored `deny-all` in a `finally` path. This qualified the basic provider
 lifecycle and the provider's credential-transform mechanism. Later protected
 staged-deployment and GitHub App probes qualified real model authentication and
-private repository setup separately. Representative model-backed job cost
-remains open.
+private repository setup separately. The final protected Claude job recorded
+exact token categories and an ACP-reported estimated cost; profiles without a
+cost receipt retain an explicit `unavailable` status.
 
 The follow-up provider probe on the same date also exposed and resolved a real
 parallel-delivery race in the provider SDK's non-atomic named `getOrCreate`
@@ -708,9 +727,10 @@ collection, and cleanup succeeded. A separate live ten-second provider timeout
 was freshly observed after coordinator state was discarded and was classified
 as `timed_out` from the stored timeout evidence and provider session timing.
 These probes qualify the basic duplicate-delivery, restart-recovery,
-cancellation, timeout, and cleanup paths. Durable job leases, process-crash
-injection during an ACP prompt, and model-backed duration and cost remain for
-the production worker stages.
+cancellation, timeout, and cleanup paths. Durable job leases subsequently
+passed through the Slack-backed run. The final fixed worker gate also injected
+an ACP-process crash during a prompt and proved job-bound model duration,
+tokens, cost status, replacement-coordinator recovery, and cleanup.
 
 If credential brokering is incompatible with one profile on one adapter, that
 exact profile-and-adapter combination fails qualification. Another separately
@@ -861,7 +881,10 @@ proposal branch before the GitHub provider opens a draft through the API. The
 live pass on 2026-08-26 proved this path and repeat-call idempotency. The
 normal Runner and Slack integration gate then passed on 2026-08-27 through one
 confirmed job in an isolated Instance Artifact and checked draft
-`fylingpete/oregano-hq-companyos#6`.
+`fylingpete/oregano-hq-companyos#6`. Final protected gates on 2026-08-27 then
+proved per-job model-token and cost-status evidence plus deliberate ACP-process
+crash recovery by a replacement coordinator, with no diff or proposal from the
+failed execution.
 
 ## 9. Success and graduation criteria
 

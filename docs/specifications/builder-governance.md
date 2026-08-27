@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -24,7 +24,8 @@ The Builder Agent proposes Company Workspace changes from an authorized human
 request. The proposal-only control path is implemented and tested; hosted
 GitHub onboarding, brokered Claude Code and Codex, and the separate trusted Git
 boundary have passed live Stage-0 qualification. One isolated
-Slack-to-draft-proposal round trip remains an activation gate. This
+Slack-to-draft-proposal round trip, job-bound model accounting, and deliberate
+ACP-process crash recovery have also passed their activation gates. This
 specification distinguishes implemented invariants from activated profiles.
 
 ## 1. Scope and authority
@@ -183,6 +184,10 @@ this draft.
 - actual diff class cannot be understated by the plan;
 - security approval follows the declared `steward` or `independent-review` mode;
 - denied and failed proposals leave no partial branch effect;
+- every successful fresh coding-agent session records job-bound model tokens
+  and an explicit provider-cost status without inventing a price;
+- an ACP-process crash is retained as a job-bound terminal failure and a
+  replacement coordinator produces no diff or proposal from that execution;
 - dry-run cannot reach production providers or state;
 - merge/deploy uses the exact reviewed commit pair;
 - rollback restores definition and separately tracks compensation for effects.
@@ -197,18 +202,24 @@ The experimental implementation currently includes:
 - a Vercel Sandbox worker adapter plus an in-memory conformance adapter;
 - exactly pinned ACP SDK, Claude Code ACP, and Codex ACP packages in the
   isolated worker;
+- job-bound token usage and explicit reported-or-unavailable model-cost
+  evidence for every successful coding-agent session;
+- terminal worker receipts that let a replacement coordinator fail closed
+  after an ACP-process crash;
 - local Git and GitHub App repository provider implementations;
 - a separate Vercel Sandbox trusted Git adapter that never runs a coding agent;
 - independent protected-path and changed-path inspection;
 - Workbench inspection, validation, and security checks; and
 - trusted outer draft-proposal publication with no merge or deployment.
 
-This implementation MUST NOT be activated as a maintained hosted Builder
-profile until an isolated Instance Artifact contains an exact Builder Agent
-Binding and completes one representative Slack-to-draft-proposal round trip.
-The two snapshots, model broker, service-owned GitHub App onboarding,
-repository transfer, Workbench validation, and idempotent draft publication
-already passed their bounded Stage-0 live gates.
+The hosted profile remains inactive in customer production. Its isolated
+Instance Artifact, exact Builder Agent Binding, representative
+Slack-to-draft-proposal run, two snapshots, model broker, service-owned GitHub
+App onboarding, repository transfer, Workbench validation, job-bound model
+accounting, deliberate ACP-process crash recovery, and idempotent draft
+publication have passed their bounded Stage-0 live gates. Any customer pilot
+activation still requires an explicit Instance decision and remains
+proposal-only.
 
 ## 10. Open decisions
 

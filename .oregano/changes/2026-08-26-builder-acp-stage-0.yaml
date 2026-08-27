@@ -1,6 +1,6 @@
 version: 1
 plan_id: builder-acp-stage-0-2026-08-26
-status: approved
+status: implemented
 author: codex-agent
 created: 2026-08-26
 title: Qualify the Builder ACP and execution-provider boundary
@@ -26,6 +26,7 @@ vision_principles_affected:
 files_expected:
   - .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - docs/plans/2026-08-26-builder-acp-mvp-implementation.md
+  - docs/specifications/builder-governance.md
   - docs/status/current.md
   - docs/workbench/guides/operate-builder.md
   - docs/_generated/document-registry.json
@@ -33,6 +34,7 @@ files_expected:
   - packages/builder-worker/**
   - packages/runtime/builder/**
   - packages/runner-vercel/package.json
+  - packages/runner-vercel/src/app/api/builder/qualification/route.ts
   - packages/runner-vercel/src/lib/builder/**
   - packages/testkit/adapter/in-memory-builder-execution.ts
   - packages/testkit/fixtures/acp/**
@@ -51,6 +53,7 @@ validation:
   - pnpm companyos plan --check .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - pnpm docs:check
+  - pnpm check
   - pnpm typecheck
   - pnpm runner:typecheck
   - pnpm runner:build
@@ -76,17 +79,18 @@ tests:
   - A completed detached worker exits after flushing its result, stale worker markers fail closed, and coordinator polling remains bounded.
   - Coding and trusted Git sandboxes hash the same canonical multi-file diff before publication.
   - Execution evidence survives later validation and publication evidence updates.
+  - Every successful fresh ACP session records job-bound token usage and an explicit cost status; provider-reported cost is persisted as estimated, while a missing provider receipt is recorded as unavailable rather than inferred.
+  - A deliberately injected ACP-process SIGKILL produces a job-bound terminal failure receipt; a replacement coordinator recovers the persisted execution handle, produces no diff, and disposes the Sandbox.
 documentation_impact:
   required: true
   affected_documents:
     - status.current
     - guide.operate-builder
     - plan.builder-acp-mvp-implementation
+    - specification.builder-governance
 rollback: >-
   Revert the isolated Stage-0 Builder files, exact experimental dependencies,
   tests, and qualification evidence; close the unmerged qualification drafts;
   remove the isolated Instance deployment and bindings; and revoke its temporary
   qualification access. No customer production Builder binding was enabled.
-open_decisions:
-  - Attribute model-token cost per Builder job; the representative provider-compute duration and cost are measured, but Claude ACP did not expose token usage in the persisted receipt.
-  - Inject an ACP-process crash during a representative prompt and prove replacement-coordinator recovery from the persisted execution handle.
+open_decisions: []

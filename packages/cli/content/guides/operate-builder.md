@@ -151,6 +151,20 @@ accepts no prompt or repository input, runs one fixed fixture through the
 pinned worker snapshot, and is unavailable through the Production alias. Delete
 the staged deployment after retaining its non-secret evidence.
 
+Every successful fixed profile run must retain token totals and categories from
+its fresh ACP session. It must also retain either a provider-reported estimated
+cost with currency or the explicit status `unavailable`; do not infer a model
+price when the profile does not identify and report one. The Claude ACP profile
+currently reports estimated USD cost. The current Codex ACP profile reports
+tokens but not cost.
+
+Run the same protected endpoint once with the fixed
+`acp-crash-recovery` gate. It waits for job-bound prompt-start evidence, sends
+`SIGKILL` only to that recorded ACP process, and requires a newly instantiated
+coordinator to recover the persisted execution handle as `failed`. Passing
+evidence must contain no checked diff and must prove Sandbox disposal. Never
+resume a half-executed coding turn; retry requires a new human-confirmed job.
+
 The same endpoint accepts the exact fixed `trusted-git` gate only when its
 bounded repository, installation, base-commit, proposal-branch, and optional
 stacked target-branch settings are present. It calls the same authenticated
@@ -181,9 +195,11 @@ The durable job ledger records `queued`, `preparing_source`, `executing`,
 `validating`, `publishing`, and terminal `published`, `failed`, or `cancelled`
 states. Workers claim bounded leases; a replacement coordinator recovers the
 same named execution from its opaque handle. A completed detached worker
-flushes one job-bound structured result and exits explicitly. Coordinator
-output polling is bounded, and a missing persisted worker marker fails closed
-instead of leaving the job in `executing`. Duplicate request IDs with different
+flushes one job-bound structured result and exits explicitly. A failed ACP run
+flushes a bounded terminal failure receipt so a replacement coordinator does
+not depend on a provider SDK's stale detached-command status. Coordinator output
+polling is bounded, and a missing persisted worker marker fails closed instead
+of leaving the job in `executing`. Duplicate request IDs with different
 immutable input fail closed.
 
 For a failed job, inspect only redacted terminal reason, provider receipts,
@@ -206,7 +222,7 @@ inspection, and trusted outer publication. Basic live Vercel Sandbox lifecycle,
 duplicate recovery, timeout, and credential-transform mechanics are also
 proved.
 
-The current worker snapshot is `snap_VgcFhKlxv53rgiwoOGmFS7sBc7Yp`; the
+The current worker snapshot is `snap_XhgH5ozYTOR5L5GTI3e8ST1G3hvy`; the
 current trusted Git snapshot is `snap_8qXUUTT8rn7NF45Yx8KzGgIbwEsb`. Both
 brokered model profiles and the service-owned GitHub App source and
 draft-publication path passed live qualification. The protected model runs
@@ -226,6 +242,13 @@ seconds, used 8.401 active CPU seconds, and incurred approximately USD 0.00374
 of listed provider compute, memory, network, and creation usage before included
 quotas and excluding Claude model cost.
 
-The hosted profile remains inactive in customer production. Per-job model-token
-attribution, deliberate ACP-process-crash recovery, and a supervised history of
-10–20 representative proposals remain production-readiness measurements.
+On the final worker snapshot, a fixed Claude job recorded 110,033 total tokens
+(10 input, 455 output, 103,466 cached read, and 6,102 cached write) plus an
+ACP-reported estimated model cost of USD 0.1019435. This is model evidence from
+the direct Anthropic-backed run, separate from Vercel Sandbox resource cost. A
+second fixed job injected `SIGKILL` after prompt-start evidence; a replacement
+coordinator recovered `failed`, emitted no diff, and disposed the Sandbox.
+
+The hosted profile remains inactive in customer production. Provider-billing
+reconciliation and a supervised history of 10–20 representative proposals
+remain production-readiness measurements.

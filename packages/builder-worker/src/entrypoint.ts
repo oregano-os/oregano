@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,7 +10,9 @@ import {
 } from "../../runtime/builder/acp-client.ts";
 import { resolveBuilderAcpProfile } from "../../runtime/builder/profiles.ts";
 import {
+  BUILDER_WORKER_PROGRESS_PATH,
   parseBuilderWorkerRequest,
+  type BuilderWorkerProgress,
   type BuilderWorkerResult,
 } from "./contracts.ts";
 
@@ -29,28 +31,48 @@ const executable = existsSync(localExecutable)
   : resolve(repositoryRoot, "node_modules", ".bin", profile.binaryName);
 const environment = workerEnvironment(profile.id);
 
-const evidence = await runBuilderAcp({
-  launch: { profile, executable },
-  cwd: request.workspacePath,
-  prompt: request.prompt,
-  timeoutMs: request.timeoutMs,
-  environment,
-  permissionPolicy: createBuilderAcpPermissionPolicy(profile, request.workspacePath),
-});
-
-const result: BuilderWorkerResult = {
-  schemaVersion: 1,
-  jobId: request.jobId,
-  requestId: request.requestId,
-  profileId: request.profileId,
-  evidence,
-};
-await writeResult(result);
-
-// runBuilderAcp has already stopped the ACP child process tree. Exit explicitly
-// after flushing the only worker result so an SDK-owned stream handle cannot
-// keep an otherwise completed detached Sandbox command alive until timeout.
-process.exit(0);
+try {
+  const evidence = await runBuilderAcp({
+    launch: { profile, executable },
+    cwd: request.workspacePath,
+    prompt: request.prompt,
+    timeoutMs: request.timeoutMs,
+    environment,
+    permissionPolicy: createBuilderAcpPermissionPolicy(profile, request.workspacePath),
+    onProgress: async (progress) => {
+      await writeProgress({
+        schemaVersion: 1,
+        jobId: request.jobId,
+        requestId: request.requestId,
+        profileId: request.profileId,
+        ...progress,
+        observedAt: new Date().toISOString(),
+      });
+    },
+  });
+  await writeResult({
+    schemaVersion: 1,
+    jobId: request.jobId,
+    requestId: request.requestId,
+    profileId: request.profileId,
+    state: "succeeded",
+    evidence,
+  });
+  // runBuilderAcp has already stopped the ACP child process tree. Exit
+  // explicitly after flushing the terminal receipt so SDK-owned handles cannot
+  // keep an otherwise completed detached Sandbox command alive until timeout.
+  process.exit(0);
+} catch (error) {
+  await writeResult({
+    schemaVersion: 1,
+    jobId: request.jobId,
+    requestId: request.requestId,
+    profileId: request.profileId,
+    state: "failed",
+    failure: { category: failureCategory(error) },
+  });
+  process.exit(1);
+}
 
 function workerEnvironment(profileId: typeof profile.id): Record<string, string> {
   const environment: Record<string, string> = {
@@ -76,4 +98,17 @@ async function writeResult(result: BuilderWorkerResult): Promise<void> {
       else resolve();
     });
   });
+}
+
+async function writeProgress(progress: BuilderWorkerProgress): Promise<void> {
+  const temporaryPath = `${BUILDER_WORKER_PROGRESS_PATH}.${process.pid}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(progress), { encoding: "utf8", mode: 0o600 });
+  await rename(temporaryPath, BUILDER_WORKER_PROGRESS_PATH);
+}
+
+function failureCategory(error: unknown): "acp-process-exit" | "acp-run-failed" {
+  const message = error instanceof Error ? error.message : String(error);
+  return /ACP (?:process exited before the active job completed|connection closed)/.test(message)
+    ? "acp-process-exit"
+    : "acp-run-failed";
 }

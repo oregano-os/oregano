@@ -12,6 +12,7 @@ test("recognizes a complete job-bound worker result before process exit", () => 
   const output = JSON.stringify({
     schemaVersion: 1,
     ...expected,
+    state: "succeeded",
     evidence: { stopReason: "end_turn" },
   });
 
@@ -24,10 +25,17 @@ test("rejects malformed or differently bound worker output", () => {
     schemaVersion: 1,
     ...expected,
     jobId: "builder-job-2",
+    state: "succeeded",
     evidence: {},
   }), expected), false);
   assert.equal(isExpectedBuilderWorkerResult(JSON.stringify({
     schemaVersion: 1,
     ...expected,
   }), expected), false);
+  assert.equal(isExpectedBuilderWorkerResult(JSON.stringify({
+    schemaVersion: 1,
+    ...expected,
+    state: "failed",
+    failure: { category: "acp-process-exit" },
+  }), expected), true);
 });

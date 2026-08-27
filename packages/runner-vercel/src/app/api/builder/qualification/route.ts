@@ -3,6 +3,7 @@ import {
   isStagedProductionQualificationRequest,
   qualifyDeployedAcp,
 } from "../../../../lib/builder/deployed-acp-qualification.ts";
+import { qualifyDeployedAcpCrashRecovery } from "../../../../lib/builder/deployed-acp-crash-qualification.ts";
 import { qualifyDeployedTrustedGit } from "../../../../lib/builder/deployed-trusted-git-qualification.ts";
 
 export const maxDuration = 300;
@@ -16,6 +17,9 @@ export async function POST(request: Request): Promise<Response> {
     if (Object.keys(body).length !== 1) throw new Error("invalid qualification request");
     if (body.gate === "trusted-git") {
       return Response.json({ ok: true, evidence: await qualifyDeployedTrustedGit() });
+    }
+    if (body.gate === "acp-crash-recovery") {
+      return Response.json({ ok: true, evidence: await qualifyDeployedAcpCrashRecovery() });
     }
     if (body.profile === "claude-code" || body.profile === "codex") {
       return Response.json({ ok: true, evidence: await qualifyDeployedAcp(body.profile as BuilderAcpProfileId) });

@@ -23,8 +23,54 @@ export interface BuilderAcpRunRequest {
   readonly environment: Readonly<Record<string, string>>;
   /** Omit to deny every permission request. The returned id must name an offered one-shot option. */
   readonly permissionPolicy?: (request: acp.RequestPermissionRequest) => Promise<string | undefined> | string | undefined;
+  /** Optional private worker observer used to persist job-bound recovery evidence. */
+  readonly onProgress?: (progress: BuilderAcpProgressEvidence) => Promise<void> | void;
   readonly signal?: AbortSignal;
 }
+
+export interface BuilderAcpReportedCostEvidence {
+  readonly status: "reported";
+  readonly amount: number;
+  readonly currency: string;
+  readonly source: "acp-usage-update";
+  readonly estimated: true;
+}
+
+export type BuilderAcpCostEvidence = BuilderAcpReportedCostEvidence | {
+  readonly status: "unavailable";
+  readonly reason: "acp-profile-did-not-report-cost";
+};
+
+export interface BuilderAcpModelUsageEvidence {
+  readonly attribution: "fresh-acp-session-single-job";
+  readonly model?: string;
+  readonly tokens: {
+    readonly total: number;
+    readonly input: number;
+    readonly output: number;
+    readonly thought: number;
+    readonly cachedRead: number;
+    readonly cachedWrite: number;
+  };
+  readonly cost: BuilderAcpCostEvidence;
+}
+
+export type BuilderAcpProgressEvidence = {
+  readonly phase: "prompt_started";
+  readonly sessionId: string;
+  readonly processId: number;
+  readonly model?: string;
+} | {
+  readonly phase: "usage_observed";
+  readonly sessionId: string;
+  readonly processId: number;
+  readonly model?: string;
+  readonly context: {
+    readonly used: number;
+    readonly size: number;
+  };
+  readonly cost?: BuilderAcpReportedCostEvidence;
+};
 
 export interface BuilderAcpRunEvidence {
   readonly protocolVersion: number;
@@ -40,6 +86,7 @@ export interface BuilderAcpRunEvidence {
   };
   readonly sessionId: string;
   readonly stopReason: string;
+  readonly modelUsage: BuilderAcpModelUsageEvidence;
   readonly updateKinds: readonly string[];
   readonly permissionRequests: number;
   readonly approvedPermissions: number;
@@ -132,8 +179,15 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
   let cancelActiveSession: (() => Promise<void>) | undefined;
   let timedOut = false;
   let aborted = false;
+  let operationCompleted = false;
   let rejectBoundary: ((error: Error) => void) | undefined;
   const boundary = new Promise<never>((_resolve, reject) => { rejectBoundary = reject; });
+  child.once("exit", (code, signal) => {
+    if (operationCompleted) return;
+    rejectBoundary?.(new Error(
+      `Builder ACP process exited before the active job completed (${signal ?? `exit ${code ?? "unknown"}`}).`,
+    ));
+  });
   const timeout = setTimeout(() => {
     timedOut = true;
     void cancelActiveSession?.().catch(() => undefined);
@@ -202,10 +256,19 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
         });
       }
       cancelActiveSession = () => context.notify(acp.methods.agent.session.cancel, { sessionId: session.sessionId });
+      const model = selectedModel(session.newSessionResponse.configOptions);
       void session.prompt(request.prompt).catch(() => undefined);
+      await request.onProgress?.({
+        phase: "prompt_started",
+        sessionId: session.sessionId,
+        processId: child.pid!,
+        ...(model ? { model } : {}),
+      });
+      let cost: BuilderAcpReportedCostEvidence | undefined;
       for (;;) {
         const message = await session.nextUpdate();
         if (message.kind === "stop") {
+          const tokens = normalizedUsage(message.response.usage);
           return {
             protocolVersion: initialized.protocolVersion,
             profile: {
@@ -220,6 +283,15 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
             },
             sessionId: session.sessionId,
             stopReason: message.stopReason,
+            modelUsage: {
+              attribution: "fresh-acp-session-single-job",
+              ...(model ? { model } : {}),
+              tokens,
+              cost: cost ?? {
+                status: "unavailable",
+                reason: "acp-profile-did-not-report-cost",
+              },
+            },
             updateKinds,
             permissionRequests,
             approvedPermissions,
@@ -229,13 +301,30 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
           } satisfies BuilderAcpRunEvidence;
         }
         updateKinds.push(message.update.sessionUpdate);
+        if (message.update.sessionUpdate === "usage_update") {
+          cost = normalizedCost(message.update.cost);
+          const contextUsage = {
+            used: nonNegativeInteger(message.update.used, "ACP context used tokens"),
+            size: nonNegativeInteger(message.update.size, "ACP context size"),
+          };
+          await request.onProgress?.({
+            phase: "usage_observed",
+            sessionId: session.sessionId,
+            processId: child.pid!,
+            ...(model ? { model } : {}),
+            context: contextUsage,
+            ...(cost ? { cost } : {}),
+          });
+        }
       }
     });
   });
   void operation.catch(() => undefined);
 
   try {
-    return await Promise.race([operation, boundary]);
+    const result = await Promise.race([operation, boundary]);
+    operationCompleted = true;
+    return result;
   } catch (error) {
     if (timedOut || aborted) throw error;
     const detail = stderr.trim();
@@ -246,6 +335,45 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
     request.signal?.removeEventListener("abort", onAbort);
     await stopProcessTree(child);
   }
+}
+
+function selectedModel(options: acp.SessionConfigOption[] | null | undefined): string | undefined {
+  const model = options?.find((option) => option.category === "model" && option.type === "select");
+  return model?.type === "select" && model.currentValue.trim() !== "" ? model.currentValue : undefined;
+}
+
+function normalizedUsage(usage: acp.Usage | null | undefined): BuilderAcpModelUsageEvidence["tokens"] {
+  if (!usage) throw new Error("Builder ACP profile did not report job-bound token usage.");
+  return {
+    total: nonNegativeInteger(usage.totalTokens, "ACP total tokens"),
+    input: nonNegativeInteger(usage.inputTokens, "ACP input tokens"),
+    output: nonNegativeInteger(usage.outputTokens, "ACP output tokens"),
+    thought: nonNegativeInteger(usage.thoughtTokens ?? 0, "ACP thought tokens"),
+    cachedRead: nonNegativeInteger(usage.cachedReadTokens ?? 0, "ACP cached-read tokens"),
+    cachedWrite: nonNegativeInteger(usage.cachedWriteTokens ?? 0, "ACP cached-write tokens"),
+  };
+}
+
+function normalizedCost(cost: acp.Cost | null | undefined): BuilderAcpReportedCostEvidence | undefined {
+  if (!cost) return undefined;
+  if (!Number.isFinite(cost.amount) || cost.amount < 0) {
+    throw new Error("Builder ACP profile reported an invalid model cost.");
+  }
+  if (!/^[A-Z]{3}$/.test(cost.currency)) {
+    throw new Error("Builder ACP profile reported an invalid model-cost currency.");
+  }
+  return {
+    status: "reported",
+    amount: cost.amount,
+    currency: cost.currency,
+    source: "acp-usage-update",
+    estimated: true,
+  };
+}
+
+function nonNegativeInteger(value: number, field: string): number {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`${field} must be a non-negative integer.`);
+  return value;
 }
 
 function validateRunRequest(request: BuilderAcpRunRequest): void {

@@ -127,6 +127,63 @@ test("BuilderService does not start coding before confirmed submission", async (
   assert.equal(await jobs.getByRequestId("unconfirmed"), undefined);
 });
 
+test("BuilderService retains model and recovery evidence from a failed execution", async () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-builder-failed-evidence-"));
+  const repository = join(root, "origin");
+  execFileSync("git", ["init", "-q", repository]);
+  writeFileSync(join(repository, "company.md"), "base\n");
+  git(repository, ["add", "company.md"]);
+  git(repository, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "base"]);
+  const baseCommit = git(repository, ["rev-parse", "HEAD"]);
+  const binding = { id: "workspace", repositoryId: "fixture/workspace", repositoryPath: repository };
+  const jobs = new InMemoryBuilderJobStore();
+  const execution = new InMemoryBuilderExecutionAdapter();
+  const neverValidator: BuilderProposalValidator = {
+    async validate() { throw new Error("failed execution must not validate"); },
+  };
+  const neverPublisher: ProposalPublisher = {
+    id: "never",
+    version: "1.0.0",
+    async publish() { throw new Error("failed execution must not publish"); },
+  };
+  const service = new BuilderService({
+    jobs,
+    source: new LocalGitRepositorySourceAdapter([binding]),
+    execution,
+    validator: neverValidator,
+    publisher: neverPublisher,
+    configuration,
+  });
+  try {
+    const job = await service.submitConfirmedProposal({
+      requestId: "failed-model-evidence",
+      instanceId: "fixture",
+      requesterPrincipal: "slack:T1:U1",
+      sourceConversationKey: "slack:C1:thread",
+      objective: "Prove failed execution evidence",
+      repositoryId: binding.repositoryId,
+      baseCommit,
+    });
+    assert.equal((await service.advanceOne("worker-1")).state, "executing");
+    const executing = await jobs.get(job.jobId);
+    execution.finish(executing!.executionHandle as any, "failed", {
+      workerProgress: { phase: "prompt_started", jobBoundProgress: true },
+      modelUsage: { cost: { amount: 0.001, currency: "USD" } },
+    });
+    const result = await service.advanceOne("replacement-worker");
+    assert.equal(result.state, "failed");
+    const failed = await jobs.get(job.jobId);
+    assert.equal(failed?.state, "failed");
+    assert.equal((failed?.evidence as any).execution.state, "failed");
+    assert.deepEqual((failed?.evidence as any).execution.evidence, {
+      workerProgress: { phase: "prompt_started", jobBoundProgress: true },
+      modelUsage: { cost: { amount: 0.001, currency: "USD" } },
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("BuilderService transfers a credential-free bundle through trusted validation and publication", async () => {
   const root = mkdtempSync(join(tmpdir(), "companyos-builder-transfer-"));
   const jobs = new InMemoryBuilderJobStore();

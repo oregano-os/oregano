@@ -32,6 +32,14 @@ const app = acp
           { id: "agent", name: "Agent" },
         ],
       },
+      configOptions: [{
+        type: "select",
+        id: "model",
+        name: "Model",
+        category: "model",
+        currentValue: "fake-model-v1",
+        options: [{ value: "fake-model-v1", name: "Fake Model v1" }],
+      }],
     };
   })
   .onRequest(acp.methods.agent.session.setMode, ({ params }) => {
@@ -58,10 +66,16 @@ const app = acp
       },
     });
 
+    if (prompt.includes("crash-after-prompt")) {
+      process.kill(process.pid, "SIGKILL");
+      await new Promise(() => undefined);
+    }
+
     if (prompt.includes("hang-until-cancelled")) {
       await new Promise((resolve) => controller.signal.addEventListener("abort", resolve, { once: true }));
       return { stopReason: "cancelled" };
     }
+    if (prompt.includes("omit-usage")) return { stopReason: "end_turn" };
 
     const target = join(session.cwd, "fixture.txt");
     const genericExecute = prompt.includes("generic-execute");
@@ -104,7 +118,25 @@ const app = acp
         status: allowed ? "completed" : "failed",
       },
     });
-    return { stopReason: "end_turn" };
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: "usage_update",
+        used: 18,
+        size: 200_000,
+        ...(prompt.includes("omit-cost") ? {} : { cost: { amount: 0.00042, currency: "USD" } }),
+      },
+    });
+    return {
+      stopReason: "end_turn",
+      usage: {
+        totalTokens: 18,
+        inputTokens: 10,
+        outputTokens: 4,
+        cachedReadTokens: 4,
+        cachedWriteTokens: 0,
+      },
+    };
   })
   .onNotification(acp.methods.agent.session.cancel, ({ params }) => {
     sessions.get(params.sessionId)?.controller?.abort();

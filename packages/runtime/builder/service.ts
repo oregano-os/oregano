@@ -192,7 +192,22 @@ export class BuilderService {
       }
       const execution = await this.#execution.collect(handle);
       if (execution.state !== "succeeded" || !execution.artifacts?.diff) {
-        throw new Error(`Builder execution ended in '${execution.state}' without a checked diff.`);
+        const reason = `Builder execution ended in '${execution.state}' without a checked diff.`;
+        job = await this.#transition(lease, job, "failed", {
+          terminalReason: reason,
+          evidence: mergeEvidence(job.evidence, {
+            source: nonSecretSourceEvidence(sourceReceipt),
+            execution: {
+              adapter: handle.adapter,
+              state: execution.state,
+              startedAt: execution.startedAt,
+              finishedAt: execution.finishedAt,
+              evidence: execution.evidence,
+            },
+          }),
+        });
+        await this.#execution.dispose(handle);
+        return { state: job.state, jobId: job.jobId, error: reason };
       }
       if (sha256Text(execution.artifacts.diff) !== execution.artifacts.diffDigest) {
         throw new Error("Builder execution diff does not match its transfer digest.");

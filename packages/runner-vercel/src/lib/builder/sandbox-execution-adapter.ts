@@ -4,6 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { Sandbox } from "@vercel/sandbox";
+import {
+  BUILDER_WORKER_PROGRESS_PATH,
+  parseBuilderWorkerProgress,
+  parseBuilderWorkerResult,
+  type BuilderWorkerProgress,
+  type BuilderWorkerResult,
+} from "../../../../builder-worker/src/contracts.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { resolveBuilderAcpProfile } from "../../../../runtime/builder/profiles.ts";
 import {
@@ -69,6 +76,13 @@ export interface VercelSandboxRecoveryEvidence {
   readonly recoveredByName: boolean;
   readonly markerPreserved: boolean;
   readonly state: BuilderExecutionState;
+}
+
+export interface VercelSandboxAcpCrashEvidence {
+  readonly promptStarted: true;
+  readonly profileId: string;
+  readonly signal: "SIGKILL";
+  readonly jobBoundProgress: true;
 }
 
 export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAdapter {
@@ -178,18 +192,19 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
         };
       }
       const command = await record.sandbox.getCommand(record.commandId);
-      const completedOutput = command.exitCode === null
+      const terminalOutput = command.exitCode === null
         && record.request?.operation
-        && isExpectedBuilderWorkerResult(await readAvailableStdout(command), {
+        ? expectedBuilderWorkerResult(await readAvailableStdout(command), {
           jobId: record.handle.jobId,
           requestId: record.request.operation.requestId,
           profileId: record.request.codingAgent.profileId,
-        });
-      record.state = completedOutput || command.exitCode === 0
+        })
+        : undefined;
+      record.state = terminalOutput?.state ?? (command.exitCode === 0
         ? "succeeded"
         : command.exitCode === null
           ? "running"
-          : "failed";
+          : "failed");
       if (isTerminal(record.state)) record.finishedAt ??= new Date().toISOString();
       return { state: record.state, observedAt: new Date().toISOString() };
     }
@@ -220,14 +235,27 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
       throw new Error("Builder execution result is unavailable before a terminal state.");
     }
     let artifacts: BuilderExecutionResult["artifacts"];
-    let workerEvidence: unknown;
+    let workerEvidence: BuilderWorkerResult | undefined;
+    let workerProgress: BuilderWorkerProgress | undefined;
     let workerStderr = "";
     if (record.commandId && record.request?.operation) {
       const command = await record.sandbox.getCommand(record.commandId);
       workerStderr = (await command.stderr()).slice(-32_768);
       const stdout = await command.stdout();
+      workerProgress = await readWorkerProgress(record.sandbox, {
+        jobId: record.handle.jobId,
+        requestId: record.request.operation.requestId,
+        profileId: record.request.codingAgent.profileId,
+      });
+      workerEvidence = expectedBuilderWorkerResult(stdout, {
+        jobId: record.handle.jobId,
+        requestId: record.request.operation.requestId,
+        profileId: record.request.codingAgent.profileId,
+      });
       if (record.state === "succeeded") {
-        workerEvidence = parseWorkerOutput(stdout);
+        if (workerEvidence?.state !== "succeeded") {
+          throw new Error("Successful Builder execution has no matching terminal worker receipt.");
+        }
         const addIntent = await record.sandbox.runCommand({
           cmd: "git",
           args: ["add", "-N", "--all"],
@@ -268,6 +296,8 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
         ingressBytes: record.sandbox.networkTransfer?.ingress,
         egressBytes: record.sandbox.networkTransfer?.egress,
         worker: workerEvidence,
+        workerProgress: workerProgress ? nonProcessWorkerProgress(workerProgress) : undefined,
+        modelUsage: workerEvidence ? extractModelUsage(workerEvidence) : undefined,
         workerStderr,
         credentialBroker: record.brokerEvidence,
         repositoryCredentialInWorker: false,
@@ -481,6 +511,46 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
     };
   }
 
+  async qualificationInjectAcpCrash(
+    handle: BuilderExecutionHandle,
+  ): Promise<VercelSandboxAcpCrashEvidence> {
+    const record = await this.#fromHandle(handle);
+    if (!record.request?.operation) throw new Error("ACP crash qualification requires a production worker request.");
+    await this.#loadRecoveredWorker(record);
+    if (!record.commandId) throw new Error("ACP crash qualification requires a launched Builder worker.");
+    const expected = {
+      jobId: record.handle.jobId,
+      requestId: record.request.operation.requestId,
+      profileId: record.request.codingAgent.profileId,
+    };
+    const deadline = Date.now() + 60_000;
+    let progress: BuilderWorkerProgress | undefined;
+    while (Date.now() < deadline) {
+      progress = await readWorkerProgress(record.sandbox, expected);
+      if (progress) break;
+      const worker = await record.sandbox.getCommand(record.commandId);
+      if (worker.exitCode !== null) {
+        throw new Error("Builder worker exited before the ACP crash could be injected.");
+      }
+      await delay(250);
+    }
+    if (!progress) throw new Error("Builder worker did not persist prompt-started evidence before crash injection.");
+    const signal = await record.sandbox.runCommand({
+      cmd: "kill",
+      args: ["-KILL", String(progress.processId)],
+      timeoutMs: 10_000,
+    });
+    if (signal.exitCode !== 0) {
+      throw new Error("ACP crash qualification could not terminate the observed coding-agent process.");
+    }
+    return {
+      promptStarted: true,
+      profileId: progress.profileId,
+      signal: "SIGKILL",
+      jobBoundProgress: true,
+    };
+  }
+
   async #fromHandle(handle: BuilderExecutionHandle, allowDisposed = false): Promise<VercelSandboxRecord> {
     assertBuilderExecutionHandle(this, handle);
     let record = this.#executions.get(handle.executionId);
@@ -566,11 +636,11 @@ function finishedAt(sandbox: Sandbox): string {
   return (session.stoppedAt ?? session.abortedAt ?? sandbox.statusUpdatedAt ?? sandbox.updatedAt).toISOString();
 }
 
-function parseWorkerOutput(stdout: string): unknown {
+function parseWorkerOutput(stdout: string): BuilderWorkerResult {
   const lines = stdout.trim().split("\n").filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     try {
-      return JSON.parse(lines[index]!);
+      return parseBuilderWorkerResult(JSON.parse(lines[index]!));
     } catch {
       continue;
     }
@@ -604,16 +674,69 @@ export function isExpectedBuilderWorkerResult(
   stdout: string,
   expected: { readonly jobId: string; readonly requestId: string; readonly profileId: string },
 ): boolean {
+  return expectedBuilderWorkerResult(stdout, expected) !== undefined;
+}
+
+function expectedBuilderWorkerResult(
+  stdout: string,
+  expected: { readonly jobId: string; readonly requestId: string; readonly profileId: string },
+): BuilderWorkerResult | undefined {
   try {
     const result = parseWorkerOutput(stdout);
-    if (!result || typeof result !== "object" || Array.isArray(result)) return false;
-    const data = result as Record<string, unknown>;
-    return data.schemaVersion === 1
-      && data.jobId === expected.jobId
-      && data.requestId === expected.requestId
-      && data.profileId === expected.profileId
-      && data.evidence !== undefined;
+    return result.jobId === expected.jobId
+      && result.requestId === expected.requestId
+      && result.profileId === expected.profileId
+      ? result
+      : undefined;
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+async function readWorkerProgress(
+  sandbox: Sandbox,
+  expected: { readonly jobId: string; readonly requestId: string; readonly profileId: string },
+): Promise<BuilderWorkerProgress | undefined> {
+  try {
+    const progress = parseBuilderWorkerProgress(
+      JSON.parse(await sandbox.fs.readFile(BUILDER_WORKER_PROGRESS_PATH, "utf8")),
+    );
+    if (
+      progress.jobId !== expected.jobId
+      || progress.requestId !== expected.requestId
+      || progress.profileId !== expected.profileId
+    ) {
+      throw new Error("Builder worker progress does not match the persisted execution handle.");
+    }
+    return progress;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+function nonProcessWorkerProgress(progress: BuilderWorkerProgress): Readonly<Record<string, unknown>> {
+  return {
+    schemaVersion: progress.schemaVersion,
+    jobId: progress.jobId,
+    requestId: progress.requestId,
+    profileId: progress.profileId,
+    phase: progress.phase,
+    sessionId: progress.sessionId,
+    processIdObserved: true,
+    ...(progress.model ? { model: progress.model } : {}),
+    ...(progress.context ? { context: progress.context } : {}),
+    ...(progress.cost ? { cost: progress.cost } : {}),
+    observedAt: progress.observedAt,
+  };
+}
+
+function extractModelUsage(result: BuilderWorkerResult): unknown {
+  if (result.state !== "succeeded") return undefined;
+  if (!result.evidence || typeof result.evidence !== "object" || Array.isArray(result.evidence)) return undefined;
+  return (result.evidence as Readonly<Record<string, unknown>>).modelUsage;
+}
+
+async function delay(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
