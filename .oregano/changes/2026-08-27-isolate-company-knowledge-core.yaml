@@ -108,10 +108,15 @@ documentation_impact:
     - architecture.oregano-core
     - architecture.overview
     - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
     - specification.company-knowledge-v0.1
     - specification.company-knowledge-v0.2
     - plan.company-knowledge-implementation
     - command.knowledge
+    - command.setup
+    - command.verify-live
     - status.current
     - guide.connect-knowledge-source
     - guide.operate-knowledge-provider
