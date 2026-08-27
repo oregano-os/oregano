@@ -268,6 +268,10 @@ commit, stacked draft publication, and repeat-call idempotency against one
 selected private Workspace. The coding workspace contained no repository
 credential or remote.
 
+The refreshed trusted Git snapshot also passed mixed tracked-plus-new-file job
+`builder-e33e20f2141fc422efa9234335a75899` as checked draft
+`fylingpete/oregano-hq-companyos#7`, without merge or deployment.
+
 On 2026-08-27, the isolated qualification Instance completed the remaining
 Slack-to-draft gate through the normal Runner, an exact Builder Agent Binding,
 explicit confirmation, Claude ACP, independent validation, and checked draft

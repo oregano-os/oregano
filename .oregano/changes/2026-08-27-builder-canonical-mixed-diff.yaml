@@ -22,6 +22,7 @@ vision_principles_affected:
 files_expected:
   - .oregano/changes/2026-08-27-builder-canonical-mixed-diff.yaml
   - docs/specifications/builder-governance.md
+  - docs/plans/2026-08-26-builder-acp-mvp-implementation.md
   - docs/status/current.md
   - docs/workbench/guides/operate-builder.md
   - packages/cli/content/guides/operate-builder.md

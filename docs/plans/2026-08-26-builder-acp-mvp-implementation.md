@@ -40,10 +40,9 @@ SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
 
 The current separate trusted Git snapshot was recreated after the canonical
 mixed-diff validation fix as `snap_ELocj6iQRrgRzFnOJPeGNcAs7H8k`. It contains
-Git and the pinned Workbench,
-never starts Claude Code or Codex, and is independently bound from the coding
-worker snapshot. Snapshot identifiers are non-secret provider receipts, not
-Core or Workspace configuration.
+Git and the pinned Workbench, never starts Claude Code or Codex, and is
+independently bound from the coding worker snapshot. Snapshot identifiers are
+non-secret provider receipts, not Core or Workspace configuration.
 
 The implementation is intentionally not activated in a customer production
 Company Instance. The isolated non-production qualification Instance completed
@@ -80,6 +79,13 @@ rates](https://vercel.com/pricing) published on 2026-08-27, that is
 approximately USD 0.00374 of provider compute, memory,
 network, and creation usage before included quotas and excluding Claude model
 cost.
+
+The mixed tracked-plus-new-file regression was also repeated through the real
+Slack confirmation path after rebinding the refreshed trusted Git snapshot.
+Job `builder-e33e20f2141fc422efa9234335a75899` updated one card from
+confirmation through queued to ready-for-review and created checked draft
+`fylingpete/oregano-hq-companyos#7`. The draft touches only `company.md` and its
+required Workspace Change Plan; no merge or deployment occurred.
 
 The final fixed Claude qualification on that same snapshot recorded one fresh
 job with 110,033 total tokens: 10 input, 455 output, 103,466 cached read, 6,102

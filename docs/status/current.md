@@ -210,9 +210,16 @@ evidence, historical prototypes, and production gaps.
   Artifact with an exact Slack Builder Agent Binding completed the normal
   Runner, explicit confirmation, Claude ACP, independent validation, and draft
   publication path as `fylingpete/oregano-hq-companyos#6`, with no merge or
-  deployment. The job took 298.240 seconds end to end; its coding Sandbox ran
-  for 264.182 seconds and used 8.401 active CPU seconds. On the final qualified
-  worker snapshot, a separate fixed Claude job recorded 110,033 total tokens
+  deployment. A later mixed tracked-plus-new-file Slack regression exposed a
+  stale trusted Git snapshot binding; after rebuilding and rebinding the
+  credential-free snapshot, job `builder-e33e20f2141fc422efa9234335a75899`
+  advanced one confirmation card through queued to ready-for-review and created
+  checked draft `fylingpete/oregano-hq-companyos#7`. It touched only
+  `company.md` and its required Workspace Change Plan, with no merge or
+  deployment. The earlier representative job took 298.240 seconds end to end;
+  its coding Sandbox ran for 264.182 seconds and used 8.401 active CPU seconds.
+  On the final qualified worker snapshot, a separate fixed Claude job recorded
+  110,033 total tokens
   (10 input, 455 output, 103,466 cached read, and 6,102 cached write) and a
   provider-reported estimated model cost of USD 0.1019435. That is a direct ACP
   receipt from the Anthropic-backed run, not Vercel compute pricing or a billing

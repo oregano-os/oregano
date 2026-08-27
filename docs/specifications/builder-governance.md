@@ -257,6 +257,11 @@ publication have passed their bounded Stage-0 live gates. Any customer pilot
 activation still requires an explicit Instance decision and remains
 proposal-only.
 
+The live gate includes a mixed tracked-plus-new-file proposal. The coding and
+trusted Git boundaries must hash the same globally ordered patch, and any
+trusted Git or Workbench validation change requires a rebuilt and rebound
+pinned snapshot before the gate is repeated.
+
 ## 10. Open decisions
 
 - appoint Process Stewards and Workspace Stewards for each pilot Workspace;
