@@ -87,6 +87,7 @@ The maintained Runner requires these Instance values:
 | `COMPANYOS_ARTIFACT_GZIP_BASE64` | gzip-compressed immutable Artifact built from clean exact checkouts |
 | `COMPANYOS_PUBLIC_BASE_URL` | canonical deployment origin returned by real artifact-publication evidence |
 | `COMPANYOS_MODEL_CONFIG_BASE64` | optional Base64 JSON with exact task, profile, and default recipe bindings |
+| `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` | optional Knowledge-only configuration using the same binding shape; overrides the shared model configuration for Knowledge tasks |
 | `COMPANYOS_MODEL_ROUTE` | simple or compatibility binding to one Core recipe route |
 | `COMPANYOS_MODEL` | exact route-prefixed `provider/model` identifier for the selected recipe |
 | `ANTHROPIC_API_KEY` | Sensitive runtime secret for `anthropic-direct` |
@@ -136,8 +137,9 @@ argument, Git, the Workspace, the Artifact, or setup state.
   "version": 1,
   "default": { "route": "anthropic-direct", "model": "anthropic/claude-sonnet-4-6" },
   "profiles": {
-    "utility": { "route": "anthropic-direct", "model": "anthropic/claude-haiku-4-5" },
-    "reasoning": { "route": "anthropic-direct", "model": "anthropic/claude-sonnet-4-6" }
+    "utility": { "route": "anthropic-direct", "model": "anthropic/claude-haiku-4-5-20251001" },
+    "reasoning": { "route": "anthropic-direct", "model": "anthropic/claude-sonnet-4-6" },
+    "deep": { "route": "anthropic-direct", "model": "anthropic/claude-opus-4-7" }
   },
   "tasks": {
     "knowledge.claim-extraction": { "route": "openai-direct", "model": "openai/gpt-5.4-mini" }
@@ -152,6 +154,15 @@ profile default, then a present OpenAI key selects the OpenAI default, and the
 resolver otherwise uses Vercel AI Gateway. A resolved request never silently
 fails over to another provider. Run the model smoke test after changing a
 recipe, key, endpoint, or model.
+
+`COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` uses the same JSON shape and is
+compiled against every prompt in the Core Knowledge Prompt Registry. It is the
+right place to pin a direct provider for retained evidence without changing the
+interactive Agent model. The maintained Anthropic task-tier preset uses Haiku
+4.5 for utility classification and expansion, Sonnet 4.6 for extraction and
+evidence reasoning, and Opus 4.7 for explicit deep synthesis. Anthropic is not
+an embedding or cross-encoder reranking provider; configure those capabilities
+separately or retain the declared lexical fallback.
 
 An artifact publication is served from `/artifacts/<artifact-id>` only after
 the exact R3 request passes Core authorization and approval consumption. The

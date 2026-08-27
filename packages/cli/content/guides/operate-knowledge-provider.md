@@ -29,11 +29,21 @@ optional vector index is available and name any lexical degradation.
 
 All direct Agent and Knowledge language-model calls resolve through the Core
 model-recipe registry. The optional `COMPANYOS_MODEL_CONFIG_BASE64` value binds
-exact tasks, profiles, and a default recipe/model; the simple
-`COMPANYOS_MODEL_ROUTE` and `COMPANYOS_MODEL` pair remains supported. A recipe
-references provider credential and optional base-URL environment names but
-never contains their values. Task bindings override profile bindings and the
-default. No request silently fails over across providers.
+exact tasks, profiles, and a default recipe/model. The Knowledge-only
+`COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` value accepts the same shape and wins
+for registered Knowledge prompts, while the simple `COMPANYOS_MODEL_ROUTE` and
+`COMPANYOS_MODEL` pair remains supported. A recipe references provider
+credential and optional base-URL environment names but never contains their
+values. Task bindings override profile bindings and the default. No request
+silently fails over across providers.
+
+The maintained direct-Anthropic preset maps `utility` to
+`anthropic/claude-haiku-4-5-20251001`, `reasoning` to
+`anthropic/claude-sonnet-4-6`, and `deep` to
+`anthropic/claude-opus-4-7`. The Prompt Registry maps every task to one of
+those tiers and exact task overrides remain possible. Embedding and optional
+cross-encoder reranking are separate capability adapters and are never
+fabricated from an Anthropic language model.
 
 Named compatible recipes use one shared transport but keep separate routes,
 credential references, default endpoints, model namespaces, and capability
@@ -46,10 +56,12 @@ keys.
 After changing a recipe, model, endpoint, or credential, call
 `POST /api/knowledge/model/smoke-test` with the maintained scheduler
 authorization. The route performs one bounded structured-output call and
-returns only its route, model, adapter digest, test identity, time, and latency.
-It does not activate a model profile, approve data egress, or create Handbook
-authority. Knowledge authorization still completes before every real evidence
-block is sent to a model.
+returns only the distinct routes and models, response model identifiers,
+adapter digests, test identity, time, and latency. It sends one synthetic
+structured-output request to each distinct configured Knowledge language model.
+It does not activate a model profile, approve data egress, send source evidence,
+or create Handbook authority. Knowledge authorization still completes before
+every real evidence block is sent to a model.
 
 ## Granola runtime operation
 

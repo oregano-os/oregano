@@ -181,6 +181,14 @@ Those bindings override the simple `COMPANYOS_MODEL_ROUTE` and
 documented Anthropic-then-OpenAI priority before the Gateway default. No
 resolved request silently fails over across providers.
 
+`COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` accepts the same provider-neutral
+shape and overrides the shared bindings only for registered Knowledge prompts.
+This permits retained evidence to use a direct provider without changing the
+interactive Agent. The maintained setup preset pins utility, reasoning, and
+deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus
+4.7. Embeddings and cross-encoder reranking remain separately configured
+capabilities.
+
 The path creates an immutable Artifact only from clean exact Core and Workspace
 commits, deploys only after an exact candidate confirmation, verifies current
 health, and requires one nonce-bound Slack input plus a real selected-model call

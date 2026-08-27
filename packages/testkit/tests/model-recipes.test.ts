@@ -82,7 +82,9 @@ test("explicit binding wins and key-aware defaults are stable Anthropic then Ope
   assert.equal(explicit.credentialRef, "GOOGLE_API_KEY");
 
   const anthropic = resolveModelExecutionSelection({ profile: "utility", environment: { ANTHROPIC_API_KEY: "test-anthropic", OPENAI_API_KEY: "test-openai" } });
-  assert.deepEqual([anthropic.route, anthropic.model], ["anthropic-direct", "anthropic/claude-haiku-4-5"]);
+  assert.deepEqual([anthropic.route, anthropic.model], ["anthropic-direct", "anthropic/claude-haiku-4-5-20251001"]);
+  const anthropicDeep = resolveModelExecutionSelection({ profile: "deep", environment: { ANTHROPIC_API_KEY: "test-anthropic" } });
+  assert.deepEqual([anthropicDeep.route, anthropicDeep.model], ["anthropic-direct", "anthropic/claude-opus-4-7"]);
   const openai = resolveModelExecutionSelection({ profile: "reasoning", environment: { OPENAI_API_KEY: "test-openai" } });
   assert.deepEqual([openai.route, openai.model], ["openai-direct", "openai/gpt-5.4-mini"]);
 });
@@ -93,7 +95,7 @@ test("recipe validation rejects mismatched models, unsupported capability, and u
     /not supported/,
   );
   assert.throws(
-    () => resolveModelExecutionSelection({ profile: "embedding", binding: { route: "anthropic-direct", model: "anthropic/claude-haiku-4-5" }, requiredCapability: "embedding", environment: { ANTHROPIC_API_KEY: "test" } }),
+    () => resolveModelExecutionSelection({ profile: "embedding", binding: { route: "anthropic-direct", model: "anthropic/claude-haiku-4-5-20251001" }, requiredCapability: "embedding", environment: { ANTHROPIC_API_KEY: "test" } }),
     /does not support 'embedding'/,
   );
   assert.throws(() => decodeModelRuntimeConfiguration(encoded({ version: 1, surprise: true })), /unsupported shape/);
