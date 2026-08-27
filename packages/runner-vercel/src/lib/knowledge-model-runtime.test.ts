@@ -70,13 +70,14 @@ test("Knowledge model runtime compiles every prompt through profile and exact ta
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.cited-synthesis").model, "anthropic/claude-opus-4-7");
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-grading").maxOutputTokens, 12_000);
   assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").qualification, undefined);
-  const firstCycle = productiveKnowledgeCompoundingCycleId("2026-08-27T10:00:00.000Z", configuration);
-  assert.equal(firstCycle, productiveKnowledgeCompoundingCycleId("2026-08-27T11:59:59.999Z", configuration));
-  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId("2026-08-27T12:00:00.000Z", configuration));
-  assert.match(firstCycle, /^2026-08-27T06:00:00\.000Z#[a-f0-9]{16}$/);
+  const frontier = sha256("frontier");
+  const firstCycle = productiveKnowledgeCompoundingCycleId(frontier, configuration);
+  assert.equal(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, configuration));
+  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(sha256("changed-frontier"), configuration));
+  assert.match(firstCycle, /^knowledge-compounding@2\.0\.0:[a-f0-9]{16}:[a-f0-9]{16}$/);
   const changed = structuredClone(configuration);
   changed.tasks = { ...changed.tasks, "knowledge.working-synthesis": { ...changed.tasks["knowledge.working-synthesis"]!, model: "anthropic/claude-opus-4-8" } };
-  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId("2026-08-27T10:00:00.000Z", changed));
+  assert.notEqual(firstCycle, productiveKnowledgeCompoundingCycleId(frontier, changed));
 });
 
 test("Knowledge model runtime inherits the shared CompanyOS recipe configuration when no Knowledge override exists", () => {

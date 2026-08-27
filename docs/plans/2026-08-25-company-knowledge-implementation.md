@@ -1128,7 +1128,11 @@ to Source freshness. Bounded deterministic Source-freshness phases remain
 separate from LLM-backed or unbounded background phases, so failed or deferred
 background processing neither reruns once per Source nor falsely marks a Source
 fresh. A partial result may be banked only with an idempotent receipt that makes
-the remaining work eligible for a later cycle.
+the remaining work eligible for the same frontier-bound cycle in a later
+invocation. Cycle identity binds the productive Compounding contract, exact
+prompt and model bindings, and current authorized Claim/grading frontier rather
+than a wall-clock bucket. Changed knowledge or execution contracts receive a
+new cycle; unchanged incomplete work retains its cursor.
 
 ## 14. Selective review and authority promotion
 
@@ -2223,8 +2227,8 @@ Instance has received and qualified manifest `1.5.0`. Its real Granola binding
 is provider-wide, uses an administrator-created Workspace API Key with the
 exact `workspace` scope, fixed company
 policy, permanent retention, a durable Postgres Raw Asset adapter, protected
-runtime routes, staggered six-hour reconciliation, extraction, and compounding
-schedules, resumable leases, and one completed
+runtime routes, six-hour reconciliation and extraction plus 15-minute
+Compounding continuation schedules, resumable leases, and one completed
 watermark. The initial synchronization processed 21 of 21 notes with complete
 transcripts, zero failures, and zero quarantine outcomes. The signed webhook
 route is deployed but awaits the separate provider webhook signing SecretRef.
@@ -2396,8 +2400,9 @@ review-only Claim-pair proposals, versioned working syntheses, and explicit
 grading requests. On 2026-08-27 the direct-provider smoke tests, all 13 live
 prompt fixtures, the additive 1.5.0 migration, a 21-object extraction backfill,
 one complete real source-to-Claim-to-synthesis cycle, and an identical receipt
-retry all qualified. The maintained Vercel adapter therefore enables the
-staggered six-hour schedule; non-Vercel hosts bind the same protected portable
+retry all qualified. The maintained Vercel adapter therefore enables six-hour
+reconciliation/extraction and 15-minute Compounding continuation; non-Vercel
+hosts bind the same protected portable
 operations through their own scheduler and secret store.
 
 ### Phase 6 — Handbook promotion and Decision Receipts

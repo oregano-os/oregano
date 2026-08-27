@@ -148,7 +148,8 @@ evidence, historical prototypes, and production gaps.
   transcript Raw Evidence, and advanced one completed durable watermark. All
   21 payloads fit below the inline boundary; the durable Postgres Raw Asset
   path remains active for larger future transcripts. A six-hour leased overlap
-  reconciliation schedule, a staggered extraction and compounding schedule,
+  reconciliation and extraction schedule, a 15-minute resumable Compounding
+  schedule,
   and a signed webhook route are deployed. Webhook
   delivery remains pending until its separate provider signing SecretRef is
   installed; scheduled reconciliation is already operational.
@@ -207,7 +208,11 @@ evidence, historical prototypes, and production gaps.
   receipt identity before an operator enables the schedule. The portable
   default processes one model-backed work item per phase and persists a
   continuation after every successful invocation; long-running hosts may opt
-  into a larger explicit budget. Working-synthesis Claim partitions are
+  into a larger explicit budget. Cycle identity binds the exact Compounding
+  contract, prompt/model configuration, and current authorized Knowledge
+  frontier, so incomplete work resumes across time windows and changed inputs
+  never reuse stale complete receipts. Receipts include content-free phase
+  totals. Working-synthesis Claim partitions are
   mutually exclusive, exact-subject-bounded, and receive at most one typed
   correction attempt.
 - The linked production Instance completed the real Granola extraction and
@@ -217,9 +222,14 @@ evidence, historical prototypes, and production gaps.
   passed all 13 fixtures, including Working Synthesis prompt `4`. Cycle
   `2026-08-27T06:00:00.000Z` completed all five productive phases, and an
   immediate retry returned the same five complete receipt identities. Failed
-  historical extraction attempts remain retained as audit evidence but are
-  excluded from retrieval and compounding unless their referenced extraction
-  run succeeded.
+  historical extraction attempts and older successful derived versions remain
+  retained as audit evidence. Retrieval, exact Claim reads, Timeline,
+  Compounding, grading, and working syntheses expose model-derived state only
+  when its successful extraction provenance is attached to the current Page
+  version. The production frontier currently contains 1,079 current Claims;
+  53 Claims and 10 Page versions from failed attempts remain retained but
+  excluded. Candidate loading fails explicitly above its bounded 2,000-Claim
+  frontier instead of declaring a truncated phase complete.
 - Phase 5 production integration now adapts that authorization-first retrieval
   into the existing standard `knowledge.search`, `knowledge.get`, and
   `knowledge.traverse` Tool contracts. Local conformance tests prove that a

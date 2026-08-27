@@ -76,6 +76,7 @@ export interface ClaimGradingResultWrite {
 }
 
 export interface KnowledgeCompoundingWorkStore {
+  getFrontierDigest(input: { accessPolicyIds: string[] }): Promise<string>;
   listClaims(input: { accessPolicyIds: string[]; limit: number }): Promise<CompoundingClaim[]>;
   putClaimPairProposal(proposal: ClaimPairProposalWrite): Promise<"inserted" | "unchanged">;
   putWorkingSynthesis(synthesis: WorkingSynthesisWrite): Promise<"inserted" | "unchanged">;
@@ -208,6 +209,7 @@ const offset = (continuation?: string): number => {
 
 const phaseResult = (processed: number, next: number, total: number, evidence: unknown) => ({
   processed,
+  total,
   complete: next >= total,
   ...(next < total ? { continuation: String(next) } : {}),
   evidenceDigest: sha256(evidence),

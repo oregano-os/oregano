@@ -7,7 +7,7 @@ export interface CompoundingPhase {
   name: CompoundingPhaseName;
   scope: CompoundingScope;
   budget: number;
-  execute(input: { sourceId?: string; continuation?: string; budget: number }): Promise<{ processed: number; complete: boolean; continuation?: string; evidenceDigest: string }>;
+  execute(input: { sourceId?: string; continuation?: string; budget: number }): Promise<{ processed: number; total: number; complete: boolean; continuation?: string; evidenceDigest: string }>;
 }
 
 export interface CompoundingReceipt {
@@ -17,6 +17,7 @@ export interface CompoundingReceipt {
   scope: CompoundingScope;
   scopeId: string;
   processed: number;
+  total?: number;
   complete: boolean;
   continuation?: string;
   evidenceDigest: string;
@@ -60,9 +61,9 @@ export async function runCompoundingCycle(input: { cycleId: string; sourceIds: s
       if (!await input.state.acquire(lockKey, input.owner, new Date(Date.parse(startedAt) + 300_000).toISOString())) continue;
       try {
         const result = await phase.execute({ ...(phase.scope === "source" ? { sourceId: scopeId } : {}), continuation: existing?.continuation, budget: phase.budget });
-        if (result.processed < 0 || result.processed > phase.budget || !/^[a-f0-9]{64}$/.test(result.evidenceDigest)) throw new Error(`Compounding phase '${phase.name}' returned invalid bounded evidence.`);
+        if (result.processed < 0 || result.processed > phase.budget || !Number.isInteger(result.total) || result.total < result.processed || !/^[a-f0-9]{64}$/.test(result.evidenceDigest)) throw new Error(`Compounding phase '${phase.name}' returned invalid bounded evidence.`);
         const completedAt = input.now?.() ?? new Date().toISOString();
-        const value = { cycleId: input.cycleId, phase: phase.name, scope: phase.scope, scopeId, processed: result.processed, complete: result.complete, ...(result.continuation ? { continuation: result.continuation } : {}), evidenceDigest: result.evidenceDigest, startedAt, completedAt };
+        const value = { cycleId: input.cycleId, phase: phase.name, scope: phase.scope, scopeId, processed: result.processed, total: result.total, complete: result.complete, ...(result.continuation ? { continuation: result.continuation } : {}), evidenceDigest: result.evidenceDigest, startedAt, completedAt };
         const receipt = { receiptId: sha256(value), ...value };
         await input.state.putReceipt(idempotencyKey, receipt); receipts.push(receipt);
       } finally { await input.state.release(lockKey, input.owner); }

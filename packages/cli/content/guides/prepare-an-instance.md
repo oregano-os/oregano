@@ -179,9 +179,10 @@ after preparation. Do not enable compounding until the model smoke test, all 13
 synthetic prompt fixtures, one real authorized extraction, one manual
 compounding cycle, and same-cycle retry evidence have passed.
 
-After those gates pass, the maintained Vercel adapter schedules reconciliation,
-extraction, and compounding at minutes `0`, `15`, and `30` of each six-hour
-window. Vercel injects the Sensitive `CRON_SECRET` as the bearer authorization
+After those gates pass, the maintained Vercel adapter schedules reconciliation
+at minute `0` and extraction at minute `15` of each six-hour window, plus one
+small resumable Compounding batch every 15 minutes. Vercel injects the Sensitive
+`CRON_SECRET` as the bearer authorization
 for those protected routes. A non-Vercel host MUST bind the same three portable
 operations to its own scheduler and SecretRef implementation; database setup
 and Core Knowledge do not depend on Vercel Cron.

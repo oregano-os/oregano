@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/knowledge/compounding",
-      "schedule": "30 */6 * * *"
+      "schedule": "*/15 * * * *"
     }
   ]
 }

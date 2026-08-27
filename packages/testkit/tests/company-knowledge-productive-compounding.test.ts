@@ -36,6 +36,10 @@ class MemoryWorkStore implements KnowledgeCompoundingWorkStore {
   deferred: Array<{ requestId: string; reason: string }> = [];
   listLimits: number[] = [];
 
+  async getFrontierDigest(input: { accessPolicyIds: string[] }) {
+    return sha256(claims.filter((claim) => input.accessPolicyIds.includes(claim.accessPolicyId)).map(({ claimId, status }) => ({ claimId, status })));
+  }
+
   async listClaims(input: { accessPolicyIds: string[]; limit: number }) {
     this.listLimits.push(input.limit);
     return claims.filter((claim) => input.accessPolicyIds.includes(claim.accessPolicyId)).slice(0, input.limit);
@@ -229,14 +233,15 @@ test("an incomplete compounding receipt advances its cursor while a completed re
   const phase: CompoundingPhase = { name: "consolidate", scope: "mixed", budget: 1, execute: async ({ continuation }) => {
     continuations.push(continuation);
     return continuation
-      ? { processed: 1, complete: true, evidenceDigest: sha256("second") }
-      : { processed: 1, complete: false, continuation: "1", evidenceDigest: sha256("first") };
+      ? { processed: 1, total: 2, complete: true, evidenceDigest: sha256("second") }
+      : { processed: 1, total: 2, complete: false, continuation: "1", evidenceDigest: sha256("first") };
   } };
   await runCompoundingCycle({ cycleId: "cycle:bounded", sourceIds: [], phases: [phase], state, owner: "worker:one" });
   const completed = await runCompoundingCycle({ cycleId: "cycle:bounded", sourceIds: [], phases: [phase], state, owner: "worker:two" });
   const replayed = await runCompoundingCycle({ cycleId: "cycle:bounded", sourceIds: [], phases: [phase], state, owner: "worker:three" });
   assert.deepEqual(continuations, [undefined, "1"]);
   assert.equal(completed[0]?.complete, true);
+  assert.equal(completed[0]?.total, 2);
   assert.equal(replayed[0]?.receiptId, completed[0]?.receiptId);
 });
 
@@ -254,7 +259,7 @@ test("the maintained Vercel adapters schedule reconcile, extraction, and compoun
   const expected = [
     { path: "/api/knowledge/sources/granola/reconcile", schedule: "0 */6 * * *" },
     { path: "/api/knowledge/sources/granola/extract", schedule: "15 */6 * * *" },
-    { path: "/api/knowledge/compounding", schedule: "30 */6 * * *" },
+    { path: "/api/knowledge/compounding", schedule: "*/15 * * * *" },
   ];
   const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };

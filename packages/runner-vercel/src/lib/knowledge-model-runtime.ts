@@ -55,12 +55,10 @@ export interface KnowledgeModelRuntimeConfiguration {
 }
 
 export function productiveKnowledgeCompoundingCycleId(
-  at: string,
+  frontierDigest: string,
   configuration: KnowledgeModelRuntimeConfiguration,
 ): string {
-  const time = new Date(at);
-  if (Number.isNaN(time.getTime())) throw new Error("Knowledge compounding cycle time is invalid.");
-  const bucket = Math.floor(time.getUTCHours() / 6) * 6;
+  if (!/^[a-f0-9]{64}$/.test(frontierDigest)) throw new Error("Knowledge compounding frontier digest is invalid.");
   const registry = new KnowledgePromptRegistry();
   const contractDigest = sha256({
     version: KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION,
@@ -78,7 +76,7 @@ export function productiveKnowledgeCompoundingCycleId(
       };
     }),
   });
-  return `${time.toISOString().slice(0, 10)}T${String(bucket).padStart(2, "0")}:00:00.000Z#${contractDigest.slice(0, 16)}`;
+  return `knowledge-compounding@${KNOWLEDGE_PRODUCTIVE_COMPOUNDING_CONTRACT_VERSION}:${contractDigest.slice(0, 16)}:${frontierDigest.slice(0, 16)}`;
 }
 
 const knowledgeProfile = (
@@ -345,7 +343,8 @@ export class CompanyKnowledgeCompoundingRuntime {
     });
     if (!permit) throw new Error("Knowledge compounding authorization was denied.");
     const now = this.#now();
-    const cycleId = input.cycleId ?? productiveKnowledgeCompoundingCycleId(now, this.#configuration);
+    const frontierDigest = await this.#workStore.getFrontierDigest({ accessPolicyIds: [policy.policyId] });
+    const cycleId = input.cycleId ?? productiveKnowledgeCompoundingCycleId(frontierDigest, this.#configuration);
     const authorizationContextDigest = sha256({ principalId: subject.principalId, policyId: policy.policyId, permission: "read", sourceId: source.requirement.sourceId });
     const phases = createProductiveKnowledgeCompoundingPhases({
       store: this.#workStore,
@@ -370,7 +369,7 @@ export class CompanyKnowledgeCompoundingRuntime {
       cycleId,
       complete: receipts.length === phases.length && receipts.every((receipt) => receipt.complete),
       processed: receipts.reduce((sum, receipt) => sum + receipt.processed, 0),
-      receipts: receipts.map((receipt) => ({ receiptId: receipt.receiptId, phase: receipt.phase, processed: receipt.processed, complete: receipt.complete, continuation: receipt.continuation })),
+      receipts: receipts.map((receipt) => ({ receiptId: receipt.receiptId, phase: receipt.phase, processed: receipt.processed, total: receipt.total, complete: receipt.complete, continuation: receipt.continuation })),
     };
   }
 }

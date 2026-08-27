@@ -494,7 +494,11 @@ Entity membership, and conflicts remain proposals unless a deterministic proof
 path exists. New evidence may reopen a prior resolution or synthesis.
 
 Compounding cycles declare `source`, `mixed`, or `global` scope. Global work
-runs once per global watermark and MUST NOT multiply by Source count. Every
+runs once per authorized Knowledge-frontier digest and MUST NOT multiply by
+Source count. The cycle identity also binds the productive Compounding contract,
+exact prompt hashes, and model bindings. An incomplete cycle therefore resumes
+across wall-clock schedule windows, while changed knowledge or execution
+contracts receive a new identity. Every
 phase is leased, resumable, cursor-based, and receipt-producing. Retry reuses
 the same idempotency identity.
 
@@ -511,7 +515,12 @@ versions.
 
 The portable phase budget defaults to one model-backed work item per phase and
 persists a continuation after each invocation. Runtime adapters for
-long-running hosts MAY select a larger explicit bounded budget. Working
+long-running hosts MAY select a larger explicit bounded budget. Each receipt
+records the aggregate phase work count without Claim content. The in-memory
+candidate frontier is bounded at 2,000 current Claims and fails explicitly
+rather than silently truncating. Model-derived Claims, Timeline Events, and
+working syntheses are eligible only when their successful extraction provenance
+is attached to the current Page version. Working
 synthesis lists only exact supplied Claim identities, uses mutually exclusive
 supporting, contested, and superseded partitions, and receives at most one
 typed correction attempt. An outer `claim:` evidence identity may normalize to

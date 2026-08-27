@@ -80,8 +80,12 @@ prompt, route, or provider change.
 
 ## Productive compounding operation
 
-`GET` or `POST /api/knowledge/compounding` runs one bounded six-hour cycle for
-the exact active company source binding. The operation authorizes the company
+`GET` or `POST /api/knowledge/compounding` advances one bounded cycle for the
+exact active company source binding. The cycle identity combines the productive
+Compounding contract, exact prompt and model bindings, and a digest of the
+current authorized Claim and grading-request frontier. It therefore resumes
+across wall-clock windows until complete and starts a new cycle when its inputs
+or execution contract change. The operation authorizes the company
 principal and policy before loading Claims. It persists leases, resumable phase
 receipts, semantic duplicate proposals, Claim-relation proposals, conflict
 proposals, immutable working-synthesis versions, and explicit grading results.
@@ -89,7 +93,8 @@ It never accepts a proposal, mutates a canonical Claim, or writes the Handbook.
 The portable default processes one model-backed work item per phase on each
 invocation so common serverless hosts remain below their execution limit. Each
 partial phase writes its next cursor; a long-running host may pass a larger
-explicit budget through its own adapter.
+explicit budget through its own adapter. Receipts expose the phase's aggregate
+work count without exposing Claim identities or content.
 
 Do not enable a scheduler merely because the endpoint deploys. First:
 
@@ -103,8 +108,9 @@ Do not enable a scheduler merely because the endpoint deploys. First:
 
 Any runtime host may bind the same operation to its scheduler. The Vercel route
 is a maintained adapter, not a Core dependency. Its schedule runs reconciliation
-at minute `0`, extraction at minute `15`, and compounding at minute `30` of every
-six-hour window. Leave the schedule disabled on
+at minute `0` and extraction at minute `15` of every six-hour window. It advances
+one small Compounding batch every 15 minutes so an incomplete frontier cycle
+keeps the same cursor across reconciliation windows. Leave the schedule disabled on
 qualification failure, authorization denial, missing migration, or an
 unexpected proposal/synthesis count.
 
@@ -136,8 +142,8 @@ The portable runtime operations are:
   body and Standard Webhooks headers, persists the reference event before
   acknowledgement, and fetches content asynchronously.
 
-The reference Vercel adapter schedules reconciliation, extraction, and
-compounding in staggered six-hour windows. Another runtime host may bind the
+The reference Vercel adapter schedules six-hour reconciliation and extraction
+plus 15-minute resumable Compounding batches. Another runtime host may bind the
 same operations to its scheduler, secret store, and
 HTTP ingress without changing the Source, event, Raw Evidence, Raw Asset,
 watermark, or lease contracts. A successful initial backfill MUST be followed

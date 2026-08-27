@@ -144,7 +144,7 @@ test("explicit synthesis uses a qualified profile, validates membership, and fal
 
 test("compounding scopes source work per Source and mixed or global work once per Brain", async () => {
   const executions: string[] = [];
-  const phase = (name: CompoundingPhase["name"], scope: CompoundingPhase["scope"]): CompoundingPhase => ({ name, scope, budget: 10, execute: async ({ sourceId }) => { executions.push(`${name}:${sourceId ?? scope}`); return { processed: 1, complete: true, evidenceDigest: sha256({ name, sourceId, scope }) }; } });
+  const phase = (name: CompoundingPhase["name"], scope: CompoundingPhase["scope"]): CompoundingPhase => ({ name, scope, budget: 10, execute: async ({ sourceId }) => { executions.push(`${name}:${sourceId ?? scope}`); return { processed: 1, total: 1, complete: true, evidenceDigest: sha256({ name, sourceId, scope }) }; } });
   const phases = [phase("triage", "source"), phase("consolidate", "mixed"), phase("syntheses", "global")];
   const state = new InMemoryCompoundingStateStore();
   const clock = () => now;

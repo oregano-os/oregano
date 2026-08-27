@@ -115,6 +115,35 @@ const mapClaim = (row: Record<string, unknown>): CompoundingClaim => ({
 });
 
 export class PostgresKnowledgeCompoundingWorkStore implements KnowledgeCompoundingWorkStore {
+  async getFrontierDigest(input: { accessPolicyIds: string[] }): Promise<string> {
+    await ensureCompanyKnowledgeSchema();
+    if (input.accessPolicyIds.length === 0) return sha256({ claims: [], gradingRequests: [] });
+    const sql = connection();
+    const claims = await sql`select c.claim_id, c.status, c.observed_at,
+        coalesce(jsonb_agg(distinct jsonb_build_object('pageId', current_evidence.page_id,
+          'pageVersionId', current_evidence.page_version_id)) filter (where current_evidence.page_id is not null), '[]'::jsonb) as current_evidence
+      from companyos_knowledge.claims c
+      left join companyos_knowledge.claim_evidence current_evidence on current_evidence.claim_id = c.claim_id
+      left join companyos_knowledge.pages current_page on current_page.page_id = current_evidence.page_id
+        and current_page.current_version_id = current_evidence.page_version_id
+        and current_page.lifecycle_status = 'active'
+      where c.access_policy_id = any(${input.accessPolicyIds}::text[])
+        and c.status in ('proposed','active','contested','resolved','superseded')
+        and (c.model_provenance is null or (
+          exists (select 1 from companyos_knowledge.extraction_runs r
+            where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded')
+          and current_page.page_id is not null))
+      group by c.claim_id order by c.claim_id`;
+    const gradingRequests = await sql`select request_id, claim_id, status, updated_at
+      from companyos_knowledge.claim_grading_requests
+      where access_policy_id = any(${input.accessPolicyIds}::text[]) and status in ('pending','deferred')
+      order by request_id`;
+    return sha256({
+      claims: claims.map((row) => ({ claimId: String(row.claim_id), status: String(row.status), observedAt: iso(row.observed_at), currentEvidence: row.current_evidence })),
+      gradingRequests: gradingRequests.map((row) => ({ requestId: String(row.request_id), claimId: String(row.claim_id), status: String(row.status), updatedAt: iso(row.updated_at) })),
+    });
+  }
+
   async listClaims(input: { accessPolicyIds: string[]; limit: number }): Promise<CompoundingClaim[]> {
     await ensureCompanyKnowledgeSchema();
     if (input.accessPolicyIds.length === 0) return [];
