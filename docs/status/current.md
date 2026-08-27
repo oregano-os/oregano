@@ -123,7 +123,11 @@ evidence, historical prototypes, and production gaps.
   authenticated requester's explicit confirmation of the objective, repository,
   and exact base creates an idempotent persistent job. Postgres leases,
   asynchronous execution, recovery, timeout, requester cancellation, terminal
-  state, and source-thread notification are implemented.
+  state, and source-thread notification are implemented. Terminal notification
+  delivery has its own persistent lease, bounded retry metadata, and backoff;
+  it resolves the queued Chat card to a final action-free outcome without
+  making terminal execution claimable again. Legacy jobs without a retained
+  message identity use a same-thread fallback post.
 - Provider-neutral repository-source and checked-proposal contracts have local
   Git and GitHub App implementations. The GitHub profile verifies one selected
   repository, stores no token, handles suspension, uninstall, and repository

@@ -18,6 +18,7 @@ export interface BuilderJobInput {
   readonly requesterPrincipal: string;
   readonly agentId: "builder";
   readonly sourceConversationKey: string;
+  readonly sourceMessageId?: string;
   readonly objective: string;
   readonly repositoryId: string;
   readonly baseCommit: string;
@@ -47,9 +48,25 @@ export interface BuilderJob extends BuilderJobInput {
   readonly executionHandle?: unknown;
   readonly evidence?: unknown;
   readonly terminalReason?: string;
+  readonly notification?: BuilderNotificationDelivery;
 }
 
 export interface BuilderJobLease {
+  readonly job: BuilderJob;
+  readonly workerId: string;
+  readonly leaseToken: string;
+  readonly leaseExpiresAt: string;
+}
+
+export interface BuilderNotificationDelivery {
+  readonly state: "pending" | "delivered";
+  readonly attempts: number;
+  readonly nextAttemptAt: string;
+  readonly deliveredAt?: string;
+  readonly lastError?: string;
+}
+
+export interface BuilderNotificationLease {
   readonly job: BuilderJob;
   readonly workerId: string;
   readonly leaseToken: string;
@@ -86,6 +103,25 @@ export interface BuilderJobStore {
     now?: Date;
   }): Promise<BuilderJob>;
   requestCancellation(jobId: string, requestedAt?: Date): Promise<BuilderJob>;
+  claimNextNotification(args: {
+    workerId: string;
+    leaseMs: number;
+    now?: Date;
+  }): Promise<BuilderNotificationLease | undefined>;
+  markNotificationDelivered(args: {
+    jobId: string;
+    workerId: string;
+    leaseToken: string;
+    now?: Date;
+  }): Promise<BuilderJob>;
+  recordNotificationFailure(args: {
+    jobId: string;
+    workerId: string;
+    leaseToken: string;
+    error: string;
+    retryAt: Date;
+    now?: Date;
+  }): Promise<BuilderJob>;
 }
 
 export const TERMINAL_BUILDER_JOB_STATES: readonly BuilderJobState[] = [
@@ -111,6 +147,9 @@ export function assertBuilderJobInput(input: BuilderJobInput): void {
     if (!value || value.length > 512) throw new Error(`Builder job ${label} is invalid.`);
   }
   if (input.agentId !== "builder") throw new Error("Builder job agentId must be 'builder'.");
+  if (input.sourceMessageId !== undefined && (input.sourceMessageId === "" || input.sourceMessageId.length > 512)) {
+    throw new Error("Builder job sourceMessageId is invalid.");
+  }
   if (input.objective.trim() === "" || input.objective.length > 20_000) {
     throw new Error("Builder job objective must be non-empty and bounded.");
   }

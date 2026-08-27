@@ -187,7 +187,10 @@ non-qualification provider bindings.
 5. Use **Request cancellation** on the queued card when required. The request
    is authenticated against the original requester and is applied by the
    asynchronous worker.
-6. Wait for the terminal message in the same source thread.
+6. Wait for the queued card to change to **ready for review**, **failed
+   closed**, or **cancelled**. New jobs resolve that same card; a legacy job
+   without a retained message identity receives a fallback message in the same
+   source thread.
 7. Review the draft proposal, Change Plan, diff, Workbench evidence, and CI.
 8. Apply the normal human merge and deployment governance.
 
@@ -207,11 +210,32 @@ polling is bounded, and a missing persisted worker marker fails closed instead
 of leaving the job in `executing`. Duplicate request IDs with different
 immutable input fail closed.
 
+Terminal notification delivery is durable and separately leased from job
+execution. A transient Chat-provider error records a bounded reason and next
+attempt time, then retries with bounded exponential backoff. It never reopens
+or reruns a terminal coding job. A notification marked `delivered` is not
+claimed again. If a job is terminal but its card has not changed, inspect the
+notification state, attempt count, next-attempt time, and redacted last error
+in the job ledger; do not retry the coding execution to repair presentation.
+
 For a failed job, inspect only redacted terminal reason, provider receipts,
 exact profile versions, source digest, observed diff digest, and Workbench
 check digests. Never copy a provider credential into logs or a retry request.
 Retry by creating a new confirmed request at an exact current base unless the
 existing idempotent job is still recoverable.
+
+For a bounded manual smoke test, target a file that exists at the displayed
+exact base and allow the governance artifacts required for the actual diff. A
+valid prompt is:
+
+> Create a Builder draft proposal that appends the clearly marked line
+> `Builder terminal-card smoke test: 2026-08-27` to `company.md`. Create or
+> update only the Workspace Change Plan and documentation required for this
+> actual diff. Do not change any other operating content. Do not merge or
+> deploy. Start the coding agent only after my explicit confirmation.
+
+Do not combine “change only one file” with a request that also requires a
+Change Plan: those instructions conflict and the Builder must fail closed.
 
 When coding and trusted Git workers report different diff digests, do not
 publish. Both boundaries must hash the same canonical byte sequence, including

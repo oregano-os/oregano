@@ -30,6 +30,7 @@ export interface ConfirmedBuilderProposal {
   readonly instanceId: string;
   readonly requesterPrincipal: string;
   readonly sourceConversationKey: string;
+  readonly sourceMessageId?: string;
   readonly objective: string;
   readonly repositoryId: string;
   readonly baseCommit: string;
@@ -338,6 +339,7 @@ export function builderJobInputForConfirmedProposal(
     requesterPrincipal: request.requesterPrincipal,
     agentId: "builder",
     sourceConversationKey: request.sourceConversationKey,
+    ...(request.sourceMessageId ? { sourceMessageId: request.sourceMessageId } : {}),
     objective: request.objective,
     repositoryId: request.repositoryId,
     baseCommit: request.baseCommit,

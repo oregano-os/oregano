@@ -7,6 +7,7 @@ import {
   type BuilderJob,
   type BuilderJobInput,
   type BuilderJobLease,
+  type BuilderNotificationLease,
   type BuilderJobStore,
   type BuilderJobState,
 } from "../../state-store/builder-jobs.ts";
@@ -14,6 +15,11 @@ import {
 interface StoredJob {
   job: BuilderJob;
   lease?: {
+    workerId: string;
+    leaseToken: string;
+    leaseExpiresAt: string;
+  };
+  notificationLease?: {
     workerId: string;
     leaseToken: string;
     leaseExpiresAt: string;
@@ -134,6 +140,15 @@ export class InMemoryBuilderJobStore implements BuilderJobStore {
       executionHandle: args.executionHandle ?? stored.job.executionHandle,
       evidence: args.evidence ?? stored.job.evidence,
       terminalReason: args.terminalReason ?? stored.job.terminalReason,
+      ...(TERMINAL_BUILDER_JOB_STATES.includes(args.to) && !stored.job.notification
+        ? {
+            notification: {
+              state: "pending" as const,
+              attempts: 0,
+              nextAttemptAt: now.toISOString(),
+            },
+          }
+        : {}),
     };
     if (TERMINAL_BUILDER_JOB_STATES.includes(args.to)) stored.lease = undefined;
     return structuredClone(stored.job);
@@ -147,6 +162,88 @@ export class InMemoryBuilderJobStore implements BuilderJobStore {
     return structuredClone(stored.job);
   }
 
+  async claimNextNotification(args: {
+    workerId: string;
+    leaseMs: number;
+    now?: Date;
+  }): Promise<BuilderNotificationLease | undefined> {
+    const now = args.now ?? new Date();
+    assertLease(args.workerId, args.leaseMs);
+    const candidates = [...this.#jobs.values()]
+      .filter((stored) => {
+        const delivery = stored.job.notification;
+        if (!delivery || delivery.state !== "pending") return false;
+        if (new Date(delivery.nextAttemptAt).getTime() > now.getTime()) return false;
+        if (!stored.notificationLease) return true;
+        return new Date(stored.notificationLease.leaseExpiresAt).getTime() <= now.getTime();
+      })
+      .sort((a, b) => a.job.createdAt.localeCompare(b.job.createdAt));
+    const stored = candidates[0];
+    if (!stored) return undefined;
+    const leaseToken = newLeaseToken();
+    const leaseExpiresAt = new Date(now.getTime() + args.leaseMs).toISOString();
+    stored.notificationLease = { workerId: args.workerId, leaseToken, leaseExpiresAt };
+    stored.job = {
+      ...stored.job,
+      notification: {
+        ...stored.job.notification!,
+        attempts: stored.job.notification!.attempts + 1,
+      },
+    };
+    return { job: structuredClone(stored.job), workerId: args.workerId, leaseToken, leaseExpiresAt };
+  }
+
+  async markNotificationDelivered(args: {
+    jobId: string;
+    workerId: string;
+    leaseToken: string;
+    now?: Date;
+  }): Promise<BuilderJob> {
+    const now = args.now ?? new Date();
+    const stored = this.requiredNotificationLease(args.jobId, args.workerId, args.leaseToken, now);
+    stored.notificationLease = undefined;
+    stored.job = {
+      ...stored.job,
+      notification: {
+        ...stored.job.notification!,
+        state: "delivered",
+        deliveredAt: now.toISOString(),
+        nextAttemptAt: now.toISOString(),
+        lastError: undefined,
+      },
+    };
+    return structuredClone(stored.job);
+  }
+
+  async recordNotificationFailure(args: {
+    jobId: string;
+    workerId: string;
+    leaseToken: string;
+    error: string;
+    retryAt: Date;
+    now?: Date;
+  }): Promise<BuilderJob> {
+    const now = args.now ?? new Date();
+    if (args.error === "" || args.error.length > 2_000) {
+      throw new Error("Builder notification failure must be non-empty and bounded.");
+    }
+    if (args.retryAt.getTime() <= now.getTime()) {
+      throw new Error("Builder notification retry must be scheduled in the future.");
+    }
+    const stored = this.requiredNotificationLease(args.jobId, args.workerId, args.leaseToken, now);
+    stored.notificationLease = undefined;
+    stored.job = {
+      ...stored.job,
+      notification: {
+        ...stored.job.notification!,
+        state: "pending",
+        nextAttemptAt: args.retryAt.toISOString(),
+        lastError: args.error,
+      },
+    };
+    return structuredClone(stored.job);
+  }
+
   private requiredLease(jobId: string, workerId: string, leaseToken: string, now: Date): StoredJob {
     const stored = this.#jobs.get(jobId);
     if (!stored) throw new Error(`Unknown Builder job '${jobId}'.`);
@@ -157,6 +254,28 @@ export class InMemoryBuilderJobStore implements BuilderJobStore {
       || new Date(stored.lease.leaseExpiresAt).getTime() <= now.getTime()
     ) {
       throw new Error(`Builder job '${jobId}' lease is missing, stale, or owned by another worker.`);
+    }
+    return stored;
+  }
+
+  private requiredNotificationLease(
+    jobId: string,
+    workerId: string,
+    leaseToken: string,
+    now: Date,
+  ): StoredJob {
+    const stored = this.#jobs.get(jobId);
+    if (!stored) throw new Error(`Unknown Builder job '${jobId}'.`);
+    if (
+      !stored.notificationLease
+      || stored.notificationLease.workerId !== workerId
+      || stored.notificationLease.leaseToken !== leaseToken
+      || new Date(stored.notificationLease.leaseExpiresAt).getTime() <= now.getTime()
+    ) {
+      throw new Error(`Builder job '${jobId}' notification lease is missing, stale, or owned by another worker.`);
+    }
+    if (stored.job.notification?.state !== "pending") {
+      throw new Error(`Builder job '${jobId}' notification is not pending.`);
     }
     return stored;
   }

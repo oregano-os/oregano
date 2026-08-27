@@ -332,6 +332,7 @@ function registerHandlers(bot: Chat) {
         instanceId: artifact.instance.id,
         requesterPrincipal: pending.requesterPrincipal,
         sourceConversationKey: pending.sourceConversationKey,
+        sourceMessageId: event.messageId,
         objective: pending.objective,
         repositoryId: pending.repositoryId,
         baseCommit: pending.baseCommit,

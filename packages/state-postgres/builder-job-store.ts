@@ -7,6 +7,7 @@ import {
   type BuilderJob,
   type BuilderJobInput,
   type BuilderJobLease,
+  type BuilderNotificationLease,
   type BuilderJobState,
   type BuilderJobStore,
 } from "../state-store/builder-jobs.ts";
@@ -117,6 +118,16 @@ export function createPostgresBuilderJobStore(): BuilderJobStore {
             execution_handle = coalesce(${JSON.stringify(args.executionHandle ?? null)}::jsonb, execution_handle),
             evidence = coalesce(${JSON.stringify(args.evidence ?? null)}::jsonb, evidence),
             terminal_reason = coalesce(${args.terminalReason ?? null}, terminal_reason),
+            notification_state = case
+              when ${args.to} in ('published','failed','cancelled')
+                then coalesce(notification_state, 'pending')
+              else notification_state
+            end,
+            notification_next_attempt_at = case
+              when ${args.to} in ('published','failed','cancelled')
+                then coalesce(notification_next_attempt_at, ${now.toISOString()})
+              else notification_next_attempt_at
+            end,
             lease_owner = case when ${args.to} in ('published','failed','cancelled') then null else lease_owner end,
             lease_token = case when ${args.to} in ('published','failed','cancelled') then null else lease_token end,
             lease_expires_at = case when ${args.to} in ('published','failed','cancelled') then null else lease_expires_at end
@@ -141,6 +152,87 @@ export function createPostgresBuilderJobStore(): BuilderJobStore {
       if (!existing[0]) throw new Error(`Unknown Builder job '${jobId}'.`);
       return rowToJob(existing[0]);
     },
+
+    async claimNextNotification({ workerId, leaseMs, now = new Date() }): Promise<BuilderNotificationLease | undefined> {
+      assertLease(workerId, leaseMs);
+      await ensureCompanyOSSchema();
+      const token = newLeaseToken();
+      const expiresAt = new Date(now.getTime() + leaseMs).toISOString();
+      const rows = await connection()`
+        with candidate as (
+          select job_id from companyos.builder_jobs
+          where state in ('published','failed','cancelled')
+            and notification_state = 'pending'
+            and notification_next_attempt_at <= ${now.toISOString()}
+            and (
+              notification_lease_token is null
+              or notification_lease_expires_at <= ${now.toISOString()}
+            )
+          order by notification_next_attempt_at, created_at
+          for update skip locked
+          limit 1
+        )
+        update companyos.builder_jobs
+        set notification_lease_owner = ${workerId}, notification_lease_token = ${token},
+            notification_lease_expires_at = ${expiresAt},
+            notification_attempts = notification_attempts + 1
+        where job_id in (select job_id from candidate)
+        returning *`;
+      if (!rows[0]) return undefined;
+      return {
+        job: rowToJob(rows[0]),
+        workerId,
+        leaseToken: token,
+        leaseExpiresAt: expiresAt,
+      };
+    },
+
+    async markNotificationDelivered({ jobId, workerId, leaseToken, now = new Date() }): Promise<BuilderJob> {
+      const rows = await connection()`
+        update companyos.builder_jobs
+        set notification_state = 'delivered', notification_delivered_at = ${now.toISOString()},
+            notification_last_error = null, notification_lease_owner = null,
+            notification_lease_token = null, notification_lease_expires_at = null
+        where job_id = ${jobId} and notification_state = 'pending'
+          and notification_lease_owner = ${workerId}
+          and notification_lease_token = ${leaseToken}
+          and notification_lease_expires_at > ${now.toISOString()}
+        returning *`;
+      if (!rows[0]) {
+        throw new Error(`Builder job '${jobId}' notification delivery lease is missing or stale.`);
+      }
+      return rowToJob(rows[0]);
+    },
+
+    async recordNotificationFailure({
+      jobId,
+      workerId,
+      leaseToken,
+      error,
+      retryAt,
+      now = new Date(),
+    }): Promise<BuilderJob> {
+      if (error === "" || error.length > 2_000) {
+        throw new Error("Builder notification failure must be non-empty and bounded.");
+      }
+      if (retryAt.getTime() <= now.getTime()) {
+        throw new Error("Builder notification retry must be scheduled in the future.");
+      }
+      const rows = await connection()`
+        update companyos.builder_jobs
+        set notification_next_attempt_at = ${retryAt.toISOString()},
+            notification_last_error = ${error}, notification_lease_owner = null,
+            notification_lease_token = null, notification_lease_expires_at = null
+        where job_id = ${jobId} and notification_state = 'pending'
+          and notification_lease_owner = ${workerId}
+          and notification_lease_token = ${leaseToken}
+          and notification_lease_expires_at > ${now.toISOString()}
+        returning *`;
+      if (!rows[0]) {
+        throw new Error(`Builder job '${jobId}' notification delivery lease is missing or stale.`);
+      }
+      return rowToJob(rows[0]);
+    },
   };
 }
 
@@ -157,6 +249,19 @@ function rowToJob(row: Record<string, any>): BuilderJob {
     executionHandle: row.execution_handle ?? undefined,
     evidence: row.evidence ?? undefined,
     terminalReason: row.terminal_reason ?? undefined,
+    ...(row.notification_state
+      ? {
+          notification: {
+            state: row.notification_state,
+            attempts: Number(row.notification_attempts),
+            nextAttemptAt: new Date(row.notification_next_attempt_at).toISOString(),
+            ...(row.notification_delivered_at
+              ? { deliveredAt: new Date(row.notification_delivered_at).toISOString() }
+              : {}),
+            ...(row.notification_last_error ? { lastError: String(row.notification_last_error) } : {}),
+          },
+        }
+      : {}),
   };
 }
 

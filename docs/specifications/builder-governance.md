@@ -54,6 +54,13 @@ Duplicate delivery MUST NOT create a second execution or proposal. Jobs MUST
 support leases, recovery, timeout, requester-authorized cancellation, terminal
 evidence, and notification back to the source conversation.
 
+Entering `published`, `failed`, or `cancelled` MUST create one durable pending
+terminal notification. Notification delivery uses a lease independent from the
+execution lease, records bounded delivery errors, and retries transient
+Chat-provider failures with bounded backoff. Retrying a notification MUST NOT
+make a terminal job executable again. Successful delivery MUST be persisted so
+the notification is not reclaimed.
+
 After an authorized confirmation or cancellation succeeds, the Runner MUST
 replace the original interactive confirmation message through its neutral Chat
 adapter. A queued replacement MUST remove the confirmation actions and MAY
@@ -61,6 +68,13 @@ retain only the authenticated job-cancellation action; a cancelled replacement
 MUST contain no actions. The pending confirmation MUST be consumed only after
 that replacement succeeds, so a transient Chat-provider failure remains safely
 retryable while durable job idempotency prevents duplicate execution.
+
+For new jobs, the immutable input MUST retain the neutral Chat message identity
+of the queued card. Terminal notification delivery MUST replace that card with
+the final `published`, `failed`, or `cancelled` outcome and no actions. A legacy
+job without a retained message identity MAY receive a fallback post in the same
+source thread; fallback delivery is at-least-once when persistence fails after
+the provider accepted the post.
 
 The Instance MAY bind one safe proposal target branch. The target MUST be
 compiled into the Artifact, visible in the human confirmation, immutable in the
@@ -207,6 +221,8 @@ The experimental implementation currently includes:
 - exact Slack team/channel Agent Bindings with explicit default and
   fail-closed ambiguity behavior;
 - persistent Postgres Builder jobs and leases;
+- separately leased, retryable terminal notifications that resolve the queued
+  Chat card without rerunning terminal execution;
 - a Vercel Sandbox worker adapter plus an in-memory conformance adapter;
 - exactly pinned ACP SDK, Claude Code ACP, and Codex ACP packages in the
   isolated worker;

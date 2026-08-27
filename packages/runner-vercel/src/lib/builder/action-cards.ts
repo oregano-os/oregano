@@ -8,6 +8,34 @@ type BuilderConfirmationDetails = Pick<
   "baseCommit" | "jobId" | "objective" | "repositoryId" | "targetBranchName"
 >;
 
+export function builderTerminalActionCard(job: BuilderJob): BuilderActionCard {
+  if (job.state !== "published" && job.state !== "failed" && job.state !== "cancelled") {
+    throw new Error(`Builder job '${job.jobId}' is not terminal.`);
+  }
+  const outcome = job.state === "published"
+    ? "The checked draft proposal is ready for human review. Nothing was merged or deployed."
+    : job.state === "cancelled"
+      ? "The Builder job was cancelled. No proposal was published."
+      : `The Builder job failed closed. No proposal was published. Reason: ${job.terminalReason ?? "unknown"}`;
+  const proposalUrl = job.state === "published" ? proposalUrlFromEvidence(job.evidence) : undefined;
+  return Card({
+    title: job.state === "published"
+      ? "CompanyOS Builder proposal ready for review"
+      : job.state === "cancelled"
+        ? "CompanyOS Builder proposal cancelled"
+        : "CompanyOS Builder proposal failed closed",
+    children: [
+      CardText(`Job: ${job.jobId}`),
+      CardText(`Objective: ${job.objective}`),
+      CardText(`Repository: ${job.repositoryId}`),
+      CardText(`Exact base: ${job.baseCommit}`),
+      ...(job.targetBranchName ? [CardText(`Proposal target: ${job.targetBranchName}`)] : []),
+      CardText(outcome),
+      ...(proposalUrl ? [CardText(`Draft proposal: ${proposalUrl}`)] : []),
+    ],
+  }) as CardElement;
+}
+
 export function builderQueuedActionCard(job: BuilderConfirmationDetails): BuilderActionCard {
   return Card({
     title: "CompanyOS Builder proposal queued",
@@ -49,4 +77,12 @@ export async function resolveBuilderActionCard(
 ): Promise<void> {
   await event.adapter.editMessage(event.threadId, event.messageId, card);
   await consumeConfirmation();
+}
+
+function proposalUrlFromEvidence(evidence: unknown): string | undefined {
+  if (!evidence || typeof evidence !== "object") return undefined;
+  const proposal = (evidence as Record<string, unknown>).proposal;
+  if (!proposal || typeof proposal !== "object") return undefined;
+  const value = (proposal as Record<string, unknown>).proposalUrl;
+  return typeof value === "string" && /^https:\/\//.test(value) ? value : undefined;
 }

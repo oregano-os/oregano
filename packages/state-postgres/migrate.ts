@@ -66,6 +66,19 @@ export function ensureCompanyOSSchema(): Promise<void> {
       created_at timestamptz not null default now(), updated_at timestamptz not null default now())`;
     await sql`create index if not exists builder_jobs_claim_idx
       on companyos.builder_jobs(state, lease_expires_at, created_at)`;
+    await sql`alter table companyos.builder_jobs
+      add column if not exists notification_state text
+        check (notification_state in ('pending','delivered')),
+      add column if not exists notification_attempts integer not null default 0,
+      add column if not exists notification_next_attempt_at timestamptz,
+      add column if not exists notification_lease_owner text,
+      add column if not exists notification_lease_token text,
+      add column if not exists notification_lease_expires_at timestamptz,
+      add column if not exists notification_delivered_at timestamptz,
+      add column if not exists notification_last_error text`;
+    await sql`create index if not exists builder_notifications_claim_idx
+      on companyos.builder_jobs(notification_state, notification_next_attempt_at, notification_lease_expires_at)
+      where notification_state = 'pending'`;
     await sql`create table if not exists companyos.repository_installations (
       binding_id text primary key, instance_id text not null, provider_id text not null,
       service_environment text not null, installation_id text not null,
