@@ -1,7 +1,7 @@
 import { sha256 } from "../runtime/canonical.ts";
 
 export type CompoundingScope = "source" | "mixed" | "global";
-export type CompoundingPhaseName = "triage" | "consolidate" | "salience" | "exact-links" | "conflicts" | "syntheses" | "merge-proposals" | "temporary-cleanup";
+export type CompoundingPhaseName = "triage" | "consolidate" | "salience" | "exact-links" | "conflicts" | "syntheses" | "grading" | "merge-proposals" | "temporary-cleanup";
 
 export interface CompoundingPhase {
   name: CompoundingPhaseName;
@@ -37,7 +37,15 @@ export class InMemoryCompoundingStateStore implements CompoundingStateStore {
   async acquire(key: string, owner: string, until: string): Promise<boolean> { const current = this.locks.get(key); if (current && Date.parse(current.until) > Date.now() && current.owner !== owner) return false; this.locks.set(key, { owner, until }); return true; }
   async release(key: string, owner: string): Promise<void> { if (this.locks.get(key)?.owner === owner) this.locks.delete(key); }
   async getReceipt(key: string): Promise<CompoundingReceipt | undefined> { const value = this.receipts.get(key); return value ? structuredClone(value) : undefined; }
-  async putReceipt(key: string, receipt: CompoundingReceipt): Promise<void> { const existing = this.receipts.get(key); if (existing && existing.receiptId !== receipt.receiptId) throw new Error(`Compounding idempotency key '${key}' was reused.`); this.receipts.set(key, structuredClone(receipt)); }
+  async putReceipt(key: string, receipt: CompoundingReceipt): Promise<void> {
+    const existing = this.receipts.get(key);
+    if (existing && existing.receiptId !== receipt.receiptId) {
+      const sameIdentity = existing.cycleId === receipt.cycleId && existing.phase === receipt.phase
+        && existing.scope === receipt.scope && existing.scopeId === receipt.scopeId;
+      if (existing.complete || !sameIdentity) throw new Error(`Compounding idempotency key '${key}' was reused.`);
+    }
+    this.receipts.set(key, structuredClone(receipt));
+  }
 }
 
 export async function runCompoundingCycle(input: { cycleId: string; sourceIds: string[]; phases: readonly CompoundingPhase[]; state: CompoundingStateStore; owner: string; now?: () => string }): Promise<CompoundingReceipt[]> {

@@ -1841,7 +1841,7 @@ or extends these current assumptions:
 | Implemented: generic CLI source commands resolve GitHub V1 compatibility, native GitHub V2, native Granola V2, exact local files, and Session transfer through maintained Core boundaries | Qualify exact Instance bindings and schedules without adding provider branches to the shared pipeline |
 | Implemented: repository synchronization persists Source Events before fetch and uses shared Raw Evidence, ACL, receipt, watermark, lifecycle, and change-stream state | Route every later webhook, hybrid, local, and Session delivery through the same boundary |
 | Implemented and live: Granola signed reference webhooks, explicit provider-wide or folder-scoped fetch, complete transcript pagination, leased overlap reconciliation, durable Raw Asset fallback, qualified SecretRefs, and fixed policy | Install the provider webhook signing SecretRef, retain scheduled reconciliation as gap recovery, and qualify the same contracts on each additional runtime host |
-| Implemented: additive manifest `companyos-postgres@1.4.0` is qualified on the linked production Instance with the exact digest, 55 required Knowledge tables, vector feature, 19 Page types, and durable synchronization leases | Qualify the same provider-neutral preparation contract on the first maintained non-Vercel runtime and any additional PostgreSQL driver before advertising those implementations |
+| Implemented and live: additive manifest `companyos-postgres@1.5.0` preserves the qualified 1.4.0 production predecessor and adds four durable compounding relations for 59 required Knowledge tables | Qualify the same provider-neutral preparation contract on the first maintained non-Vercel runtime and any additional PostgreSQL driver before advertising those implementations |
 
 ## 23. Delivery phases
 
@@ -2388,8 +2388,13 @@ Syntheses, Timeline Events, and graph edges into the existing read-only Tool
 contracts, and the maintained Runner registers the provider Connector. Local
 tests cover authorization-first search, get, traversal, stable citations, and
 runtime Connector presence. Production semantic and reranker adapters,
-calibrated thresholds, persisted synthesis workers, live Workspace grants, and
-cited Slack qualification remain Instance integration work.
+calibrated lexical thresholds, live Workspace grants, and cited Slack
+qualification remain Instance integration work. Persisted productive
+compounding is now implemented with durable leases, continuations, receipts,
+review-only Claim-pair proposals, versioned working syntheses, and explicit
+grading requests. The protected Runner endpoint remains unscheduled until the
+direct-provider smoke test, all 13 live prompt fixtures, the additive 1.5.0
+migration, and one real source-to-Claim-to-synthesis run have qualified.
 
 ### Phase 6 — Handbook promotion and Decision Receipts
 

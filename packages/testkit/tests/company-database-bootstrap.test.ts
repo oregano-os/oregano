@@ -13,6 +13,8 @@ import {
   COMPANY_DATABASE_MANIFEST_PHASE_TWO_DIGEST,
   COMPANY_DATABASE_MANIFEST_PHASE_THREE,
   COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST,
+  COMPANY_DATABASE_MANIFEST_PHASE_FOUR,
+  COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST,
   COMPANY_DATABASE_MANIFEST_V1,
   COMPANY_DATABASE_MANIFEST_V1_DIGEST,
   qualifyCompanyDatabase,
@@ -38,24 +40,26 @@ const qualification = (vector = false) => ({
 test("the Company Instance database manifest is deterministic and credential-free", () => {
   assert.equal(COMPANY_DATABASE_MANIFEST.schemaVersion, 1);
   assert.equal(COMPANY_DATABASE_MANIFEST.id, "companyos-postgres");
-  assert.equal(COMPANY_DATABASE_MANIFEST.version, "1.4.0");
-  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_THREE.version);
+  assert.equal(COMPANY_DATABASE_MANIFEST.version, "1.5.0");
+  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version);
   assert.equal(COMPANY_DATABASE_MANIFEST.migrationMode, "additive");
   assert.equal(COMPANY_DATABASE_MANIFEST_V1.version, "1.0.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_ONE.version, "1.1.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_TWO.version, "1.2.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_THREE.version, "1.3.0");
+  assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, "1.4.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_V1_DIGEST, "0bbe79c8c2f5a6f370f35a7e4f09f1aa7440ded33f0548aa5778fad70aa42cc0");
   assert.notEqual(COMPANY_DATABASE_MANIFEST_DIGEST, COMPANY_DATABASE_MANIFEST_V1_DIGEST);
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_ONE_DIGEST, "9ffe70ef8836fba556b213b2b55a68a670c347a2ecbd747daf5677f57a9271f0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_TWO_DIGEST, "c93be83156e9f6333fdc7ce492cee9704ae22184e99a0102d56bb3fac50d40f2");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST, "d8f28c995427de642dd8e923f2cc82035fe4c557d838f99177abbd961e4b17db");
+  assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST, "6c0b3366540c8b1c0a3d889ef8c180c32d15d4e1bb92dbbbd8b10e94ddbce16c");
   assert.notEqual(COMPANY_DATABASE_MANIFEST_DIGEST, COMPANY_DATABASE_MANIFEST_PHASE_ONE_DIGEST);
   assert.match(COMPANY_DATABASE_MANIFEST_DIGEST, /^[0-9a-f]{64}$/);
   assert.equal(COMPANY_DATABASE_MANIFEST.corePageTypes.length, 19);
-  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length, 55);
+  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length, 59);
   const knowledgeTables = new Set<string>(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables);
-  for (const requiredTable of ["acl_policies", "raw_assets", "timeline_events", "synthesis_versions", "extraction_runs", "brain_export_ledger", "principal_groups", "principal_group_members", "access_decision_events", "source_events", "source_acl_snapshots", "source_pipeline_receipts", "source_watermarks", "source_sync_leases", "source_lifecycle_requests", "session_lifecycle_receipts", "knowledge_change_stream"]) {
+  for (const requiredTable of ["acl_policies", "raw_assets", "timeline_events", "synthesis_versions", "extraction_runs", "brain_export_ledger", "principal_groups", "principal_group_members", "access_decision_events", "source_events", "source_acl_snapshots", "source_pipeline_receipts", "source_watermarks", "source_sync_leases", "source_lifecycle_requests", "session_lifecycle_receipts", "knowledge_change_stream", "compounding_leases", "compounding_receipts", "claim_pair_proposals", "claim_grading_requests"]) {
     assert.equal(knowledgeTables.has(requiredTable), true);
   }
   for (const requiredIndex of [
@@ -71,6 +75,10 @@ test("the Company Instance database manifest is deterministic and credential-fre
     "companyos_knowledge.knowledge_source_lifecycle_due_idx",
     "companyos_knowledge.knowledge_session_lifecycle_receipts_session_idx",
     "companyos_knowledge.knowledge_source_sync_leases_due_idx",
+    "companyos_knowledge.knowledge_compounding_leases_due_idx",
+    "companyos_knowledge.knowledge_compounding_receipts_cycle_idx",
+    "companyos_knowledge.knowledge_claim_pair_proposals_queue_idx",
+    "companyos_knowledge.knowledge_claim_grading_requests_queue_idx",
   ]) assert.equal(new Set<string>(COMPANY_DATABASE_MANIFEST.requiredIndexes).has(requiredIndex), true);
   for (const requiredConstraint of [
     "companyos_knowledge.knowledge_sources_access_policy_fk",
@@ -100,8 +108,9 @@ test("database preparation rejects unknown or conflicting manifest history befor
   assert.deepEqual(assertSupportedCompanyDatabaseManifestHistory([
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_TWO.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_TWO_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_THREE.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST },
+    { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: COMPANY_DATABASE_MANIFEST_DIGEST },
-  ]), ["1.2.0", "1.3.0", "1.4.0"]);
+  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0"]);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: "9.0.0", manifest_digest: "0".repeat(64) }]), /unsupported manifest version/i);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: "0".repeat(64) }]), /conflicting content/i);
 });

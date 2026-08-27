@@ -194,6 +194,16 @@ evidence, historical prototypes, and production gaps.
   context cannot produce a substantive answer. Explicit synthesis requires a
   non-default grant. Scoped compounding distinguishes Source, mixed, and
   global idempotency and lock domains.
+- Productive Company Knowledge compounding is implemented behind a protected
+  Runner operation but is not yet scheduled. The Core now performs bounded,
+  authorization-prepared duplicate classification, Claim-relation proposals,
+  conflict proposals, immutable working-synthesis refresh, and explicit
+  outcome-grading requests. Additive Postgres state persists leases,
+  resumable receipts, Claim-pair proposals, and grading requests. Model output
+  cannot mutate canonical Claims, accept its own proposal, or create Handbook
+  authority. The live fixture-qualification operation evaluates all 13 current
+  Prompt Registry tasks with precision, recall, F1, exact model route, and
+  receipt identity before an operator enables the schedule.
 - Phase 5 production integration now adapts that authorization-first retrieval
   into the existing standard `knowledge.search`, `knowledge.get`, and
   `knowledge.traverse` Tool contracts. Local conformance tests prove that a
@@ -223,8 +233,8 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.4.0` additive manifest preserves the immutable `1.3.0`,
-  `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  `companyos-postgres@1.5.0` additive manifest preserves the immutable `1.4.0`,
+  `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares both `companyos` and `companyos_knowledge`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
@@ -237,7 +247,13 @@ evidence, historical prototypes, and production gaps.
   required Knowledge tables. Phase 3 adds the shared ingestion/lifecycle
   relations and Session lifecycle receipts for 54 required Knowledge tables.
   Phase 4 adds one durable Source reconciliation lease relation for 55 required
-  Knowledge tables. On 2026-08-26 the linked production Instance upgraded to
+  Knowledge tables. Phase 5 adds four compounding lease, receipt, pair-proposal,
+  and grading-request relations for 59 required Knowledge tables. On 2026-08-27
+  the linked production Instance upgraded additively to 1.5.0 and passed a
+  separate read-only qualification with digest
+  `bb3dcef272ce2c33ae1a479171a648ea6e79ab01b04ca37dce998a5e0e404cea`,
+  12 Control tables, 59 required Knowledge tables plus `pgvector` for an
+  observed total of 60, and 19 Core Page types. On 2026-08-26 the same Instance upgraded to
   `companyos-postgres@1.4.0` and passed a separate read-only qualification with
   digest `6c0b3366540c8b1c0a3d889ef8c180c32d15d4e1bb92dbbbd8b10e94ddbce16c`,
   12 Control tables, 55 required Knowledge tables plus `pgvector` for an

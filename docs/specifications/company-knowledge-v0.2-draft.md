@@ -43,9 +43,9 @@ Instance-specific activation evidence and are not implied by that Core status.
 
 The existing Source Connector `1.0.0`, Knowledge Provider and Tool contract
 `3.0.0`, Runtime Observation `1.0.0`, OKF `0.1`, and historical database
-manifests through `companyos-postgres@1.3.0` remain supported until their
+manifests through `companyos-postgres@1.4.0` remain supported until their
 documented replacement gates are met. The current additive schema target is
-`companyos-postgres@1.4.0`. Unknown major versions fail closed.
+`companyos-postgres@1.5.0`. Unknown major versions fail closed.
 
 ## 2. Authority layers
 
@@ -485,6 +485,22 @@ Compounding cycles declare `source`, `mixed`, or `global` scope. Global work
 runs once per global watermark and MUST NOT multiply by Source count. Every
 phase is leased, resumable, cursor-based, and receipt-producing. Retry reuses
 the same idempotency identity.
+
+The maintained productive cycle executes semantic duplicate classification,
+Claim-relation proposals, conflict proposals, immutable working-synthesis
+versions, and explicitly requested outcome grading. Authorization completes
+before candidate Claims or evidence blocks are assembled. Candidate pairs are
+bounded, deterministically ordered, policy-contained, and subject-contained.
+The model cannot merge Claims, accept a relation, resolve a conflict, change a
+canonical grade, widen access, delete evidence, or publish Handbook authority.
+Duplicate, relation, conflict, and grade results enter reviewable proposal
+state; a working synthesis creates a new cited version and preserves all prior
+versions.
+
+Outcome grading MUST begin with a durable explicit request naming the exact
+Claim and outcome-evidence identities. Only independent evidence observed
+after the Claim is eligible. Missing, same-source, pre-dating, or unauthorized
+evidence defers the request without invoking the grading model.
 
 ## 15. Retrieval, Timeline, graph, and deltas
 

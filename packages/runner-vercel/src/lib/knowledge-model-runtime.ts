@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { Output, generateText, jsonSchema } from "ai";
 import { KnowledgeAuthorizer } from "../../../knowledge/access-control.ts";
+import { runCompoundingCycle, type CompoundingStateStore } from "../../../knowledge/compounding.ts";
 import { extractRawEvidenceToBrain } from "../../../knowledge/extraction-pipeline.ts";
 import {
+  executeKnowledgeModel,
   validateKnowledgeModelProfile,
   type KnowledgeModelExecutor,
   type KnowledgeModelProfileBinding,
@@ -10,8 +12,17 @@ import {
   type KnowledgeModelRequest,
   type KnowledgeModelTaskProfile,
 } from "../../../knowledge/knowledge-model-execution.ts";
+import {
+  CORE_KNOWLEDGE_PROMPT_FIXTURES,
+  evaluateKnowledgePromptSignals,
+  knowledgePromptOutputSignals,
+} from "../../../knowledge/prompt-evaluation.ts";
 import { KnowledgePromptRegistry, renderKnowledgePromptUserMessage } from "../../../knowledge/prompt-registry.ts";
 import { KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA } from "../../../knowledge/prompt-schemas.ts";
+import {
+  createProductiveKnowledgeCompoundingPhases,
+  type KnowledgeCompoundingWorkStore,
+} from "../../../knowledge/productive-compounding.ts";
 import {
   decodeModelRuntimeConfiguration,
   resolveModelExecutionSelection,
@@ -23,6 +34,10 @@ import { sha256 } from "../../../runtime/canonical.ts";
 import { PostgresBrainStore } from "../../../state-postgres/brain-store.ts";
 import { PostgresKnowledgeAccessAuditor } from "../../../state-postgres/knowledge-access-store.ts";
 import { PostgresKnowledgeExtractionRunStore } from "../../../state-postgres/extraction-run-store.ts";
+import {
+  PostgresCompoundingStateStore,
+  PostgresKnowledgeCompoundingWorkStore,
+} from "../../../state-postgres/knowledge-compounding-store.ts";
 import { PostgresSourcePipelineStore } from "../../../state-postgres/source-pipeline-store.ts";
 import { resolveModelExecution } from "./model-execution.ts";
 import { decodeGranolaRuntimeConfiguration, GRANOLA_RECONCILIATION_STREAM } from "./knowledge-source-runtime.ts";
@@ -124,6 +139,57 @@ export function decodeKnowledgeModelRuntimeConfiguration(
 
 export const knowledgeModelAdapterDigest = (route: string, model: string): string => sha256({ adapter: "oregano/model-recipe-knowledge", version: "1.0.0", route, model });
 
+export async function qualifyKnowledgePromptFixtures(input: {
+  executor: KnowledgeModelExecutor;
+  configuration: KnowledgeModelRuntimeConfiguration;
+  maximumFixtures?: number;
+  now?: () => string;
+}) {
+  const limit = Math.max(1, Math.min(input.maximumFixtures ?? CORE_KNOWLEDGE_PROMPT_FIXTURES.length, CORE_KNOWLEDGE_PROMPT_FIXTURES.length));
+  const testedAt = input.now?.() ?? new Date().toISOString();
+  const results = [];
+  for (const fixture of CORE_KNOWLEDGE_PROMPT_FIXTURES.slice(0, limit)) {
+    const prompt = new KnowledgePromptRegistry().resolveCurrent(fixture.promptId);
+    const profile = resolveKnowledgeTaskProfile(input.configuration, fixture.promptId);
+    const evidenceBlocks = fixture.evidenceBlocks.map((block) => ({ ...block, contentDigest: sha256(block.content) }));
+    const executed = await executeKnowledgeModel({
+      executor: input.executor,
+      profile,
+      requiredProfile: prompt.profile,
+      completedAt: testedAt,
+      request: {
+        task: prompt.task,
+        promptId: prompt.promptId,
+        promptVersion: prompt.version,
+        promptContentHash: prompt.contentHash,
+        inputSchemaId: prompt.inputSchemaId,
+        outputSchemaId: prompt.outputSchemaId,
+        systemInstruction: prompt.systemInstruction,
+        taskInput: fixture.taskInput,
+        evidenceBlocks,
+        authorizationContextDigest: sha256({ operation: "knowledge-model-qualification", fixtureId: fixture.fixtureId }),
+        dataClass: "business",
+        idempotencyKey: sha256({ fixtureId: fixture.fixtureId, promptContentHash: prompt.contentHash, model: profile.model }),
+      },
+    });
+    const signals = knowledgePromptOutputSignals(fixture.promptId, executed.output);
+    const metrics = evaluateKnowledgePromptSignals(fixture.expectedSignals, signals);
+    results.push({
+      fixtureId: fixture.fixtureId,
+      promptId: fixture.promptId,
+      route: executed.receipt.route,
+      model: executed.receipt.model,
+      receiptId: executed.receipt.receiptId,
+      outcome: executed.receipt.outcome,
+      minimumF1: fixture.minimumF1,
+      metrics,
+      qualified: executed.receipt.outcome === "succeeded" && metrics.f1 >= fixture.minimumF1,
+    });
+  }
+  const qualified = results.length === limit && results.every((result) => result.qualified);
+  return { ok: qualified, status: qualified ? "qualified" as const : "failed" as const, testedAt, fixtureCount: results.length, results, qualificationId: sha256({ testedAt, results }) };
+}
+
 export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
   async execute(profile: KnowledgeModelProfileBinding, request: KnowledgeModelRequest): Promise<KnowledgeModelProviderResult> {
     const definition = new KnowledgePromptRegistry().resolveExecution(request);
@@ -201,6 +267,82 @@ export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
     const adapterDigest = sha256(models.map(({ route, model, adapterDigest: digest }) => ({ route, model, adapterDigest: digest })));
     const testId = sha256({ testedAt, adapterDigest, models });
     return { ok: true, testedAt, testId, adapterDigest, models };
+  }
+
+  async qualifyFixtures(input: { configuration?: KnowledgeModelRuntimeConfiguration; maximumFixtures?: number } = {}) {
+    return qualifyKnowledgePromptFixtures({ executor: this, configuration: input.configuration ?? decodeKnowledgeModelRuntimeConfiguration(), ...(input.maximumFixtures === undefined ? {} : { maximumFixtures: input.maximumFixtures }) });
+  }
+}
+
+export class CompanyKnowledgeCompoundingRuntime {
+  readonly #configuration: KnowledgeModelRuntimeConfiguration;
+  readonly #sourceStore: PostgresSourcePipelineStore;
+  readonly #state: CompoundingStateStore;
+  readonly #workStore: KnowledgeCompoundingWorkStore;
+  readonly #executor: KnowledgeModelExecutor;
+  readonly #now: () => string;
+
+  constructor(input: {
+    configuration?: KnowledgeModelRuntimeConfiguration;
+    sourceStore?: PostgresSourcePipelineStore;
+    state?: CompoundingStateStore;
+    workStore?: KnowledgeCompoundingWorkStore;
+    executor?: KnowledgeModelExecutor;
+    now?: () => string;
+  } = {}) {
+    this.#configuration = input.configuration ?? decodeKnowledgeModelRuntimeConfiguration();
+    this.#sourceStore = input.sourceStore ?? new PostgresSourcePipelineStore();
+    this.#state = input.state ?? new PostgresCompoundingStateStore();
+    this.#workStore = input.workStore ?? new PostgresKnowledgeCompoundingWorkStore();
+    this.#executor = input.executor ?? new VercelKnowledgeModelExecutor();
+    this.#now = input.now ?? (() => new Date().toISOString());
+  }
+
+  async process(input: { cycleId?: string; phaseBudget?: number } = {}) {
+    const source = decodeGranolaRuntimeConfiguration();
+    if (source.binding.state !== "active") throw new Error("The configured company Knowledge source is not active for compounding.");
+    const policy = await this.#sourceStore.getPolicy(source.requirement.access.rootPolicyId);
+    if (!policy) throw new Error("The company Knowledge access policy is unavailable.");
+    const subject = { principalId: source.requirement.dataOwner, principalType: "human" as const, status: "active" as const, groupIds: [] as string[] };
+    const authorizer = new KnowledgeAuthorizer([policy], new PostgresKnowledgeAccessAuditor());
+    const permit = await authorizer.authorize({
+      subject,
+      permission: "read",
+      policyIds: [policy.policyId],
+      objectType: "model-context",
+      objectId: source.requirement.sourceId,
+    });
+    if (!permit) throw new Error("Knowledge compounding authorization was denied.");
+    const now = this.#now();
+    const time = new Date(now);
+    const bucket = Math.floor(time.getUTCHours() / 6) * 6;
+    const cycleId = input.cycleId ?? `${time.toISOString().slice(0, 10)}T${String(bucket).padStart(2, "0")}:00:00.000Z`;
+    const authorizationContextDigest = sha256({ principalId: subject.principalId, policyId: policy.policyId, permission: "read", sourceId: source.requirement.sourceId });
+    const phases = createProductiveKnowledgeCompoundingPhases({
+      store: this.#workStore,
+      executor: this.#executor,
+      resolveProfile: (promptId) => resolveKnowledgeTaskProfile(this.#configuration, promptId),
+      accessPolicyIds: [policy.policyId],
+      authorizationContextDigest,
+      dataClass: source.requirement.dataClass,
+      now: this.#now,
+      phaseBudget: input.phaseBudget,
+    });
+    const receipts = await runCompoundingCycle({
+      cycleId,
+      sourceIds: [source.requirement.sourceId],
+      phases,
+      state: this.#state,
+      owner: `compounding:${randomUUID()}`,
+      now: this.#now,
+    });
+    return {
+      ok: true,
+      cycleId,
+      complete: receipts.length === phases.length && receipts.every((receipt) => receipt.complete),
+      processed: receipts.reduce((sum, receipt) => sum + receipt.processed, 0),
+      receipts: receipts.map((receipt) => ({ receiptId: receipt.receiptId, phase: receipt.phase, processed: receipt.processed, complete: receipt.complete, continuation: receipt.continuation })),
+    };
   }
 }
 
