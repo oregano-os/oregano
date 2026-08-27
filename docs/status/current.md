@@ -262,8 +262,15 @@ evidence, historical prototypes, and production gaps.
   `knowledge.traverse` Tool contracts. Local conformance tests prove that a
   private record is absent from search, exact get, and graph traversal for an
   unpermitted principal while remaining available to an explicitly permitted
-  principal. Live Artifact activation and cited Slack qualification are still
-  Instance work.
+  principal. The production Artifact activates all three read Tools for the
+  selected Oregano Agent. Its first cited Slack probe exposed that automatic
+  model Tool choice could still decline an explicit Company Knowledge request
+  and incorrectly state that no search Tool was available. The maintained
+  Slack adapter now requires the already-granted search Tool on the first model
+  step for explicit searches and high-confidence company-evidence questions,
+  returns later steps to automatic selection, and withholds a substantive
+  answer if that required Tool call is absent. Production redeployment and the
+  repeated cited Slack probe remain Instance qualification work.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human

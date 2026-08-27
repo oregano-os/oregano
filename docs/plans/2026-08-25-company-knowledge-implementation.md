@@ -952,6 +952,16 @@ instructions. A normal interactive answer therefore uses the existing Agent
 model loop. `knowledge.synthesize` invokes the same contract only for an
 explicit synthesis request, a non-Agent caller, or a background task.
 
+The maintained Slack adapter keeps Oregano as the single selected interactive
+Agent. For an explicit Company Knowledge search or a high-confidence question
+about company evidence, it deterministically requires Oregano's already-granted
+`knowledge.search` Tool on only the first model step. This narrow Tool route is
+not an Agent dispatcher: it neither selects an Agent by channel nor creates a
+special Knowledge Agent. Later steps return to automatic selection for exact
+get and bounded traversal. A required search that is absent from the completed
+Tool calls renders an explicit unavailable state instead of the model's
+unsupported assertion that no Tool exists.
+
 When a turn uses Knowledge results, the Runtime records a run-scoped authorized
 context receipt containing only the durable identities, versions, labels, and
 digests actually returned by the granted Tools. The final model turn returns a

@@ -607,6 +607,18 @@ contract. Ordinary interactive answers do not require a separate synthesis
 model call. Core builds one internal, run-scoped, authorized context pack from
 the exact retrieval result and provides it to the Agent model.
 
+An interactive adapter MAY deterministically require the already-granted
+`knowledge.search` Tool on the first model step when the current human turn is
+an explicit Company Knowledge search or a high-confidence company-evidence
+question. This is turn-level Tool selection inside the existing Agent, not
+channel-to-Agent dispatch and not a separate Knowledge Agent. The requirement
+MUST be derived only from the human turn and the resolved ToolSet, MUST NOT add
+a grant, and MUST return to automatic Tool selection after the first step so
+bounded exact reads and traversal remain available. If the required Tool does
+not execute, the adapter MUST withhold a substantive knowledge answer rather
+than claim that a registered Tool is unavailable or answer from an empty
+evidence set.
+
 The model returns a structured Knowledge Answer Envelope containing:
 
 - answer sections;
