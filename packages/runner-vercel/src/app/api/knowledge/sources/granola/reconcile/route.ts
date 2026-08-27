@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { authorizeScheduledKnowledgeRequest, classifyKnowledgeSourceRuntimeError, GranolaKnowledgeSourceRuntime } from "../../../../../../lib/knowledge-source-runtime.ts";
+import { authorizeScheduledKnowledgeRequest, classifyKnowledgeSourceRuntimeError, describeKnowledgeSourceRuntimeError, GranolaKnowledgeSourceRuntime } from "../../../../../../lib/knowledge-source-runtime.ts";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -30,7 +30,7 @@ async function handle(request: Request) {
       ...(result.completedWatermark ? { completedWatermark: result.completedWatermark } : {}),
     }, { status: 200 });
   } catch (error) {
-    return Response.json({ ok: false, error: "reconciliation-failed", reasonCode: classifyKnowledgeSourceRuntimeError(error), errorDigest: errorDigest(error) }, { status: 503 });
+    return Response.json({ ok: false, error: "reconciliation-failed", reasonCode: classifyKnowledgeSourceRuntimeError(error), diagnostic: describeKnowledgeSourceRuntimeError(error), errorDigest: errorDigest(error) }, { status: 503 });
   }
 }
 

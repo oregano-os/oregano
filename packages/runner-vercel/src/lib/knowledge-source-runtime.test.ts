@@ -7,6 +7,7 @@ import { SOURCE_CONNECTOR_V2_CONTRACT_VERSION, type SourceBindingV2, type Source
 import {
   authorizeScheduledKnowledgeRequest,
   classifyKnowledgeSourceRuntimeError,
+  describeKnowledgeSourceRuntimeError,
   decodeGranolaRuntimeConfiguration,
   GranolaKnowledgeSourceRuntime,
   type GranolaRuntimeConfiguration,
@@ -70,6 +71,12 @@ test("Knowledge source runtime failures expose bounded categories rather than pr
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Source 'source:test' conflicts with an existing requirement.")), "source-registration");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("Granola API request failed after bounded retry (HTTP 503).")), "provider-response");
   assert.equal(classifyKnowledgeSourceRuntimeError(new Error("unexpected protected provider detail")), "unclassified");
+  assert.deepEqual(describeKnowledgeSourceRuntimeError(Object.assign(new Error("Source 'source:private' conflicts with digest aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa at https://provider.test/path?token=hidden"), { code: "23505", constraint: "source_key" })), {
+    name: "Error",
+    code: "23505",
+    constraint: "source_key",
+    messageTemplate: "Source '<value>' conflicts with digest <digest> at <url>",
+  });
 });
 
 test("Granola runtime resumes bounded provider-wide reconciliation under one durable lease", async () => {

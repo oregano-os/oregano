@@ -74,6 +74,25 @@ export function classifyKnowledgeSourceRuntimeError(error: unknown): string {
   return "unclassified";
 }
 
+export function describeKnowledgeSourceRuntimeError(error: unknown): { name: string; code?: string; constraint?: string; messageTemplate: string } {
+  const record = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const raw = error instanceof Error ? error.message : String(error);
+  const messageTemplate = raw
+    .replace(/https?:\/\/\S+/gi, "<url>")
+    .replace(/(?:sk|key|token|secret)[-_][A-Za-z0-9_-]+/gi, "<secret>")
+    .replace(/'[^']*'/g, "'<value>'")
+    .replace(/\b[a-f0-9]{32,}\b/gi, "<digest>")
+    .replace(/\b\d{3,}\b/g, "<number>")
+    .slice(0, 500);
+  const bounded = (value: unknown): string | undefined => typeof value === "string" && /^[A-Za-z0-9_.-]{1,128}$/.test(value) ? value : undefined;
+  return {
+    name: error instanceof Error ? error.name : typeof error,
+    ...(bounded(record.code) ? { code: bounded(record.code) } : {}),
+    ...(bounded(record.constraint) ? { constraint: bounded(record.constraint) } : {}),
+    messageTemplate,
+  };
+}
+
 export class GranolaKnowledgeSourceRuntime {
   readonly #configuration: GranolaRuntimeConfiguration;
   readonly #store: GranolaRuntimeStore;
