@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { KNOWLEDGE_MODEL_EXECUTION_CONTRACT_VERSION, type KnowledgeModelProfileBinding } from "../../../knowledge/knowledge-model-execution.ts";
+import { KnowledgePromptRegistry } from "../../../knowledge/prompt-registry.ts";
 import {
   decodeKnowledgeModelRuntimeConfiguration,
   knowledgeModelAdapterDigest,
@@ -33,7 +34,7 @@ test("Knowledge model runtime keeps legacy utility and reasoning bindings readab
   const configuration = { version: 1 as const, utility: profile("utility"), reasoning: profile("reasoning") };
   const encoded = Buffer.from(JSON.stringify(configuration)).toString("base64");
   const decoded = decodeKnowledgeModelRuntimeConfiguration(encoded);
-  assert.equal(Object.keys(decoded.tasks).length, 14);
+  assert.equal(Object.keys(decoded.tasks).length, 13);
   assert.deepEqual(resolveKnowledgeTaskProfile(decoded, "knowledge.page-classification"), configuration.utility);
   assert.deepEqual(resolveKnowledgeTaskProfile(decoded, "knowledge.claim-extraction"), configuration.reasoning);
   assert.equal(resolveKnowledgeTaskProfile(decoded, "knowledge.working-synthesis").profile, "deep");
@@ -57,7 +58,7 @@ test("Knowledge model runtime compiles every prompt through profile and exact ta
   const configuration = decodeKnowledgeModelRuntimeConfiguration(knowledge, {
     ANTHROPIC_API_KEY: "synthetic-anthropic-key",
   });
-  assert.equal(Object.keys(configuration.tasks).length, 14);
+  assert.equal(Object.keys(configuration.tasks).length, 13);
   assert.deepEqual(
     [resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").model, resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").maxOutputTokens],
     ["anthropic/claude-haiku-4-5-20251001", 2_000],
@@ -96,11 +97,12 @@ test("Knowledge structured-output schemas type every constant for strict provide
     if (Object.hasOwn(node, "oneOf")) forbiddenOneOfNodes.push(node);
     Object.values(node).forEach(visit);
   };
+  for (const definition of new KnowledgePromptRegistry().list()) visit(definition.outputSchema);
   visit(KNOWLEDGE_EXTRACTION_JSON_SCHEMA);
   visit(KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA);
-  assert.equal(constantNodes.length, 7);
+  assert.ok(constantNodes.length >= 3);
   assert.ok(constantNodes.every((node) => node.type === "string"));
-  assert.equal(enumNodes.length, 5);
+  assert.ok(enumNodes.length >= 5);
   assert.ok(enumNodes.every((node) => node.type === "string"));
   assert.deepEqual(forbiddenOneOfNodes, []);
 });

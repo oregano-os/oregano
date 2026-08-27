@@ -170,11 +170,18 @@ evidence, historical prototypes, and production gaps.
   capability declarations without creating separate transports. Formal model
   qualification, provider data-class
   matrices, and hard cost-budget enforcement are not part of the runtime.
-  Extraction validates Page types,
-  identities, Holders, and source locators against the exact authorized input.
+  Prompt Registry `2.0.0` now dispatches all 13 generative Knowledge tasks by
+  exact prompt version, content hash, input schema, and output schema. Each
+  task has its own user instruction and strict structured result; mismatches
+  fail before provider execution. Extraction returns separate Fact and Take
+  collections and validates Page types, identities, Holders, and source
+  locators against the exact authorized input. Cited synthesis receives the
+  normalized query and Context Receipt identity, and one offline fixture per
+  task exposes precision, recall, and F1 quality gates for all 13 prompt paths.
   Deterministic classifications and provider identity links do not call a
   model; model-derived gradeable Takes and fuzzy identity links remain
-  proposals.
+  proposals. Reranking remains a separate optional capability and is not a
+  generative prompt task.
 - Company Knowledge Phase 5 separates processing triage, retrieval salience,
   retention, deletion, access, and authority. Authorization precedes exact,
   lexical, semantic, graph, context, delta, and citation processing. Hybrid

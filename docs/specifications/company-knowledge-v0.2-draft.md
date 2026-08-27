@@ -5,7 +5,7 @@ kind: specification
 status: approved
 authority: normative
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -415,8 +415,19 @@ Every model-backed Knowledge task has one Prompt Registry entry containing:
 - regression fixtures; and
 - replacement and compatibility metadata.
 
-Each Knowledge execution receipt records the task, prompt, schemas, model
-route, exact model, token use, authorized input digest, time, and outcome. It is
+The current Prompt Registry `2.0.0` dispatches each generative task by the
+exact prompt ID, prompt version, prompt content hash, input schema ID, and
+output schema ID. A mismatch fails before provider execution. Structured task
+input is validated against the task-specific input schema and is rendered
+separately from numbered, untrusted evidence blocks. Claim extraction returns
+separate Fact and Take collections. Explicit cited synthesis receives the
+normalized user query and exact Context Receipt identity as structured task
+input. Reranking is not a Prompt Registry task; it remains an optional,
+dedicated capability adapter.
+
+Each Knowledge execution receipt records the task, prompt, input and output
+schemas, model route, exact model, token use, authorized structured-input and
+evidence digest, time, and outcome. It is
 ordinary non-secret execution evidence, not a separate immutable audit system
 or model-activation prerequisite. It contains no protected prompt body, source
 payload, or credential reference value.
@@ -427,6 +438,10 @@ before a model fallback. A model may classify, extract, propose links, judge a
 bounded conflict, grade an outcome, or synthesize. It cannot grant access,
 alter source evidence, approve its own proposal, publish Handbook authority, or
 bypass an output validator.
+
+Every current Prompt Registry entry has an offline synthetic fixture. Fixture
+evaluation records deterministic precision, recall, and F1 over task-specific
+semantic signals before a changed prompt or model is qualified for production.
 
 ## 13. Extraction and graph construction
 

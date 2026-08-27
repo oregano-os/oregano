@@ -62,22 +62,25 @@ const evidence: SourceRawEvidenceV2 = {
 
 const output = {
   page: { title: "Project Cedar launch discussion", summary: "A launch commitment and an attributed prediction." },
-  claims: [
+  facts: [
     {
-      memoryClass: "fact", claimKind: "commitment", claimText: "Project Cedar will launch on September 1.", ownerPrincipalId: "human:alice",
+      claimKind: "commitment", claimText: "Project Cedar will launch on September 1.", ownerPrincipalId: "human:alice",
       evidenceId: "evidence:source", locator: { kind: "line", start: 1, end: 1 }, extractionConfidence: 0.95, epistemicWeight: 0.8,
       participantRelations: [{ relation: "speaker", principalId: "human:alice" }, { relation: "owner", principalId: "human:project-lead" }],
     },
+  ],
+  takes: [
     {
-      memoryClass: "take", claimKind: "bet", claimText: "The launch will increase retention.",
+      claimKind: "bet", claimText: "The launch will increase retention.",
       holder: { holderId: "holder:bob", holderType: "person", displayName: "Bob" }, derivation: "source-literal",
       evidenceId: "evidence:source", locator: { kind: "line", start: 2, end: 2 }, extractionConfidence: 0.9, epistemicWeight: 0.7,
       participantRelations: [{ relation: "speaker", principalId: "human:bob" }],
     },
     {
-      memoryClass: "take", claimKind: "hunch", claimText: "Retention impact may depend on onboarding quality.",
+      claimKind: "hunch", claimText: "Retention impact may depend on onboarding quality.",
       holder: { holderId: "holder:system", holderType: "system", displayName: "Extraction model" }, derivation: "model-derived",
       evidenceId: "evidence:source", locator: { kind: "line", start: 2, end: 2 }, extractionConfidence: 0.55, epistemicWeight: 0.5,
+      participantRelations: [],
     },
   ],
   timeline: [{ eventType: "planned-launch", description: "Project Cedar launch", observedAt: now, locator: { kind: "line", start: 1, end: 1 } }],
@@ -85,13 +88,16 @@ const output = {
 
 test("Core Prompt Registry pins every initial model boundary and keeps evidence untrusted", () => {
   const registry = new KnowledgePromptRegistry();
-  assert.equal(registry.list().length, 14);
+  assert.equal(registry.list().length, 13);
   assert.deepEqual(registry.list().map((entry) => entry.promptId), [...CORE_KNOWLEDGE_PROMPTS].map((entry) => entry.promptId).sort());
   for (const entry of registry.list()) {
     assert.match(entry.contentHash, /^[a-f0-9]{64}$/);
     assert.match(entry.systemInstruction, /untrusted quoted data/i);
-    assert.ok(entry.outputSchemaId.includes("@1"));
+    assert.match(entry.inputSchemaId, /@1$/);
+    assert.match(entry.outputSchemaId, /@2$/);
+    assert.ok(entry.userInstruction.length > 100);
   }
+  assert.throws(() => registry.resolveCurrent("knowledge.rerank"), /Unknown Knowledge prompt/);
 });
 
 test("deterministic Page classification and provider identity linking make no model call", async () => {
@@ -112,6 +118,7 @@ test("structured extraction is idempotent, evidence-bound, and keeps inferred gr
   const executor: KnowledgeModelExecutor = { execute: async (_profile, request) => {
     calls += 1;
     assert.equal(request.evidenceBlocks.length, 1);
+    assert.deepEqual(request.taskInput, { defaultOwnerPrincipalId: "human:alice", sourceKind: "meeting", observedAt: now });
     return { output, responseId: "response-1", responseModel: "test/reasoning", inputTokens: 100, outputTokens: 50, costUsd: 0.01, latencyMs: 10, finishReason: "stop" };
   } };
   const brainStore = new InMemoryBrainStore();
@@ -137,8 +144,8 @@ test("structured extraction is idempotent, evidence-bound, and keeps inferred gr
 });
 
 test("revoked model profiles fail closed and returned locators cannot escape the authorized evidence", async () => {
-  const prompt = new KnowledgePromptRegistry().resolve("knowledge.triage", "1");
-  const request = { task: prompt.task, promptId: prompt.promptId, promptVersion: prompt.version, promptContentHash: prompt.contentHash, outputSchemaId: prompt.outputSchemaId, systemInstruction: prompt.systemInstruction, evidenceBlocks: [], authorizationContextDigest: sha256("auth"), dataClass: "restricted" as const, idempotencyKey: "test" };
+  const prompt = new KnowledgePromptRegistry().resolveCurrent("knowledge.triage");
+  const request = { task: prompt.task, promptId: prompt.promptId, promptVersion: prompt.version, promptContentHash: prompt.contentHash, inputSchemaId: prompt.inputSchemaId, outputSchemaId: prompt.outputSchemaId, systemInstruction: prompt.systemInstruction, taskInput: { sourceKind: "meeting", contentCharacters: text.length }, evidenceBlocks: [], authorizationContextDigest: sha256("auth"), dataClass: "restricted" as const, idempotencyKey: "test" };
   const compatible = await executeKnowledgeModel({
     executor: { execute: async () => ({ output: {}, responseId: "r", responseModel: "test", inputTokens: 1, outputTokens: 1, costUsd: 0, latencyMs: 1, finishReason: "stop" }) },
     profile: { ...profile("utility"), state: "qualified" }, requiredProfile: "utility", completedAt: now, request,
@@ -150,7 +157,7 @@ test("revoked model profiles fail closed and returned locators cannot escape the
   }), /revoked/i);
 
   const invalid = structuredClone(output);
-  invalid.claims[0].locator = { kind: "line", start: 1, end: 999 };
+  invalid.facts[0].locator = { kind: "line", start: 1, end: 999 };
   await assert.rejects(() => extractRawEvidenceToBrain({
     evidence, sourceKind: "meeting", ownerPrincipalId: "human:alice", brainStore: new InMemoryBrainStore(), runStore: new InMemoryKnowledgeExtractionRunStore(),
     modelExecutor: { execute: async () => ({ output: invalid, responseId: "response-invalid", responseModel: "test/reasoning", inputTokens: 10, outputTokens: 10, costUsd: 0, latencyMs: 1, finishReason: "stop" }) },

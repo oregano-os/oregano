@@ -10,7 +10,8 @@ import {
   type KnowledgeModelRequest,
   type KnowledgeModelTaskProfile,
 } from "../../../knowledge/knowledge-model-execution.ts";
-import { KnowledgePromptRegistry } from "../../../knowledge/prompt-registry.ts";
+import { KnowledgePromptRegistry, renderKnowledgePromptUserMessage } from "../../../knowledge/prompt-registry.ts";
+import { KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA } from "../../../knowledge/prompt-schemas.ts";
 import {
   decodeModelRuntimeConfiguration,
   resolveModelExecutionSelection,
@@ -84,68 +85,14 @@ export function resolveKnowledgeTaskProfile(
   configuration: KnowledgeModelRuntimeConfiguration,
   promptId: string,
 ): KnowledgeModelProfileBinding {
-  const definition = new KnowledgePromptRegistry().resolve(promptId, "1");
+  const definition = new KnowledgePromptRegistry().resolveCurrent(promptId);
   const binding = configuration.tasks[promptId];
   if (!binding) throw new Error(`Knowledge model task '${promptId}' is not configured.`);
   return validateKnowledgeModelProfile(binding, definition.profile);
 }
 
-export const KNOWLEDGE_EXTRACTION_JSON_SCHEMA: StaticJsonSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["page", "claims", "timeline"],
-  properties: {
-    page: {
-      type: "object", additionalProperties: false, required: ["title", "summary"],
-      properties: { title: { type: "string", minLength: 1, maxLength: 500 }, summary: { type: "string", maxLength: 4000 } },
-    },
-    claims: {
-      type: "array", maxItems: 200,
-      items: {
-        anyOf: [
-          {
-            type: "object", additionalProperties: false,
-            required: ["memoryClass", "claimKind", "claimText", "ownerPrincipalId", "evidenceId", "locator", "extractionConfidence", "epistemicWeight", "participantRelations"],
-            properties: {
-              memoryClass: { type: "string", const: "fact" }, claimKind: { type: "string", enum: ["event", "preference", "commitment", "belief", "fact"] },
-              claimText: { type: "string", minLength: 1, maxLength: 10000 }, ownerPrincipalId: { type: "string", minLength: 1, maxLength: 256 },
-              evidenceId: { type: "string", const: "evidence:source" }, locator: { $ref: "#/$defs/locator" },
-              extractionConfidence: { type: "number", minimum: 0, maximum: 1 }, epistemicWeight: { type: "number", minimum: 0, maximum: 1 },
-              participantRelations: { $ref: "#/$defs/participantRelations" },
-            },
-          },
-          {
-            type: "object", additionalProperties: false,
-            required: ["memoryClass", "claimKind", "claimText", "holder", "derivation", "evidenceId", "locator", "extractionConfidence", "epistemicWeight", "participantRelations"],
-            properties: {
-              memoryClass: { type: "string", const: "take" }, claimKind: { type: "string", enum: ["fact", "take", "bet", "hunch"] },
-              claimText: { type: "string", minLength: 1, maxLength: 10000 },
-              holder: { type: "object", additionalProperties: false, required: ["holderId", "holderType", "displayName"], properties: {
-                holderId: { type: "string", minLength: 1, maxLength: 256 }, holderType: { type: "string", enum: ["person", "team", "company", "world", "system", "unresolved"] }, displayName: { type: "string", minLength: 1, maxLength: 500 },
-              } },
-              derivation: { type: "string", enum: ["source-literal", "model-derived"] }, evidenceId: { type: "string", const: "evidence:source" }, locator: { $ref: "#/$defs/locator" },
-              extractionConfidence: { type: "number", minimum: 0, maximum: 1 }, epistemicWeight: { type: "number", minimum: 0, maximum: 1 },
-              participantRelations: { $ref: "#/$defs/participantRelations" },
-            },
-          },
-        ],
-      },
-    },
-    timeline: { type: "array", maxItems: 200, items: { type: "object", additionalProperties: false, required: ["eventType", "description", "observedAt", "locator"], properties: {
-      eventType: { type: "string", minLength: 1, maxLength: 200 }, description: { type: "string", minLength: 1, maxLength: 2000 }, observedAt: { type: "string", format: "date-time" }, locator: { $ref: "#/$defs/locator" },
-    } } },
-  },
-  $defs: {
-    locator: { anyOf: [
-      { type: "object", additionalProperties: false, required: ["kind", "start", "end"], properties: { kind: { type: "string", const: "line" }, start: { type: "integer", minimum: 1 }, end: { type: "integer", minimum: 1 } } },
-      { type: "object", additionalProperties: false, required: ["kind", "startMs", "endMs"], properties: { kind: { type: "string", const: "timestamp" }, startMs: { type: "number", minimum: 0 }, endMs: { type: "number", minimum: 0 } } },
-    ] },
-    participantRelations: { type: "array", maxItems: 100, items: { type: "object", additionalProperties: false, required: ["relation", "principalId"], properties: {
-      relation: { type: "string", enum: ["speaker", "author", "subject", "approver", "owner", "beneficiary", "affected-party"] }, principalId: { type: "string", minLength: 1, maxLength: 256 },
-    } } },
-  },
-};
-const extractionSchema = jsonSchema(KNOWLEDGE_EXTRACTION_JSON_SCHEMA);
+/** @deprecated Use the task-specific Prompt Registry output schema. */
+export const KNOWLEDGE_EXTRACTION_JSON_SCHEMA: StaticJsonSchema = KNOWLEDGE_CLAIM_EXTRACTION_OUTPUT_SCHEMA as unknown as StaticJsonSchema;
 
 export const KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA: StaticJsonSchema = {
   type: "object",
@@ -179,6 +126,7 @@ export const knowledgeModelAdapterDigest = (route: string, model: string): strin
 
 export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
   async execute(profile: KnowledgeModelProfileBinding, request: KnowledgeModelRequest): Promise<KnowledgeModelProviderResult> {
+    const definition = new KnowledgePromptRegistry().resolveExecution(request);
     const resolved = resolveModelExecution({
       profile: profile.profile,
       task: request.promptId,
@@ -189,17 +137,13 @@ export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
       },
       requiredCapability: "structured-output",
     });
-    const numberedEvidence = request.evidenceBlocks.map((block) => ({
-      evidenceId: block.evidenceId,
-      content: block.content.split("\n").map((line, index) => `${index + 1}: ${line}`).join("\n"),
-    }));
     const started = Date.now();
     try {
       const result = await generateText({
         model: resolved.model,
-        system: request.systemInstruction,
-        prompt: `Return the declared extraction object. Use one-based original line numbers for every line locator. Facts require the accountable principal in ownerPrincipalId. Takes require exactly one attributable holder. Use participantRelations only when the evidence explicitly identifies them.\n\n${numberedEvidence.map((block) => `<evidence id="${block.evidenceId}">\n${block.content}\n</evidence>`).join("\n\n")}`,
-        output: Output.object({ schema: extractionSchema }),
+        system: definition.systemInstruction,
+        prompt: renderKnowledgePromptUserMessage(definition, request),
+        output: Output.object({ schema: jsonSchema(definition.outputSchema as unknown as StaticJsonSchema) }),
         temperature: 0,
         maxOutputTokens: profile.maxOutputTokens,
         ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),

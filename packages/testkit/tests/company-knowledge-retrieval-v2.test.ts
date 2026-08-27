@@ -129,6 +129,17 @@ test("explicit synthesis uses a qualified profile, validates membership, and fal
   const refused = await synthesizeKnowledgeAnswer({ query: "Cedar launch", context, executor: { execute: async () => ({ output: {}, responseId: "refused", responseModel: "test/deep", inputTokens: 10, outputTokens: 0, costUsd: 0, latencyMs: 1, finishReason: "refusal" }) }, profile, authorizationContextDigest: sha256("auth"), dataClass: "restricted", grant: true, now });
   assert.equal(refused.envelope.status, "extractive-fallback");
   assert.equal(refused.envelope.citations.length, context.records.length);
+  let receivedTaskInput: Readonly<Record<string, unknown>> | undefined;
+  const source = context.records[0];
+  const answered = await synthesizeKnowledgeAnswer({
+    query: "  Cedar launch  ", context, profile, authorizationContextDigest: sha256("auth"), dataClass: "restricted", grant: true, now,
+    executor: { execute: async (_binding, request) => {
+      receivedTaskInput = request.taskInput;
+      return { output: { answer: "Cedar has launch evidence.", citations: [{ identity: source.identity, contentDigest: source.contentDigest }], labels: [source.label], gaps: [], conflicts: [], freshness: "current" }, responseId: "answered", responseModel: "test/deep", inputTokens: 20, outputTokens: 20, costUsd: 0, latencyMs: 1, finishReason: "stop" };
+    } },
+  });
+  assert.deepEqual(receivedTaskInput, { query: "Cedar launch", contextReceiptId: context.receipt.receiptId });
+  assert.equal(answered.envelope.status, "answered");
 });
 
 test("compounding scopes source work per Source and mixed or global work once per Brain", async () => {
