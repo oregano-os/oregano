@@ -274,9 +274,10 @@ evidence, historical prototypes, and production gaps.
   unavailable answer after the call. The corrected response gate withholds
   substantive output after execution failure, rejects malformed search output,
   and replaces an ignored successful result with authorized cited excerpts.
-  Production deployment `dpl_GVhABy2xPrVx9oRqg8jnAkLhvUkw` remains the
-  call-only baseline; the corrected deployment and repeated cited Slack probe
-  remain Instance qualification work.
+  Production deployment `dpl_3RpK8bo2pgigyytbnqiG4vkUER6V` is ready at the
+  canonical production alias and exposes the same three R0 Knowledge grants
+  for Oregano. The repeated cited Slack probe remains Instance qualification
+  work.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human
