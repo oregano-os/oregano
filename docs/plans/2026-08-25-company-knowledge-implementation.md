@@ -805,6 +805,33 @@ Agent model remains a Runner model turn; when it answers from Knowledge Tools,
 it applies the compiled Knowledge Answer Contract in that same turn rather
 than invoking a second synthesis model by default.
 
+The maintained direct-Anthropic setup preset uses a Knowledge-only binding.
+This is optional Instance configuration, not a provider restriction in Core:
+
+| Prompt task | Profile | Maintained direct model |
+|---|---|---|
+| `knowledge.triage` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
+| `knowledge.page-classification` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
+| `knowledge.duplicate-classification` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
+| `knowledge.conflict-judgment` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
+| `knowledge.query-expansion` | `utility` | `anthropic/claude-haiku-4-5-20251001` |
+| `knowledge.rerank` when an explicit generative rerank is requested | `utility` | `anthropic/claude-haiku-4-5-20251001` |
+| `knowledge.claim-extraction` | `reasoning` | `anthropic/claude-sonnet-4-6` |
+| `knowledge.timeline-extraction` | `reasoning` | `anthropic/claude-sonnet-4-6` |
+| `knowledge.claim-relation` | `reasoning` | `anthropic/claude-sonnet-4-6` |
+| `knowledge.identity-link` | `reasoning` | `anthropic/claude-sonnet-4-6` |
+| `knowledge.inferred-link` | `reasoning` | `anthropic/claude-sonnet-4-6` |
+| `knowledge.claim-grading` | `reasoning` | `anthropic/claude-sonnet-4-6` |
+| `knowledge.cited-synthesis` | `deep` | `anthropic/claude-opus-4-7` |
+| `knowledge.working-synthesis` | `deep` | `anthropic/claude-opus-4-7` |
+
+Exact task bindings may override this tier mapping. `embedding` remains a
+separate non-generative capability because Anthropic does not supply an
+embedding model through this recipe. The ordinary evaluated `reranker` path
+also remains a separate cross-encoder capability; the registered generative
+rerank prompt is not a substitute for that adapter and is not enabled by
+default retrieval.
+
 ### 12.5 Normative model-use matrix
 
 Every knowledge pipeline step declares whether it is deterministic,
@@ -816,7 +843,7 @@ cost policy, and its regression evidence.
 |---|---|---|---|---|
 | sanity, encoding, size, credential, and ACL gates | deterministic | none | quarantine or explicit validation failure | no model-visible context until passed |
 | source-processing triage | deterministic rules first; optional `utility` verdict for ambiguous or expensive material | `knowledge.triage@1` | `deferred` or `unreliable`; never a terminal low-value decision | select processing depth only |
-| Page-type classification | frontmatter, Connector metadata, registry aliases, and path rules first; `reasoning` only when unresolved | `knowledge.classify-page@1` | `note` or unresolved proposal according to declared source policy | versioned Page type or review proposal; never a new undeclared type |
+| Page-type classification | frontmatter, Connector metadata, registry aliases, and path rules first; `utility` only when unresolved | `knowledge.classify-page@1` | `note` or unresolved proposal according to declared source policy | versioned Page type or review proposal; never a new undeclared type |
 | Fact, Take, typed metric, Holder, and participant extraction | `reasoning` structured extraction | `knowledge.extract-claims@1` | retryable extraction state; Raw Evidence remains retained and searchable when authorized | scoped Facts, source-literal Takes, or bounded proposals under Section 12.1 |
 | timeline extraction | deterministic provider timestamps and explicit date fields first; `reasoning` for events expressed in prose | `knowledge.extract-timeline@1` | retain the Page without inferred events and mark extraction incomplete | cited timeline events only |
 | exact duplicate detection | stable provider identity and content digest | none | fail closed without consolidation | exact duplicate receipt |
@@ -828,7 +855,7 @@ cost policy, and its regression evidence.
 | lexical, semantic, RRF, graph augmentation, collapse, and diversity | deterministic plus `embedding` where enabled | none | lexical fallback with explicit degradation | bounded authorized evidence set |
 | query expansion | disabled in `fast` and `balanced` by default; optional `utility` call in `deep` | `knowledge.query-expand@1` | original query only | additional sanitized candidate queries |
 | reranking | optional `reranker` in an evaluated cost mode | none | preserve pre-rerank order and report degradation | bounded rank change only |
-| contradiction judgment | deterministic candidate selection followed by `reasoning` only for plausible pairs | `knowledge.detect-conflict@1` | unresolved conflict candidate | conflict evidence or proposal; no Claim deletion |
+| contradiction judgment | deterministic candidate selection followed by a bounded `utility` verdict only for plausible pairs | `knowledge.detect-conflict@1` | unresolved conflict candidate | conflict evidence or proposal; no Claim deletion |
 | interactive Agent answer | existing Agent model turn over an authorized context built from Knowledge Tool results | `knowledge.answer@1` compiled fragment | cited extractive response, explicit unavailable state, or stated gap | conversational answer only |
 | explicit answer synthesis | `deep` through `knowledge.synthesize` | `knowledge.answer@1` | typed `unavailable` or declared extractive fallback | structured answer; persistence is separate |
 | durable working synthesis | `deep` background task | `knowledge.working-synthesis@1` | preserve the prior synthesis and keep refresh retryable | immutable synthesis version |
@@ -2259,7 +2286,11 @@ Page and Claim extraction, Holder separation, participant relations, timeline
 validation, proposal-only model Takes, and idempotent run identity are
 implemented with executable fixtures. Participant relations and Timeline Events
 are now persisted idempotently in their dedicated tables. Live production
-model qualification and extraction remain Instance work.
+model qualification and extraction remain Instance work. Every registered
+Knowledge prompt now compiles through the shared exact-task/profile/default
+resolver. The maintained setup preset binds utility, reasoning, and deep
+tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus 4.7 respectively;
+production smoke evidence and source extraction still remain Instance work.
 
 ### Phase 5 — Salience, consolidation, synthesis, and retrieval
 

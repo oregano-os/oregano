@@ -7,6 +7,7 @@ import {
   knowledgeModelAdapterDigest,
   KNOWLEDGE_EXTRACTION_JSON_SCHEMA,
   KNOWLEDGE_SMOKE_TEST_JSON_SCHEMA,
+  resolveKnowledgeTaskProfile,
 } from "./knowledge-model-runtime.ts";
 
 const qualifiedAt = "2026-08-26T18:00:00.000Z";
@@ -28,34 +29,55 @@ const profile = (name: "utility" | "reasoning"): KnowledgeModelProfileBinding =>
   qualification: { qualifiedAt, receiptId: sha256(`${name}:qualification`), adapterDigest },
 });
 
-test("Knowledge model runtime accepts independent utility and reasoning recipe bindings", () => {
+test("Knowledge model runtime keeps legacy utility and reasoning bindings readable", () => {
   const configuration = { version: 1 as const, utility: profile("utility"), reasoning: profile("reasoning") };
   const encoded = Buffer.from(JSON.stringify(configuration)).toString("base64");
-  assert.deepEqual(decodeKnowledgeModelRuntimeConfiguration(encoded), configuration);
+  const decoded = decodeKnowledgeModelRuntimeConfiguration(encoded);
+  assert.equal(Object.keys(decoded.tasks).length, 14);
+  assert.deepEqual(resolveKnowledgeTaskProfile(decoded, "knowledge.page-classification"), configuration.utility);
+  assert.deepEqual(resolveKnowledgeTaskProfile(decoded, "knowledge.claim-extraction"), configuration.reasoning);
+  assert.equal(resolveKnowledgeTaskProfile(decoded, "knowledge.working-synthesis").profile, "deep");
+  assert.equal(resolveKnowledgeTaskProfile(decoded, "knowledge.working-synthesis").model, configuration.reasoning.model);
   assert.throws(() => decodeKnowledgeModelRuntimeConfiguration(Buffer.from(JSON.stringify({ ...configuration, token: "forbidden" })).toString("base64")), /unsupported shape/);
-  const split = { ...configuration, reasoning: { ...configuration.reasoning, route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6" } };
-  assert.deepEqual(decodeKnowledgeModelRuntimeConfiguration(Buffer.from(JSON.stringify(split)).toString("base64")), split);
   assert.equal(adapterDigest, sha256({ adapter: "oregano/model-recipe-knowledge", version: "1.0.0", route, model }));
 });
 
-test("Knowledge model runtime derives simple profiles from the shared CompanyOS model configuration", () => {
-  const shared = Buffer.from(JSON.stringify({
+test("Knowledge model runtime compiles every prompt through profile and exact task recipes", () => {
+  const knowledge = Buffer.from(JSON.stringify({
     version: 1,
     profiles: {
-      utility: { route: "anthropic-direct", model: "anthropic/claude-haiku-4-5", maxOutputTokens: 2_000 },
-      reasoning: { route: "openai-direct", model: "openai/gpt-5.4-mini", maxOutputTokens: 8_000 },
+      utility: { route: "anthropic-direct", model: "anthropic/claude-haiku-4-5-20251001", maxOutputTokens: 2_000 },
+      reasoning: { route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6", maxOutputTokens: 8_000 },
+      deep: { route: "anthropic-direct", model: "anthropic/claude-opus-4-7", maxOutputTokens: 16_000 },
     },
+    tasks: {
+      "knowledge.claim-grading": { route: "anthropic-direct", model: "anthropic/claude-opus-4-7", maxOutputTokens: 12_000 },
+    },
+  })).toString("base64");
+  const configuration = decodeKnowledgeModelRuntimeConfiguration(knowledge, {
+    ANTHROPIC_API_KEY: "synthetic-anthropic-key",
+  });
+  assert.equal(Object.keys(configuration.tasks).length, 14);
+  assert.deepEqual(
+    [resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").model, resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").maxOutputTokens],
+    ["anthropic/claude-haiku-4-5-20251001", 2_000],
+  );
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-extraction").model, "anthropic/claude-sonnet-4-6");
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.cited-synthesis").model, "anthropic/claude-opus-4-7");
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-grading").maxOutputTokens, 12_000);
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.page-classification").qualification, undefined);
+});
+
+test("Knowledge model runtime inherits the shared CompanyOS recipe configuration when no Knowledge override exists", () => {
+  const shared = Buffer.from(JSON.stringify({
+    version: 1,
+    profiles: { reasoning: { route: "openai-direct", model: "openai/gpt-5.4-mini", maxOutputTokens: 8_000 } },
   })).toString("base64");
   const configuration = decodeKnowledgeModelRuntimeConfiguration(undefined, {
     COMPANYOS_MODEL_CONFIG_BASE64: shared,
-    ANTHROPIC_API_KEY: "synthetic-anthropic-key",
     OPENAI_API_KEY: "synthetic-openai-key",
   });
-  assert.equal(configuration.utility.route, "anthropic-direct");
-  assert.equal(configuration.utility.maxOutputTokens, 2_000);
-  assert.equal(configuration.reasoning.route, "openai-direct");
-  assert.equal(configuration.reasoning.maxOutputTokens, 8_000);
-  assert.equal(configuration.utility.qualification, undefined);
+  assert.equal(resolveKnowledgeTaskProfile(configuration, "knowledge.claim-extraction").model, "openai/gpt-5.4-mini");
 });
 
 test("Knowledge structured-output schemas type every constant for strict provider validation", () => {

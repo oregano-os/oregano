@@ -135,9 +135,9 @@ export const ANTHROPIC_DIRECT_RECIPE = recipe({
   capabilities: ["language", "tools", "structured-output"],
   defaultModels: {
     agent: "anthropic/claude-sonnet-4-6",
-    utility: "anthropic/claude-haiku-4-5",
+    utility: "anthropic/claude-haiku-4-5-20251001",
     reasoning: "anthropic/claude-sonnet-4-6",
-    deep: "anthropic/claude-opus-4-6",
+    deep: "anthropic/claude-opus-4-7",
     subagent: "anthropic/claude-sonnet-4-6",
   },
   supports: supportsProvider("anthropic"),

@@ -8,11 +8,15 @@ import {
   type KnowledgeModelProfileBinding,
   type KnowledgeModelProviderResult,
   type KnowledgeModelRequest,
+  type KnowledgeModelTaskProfile,
 } from "../../../knowledge/knowledge-model-execution.ts";
+import { KnowledgePromptRegistry } from "../../../knowledge/prompt-registry.ts";
 import {
+  decodeModelRuntimeConfiguration,
   resolveModelExecutionSelection,
   type ModelExecutionRoute,
   type ModelExecutionSelection,
+  type ModelRuntimeConfiguration,
 } from "../../../runner/model-execution.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { PostgresBrainStore } from "../../../state-postgres/brain-store.ts";
@@ -29,12 +33,11 @@ export const GRANOLA_EXTRACTION_STREAM = `${GRANOLA_RECONCILIATION_STREAM}:extra
 
 export interface KnowledgeModelRuntimeConfiguration {
   version: 1;
-  utility: KnowledgeModelProfileBinding;
-  reasoning: KnowledgeModelProfileBinding;
+  tasks: Readonly<Record<string, KnowledgeModelProfileBinding>>;
 }
 
 const knowledgeProfile = (
-  profile: "utility" | "reasoning",
+  profile: KnowledgeModelTaskProfile,
   selection: ModelExecutionSelection,
   defaultMaxOutputTokens: number,
 ): KnowledgeModelProfileBinding => ({
@@ -45,6 +48,47 @@ const knowledgeProfile = (
   model: selection.model,
   maxOutputTokens: selection.maxOutputTokens ?? defaultMaxOutputTokens,
 });
+
+const defaultMaxOutputTokens = (profile: KnowledgeModelTaskProfile): number =>
+  profile === "utility" ? 4_000 : profile === "deep" ? 32_000 : 16_000;
+
+const compileKnowledgeTasks = (
+  configuration: ModelRuntimeConfiguration | undefined,
+  environment: Readonly<Record<string, string | undefined>>,
+): Readonly<Record<string, KnowledgeModelProfileBinding>> => Object.fromEntries(
+  new KnowledgePromptRegistry().list().map((definition) => {
+    const selection = resolveModelExecutionSelection({
+      profile: definition.profile,
+      task: definition.promptId,
+      requiredCapability: "structured-output",
+      configuration,
+      environment,
+    });
+    return [definition.promptId, knowledgeProfile(definition.profile, selection, defaultMaxOutputTokens(definition.profile))];
+  }),
+);
+
+const compileLegacyKnowledgeTasks = (
+  utilityValue: unknown,
+  reasoningValue: unknown,
+): Readonly<Record<string, KnowledgeModelProfileBinding>> => {
+  const utility = validateKnowledgeModelProfile(utilityValue as KnowledgeModelProfileBinding, "utility");
+  const reasoning = validateKnowledgeModelProfile(reasoningValue as KnowledgeModelProfileBinding, "reasoning");
+  return Object.fromEntries(new KnowledgePromptRegistry().list().map((definition) => {
+    const inherited = definition.profile === "utility" ? utility : reasoning;
+    return [definition.promptId, validateKnowledgeModelProfile({ ...inherited, profile: definition.profile }, definition.profile)];
+  }));
+};
+
+export function resolveKnowledgeTaskProfile(
+  configuration: KnowledgeModelRuntimeConfiguration,
+  promptId: string,
+): KnowledgeModelProfileBinding {
+  const definition = new KnowledgePromptRegistry().resolve(promptId, "1");
+  const binding = configuration.tasks[promptId];
+  if (!binding) throw new Error(`Knowledge model task '${promptId}' is not configured.`);
+  return validateKnowledgeModelProfile(binding, definition.profile);
+}
 
 export const KNOWLEDGE_EXTRACTION_JSON_SCHEMA: StaticJsonSchema = {
   type: "object",
@@ -116,20 +160,19 @@ export function decodeKnowledgeModelRuntimeConfiguration(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): KnowledgeModelRuntimeConfiguration {
   if (!encoded) {
-    return {
-      version: 1,
-      utility: knowledgeProfile("utility", resolveModelExecutionSelection({ profile: "utility", task: "knowledge.page-classification", requiredCapability: "structured-output", environment }), 4_000),
-      reasoning: knowledgeProfile("reasoning", resolveModelExecutionSelection({ profile: "reasoning", task: "knowledge.claim-extraction", requiredCapability: "structured-output", environment }), 16_000),
-    };
+    return { version: 1, tasks: compileKnowledgeTasks(decodeModelRuntimeConfiguration(environment.COMPANYOS_MODEL_CONFIG_BASE64), environment) };
   }
   let parsed: unknown;
   try { parsed = JSON.parse(Buffer.from(encoded, "base64").toString("utf8")); } catch { throw new Error(`${KNOWLEDGE_MODEL_CONFIG_ENV} is malformed.`); }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Knowledge model runtime configuration must be an object.");
   const value = parsed as Record<string, unknown>;
-  if (value.version !== 1 || !value.utility || !value.reasoning || Object.keys(value).some((key) => !["version", "utility", "reasoning"].includes(key))) throw new Error("Knowledge model runtime configuration has an unsupported shape.");
-  const utility = validateKnowledgeModelProfile(value.utility as KnowledgeModelProfileBinding, "utility");
-  const reasoning = validateKnowledgeModelProfile(value.reasoning as KnowledgeModelProfileBinding, "reasoning");
-  return { version: 1, utility, reasoning };
+  const legacyKeys = ["version", "utility", "reasoning"];
+  if (value.version === 1 && value.utility && value.reasoning && Object.keys(value).every((key) => legacyKeys.includes(key))) {
+    return { version: 1, tasks: compileLegacyKnowledgeTasks(value.utility, value.reasoning) };
+  }
+  const configuration = decodeModelRuntimeConfiguration(encoded);
+  if (!configuration) throw new Error("Knowledge model runtime configuration has an unsupported shape.");
+  return { version: 1, tasks: compileKnowledgeTasks(configuration, environment) };
 }
 
 export const knowledgeModelAdapterDigest = (route: string, model: string): string => sha256({ adapter: "oregano/model-recipe-knowledge", version: "1.0.0", route, model });
@@ -180,24 +223,40 @@ export class VercelKnowledgeModelExecutor implements KnowledgeModelExecutor {
     }
   }
 
-  async smokeTest() {
-    const resolved = resolveModelExecution({ profile: "utility", task: "setup.model-smoke-test", requiredCapability: "structured-output" });
-    const started = Date.now();
-    const result = await generateText({
-      model: resolved.model,
-      system: "Return only the declared smoke-test object.",
-      prompt: "Return status ready.",
-      output: Output.object({ schema: smokeTestSchema }),
-      temperature: 0,
-      maxOutputTokens: 32,
-      ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
-      ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
-    });
-    if ((result.output as { status?: string }).status !== "ready") throw new Error("Knowledge model smoke test returned unexpected output.");
+  async smokeTest(configuration = decodeKnowledgeModelRuntimeConfiguration()) {
+    const distinct = [...new Map(Object.values(configuration.tasks).map((binding) => [`${binding.route}:${binding.model}`, binding])).values()];
+    const models = [];
     const testedAt = new Date().toISOString();
-    const adapterDigest = knowledgeModelAdapterDigest(resolved.selection.route, resolved.selection.model);
-    const testId = sha256({ testedAt, adapterDigest, route: resolved.selection.route, model: resolved.selection.model, responseId: result.response.id, responseModel: result.response.modelId });
-    return { ok: true, testedAt, testId, adapterDigest, route: resolved.selection.route, model: resolved.selection.model, latencyMs: Date.now() - started };
+    for (const binding of distinct) {
+      const resolved = resolveModelExecution({
+        profile: binding.profile,
+        task: "setup.model-smoke-test",
+        binding: { route: binding.route as ModelExecutionRoute, model: binding.model, maxOutputTokens: 32 },
+        requiredCapability: "structured-output",
+      });
+      const started = Date.now();
+      const result = await generateText({
+        model: resolved.model,
+        system: "Return only the declared smoke-test object.",
+        prompt: "Return status ready.",
+        output: Output.object({ schema: smokeTestSchema }),
+        temperature: 0,
+        maxOutputTokens: 32,
+        ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
+        ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
+      });
+      if ((result.output as { status?: string }).status !== "ready") throw new Error("Knowledge model smoke test returned unexpected output.");
+      models.push({
+        route: resolved.selection.route,
+        model: resolved.selection.model,
+        adapterDigest: knowledgeModelAdapterDigest(resolved.selection.route, resolved.selection.model),
+        responseModel: result.response.modelId,
+        latencyMs: Date.now() - started,
+      });
+    }
+    const adapterDigest = sha256(models.map(({ route, model, adapterDigest: digest }) => ({ route, model, adapterDigest: digest })));
+    const testId = sha256({ testedAt, adapterDigest, models });
+    return { ok: true, testedAt, testId, adapterDigest, models };
   }
 }
 
@@ -250,7 +309,10 @@ export class GranolaKnowledgeExtractionRuntime {
           brainStore: this.#brainStore,
           runStore: this.#runStore,
           modelExecutor: this.#executor,
-          profiles: { utility: this.#configuration.utility, reasoning: this.#configuration.reasoning },
+          profiles: {
+            utility: resolveKnowledgeTaskProfile(this.#configuration, "knowledge.page-classification"),
+            reasoning: resolveKnowledgeTaskProfile(this.#configuration, "knowledge.claim-extraction"),
+          },
           authorizationContextDigest: sha256({ principalId: subject.principalId, policyId: evidence.envelope.accessPolicyId, providerObjectId: object.providerObjectId, providerVersion: object.providerVersion }),
           dataClass: source.requirement.dataClass,
         });
