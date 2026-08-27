@@ -375,10 +375,9 @@ export class GranolaKnowledgeExtractionRuntime {
       const authorizer = new KnowledgeAuthorizer([policy], new PostgresKnowledgeAccessAuditor());
       const objects = await this.#sourceStore.listCurrentSourceObjects(sourceId);
       const limit = Math.max(1, Math.min(input.maxItems ?? 2, 10));
-      let processed = 0;
       let current = 0;
       let deferred = 0;
-      let claims = 0;
+      const extractionTasks: Array<ReturnType<typeof extractRawEvidenceToBrain>> = [];
       for (const object of objects) {
         if (object.deletionState !== "present") continue;
         const evidence = await this.#sourceStore.currentRawEvidence(sourceId, object.providerObjectId);
@@ -387,10 +386,10 @@ export class GranolaKnowledgeExtractionRuntime {
         const page = await this.#brainStore.getPage(pageId);
         if (page?.version.sourceObjectVersion === object.providerVersion) { current += 1; continue; }
         if (!evidence.content || !("inlineText" in evidence.content)) { deferred += 1; continue; }
-        if (processed >= limit) continue;
+        if (extractionTasks.length >= limit) continue;
         const permit = await authorizer.authorize({ subject, permission: "read", policyIds: [evidence.envelope.accessPolicyId], objectType: "model-context", objectId: `${sourceId}:${object.providerObjectId}:${object.providerVersion}` });
         if (!permit) { deferred += 1; continue; }
-        const result = await extractRawEvidenceToBrain({
+        extractionTasks.push(extractRawEvidenceToBrain({
           evidence,
           sourceKind: source.requirement.sourceKind,
           ownerPrincipalId: source.requirement.dataOwner,
@@ -403,10 +402,11 @@ export class GranolaKnowledgeExtractionRuntime {
           },
           authorizationContextDigest: sha256({ principalId: subject.principalId, policyId: evidence.envelope.accessPolicyId, providerObjectId: object.providerObjectId, providerVersion: object.providerVersion }),
           dataClass: source.requirement.dataClass,
-        });
-        processed += 1;
-        claims += result.claims.length;
+        }));
       }
+      const results = await Promise.all(extractionTasks);
+      const processed = results.length;
+      const claims = results.reduce((sum, result) => sum + result.claims.length, 0);
       const remaining = Math.max(0, objects.filter((object) => object.deletionState === "present").length - current - processed - deferred);
       return { ok: true, status: remaining === 0 ? "complete" as const : "partial" as const, sourceId, processed, current, deferred, claims, remaining };
     } finally {
