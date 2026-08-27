@@ -1,0 +1,31 @@
+fixture_id: prd-draft-independent-evidence
+input:
+  conversation_id: conversation-003
+  content_digest: sha256-example-003
+  related_evidence:
+    - conversation_id: conversation-004
+      independence: different-company-and-meeting
+  evidence:
+    - evidence_id: evidence-003
+      speaker_role: customer-success-lead
+      text: We lose the approved state when a teammate edits the record, and then no one can tell what changed.
+    - evidence_id: evidence-004
+      conversation_id: conversation-004
+      speaker_role: compliance-lead
+      text: We need to see the approved version and later changes before we can complete the review.
+expected:
+  status: completed
+  decision: prd_draft
+  reason_codes:
+    - PRODUCT_PROBLEM_OBSERVED
+    - REPEATED_INDEPENDENT_EVIDENCE
+    - PRD_GATE_MET
+  confidence: high
+  required_prd_sections:
+    - Problem
+    - Evidence
+    - Non-goals
+    - Acceptance criteria
+    - Risks and safeguards
+    - Provenance
+  publish_requires_human_approval: true

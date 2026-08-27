@@ -53,12 +53,28 @@ export const VERCEL_NEON_SLACK_PROFILE = defineSetupProviderProfile({
         sourceFilesOutsideRootDirectory: this.sourceFilesOutsideRootDirectory,
       };
     },
+    secretBoundCommand(input) {
+      return {
+        executable: "vercel",
+        args: [
+          "env", "run",
+          "--environment", input.environment,
+          "--project", input.project,
+          "--cwd", input.cwd,
+          "--scope", input.scope,
+          "--",
+          ...input.command,
+        ],
+      };
+    },
   },
   stateService: {
     role: "state-service",
     provider: "neon",
     qualifiedPlan: "free_v3",
     qualifiedRegion: "fra1",
+    databaseDialect: "postgresql",
+    databaseSecretRef: "DATABASE_URL",
     normalizeCreateReceipt(payload, expectedName) {
       return resourceReceipt(payload, expectedName);
     },

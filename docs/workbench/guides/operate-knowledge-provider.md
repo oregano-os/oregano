@@ -1,0 +1,97 @@
+---
+document_id: guide.operate-knowledge-provider
+title: Operate the Knowledge Provider
+kind: guide
+status: building
+authority: canonical
+language: en
+updated: 2026-08-25
+owners:
+  - oregano-maintainers
+audience:
+  - human
+  - agent
+relations:
+  depends_on:
+    - specification.company-knowledge-v0.1
+    - architecture.company-instance
+---
+
+# Operate the Knowledge Provider
+
+Use the existing Company Instance `DATABASE_URL`. Build the Knowledge Bundle,
+stage it, verify its counts, and activate its exact hash. Confirm a known
+lexical and hybrid query, a zero-result query, an exact `get`, and a bounded
+traversal before granting operating use. Provider health must state whether the
+optional vector index is available and name any lexical degradation.
+
+## Model runtime operation
+
+All direct Agent and Knowledge language-model calls resolve through the Core
+model-recipe registry. The optional `COMPANYOS_MODEL_CONFIG_BASE64` value binds
+exact tasks, profiles, and a default recipe/model; the simple
+`COMPANYOS_MODEL_ROUTE` and `COMPANYOS_MODEL` pair remains supported. A recipe
+references provider credential and optional base-URL environment names but
+never contains their values. Task bindings override profile bindings and the
+default. No request silently fails over across providers.
+
+Named compatible recipes use one shared transport but keep separate routes,
+credential references, default endpoints, model namespaces, and capability
+declarations. Their advisory model lists do not form a hard allowlist: a
+provider-native model ID remains valid under its route namespace. Ollama,
+llama-server, and LiteLLM must be selected explicitly and must be reachable
+from the runtime; their optional credentials are not replaced with synthetic
+keys.
+
+After changing a recipe, model, endpoint, or credential, call
+`POST /api/knowledge/model/smoke-test` with the maintained scheduler
+authorization. The route performs one bounded structured-output call and
+returns only its route, model, adapter digest, test identity, time, and latency.
+It does not activate a model profile, approve data egress, or create Handbook
+authority. Knowledge authorization still completes before every real evidence
+block is sent to a model.
+
+## Granola runtime operation
+
+The maintained Runner reads one SecretRef-only binding from
+`COMPANYOS_GRANOLA_SOURCE_CONFIG_BASE64`. The decoded value contains the V2
+requirement, binding identity, scopes, provider identity, lifecycle, fixed
+CompanyOS access policy, and qualification receipt; it contains no credential
+value. Runtime secret injection resolves `env:GRANOLA_API_KEY` only inside the
+provider call. `CRON_SECRET` protects the qualification and reconciliation
+routes, while `env:GRANOLA_WEBHOOK_SECRET` is a separate Standard Webhooks
+signing secret and is required only for webhook delivery.
+
+The portable runtime operations are:
+
+- `POST /api/knowledge/sources/granola/qualification` performs a read-only
+  provider check and returns bounded non-secret evidence;
+- `GET` or `POST /api/knowledge/sources/granola/reconcile` claims a durable
+  lease, resumes its cursor, reads at most two 30-note pages per invocation,
+  applies a 24-hour overlap, stores complete note and transcript evidence, and
+  advances the watermark only after a successful complete page; and
+- `POST /api/knowledge/sources/granola/webhook` verifies the untouched request
+  body and Standard Webhooks headers, persists the reference event before
+  acknowledgement, and fetches content asynchronously.
+
+The reference Vercel adapter schedules reconciliation every six hours. Another
+runtime host may bind the same operations to its scheduler, secret store, and
+HTTP ingress without changing the Source, event, Raw Evidence, Raw Asset,
+watermark, or lease contracts. A successful initial backfill MUST be followed
+by aggregate checks for source status, processed/failed/quarantined counts,
+current object count, Raw Asset count, and completed watermark. Those checks
+must not print note or transcript content.
+
+For rollback, verify that the previous bundle is still present and explicitly
+activate its hash. Run `companyos knowledge rebuild --snapshot <hash>` to
+reconstruct graph and optional embedding projections, then execute the
+versioned retrieval regression ledger. Preserve review decisions, source
+receipts/object versions, observation transitions/deletion requests/legal
+holds, and activation evidence. Do not change `search_path` globally and do
+not provision a second database for Company Knowledge.
+
+An unavailable embedding adapter or `pgvector` index is not a total outage:
+lexical retrieval remains active and returns explicit degradation evidence.
+Restore and rollback are Instance operations and require live evidence beyond
+repository tests. See the recovery and source-connection Guides for those
+procedures.

@@ -1,5 +1,5 @@
 version: 1
-updated: 2026-08-18
+updated: 2026-08-27
 companyos_spec:
   current: 0.7.0
   supported:
@@ -69,6 +69,311 @@ contracts:
       - deterministic-instance-artifact
       - exact-provenance-pair
       - resolved-toolset-provenance
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.okf
+    version: "0.1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: deterministic-okf-validator
+    tests:
+      - okf-validation-and-bundle-determinism
+      - okf-link-and-index-validation
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-bundle
+    version: "3"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: deterministic-heading-aware-knowledge-bundle
+    tests:
+      - knowledge-fragment-citations
+      - raw-inbox-exclusion
+      - deterministic-knowledge-graph
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-provider
+    version: "3.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: shared-database-postgres-knowledge-provider
+    tests:
+      - knowledge-snapshot-lifecycle
+      - lexical-search-citations-and-gaps
+      - hybrid-search-determinism-and-degradation
+      - bounded-graph-traversal
+      - authorization-before-ranking-and-traversal
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-tools
+    version: "3.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: standard-search-get-and-traverse-tools
+    tests:
+      - explicit-knowledge-tool-resolution
+      - knowledge-tool-runtime-connector-path
+      - fail-closed-runtime-subject-propagation
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-review
+    version: "1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: bounded-human-review-preview
+    tests:
+      - bounded-curation-and-quarantine
+      - review-does-not-self-publish
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-embedding
+    version: "1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: policy-bound-local-embedding-and-optional-pgvector
+    tests:
+      - embedding-egress-policy
+      - lexical-degradation
+      - retrieval-regression-ledger
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-graph
+    version: "1"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: okf-links-backlinks-orphans-and-bounded-traversal
+    tests:
+      - deterministic-knowledge-graph
+      - bounded-graph-traversal
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-source-connector
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: read-only-github-repository-v1-compatibility-through-v2-pipeline
+    tests:
+      - source-cursor-retry-and-receipts
+      - source-review-only-boundary
+      - source-v1-to-v2-durable-ingestion
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-source-connector
+    version: "2.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: provider-neutral-registry-with-native-github-granola-and-exact-local-v2
+    tests:
+      - source-v2-profile-validation
+      - source-v2-event-and-envelope-integrity
+      - source-v1-explicit-compatibility
+      - source-exact-registry-resolution
+      - source-binding-lifecycle-and-qualification
+      - github-v2-immutable-tree-and-bounded-fetch
+      - github-v2-complete-inventory-reconciliation
+      - granola-v2-standard-webhooks-and-replay-defense
+      - granola-v2-overlapping-reconciliation
+      - granola-v2-note-scope-and-transcript-pagination
+      - granola-v2-explicit-provider-wide-personal-public-scope
+      - granola-v2-durable-complete-transcript-storage
+      - local-v2-exact-input-only
+      - local-v2-shared-durable-ingestion
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.source-ingestion-pipeline
+    version: "2.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: durable-event-acl-evidence-lifecycle-and-change-stream-pipeline
+    tests:
+      - source-event-persist-before-fetch-and-exact-retry
+      - source-acl-normalization-and-quarantine
+      - source-sanity-and-raw-asset-verification
+      - source-watermark-completeness
+      - source-governed-lifecycle
+      - source-change-stream-integrity
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.runtime-observation
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-25
+    specification: specification.company-knowledge-v0.1
+    implementation: governed-runtime-observation-lifecycle
+    tests:
+      - observation-supersede-expire-delete-and-hold
+      - observation-review-only-boundary
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.session-corpus
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: idempotent-stop-buffer-transfer-and-temporary-corpus-lifecycle
+    tests:
+      - session-transfer-idempotency
+      - session-buffer-seven-day-cleanup
+      - session-corpus-thirty-day-cleanup
+      - explicit-durable-session-archive
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.model-recipe
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-27
+    specification: specification.company-knowledge-v0.2
+    implementation: shared-provider-recipe-registry-and-deterministic-task-profile-resolver
+    tests:
+      - model-recipe-registry
+      - task-profile-default-precedence
+      - key-aware-default-precedence
+      - no-silent-cross-provider-failover
+      - direct-provider-construction
+      - named-compatible-provider-construction
+      - optional-local-provider-credentials
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-model-execution
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: provider-recipe-task-profiles-and-execution-receipts
+    tests:
+      - model-recipe-profile-routing
+      - legacy-model-profile-compatibility
+      - payload-free-model-execution-receipts
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-prompt-registry
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: content-addressed-core-prompt-registry
+    tests:
+      - prompt-content-hash-golden-fixtures
+      - untrusted-evidence-block-boundary
+      - structured-output-identity-and-locator-validation
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-retrieval
+    version: "2.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: authorization-first-rrf-graph-timeline-explain-context-delta-and-synthesis
+    tests:
+      - authorization-before-every-retrieval-stage
+      - deterministic-context-pack-and-at-least-once-delta
+      - exact-context-citation-membership
+      - empty-context-answer-rejection
+      - capability-specific-timeline-and-explanation
+      - receipt-bound-deep-expansion-and-reranking
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-answer
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: context-receipt-bound-answer-envelope-and-renderer
+    tests:
+      - cited-answer-envelope-validation
+      - typed-unavailable-and-extractive-fallback
+      - synthesis-explicit-grant
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.handbook-promotion
+    version: "2.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: focused-diff-human-decision-receipt-materialization
+    tests:
+      - exact-source-and-effect-digest-binding
+      - active-human-promote-authority
+      - cross-document-effect-completeness
+      - receipt-replay-rejection
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.database-prepare
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-instance-release-promotion-v0.1
+    implementation: provider-neutral-bootstrap-upgrade-or-verify-detection
+    tests:
+      - absent-database-bootstrap-detection
+      - existing-database-upgrade-detection
+      - current-database-read-only-verification
+      - secret-bound-profile-execution
+    deprecated: null
+    replacement: null
+    removal_gate: explicit-oregano-maintainer-breaking-release-approval
+  - id: companyos.knowledge-operations
+    version: "1.0.0"
+    stability: experimental
+    owner: oregano-maintainers
+    introduced: 2026-08-26
+    specification: specification.company-knowledge-v0.2
+    implementation: payload-free-quality-slo-alert-regression-diagnostic-and-recovery-evidence
+    tests:
+      - payload-free-operation-metrics
+      - measured-slo-evaluation
+      - extraction-and-contradiction-quality-observations
+      - deterministic-slo-alert-candidates
+      - deterministic-fast-path-model-call-ledger
+      - recovery-and-compatibility-gates
     deprecated: null
     replacement: null
     removal_gate: explicit-oregano-maintainer-breaking-release-approval

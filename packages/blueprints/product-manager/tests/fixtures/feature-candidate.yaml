@@ -1,0 +1,19 @@
+fixture_id: feature-candidate-single-signal
+input:
+  conversation_id: conversation-002
+  content_digest: sha256-example-002
+  participants:
+    - role: operations-lead
+  evidence:
+    - evidence_id: evidence-002
+      speaker_role: operations-lead
+      text: I cannot compare the current plan with last month's version, so I export both and compare them manually.
+expected:
+  status: completed
+  decision: feature_candidate
+  reason_codes:
+    - PRODUCT_PROBLEM_OBSERVED
+    - NEEDS_CORROBORATION
+  confidence: medium
+  prd: null
+  publish: false

@@ -1,0 +1,68 @@
+version: 1
+plan_id: release-v0.4.0-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Prepare the Company Knowledge operating capability as Oregano v0.4.0
+objective: >-
+  Prepare one immutable minor release candidate containing the generic Company
+  Knowledge Source, storage, authorization, model, retrieval, promotion,
+  recovery, and maintained runtime integration contracts.
+non_goals:
+  - Publish or tag the release before the complete candidate passes validation
+  - Change an existing immutable release
+  - Claim production recovery or alert evidence before the exact Instance is exercised
+placement: core
+change_class: behavior
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-27-release-v0.4.0.yaml
+  - docs/status/current.md
+  - docs/workbench/overview.md
+  - package.json
+  - packages/cli/package.json
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/knowledge.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/fixtures/acme-casas/package.json
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - pnpm-lock.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-to-complete-the-company-knowledge-integration
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-release-v0.4.0.yaml
+  - pnpm companyos versions
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-release-v0.4.0.yaml
+  - pnpm docs:check
+  - pnpm check
+  - git diff --check
+tests:
+  - Core reports 0.4.0 and Workbench reports 0.1.0-experimental.8
+  - Existing provider, Tool, Workspace, setup, and runtime tests remain compatible
+  - Company Knowledge authorization and production runtime conformance tests pass
+  - Release inputs contain no Company Workspace credential or provider payload
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - workbench.overview
+migration: >-
+  This pre-1.0 minor release adds operating capabilities and requires each
+  Company Workspace to opt in with explicit Tool grants, capability allowlists,
+  exact Instance bindings, and an immutable 0.4.0 compatibility pin. Existing
+  0.3.2 Workspaces and deployments continue unchanged.
+rollback: >-
+  Keep or promote the prior immutable 0.3.2 Artifact and remove the new
+  Workspace grants and Instance bindings. Preserve retained Source evidence and
+  schema rows; rollback does not authorize deletion.
+open_decisions:
+  - Publish and tag only after the final clean candidate and live qualification evidence are reviewed.

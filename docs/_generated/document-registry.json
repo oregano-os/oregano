@@ -7,7 +7,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -42,7 +42,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -55,7 +55,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -74,7 +74,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -87,7 +87,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -131,7 +131,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -176,7 +176,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -242,6 +242,24 @@
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
+  },
+  {
+    "document_id": "command.knowledge",
+    "title": "companyos knowledge",
+    "path": "docs/workbench/commands/knowledge.md",
+    "kind": "command",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.1",
+        "specification.company-knowledge-v0.2"
+      ]
+    }
   },
   {
     "document_id": "command.onboard",
@@ -312,7 +330,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -347,7 +365,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -480,6 +498,23 @@
     "relations": {}
   },
   {
+    "document_id": "guide.author-company-knowledge",
+    "title": "Author Company Knowledge",
+    "path": "docs/workbench/guides/author-company-knowledge.md",
+    "kind": "guide",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-25",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.1"
+      ]
+    }
+  },
+  {
     "document_id": "guide.author-company-tool",
     "title": "Author a Company Tool",
     "path": "docs/workbench/guides/author-a-company-tool.md",
@@ -576,6 +611,25 @@
     "relations": {}
   },
   {
+    "document_id": "guide.connect-knowledge-source",
+    "title": "Connect a Repository Knowledge Source",
+    "path": "docs/workbench/guides/connect-knowledge-source.md",
+    "kind": "guide",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.1",
+        "specification.company-knowledge-v0.2",
+        "command.knowledge"
+      ]
+    }
+  },
+  {
     "document_id": "guide.manage-identity-access",
     "title": "Manage Identity and Access",
     "path": "docs/workbench/guides/manage-identity-and-access.md",
@@ -587,6 +641,24 @@
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
+  },
+  {
+    "document_id": "guide.operate-knowledge-provider",
+    "title": "Operate the Knowledge Provider",
+    "path": "docs/workbench/guides/operate-knowledge-provider.md",
+    "kind": "guide",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-25",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.1",
+        "architecture.company-instance"
+      ]
+    }
   },
   {
     "document_id": "guide.plan-change",
@@ -615,6 +687,24 @@
     "relations": {}
   },
   {
+    "document_id": "guide.recover-company-knowledge",
+    "title": "Recover Company Knowledge",
+    "path": "docs/workbench/guides/recover-company-knowledge.md",
+    "kind": "guide",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.2",
+        "guide.operate-knowledge-provider"
+      ]
+    }
+  },
+  {
     "document_id": "guide.review-change",
     "title": "Review a Governed Change",
     "path": "docs/workbench/guides/review-a-change.md",
@@ -626,6 +716,23 @@
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
+  },
+  {
+    "document_id": "guide.review-company-knowledge",
+    "title": "Review Company Knowledge",
+    "path": "docs/workbench/guides/review-company-knowledge.md",
+    "kind": "guide",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-25",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.1"
+      ]
+    }
   },
   {
     "document_id": "guide.start-here",
@@ -665,7 +772,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -685,7 +792,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -697,6 +804,57 @@
     }
   },
   {
+    "document_id": "plan.builder-acp-mvp-implementation",
+    "title": "Builder ACP MVP Architecture and Delivery Plan",
+    "path": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "kind": "plan",
+    "status": "approved",
+    "authority": "informative",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "reference.glossary",
+        "architecture.oregano-core",
+        "architecture.company-workspace",
+        "architecture.company-instance",
+        "specification.builder-governance",
+        "specification.companyos-core-v0.7",
+        "governance.agent-agreement"
+      ]
+    }
+  },
+  {
+    "document_id": "plan.company-knowledge-implementation",
+    "title": "Company Brain and Handbook Architecture and Delivery Plan",
+    "path": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "kind": "plan",
+    "status": "approved",
+    "authority": "informative",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "reference.glossary",
+        "architecture.overview",
+        "architecture.boundaries",
+        "architecture.oregano-core",
+        "architecture.company-workspace",
+        "architecture.company-instance",
+        "architecture.ecosystem-packages",
+        "specification.companyos-core-v0.7",
+        "specification.tool-architecture",
+        "specification.company-knowledge-v0.1"
+      ]
+    }
+  },
+  {
     "document_id": "reference.glossary",
     "title": "CompanyOS Glossary",
     "path": "docs/glossary.md",
@@ -704,7 +862,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -749,7 +907,7 @@
     "status": "draft",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-26",
     "availability": "planned",
     "migration_sources": [],
     "relations": {
@@ -759,6 +917,45 @@
         "architecture.security-governance",
         "governance.roles",
         "specification.identity-access-offboarding"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.company-knowledge-v0.1",
+    "title": "Company Knowledge v0.1 Specification",
+    "path": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "kind": "specification",
+    "status": "implemented",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7",
+        "specification.tool-architecture",
+        "architecture.boundaries"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.company-knowledge-v0.2",
+    "title": "Company Knowledge v0.2 Specification",
+    "path": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "kind": "specification",
+    "status": "approved",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-26",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-knowledge-v0.1",
+        "specification.companyos-core-v0.7",
+        "specification.tool-architecture",
+        "architecture.boundaries"
       ]
     }
   },
@@ -851,7 +1048,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -904,7 +1101,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-27",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -917,7 +1114,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-25",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -930,7 +1127,7 @@
     "status": "building",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-25",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}

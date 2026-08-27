@@ -1,0 +1,136 @@
+version: 1
+plan_id: company-brain-handbook-plan-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Replace the Company Knowledge plan with the Company Brain and Handbook target
+objective: >-
+  Replace the prior Company Knowledge implementation plan with one detailed,
+  approved target that adds automatic, provenance-bound Brain writes, a
+  versioned base taxonomy with all 19 Page types, principal-scoped Facts,
+  durable single-Holder Takes, separate participant relations, deterministic
+  graph links, reviewable cross-source identity, selective authority review,
+  proposal-gated model-derived Takes and Claim resolutions, governed Handbook
+  promotion, normative retrieval and synthesis, scoped compounding phases,
+  sensitive-data authorization in the first product version, and bounded
+  temporary stop-buffer and Session Corpus retention with optional durable
+  conversation archives while preserving one Neon/Postgres database and
+  singular Handbook authority. Define provider-neutral first-time StateStore
+  provisioning, connection binding, empty-database bootstrap, later schema
+  upgrades, and non-secret qualification evidence, while keeping Vercel-specific
+  execution inside the maintained setup profile. Define Source Connector 2.0,
+  normalized pull, webhook, and hybrid delivery, a governed Connector registry
+  and Instance-binding lifecycle, one shared Raw Evidence pipeline, backward-
+  compatible GitHub migration, Granola as the first maintained hybrid Connector,
+  and local and Session Sources without requiring arbitrary in-process Connector
+  loading. Define provider-neutral model task profiles, a Core Prompt Registry,
+  deterministic-first model-use cascades, one compiled Knowledge Answer
+  Contract, and separate interactive Agent, explicit synthesis, and durable
+  working-synthesis paths.
+non_goals:
+  - Implement the planned schema, runtime, connector, retrieval, or authorization changes in this documentation-only change.
+  - Modify the current normative Company Knowledge specification before its separately inspected implementation phase.
+  - Introduce a second database, runtime, or control plane.
+  - Mount an external knowledge database as a second Brain or authority.
+  - Make model-generated Brain content authoritative.
+  - Let fuzzy identity or semantic similarity commit an unreviewed material merge.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-26-company-brain-handbook-plan.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instructions-in-codex-task-to-maintain-one-consolidated-plan-and-add-provider-neutral-database-bootstrap
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-brain-handbook-plan.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-brain-handbook-plan.yaml
+  - pnpm docs:check
+  - git diff --check
+tests:
+  - The plan contains one explicit replacement statement and no competing legacy direction.
+  - The plan preserves the exact Handbook commit as singular curated Company Knowledge authority.
+  - The plan distinguishes automatic Brain writes from governed Handbook promotion.
+  - The plan includes a forward-compatible base taxonomy with all 19 Brain Page types.
+  - The plan distinguishes scoped Facts, durable Takes, one epistemic Holder, and separate participant relations.
+  - The plan activates source-literal attributed Takes directly while routing model-derived gradeable Takes through proposals.
+  - The plan keeps model grading outcomes proposed by default and treats unreliable results as retryable.
+  - The plan separates source-specific Page identity from reviewable cross-source entity identity.
+  - The plan requires deterministic exact-reference graph links and separates inferred edges.
+  - The plan defines authorized hybrid retrieval, cited synthesis, context packs, and resumable deltas.
+  - The plan requires fail-closed fine-grained authorization before sensitive multi-user exposure.
+  - The plan removes successful stop buffers immediately, expires orphaned buffers after seven days, and expires Session Corpus data after 30 days without requiring a durable archive.
+  - The plan preserves configured durable evidence and explicit conversation archives independently of temporary cleanup.
+  - The plan defines one authorized soft-delete decision, a restoration window, scheduled purge, and legal-hold blocking.
+  - The plan requires backup, restore, and a deterministic export ledger for durable Brain state.
+  - The plan scopes every compounding phase as source, mixed, or global and prevents global work from multiplying by Source count.
+  - The plan distinguishes initial database provisioning and bootstrap from later schema upgrades and data migration.
+  - The plan requires one database bootstrap manifest for both companyos and companyos_knowledge schemas.
+  - The plan keeps vercel env run inside the maintained Vercel profile and permits alternative qualified secret-injection executors.
+  - The plan requires non-secret bootstrap or upgrade qualification receipts before setup readiness.
+  - The plan makes runtime health verify schema readiness without performing production DDL.
+  - The plan defines Source Connector 2.0 profiles and normalized at-least-once Source Events for pull, webhook, and hybrid delivery.
+  - The plan separates Workspace source requirements, Instance Connector availability, SecretRef binding, grants, conformance qualification, and activation.
+  - The plan migrates the maintained GitHub Connector without rewriting durable source identities, envelopes, or receipts.
+  - The plan selects Granola as the first maintained hybrid Connector and specifies signed webhook, durable enqueue, paginated fetch, ACL, deduplication, and overlapping reconciliation behavior.
+  - The plan routes local files and Session Corpus capture through the same Raw Evidence boundary without turning temporary data into an implicit durable archive.
+  - The plan defers arbitrary in-process Connector loading, a general sandbox, and marketplace work while preserving a future Connector Package seam.
+  - The plan defines phased migration, rollback, tests, documentation impact, and acceptance criteria.
+  - The plan defines utility, reasoning, deep, embedding, and reranker task profiles without binding Core model execution to Vercel.
+  - The plan versions every model-backed knowledge prompt, input and output schema, failure contract, budget, and receipt.
+  - The plan separates deterministic retrieval salience from optional model-backed processing triage.
+  - The plan uses deterministic type, identity, exact-link, exact-duplicate, ranking, and graph paths before any bounded model fallback.
+  - The plan compiles one Knowledge Answer Contract for Agents with Knowledge read grants and does not require a second synthesis model call for ordinary interactive answers.
+  - The plan keeps context construction internal by default and reserves explicit synthesis for non-Agent, background, or deliberately granted use.
+  - The plan validates every generative citation and returned identity against the exact authorized context.
+  - The plan requires a run-scoped authorized context receipt and a Core-validated structured Answer Envelope before rendering a Knowledge-bearing Agent response.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.boundaries
+    - architecture.company-instance
+    - command.setup
+    - command.verify-live
+    - onboarding.company-workspace
+    - onboarding.index
+    - plan.company-knowledge-implementation
+    - specification.company-instance-release-promotion-v0.1
+    - status.current
+migration: >-
+  This change replaces only the informative delivery plan. Existing runtime,
+  database, Workspace, and normative contract behavior remains unchanged until
+  later phase-specific Change Plans update the affected specifications, code,
+  migrations, and operating documentation.
+rollback: >-
+  Revert this documentation change before implementation begins. After any
+  phase adopts the new contracts, rollback follows that phase's explicit data,
+    authorization, database bootstrap or upgrade, retrieval, and
+    Handbook-snapshot recovery procedure rather than restoring the superseded
+    plan as product truth.
+open_decisions:
+  - Select maintained providers and models for the utility, reasoning, deep, embedding, and reranker task profiles from measured quality, latency, cost, and data-egress evidence.
+  - Select processing-triage and deterministic retrieval-salience thresholds from measured extraction and retrieval evidence.
+  - Select the maintained large-object storage profile without weakening retention or ACL enforcement.
+  - Calibrate retrieval budgets, optional reranking, compounding cadence, and review batch size.
+  - Calibrate semantic merge and entity proposal thresholds without turning them into automatic identity proof.
+  - Select the release version for the incompatible authorization and Brain contract changes.
+  - Select the first fully qualified non-Vercel setup profile after its provider-neutral conformance fixture passes.

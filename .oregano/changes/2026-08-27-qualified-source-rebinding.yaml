@@ -1,0 +1,58 @@
+version: 1
+plan_id: qualified-source-rebinding-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Permit a qualified Source binding scope rotation
+objective: >-
+  Allow an existing registered Source to rotate SecretRefs, provider scopes, and
+  qualification evidence only when the replacement is newly qualified, active,
+  and retains the exact Source, installation, Connector, and provider identity.
+non_goals:
+  - Change a Source requirement, provider Workspace, Connector, or installation identity.
+  - Rebind a revoked Source or accept an unqualified replacement.
+  - Delete or rewrite Source evidence.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Safety cannot be weakened from a Workspace
+  - Evidence beats claims
+files_expected:
+  - .oregano/changes/2026-08-27-qualified-source-rebinding.yaml
+  - packages/state-postgres/source-pipeline-store.ts
+  - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-to-complete-the-live-company-knowledge-integration
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-qualified-source-rebinding.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-qualified-source-rebinding.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - An unchanged requirement and binding remain idempotent.
+  - A newly qualified active scope and SecretRef rotation is accepted for the exact existing provider identity.
+  - An unqualified or inactive replacement fails closed.
+  - A provider Workspace, Connector, installation, or Source identity change fails closed.
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: >-
+    The documented Source qualification and activation lifecycle already
+    requires an explicit qualified binding. This change narrowly permits that
+    lifecycle to rotate scopes for the same registered provider identity and
+    does not change a public contract.
+migration: >-
+  No schema migration is required. The next Source reconciliation atomically
+  replaces the stored JSON binding after qualification.
+rollback: >-
+  Restore the previous qualified binding JSON for the same identity or revert
+  this helper. Existing Source evidence remains unchanged.
+open_decisions: []

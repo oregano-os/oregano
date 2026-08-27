@@ -1,0 +1,73 @@
+version: 1
+plan_id: company-brain-neon-live-migration-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Qualify the additive Company Brain schema on the live Neon Instance
+objective: >-
+  Apply the already approved provider-neutral Company Brain schema to the
+  existing production Company Instance Neon database, prove that the migration
+  is idempotent, verify the resulting schema without exposing credentials, and
+  exercise the Postgres BrainStore round trip against that exact Instance. Fix
+  any contract mismatch exposed by that live qualification without broadening
+  the approved data model or production surface.
+non_goals:
+  - Create or select a second database.
+  - Persist, print, commit, or otherwise disclose production credentials.
+  - Drop, truncate, rewrite, or delete existing tables or company data.
+  - Enable an Agent-facing Brain Capability or change production application traffic.
+  - Enable fine-grained authorization or sensitive retrieval before separate qualification.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-26-company-brain-neon-live-migration.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/status/current.md
+  - packages/state-postgres/brain-store.ts
+  - packages/testkit/tests/company-brain-persistence.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-run-the-neon-live-migration
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-brain-neon-live-migration.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-brain-neon-live-migration.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - run ensureCompanyKnowledgeSchema twice in separate production-environment processes
+  - verify expected companyos_knowledge tables, constraints, indexes, and 19 Page types using read-only catalog queries
+  - run opt-in Postgres BrainStore persistence and entity-identity tests against the production DATABASE_URL
+  - git diff --check
+tests:
+  - Production DATABASE_URL is supplied only to non-persisting child processes by the linked Vercel project.
+  - The additive migration completes twice and reports identical feature availability.
+  - Existing schema objects remain present and all required Company Brain objects are created.
+  - The core Page taxonomy contains exactly the expected 19 active type keys.
+  - PostgresBrainStore round-trips Page, Claim, evidence, Holder, and resolution-proposal data.
+  - Fact Claims omit Take-only receipt fields while Take Claims preserve their optional receipt shape.
+  - A reviewed entity-identity proposal is accepted atomically and idempotently.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+migration: >-
+  Run ensureCompanyKnowledgeSchema against the existing production DATABASE_URL.
+  The migration uses CREATE SCHEMA IF NOT EXISTS, CREATE TABLE IF NOT EXISTS,
+  CREATE INDEX IF NOT EXISTS, additive ALTER TABLE statements, guarded foreign
+  keys, and idempotent taxonomy inserts. It does not remove or rewrite data.
+rollback: >-
+  Stop all Company Brain writers and leave the additive companyos_knowledge
+  objects dormant. The existing application path remains unchanged. Any schema
+  or row deletion requires a separate approved export-and-deletion change.
+open_decisions:
+  - Qualify fine-grained authorization before exposing sensitive Brain reads to Agents.

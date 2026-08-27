@@ -17,6 +17,8 @@ export interface RosterMember {
   type?: string;
   /** Canonical identities across all configured surfaces. */
   principals?: string[];
+  /** Stable authorization groups. Group membership is Core-derived, never Tool input. */
+  groups?: string[];
 }
 
 export function slackPrincipal(teamId: string, userId: string): string {
@@ -59,6 +61,9 @@ export function parseRoster(markdown: string): RosterMember[] {
       status: typeof member.status === "string" ? member.status : "active",
       type: typeof member.type === "string" ? member.type : undefined,
       principals: [...principals].sort(),
+      groups: Array.isArray(member.groups)
+        ? [...new Set(member.groups.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()))].sort()
+        : [],
     }];
   });
 }

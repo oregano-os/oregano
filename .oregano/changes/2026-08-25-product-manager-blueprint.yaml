@@ -1,0 +1,60 @@
+version: 1
+plan_id: product-manager-blueprint-2026-08-25
+status: implemented
+author: codex-agent
+created: 2026-08-25
+title: Publish the declarative Product Manager Blueprint
+objective: >-
+  Add one inspectable, provider-neutral Blueprint Package that materializes a
+  Product Manager Agent, a governed conversation-to-product-decision workflow,
+  and a reusable evidence-to-PRD Skill with deterministic decision fixtures.
+non_goals:
+  - Implement Blueprint plan, apply, lock, update, or removal.
+  - Add Granola, Slack, model, scheduler, queue, or database runtime code.
+  - Grant Tools, bind providers, store secrets, or activate the Blueprint.
+  - Encode Oregano HQ roles, channels, thresholds, or provider identifiers in Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - Core is reusable and company policy stays in the Workspace
+  - Packages distribute content but do not grant authority
+files_expected:
+  - .oregano/changes/2026-08-25-product-manager-blueprint.yaml
+  - packages/blueprints/product-manager/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: peter-noetzel
+    approved_at: 2026-08-25
+    evidence: explicit-user-instruction-to-define-inspect-and-materialize-the-blueprint
+validation:
+  - pnpm companyos package inspect packages/blueprints/product-manager
+  - pnpm companyos package inspect packages/blueprints/product-manager --format json
+  - python3 /Users/peter/.codex/skills/.system/skill-creator/scripts/quick_validate.py packages/blueprints/product-manager/agents/product-manager/skills/product-discovery-to-prd
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-25-product-manager-blueprint.yaml
+  - pnpm docs:check
+  - pnpm check
+  - git diff --check
+tests:
+  - Package inspection reports one Agent, one Workflow, and one Skill Component with no runtime, network, or secret permission.
+  - The Skill validates and requires one of no_feature, feature_candidate, or prd_draft for every analyzed finding.
+  - Neutral fixtures cover no feature, a candidate, a justified PRD draft, and untrusted conversation instructions.
+  - A PRD draft contains cited evidence, explicit inference labels, acceptance criteria, provenance, and no copied transcript.
+  - External publication remains supervised and fails closed without an approved exact artifact and a resolved Tool.
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: >-
+    Existing Package specifications and authoring Guides already define this
+    local declarative Package path; the Blueprint Components are the new
+    governed content and do not change a public Core contract.
+rollback: >-
+  Remove the Blueprint Package and this Change Plan together through a reviewed
+  Core change. Materialized Workspace copies remain company-owned and must be
+  removed or changed through their own Workspace governance.
+open_decisions:
+  - Define the real Blueprint plan, apply, lock, update, and removal lifecycle as a separate Core milestone.
+  - Define and implement provider-neutral conversation, knowledge-recording, and message-publication Capabilities before runtime activation.

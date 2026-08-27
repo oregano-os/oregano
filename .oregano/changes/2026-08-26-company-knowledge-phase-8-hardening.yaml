@@ -1,0 +1,76 @@
+version: 1
+plan_id: company-knowledge-phase-8-hardening-2026-08-26
+status: approved
+author: codex-agent
+created: 2026-08-26
+title: Implement Company Knowledge operating evidence and recovery gates
+objective: >-
+  Add payload-free operational and quality measurement, explicit SLO
+  evaluation and deterministic alert candidates, regression ledgers, Connector
+  diagnostics, ACL-drift evidence, deterministic recovery qualification, and
+  compatibility support windows for sustained Company Knowledge operation.
+non_goals:
+  - Claim production SLO compliance without an observation window.
+  - Store source payloads, queries, prompts, excerpts, or credentials in metrics.
+  - Tune thresholds automatically from unreviewed production outcomes.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-26-company-knowledge-phase-8-hardening.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/compatibility/registry.yaml
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/recover-company-knowledge.md
+  - packages/cli/content/guides/recover-company-knowledge.md
+  - packages/knowledge/operations.ts
+  - packages/testkit/tests/company-knowledge-operations.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-26
+    evidence: explicit-user-instruction-in-codex-task-to-develop-the-approved-plan-through-phase-8
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-26-company-knowledge-phase-8-hardening.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-company-knowledge-phase-8-hardening.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-operations.test.ts
+  - pnpm check
+  - git diff --check
+tests:
+  - Metrics contain only bounded identities, counts, durations, costs, outcomes, and digests.
+  - SLO status derives from a declared observation window and never fabricates unavailable measurements.
+  - Extraction accuracy and unresolved-contradiction rates derive only from bounded reviewed counts.
+  - Only a breached SLO evaluation can produce a deterministic alert candidate; delivery remains an Instance adapter concern.
+  - Prompt, schema, citation, routing, and deterministic-fast-path regressions are content-addressed.
+  - Recovery qualification binds backup, restore, export, Git commits, and rebuilt state digests.
+  - Connector rate-limit and ACL-drift diagnostics contain no payload or secret values.
+  - Compatibility support windows reject expired or unknown major contracts.
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.company-knowledge-implementation
+    - specification.company-knowledge-v0.2
+    - status.current
+    - guide.recover-company-knowledge
+migration: >-
+  No authoritative schema migration. Operational ledgers and recovery receipts
+  can use the existing export, execution, Source receipt, and external
+  observability adapters. Payload-bearing source data remains in its existing
+  governed stores.
+rollback: >-
+  Disable emission to an observability adapter and continue retaining local
+  bounded receipts. Do not disable authorization, retention, legal hold, or
+  recovery checks merely because monitoring is unavailable.
+open_decisions:
+  - Alert delivery adapter and production paging destination require Instance-specific qualification.
+  - Initial SLO thresholds require a measured pilot observation window before release enforcement.

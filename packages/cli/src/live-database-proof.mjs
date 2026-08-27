@@ -8,7 +8,7 @@ if (!/^oregano-[0-9a-f]{12}$/.test(nonce)) {
   process.stderr.write("Invalid CompanyOS Slack verification nonce.\n");
   process.exit(1);
 }
-if (!new Set(["vercel-ai-gateway", "anthropic-direct"]).has(modelRoute) || !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(model)) {
+if (!new Set(["vercel-ai-gateway", "anthropic-direct", "openai-direct", "google-direct"]).has(modelRoute) || !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(model)) {
   process.stderr.write("Invalid CompanyOS model execution proof request.\n");
   process.exit(1);
 }

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -41,3 +41,25 @@ effects to `CompanyOSRuntime`. The legacy Eve adapter remains retired.
 Core changes are rare for Workspace Contributors. A Workspace Contributor who
 finds a missing generic mechanism files a Core capability request rather than
 placing platform code in the Workspace.
+
+## Native Company Knowledge
+
+Core implements the OKF parser, deterministic heading-aware fragmenter,
+Knowledge Bundle and link graph, lexical/hybrid retrieval and citation shape,
+bounded graph traversal and curation, the embedding and provider interfaces,
+three read Capability contracts, and the explicitly granted
+`oregano:knowledge/search`, `oregano:knowledge/get`, and
+`oregano:knowledge/traverse` standard Tools. The maintained Postgres provider
+and repository Source Connector are adapters behind Core contracts; neither is
+a second Agent runtime or a second Agent-facing knowledge surface.
+
+When an Agent receives a Knowledge Tool grant, searchable Handbook documents
+are omitted from its compiled prompt materials. The immutable control Artifact
+records the bundle hash and policy hash while the separate Knowledge Bundle is
+staged, verified, and activated in the Instance. The roster stays in the Agent
+definition because runtime authorization remains a Core control.
+
+The default embedding adapter is local and has no data egress. Optional
+`pgvector` state is derived; adapter or index failure retains lexical retrieval
+with explicit degradation. Source Envelopes and Runtime Observations feed the
+same bounded human review boundary and cannot activate OKF directly.

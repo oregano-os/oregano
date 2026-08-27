@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,124 @@ audience:
 ---
 
 # CompanyOS Glossary
+
+## Knowledge terms
+
+### Company Knowledge
+The shared, reviewed company evidence surface exposed through provider-neutral
+Core Tools. In V1 its authority is the exact OKF Handbook in a Company Workspace.
+
+### Company Brain
+The automatic, evidence-bound working-memory layer of Company Knowledge. It
+contains versioned Pages, Claims, Timeline Events, graph relations, identity
+decisions, and Working Syntheses. Brain material is not curated company
+authority merely because it is active or model-generated.
+
+### Page
+A stable source-specific knowledge identity with immutable versions and one
+registered Page type. Page verification does not establish cross-source Entity
+identity.
+
+### Claim
+An evidence-bound unit of structured knowledge. A Claim is either a scoped
+Fact or a durable Take and preserves its exact evidence, state, policy, and
+temporal provenance.
+
+### Fact
+Active hot memory owned by one principal and explicitly scoped to a principal
+or session. Supported Facts may be consolidated one-way into a durable Take
+through a deterministic receipt.
+
+### Take
+Durable epistemic memory with exactly one primary Holder. A source-literal
+Take may be active with exact evidence; a model-derived Take begins as a
+proposal.
+
+### Holder
+The person, group, company, source, or unresolved identity whose assertion a
+Take represents. Speakers, authors, subjects, approvers, owners,
+beneficiaries, and affected parties are separate participant relations.
+
+### Raw Evidence
+Immutable, source-attributed material admitted through the shared ingestion
+pipeline after identity, integrity, policy, and sanity checks. Raw Evidence can
+support extraction and review but is not Handbook authority.
+
+### Raw Asset
+A digest-bound, policy-bound reference to source content that is too large or
+not suitable for bounded inline storage. Its storage adapter is a replaceable
+projection and cannot bypass the envelope's authorization.
+
+### Source Event
+An at-least-once, content-free ingestion reference describing a created,
+updated, deleted, or access-changed Source Object. Its canonical identity is
+used for durable deduplication across pull, webhook, and hybrid delivery.
+
+### Working Synthesis
+An immutable version of cited, derived Brain material built from authorized
+evidence. It remains non-authoritative until a governed promotion reaches the
+reviewed Handbook.
+
+### Decision Receipt
+Attributable evidence binding a review decision to the exact candidate,
+supporting evidence, target, actor, time, and resulting governed change. A
+Decision Receipt does not bypass normal Workspace review or domain approval.
+
+### Prompt Registry
+The Core-owned inventory of versioned model-backed tasks, typed inputs and
+outputs, bounded execution settings, failure behavior, write authority,
+regression fixtures, and prompt content digests.
+
+### Knowledge Answer Envelope
+The structured result returned by the Knowledge Answer Contract before Core
+renders an Agent response. It binds claims and citations to one exact,
+authorized, run-scoped context receipt and exposes gaps and uncertainty.
+
+### Open Knowledge Format (OKF)
+The canonical Markdown-plus-YAML representation for curated Company Knowledge.
+OKF v0.1 uses one `concept`, `playbook`, or `note` per stable Handbook-relative
+path and requires an indexed description.
+
+### Knowledge Bundle
+A deterministic immutable artifact containing normalized OKF documents,
+fragments, digests, locators, link graph, policy identity, and exact Workspace
+provenance.
+
+### Knowledge Snapshot
+One staged, verified, active, or retired projection of a Knowledge Bundle in a
+Company Instance.
+
+### Knowledge Provider
+An implementation of the Core-owned snapshot, search, get, graph-traversal,
+and health contracts. The maintained provider uses the existing Company
+Instance Postgres database.
+
+### Source Connector
+A read-only Connector that authenticates to and reconciles an external
+knowledge source into versioned raw review envelopes and receipts. The first
+maintained implementation reads repository Markdown. It cannot publish
+authoritative OKF.
+
+### Source Envelope
+A bounded normalized record of one externally observed object version,
+including source identity, provider identity/version, digest, observation time,
+owner/account, cursor or event identity, deletion state, and receipt metadata.
+
+### Runtime Observation
+Temporary shared business evidence from an attributed run and Agent. It can be
+superseded, expired, placed under legal hold, deletion-requested, redacted, or
+routed through human review, but it is not curated authority.
+
+### Raw knowledge
+Unverified source material in `brain/inbox/`. It is review evidence and never
+part of the active Knowledge Bundle.
+
+### Curated knowledge
+Human-reviewed OKF under `handbook/` in an exact Company Workspace commit.
+
+### Review candidate
+A digest-bound proposal routed to OKF, Playbook, or Learning and awaiting an
+attributable human accept, reject, or supersede decision.
 
 ## System terms
 

@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -96,29 +96,67 @@ entry and never requests, creates, or invites a second reviewer.
 5. authenticate Vercel, create or adopt the exact project, and verify the
    maintained `packages/runner-vercel` Next.js root without changing a
    conflicting adopted project;
-6. bind the explicit model route: use Vercel AI Gateway without a provider key,
-   or pause for browser-only entry of `ANTHROPIC_API_KEY` as a Sensitive
-   Production variable and verify only its name, presence, and Sensitive classification for direct
-   Anthropic;
+6. bind one explicit model recipe: use Vercel AI Gateway without a provider
+   key, or pause for browser-only entry of the selected native or named
+   compatible cloud provider key as a Sensitive Production variable and verify
+   only its name, presence, and Sensitive classification;
 7. create or adopt a Neon Marketplace resource without pulling its connection
    string to disk;
-8. create or adopt a Slack Vercel Connect resource and attach the verified
+8. run `companyos database prepare` through the Vercel profile's
+   non-persisting `vercel env run` process, select `bootstrap` for an absent
+   database, `upgrade` for an existing older database, or `verify` for an
+   already current database, and store only the read-only qualification
+   receipt;
+9. create or adopt a Slack Vercel Connect resource and attach the verified
    `/api/webhooks/slack` trigger;
-9. pause for a browser authorization with only `identity.basic`, request a
+10. pause for a browser authorization with only `identity.basic`, request a
    short-lived Slack user token, call `auth.test`, retain only the canonical
    team and user IDs, and discard the credential;
-10. preview and apply one supervised, Tool-free Oregano Agent and Slack workflow;
-11. push the operating change through a required-check pull request and obtain
+11. preview and apply one supervised, Tool-free Oregano Agent and Slack workflow;
+12. push the operating change through a required-check pull request and obtain
     the Workspace Steward's exact merge confirmation;
-12. build one immutable production Artifact from clean exact Core and Workspace
+13. build one immutable production Artifact from clean exact Core and Workspace
     commits and create its Vercel environment values without `--force` or
     overwriting pre-existing production configuration;
-13. deploy only after the exact production-candidate confirmation, retain the
+14. deploy only after the exact production-candidate confirmation, retain the
     structured deployment receipt, wait for provider readiness, and poll the
     provenance health endpoint through temporary non-JSON responses; and
-14. require a nonce-bound Slack message, a real selected-model response,
+15. require a nonce-bound Slack message, a real selected-model response,
     non-secret model execution evidence, and the persisted assistant response
     in Neon before completion.
+
+`companyos database prepare` detects the database baseline before mutation and
+reports `bootstrap`, `upgrade`, or `verify`. `companyos database bootstrap` is
+the explicit low-level additive operation; setup uses `prepare` so an adopted
+database is never reported as a first installation. `companyos database
+verify` is read-only. All commands consume the
+bound `DATABASE_URL` only from their process environment. They return a bounded
+qualification receipt containing the manifest identity and digest, exact table
+counts, Core Page-type count, optional feature availability, and timestamp;
+they never return the connection value. Runtime health invokes verification,
+not bootstrap.
+
+The current additive target is `companyos-postgres@1.4.0`. It retains the
+immutable `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` predecessors, qualifies 55 required
+`companyos_knowledge` tables, and prepares durable Source event, ACL, receipt,
+watermark, synchronization-lease, change-stream, and lifecycle state in addition to the fail-closed
+authorization foundation. Setup does not treat that schema receipt as
+permission to expose content; runtime authorization and Source ACL mapping
+remain separate conformance gates.
+
+On 2026-08-26 the linked `oregano-hq-companyos` Instance applied the additive
+manifest through its production SecretRef transport and then passed a separate
+read-only verification. The current run produced manifest digest
+`6c0b3366540c8b1c0a3d889ef8c180c32d15d4e1bb92dbbbd8b10e94ddbce16c`,
+12 Control tables, 55 required Knowledge tables plus the optional vector table,
+and all 19 Core Page types. A subsequent `database verify` qualified `1.4.0`
+while preserving every immutable predecessor through `1.3.0`.
+
+The command contract is independent from Vercel. A different qualified setup
+profile wraps the same logical preparation command with its own secret-injection
+mechanism. The current maintained implementation and live profile are qualified
+for Neon/Postgres; another PostgreSQL driver requires separate conformance
+evidence before being advertised as supported.
 
 Create and adopt are explicit per resource. The setup refuses a create-name
 collision and refuses adoption when the named resource cannot be found. It does
@@ -167,19 +205,22 @@ The example is a schema illustration, not default company data. Passwords,
 provider credentials, database URLs, private keys, resolved Artifact content,
 and short-lived Slack tokens are rejected from setup state.
 
-`model_route` is either `vercel-ai-gateway` or `anthropic-direct`. Gateway
-requires `model_credential_mode: platform`. Direct Anthropic requires an
-`anthropic/<model>` value and either `configure` or `adopt`. In `configure`
-mode, setup opens the Vercel Environment Variables page and waits while the
-human creates a dedicated key in the Claude Platform and enters it as the Sensitive Production variable
-`ANTHROPIC_API_KEY`. In `adopt` mode, setup requires that variable to exist and
-does not read or change it. Direct Anthropic bypasses AI Gateway; Vercel remains
-only the runtime host and secret store.
+`model_route` is `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
+`google-direct`. Gateway requires `model_credential_mode: platform`. A direct
+route requires a matching `provider/<model>` value and either `configure` or
+`adopt`. In `configure` mode, setup opens the provider's key page and the
+Vercel Environment Variables page, then waits while the human enters the key
+under the recipe's documented Sensitive Production variable. In `adopt` mode,
+setup requires that variable to exist and does not read or change it. Direct
+routes bypass AI Gateway; Vercel remains only the runtime host and secret store.
 
 For compatibility with setup answer files created before this selection
 existed, omitting both `model_route` and `model_credential_mode` preserves the
 former `vercel-ai-gateway` plus `platform` behavior. The maintained runbook
-still asks every new installation to record both fields explicitly.
+still asks every new installation to record both fields explicitly. Deployment
+materializes that answer as the default binding in
+`COMPANYOS_MODEL_CONFIG_BASE64` and also retains the simple route/model
+variables for compatible Runners.
 
 The qualified Neon values in this example are provider identifiers, not a
 promise about price or availability. Setup must show the current provider plan,

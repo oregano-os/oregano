@@ -5,7 +5,7 @@ kind: vision
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -44,6 +44,13 @@ against stable public contracts without patching Oregano Core. A Workspace
 Steward should be able to discover, inspect, pin, review, install, grant, bind,
 activate, update, remove, or fork it through governed paths. Installation alone
 must never grant company authority, secrets, or runtime access.
+
+An authorized company member should be able to retrieve cited, freshness-aware
+Company Knowledge from the exact reviewed Workspace version without loading the
+entire Handbook into every Agent prompt. Search providers, embeddings, and
+external sources remain replaceable projections or evidence inputs. Only a
+reviewed Workspace change can make raw source material or a Runtime Observation
+part of curated company authority.
 
 ## Non-negotiable principles
 
@@ -98,6 +105,10 @@ must never grant company authority, secrets, or runtime access.
 19. **Package lifecycle is reproducible and reversible.** Exact sources,
     versions, digests, managed changes, grants, bindings, activation, updates,
     removals, and revocations remain inspectable and attributable.
+20. **Knowledge authority stays reviewed and singular.** OKF in the exact
+    Company Workspace commit is curated authority. Database projections,
+    embeddings, source envelopes, Runtime Observations, and model summaries
+    remain cited, rebuildable, review-bound evidence.
 
 ## Architecture fitness questions
 

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -52,3 +52,12 @@ operational authority layer. It lets contributors publish portable Blueprints,
 Tools, and Connectors while Company Workspaces and Instances retain grants,
 bindings, approvals, and activation. See [Ecosystem and Package
 Architecture](ecosystem-and-packages.md).
+
+Company Knowledge follows the same placement model. Reviewed OKF lives in the
+Company Workspace, immutable projections and review state live in the existing
+Company Instance database, and Oregano Core owns validation, bundling,
+hybrid retrieval, deterministic graph traversal, citations, source envelopes,
+Runtime Observations, and provider-neutral contracts. The maintained read-only
+repository Source Connector feeds the same review boundary. Raw review input is
+not operating truth and an external source never becomes a second authority
+plane.

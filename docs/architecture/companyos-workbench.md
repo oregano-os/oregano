@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-25
 owners:
   - oregano-maintainers
 audience:
@@ -56,3 +56,11 @@ provider integration can verify them without weakening authorization.
 “Builder” remains reserved for the governed Builder Agent. Human Contributors,
 general Agent Contributors, and Core Contributors are not called Builders merely
 because they create a change.
+
+Company Knowledge adds a single command group. `knowledge inspect`, `build`,
+`regression`, and review preview do not mutate a Workspace; `stage`, `verify`,
+`activate`, `rebuild`, source synchronization, and Runtime Observation
+lifecycle commands are explicit Instance operations. Source verify/health use
+read-only provider requests. Review is deliberately bounded to three
+candidates and never writes an accepted proposal into the Handbook
+automatically.

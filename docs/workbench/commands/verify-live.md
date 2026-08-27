@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -33,6 +33,9 @@ runbook. It fails unless fresh or recorded evidence proves:
   was recorded as `enforced` or `advisory`;
 - the operating change passed the required check and the Workspace Steward authorized its merge;
 - the named Vercel, Neon, and Slack resources are present in setup evidence;
+- the selected StateStore has a valid non-secret database qualification
+  receipt, and current read-only health reports the same immutable schema
+  manifest digest and required feature set without running schema DDL;
 - the Vercel project receipt records the maintained runner root, the Slack
   receipt records the exact trigger path and expected visible name `oregano`,
   and no unresolved provider create intent remains;
@@ -40,13 +43,24 @@ runbook. It fails unless fresh or recorded evidence proves:
 - a structured Vercel deployment receipt is ready and current health matches
   the exact Artifact, Core commit, Workspace commit, selected Oregano Agent,
   empty ToolSet, selected model route, and exact model;
-- direct Anthropic credential-presence and Sensitive-classification evidence
-  exists when that route is selected, without a credential value in setup
+- direct-provider credential-presence and Sensitive-classification evidence
+  exists when a direct recipe is selected, without a credential value in setup
   state; and
 - the nonce-bound human Slack message and Oregano's exact
   `Setup-Test <nonce> successful.` response were persisted in the same Neon
   conversation with a non-secret response ID, response model, and token-count
   evidence from a real selected-model call.
+
+The current Core target receipt identifies additive manifest
+`companyos-postgres@1.4.0` and its 55 required Knowledge tables. The linked
+`oregano-hq-companyos` Instance applied this manifest and passed a separate
+read-only verification on 2026-08-26; vector availability brings the observed
+Knowledge table count to 56. Another Instance remains on its exact
+older manifest until `database prepare` records an additive upgrade and a
+separate read-only verification. This is schema evidence, not authorization
+evidence.
+`verify-live` for the Tool-free starter does not enable sensitive Sources or
+Agent-facing Brain retrieval.
 
 Successful scope is exactly `live-starter-instance`, with readiness
 `validated`. This scope proves one supervised starter deployment. It does not

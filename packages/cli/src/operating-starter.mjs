@@ -128,6 +128,7 @@ export function renderOperatingStarter(root, rawInput) {
     identities: member.identities ?? {},
     may_approve: member.may_approve ?? [],
     may_see: member.may_see ?? [],
+    groups: member.groups ?? [],
   }));
   files.set("handbook/roster.md", document({ ...source.roster.data, members: orderedMembers }, `${source.roster.body.trim()}\n\nSlack identities are canonicalized as \`slack:<team-id>:<user-id>\`.`));
 

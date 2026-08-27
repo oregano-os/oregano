@@ -1,4 +1,14 @@
 {
   "framework": "nextjs",
-  "buildCommand": "pnpm build"
+  "buildCommand": "pnpm build",
+  "crons": [
+    {
+      "path": "/api/knowledge/sources/granola/reconcile",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/knowledge/sources/granola/extract",
+      "schedule": "15 */6 * * *"
+    }
+  ]
 }

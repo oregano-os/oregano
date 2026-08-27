@@ -1,0 +1,17 @@
+fixture_id: no-feature-support-answer
+input:
+  conversation_id: conversation-001
+  content_digest: sha256-example-001
+  participants:
+    - role: customer-admin
+  evidence:
+    - evidence_id: evidence-001
+      speaker_role: customer-admin
+      text: Where can I change the weekly email notification setting?
+expected:
+  status: completed
+  decision: no_feature
+  reason_codes:
+    - SUPPORT_OR_CONFIGURATION
+  artifact: null
+  publish: false
