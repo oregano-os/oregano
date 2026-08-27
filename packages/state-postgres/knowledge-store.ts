@@ -15,6 +15,7 @@ import type {
   KnowledgeAccessPolicy,
 } from "../knowledge/contracts.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 import { assertKnowledgeBundleIntegrity } from "../knowledge/okf.ts";
 import { authorizeEmbeddingAdapter, LocalHashEmbeddingAdapter } from "../knowledge/embedding.ts";
 import { traverseKnowledgeGraph } from "../knowledge/graph.ts";
@@ -32,9 +33,9 @@ const mapSnapshot = (row: Record<string, unknown>): KnowledgeSnapshot => ({
   snapshotHash: String(row.snapshot_hash),
   status: row.status as KnowledgeSnapshot["status"],
   bundle: row.bundle as unknown as KnowledgeBundle,
-  stagedAt: new Date(String(row.staged_at)).toISOString(),
-  verifiedAt: row.verified_at ? new Date(String(row.verified_at)).toISOString() : undefined,
-  activatedAt: row.activated_at ? new Date(String(row.activated_at)).toISOString() : undefined,
+  stagedAt: postgresTimestampToIso(row.staged_at),
+  verifiedAt: row.verified_at ? postgresTimestampToIso(row.verified_at) : undefined,
+  activatedAt: row.activated_at ? postgresTimestampToIso(row.activated_at) : undefined,
 });
 
 const vectorLiteral = (vector: readonly number[]) => `[${vector.map((value) => Number.isFinite(value) ? value.toFixed(10) : "0").join(",")}]`;

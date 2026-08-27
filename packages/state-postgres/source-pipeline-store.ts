@@ -26,6 +26,7 @@ import type {
 } from "../knowledge/source-pipeline-store.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
 import { postgresInlineRawAssetStorageKey } from "./raw-asset-adapter.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 
 const connection = () => {
   const value = process.env.DATABASE_URL;
@@ -34,7 +35,7 @@ const connection = () => {
 };
 
 const optionalString = (value: unknown): string | undefined => value === undefined || value === null ? undefined : String(value);
-const iso = (value: unknown): string => new Date(String(value)).toISOString();
+const iso = postgresTimestampToIso;
 
 export function assertPermittedSourceRebinding(input: {
   existingRequirement: SourceRequirementV2;
