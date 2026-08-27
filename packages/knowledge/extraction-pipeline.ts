@@ -29,6 +29,7 @@ import type { SourceRawEvidenceV2 } from "./source-pipeline-store.ts";
 export interface KnowledgeExtractionRun {
   runId: string;
   runKey: string;
+  pipelineVersion: string;
   inputDigest: string;
   promptVersions: string[];
   schemaVersion: string;
@@ -37,6 +38,38 @@ export interface KnowledgeExtractionRun {
   result?: KnowledgeExtractionResult;
   receiptIds: string[];
   failureClass?: "refusal" | "truncated" | "parse-failure" | "provider-failure" | "budget-deferral" | "validation-failure";
+}
+
+export const KNOWLEDGE_EXTRACTION_PIPELINE_VERSION = "2.0.0" as const;
+export const KNOWLEDGE_EXTRACTION_CHUNK_CHARACTERS = 50_000;
+
+export interface KnowledgeEvidenceChunk {
+  content: string;
+  lineOffset: number;
+}
+
+export function chunkKnowledgeEvidenceText(text: string, maximumCharacters = KNOWLEDGE_EXTRACTION_CHUNK_CHARACTERS): KnowledgeEvidenceChunk[] {
+  if (!Number.isInteger(maximumCharacters) || maximumCharacters < 1) throw new Error("Knowledge evidence chunk size must be a positive integer.");
+  const lines = text.split("\n");
+  const chunks: KnowledgeEvidenceChunk[] = [];
+  let current: string[] = [];
+  let currentCharacters = 0;
+  let lineOffset = 0;
+  const flush = () => {
+    if (current.length === 0) return;
+    chunks.push({ content: current.join("\n"), lineOffset });
+    lineOffset += current.length;
+    current = [];
+    currentCharacters = 0;
+  };
+  for (const line of lines) {
+    const addedCharacters = line.length + (current.length > 0 ? 1 : 0);
+    if (current.length > 0 && currentCharacters + addedCharacters > maximumCharacters) flush();
+    current.push(line);
+    currentCharacters += line.length + (current.length > 1 ? 1 : 0);
+  }
+  flush();
+  return chunks.length > 0 ? chunks : [{ content: "", lineOffset: 0 }];
 }
 
 export interface KnowledgeExtractionRunStore {
@@ -77,7 +110,7 @@ export function knowledgeExtractionRunIdentity(input: {
   const extractionPrompt = (input.promptRegistry ?? new KnowledgePromptRegistry()).resolveCurrent("knowledge.claim-extraction");
   const modelIdentity = `${input.reasoningProfile.profile}@${input.reasoningProfile.profileVersion}:${input.reasoningProfile.route}:${input.reasoningProfile.model}`;
   const inputDigest = sha256({ envelope: input.evidence.envelope, contentDigest: input.evidence.envelope.contentDigest, authorizationContextDigest: input.authorizationContextDigest });
-  const runKey = sha256({ inputDigest, prompt: extractionPrompt.contentHash, schema: extractionPrompt.outputSchemaId, modelIdentity });
+  const runKey = sha256({ pipelineVersion: KNOWLEDGE_EXTRACTION_PIPELINE_VERSION, inputDigest, prompt: extractionPrompt.contentHash, schema: extractionPrompt.outputSchemaId, modelIdentity });
   return { extractionPrompt, modelIdentity, inputDigest, runKey, runId: sha256({ runKey, attemptClass: "canonical" }) };
 }
 
@@ -211,6 +244,17 @@ const validateExtractionOutput = (value: unknown, text: string, evidenceId: stri
   return { page: { title: page.title.trim(), ...(typeof page.summary === "string" && page.summary.trim() ? { summary: page.summary.trim() } : {}) }, claims, timeline };
 };
 
+const offsetExtractionOutput = (output: ModelExtractionOutput, lineOffset: number): ModelExtractionOutput => {
+  const offsetLocator = (locator: ClaimEvidenceLocator): ClaimEvidenceLocator => locator.kind === "line"
+    ? { ...locator, start: locator.start + lineOffset, end: locator.end + lineOffset }
+    : locator;
+  return {
+    page: output.page,
+    claims: output.claims.map((claim) => ({ ...claim, locator: offsetLocator(claim.locator) })),
+    timeline: output.timeline?.map((event) => ({ ...event, locator: offsetLocator(event.locator) })),
+  };
+};
+
 export async function extractRawEvidenceToBrain(input: {
   evidence: SourceRawEvidenceV2;
   sourceKind: string;
@@ -255,16 +299,22 @@ export async function extractRawEvidenceToBrain(input: {
     if (typeof output.typeKey !== "string" || !CORE_BRAIN_PAGE_TAXONOMY.some((entry) => entry.key === output.typeKey)) throw new Error("Page classification returned an undeclared Page type.");
     type = { typeKey: output.typeKey, basis: "unresolved" };
   }
-  const executed = await executeKnowledgeModel({ executor: input.modelExecutor, profile: input.profiles.reasoning, requiredProfile: extractionPrompt.profile, completedAt: now, request: {
+  const chunks = chunkKnowledgeEvidenceText(text);
+  const executions = await Promise.all(chunks.map((chunk, index) => executeKnowledgeModel({ executor: input.modelExecutor, profile: input.profiles.reasoning, requiredProfile: extractionPrompt.profile, completedAt: now, request: {
     task: extractionPrompt.task, promptId: extractionPrompt.promptId, promptVersion: extractionPrompt.version, promptContentHash: extractionPrompt.contentHash,
     inputSchemaId: extractionPrompt.inputSchemaId, outputSchemaId: extractionPrompt.outputSchemaId, systemInstruction: extractionPrompt.systemInstruction,
     taskInput: { defaultOwnerPrincipalId: input.ownerPrincipalId, sourceKind: input.sourceKind, observedAt: input.evidence.envelope.observedAt },
-    evidenceBlocks: [{ evidenceId: "evidence:source", content: text, contentDigest: sha256(text) }], authorizationContextDigest: input.authorizationContextDigest,
-    dataClass: input.dataClass, idempotencyKey: runKey,
-  } });
-  modelReceipts.push(executed.receipt);
-  if (executed.receipt.outcome !== "succeeded") throw new Error(`Claim extraction model ${executed.receipt.outcome}.`);
-  const output = validateExtractionOutput(executed.output, text, "evidence:source");
+    evidenceBlocks: [{ evidenceId: "evidence:source", content: chunk.content, contentDigest: sha256(chunk.content) }], authorizationContextDigest: input.authorizationContextDigest,
+    dataClass: input.dataClass, idempotencyKey: `${runKey}:chunk:${index}`,
+  } })));
+  modelReceipts.push(...executions.map((entry) => entry.receipt));
+  if (executions.some((entry) => entry.receipt.outcome !== "succeeded")) throw new Error("Claim extraction model did not succeed for every bounded evidence chunk.");
+  const chunkOutputs = executions.map((entry, index) => offsetExtractionOutput(validateExtractionOutput(entry.output, chunks[index]!.content, "evidence:source"), chunks[index]!.lineOffset));
+  const output: ModelExtractionOutput = {
+    page: chunkOutputs[0]!.page,
+    claims: chunkOutputs.flatMap((entry) => entry.claims),
+    timeline: chunkOutputs.flatMap((entry) => entry.timeline ?? []),
+  };
   const provenance = { model: input.profiles.reasoning.model, promptVersion: `${extractionPrompt.promptId}@${extractionPrompt.version}`, extractionRunId: runId };
   const existingPageId = sha256({ sourceId: input.evidence.envelope.sourceId, sourcePageKey: input.evidence.envelope.providerObjectId });
   const currentPage = await input.brainStore.getPage(existingPageId);
@@ -326,6 +376,6 @@ export async function extractRawEvidenceToBrain(input: {
   for (const claim of claims) await input.brainStore.putClaim(claim);
   for (const relation of storedRelations) await input.brainStore.putClaimRelation(relation);
   for (const event of timelineEvents) await input.brainStore.putTimelineEvent(event);
-  await input.runStore.put({ runId, runKey, inputDigest, promptVersions: modelReceipts.map((entry) => `${entry.promptId}@${entry.promptVersion}`), schemaVersion: extractionPrompt.outputSchemaId, modelProfileIdentity: modelIdentity, status: "succeeded", result, receiptIds: modelReceipts.map((entry) => entry.receiptId) });
+  await input.runStore.put({ runId, runKey, pipelineVersion: KNOWLEDGE_EXTRACTION_PIPELINE_VERSION, inputDigest, promptVersions: modelReceipts.map((entry) => `${entry.promptId}@${entry.promptVersion}`), schemaVersion: extractionPrompt.outputSchemaId, modelProfileIdentity: modelIdentity, status: "succeeded", result, receiptIds: modelReceipts.map((entry) => entry.receiptId) });
   return result;
 }

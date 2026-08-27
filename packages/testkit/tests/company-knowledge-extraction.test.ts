@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { InMemoryBrainStore } from "../../knowledge/in-memory-brain-store.ts";
 import {
   InMemoryKnowledgeExtractionRunStore,
+  chunkKnowledgeEvidenceText,
   classifyPageTypeDeterministically,
   extractRawEvidenceToBrain,
   linkDeterministicProviderIdentity,
@@ -85,6 +86,13 @@ const output = {
   ],
   timeline: [{ eventType: "planned-launch", description: "Project Cedar launch", observedAt: now, locator: { kind: "line", start: 1, end: 1 } }],
 };
+
+test("evidence chunking preserves exact text and global line offsets", () => {
+  const text = "line one\nline two is longer\nline three\nline four";
+  const chunks = chunkKnowledgeEvidenceText(text, 20);
+  assert.equal(chunks.map((chunk) => chunk.content).join("\n"), text);
+  assert.deepEqual(chunks.map((chunk) => chunk.lineOffset), [0, 1, 2]);
+});
 
 test("Core Prompt Registry pins every initial model boundary and keeps evidence untrusted", () => {
   const registry = new KnowledgePromptRegistry();

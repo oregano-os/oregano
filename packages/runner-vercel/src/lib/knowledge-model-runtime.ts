@@ -366,7 +366,7 @@ export class GranolaKnowledgeExtractionRuntime {
     const sourceId = source.requirement.sourceId;
     const owner = `extractor:${randomUUID()}`;
     const acquiredAt = new Date().toISOString();
-    const leaseUntil = new Date(Date.parse(acquiredAt) + 15 * 60_000).toISOString();
+    const leaseUntil = new Date(Date.parse(acquiredAt) + 6 * 60_000).toISOString();
     if (await this.#sourceStore.claimSyncLease({ sourceId, streamId: GRANOLA_EXTRACTION_STREAM, owner, acquiredAt, leaseUntil }) === "busy") return { ok: true, status: "busy" as const, sourceId };
     try {
       const policy = await this.#sourceStore.getPolicy(source.requirement.access.rootPolicyId);

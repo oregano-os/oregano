@@ -42,7 +42,7 @@ export class PostgresKnowledgeExtractionRunStore implements KnowledgeExtractionR
         run_id, run_key, processor_kind, pipeline_version, prompt_version, schema_version,
         model_route, model_id, input_digest, input_manifest, output_digest, output_manifest,
         usage_evidence, authorization_context, access_policy_id, attempt, status, started_at, completed_at)
-      values (${run.runId}, ${run.runKey}, 'model', '1.0.0', ${run.promptVersions.join(",")}, ${run.schemaVersion},
+      values (${run.runId}, ${run.runKey}, 'model', ${run.pipelineVersion}, ${run.promptVersions.join(",")}, ${run.schemaVersion},
         ${primaryReceipt.route}, ${primaryReceipt.model}, ${run.inputDigest},
         ${JSON.stringify({ sourceId: run.result.page.sourceId, sourcePageKey: run.result.page.sourcePageKey,
           sourceObjectVersion: run.result.pageVersion.sourceObjectVersion })},
