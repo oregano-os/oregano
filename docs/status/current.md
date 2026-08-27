@@ -274,10 +274,17 @@ evidence, historical prototypes, and production gaps.
   unavailable answer after the call. The corrected response gate withholds
   substantive output after execution failure, rejects malformed search output,
   and replaces an ignored successful result with authorized cited excerpts.
-  Production deployment `dpl_3RpK8bo2pgigyytbnqiG4vkUER6V` is ready at the
-  canonical production alias and exposes the same three R0 Knowledge grants
-  for Oregano. The repeated cited Slack probe remains Instance qualification
-  work.
+  Content-free invocation metrics then proved that the repeated Slack turn was
+  still reaching the obsolete `oregano-hq-builder-qualification` project rather
+  than CompanyOS: the team contained two Slack connectors, and the installed
+  `slack/oregano` connector remained attached to the obsolete project. The
+  Maintainer-approved cutover now attaches `slack/oregano` only to
+  `oregano-hq-companyos`, removes the obsolete trigger destination, leaves the
+  unused replacement connector unattached, and aligns the production
+  `SLACK_CONNECTOR` reference. Production deployment
+  `dpl_J3DHypFFR91F5KS6qWKc2GFTXeF2` is ready at the canonical alias and exposes
+  the same three R0 Knowledge grants. The repeated cited Slack probe remains
+  the final Instance qualification step.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human

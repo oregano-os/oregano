@@ -1,0 +1,57 @@
+version: 1
+plan_id: slack-connector-cutover-2026-08-27
+status: approved
+author: codex-agent
+created: 2026-08-27
+title: Route the installed Oregano Slack connector to the CompanyOS production Instance
+objective: >-
+  Cut over the Slack connector used by the installed Oregano Agent from the
+  obsolete builder-qualification project to the maintained CompanyOS production
+  project, preserving one trigger destination and one matching Instance
+  connector reference.
+non_goals:
+  - Change the Slack installation, scopes, Agent identity, or message history.
+  - Change Company Knowledge grants, authorization, schemas, or retrieval behavior.
+  - Delete either Vercel project or either connector resource.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Safety cannot be weakened from a Workspace
+files_expected:
+  - .oregano/changes/2026-08-27-slack-connector-cutover.yaml
+  - docs/status/current.md
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-confirmation-ja-connector-umschalten
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-27-slack-connector-cutover.yaml
+  - node packages/cli/src/cli.mjs inspect-core --plan .oregano/changes/2026-08-27-slack-connector-cutover.yaml
+  - node packages/cli/src/cli.mjs docs check
+  - git diff --check
+tests:
+  - The installed slack/oregano connector is attached only to oregano-hq-companyos.
+  - The obsolete builder-qualification project is detached from slack/oregano.
+  - The unused replacement connector has no project attachment.
+  - The production SLACK_CONNECTOR reference names slack/oregano.
+  - A post-cutover production deployment is READY and its health contract exposes the selected Agent and three R0 Knowledge grants.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+migration: >-
+  This is an Instance transport cutover. It changes the Vercel Connect project
+  attachment, verified trigger destination, and production connector reference,
+  then requires a fresh production deployment. It does not migrate or delete
+  Slack or Company Knowledge data.
+rollback: >-
+  Detach slack/oregano from oregano-hq-companyos, restore the previous connector
+  reference and project attachment, and redeploy the prior production
+  configuration. Do not attach both projects as trigger destinations during
+  steady state because that can produce duplicate replies.
+open_decisions: []
