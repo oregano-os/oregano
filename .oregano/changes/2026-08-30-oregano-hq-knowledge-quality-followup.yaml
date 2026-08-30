@@ -1,0 +1,85 @@
+version: 1
+plan_id: oregano-hq-knowledge-quality-followup-2026-08-30
+status: approved
+author: codex-agent
+created: 2026-08-30
+title: Refresh Oregano HQ knowledge, verify Strategy Current Briefs, and improve canary recall
+objective: >-
+  Correct successful Source freshness evidence, incrementally reconcile and
+  extract the Oregano HQ meeting Source, verify existing cited Working
+  Syntheses and Strategy Current Briefs with subject-specific freshness,
+  diagnose the two payload-free production benchmark misses, apply only
+  bounded retrieval-quality improvements, and promote a new projection only
+  through the existing production-canary gates.
+non_goals:
+  - Make Retrieval V3 the default for another Company Instance.
+  - Weaken ACL, citation, Source, fallback, or activation gates.
+  - Rewrite Source evidence, Claims, synthesis history, or the Handbook.
+  - Treat a Current Brief or Working Synthesis as official company policy.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - Human authority is explicit
+  - Knowledge authority stays reviewed and singular
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-30-oregano-hq-knowledge-quality-followup.yaml
+  - docs/_generated/document-registry.json
+  - docs/status/current.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/src/cli.mjs
+  - packages/runner-vercel/src/app/api/knowledge/compounding/route.ts
+  - packages/state-postgres/knowledge-compounding-store.ts
+  - packages/state-postgres/knowledge-production-qualification.ts
+  - packages/state-postgres/knowledge-retrieval-v3-store.ts
+  - packages/state-postgres/source-pipeline-store.ts
+  - packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v3-postgres.test.ts
+  - packages/testkit/tests/company-knowledge-source-v2.test.ts
+required_approvals:
+  - oregano-maintainer
+  - oregano-hq-platform-administrator
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-complete-the-three-oregano-hq-followups
+  - role: oregano-hq-platform-administrator
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-complete-the-three-oregano-hq-followups
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-30-oregano-hq-knowledge-quality-followup.yaml
+  - node packages/cli/src/cli.mjs inspect-core --plan .oregano/changes/2026-08-30-oregano-hq-knowledge-quality-followup.yaml
+  - node packages/cli/src/cli.mjs docs check
+  - node scripts/check-public-boundary.mjs
+  - node_modules/.bin/tsc --noEmit
+  - node_modules/.bin/tsc --noEmit -p packages/runner-vercel/tsconfig.json
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-source-v2.test.ts
+  - run production Source reconcile, extraction, compounding, projection, qualification, and live verification
+  - git diff --check
+tests:
+  - A successful Source status transition records a fresh synchronization timestamp without rewriting earlier Source evidence.
+  - Failed, stale, registered, and revoked transitions do not fabricate a successful synchronization timestamp.
+  - Production diagnostics expose no query, excerpt, source content, credential, or secret value.
+  - Current Brief remains synthesized, cited, versioned, authorization-first, and non-official.
+  - Current Brief freshness is scoped to new Claims for the exact subject and current Page version.
+  - A failed model spend reservation can retry after the bounded stale window without bypassing cycle or daily budgets.
+  - Recall improvement preserves zero authorization leakage and complete citation membership.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - guide.operate-knowledge-provider
+migration: >-
+  No schema migration. Update successful Source health evidence through the
+  existing row, run bounded idempotent reconciliation and model work, then
+  build a new immutable derived Retrieval V3 projection.
+rollback: >-
+  Keep the current active projection and V2 runtime fallback until the new
+  projection qualifies. If live verification fails, restore runtime mode v2 or
+  the prior active projection; do not delete durable Source, Claim, or
+  synthesis history.
+open_decisions: []

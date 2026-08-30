@@ -282,8 +282,13 @@ export class PostgresKnowledgeRetrievalV3Store implements KnowledgeRetrievalCand
     const rows = await connection()`select s.synthesis_id, s.current_version_id, s.subject_type, s.subject_id,
         v.synthesis_version_id, v.version_number, v.content, v.content_digest, v.supporting_claim_ids,
         v.contested_claim_ids, v.superseded_claim_ids, v.gaps, v.access_policy_id, v.synthesized_at,
-        (select max(changes.occurred_at) from companyos_knowledge.knowledge_change_stream changes
-          where changes.access_policy_id = v.access_policy_id) as latest_relevant_change_at
+        (select max(claim.observed_at)
+          from companyos_knowledge.claims claim
+          join companyos_knowledge.claim_evidence evidence on evidence.claim_id = claim.claim_id
+          join companyos_knowledge.pages page on page.page_id = evidence.page_id
+            and page.current_version_id = evidence.page_version_id
+          where s.subject_type = 'page' and evidence.page_id = s.subject_id
+            and claim.access_policy_id = v.access_policy_id) as latest_relevant_change_at
       from companyos_knowledge.syntheses s
       join companyos_knowledge.synthesis_versions v on v.synthesis_version_id = s.current_version_id
       where s.subject_type = ${input.subjectType} and s.subject_id = ${input.subjectId} and s.lifecycle_status = 'active'
