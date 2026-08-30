@@ -3,6 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { BASE_BRAIN_PAGE_TYPES } from "../knowledge/brain-contracts.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
 import { ensureCompanyOSSchema } from "./migrate.ts";
+import { postgresTimestampToIso } from "./postgres-values.ts";
 
 const CONTROL_TABLES = [
   "approval_requests",
@@ -102,12 +103,21 @@ const PHASE_SIX_KNOWLEDGE_TABLES = [
   "model_task_results",
 ] as const;
 
+const PHASE_SEVEN_KNOWLEDGE_TABLES = [
+  "knowledge_benchmark_runs",
+  "knowledge_productization_receipts",
+  "knowledge_shadow_comparisons",
+  "retrieval_projection_runs",
+  "retrieval_units",
+] as const;
+
 const PHASE_ONE_MANIFEST_KNOWLEDGE_TABLES = [...FOUNDATION_KNOWLEDGE_TABLES, ...PHASE_ONE_KNOWLEDGE_TABLES].sort();
 const PHASE_TWO_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_ONE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_TWO_KNOWLEDGE_TABLES].sort();
 const PHASE_THREE_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_TWO_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_THREE_KNOWLEDGE_TABLES].sort();
 const PHASE_FOUR_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_THREE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_FOUR_KNOWLEDGE_TABLES].sort();
 const PHASE_FIVE_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_FOUR_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_FIVE_KNOWLEDGE_TABLES].sort();
-const KNOWLEDGE_TABLES = [...PHASE_FIVE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_SIX_KNOWLEDGE_TABLES].sort();
+const PHASE_SIX_MANIFEST_KNOWLEDGE_TABLES = [...PHASE_FIVE_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_SIX_KNOWLEDGE_TABLES].sort();
+const KNOWLEDGE_TABLES = [...PHASE_SIX_MANIFEST_KNOWLEDGE_TABLES, ...PHASE_SEVEN_KNOWLEDGE_TABLES].sort();
 
 const PHASE_TWO_REQUIRED_INDEXES = [
   "companyos.chat_lists_key_sequence_idx",
@@ -166,11 +176,23 @@ const PHASE_FIVE_REQUIRED_INDEXES = [
   "companyos_knowledge.knowledge_compounding_receipts_cycle_idx",
 ] as const;
 
-const REQUIRED_INDEXES = [
+const PHASE_SIX_REQUIRED_INDEXES = [
   ...PHASE_FIVE_REQUIRED_INDEXES,
   "companyos_knowledge.knowledge_model_execution_ledger_spend_idx",
   "companyos_knowledge.knowledge_model_spend_reservations_budget_idx",
   "companyos_knowledge.knowledge_model_task_results_policy_idx",
+] as const;
+
+const REQUIRED_INDEXES = [
+  ...PHASE_SIX_REQUIRED_INDEXES,
+  "companyos_knowledge.knowledge_benchmark_runs_suite_idx",
+  "companyos_knowledge.knowledge_one_active_retrieval_projection_idx",
+  "companyos_knowledge.knowledge_productization_receipts_kind_idx",
+  "companyos_knowledge.knowledge_retrieval_projection_status_idx",
+  "companyos_knowledge.knowledge_retrieval_units_parent_idx",
+  "companyos_knowledge.knowledge_retrieval_units_policy_idx",
+  "companyos_knowledge.knowledge_retrieval_units_search_idx",
+  "companyos_knowledge.knowledge_shadow_comparisons_status_idx",
 ] as const;
 
 const PHASE_TWO_REQUIRED_CONSTRAINTS = [
@@ -328,11 +350,31 @@ export const COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST = createHash("sha256")
   .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_FIVE))
   .digest("hex");
 
-export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+export const COMPANY_DATABASE_MANIFEST_PHASE_SIX = Object.freeze({
   schemaVersion: 1,
   id: "companyos-postgres",
   version: "1.6.0",
   predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version,
+  migrationMode: "additive",
+  schemas: Object.freeze({
+    companyos: Object.freeze({ tables: CONTROL_TABLES }),
+    companyos_knowledge: Object.freeze({ tables: Object.freeze(PHASE_SIX_MANIFEST_KNOWLEDGE_TABLES) }),
+  }),
+  requiredIndexes: PHASE_SIX_REQUIRED_INDEXES,
+  requiredConstraints: REQUIRED_CONSTRAINTS,
+  corePageTypes: Object.freeze(CORE_PAGE_TYPE_KEYS),
+  optionalFeatures: Object.freeze(["vector"]),
+});
+
+export const COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST = createHash("sha256")
+  .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_SIX))
+  .digest("hex");
+
+export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+  schemaVersion: 1,
+  id: "companyos-postgres",
+  version: "1.7.0",
+  predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_SIX.version,
   migrationMode: "additive",
   schemas: Object.freeze({
     companyos: Object.freeze({ tables: CONTROL_TABLES }),
@@ -370,11 +412,42 @@ export interface CompanyDatabasePreparationReceipt {
   qualification: CompanyDatabaseQualificationReceipt;
 }
 
+export interface CompanyDatabaseStateInspection {
+  schemas: { companyos: boolean; companyosKnowledge: boolean };
+  tableCounts: { companyos: number; companyosKnowledge: number };
+  manifests: Array<{ manifestId: string; manifestVersion: string; manifestDigest: string; appliedAt: string }>;
+  vector: boolean;
+  retrievalV3: { available: boolean; activeProjectionHash: string | null };
+}
+
 const databaseUrl = (): string => {
   const value = process.env.DATABASE_URL;
   if (!value) throw new Error("DATABASE_URL is not set — provision or adopt a StateStore before database preparation.");
   return value;
 };
+
+export function createNeonBranchDatabaseUrl(databaseUrlValue: string, branchHost: string): string {
+  const normalizedHost = branchHost.trim().toLowerCase();
+  if (!/^ep-[a-z0-9-]+(?:\.[a-z0-9-]+)+\.neon\.tech$/.test(normalizedHost) || normalizedHost.length > 253) {
+    throw new Error("Neon branch database host is invalid.");
+  }
+  const url = new URL(databaseUrlValue);
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") throw new Error("Company database URL must use PostgreSQL.");
+  if (!url.hostname.endsWith(".neon.tech")) throw new Error("Neon branch host override requires an existing Neon database URL.");
+  if (url.hostname === normalizedHost) throw new Error("Neon branch host override must differ from the bound database host.");
+  url.hostname = normalizedHost;
+  return url.toString();
+}
+
+export async function withNeonBranchDatabaseHost<T>(branchHost: string, operation: () => Promise<T>): Promise<T> {
+  const previous = databaseUrl();
+  process.env.DATABASE_URL = createNeonBranchDatabaseUrl(previous, branchHost);
+  try {
+    return await operation();
+  } finally {
+    process.env.DATABASE_URL = previous;
+  }
+}
 
 const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_V1.version, COMPANY_DATABASE_MANIFEST_V1_DIGEST],
@@ -383,6 +456,7 @@ const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_PHASE_THREE.version, COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version, COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST],
+  [COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST],
   [COMPANY_DATABASE_MANIFEST.version, COMPANY_DATABASE_MANIFEST_DIGEST],
 ]);
 
@@ -397,6 +471,37 @@ export function assertSupportedCompanyDatabaseManifestHistory(rows: Array<Record
     versions.push(version);
   }
   return versions;
+}
+
+export async function inspectCompanyDatabaseState(): Promise<CompanyDatabaseStateInspection> {
+  const sql = neon(databaseUrl());
+  const relations = (await sql`select
+    to_regnamespace('companyos')::text as control_schema,
+    to_regnamespace('companyos_knowledge')::text as knowledge_schema,
+    to_regclass('companyos.schema_manifests')::text as manifest_ledger,
+    to_regclass('companyos_knowledge.retrieval_projection_runs')::text as retrieval_projection_runs`)[0] ?? {};
+  const tableRows = await sql`select schemaname, count(*)::int as table_count from pg_tables
+    where schemaname in ('companyos', 'companyos_knowledge') group by schemaname order by schemaname`;
+  const tableCounts = new Map(tableRows.map((row) => [String(row.schemaname), Number(row.table_count)]));
+  const manifestRows = relations.manifest_ledger
+    ? await sql`select manifest_id, manifest_version, manifest_digest, applied_at from companyos.schema_manifests order by applied_at, manifest_id, manifest_version`
+    : [];
+  const activeProjectionRows = relations.retrieval_projection_runs
+    ? await sql`select projection_hash from companyos_knowledge.retrieval_projection_runs where status = 'active' limit 1`
+    : [];
+  const vector = Boolean((await sql`select exists(select 1 from pg_extension where extname = 'vector') as enabled`)[0]?.enabled);
+  return {
+    schemas: { companyos: Boolean(relations.control_schema), companyosKnowledge: Boolean(relations.knowledge_schema) },
+    tableCounts: { companyos: tableCounts.get("companyos") ?? 0, companyosKnowledge: tableCounts.get("companyos_knowledge") ?? 0 },
+    manifests: manifestRows.map((row) => ({
+      manifestId: String(row.manifest_id),
+      manifestVersion: String(row.manifest_version),
+      manifestDigest: String(row.manifest_digest),
+      appliedAt: postgresTimestampToIso(row.applied_at),
+    })),
+    vector,
+    retrievalV3: { available: Boolean(relations.retrieval_projection_runs), activeProjectionHash: activeProjectionRows[0]?.projection_hash ? String(activeProjectionRows[0].projection_hash) : null },
+  };
 }
 
 const missing = (expected: readonly string[], actual: readonly string[]): string[] =>
@@ -415,7 +520,7 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
   if (receipt.manifestDigest !== COMPANY_DATABASE_MANIFEST_DIGEST) throw new Error("Database qualification receipt has the wrong manifest digest.");
   if (!receipt.qualifiedAt || Number.isNaN(Date.parse(receipt.qualifiedAt))) throw new Error("Database qualification receipt requires an ISO timestamp.");
   if (receipt.schemas?.companyos?.tableCount !== CONTROL_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos table count.");
-  const expectedKnowledgeTables = KNOWLEDGE_TABLES.length + (receipt.features?.vector ? 1 : 0);
+  const expectedKnowledgeTables = KNOWLEDGE_TABLES.length + (receipt.features?.vector ? 2 : 0);
   if (receipt.schemas?.companyosKnowledge?.tableCount !== expectedKnowledgeTables) throw new Error("Database qualification receipt has the wrong companyos_knowledge table count.");
   if (receipt.corePageTypeCount !== CORE_PAGE_TYPE_KEYS.length) throw new Error("Database qualification receipt has the wrong Core Page type count.");
   if (typeof receipt.features?.vector !== "boolean") throw new Error("Database qualification receipt requires explicit vector feature evidence.");
@@ -443,9 +548,9 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
   const expectedTables = [
     ...CONTROL_TABLES.map((name) => `companyos.${name}`),
     ...KNOWLEDGE_TABLES.map((name) => `companyos_knowledge.${name}`),
-    ...(vector ? ["companyos_knowledge.fragment_embeddings"] : []),
+    ...(vector ? ["companyos_knowledge.fragment_embeddings", "companyos_knowledge.retrieval_unit_embeddings"] : []),
   ];
-  const expectedIndexes = [...REQUIRED_INDEXES, ...(vector ? ["companyos_knowledge.knowledge_fragment_embeddings_hnsw_idx"] : [])];
+  const expectedIndexes = [...REQUIRED_INDEXES, ...(vector ? ["companyos_knowledge.knowledge_fragment_embeddings_hnsw_idx", "companyos_knowledge.knowledge_retrieval_unit_embeddings_hnsw_idx"] : [])];
   const failures: string[] = [];
   const missingTables = missing(expectedTables, tables);
   const missingIndexes = missing(expectedIndexes, indexes);
@@ -469,7 +574,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
     qualifiedAt: new Date().toISOString(),
     schemas: {
       companyos: { tableCount: CONTROL_TABLES.length },
-      companyosKnowledge: { tableCount: KNOWLEDGE_TABLES.length + (vector ? 1 : 0) },
+      companyosKnowledge: { tableCount: KNOWLEDGE_TABLES.length + (vector ? 2 : 0) },
     },
     corePageTypeCount: CORE_PAGE_TYPE_KEYS.length,
     features: { vector },

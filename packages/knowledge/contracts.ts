@@ -126,7 +126,7 @@ export interface KnowledgeSearchResult {
   hits: KnowledgeSearchHit[];
   gaps: Array<"no-active-snapshot" | "no-results">;
   mode: "lexical" | "hybrid";
-  degradations: Array<"embedding-disabled" | "embedding-unavailable" | "vector-index-unavailable" | "handbook-unavailable">;
+  degradations: Array<"embedding-disabled" | "embedding-unavailable" | "vector-index-unavailable" | "handbook-unavailable" | "retrieval-v3-canary-fallback">;
 }
 
 export interface KnowledgeTraversalResult {

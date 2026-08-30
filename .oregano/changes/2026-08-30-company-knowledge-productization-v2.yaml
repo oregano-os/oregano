@@ -1,0 +1,123 @@
+version: 1
+plan_id: company-knowledge-productization-v2-2026-08-30
+status: implemented
+author: codex-agent
+created: 2026-08-30
+title: Complete the pragmatic Company Knowledge productization roadmap
+objective: >-
+  Implement the seven-phase Company Knowledge productization roadmap as an
+  additive, authorization-first path: isolated-environment qualification,
+  KnowledgeBench, persisted Retrieval V3 projections, Current Brief runtime
+  reads, Brain-first answer preparation, deterministic Open Loops and Meeting
+  Prep views, and a Knowledge Doctor. Preserve the reviewed Handbook as the
+  only curated company authority and leave production activation behind
+  explicit qualification evidence.
+non_goals:
+  - Mutate a Neon, Vercel, Slack, model-provider, or Source-provider account from this repository change.
+  - Activate Retrieval V3 for the production Agent or remove the supported Retrieval V2 path.
+  - Let Brain material, a Current Brief, an Open Loop, or Meeting Prep become Handbook authority.
+  - Let a model approve Claims, promotion candidates, access policies, or production activation.
+  - Add provider-specific business logic to Oregano Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-30-company-knowledge-productization-v1.yaml
+  - .oregano/changes/2026-08-30-company-knowledge-productization-v2.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/knowledge/current-brief.ts
+  - packages/knowledge/knowledge-bench.ts
+  - packages/knowledge/knowledge-doctor.ts
+  - packages/knowledge/knowledge-experiences.ts
+  - packages/knowledge/productization.ts
+  - packages/knowledge/retrieval-unit.ts
+  - packages/knowledge/retrieval-v3.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-productization-store.ts
+  - packages/state-postgres/knowledge-retrieval-v3-store.ts
+  - packages/state-postgres/knowledge-schema-phase-seven.ts
+  - packages/testkit/tests/company-knowledge-experiences.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/company-knowledge-productization.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-projection-v3.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v3-postgres.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-implement-the-complete-phased-plan
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-30-company-knowledge-productization-v2.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-30-company-knowledge-productization-v2.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-productization.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-experiences.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-projection-v3.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-v3-postgres.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-database-bootstrap.test.ts
+  - git diff --check
+tests:
+  - Non-production qualification requires distinct environment, database branch, runtime, secret namespace, communication binding, Source binding set, and model budget evidence.
+  - KnowledgeBench records Recall at K, reciprocal rank, authority-label accuracy, citation membership, degradation, and authorization leakage without persisting queries or excerpts.
+  - Retrieval V3 projection writes are idempotent, count-verified, independently activated, and rollback to the previous active projection without changing durable Brain or Handbook objects.
+  - Lexical and semantic SQL candidate generation receives only pre-authorized policy identities and never loads unauthorized unit content first.
+  - Embedding profile and dimensions are projection evidence, while lexical retrieval remains available after embedding failure.
+  - Current Brief reads only the current immutable Working Synthesis version through an authorized policy set and exposes staleness without rewriting content.
+  - Brain-first context and Answer Envelope validation bind every citation and substantive claim to one exact authorized context receipt.
+  - Open Loops and Meeting Prep remain deterministic cited views over authorized Claims, Briefs, and retrieval hits.
+  - Knowledge Doctor fails production readiness on ACL leakage, missing isolation, unqualified schema, missing benchmark evidence, stale projection, invalid citations, or unhealthy Sources.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.boundaries
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+    - command.setup
+    - command.verify-live
+    - guide.operate-knowledge-provider
+    - guide.prepare-instance
+migration: >-
+  Add companyos-postgres@1.7.0 after 1.6.0. The additive migration creates
+  rebuildable Retrieval V3 projection, benchmark, and shadow-comparison tables
+  plus an optional pgvector Retrieval Unit embedding table. Durable Raw
+  Evidence, Pages, Claims, Working Syntheses, decisions, and Handbook snapshots
+  are unchanged. Existing 1.0.0 through 1.6.0 manifest identities remain
+  immutable and supported.
+rollback: >-
+  Keep Retrieval V2 active, retire or ignore the Retrieval V3 projection, and
+  revert the new Core modules. The phase-seven tables contain derived units and
+  payload-free qualification evidence only and may remain unused during code
+  rollback. A production switch is not part of this change; an eventual
+  activation rollback selects the previously verified projection and immutable
+  runtime Artifact.
+open_decisions:
+  - Exact Neon branch, Vercel project, SecretRefs, Slack binding, Source credentials, and productive model budget remain accountable Instance selections.
+  - Production activation requires real staging benchmark, ACL-negative, backup-restore, and shadow-comparison receipts; repository tests cannot create those receipts.
+  - Query expansion and model reranking remain disabled until a measured KnowledgeBench improvement justifies them.

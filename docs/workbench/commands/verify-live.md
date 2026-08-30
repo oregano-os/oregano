@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -52,11 +52,13 @@ runbook. It fails unless fresh or recorded evidence proves:
   evidence from a real selected-model call.
 
 The current Core target receipt identifies additive manifest
-`companyos-postgres@1.6.0` and its 62 required Knowledge tables. The linked
-`oregano-hq-companyos` Instance applied this manifest and passed a separate
+`companyos-postgres@1.7.0` and its 67 required Knowledge tables. The linked
+`oregano-hq-companyos` Instance last applied predecessor `1.6.0` and passed a separate
 read-only verification on 2026-08-27 with digest
 `b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`;
-vector availability brings the observed Knowledge table count to 63. Another Instance remains on its exact
+vector availability brings that predecessor's observed Knowledge table count
+to 63. Manifest `1.7.0` with its second optional Retrieval-Unit vector table is
+not implied by that historical receipt. Another Instance remains on its exact
 older manifest until `database prepare` records an additive upgrade and a
 separate read-only verification. This is schema evidence, not authorization
 evidence.

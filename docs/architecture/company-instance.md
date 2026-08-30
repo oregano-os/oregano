@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -109,16 +109,30 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-The current additive database manifest is `companyos-postgres@1.6.0`. It
-retains the immutable `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities
-and contains 62 required `companyos_knowledge` tables. Phase 3 adds durable Source
+The current additive database manifest is `companyos-postgres@1.7.0`. It
+retains the immutable `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities
+and contains 67 required `companyos_knowledge` tables. Phase 3 adds durable Source
 Events, provider ACL snapshots, bounded pipeline receipts, completed
 watermarks, an integrity-linked Knowledge change stream, and governed source
 lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
 stream so overlapping schedules cannot process the same partition concurrently.
 Phase 5 adds durable compounding leases and receipts, review-only Claim-pair
 proposals, and explicit grading requests. Phase 6 adds policy-bound model-task
-results, atomic spend reservations, and a rated execution ledger.
+results, atomic spend reservations, and a rated execution ledger. Phase 7 adds
+rebuildable Retrieval V3 projection runs and Units plus payload-free
+KnowledgeBench, shadow-comparison, and productization receipts. When `pgvector`
+is available, the two optional vector tables retain Handbook-fragment and
+Retrieval-Unit embeddings; neither is durable company authority.
+The reusable activation path qualifies a fully isolated non-production
+Instance. Oregano HQ also has one explicit internal-dogfood production-canary
+path: a Neon point-in-time branch rehearses the additive migration, production
+V3 is built verified but inactive, shadow execution continues serving V2, and
+an exact Agent allowlist plus projection hash gates canary service. This path
+does not require duplicate Slack, Granola, model, or Vercel bindings, does not
+permit external-user traffic, and does not weaken the generic isolation
+contract. Invalid mode, projection, allowlist, or candidate execution falls
+back to V2. Database projection activation separately requires a persisted
+qualification receipt.
 Runtime readiness is a separate gate: the Core-resolved
 subject and groups must pass policy intersection before retrieval, graph
 traversal, review hydration, citations, or model context. Unknown mappings and

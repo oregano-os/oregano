@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-27
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -59,6 +59,36 @@ evidence, historical prototypes, and production gaps.
   exact get, and directional graph traversal; every result retains a stable
   path, fragment, digest, policy, and evidence status. The maintained Vercel
   Runner registers this provider through `oregano/knowledge-postgres@3.0.0`.
+- Company Knowledge productization implements the seven-phase Core path and an
+  explicit Oregano HQ internal production-canary control plane. Retrieval Projection V3 deterministically
+  normalizes Handbook fragments, Brain fragments, Claims, Source Objects,
+  Timeline Events, and Working Syntheses into policy-carrying Retrieval Units.
+  The additive `companyos-postgres@1.7.0` path can stage, hash- and count-verify,
+  retire, and independently activate derived projections and optional 256-
+  dimension embeddings. Exact, lexical, semantic, graph-neighbor, and Current
+  Brief reads pass only pre-authorized policy identities into SQL. Embedding
+  absence or failure retains lexical retrieval with an explicit degradation.
+  KnowledgeBench measures Recall at K, reciprocal rank, authority labels,
+  citation membership, ACL leakage, and degradation and persists payload-free
+  V2-versus-V3 shadow evidence. Context receipts bind the active projection and
+  authorized policy-set digest; the V3 Answer Envelope rejects unsupported
+  claims and citations. Current Brief, Open Loops, and Meeting Prep are cited
+  synthesized read models and never Handbook authority. The Knowledge Doctor
+  blocks readiness on missing rollout-lane qualification, schema, projection,
+  benchmark, shadow, ACL, citation, Source, restore, or rollback evidence. The
+  generic isolated non-production contract remains strict. Oregano HQ may
+  instead use a branch-rehearsed internal-only canary with exact Agent allowlist
+  and projection hash. Runtime modes default to V2, shadow V3 while serving V2,
+  or serve V3 canary with automatic V2 fallback. Database activation requires
+  a persisted exact qualification receipt. On 2026-08-30 the linked Oregano HQ
+  production Instance rehearsed the additive migration on a point-in-time Neon
+  branch, qualified and activated one 1,419-unit projection, passed the
+  payload-free benchmark, shadow, ACL, citation, fallback, and database gates,
+  and deployed V3 canary for the exact internal `oregano` Agent. Live evidence
+  recorded five authorized results, zero unresolved-subject results, and no V2
+  fallback. The Doctor has no failed check; stale Source synchronization and
+  the absence of a first Current Brief remain explicit warnings. Other Company
+  Instances remain on V2 unless independently qualified.
 - Company Knowledge Phase 5 includes the read-only
   `oregano/github-repository-source@1.0.0`, SecretRef-only binding, bounded and
   cursor-idempotent repository enumeration/fetch, immutable receipts/object
@@ -334,8 +364,8 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.6.0` additive manifest preserves the immutable `1.5.0`,
-  `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  `companyos-postgres@1.7.0` additive manifest preserves the immutable `1.6.0`,
+  `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares both `companyos` and `companyos_knowledge`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
@@ -351,8 +381,17 @@ evidence, historical prototypes, and production gaps.
   Knowledge tables. Phase 5 adds four compounding lease, receipt, pair-proposal,
   and grading-request relations for 59 required Knowledge tables. Phase 6 adds
   three model-result cache, spend-reservation, and execution-ledger relations
-  for 62 required Knowledge tables. On 2026-08-27 the linked production Instance
-  upgraded additively to 1.6.0 and passed a separate read-only qualification
+  for 62 required Knowledge tables. Phase 7 adds five rebuildable Retrieval V3,
+  benchmark, shadow-comparison, and productization-receipt relations for 67
+  required Knowledge tables. With `pgvector`, Handbook fragments and Retrieval
+  Units use two optional embedding tables for an expected total of 69 Knowledge
+  tables. On 2026-08-30 the linked production Instance upgraded additively to
+  manifest `1.7.0` and passed separate branch and production qualifications
+  with digest
+  `7114b3061ff5b277a931f33e08f1f6f803f2fbdd98539ffad9d487498e461167`,
+  12 Control tables, 67 required Knowledge tables plus two `pgvector` tables
+  for an observed total of 69, and 19 Core Page types. On 2026-08-27 the linked
+  production Instance upgraded additively to 1.6.0 and passed a separate read-only qualification
   with digest
   `b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`,
   12 Control tables, 62 required Knowledge tables plus `pgvector` for an
@@ -481,6 +520,12 @@ evidence, historical prototypes, and production gaps.
 
 ## Approved targets not yet implemented
 
+- Retrieval V3 remains an Oregano HQ internal canary, not the reusable default.
+  Its first benchmark misses two of twelve expected identities, one Source is
+  stale, and no Current Brief exists yet. These are measured follow-up items;
+  they do not weaken the recorded zero-leak, citation, fallback, or activation
+  gates. A separate isolated non-production Instance and independent receipts
+  remain mandatory before using this rollout pattern for another company.
 - Meta, Monday, and other business-provider Connectors are not implemented or
   activated. Each still needs privileged isolation, provenance, SecretRefs,
   health, retry, reconciliation, read-after-write, and conformance evidence.
@@ -503,8 +548,10 @@ evidence, historical prototypes, and production gaps.
    meeting Source bindings, then run real synchronizations and ACL regressions.
    Connector implementations exist, but schema readiness supplies no Source
    SecretRef or provider-scope authority.
-3. Establish an isolated non-production Instance and Connector authorization
-   instead of testing future changes against production state.
+3. Refresh the stale Oregano HQ Source, generate the first cited Current Brief,
+   improve Retrieval V3 recall beyond the initial 83.3% canary result, and
+   establish a fully isolated non-production Instance before broadening changes
+   beyond internal dogfood or using the pattern for another company.
 4. Reconcile, validate, tag, and publish the stable immutable `v0.4.0` GitHub
    Release containing the Company Knowledge capability. There is no
    `latest-stable` branch; `releases/latest` is discovery only and installation

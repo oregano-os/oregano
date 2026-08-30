@@ -1,0 +1,72 @@
+version: 1
+plan_id: company-knowledge-productization-v1-2026-08-30
+status: implemented
+author: codex-agent
+created: 2026-08-30
+title: Establish the Retrieval V3 projection and Current Brief read model
+objective: >-
+  Start the pragmatic Company Knowledge productization roadmap with a
+  deterministic, authorization-carrying Retrieval Unit projection and a
+  Current Brief read model over immutable Working Synthesis versions, without
+  changing Handbook authority or activating a new production retrieval path.
+non_goals:
+  - Provision or mutate a Neon branch, Vercel environment, Slack application, or external Source binding.
+  - Switch the production Agent from Retrieval V2 or add a new Agent Tool.
+  - Add pgvector tables, an embedding provider, query expansion, or reranking.
+  - Treat a Current Brief or another Working Synthesis as official Company Knowledge.
+  - Permit an Agent or model to publish, approve, or directly edit Handbook authority.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-08-30-company-knowledge-productization-v1.yaml
+  - docs/_generated/document-registry.json
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - packages/knowledge/current-brief.ts
+  - packages/knowledge/retrieval-unit.ts
+  - packages/testkit/tests/company-knowledge-retrieval-projection-v3.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-start-implementation-of-the-updated-plan
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-30-company-knowledge-productization-v1.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-30-company-knowledge-productization-v1.yaml
+  - pnpm docs:check
+  - pnpm typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-projection-v3.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+  - git diff --check
+tests:
+  - Retrieval Units preserve object identity, parent identity, authority layer, lifecycle state, policy, source, time, and exact content digest.
+  - Projection identity is deterministic across input order and exact duplicate retries, while conflicting identity reuse fails closed.
+  - Current Brief is a read model over one immutable Working Synthesis version and cannot become official authority through its constructor or Retrieval mapping.
+  - Current Brief supporting, contested, and superseded Claim sets are disjoint and exact.
+  - New relevant evidence or an exceeded age bound marks a Current Brief potentially stale without rewriting its content.
+  - Mapping to the existing Retrieval V2 engine preserves authorization metadata and synthesized, attributed, evidence, contested, superseded, expired, and official labels.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.2
+    - status.current
+migration: >-
+  No database migration is included. Retrieval Units and Current Briefs are
+  deterministic Core read models over existing durable Handbook, Page, Claim,
+  Timeline, Raw Evidence, and Synthesis records. A later approved increment may
+  persist their rebuildable projection and activate SQL-side candidate search.
+rollback: >-
+  Remove the Retrieval Unit and Current Brief modules and their tests. No
+  durable evidence, Working Synthesis version, Handbook content, active
+  retrieval provider, Instance binding, or database schema is changed.
+open_decisions:
+  - The persisted Retrieval V3 projection schema and SQL-side ACL candidate-generation design remain a later approved increment.
+  - The qualified embedding profile and dimensions remain Instance activation decisions.
+  - Neon staging branch creation and external-runtime isolation remain accountable Instance work.

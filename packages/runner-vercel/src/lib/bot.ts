@@ -11,6 +11,7 @@ import { sha256 } from "../../../runtime/canonical.ts";
 import { CompanyOSRuntime, type ExecuteToolRequest } from "../../../runtime/companyos-runtime.ts";
 import { PostgresBrainKnowledgeProjectionStore } from "../../../state-postgres/brain-retrieval-store.ts";
 import { PostgresKnowledgeAccessAuditor } from "../../../state-postgres/knowledge-access-store.ts";
+import { createPostgresKnowledgeCanaryProvider, resolveKnowledgeRetrievalRuntimeSelection } from "../../../state-postgres/knowledge-canary-provider.ts";
 import { createPostgresKnowledgeProvider } from "../../../state-postgres/knowledge-store.ts";
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import type { RosterMember } from "../../../state-store/roster.ts";
@@ -231,11 +232,15 @@ function registerHandlers(bot: Chat) {
 
 let botInstance: Chat | undefined;
 
-export function createCompanyOSRuntimeConnectors() {
-  const knowledge = createUnifiedKnowledgeProvider({
+export function createCompanyOSRuntimeConnectors(selectedAgentId = agent?.id ?? process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent") {
+  const baseline = createUnifiedKnowledgeProvider({
     handbook: createPostgresKnowledgeProvider(),
     brain: new PostgresBrainKnowledgeProjectionStore(),
     accessAuditor: new PostgresKnowledgeAccessAuditor(),
+  });
+  const knowledge = createPostgresKnowledgeCanaryProvider({
+    baseline,
+    selection: resolveKnowledgeRetrievalRuntimeSelection({ environment: process.env, selectedAgentId }),
   });
   return [new ArtifactPostgresConnector(), new KnowledgeProviderConnector(knowledge)];
 }
@@ -248,7 +253,7 @@ export function getBot(): Chat {
   runtime = new CompanyOSRuntime({
     artifact,
     state: createPostgresStateStore(),
-    connectors: createCompanyOSRuntimeConnectors(),
+    connectors: createCompanyOSRuntimeConnectors(agent.id),
     toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
   botInstance = new Chat({

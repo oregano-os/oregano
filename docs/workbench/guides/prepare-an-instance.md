@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -179,14 +179,81 @@ identities before execution. Cross-encoder reranking remains a separate
 capability and is not part of the 13 task bindings.
 
 Database preparation targets additive manifest
-`companyos-postgres@1.6.0`. It creates the existing control and Knowledge
+`companyos-postgres@1.7.0`. It creates the existing control and Knowledge
 schemas plus durable compounding state, policy-bound model-result cache, spend
-reservations, and execution ledger when the database is initially absent, or upgrades
+reservations, execution ledger, and derived Retrieval V3 projection and
+qualification tables when the database is initially absent, or upgrades
 an older supported manifest in place. Run the separate read-only qualification
 after preparation. Do not enable compounding until the model smoke test, all 13
 synthetic prompt fixtures, one real authorized extraction, one manual
 compounding cycle, same-cycle retry evidence, and cross-cycle unchanged-result
 reuse have passed.
+
+### Retrieval V3 non-production lane
+
+A Neon branch is an acceptable staging StateStore boundary. It is not the
+whole non-production Instance. Record one qualification receipt proving all of
+the following before Retrieval V3 is activated anywhere:
+
+- the Neon project or branch identity differs from production;
+- the runtime project or deployment scope differs from production;
+- SecretRefs resolve from a distinct non-production namespace;
+- Slack or another communication binding is distinct and cannot receive normal
+  production traffic;
+- every Source binding has a distinct non-production identity and qualified
+  read scope; and
+- model execution has an explicit small cycle or UTC-day budget.
+
+Prepare and read-only verify schema `1.7.0` on that Instance. Build the derived
+projection from the active Handbook snapshot and current durable Brain
+frontier, stage it, and verify its deterministic hash and complete Unit count.
+Do not activate it during the build step. Run KnowledgeBench against Retrieval
+V2 and V3 with the same authorized subjects, including negative ACL cases, and
+persist the payload-free baseline and shadow comparison. The candidate must
+have zero authorization leakage and citation errors and no recall, rank, or
+authority-label regression.
+
+Then exercise Current Brief, the V3 Answer Envelope, Open Loops, Meeting Prep,
+backup restoration, and rollback. The Knowledge Doctor must report no failed
+gate before an accountable operator creates the separate activation receipt.
+The repository implementation creates none of the external resources or real
+qualification evidence automatically.
+
+### Oregano HQ internal production-canary lane
+
+The strict non-production lane remains the reusable default for customer
+Instances. Oregano HQ MAY instead use the explicit internal-dogfood production
+canary contract. This exception avoids a duplicate Vercel project, Slack app,
+Granola binding, and model-secret namespace, but it does not skip the StateStore
+rehearsal or retrieval gates. It requires all of the following:
+
+- one point-in-time Neon branch from the exact production branch, with
+  `companyos database prepare` and `companyos database verify` succeeding on
+  that branch before production migration;
+- provider backup evidence and an accepted additive-schema rollback posture;
+- one exact verified production V3 projection that is not served while the
+  benchmark and shadow gates run;
+- a payload-free production shadow in which V2 remains the returned response;
+- zero-leak ACL negatives, exact citation membership, a passing KnowledgeBench,
+  healthy Source evidence, and a pre-activation Knowledge Doctor report;
+- an explicit internal Agent allowlist and no external-user traffic; and
+- a tested V2 runtime fallback plus accountable operator risk acceptance.
+
+The production Runner uses three fail-closed bindings:
+
+| Value | Meaning |
+|---|---|
+| `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE` | `v2` by default, `v3-shadow` to execute but never serve V3, or `v3-canary` to serve the qualified candidate. Any other value falls back to V2. |
+| `COMPANYOS_KNOWLEDGE_V3_PROJECTION_HASH` | Exact 64-character verified projection identity. A missing or malformed identity falls back to V2. |
+| `COMPANYOS_KNOWLEDGE_V3_AGENT_IDS` | Comma-separated internal Agent allowlist. A missing, malformed, or non-matching allowlist falls back to V2. |
+
+`v3-shadow` may read the exact verified inactive projection and persists only
+query, authorization-context, result-digest, count, overlap, and failure
+digests. It returns the exact V2 result. `v3-canary` requires that same exact
+projection to be active. Candidate search failure automatically serves V2 with
+an explicit degradation. Projection activation itself requires the exact
+persisted `qualified-for-explicit-activation` receipt; setting environment
+variables cannot activate a projection.
 
 After those gates pass, the maintained Vercel adapter schedules reconciliation
 at minute `0` and extraction at minute `15` of each six-hour window, plus one

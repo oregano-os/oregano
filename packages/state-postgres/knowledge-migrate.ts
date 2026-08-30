@@ -5,6 +5,7 @@ import { COMPANY_KNOWLEDGE_PHASE_THREE_SCHEMA_STATEMENTS } from "./knowledge-sch
 import { COMPANY_KNOWLEDGE_PHASE_FOUR_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-four.ts";
 import { COMPANY_KNOWLEDGE_PHASE_FIVE_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-five.ts";
 import { COMPANY_KNOWLEDGE_PHASE_SIX_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-six.ts";
+import { COMPANY_KNOWLEDGE_PHASE_SEVEN_SCHEMA_STATEMENTS } from "./knowledge-schema-phase-seven.ts";
 
 export interface CompanyKnowledgeSchemaFeatures { vector: boolean }
 
@@ -269,6 +270,7 @@ export function ensureCompanyKnowledgeSchema(): Promise<CompanyKnowledgeSchemaFe
     for (const statement of COMPANY_KNOWLEDGE_PHASE_FOUR_SCHEMA_STATEMENTS) await sql.query(statement);
     for (const statement of COMPANY_KNOWLEDGE_PHASE_FIVE_SCHEMA_STATEMENTS) await sql.query(statement);
     for (const statement of COMPANY_KNOWLEDGE_PHASE_SIX_SCHEMA_STATEMENTS) await sql.query(statement);
+    for (const statement of COMPANY_KNOWLEDGE_PHASE_SEVEN_SCHEMA_STATEMENTS) await sql.query(statement);
     let vector = false;
     try {
       await sql`create extension if not exists vector`;
@@ -280,6 +282,19 @@ export function ensureCompanyKnowledgeSchema(): Promise<CompanyKnowledgeSchemaFe
         foreign key (snapshot_hash, fragment_id) references companyos_knowledge.fragments(snapshot_hash, fragment_id) on delete cascade)`;
       await sql`create index if not exists knowledge_fragment_embeddings_hnsw_idx
         on companyos_knowledge.fragment_embeddings using hnsw (embedding vector_cosine_ops)`;
+      await sql`create table if not exists companyos_knowledge.retrieval_unit_embeddings (
+        projection_hash text not null,
+        unit_id text not null,
+        adapter_id text not null,
+        adapter_version text not null,
+        dimensions integer not null check (dimensions = 256),
+        content_digest text not null,
+        embedding vector(256) not null,
+        primary key (projection_hash, unit_id, adapter_id, adapter_version),
+        foreign key (projection_hash, unit_id)
+          references companyos_knowledge.retrieval_units(projection_hash, unit_id) on delete cascade) `;
+      await sql`create index if not exists knowledge_retrieval_unit_embeddings_hnsw_idx
+        on companyos_knowledge.retrieval_unit_embeddings using hnsw (embedding vector_cosine_ops)`;
       vector = true;
     } catch {
       vector = false;

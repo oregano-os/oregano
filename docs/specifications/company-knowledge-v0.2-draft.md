@@ -5,7 +5,7 @@ kind: specification
 status: approved
 authority: normative
 language: en
-updated: 2026-08-27
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -43,9 +43,9 @@ Instance-specific activation evidence and are not implied by that Core status.
 
 The existing Source Connector `1.0.0`, Knowledge Provider and Tool contract
 `3.0.0`, Runtime Observation `1.0.0`, OKF `0.1`, and historical database
-manifests through `companyos-postgres@1.5.0` remain supported until their
+manifests through `companyos-postgres@1.6.0` remain supported until their
 documented replacement gates are met. The current additive schema target is
-`companyos-postgres@1.6.0`. Unknown major versions fail closed.
+`companyos-postgres@1.7.0`. Unknown major versions fail closed.
 
 ## 2. Authority layers
 
@@ -89,6 +89,26 @@ ranking features are rebuildable projections. Raw Evidence, Page versions,
 Claim evidence, decisions, receipts, and exact Handbook versions are durable
 records. Every durable object carries the source, policy, digest, version, and
 time provenance required to explain it.
+
+Retrieval Projection V3 normalizes searchable Handbook
+fragments, Page fragments, Claims, Source Objects, Timeline Events, and Working
+Syntheses into deterministic Retrieval Units. A Unit carries its stable and
+parent identities, object kind, authority layer, lifecycle state, exact text
+digest, access-policy identity, Source identities, observation and optional
+validity time, optional exact evidence locator, graph neighbors, and bounded
+ranking signals. Retrieval Units and their projection hash are derived state;
+they neither replace their durable source objects nor grant read authority.
+Official authority is valid only for an active Handbook fragment. A Working
+Synthesis Unit is always synthesized Brain material. Core can persist one
+derived projection as `staged`, verify its complete deterministic hash and
+count, and activate it independently from its durable sources. Failed or
+retired projections do not become query candidates. This mechanism does not
+activate a production provider by itself.
+
+Embedding adapter, version, dimensions, and activation evidence belong to the
+projection or index run, not to the epistemic Retrieval Unit. Changing an
+embedding profile rebuilds the derived index without changing Unit content,
+durable evidence, access policy, or authority.
 
 ## 4. Page taxonomy and identity
 
@@ -595,6 +615,32 @@ Embedding or reranker failure retains lexical retrieval and reports explicit
 degradation. Query expansion and reranking remain disabled until regression
 evidence demonstrates an improvement without authorization leakage.
 
+KnowledgeBench runs the same bounded fixture suite against a baseline and a
+candidate implementation. Its payload-free report records query digests and
+hashed result identities, Recall at K, mean reciprocal rank, authority-label
+accuracy, citation membership, authorization leakage, and degradation rate.
+Any authorization leakage or citation regression blocks promotion. A candidate
+also cannot be promoted when recall, rank, or authority labeling regresses from
+the accepted baseline. Persisted shadow comparison is qualification evidence;
+it is not an automatic activation decision.
+
+The product MAY present the current immutable Working Synthesis version for a
+subject as a **Current Brief** or localized equivalent such as **Current
+State**. This is a read model, not a new durable knowledge or authority type.
+It binds the current Synthesis version, supporting, contested, and superseded
+Claim partitions, gaps, exact content digest, intersected access policy, and
+synthesis time. New relevant evidence or an exceeded age bound marks the view
+potentially stale without rewriting that version. Regeneration creates a new
+immutable Synthesis version and advances the existing current-version pointer.
+A Current Brief remains synthesized Brain material and MUST NOT be rendered as
+official policy or bypass Handbook promotion.
+
+Core exposes an authorization-first Current Brief read service. It resolves the
+requesting subject, evaluates policy inheritance and explicit deny before
+hydrating the current Synthesis version, and returns `undefined` for unknown
+and inaccessible subjects alike. No Current Brief Tool or production surface is
+implied until its Instance binding and regression evidence are qualified.
+
 Exact get, Timeline traversal, and graph traversal are bounded and deterministic.
 Entity-derived views intersect every member policy. Delta reads use a stable
 change-stream cursor and return only objects authorized at read time. A revoked
@@ -641,11 +687,29 @@ records subject, policy-set digest, retrieval contract, query digest, context
 identities and digests, snapshot identity, prompt and model route, and time. It
 contains no protected excerpt.
 
+Retrieval V3 context receipts additionally bind the active projection hash and
+the exact authorized policy-set digest. Every substantive Answer Envelope claim
+names at least one citation already present in that envelope, and every
+citation matches an exact Unit identity and content digest in the context.
+Empty context can only produce an unavailable response. Model failure may
+produce a cited extractive fallback but cannot produce an uncited answer.
+
 Explicit `knowledge.synthesize` is reserved for deliberately granted,
 non-interactive or background synthesis. A Working Synthesis is immutable by
 version, cites exact supporting evidence, carries the intersected access
 policy, and remains Brain material. It never becomes Handbook authority
 without Section 17.
+
+### 16.1 Derived operating views
+
+Open Loops and Meeting Prep are deterministic, cited read models over already
+authorized Claims, Current Briefs, and Retrieval hits. Open Loops includes only
+open or blocked commitments, questions, decision needs, and follow-ups and
+labels missing owners, dates, and overdue state. Meeting Prep combines bounded
+current Briefs, cited open loops, recent evidence, conflicts, and explicit
+"heads up" gaps. Both views are synthesized Brain material. Neither creates a
+Claim, changes a Claim state, assigns work, sends a message, or becomes
+Handbook authority.
 
 ## 17. Handbook promotion
 
@@ -682,7 +746,8 @@ Brain export is deterministic and records an integrity-protected ledger.
 Production activation requires:
 
 - a qualified schema and Raw Asset adapter;
-- an isolated non-production qualification environment;
+- an isolated non-production qualification environment, or the explicitly
+  qualified Oregano HQ internal-only production-canary lane;
 - exact Connector installation, binding, scopes, SecretRefs, qualification,
   and activation receipts;
 - positive and negative ACL tests;
@@ -690,6 +755,25 @@ Production activation requires:
 - retrieval, citation, prompt, and model-routing regression ledgers;
 - successful backup and restore evidence; and
 - explicit operator approval for the final cutover.
+
+The Knowledge Doctor evaluates these gates as a payload-free report. Missing
+rollout-lane qualification, schema `1.7.0`, a verified fresh projection before
+activation or active fresh projection after activation, a passing
+KnowledgeBench and shadow comparison, zero-leak ACL negatives, exact citation
+membership, healthy qualified Sources, backup restoration, or rollback evidence
+blocks production readiness. Lexical-only retrieval and stale Current Briefs
+are explicit degradations, not silent success. A Doctor report never performs
+remediation or activation.
+
+The production-canary exception MUST NOT become a generic substitute for
+environment isolation. It is limited to an explicitly named internal Company
+Instance and allowlisted internal Agents, MUST rehearse the exact migration on
+a point-in-time StateStore branch, MUST keep V2 as the response during shadow,
+and MUST retain an immediate V2 fallback. A candidate projection is addressed
+by exact hash. Missing or malformed mode, projection, or Agent bindings fail
+closed to V2. Projection activation requires a separately persisted receipt
+binding the rollout, schema, projection, benchmark, ACL, citation, Source,
+backup, rollback, shadow, and operator evidence.
 
 No release may claim complete Company Knowledge v0.2 support until every
 contract above has an active compatibility entry, conformance tests, operator
