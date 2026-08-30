@@ -48,6 +48,23 @@ companyos knowledge retrieval-v3-build --format json
 companyos knowledge retrieval-v3-status --projection <hash> --format json
 ```
 
+For an Instance-specific quality follow-up, run the payload-free diagnosis:
+
+```sh
+companyos knowledge retrieval-v3-diagnose-followup \
+  --projection <hash> \
+  --agent <allowlisted-agent-id> \
+  --format json
+```
+
+The diagnosis separates relevance recall from exact-unit recall. A synthesized
+Timeline Event uses its parent event as the relevance identity because a user
+query about the event is answered by any authorized unit from that event.
+Handbook fragments, Claims, Current Briefs, and other concrete identities remain
+exact-unit cases. Exact-unit misses remain visible as a stricter diagnostic and
+are never relabeled as exact hits. The same command reports only aggregate
+Source and Current Brief status; it emits no source query or content.
+
 Set `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE=v3-shadow`, the exact projection hash,
 and the internal Agent allowlist only after the V2 baseline is recorded. Shadow
 mode executes both providers for real authorized searches, persists a
@@ -124,6 +141,13 @@ Working Synthesis never sends an unbounded Subject to one call. Current Claims
 are sorted by stable identity into groups of at most 40. Each group receives a
 separate cached result and receipt; the last group merges all prior cached
 components deterministically into one immutable synthesis version.
+
+Model maintenance reserves spend before a provider call. A failed or abandoned
+reservation remains conservative budget evidence. After the ten-minute stale
+window, the same cycle-and-task slot may be reopened atomically; accumulated
+estimated failure cost continues to count against both cycle and daily limits.
+An overlapping invocation inside that window fails closed instead of issuing a
+duplicate provider call.
 
 The maintained serverless schedule advances those durable continuations every
 15 minutes only during the 02:00–05:59 UTC nightly window. It does not run

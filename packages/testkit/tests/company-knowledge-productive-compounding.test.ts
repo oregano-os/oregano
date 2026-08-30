@@ -493,6 +493,9 @@ test("the additive schema persists compounding state and proposals without destr
   assert.match(store, /pg_advisory_xact_lock/);
   assert.match(store, /10 \* 60_000/);
   assert.match(store, /stale-model-execution-reservation/);
+  assert.match(store, /status in \('reserved', 'failed'\)/);
+  assert.match(store, /coalesce\(charged_cost_usd, estimated_cost_usd\) \+ \$\{reservation\.estimatedCostUsd\}/);
+  assert.match(store, /when failure_digest is null then \$\{receipt\.costUsd\} else estimated_cost_usd/);
   assert.match(store, /with eligible_reservation as/);
 });
 

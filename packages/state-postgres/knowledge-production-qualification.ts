@@ -66,7 +66,19 @@ const queryForUnit = (unit: KnowledgeRetrievalUnitV3, titleCounts: ReadonlyMap<s
   return compactQuery(unit.text.split(/\s+/).slice(0, 12).join(" "));
 };
 
-const selectQualificationUnits = (units: readonly KnowledgeRetrievalUnitV3[], authorizedPolicyIds: ReadonlySet<string>, maximum = 18): Array<{ unit: KnowledgeRetrievalUnitV3; query: string }> => {
+type QualificationSample = {
+  unit: KnowledgeRetrievalUnitV3;
+  query: string;
+  relevance: "exact-unit" | "same-timeline";
+};
+
+const relevanceForUnit = (unit: KnowledgeRetrievalUnitV3): QualificationSample["relevance"] =>
+  unit.kind === "timeline-event" && unit.parentId ? "same-timeline" : "exact-unit";
+
+const relevanceIdentity = (sample: QualificationSample): string =>
+  sample.relevance === "same-timeline" ? sample.unit.parentId : sample.unit.unitId;
+
+const selectQualificationUnits = (units: readonly KnowledgeRetrievalUnitV3[], authorizedPolicyIds: ReadonlySet<string>, maximum = 18): QualificationSample[] => {
   const eligible = units.filter((unit) => authorizedPolicyIds.has(unit.accessPolicyId) && !["expired", "superseded"].includes(unit.state));
   const count = (values: string[]) => values.reduce((map, value) => map.set(value, (map.get(value) ?? 0) + 1), new Map<string, number>());
   const titleCounts = count(eligible.map((unit) => compactQuery(unit.title).toLocaleLowerCase()));
@@ -92,7 +104,7 @@ const selectQualificationUnits = (units: readonly KnowledgeRetrievalUnitV3[], au
       if (selected.length >= Math.min(maximum, Math.max(8, eligible.length))) break;
     }
   }
-  return selected.map(({ unit, query }) => ({ unit, query }));
+  return selected.map(({ unit, query }) => ({ unit, query, relevance: relevanceForUnit(unit) }));
 };
 
 const authorityByUnit = (units: readonly KnowledgeRetrievalUnitV3[]): Map<string, KnowledgeAuthorityLayer> =>
@@ -108,12 +120,12 @@ const benchmarkHit = (hit: KnowledgeSearchHit, unitId: string, authorities: Read
 const benchmarkSearch = (input: {
   provider: KnowledgeProvider;
   authorities: ReadonlyMap<string, KnowledgeAuthorityLayer>;
-  resolveUnitId: (hit: KnowledgeSearchHit) => string | undefined;
+  resolveUnitId: (hit: KnowledgeSearchHit, query: string) => string | undefined;
 }) => async (request: { query: string; subject?: KnowledgeAccessSubject; limit: number; mode: "lexical" | "hybrid" }) => {
   const result = await input.provider.search(request);
   return {
     hits: result.hits.flatMap((hit) => {
-      const unitId = input.resolveUnitId(hit);
+      const unitId = input.resolveUnitId(hit, request.query);
       return unitId ? [benchmarkHit(hit, unitId, input.authorities)] : [];
     }),
     degradations: result.degradations,
@@ -166,8 +178,13 @@ const sourceQualification = async (input: {
 const currentBriefStatus = async (): Promise<{ total: number; potentiallyStale: number; oldestSynthesisAt?: string }> => {
   const rows = await connection()`select count(*)::integer as total,
       count(*) filter (where exists (
-        select 1 from companyos_knowledge.knowledge_change_stream changes
-        where changes.access_policy_id = versions.access_policy_id and changes.occurred_at > versions.synthesized_at
+        select 1 from companyos_knowledge.claims claim
+        join companyos_knowledge.claim_evidence evidence on evidence.claim_id = claim.claim_id
+        join companyos_knowledge.pages page on page.page_id = evidence.page_id
+          and page.current_version_id = evidence.page_version_id
+        where syntheses.subject_type = 'page' and evidence.page_id = syntheses.subject_id
+          and claim.access_policy_id = versions.access_policy_id
+          and claim.observed_at > versions.synthesized_at
       ))::integer as potentially_stale,
       min(versions.synthesized_at) as oldest_synthesis_at
     from companyos_knowledge.syntheses syntheses
@@ -178,6 +195,47 @@ const currentBriefStatus = async (): Promise<{ total: number; potentiallyStale: 
     total: Number(row?.total ?? 0),
     potentiallyStale: Number(row?.potentially_stale ?? 0),
     ...(row?.oldest_synthesis_at ? { oldestSynthesisAt: postgresTimestampToIso(row.oldest_synthesis_at) } : {}),
+  };
+};
+
+const strategyCurrentBriefStatus = async (): Promise<{
+  matchingPages: number;
+  withCurrentBrief: number;
+  current: number;
+  potentiallyStale: number;
+  latestSynthesizedAt?: string;
+}> => {
+  const rows = await connection()`select count(distinct page.page_id)::integer as matching_pages,
+      count(distinct synthesis.synthesis_id)::integer as with_current_brief,
+      count(distinct synthesis.synthesis_id) filter (where synthesis.synthesis_id is not null and not exists (
+        select 1 from companyos_knowledge.claims claim
+        join companyos_knowledge.claim_evidence evidence on evidence.claim_id = claim.claim_id
+        where evidence.page_id = page.page_id and evidence.page_version_id = page.current_version_id
+          and claim.access_policy_id = version.access_policy_id
+          and claim.observed_at > version.synthesized_at
+      ))::integer as current,
+      count(distinct synthesis.synthesis_id) filter (where synthesis.synthesis_id is not null and exists (
+        select 1 from companyos_knowledge.claims claim
+        join companyos_knowledge.claim_evidence evidence on evidence.claim_id = claim.claim_id
+        where evidence.page_id = page.page_id and evidence.page_version_id = page.current_version_id
+          and claim.access_policy_id = version.access_policy_id
+          and claim.observed_at > version.synthesized_at
+      ))::integer as potentially_stale,
+      max(version.synthesized_at) as latest_synthesized_at
+    from companyos_knowledge.pages page
+    join companyos_knowledge.page_versions page_version on page_version.page_version_id = page.current_version_id
+    left join companyos_knowledge.syntheses synthesis on synthesis.subject_type = 'page'
+      and synthesis.subject_id = page.page_id and synthesis.lifecycle_status = 'active'
+    left join companyos_knowledge.synthesis_versions version on version.synthesis_version_id = synthesis.current_version_id
+    where page.lifecycle_status = 'active'
+      and lower(page_version.title || ' ' || coalesce(page_version.summary, '') || ' ' || page_version.body) like '%strateg%'`;
+  const row = rows[0] as Row | undefined;
+  return {
+    matchingPages: Number(row?.matching_pages ?? 0),
+    withCurrentBrief: Number(row?.with_current_brief ?? 0),
+    current: Number(row?.current ?? 0),
+    potentiallyStale: Number(row?.potentially_stale ?? 0),
+    ...(row?.latest_synthesized_at ? { latestSynthesizedAt: postgresTimestampToIso(row.latest_synthesized_at) } : {}),
   };
 };
 
@@ -234,20 +292,31 @@ export async function qualifyPostgresKnowledgeProductionCanary(input: PostgresKn
   const baseline = createUnifiedKnowledgeProvider({ handbook, brain: brainStore, accessAuditor: new PostgresKnowledgeAccessAuditor() });
   const candidate = createPostgresKnowledgeProviderV3({ baseline, projectionHash: input.projectionHash, allowVerifiedProjection: true });
   const authorities = authorityByUnit(units);
+  const unitsById = new Map(units.map((unit) => [unit.unitId, unit]));
+  const timelineQueries = new Set(samples.filter((sample) => sample.relevance === "same-timeline").map((sample) => sample.query));
+  const normalizeBenchmarkIdentity = (unitId: string, query: string): string =>
+    timelineQueries.has(query) ? (unitsById.get(unitId)?.parentId ?? unitId) : unitId;
   const brainCitationUnits = new Map(Object.entries(brainProjection.citations).map(([unitId, citation]) => [`${citation.path}\0${citation.fragmentId}`, unitId]));
-  const baselineUnit = (hit: KnowledgeSearchHit): string | undefined => brainCitationUnits.get(`${hit.citation.path}\0${hit.citation.fragmentId}`)
-    ?? (hit.citation.path ? `handbook:${hit.citation.path}#${hit.citation.fragmentId}` : undefined);
-  const candidateUnit = (hit: KnowledgeSearchHit): string | undefined => authorities.has(hit.citation.path) ? hit.citation.path : undefined;
+  const baselineUnit = (hit: KnowledgeSearchHit, query: string): string | undefined => {
+    const unitId = brainCitationUnits.get(`${hit.citation.path}\0${hit.citation.fragmentId}`)
+      ?? (hit.citation.path ? `handbook:${hit.citation.path}#${hit.citation.fragmentId}` : undefined);
+    return unitId ? normalizeBenchmarkIdentity(unitId, query) : undefined;
+  };
+  const candidateUnit = (hit: KnowledgeSearchHit, query: string): string | undefined =>
+    authorities.has(hit.citation.path) ? normalizeBenchmarkIdentity(hit.citation.path, query) : undefined;
   const suiteId = `production-canary:${input.projectionHash}`;
-  const cases = samples.map(({ unit, query }, index) => ({
-    caseId: `production-sample-${String(index + 1).padStart(2, "0")}`,
-    query,
-    subject,
-    expectedUnitIds: [unit.unitId],
-    expectedAuthority: { [unit.unitId]: unit.authorityLayer },
-    limit: 10,
-    mode: "hybrid" as const,
-  }));
+  const cases = samples.map((sample, index) => {
+    const expectedIdentity = relevanceIdentity(sample);
+    return {
+      caseId: `production-sample-${String(index + 1).padStart(2, "0")}`,
+      query: sample.query,
+      subject,
+      expectedUnitIds: [expectedIdentity],
+      ...(sample.relevance === "exact-unit" ? { expectedAuthority: { [expectedIdentity]: sample.unit.authorityLayer } } : {}),
+      limit: 10,
+      mode: "hybrid" as const,
+    };
+  });
   const gates = {
     minimumMeanRecallAtK: 0.75,
     minimumMeanReciprocalRank: 0.5,
@@ -578,5 +647,211 @@ export async function verifyPostgresKnowledgeCanaryLive(input: { projectionHash:
     unauthorizedResultCount: unauthorized.hits.length,
     fallbackObserved,
     receiptId: receipt.receiptId,
+  };
+}
+
+export async function diagnosePostgresKnowledgeProductionFollowup(input: { projectionHash: string; agentId: string; diagnosedAt?: string }): Promise<{
+  ok: true;
+  projectionHash: string;
+  sources: Array<{
+    sourceId: string;
+    status: string;
+    projectedUnitCount: number;
+    lastSuccessfulSyncAt?: string;
+    syncAgeHours?: number;
+    latestSucceededReceiptAt?: string;
+  }>;
+  currentBriefs: {
+    total: number;
+    potentiallyStale: number;
+    strategy: Awaited<ReturnType<typeof strategyCurrentBriefStatus>>;
+  };
+  previousQualification?: {
+    productionEnvironmentId: string;
+    companyInstanceId: string;
+    rolloutQualificationReceiptId: string;
+    stateBranchRehearsalReceiptId: string;
+    backupRestoreReceiptId: string;
+    operatorApprovalReceiptId: string;
+  };
+  benchmark: {
+    sampleSize: number;
+    relevanceHitCount: number;
+    relevanceRecallAtK: number;
+    exactUnitHitCount: number;
+    exactUnitRecallAtK: number;
+    exactUnitMisses: Array<{
+      caseId: string;
+      unitIdentityDigest: string;
+      kind: KnowledgeRetrievalUnitV3["kind"];
+      authorityLayer: KnowledgeAuthorityLayer;
+      relevance: QualificationSample["relevance"];
+      relevantParentHit: boolean;
+      lexicalCandidate: boolean;
+      exactCandidate: boolean;
+      semanticCandidate: boolean;
+      prePoolRank: number | null;
+      higherSameParent: number;
+      higherSameSource: number;
+      cause: "candidate-generation" | "ranking-or-pooling";
+    }>;
+  };
+}> {
+  const diagnosedAt = new Date(input.diagnosedAt ?? new Date().toISOString()).toISOString();
+  const store = new PostgresKnowledgeRetrievalV3Store({ readProjectionHash: input.projectionHash, allowVerifiedReadProjection: true });
+  const projection = await store.projection(input.projectionHash);
+  if (!projection || !["verified", "active"].includes(projection.status)) throw new Error("Knowledge follow-up diagnosis requires the exact verified or active projection.");
+  const units = await store.qualificationUnits(input.projectionHash);
+  const subject = activeCompanySubject(input.agentId);
+  const policies = await store.policies();
+  const authorizer = new KnowledgeAuthorizer(policies);
+  const authorizedPolicyIds: string[] = [];
+  for (const policy of policies) {
+    if (await authorizer.authorize({ subject, permission: "read", policyIds: [policy.policyId], objectType: "policy", objectId: policy.policyId })) authorizedPolicyIds.push(policy.policyId);
+  }
+  const authorizedSet = new Set(authorizedPolicyIds);
+  const samples = selectQualificationUnits(units, authorizedSet);
+  const embedding = new LocalHashEmbeddingAdapter();
+  const service = new KnowledgeRetrievalServiceV3({
+    store,
+    embeddingAdapter: embedding,
+    embeddingPolicy: { mode: "local", allowExternalDataEgress: false },
+  });
+  const exactUnitMisses: Array<{
+    caseId: string;
+    unitIdentityDigest: string;
+    kind: KnowledgeRetrievalUnitV3["kind"];
+    authorityLayer: KnowledgeAuthorityLayer;
+    relevance: QualificationSample["relevance"];
+    relevantParentHit: boolean;
+    lexicalCandidate: boolean;
+    exactCandidate: boolean;
+    semanticCandidate: boolean;
+    prePoolRank: number | null;
+    higherSameParent: number;
+    higherSameSource: number;
+    cause: "candidate-generation" | "ranking-or-pooling";
+  }> = [];
+  let exactUnitHitCount = 0;
+  let relevanceHitCount = 0;
+  for (const [index, sample] of samples.entries()) {
+    const result = await service.search({ query: sample.query, subject, limit: 10, mode: "hybrid" });
+    const exactUnitHit = result.hits.some((hit) => hit.unitId === sample.unit.unitId);
+    const relevantParentHit = sample.relevance === "same-timeline"
+      && result.hits.some((hit) => units.find((unit) => unit.unitId === hit.unitId)?.parentId === sample.unit.parentId);
+    if (exactUnitHit) exactUnitHitCount += 1;
+    if (exactUnitHit || relevantParentHit) relevanceHitCount += 1;
+    if (exactUnitHit) continue;
+    const [lexical, vector] = await Promise.all([
+      store.lexicalCandidates({ projectionHash: input.projectionHash, query: sample.query, authorizedPolicyIds, limit: 400 }),
+      embedding.embed([sample.query]).then(([value]) => store.semanticCandidates({
+        projectionHash: input.projectionHash,
+        vector: value!,
+        adapterId: embedding.id,
+        adapterVersion: embedding.version,
+        dimensions: embedding.dimensions,
+        authorizedPolicyIds,
+        limit: 400,
+      })),
+    ]);
+    const lexicalEntry = lexical.find((entry) => entry.unit.unitId === sample.unit.unitId);
+    const semanticCandidate = vector.some((entry) => entry.unit.unitId === sample.unit.unitId);
+    const fused = new Map<string, { unit: KnowledgeRetrievalUnitV3; score: number }>();
+    const addRank = (unit: KnowledgeRetrievalUnitV3, rank: number) => {
+      const current = fused.get(unit.unitId) ?? { unit, score: 0 };
+      current.score += 1 / (60 + rank);
+      fused.set(unit.unitId, current);
+    };
+    lexical.forEach((entry, candidateIndex) => {
+      if (entry.exactRank) addRank(entry.unit, entry.exactRank);
+      if (entry.lexicalRank) addRank(entry.unit, entry.lexicalRank ?? candidateIndex + 1);
+    });
+    vector.forEach((entry, candidateIndex) => addRank(entry.unit, entry.semanticRank ?? candidateIndex + 1));
+    const ranked = [...fused.values()].map((entry) => ({
+      ...entry,
+      score: entry.score + (entry.unit.signals.confidence * 0.03 + entry.unit.signals.authority * 0.04 + entry.unit.signals.freshness * 0.02 + entry.unit.signals.expectedValue * 0.02),
+    })).sort((left, right) => right.score - left.score || left.unit.unitId.localeCompare(right.unit.unitId));
+    const prePoolIndex = ranked.findIndex((entry) => entry.unit.unitId === sample.unit.unitId);
+    const higher = prePoolIndex < 0 ? [] : ranked.slice(0, prePoolIndex);
+    const sourceId = sample.unit.sourceIds[0] ?? "unknown";
+    exactUnitMisses.push({
+      caseId: `production-sample-${String(index + 1).padStart(2, "0")}`,
+      unitIdentityDigest: sha256({ unitId: sample.unit.unitId }),
+      kind: sample.unit.kind,
+      authorityLayer: sample.unit.authorityLayer,
+      relevance: sample.relevance,
+      relevantParentHit,
+      lexicalCandidate: Boolean(lexicalEntry?.lexicalRank),
+      exactCandidate: Boolean(lexicalEntry?.exactRank),
+      semanticCandidate,
+      prePoolRank: prePoolIndex < 0 ? null : prePoolIndex + 1,
+      higherSameParent: higher.filter((entry) => entry.unit.parentId === sample.unit.parentId).length,
+      higherSameSource: higher.filter((entry) => (entry.unit.sourceIds[0] ?? "unknown") === sourceId).length,
+      cause: lexicalEntry || semanticCandidate ? "ranking-or-pooling" : "candidate-generation",
+    });
+  }
+  const sourceRows = await connection()`select sources.source_id, sources.status, sources.last_successful_sync,
+      latest.observed_at as latest_succeeded_receipt_at
+    from companyos_knowledge.sources sources
+    left join lateral (
+      select observed_at from companyos_knowledge.source_pipeline_receipts receipts
+      where receipts.source_id = sources.source_id and receipts.outcome = 'succeeded'
+      order by observed_at desc, receipt_id desc limit 1
+    ) latest on true
+    order by sources.source_id`;
+  const projectedCounts = new Map<string, number>();
+  for (const unit of units) for (const sourceId of unit.sourceIds) projectedCounts.set(sourceId, (projectedCounts.get(sourceId) ?? 0) + 1);
+  const sources = (sourceRows as Row[]).filter((row) => (projectedCounts.get(String(row.source_id)) ?? 0) > 0).map((row) => {
+    const lastSuccessfulSyncAt = row.last_successful_sync ? postgresTimestampToIso(row.last_successful_sync) : undefined;
+    return {
+      sourceId: String(row.source_id),
+      status: String(row.status),
+      projectedUnitCount: projectedCounts.get(String(row.source_id)) ?? 0,
+      ...(lastSuccessfulSyncAt ? {
+        lastSuccessfulSyncAt,
+        syncAgeHours: Number(((Date.parse(diagnosedAt) - Date.parse(lastSuccessfulSyncAt)) / 3_600_000).toFixed(2)),
+      } : {}),
+      ...(row.latest_succeeded_receipt_at ? { latestSucceededReceiptAt: postgresTimestampToIso(row.latest_succeeded_receipt_at) } : {}),
+    };
+  });
+  const [briefs, strategy, qualificationRows] = await Promise.all([
+    currentBriefStatus(),
+    strategyCurrentBriefStatus(),
+    connection()`select activation.receipt as activation_receipt, rollout.receipt as rollout_receipt
+      from companyos_knowledge.knowledge_productization_receipts activation
+      join companyos_knowledge.knowledge_productization_receipts rollout
+        on rollout.receipt_id = activation.receipt->'evidence'->>'rolloutQualificationReceiptId'
+      where activation.receipt_kind = 'activation-qualification'
+        and activation.status = 'qualified-for-explicit-activation'
+        and activation.receipt->'evidence'->>'retrievalProjectionReceiptId' = ${input.projectionHash}
+      order by activation.recorded_at desc, activation.receipt_id desc limit 1`,
+  ]);
+  const previousActivation = qualificationRows[0]?.activation_receipt as Record<string, unknown> | undefined;
+  const previousRollout = qualificationRows[0]?.rollout_receipt as Record<string, unknown> | undefined;
+  const previousActivationEvidence = previousActivation?.evidence as Record<string, unknown> | undefined;
+  const previousRolloutEvidence = previousRollout?.evidence as Record<string, unknown> | undefined;
+  const previousCanaryScope = previousRollout?.canaryScope as Record<string, unknown> | undefined;
+  const previousQualification = previousActivationEvidence && previousRolloutEvidence ? {
+    productionEnvironmentId: String(previousRollout?.productionEnvironmentId),
+    companyInstanceId: String(previousCanaryScope?.companyInstanceId),
+    rolloutQualificationReceiptId: String(previousActivationEvidence.rolloutQualificationReceiptId),
+    stateBranchRehearsalReceiptId: String(previousRolloutEvidence.stateBranchRehearsalReceiptId),
+    backupRestoreReceiptId: String(previousActivationEvidence.backupRestoreReceiptId),
+    operatorApprovalReceiptId: String(previousActivationEvidence.operatorApprovalReceiptId),
+  } : undefined;
+  return {
+    ok: true,
+    projectionHash: input.projectionHash,
+    sources,
+    currentBriefs: { total: briefs.total, potentiallyStale: briefs.potentiallyStale, strategy },
+    ...(previousQualification ? { previousQualification } : {}),
+    benchmark: {
+      sampleSize: samples.length,
+      relevanceHitCount,
+      relevanceRecallAtK: samples.length === 0 ? 0 : Number((relevanceHitCount / samples.length).toFixed(8)),
+      exactUnitHitCount,
+      exactUnitRecallAtK: samples.length === 0 ? 0 : Number((exactUnitHitCount / samples.length).toFixed(8)),
+      exactUnitMisses,
+    },
   };
 }

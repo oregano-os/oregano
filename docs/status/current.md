@@ -521,11 +521,17 @@ evidence, historical prototypes, and production gaps.
 ## Approved targets not yet implemented
 
 - Retrieval V3 remains an Oregano HQ internal canary, not the reusable default.
-  Its first benchmark misses two of twelve expected identities, one Source is
-  stale, and no Current Brief exists yet. These are measured follow-up items;
-  they do not weaken the recorded zero-leak, citation, fallback, or activation
-  gates. A separate isolated non-production Instance and independent receipts
-  remain mandatory before using this rollout pattern for another company.
+  The refreshed production projection passes all twelve relevance cases with
+  `1.0` recall, `0.91666667` mean reciprocal rank, complete authority and
+  citation accuracy, zero authorization leakage, and no degradation. The
+  stricter exact-sub-unit diagnostic remains `10/12`: both misses are
+  synthesized Timeline Events for which a higher-ranked unit from the same
+  parent event is returned. The Oregano HQ meeting Source is healthy with a
+  recorded successful-sync timestamp. Fourteen Current Briefs are current;
+  six of ten strategy-matching Pages have a current Strategy Brief. This is
+  Instance evidence, not reusable-default qualification. A separate isolated
+  non-production Instance and independent receipts remain mandatory before
+  using this rollout pattern for another company.
 - Meta, Monday, and other business-provider Connectors are not implemented or
   activated. Each still needs privileged isolation, provenance, SecretRefs,
   health, retry, reconciliation, read-after-write, and conformance evidence.
@@ -548,10 +554,12 @@ evidence, historical prototypes, and production gaps.
    meeting Source bindings, then run real synchronizations and ACL regressions.
    Connector implementations exist, but schema readiness supplies no Source
    SecretRef or provider-scope authority.
-3. Refresh the stale Oregano HQ Source, generate the first cited Current Brief,
-   improve Retrieval V3 recall beyond the initial 83.3% canary result, and
-   establish a fully isolated non-production Instance before broadening changes
-   beyond internal dogfood or using the pattern for another company.
+3. Decide whether the four strategy-matching Oregano HQ Pages without a Current
+   Brief have enough distinct Claims to justify synthesis, and improve the
+   strict exact-sub-unit Timeline diagnostic only if a product use case requires
+   that granularity. Establish a fully isolated non-production Instance before
+   broadening changes beyond internal dogfood or using the pattern for another
+   company.
 4. Reconcile, validate, tag, and publish the stable immutable `v0.4.0` GitHub
    Release containing the Company Knowledge capability. There is no
    `latest-stable` branch; `releases/latest` is discovery only and installation

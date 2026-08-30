@@ -57,7 +57,7 @@ import { findByCanonicalPrincipal, parseRoster } from "../../state-store/roster.
 import { bootstrapCompanyDatabase, inspectCompanyDatabaseState, prepareCompanyDatabase, qualifyCompanyDatabase, withNeonBranchDatabaseHost } from "../../state-postgres/database-bootstrap.ts";
 import { KNOWLEDGE_ADMIN_GROUP_ID } from "../../knowledge/access-control.ts";
 import { PostgresKnowledgeRetrievalV3Store, rebuildPostgresKnowledgeRetrievalProjectionV3 } from "../../state-postgres/knowledge-retrieval-v3-store.ts";
-import { qualifyPostgresKnowledgeProductionCanary, verifyPostgresKnowledgeCanaryLive } from "../../state-postgres/knowledge-production-qualification.ts";
+import { diagnosePostgresKnowledgeProductionFollowup, qualifyPostgresKnowledgeProductionCanary, verifyPostgresKnowledgeCanaryLive } from "../../state-postgres/knowledge-production-qualification.ts";
 
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(sourceRoot, "..", "..", "..");
@@ -107,6 +107,7 @@ Usage:
   companyos knowledge retrieval-v3-qualify-production-canary --projection <hash> --environment <id> --company-instance <id> --agent <id> --state-project <id> --state-branch <id> --runtime-project <id> --rehearsal <receipt-id> --backup <receipt-id> --operator-approval <receipt-id> [--format human|json]
   companyos knowledge retrieval-v3-activate --projection <hash> --qualification <receipt-id> [--format human|json]
   companyos knowledge retrieval-v3-verify-live --projection <hash> --agent <id> [--format human|json]
+  companyos knowledge retrieval-v3-diagnose-followup --projection <hash> --agent <id> [--format human|json]
   companyos knowledge review <workspace> [--format human|json]
   companyos knowledge decide <workspace> --candidate <id> --decision accepted|rejected|superseded --principal <principal>
   companyos knowledge propose <workspace> --candidate <id> --output <file> --principal <principal>
@@ -448,6 +449,12 @@ try {
       const result = await verifyPostgresKnowledgeCanaryLive({ projectionHash, agentId });
       process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
       if (!result.ok) process.exitCode = 1;
+    } else if (action === "retrieval-v3-diagnose-followup") {
+      const projectionHash = optionValue("--projection");
+      const agentId = optionValue("--agent");
+      if (!projectionHash || !agentId) throw new Error("companyos knowledge retrieval-v3-diagnose-followup requires --projection <hash> and --agent <id>.");
+      const result = await diagnosePostgresKnowledgeProductionFollowup({ projectionHash, agentId });
+      process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
     } else if (action === "stage") {
       const bundlePath = optionValue("--bundle");
       if (!bundlePath) throw new Error("companyos knowledge stage requires --bundle <file>.");

@@ -400,18 +400,25 @@ export class PostgresKnowledgeCompoundingWorkStore implements KnowledgeCompoundi
         on conflict (reservation_id) do nothing
         returning reservation_id`,
       tx`update companyos_knowledge.model_spend_reservations
-        set estimated_cost_usd = ${reservation.estimatedCostUsd}, pricing_version = ${reservation.pricingVersion},
-          reserved_at = ${reservation.reservedAt}, completed_at = null, failure_digest = null
-        where reservation_id = ${reservation.reservationId} and status = 'reserved'
+        set estimated_cost_usd = case when status = 'failed'
+              then coalesce(charged_cost_usd, estimated_cost_usd) + ${reservation.estimatedCostUsd}
+              else ${reservation.estimatedCostUsd} end,
+          pricing_version = ${reservation.pricingVersion}, status = 'reserved',
+          reserved_at = ${reservation.reservedAt}, completed_at = null, charged_cost_usd = null
+        where reservation_id = ${reservation.reservationId} and status in ('reserved', 'failed')
           and reserved_at <= ${staleBefore}
           and coalesce((select sum(coalesce(charged_cost_usd, estimated_cost_usd))
               from companyos_knowledge.model_spend_reservations
               where cycle_id = ${reservation.cycleId} and reservation_id <> ${reservation.reservationId}), 0)
-            + ${reservation.estimatedCostUsd} <= ${reservation.cycleBudgetUsd}
+            + case when status = 'failed'
+                then coalesce(charged_cost_usd, estimated_cost_usd) + ${reservation.estimatedCostUsd}
+                else ${reservation.estimatedCostUsd} end <= ${reservation.cycleBudgetUsd}
           and coalesce((select sum(coalesce(charged_cost_usd, estimated_cost_usd))
               from companyos_knowledge.model_spend_reservations
               where reserved_at >= ${dayStart} and reservation_id <> ${reservation.reservationId}), 0)
-            + ${reservation.estimatedCostUsd} <= ${reservation.dailyBudgetUsd}
+            + case when status = 'failed'
+                then coalesce(charged_cost_usd, estimated_cost_usd) + ${reservation.estimatedCostUsd}
+                else ${reservation.estimatedCostUsd} end <= ${reservation.dailyBudgetUsd}
         returning reservation_id`,
       tx`select reservation_id from companyos_knowledge.model_spend_reservations
         where reservation_id = ${reservation.reservationId} limit 1`,
@@ -459,7 +466,9 @@ export class PostgresKnowledgeCompoundingWorkStore implements KnowledgeCompoundi
         returning cache_key, (xmax = 0) as inserted
       ), completed_reservation as (
         update companyos_knowledge.model_spend_reservations
-        set status = 'succeeded', charged_cost_usd = ${receipt.costUsd}, completed_at = ${receipt.completedAt}
+        set status = 'succeeded',
+          charged_cost_usd = case when failure_digest is null then ${receipt.costUsd} else estimated_cost_usd end,
+          completed_at = ${receipt.completedAt}
         where reservation_id = ${input.reservationId} and cycle_id = ${input.cycleId} and status = 'reserved'
           and exists (select 1 from cached_result)
         returning reservation_id
