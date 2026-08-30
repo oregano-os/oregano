@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -24,6 +24,76 @@ stage it, verify its counts, and activate its exact hash. Confirm a known
 lexical and hybrid query, a zero-result query, an exact `get`, and a bounded
 traversal before granting operating use. Provider health must state whether the
 optional vector index is available and name any lexical degradation.
+
+## Retrieval V3 production-canary operation
+
+Inspect the current additive manifest without changing it:
+
+```sh
+companyos database status --format json
+```
+
+On the exact Neon rehearsal branch, then on production only after that branch
+passes, run:
+
+```sh
+companyos database prepare --format json
+companyos database verify --format json
+```
+
+Build and verify a V3 projection without serving or activating it:
+
+```sh
+companyos knowledge retrieval-v3-build --format json
+companyos knowledge retrieval-v3-status --projection <hash> --format json
+```
+
+Set `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE=v3-shadow`, the exact projection hash,
+and the internal Agent allowlist only after the V2 baseline is recorded. Shadow
+mode executes both providers for real authorized searches, persists a
+payload-free observation, and returns V2 unchanged. Do not infer promotion from
+live overlap alone: the bounded KnowledgeBench, ACL-negative, citation,
+Source-health, backup, fallback, and Doctor gates remain mandatory.
+
+Run those gates in the secret-bound production process. The command accepts
+only stable environment and evidence identities; it never accepts credentials
+or prints source queries. A failed gate returns no activation receipt:
+
+```sh
+companyos knowledge retrieval-v3-qualify-production-canary \
+  --projection <hash> \
+  --environment <production-environment-id> \
+  --company-instance <company-instance-id> \
+  --agent <allowlisted-agent-id> \
+  --state-project <neon-project-id> \
+  --state-branch <production-branch-id> \
+  --runtime-project <vercel-project-id> \
+  --rehearsal <branch-rehearsal-receipt-id> \
+  --backup <backup-or-safety-branch-receipt-id> \
+  --operator-approval <operator-approval-receipt-id> \
+  --format json
+```
+
+After persisting the exact activation-qualification receipt, activate only its
+projection:
+
+```sh
+companyos knowledge retrieval-v3-activate \
+  --projection <hash> \
+  --qualification <receipt-id> \
+  --format json
+
+companyos knowledge retrieval-v3-verify-live \
+  --projection <hash> \
+  --agent <allowlisted-agent-id> \
+  --format json
+```
+
+Then set `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE=v3-canary` for the same allowlisted
+internal Agent. If candidate search fails, the Runner serves V2 and reports
+`retrieval-v3-canary-fallback`. The immediate operator rollback is to restore
+mode `v2` and redeploy or promote the last known-good Artifact. The additive
+1.7.0 tables remain dormant and durable Brain or Handbook data is not deleted.
 
 ## Model runtime operation
 
@@ -131,7 +201,7 @@ budgeted maintenance until its price is qualified.
 
 Do not enable a scheduler merely because the endpoint deploys. First:
 
-1. prepare and read-only qualify `companyos-postgres@1.6.0`;
+1. prepare and read-only qualify `companyos-postgres@1.7.0`;
 2. pass the distinct-model smoke test;
 3. pass all 13 live synthetic fixtures;
 4. reconcile and extract one real authorized source object;

@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -136,12 +136,13 @@ counts, Core Page-type count, optional feature availability, and timestamp;
 they never return the connection value. Runtime health invokes verification,
 not bootstrap.
 
-The current additive target is `companyos-postgres@1.6.0`. It retains the
-immutable `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` predecessors, qualifies 62 required
+The current additive target is `companyos-postgres@1.7.0`. It retains the
+immutable `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` predecessors, qualifies 67 required
 `companyos_knowledge` tables, and prepares durable Source event, ACL, receipt,
 watermark, synchronization-lease, change-stream, lifecycle, compounding,
-Claim-pair-proposal, grading-request, model-result-cache, spend-reservation, and
-execution-ledger state in addition to the fail-closed
+Claim-pair-proposal, grading-request, model-result-cache, spend-reservation,
+execution-ledger, Retrieval V3 projection, benchmark, shadow-comparison, and
+productization-receipt state in addition to the fail-closed
 authorization foundation. Setup does not treat that schema receipt as
 permission to expose content; runtime authorization and Source ACL mapping
 remain separate conformance gates.

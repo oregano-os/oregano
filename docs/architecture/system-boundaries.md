@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -79,14 +79,15 @@ MUST verify the manifest without performing schema DDL. A new host or database
 provider may replace the maintained Vercel and Neon bindings only after its
 secret transport and PostgreSQL behavior satisfy the same contract.
 
-The current `companyos-postgres@1.6.0` manifest is an additive Instance storage
-contract over immutable predecessors `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0`.
-Core defines and qualifies 62 required Knowledge relations, including stable groups,
+The current `companyos-postgres@1.7.0` manifest is an additive Instance storage
+contract over immutable predecessors `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0`.
+Core defines and qualifies 67 required Knowledge relations, including stable groups,
 memberships, durable Source Events, provider ACL snapshots, pipeline receipts,
 completed watermarks, per-stream synchronization leases, lifecycle requests,
 and a payload-free integrity-linked change stream, compounding receipts,
 review-only Claim-pair proposals, explicit grading requests, a policy-bound
-model-result cache, spend reservations, and a rated execution ledger. Schema
+model-result cache, spend reservations, a rated execution ledger, rebuildable
+Retrieval V3 projections, and payload-free benchmark and productization evidence. Schema
 presence alone never grants access: the Runtime supplies
 a Core-resolved subject, and the Knowledge Provider applies policy intersection
 before candidates, ranks, graph structure, citations, review content, or model

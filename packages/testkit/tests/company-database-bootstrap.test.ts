@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  createNeonBranchDatabaseUrl,
   assertSupportedCompanyDatabaseManifestHistory,
   assertCompanyDatabaseQualificationReceipt,
   bootstrapCompanyDatabase,
@@ -17,6 +18,8 @@ import {
   COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST,
   COMPANY_DATABASE_MANIFEST_PHASE_FIVE,
   COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST,
+  COMPANY_DATABASE_MANIFEST_PHASE_SIX,
+  COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST,
   COMPANY_DATABASE_MANIFEST_V1,
   COMPANY_DATABASE_MANIFEST_V1_DIGEST,
   qualifyCompanyDatabase,
@@ -32,7 +35,7 @@ const qualification = (vector = false) => ({
   schemas: {
     companyos: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length },
     companyosKnowledge: {
-      tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length + (vector ? 1 : 0),
+      tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length + (vector ? 2 : 0),
     },
   },
   corePageTypeCount: COMPANY_DATABASE_MANIFEST.corePageTypes.length,
@@ -42,8 +45,8 @@ const qualification = (vector = false) => ({
 test("the Company Instance database manifest is deterministic and credential-free", () => {
   assert.equal(COMPANY_DATABASE_MANIFEST.schemaVersion, 1);
   assert.equal(COMPANY_DATABASE_MANIFEST.id, "companyos-postgres");
-  assert.equal(COMPANY_DATABASE_MANIFEST.version, "1.6.0");
-  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version);
+  assert.equal(COMPANY_DATABASE_MANIFEST.version, "1.7.0");
+  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_SIX.version);
   assert.equal(COMPANY_DATABASE_MANIFEST.migrationMode, "additive");
   assert.equal(COMPANY_DATABASE_MANIFEST_V1.version, "1.0.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_ONE.version, "1.1.0");
@@ -51,6 +54,7 @@ test("the Company Instance database manifest is deterministic and credential-fre
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_THREE.version, "1.3.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, "1.4.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version, "1.5.0");
+  assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, "1.6.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_V1_DIGEST, "0bbe79c8c2f5a6f370f35a7e4f09f1aa7440ded33f0548aa5778fad70aa42cc0");
   assert.notEqual(COMPANY_DATABASE_MANIFEST_DIGEST, COMPANY_DATABASE_MANIFEST_V1_DIGEST);
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_ONE_DIGEST, "9ffe70ef8836fba556b213b2b55a68a670c347a2ecbd747daf5677f57a9271f0");
@@ -58,12 +62,13 @@ test("the Company Instance database manifest is deterministic and credential-fre
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST, "d8f28c995427de642dd8e923f2cc82035fe4c557d838f99177abbd961e4b17db");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST, "6c0b3366540c8b1c0a3d889ef8c180c32d15d4e1bb92dbbbd8b10e94ddbce16c");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST, "bb3dcef272ce2c33ae1a479171a648ea6e79ab01b04ca37dce998a5e0e404cea");
+  assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST, "b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1");
   assert.notEqual(COMPANY_DATABASE_MANIFEST_DIGEST, COMPANY_DATABASE_MANIFEST_PHASE_ONE_DIGEST);
   assert.match(COMPANY_DATABASE_MANIFEST_DIGEST, /^[0-9a-f]{64}$/);
   assert.equal(COMPANY_DATABASE_MANIFEST.corePageTypes.length, 19);
-  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length, 62);
+  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length, 67);
   const knowledgeTables = new Set<string>(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables);
-  for (const requiredTable of ["acl_policies", "raw_assets", "timeline_events", "synthesis_versions", "extraction_runs", "brain_export_ledger", "principal_groups", "principal_group_members", "access_decision_events", "source_events", "source_acl_snapshots", "source_pipeline_receipts", "source_watermarks", "source_sync_leases", "source_lifecycle_requests", "session_lifecycle_receipts", "knowledge_change_stream", "compounding_leases", "compounding_receipts", "claim_pair_proposals", "claim_grading_requests", "model_task_results", "model_spend_reservations", "model_execution_ledger"]) {
+  for (const requiredTable of ["acl_policies", "raw_assets", "timeline_events", "synthesis_versions", "extraction_runs", "brain_export_ledger", "principal_groups", "principal_group_members", "access_decision_events", "source_events", "source_acl_snapshots", "source_pipeline_receipts", "source_watermarks", "source_sync_leases", "source_lifecycle_requests", "session_lifecycle_receipts", "knowledge_change_stream", "compounding_leases", "compounding_receipts", "claim_pair_proposals", "claim_grading_requests", "model_task_results", "model_spend_reservations", "model_execution_ledger", "retrieval_projection_runs", "retrieval_units", "knowledge_benchmark_runs", "knowledge_shadow_comparisons", "knowledge_productization_receipts"]) {
     assert.equal(knowledgeTables.has(requiredTable), true);
   }
   for (const requiredIndex of [
@@ -86,6 +91,9 @@ test("the Company Instance database manifest is deterministic and credential-fre
     "companyos_knowledge.knowledge_model_task_results_policy_idx",
     "companyos_knowledge.knowledge_model_spend_reservations_budget_idx",
     "companyos_knowledge.knowledge_model_execution_ledger_spend_idx",
+    "companyos_knowledge.knowledge_retrieval_units_search_idx",
+    "companyos_knowledge.knowledge_one_active_retrieval_projection_idx",
+    "companyos_knowledge.knowledge_benchmark_runs_suite_idx",
   ]) assert.equal(new Set<string>(COMPANY_DATABASE_MANIFEST.requiredIndexes).has(requiredIndex), true);
   for (const requiredConstraint of [
     "companyos_knowledge.knowledge_sources_access_policy_fk",
@@ -117,10 +125,24 @@ test("database preparation rejects unknown or conflicting manifest history befor
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_THREE.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_THREE_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST },
+    { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: COMPANY_DATABASE_MANIFEST_DIGEST },
-  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0"]);
+  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0"]);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: "9.0.0", manifest_digest: "0".repeat(64) }]), /unsupported manifest version/i);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: "0".repeat(64) }]), /conflicting content/i);
+});
+
+test("Neon branch qualification changes only the in-memory host binding", () => {
+  const production = new URL("postgresql://company:example-password@ep-production-pooler.c-5.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require");
+  const branch = new URL(createNeonBranchDatabaseUrl(production.toString(), "ep-rehearsal-pooler.c-5.eu-central-1.aws.neon.tech"));
+  assert.equal(branch.hostname, "ep-rehearsal-pooler.c-5.eu-central-1.aws.neon.tech");
+  assert.equal(branch.username, production.username);
+  assert.equal(branch.password, production.password);
+  assert.equal(branch.pathname, production.pathname);
+  assert.equal(branch.search, production.search);
+  assert.equal(production.hostname, "ep-production-pooler.c-5.eu-central-1.aws.neon.tech");
+  assert.throws(() => createNeonBranchDatabaseUrl(production.toString(), production.hostname), /must differ/i);
+  assert.throws(() => createNeonBranchDatabaseUrl(production.toString(), "database.example.com"), /host is invalid/i);
 });
 
 test("qualification is read-only and bootstrap owns both schema initializers and the manifest ledger", () => {
