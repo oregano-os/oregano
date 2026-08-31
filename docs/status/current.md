@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -416,10 +416,11 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core has prepared the `0.4.0` initial-development release candidate;
-  `v0.3.2` remains the latest stable release until the reviewed candidate is
-  merged, tagged, and published. Every Company Workspace advances independently
-  under the canonical Versioning Policy.
+- Oregano Core source is versioned `0.5.0` for the productized Company Brain
+  release line. Its immutable GitHub `v0.5.0` tag and Release are the public
+  distribution evidence; the prior `v0.4.0` release remains available as an
+  exact rollback. Every Company Workspace advances independently under the
+  canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
   artifact. The artifact records both product versions, the SHA pair,
@@ -451,7 +452,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.8`; no
+  builds. Its repository release candidate is `0.1.0-experimental.9`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
@@ -566,20 +567,17 @@ evidence, historical prototypes, and production gaps.
    that granularity. Establish a fully isolated non-production Instance before
    broadening changes beyond internal dogfood or using the pattern for another
    company.
-4. Reconcile, validate, tag, and publish the stable immutable `v0.4.0` GitHub
-   Release containing the Company Knowledge capability. There is no
-   `latest-stable` branch; `releases/latest` is discovery only and installation
-   pins the exact tag, commit, and Workbench version. The existing `v0.3.2`
-   release remains immutable and available.
-5. Re-qualify the hardened `vercel-neon-slack` setup profile through a fresh
-   external end-to-end installation before the next stable release. The prior
-   profile completed a real supervised installation and exposed the provider
-   receipt, runner-root, Slack-authorization, naming, and health-readiness gaps
-   addressed by the current Change Plan; the hardened revision still requires
-   its own release qualification.
-6. Publish a signed Workbench package so Workspace-only Contributors do not
+4. Re-qualify the hardened `vercel-neon-slack` setup profile through a fresh
+   external end-to-end installation before recommending that starter broadly
+   or expanding its activation claims. The prior profile completed a real
+   supervised installation and exposed the provider receipt, runner-root,
+   Slack-authorization, naming, and health-readiness gaps addressed by its
+   Change Plan; the hardened revision still requires its own independent
+   setup-profile qualification. The opt-in v0.5.0 Company Brain release does
+   not change or qualify that setup profile.
+5. Publish a signed Workbench package so Workspace-only Contributors do not
    require a Core source checkout.
-7. Require and qualify hosted repository protection before any future
+6. Require and qualify hosted repository protection before any future
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.

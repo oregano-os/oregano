@@ -1101,7 +1101,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -1127,7 +1127,7 @@
     "status": "building",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-08-31",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
