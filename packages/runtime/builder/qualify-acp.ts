@@ -2,12 +2,12 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { isPathInsideBuilderWorkspace, runBuilderAcp } from "./acp-client.ts";
+import { createBuilderAcpPermissionPolicy, runBuilderAcp } from "./acp-client.ts";
 import { resolveBuilderAcpProfile } from "./profiles.ts";
 
 const profile = resolveBuilderAcpProfile(process.argv[2] ?? "");
 const repositoryRoot = process.cwd();
-const executable = resolve(repositoryRoot, "node_modules", ".bin", profile.binaryName);
+const executable = resolve(repositoryRoot, "packages", "builder-worker", "node_modules", ".bin", profile.binaryName);
 const cwd = await mkdtemp(join(tmpdir(), `companyos-${profile.id}-qualification-`));
 
 try {
@@ -31,13 +31,7 @@ try {
     ].join("\n"),
     timeoutMs: 120_000,
     environment: localAuthenticationEnvironment(),
-    permissionPolicy: (permission) => {
-      const locations = permission.toolCall.locations ?? [];
-      const bounded = locations.length > 0
-        && locations.every((location) => isPathInsideBuilderWorkspace(cwd, location.path));
-      if (!bounded) return undefined;
-      return permission.options.find((option) => option.kind === "allow_once")?.optionId;
-    },
+    permissionPolicy: createBuilderAcpPermissionPolicy(profile, cwd),
   });
   const diff = execFileSync("git", ["diff", "--no-ext-diff", "--", "fixture.txt"], { cwd, encoding: "utf8" });
   const summary = { evidence, diffObserved: diff.includes("+changed-by-real-acp-agent") };

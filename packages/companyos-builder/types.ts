@@ -2,12 +2,34 @@ import type { CapabilityBinding, CapabilityContract } from "../capabilities/cont
 import type { CompanyToolContract } from "../tool-sdk/contracts.ts";
 import type { ResolvedToolSet } from "../toolset-resolver/resolver.ts";
 import type { RosterMember } from "../state-store/roster.ts";
+import type { AgentBinding, CompiledAgentRouting } from "../runtime/agent-resolver.ts";
+
+export interface BuilderInstanceConfiguration {
+  enabled: true;
+  execution: {
+    adapter: string;
+    profile: string;
+  };
+  codingAgent: {
+    protocol: "acp-v1";
+    profile: "claude-code" | "codex";
+  };
+  repository: {
+    repositoryId: string;
+    sourceBinding: string;
+    proposalPublisherBinding: string;
+    targetBranchName?: string;
+  };
+}
 
 export interface InstanceBuildConfiguration {
   version: 1;
   instanceId: string;
   environment: string;
   bindings: CapabilityBinding[];
+  agentBindings: AgentBinding[];
+  defaultAgentId?: string;
+  builder?: BuilderInstanceConfiguration;
 }
 
 export interface CompiledCompanyTool {
@@ -51,5 +73,7 @@ export interface CompanyOSArtifact {
   };
   roster: RosterMember[];
   agents: CompiledAgent[];
+  agentRouting: CompiledAgentRouting;
+  builder?: BuilderInstanceConfiguration;
   artifactHash: string;
 }

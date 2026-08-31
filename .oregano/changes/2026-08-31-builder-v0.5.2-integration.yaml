@@ -1,0 +1,90 @@
+version: 1
+plan_id: builder-v0.5.2-integration-2026-08-31
+status: approved
+author: codex-agent
+created: 2026-08-31
+title: Integrate the experimental proposal-only Builder for Oregano v0.5.2
+objective: >-
+  Integrate the complete, live-qualified proposal-only Builder onto the current
+  v0.5.1 Company Brain line without regressing normal Agent or Knowledge
+  behavior, reduce the Builder's central Runner coupling, retain safe opt-in
+  activation, and publish the reviewed result as immutable Core patch v0.5.2.
+non_goals:
+  - Activate the Builder for every Company Instance or customer.
+  - Add automatic merge, deployment, or production authority.
+  - Add the deferred confirmed-path scope hardening.
+  - Introduce a public Agent runtime contract, generic operation router, plugin
+    framework, or dynamic coding-profile registry.
+  - Replace ACP as the private coding-worker protocol.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+  - The reference stack is concrete, not mandatory
+files_expected:
+  - .oregano/changes/**
+  - docs/**
+  - package.json
+  - pnpm-lock.yaml
+  - pnpm-workspace.yaml
+  - packages/**
+  - vercel.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-31
+    evidence: explicit-user-instruction-in-codex-task-to-integrate-merge-and-release-the-builder-as-v0.5.2
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-31-builder-v0.5.2-integration.yaml
+  - node packages/cli/src/cli.mjs inspect-core --base origin/main --plan .oregano/changes/2026-08-31-builder-v0.5.2-integration.yaml
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm builder:check
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Existing Company Brain, Knowledge, normal Runner, Tool, and setup regression suites remain green.
+  - Builder Agent routing remains deterministic and disabled when no exact Instance binding exists.
+  - A disabled Builder worker request is a successful no-op and constructs no provider or coding runtime.
+  - Claude Code and Codex ACP profiles retain exact version, timeout, cancellation, token, and crash evidence.
+  - Trusted Git source, validation, and proposal publication retain credential separation and exact diff evidence.
+  - Postgres migration is additive from v0.5.1 and preserves all existing Brain state.
+  - Core reports 0.5.2 and Workbench reports 0.1.0-experimental.10.
+documentation_impact:
+  required: true
+  affected_documents:
+    - reference.glossary
+    - architecture.overview
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.boundaries
+    - architecture.workbench
+    - compatibility.index
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.builder-governance
+    - specification.companyos-core-v0.7
+    - guide.operate-builder
+    - status.current
+    - workbench.overview
+migration: >-
+  Existing v0.5.1 Company Instances remain valid and do not activate the
+  Builder. Builder job and repository-installation tables are additive. Only an
+  Instance with an explicit Builder configuration, Agent Binding, repository
+  installation, worker snapshots, and secrets can start proposal jobs.
+rollback: >-
+  Remove the Builder Agent Binding and Builder Instance configuration, drain or
+  cancel in-flight jobs, and redeploy the exact immutable v0.5.1 Core and prior
+  Workspace pair. Preserve Builder job and repository-installation evidence;
+  rollback does not authorize dropping those tables or deleting open draft
+  proposals.
+open_decisions: []

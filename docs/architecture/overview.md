@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -61,3 +61,27 @@ Runtime Observations, and provider-neutral contracts. The maintained read-only
 repository Source Connector feeds the same review boundary. Raw review input is
 not operating truth and an external source never becomes a second authority
 plane.
+
+The experimental Builder follows the same placement rule. A trusted Agent
+Binding selects the ordinary `builder` Company Agent for one exact
+communication channel. Only a second, explicit human confirmation creates a
+durable proposal job. Provider-neutral Core control then coordinates separate
+repository, isolated coding, validation, and proposal-publication boundaries:
+
+```mermaid
+flowchart LR
+    H["Authorized human"] --> AR["AgentResolver<br/>exact surface binding"]
+    AR --> BA["Builder Agent<br/>normal Runner conversation"]
+    BA --> C["Explicit confirmation"]
+    C --> BS["BuilderService<br/>durable proposal job"]
+    BS --> RS["Repository source<br/>exact base"]
+    BS --> CW["Isolated coding worker<br/>ACP: Claude Code or Codex"]
+    BS --> V["Independent diff + Workbench checks"]
+    V --> P["Draft proposal publisher"]
+    P --> HR["Human review, merge, and deployment"]
+```
+
+The coding worker cannot push, merge, deploy, read production secrets, or
+select another Company Agent. The Builder is opt-in Instance behavior; an
+Instance without its exact configuration and Agent Binding continues to run
+normal Agents without constructing Builder providers or coding runtimes.

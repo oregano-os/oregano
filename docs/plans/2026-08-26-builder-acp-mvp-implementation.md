@@ -5,7 +5,7 @@ kind: plan
 status: approved
 authority: informative
 language: en
-updated: 2026-08-26
+updated: 2026-08-27
 owners:
   - oregano-maintainers
 audience:
@@ -24,6 +24,84 @@ relations:
 ---
 
 # Builder ACP MVP Architecture and Delivery Plan
+
+## Implementation status on 2026-08-27
+
+The proposal-only MVP described here is now implemented on the isolated
+`codex/builder-acp-stage-0` branch. Deterministic Agent resolution, explicit
+Builder confirmation, persistent jobs and leases, cancellation, the portable
+worker, private ACP profiles, repository contracts, local Git and GitHub App
+providers, independent Workbench validation, trusted outer publication, and
+source-thread terminal reporting have automated coverage.
+
+The current qualified worker snapshot was created successfully as
+`snap_XhgH5ozYTOR5L5GTI3e8ST1G3hvy` from the pinned base image. It contains ACP
+SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`.
+
+The current separate trusted Git snapshot was recreated after the canonical
+mixed-diff validation fix as `snap_ELocj6iQRrgRzFnOJPeGNcAs7H8k`. It contains
+Git and the pinned Workbench, never starts Claude Code or Codex, and is
+independently bound from the coding worker snapshot. Snapshot identifiers are
+non-secret provider receipts, not Core or Workspace configuration.
+
+The implementation is intentionally not activated in a customer production
+Company Instance. The isolated non-production qualification Instance completed
+both deployment gates:
+
+1. it bound the snapshots, cron secret, GitHub provider, exact Slack Agent
+   route, and immutable Artifact; and
+2. one authenticated Slack request required explicit confirmation and produced
+   checked draft `fylingpete/oregano-hq-companyos#6` against exact base
+   `b3024615d91cb1342d3eeab469a2bf61780f72dd`, with no merge or deployment.
+
+The service-owned GitHub App passed live exact-base source and idempotent draft
+publication qualification against one selected private Workspace. Both model
+profiles passed protected staged-deployment qualification with the two
+Sensitive general model variables while the coding processes received only
+fixed placeholders. Vercel Sensitive values remain deliberately non-readable
+after creation and must never be imported into a local qualification process.
+The deployed trusted Git and onboarding path subsequently passed with a
+credential-free bundle, a freshly reread Postgres binding, three independent
+Workbench checks, one outer commit, and repeat-call reuse of stacked draft
+`fylingpete/oregano-hq-companyos#4`.
+
+The representative Slack job exposed and resolved three integration defects
+before the successful run: an ACP-owned handle kept a completed detached worker
+alive, an expired worker marker could otherwise remain non-terminal, and the
+coding and trusted Git boundaries serialized adjacent new-file patches
+differently. The worker now flushes and exits deterministically, coordinator
+output polling is bounded, missing persisted markers fail closed, and one
+canonical patch representation is checked on both sides. The successful job
+completed in 298.240 seconds end to end. Its one-vCPU, 2 GB coding Sandbox was
+alive for 264.182 seconds, consumed 8.401 active CPU seconds, received 578,626
+bytes, and sent 2,182,878 bytes. At the [Vercel Sandbox list
+rates](https://vercel.com/pricing) published on 2026-08-27, that is
+approximately USD 0.00374 of provider compute, memory,
+network, and creation usage before included quotas and excluding Claude model
+cost.
+
+The mixed tracked-plus-new-file regression was also repeated through the real
+Slack confirmation path after rebinding the refreshed trusted Git snapshot.
+Job `builder-e33e20f2141fc422efa9234335a75899` updated one card from
+confirmation through queued to ready-for-review and created checked draft
+`fylingpete/oregano-hq-companyos#7`. The draft touches only `company.md` and its
+required Workspace Change Plan; no merge or deployment occurred.
+
+The final fixed Claude qualification on that same snapshot recorded one fresh
+job with 110,033 total tokens: 10 input, 455 output, 103,466 cached read, 6,102
+cached write, and no thought tokens. Claude ACP reported an estimated model
+cost of USD 0.1019435 through `usage_update`. This is direct job-bound model
+evidence, not Vercel resource pricing or a provider billing statement. Every
+successful profile now records a cost status; a profile such as the current
+Codex ACP that does not expose cost records `unavailable` instead of using an
+invented local price.
+
+A parallel final gate waited for exact job-bound `prompt_started` evidence,
+sent `SIGKILL` only to the recorded Claude ACP process, and instantiated a new
+execution coordinator. The replacement recovered the persisted handle as
+`failed`, retained the redacted progress receipt, produced no checked diff, and
+disposed the isolated Sandbox. Retry deliberately requires a new confirmed job
+rather than resuming a partially executed coding turn.
 
 ## 1. Purpose and approved decisions
 
@@ -300,8 +378,11 @@ The Core implementation is split by responsibility rather than by provider:
   agent;
 - `packages/runtime/agent-resolver.ts` and `packages/runtime/builder/` own
   provider-neutral Agent resolution, Builder jobs, `BuilderService`,
-  `BuilderExecutionAdapter`, the portable worker entrypoint,
-  `BuilderAcpClient`, and qualified ACP profile definitions;
+  `BuilderExecutionAdapter`, `BuilderAcpClient`, and qualified ACP profile
+  definitions;
+- `packages/builder-worker/` owns the portable isolated worker entrypoint and
+  contains the exact ACP, Claude Code, and Codex dependencies used in its
+  qualified image or snapshot;
 - `packages/runtime/repository/` owns the provider-neutral
   `RepositorySourceAdapter`, source receipt, and `ProposalPublisher` contracts;
 - `packages/connectors/` owns maintained repository-provider implementations,
@@ -599,7 +680,7 @@ creates an avoidable credential-exposure boundary even on a fresh hosted
 runner. Separating untrusted execution from proposal publication is simpler to
 reason about and test.
 
-This decision remains provisional until Stage 0 proves four details:
+Stage 0 evaluates four details:
 
 - the pinned Claude and Codex ACP profiles work with brokered authentication
   while the real provider credential remains outside the Sandbox;
@@ -611,6 +692,21 @@ This decision remains provisional until Stage 0 proves four details:
 - measured duration and compute cost are acceptable for representative Builder
   jobs.
 
+The brokered Claude and Codex profile gate and the private GitHub exact-base
+source and checked-publication gate passed on 2026-08-26. Basic result,
+cleanup, timeout, cancellation, and duplicate-delivery behavior also passed.
+The representative Slack-backed job then passed on 2026-08-27 in 298.240
+seconds end to end. Its coding Sandbox ran for 264.182 seconds with 8.401 active
+CPU seconds, 2 GB provisioned memory, 578,626 ingress bytes, and 2,182,878
+egress bytes. Using the Vercel Sandbox list rates published that day, the
+measured provider resource use is approximately USD 0.00374 before included
+quotas and excluding the Claude model call. A separate final fixed Claude job
+then recorded 110,033 job-bound tokens and an ACP-reported estimated model cost
+of USD 0.1019435. A deliberate ACP-process `SIGKILL` on the same snapshot was
+recovered by a replacement coordinator as a terminal failure with no diff and
+deterministic Sandbox disposal. Stage 0 therefore passed both model-accounting
+and process-crash recovery gates.
+
 The first Stage-0 execution probe on 2026-08-26 proved the neutral five-method
 adapter lifecycle against Vercel Sandbox SDK `3.1.0`. A real disposable Sandbox
 started from the digest-pinned
@@ -621,10 +717,12 @@ external HTTPS access failed as required, and explicit stop, collection, and
 disposal completed. A second live probe temporarily allowed one qualification
 host, replaced a harmless placeholder `Authorization` header through the
 provider network policy, verified the transformed value at the remote endpoint,
-and restored `deny-all` in a `finally` path. This qualifies the basic provider
-lifecycle and the provider's credential-transform mechanism. It does not yet
-qualify real Claude or Codex model authentication, private repository setup,
-or representative model-backed job cost.
+and restored `deny-all` in a `finally` path. This qualified the basic provider
+lifecycle and the provider's credential-transform mechanism. Later protected
+staged-deployment and GitHub App probes qualified real model authentication and
+private repository setup separately. The final protected Claude job recorded
+exact token categories and an ACP-reported estimated cost; profiles without a
+cost receipt retain an explicit `unavailable` status.
 
 The follow-up provider probe on the same date also exposed and resolved a real
 parallel-delivery race in the provider SDK's non-atomic named `getOrCreate`
@@ -636,9 +734,10 @@ collection, and cleanup succeeded. A separate live ten-second provider timeout
 was freshly observed after coordinator state was discarded and was classified
 as `timed_out` from the stored timeout evidence and provider session timing.
 These probes qualify the basic duplicate-delivery, restart-recovery,
-cancellation, timeout, and cleanup paths. Durable job leases, process-crash
-injection during an ACP prompt, and model-backed duration and cost remain for
-the production worker stages.
+cancellation, timeout, and cleanup paths. Durable job leases subsequently
+passed through the Slack-backed run. The final fixed worker gate also injected
+an ACP-process crash during a prompt and proved job-bound model duration,
+tokens, cost status, replacement-coordinator recovery, and cleanup.
 
 If credential brokering is incompatible with one profile on one adapter, that
 exact profile-and-adapter combination fails qualification. Another separately
@@ -686,13 +785,27 @@ repository provider, or use a local checkout through
 adapters must pass the same source and publication conformance contracts; they
 do not emulate GitHub App semantics in Core.
 
-The current Stage-0 private-repository harness predates this approved
-self-service shape: it accepts a supplied App identity and private key directly
-as qualification inputs. That proves the credential-removal audit mechanics
-but does not close the product gate. Before a GitHub profile is reported as
-supported, the harness must be refactored behind `RepositorySourceAdapter` and
-run through a service-owned App installation created by the real onboarding
-flow.
+The Stage-0 private-repository harness now invokes the implemented GitHub App
+provider through `RepositorySourceAdapter`, verifies the installation and exact
+selected repository, requests a single-repository read token, materializes the
+exact base, revokes the token, and checks the resulting local Git configuration
+and remotes. With a separately authorized publication branch it creates one
+bounded checked diff, requests a distinct single-repository publication token,
+requires GitHub to return a draft pull request, and proves that a repeated
+request returns that same proposal. The live supervised pass on 2026-08-26 used
+the service-owned Production App against one selected private Workspace and
+left the exact-base checkout credential-free.
+
+A later protected staged-deployment pass invoked the same authenticated
+onboarding handler used by self-service, reread the active binding from
+Postgres, and minted separate single-repository read and publication tokens.
+The trusted Git worker received those credentials only through host-scoped
+network-header transforms, produced a bounded credential-free Git bundle,
+closed network access before handoff, and independently validated the returned
+diff. Publication produced one outer commit and stacked draft
+`fylingpete/oregano-hq-companyos#4`; a repeated request returned the same commit
+and proposal. Neither token entered the coding environment or persisted job
+state.
 
 ### 8.3 ACP profile compatibility
 
@@ -712,25 +825,73 @@ created a fresh session, emitted structured updates and tool events, changed
 one bounded temporary fixture, terminated normally, and produced a Git diff
 that CompanyOS read independently of ACP output.
 
-The probe also found a meaningful implementation difference. Codex completed
-the bounded edit without an ACP permission request; therefore Sandbox and
-post-diff validation remain mandatory security boundaries. Claude emitted one
-path-scoped `edit` permission request. Its path used the canonical macOS
-filesystem spelling while the host fixture used a symlinked spelling. The
+The local probe also found a meaningful implementation difference. Codex
+completed the bounded edit without an ACP permission request; therefore
+Sandbox and post-diff validation remain mandatory security boundaries. Claude
+emitted one path-scoped `edit` permission request. Its path used the canonical
+macOS filesystem spelling while the host fixture used a symlinked spelling. The
 CompanyOS client now canonicalizes existing paths and their parent directories
 before deciding workspace containment, and has a regression test for that
-case. Brokered model authentication and real-profile cancellation remain open
-qualification gates; the successful local probes used existing local login
-sessions and passed no model API-key environment variables.
+case. Those initial local probes used existing local login sessions and passed
+no model API-key environment variables.
+
+The first deployed Codex probe found a second profile difference. Supplying
+`CODEX_API_KEY` does not itself select API-key authentication in
+`codex-acp`; the profile must also provide the fixed non-secret
+`DEFAULT_AUTH_REQUEST` for method `api-key`. CompanyOS now pins that request in
+the Codex worker environment. The deployed probe also proved that relying on an
+implementation default can produce a successful but read-only turn, so the
+Codex profile now requires the advertised ACP session mode `agent` explicitly.
+In that mode `codex-acp` `1.6.2` reports its workspace-write shell actions as
+generic `execute` permission requests without file locations. The policy now
+allows only an offered `allow_once` option for that exact profile, version,
+mode, and tool kind. Location-bearing requests still require every path to be
+inside the workspace, and all other location-free requests fail closed. The
+Sandbox and post-run validation remain the actual security boundaries. These
+are profile settings, not new ACP or Builder contracts, and neither carries a
+credential value.
 
 The repository also contains a fail-closed live model qualification harness.
 It installs only the exact ACP profile in a disposable Sandbox, gives the
 coding process a fixed placeholder credential, and configures a host- and
 request-scoped Vercel header transform that holds the real credential outside
 the process. It rejects missing external qualification inputs before creating
-provider resources. Its live passes remain open until dedicated Anthropic and
-OpenAI model test keys are supplied through the general Instance provider
-secret bindings.
+provider resources. A deployed variant uses the pinned worker snapshot and one
+fixed repository fixture. It is addressable only through the exact generated
+URL of a staged Production build, accepts only an exact profile ID, and rejects
+the Production alias. The general `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`
+bindings now exist as Sensitive Production variables, but Vercel intentionally
+does not return their values outside a deployment. On 2026-08-26 an
+unauthenticated request to the generated staging URL was denied, then both
+bounded profile requests passed on the same snapshot. Claude made one
+path-scoped one-shot `edit` request. Codex made two location-free one-shot
+`execute` requests under its required workspace-write mode. CompanyOS observed
+the exact expected diff independently in both runs, and neither coding process
+received the real model credential. Importing the complete unrelated
+Production environment into a local process remains prohibited.
+
+The first staged Production build exposed one additional deployment fact:
+Vercel Functions do not provide the `git` executable used by the local
+repository adapters, trusted diff inspection, and source-bundle preparation.
+The pinned Builder Sandbox snapshot does provide Git. The deployed ACP
+qualification therefore prepares and verifies its fixed fixture through that
+snapshot and can still qualify model brokering independently.
+
+The maintained hosted composition now uses a second snapshot through the
+private `TrustedGitExecutionAdapter`. It performs complete source acquisition
+while its host-scoped credential transform is active, produces a Git bundle,
+then runs with deny-all egress for transfer and Workbench validation. The coding
+snapshot receives the bundle but no repository credential or retained remote.
+A fresh trusted Git Sandbox reapplies the independently observed diff, reruns
+the Workbench, creates the canonical outer commit, and pushes only the bounded
+proposal branch before the GitHub provider opens a draft through the API. The
+live pass on 2026-08-26 proved this path and repeat-call idempotency. The
+normal Runner and Slack integration gate then passed on 2026-08-27 through one
+confirmed job in an isolated Instance Artifact and checked draft
+`fylingpete/oregano-hq-companyos#6`. Final protected gates on 2026-08-27 then
+proved per-job model-token and cost-status evidence plus deliberate ACP-process
+crash recovery by a replacement coordinator, with no diff or proposal from the
+failed execution.
 
 ## 9. Success and graduation criteria
 

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -42,11 +42,13 @@ the same schemas and Guides. A command is labeled `planned`, `experimental`, or
 | Human Contributor | CLI |
 | General Agent Contributor | CLI in a bounded development environment |
 | CI | non-interactive CLI |
-| Builder Agent | planned typed Workbench Tools/SDK using the same validation library |
+| Builder Agent | experimental restricted proposal worker using the same CLI validation library; typed Workbench Tools/SDK planned |
 
 The Builder Agent does not receive an unrestricted shell merely to run the
-CLI. A restricted CLI sandbox is acceptable only for its proposal-mode
-prototype until the typed interface exists.
+CLI in the normal Runner. The experimental proposal worker uses a restricted,
+credential-free snapshot to invoke the same CLI library until the typed
+interface exists. A separate trusted Git worker reruns validation before
+publication; neither boundary may merge or deploy.
 
 Onboarding reuses the same validators and Guide library. It checks local facts
 deterministically and labels hosted GitHub protection, identities, provider

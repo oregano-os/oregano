@@ -7,7 +7,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -74,7 +74,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -87,7 +87,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -131,7 +131,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -386,7 +386,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-26",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -643,6 +643,25 @@
     "relations": {}
   },
   {
+    "document_id": "guide.operate-builder",
+    "title": "Operate the Builder",
+    "path": "docs/workbench/guides/operate-builder.md",
+    "kind": "guide",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-27",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.builder-governance",
+        "architecture.company-instance",
+        "guide.review-change"
+      ]
+    }
+  },
+  {
     "document_id": "guide.operate-knowledge-provider",
     "title": "Operate the Knowledge Provider",
     "path": "docs/workbench/guides/operate-knowledge-provider.md",
@@ -772,7 +791,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -792,7 +811,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -811,7 +830,7 @@
     "status": "approved",
     "authority": "informative",
     "language": "en",
-    "updated": "2026-08-26",
+    "updated": "2026-08-27",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -862,7 +881,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -885,10 +904,10 @@
     "title": "Builder Governance Specification",
     "path": "docs/specifications/builder-governance.md",
     "kind": "specification",
-    "status": "draft",
+    "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-27",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -967,7 +986,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-08-23",
+    "updated": "2026-08-26",
     "availability": null,
     "migration_sources": [],
     "relations": {

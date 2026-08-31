@@ -245,7 +245,7 @@ test("explicit Knowledge grants resolve to standard Tools and replace full Handb
     }));
     const artifact = buildCompanyOSArtifact({
       workspaceRoot: root,
-      instance: { version: 1, instanceId: "knowledge-test", environment: "test", bindings },
+      instance: { version: 1, instanceId: "knowledge-test", environment: "test", bindings, agentBindings: [] },
       coreVersion: "0.3.2",
       coreCommit: "4".repeat(40),
       workspaceCommit: "5".repeat(40),

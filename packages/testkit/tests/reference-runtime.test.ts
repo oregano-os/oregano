@@ -16,6 +16,7 @@ const instance: InstanceBuildConfiguration = {
   version: 1,
   instanceId: "solstice-demo",
   environment: "test",
+  agentBindings: [],
   bindings: [
     ["artifact.publish", "oregano/artifact-sandbox"],
     ["marketing-campaign.launch", "oregano/marketing-sandbox"],

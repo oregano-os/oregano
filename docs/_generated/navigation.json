@@ -328,6 +328,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "guide.operate-builder",
+    "title": "Operate the Builder",
+    "path": "docs/workbench/guides/operate-builder.md",
+    "kind": "guide",
+    "status": "building",
+    "availability": "experimental"
+  },
+  {
     "document_id": "guide.operate-knowledge-provider",
     "title": "Operate the Knowledge Provider",
     "path": "docs/workbench/guides/operate-knowledge-provider.md",
@@ -444,7 +452,7 @@
     "title": "Builder Governance Specification",
     "path": "docs/specifications/builder-governance.md",
     "kind": "specification",
-    "status": "draft",
+    "status": "building",
     "availability": null
   },
   {

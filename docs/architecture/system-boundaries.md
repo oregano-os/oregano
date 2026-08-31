@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -30,6 +30,8 @@ relations:
 - Package manifest schemas, Inspectors, resolution contracts, and conformance
   test fixtures,
 - the CompanyOS Workbench and its Guides,
+- deterministic Agent Binding resolution and the provider-neutral Builder job,
+  repository-source, checked-proposal, and validation contracts,
 - neutral fixtures and compatibility tests.
 
 Core must not contain company names, board IDs, channel IDs, company roles,
@@ -94,6 +96,20 @@ before candidates, ranks, graph structure, citations, review content, or model
 context. Sensitive-source activation remains a separate provider-ACL
 conformance gate.
 
+The Builder execution host is a private adapter behind Core control, not a new
+CompanyOS authority plane. Its coding process receives no Git-host, deployment,
+Slack, StateStore, or production-provider credential. Repository credentials
+belong to a separate trusted source/publisher boundary. When a hosted runtime
+cannot execute Git, that boundary may use a private trusted Git worker to
+acquire one exact source, independently validate the returned patch, create the
+outer commit, and push the draft-proposal branch. It must never run the coding
+agent or share its credential with the coding workspace.
+
+ACP v1 transports messages only between an isolated Builder worker and a
+pinned coding-agent implementation. It does not select Company Agents and does
+not replace Runner, Tool, approval, StateStore, repository, or governance
+contracts.
+
 ## A Company Workspace owns
 
 - company identity, mission, context, and operating knowledge,
@@ -117,7 +133,13 @@ generic enforcement, deployment code, or operational state.
 - Connector Package installations, bindings, and the Instance Package ledger,
 - database state, events, approvals, and effects,
 - the applied CompanyOS database-manifest ledger and qualification evidence,
-- Slack, Monday, Vercel, Neon, and other provider installations.
+- Slack, Monday, Vercel, Neon, and other provider installations,
+- Agent Binding declarations, optional Builder execution and coding-profile
+  bindings, repository-provider installations, and their verified receipts.
+
+General model credentials and a service-environment repository App key are
+Instance secrets. They are never Builder-specific Workspace fields and never
+enter the coding process.
 
 ## A Package Registry owns
 

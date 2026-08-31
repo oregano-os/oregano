@@ -19,7 +19,7 @@ availability: experimental
 The Workbench is the versioned CLI and Guide library used to build and maintain
 Company Workspaces safely.
 
-The current repository release candidate is `0.1.0-experimental.9`. Verify the
+The current repository release candidate is `0.1.0-experimental.10`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
 contract version; it does not claim that a public package has been published.
 
@@ -42,6 +42,13 @@ contract version; it does not claim that a public package has been published.
 | `companyos create workspace` | Interactively or through the agent answers-file transport, preview and create one valid authoring-only Company Workspace | experimental |
 | `companyos create` for other objects | Scaffold valid CompanyOS objects inside an existing Workspace | deferred |
 | `companyos analyze` | Analyze workflow structure and behavior | planned |
+
+The version-matched [Operate the Builder](guides/operate-builder.md) Guide
+documents the experimental proposal-only path. The isolated worker currently
+uses the same CLI validation implementation through a restricted snapshot; the
+narrow typed Builder Workbench Tool surface remains planned. This transitional
+shell does not provide repository credentials, merge authority, deployment
+authority, or access to Instance secrets.
 
 The canonical Guide source lives in this directory and is bundled into the
 versioned Workbench distribution. The current co-checkout mode pins its exact

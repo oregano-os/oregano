@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const artifact = loadArtifact();
-    const agent = selectedAgent();
+    const primaryAgent = selectedAgent();
     const modelExecution = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
     const knowledgeAnswerModelExecution = resolveModelExecution({
       profile: "deep",
@@ -22,14 +22,22 @@ export async function GET() {
       status: "ready",
       instance: artifact.instance,
       company: artifact.company,
-      agent: agent.id,
+      agent: primaryAgent.id,
+      agents: artifact.agents.map((agent) => ({
+        id: agent.id,
+        toolCount: agent.toolSet.tools.length,
+      })),
+      agentRouting: {
+        bindingCount: artifact.agentRouting?.bindings.length ?? 0,
+        defaultAgentId: artifact.agentRouting?.defaultAgentId ?? null,
+      },
       artifactHash: artifact.artifactHash,
       coreVersion: artifact.provenance.coreVersion,
       coreCommit: artifact.provenance.coreCommit,
       workspaceVersion: artifact.provenance.workspaceVersion,
       workspaceCommit: artifact.provenance.workspaceCommit,
       resolvedToolSetHash: artifact.provenance.resolvedToolSetHash,
-      tools: agent.toolSet.tools.map((item) => ({ grantId: item.grantId, risk: item.risk })),
+      tools: primaryAgent.toolSet.tools.map((item) => ({ grantId: item.grantId, risk: item.risk })),
       modelRoute: modelExecution.selection.route,
       modelProvider: modelExecution.selection.provider,
       model: modelExecution.selection.model,
