@@ -83,6 +83,7 @@ export interface RecordProjectionRow {
 
 export interface RecordAccessSubject {
   principal_id: string;
+  status: "active" | "inactive" | "unresolved" | "revoked";
   roles: string[];
   group_ids: string[];
 }
