@@ -123,3 +123,18 @@ create table if not exists companyos_records.durable_timers (
 );
 create index if not exists records_durable_timers_due_idx
   on companyos_records.durable_timers(instance_id, state, due_at, lease_expires_at);
+
+create table if not exists companyos_records.connector_echo_receipts (
+  instance_id text not null,
+  connector_id text not null,
+  resource_binding text not null,
+  object_id text not null,
+  provider_version text not null,
+  actor_id text not null,
+  idempotency_key text not null,
+  expires_at timestamptz not null,
+  recorded_at timestamptz not null default now(),
+  primary key (instance_id, connector_id, resource_binding, object_id, provider_version, actor_id)
+);
+create index if not exists records_connector_echo_expiry_idx
+  on companyos_records.connector_echo_receipts(expires_at);

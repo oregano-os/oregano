@@ -1,0 +1,145 @@
+import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
+import { test } from "node:test";
+import { CORE_CAPABILITY_CATALOG } from "../../capabilities/catalog.ts";
+import { CompanyRecordsConnector } from "../../connectors/company-records.ts";
+import { MondayClient } from "../../connectors/monday/client.ts";
+import { MondayWorkItemConnector } from "../../connectors/monday/connector.ts";
+import { InMemoryMondayEchoStore } from "../../connectors/monday/echo-guard.ts";
+import { classifyMondayBoardEventEcho, InMemoryMondayReplayStore, normalizeMondayBoardEvent, routeMondayAgentCallback } from "../../connectors/monday/webhook.ts";
+import { ConnectorRegistry } from "../../connectors/registry.ts";
+import type { CompanyRecordProjectionDeclaration } from "../../records/contracts.ts";
+import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
+import { CompanyRecordsRegistry } from "../../records/registry.ts";
+import { CompanyRecordsService } from "../../records/service.ts";
+import { STANDARD_RECORDS_TOOLS } from "../../standard-tools/records.ts";
+import { STANDARD_WORK_ITEM_TOOLS } from "../../standard-tools/work-items.ts";
+
+const response = (data: unknown, apiVersion = "dev"): Response => new Response(JSON.stringify({ data }), {
+  status: 200,
+  headers: { "content-type": "application/json", "api-version": apiVersion, "x-request-id": "request-fixture" },
+});
+
+const item = (version: string, status: string) => ({
+  items: [{
+    id: "item-1", name: "Prepare launch", updated_at: version,
+    board: { id: "board-1" }, group: { id: "current" },
+    column_values: [{ id: "status_col", text: status, value: JSON.stringify({ label: status }) }],
+  }],
+});
+
+test("the Monday Connector uses explicit versioning, exact board scope, optimistic concurrency, and read-after-write", async () => {
+  const queue = [response(item("v1", "Working")), response({ change_multiple_column_values: { id: "item-1" } }), response(item("v2", "Done"))];
+  const requests: Array<{ headers: Headers; body: any }> = [];
+  const fetcher = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    requests.push({ headers: new Headers(init?.headers), body: JSON.parse(String(init?.body)) });
+    const next = queue.shift();
+    if (!next) throw new Error("unexpected request");
+    return next;
+  };
+  const echoStore = new InMemoryMondayEchoStore();
+  const connector = new MondayWorkItemConnector({
+    client: new MondayClient({ token: "fixture-secret-not-evidence", apiVersion: "dev", fetcher }),
+    bindings: [{ id: "sprint-board", boardId: "board-1", permission: "read-write", fields: { status: "status_col" } }],
+    actorId: "agent-1",
+    instanceId: "fixture-instance",
+    echoStore,
+    now: () => new Date("2030-02-01T10:00:00.000Z"),
+  });
+  const registry = new ConnectorRegistry({
+    contracts: CORE_CAPABILITY_CATALOG,
+    connectors: [connector],
+    bindings: [{ capability: "work-item.update", contractVersion: "1.0.0", connector: connector.id, connectorVersion: connector.version }],
+  });
+  const result = await registry.invoke("work-item.update", {
+    resource_binding: "sprint-board", work_item_id: "item-1", changes: { status: { label: "Done" } }, expected_version: "v1",
+  }, { instanceId: "fixture-instance", runId: "run-1", stepId: "update", agentId: "sprint-agent", toolId: "work-item-update", idempotencyKey: "effect-1" });
+  assert.equal((result.output as any).provider_version, "v2");
+  assert.deepEqual((result.output as any).changed_fields, ["status"]);
+  assert.equal(requests.length, 3);
+  assert.ok(requests.every((request) => request.headers.get("api-version") === "dev"));
+  assert.ok(requests.every((request) => request.headers.get("authorization") === "fixture-secret-not-evidence"));
+  assert.doesNotMatch(JSON.stringify(result), /fixture-secret-not-evidence/);
+  assert.equal(requests[1].body.variables.boardId, "board-1");
+  assert.deepEqual(JSON.parse(requests[1].body.variables.values), { status_col: { label: "Done" } });
+  const echo = await echoStore.consumeMatch({ instanceId: "fixture-instance", resourceBinding: "sprint-board", workItemId: "item-1", providerVersion: "v2", actorId: "agent-1", now: "2030-02-01T10:01:00.000Z" });
+  assert.equal(echo?.idempotencyKey, "effect-1");
+});
+
+test("the Monday Connector refuses stale versions, unknown fields, read-only effects, and missing claims", async () => {
+  const fetcher = async (): Promise<Response> => response(item("v2", "Working"));
+  const connector = new MondayWorkItemConnector({
+    client: new MondayClient({ token: "fixture-token", apiVersion: "2026-07", fetcher }),
+    bindings: [{ id: "read-only-board", boardId: "board-1", permission: "read", fields: { status: "status_col" } }],
+    actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
+  });
+  await assert.rejects(() => connector.invoke("work-item.update", { resource_binding: "read-only-board", work_item_id: "item-1", changes: { status: "Done" }, expected_version: "v1" },
+    { instanceId: "fixture-instance", runId: "run", stepId: "step", agentId: "agent", toolId: "tool", idempotencyKey: "effect" }), /changed since expected version/);
+  await assert.rejects(() => connector.invoke("work-item.update", { resource_binding: "read-only-board", work_item_id: "item-1", changes: { private_field: "x" }, expected_version: "v2" },
+    { instanceId: "fixture-instance", runId: "run", stepId: "step", agentId: "agent", toolId: "tool", idempotencyKey: "effect" }), /read-only|does not allow/);
+  await assert.rejects(() => connector.invoke("work-item.comment", { resource_binding: "read-only-board", work_item_id: "item-1", body: "Hello" },
+    { instanceId: "fixture-instance", runId: "run", stepId: "step", agentId: "agent", toolId: "tool" }), /idempotency key/);
+});
+
+test("signed Monday agent callbacks reject tampering and replay before AgentResolver routing", async () => {
+  const now = 1_782_326_623_754;
+  const rawBody = JSON.stringify({ event: "agent_triggered", triggerType: "mention", payload: { boardId: "board-1", itemId: "item-1", text: "status?" } });
+  const signingSecret = "fixture-signing-secret";
+  const signature = `sha256=${createHmac("sha256", signingSecret).update(`${now}.${rawBody}`).digest("hex")}`;
+  const args = {
+    rawBody,
+    headers: { "x-monday-agent-id": "agent-1", "x-monday-timestamp": String(now), "x-monday-signature": signature },
+    signingSecret,
+    now,
+    replayStore: new InMemoryMondayReplayStore(),
+    accountId: "account-1",
+    routing: { bindings: [{ id: "sprint-board-route", agentId: "sprint-agent", surface: "monday", accountId: "account-1", channelId: "board:board-1" }] },
+    agentIds: ["sprint-agent", "support-agent"],
+  };
+  const routed = await routeMondayAgentCallback(args);
+  assert.equal(routed.resolution.agentId, "sprint-agent");
+  assert.equal(routed.resolution.reason, "binding");
+  await assert.rejects(() => routeMondayAgentCallback(args), /replay/);
+  await assert.rejects(() => routeMondayAgentCallback({ ...args, replayStore: new InMemoryMondayReplayStore(), rawBody: rawBody + " " }), /signature/);
+});
+
+test("non-conversational Monday board events normalize directly without an Agent route", () => {
+  assert.deepEqual(normalizeMondayBoardEvent({ eventId: "event-1", boardId: "board-1", workItemId: "item-1", actorId: "member-1", providerVersion: "v3" }), {
+    eventId: "event-1", boardId: "board-1", workItemId: "item-1", actorId: "member-1", providerVersion: "v3",
+  });
+});
+
+test("self-authored Monday events are suppressed once by durable echo evidence", async () => {
+  const echoStore = new InMemoryMondayEchoStore();
+  await echoStore.remember({ instanceId: "fixture-instance", resourceBinding: "sprint-board", workItemId: "item-1", providerVersion: "v3", actorId: "agent-1", idempotencyKey: "effect-1", expiresAt: "2030-02-01T10:10:00.000Z" });
+  const input = { eventId: "event-1", boardId: "board-1", workItemId: "item-1", actorId: "agent-1", providerVersion: "v3" };
+  const first = await classifyMondayBoardEventEcho({ value: input, instanceId: "fixture-instance", resourceBinding: "sprint-board", now: "2030-02-01T10:00:00.000Z", echoStore });
+  const second = await classifyMondayBoardEventEcho({ value: input, instanceId: "fixture-instance", resourceBinding: "sprint-board", now: "2030-02-01T10:00:01.000Z", echoStore });
+  assert.equal(first.suppressed, true);
+  assert.equal(first.receipt?.idempotencyKey, "effect-1");
+  assert.equal(second.suppressed, false);
+});
+
+test("Company Records and work-item standard Tools expose only provider-neutral Capability calls", async () => {
+  assert.deepEqual(STANDARD_RECORDS_TOOLS.map((tool) => tool.contract.grantId), ["oregano:records/query"]);
+  assert.deepEqual(STANDARD_WORK_ITEM_TOOLS.map((tool) => tool.contract.grantId), ["oregano:work-items/read", "oregano:work-items/update", "oregano:work-items/comment"]);
+  for (const tool of [...STANDARD_RECORDS_TOOLS, ...STANDARD_WORK_ITEM_TOOLS]) {
+    assert.match(tool.compiledSource, /context\.capabilities\.call/);
+    assert.doesNotMatch(tool.compiledSource, /monday|fetch|process\.env/i);
+  }
+
+  const projection: CompanyRecordProjectionDeclaration = {
+    schema_version: 1, id: "participants", record_type: "person-role", fields: [{ name: "name", path: "name" }],
+    freshness: { max_age_minutes: 60 }, access: { read_groups: ["delivery"] }, materialization: { mode: "database-view" },
+  };
+  const recordsRegistry = new CompanyRecordsRegistry();
+  recordsRegistry.registerProjection(projection);
+  const service = new CompanyRecordsService({ instanceId: "fixture-instance", registry: recordsRegistry, store: new InMemoryCompanyRecordsStore(), now: () => new Date("2030-02-01T10:00:00.000Z") });
+  const connector = new CompanyRecordsConnector(service);
+  const registry = new ConnectorRegistry({ contracts: CORE_CAPABILITY_CATALOG, connectors: [connector], bindings: [{ capability: "records.query", contractVersion: "1.0.0", connector: connector.id, connectorVersion: connector.version }] });
+  const result = await registry.invoke("records.query", { projection_id: "participants" }, {
+    instanceId: "fixture-instance", runId: "run", stepId: "read", agentId: "sprint-agent", toolId: "records-query",
+    subject: { principalId: "human:member-1", principalType: "human", status: "active", groupIds: ["delivery"] },
+  });
+  assert.equal((result.output as any).projection_id, "participants");
+});
