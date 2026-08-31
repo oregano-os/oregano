@@ -31,6 +31,7 @@ Plan the exact consent and discovery boundary first:
 companyos monday qualify \
   --workspace <company-workspace> \
   --client-id <non-secret-monday-app-client-id> \
+  --app-version-id <exact-monday-app-version-id> \
   --redirect-uri http://127.0.0.1:43127/callback \
   --board <test-board-id> \
   --board <second-read-only-board-id> \
@@ -39,7 +40,7 @@ companyos monday qualify \
 ```
 
 The plan binds the clean exact Core identity, Company Workspace location,
-Monday OAuth client ID, loopback callback, API version `2026-07`, scopes
+Monday OAuth client ID, exact draft or live app version ID, loopback callback, API version `2026-07`, scopes
 `boards:read` and `me:read`, exact board IDs, non-secret state path, consent
 effect, and credential-disposal rules. Confirm its hash before applying:
 

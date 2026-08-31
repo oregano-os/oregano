@@ -30,6 +30,7 @@ const validPlan = () => {
   const result = planMondayQualification({
     workspaceRoot: fixture.company,
     clientId: "client-fixture-1",
+    appVersionId: "700001",
     redirectUri: "http://127.0.0.1:43127/callback",
     boardIds: ["100001", "100002", "100001"],
     statePath: fixture.state,
@@ -47,6 +48,7 @@ test("Monday qualification planning is read-only, exact, and secret-free", () =>
   const { result } = validPlan();
   assert.deepEqual(result.diagnostics, []);
   assert.deepEqual(result.plan.scopes, ["boards:read", "me:read"]);
+  assert.equal(result.plan.app_version_id, "700001");
   assert.deepEqual(result.plan.boards, ["100001", "100002"]);
   assert.match(result.plan.confirmation_hash, /^[0-9a-f]{64}$/);
   assert.deepEqual(result.plan.credential_handling.persisted_secrets, []);
@@ -69,11 +71,13 @@ test("Monday OAuth authorization uses exact read scopes, one-time state, and S25
   const random = (size) => Buffer.alloc(size, ++counter);
   const session = createMondayAuthorizationSession({
     clientId: "client-fixture-1",
+    appVersionId: "700001",
     redirectUri: "http://127.0.0.1:43127/callback",
     random,
   });
   const url = new URL(session.authorizationUrl);
   assert.equal(url.origin + url.pathname, MONDAY_AUTHORIZATION_ENDPOINT);
+  assert.equal(url.searchParams.get("app_version_id"), "700001");
   assert.equal(url.searchParams.get("scope"), [...MONDAY_OAUTH_SCOPES].sort().join(" "));
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.equal(url.searchParams.get("code_challenge"), session.challenge);

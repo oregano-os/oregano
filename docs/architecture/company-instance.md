@@ -309,7 +309,7 @@ the Sprint Blueprint does not know a channel ID.
 
 The first maintained Monday qualification is deliberately narrower than Agent
 provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
-Company Workspace, one registered OAuth client, API version `2026-07`, the
+Company Workspace, one registered OAuth client and exact app version, API version `2026-07`, the
 read-only scopes `boards:read` and `me:read`, and explicit board IDs. It uses a
 loopback OAuth 2.1 callback with S256 PKCE. The authorization code, verifier,
 client secret, access token, and refresh token stay in process memory and are

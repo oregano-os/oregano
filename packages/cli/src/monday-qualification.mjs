@@ -67,12 +67,14 @@ export function readMondayQualificationState(path) {
   return state;
 }
 
-export function planMondayQualification({ workspaceRoot, clientId, redirectUri, boardIds, statePath, coreIdentity }) {
+export function planMondayQualification({ workspaceRoot, clientId, appVersionId, redirectUri, boardIds, statePath, coreIdentity }) {
   const diagnostics = [];
   const workspace = resolve(workspaceRoot ?? "");
   if (!existsSync(resolve(workspace, "company.md"))) diagnostics.push(diagnostic("MON001", "error", "Monday qualification requires a Company Workspace with company.md.", { file: workspace }));
   const normalizedClientId = clean(clientId);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$/.test(normalizedClientId)) diagnostics.push(diagnostic("MON002", "error", "Monday OAuth client ID has an invalid shape.", { field: "client_id" }));
+  const normalizedAppVersionId = clean(appVersionId);
+  if (!/^\d{1,20}$/.test(normalizedAppVersionId)) diagnostics.push(diagnostic("MON012", "error", "Monday app version ID must be an exact numeric ID.", { field: "app_version_id" }));
 
   let callback;
   try { callback = new URL(clean(redirectUri)); }
@@ -108,6 +110,7 @@ export function planMondayQualification({ workspaceRoot, clientId, redirectUri, 
     workspace,
     core,
     client_id: normalizedClientId,
+    app_version_id: normalizedAppVersionId,
     redirect_uri: callback?.toString() ?? clean(redirectUri),
     scopes: [...MONDAY_OAUTH_SCOPES],
     api_version: MONDAY_API_VERSION,
@@ -126,7 +129,7 @@ export function planMondayQualification({ workspaceRoot, clientId, redirectUri, 
       persisted_secrets: [],
     },
     required_human_actions: [
-      "Register the exact redirect URI and only boards:read and me:read on one Monday OAuth 2.1 app.",
+      "Register the exact redirect URI and only boards:read and me:read on the bound Monday OAuth 2.1 app version.",
       `Enter the app client secret only into the runtime secret surface that injects ${MONDAY_OAUTH_CLIENT_SECRET_REF}; never enter it in chat, Git, an answers file, or a command argument.`,
       "Review the Monday consent page and approve only if the account and two scopes are correct.",
     ],
@@ -153,6 +156,7 @@ export function initializeMondayQualification({ planResult, confirmationHash }) 
     workspace: planResult.plan.workspace,
     core: planResult.plan.core,
     client_id: planResult.plan.client_id,
+    app_version_id: planResult.plan.app_version_id,
     redirect_uri: planResult.plan.redirect_uri,
     scopes: planResult.plan.scopes,
     api_version: planResult.plan.api_version,
@@ -165,13 +169,14 @@ export function initializeMondayQualification({ planResult, confirmationHash }) 
   return { state, statePath: planResult.plan.state_path, diagnostics: planResult.diagnostics };
 }
 
-export function createMondayAuthorizationSession({ clientId, redirectUri, scopes = MONDAY_OAUTH_SCOPES, random = randomBytes }) {
+export function createMondayAuthorizationSession({ clientId, appVersionId, redirectUri, scopes = MONDAY_OAUTH_SCOPES, random = randomBytes }) {
   const state = random(32).toString("base64url");
   const verifier = random(64).toString("base64url");
   if (verifier.length < 43 || verifier.length > 128) throw new Error("Monday PKCE verifier has an invalid length.");
   const challenge = createHash("sha256").update(verifier).digest("base64url");
   const authorization = new URL(MONDAY_AUTHORIZATION_ENDPOINT);
   authorization.searchParams.set("client_id", clientId);
+  authorization.searchParams.set("app_version_id", appVersionId);
   authorization.searchParams.set("redirect_uri", redirectUri);
   authorization.searchParams.set("scope", [...scopes].sort().join(" "));
   authorization.searchParams.set("state", state);
@@ -293,7 +298,7 @@ export async function advanceMondayQualification({
     };
   }
 
-  const session = createMondayAuthorizationSession({ clientId: state.client_id, redirectUri: state.redirect_uri, scopes: state.scopes });
+  const session = createMondayAuthorizationSession({ clientId: state.client_id, appVersionId: state.app_version_id, redirectUri: state.redirect_uri, scopes: state.scopes });
   const authorizationPromise = waitForAuthorization({
     redirectUri: state.redirect_uri,
     expectedState: session.state,

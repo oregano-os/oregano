@@ -101,7 +101,7 @@ validation:
   - pnpm test
   - git diff --check
 tests:
-  - Planning is read-only, binds the exact client ID, redirect URI, scopes, selected board IDs, state path, and confirmation hash, and contains no secret.
+  - Planning is read-only, binds the exact client ID, app version ID, redirect URI, scopes, selected board IDs, state path, and confirmation hash, and contains no secret.
   - Qualification state refuses credential-shaped values and remains mode 0600 outside Company Workspace material.
   - OAuth authorization uses a one-time state and S256 PKCE verifier, rejects denial and state mismatch, and never returns or persists tokens.
   - Token exchange requires exactly the requested read-only scopes and rejects a missing refresh or access credential without logging it.

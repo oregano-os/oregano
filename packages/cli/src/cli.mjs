@@ -97,8 +97,8 @@ Usage:
   companyos setup --profile vercel-neon-slack --state <file> --resume [--operating-confirmation <hash>] [--merge-confirmation <hash>] [--production-confirmation <hash>] [--format human|json]
   companyos setup --profile vercel-neon-slack --state <file> --status [--format human|json]
   companyos verify-live --state <file> [--format human|json]
-  companyos monday qualify --workspace <path> --client-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --plan [--format human|json]
-  companyos monday qualify --workspace <path> --client-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --apply <hash> [--format human|json]
+  companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --plan [--format human|json]
+  companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --apply <hash> [--format human|json]
   companyos monday qualify --state <file> --resume [--format human|json]
   companyos monday qualify --state <file> --status [--format human|json]
   companyos package inspect <path> [--format human|json]
@@ -877,13 +877,14 @@ try {
     } else {
       const workspacePath = optionValue("--workspace");
       const clientId = optionValue("--client-id");
+      const appVersionId = optionValue("--app-version-id");
       const redirectUri = optionValue("--redirect-uri");
       const boardIds = optionValues("--board");
-      if (!workspacePath || !clientId || !redirectUri || boardIds.length === 0 || !statePath) {
-        throw new Error("Monday qualification planning and apply require --workspace <path>, --client-id <id>, --redirect-uri <loopback-url>, at least one --board <id>, and --state <file>.");
+      if (!workspacePath || !clientId || !appVersionId || !redirectUri || boardIds.length === 0 || !statePath) {
+        throw new Error("Monday qualification planning and apply require --workspace <path>, --client-id <id>, --app-version-id <id>, --redirect-uri <loopback-url>, at least one --board <id>, and --state <file>.");
       }
       const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
-      const planResult = planMondayQualification({ workspaceRoot: workspacePath, clientId, redirectUri, boardIds, statePath, coreIdentity: checkout.identity });
+      const planResult = planMondayQualification({ workspaceRoot: workspacePath, clientId, appVersionId, redirectUri, boardIds, statePath, coreIdentity: checkout.identity });
       planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
       if (args.includes("--plan")) {
         if (format === "json") {

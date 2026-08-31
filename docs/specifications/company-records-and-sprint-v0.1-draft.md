@@ -146,7 +146,7 @@ processing and MUST NOT invoke a conversational Agent.
 
 **CRS-034 — Read-only provider qualification.** The maintained first
 qualification MUST bind one exact Core identity, Company Workspace, OAuth
-client, loopback redirect URI, API version, scope set, and explicit board set
+client, app version, loopback redirect URI, API version, scope set, and explicit board set
 before browser consent. It MUST use OAuth 2.1 with S256 PKCE and request exactly
 `boards:read` and `me:read`. The authorization code, PKCE verifier, client
 secret, access token, and refresh token MUST remain memory-only and MUST be
