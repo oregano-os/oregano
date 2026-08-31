@@ -13,6 +13,7 @@ export interface SprintDomainDeclaration {
     projection: string;
     master_group: string;
     ready_status: string;
+    closed_statuses: string[];
   };
   calendar: {
     timezone: string;
@@ -67,7 +68,7 @@ export type SprintEvent =
   | { type: "participants.observed"; event_id: string; occurred_at: string; participants: SprintParticipant[] }
   | { type: "work-items.observed"; event_id: string; occurred_at: string; work_items: SprintWorkItem[] }
   | { type: "submission.received"; event_id: string; occurred_at: string; participant_id: string; submission_id: string; task_ids: string[]; complete: boolean }
-  | { type: "clock.reached"; event_id: string; occurred_at: string; instant: string }
+  | { type: "clock.reached"; event_id: string; occurred_at: string; instant: string; next_sprint_id?: string }
   | { type: "sprint.closed"; event_id: string; occurred_at: string; sprint_id: string };
 
 export interface SprintSubmissionState {
@@ -85,13 +86,13 @@ export interface SprintState {
   phase: "idle" | "open" | "reminding" | "reporting" | "closed";
   participants: Record<string, SprintParticipant>;
   work_items: Record<string, SprintWorkItem>;
-  submissions: Record<string, SprintSubmissionState>;
+  submissions: Record<string, SprintSubmissionState[]>;
   processed_event_ids: string[];
   last_event_at: string | null;
 }
 
 export type SprintIntent =
-  | { type: "message.reminder"; intent_id: string; participant_id: string; channel_binding: string; due_at: string }
+  | { type: "message.reminder"; intent_id: string; participant_id: string; channel_binding: string; due_at: string; reason: "initial" | "deadline" }
   | { type: "message.close-report"; intent_id: string; channel_binding: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing"> }
   | { type: "work-item.rollover"; intent_id: string; work_item_id: string; target_sprint_id: string }
   | { type: "records.reconcile"; intent_id: string; projection_id: string; due_at: string };

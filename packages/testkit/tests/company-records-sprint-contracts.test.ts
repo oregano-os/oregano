@@ -27,7 +27,7 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
     schema_version: 1,
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
-    work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready" },
+    work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready", closed_statuses: ["done"] },
     calendar: { timezone: "UTC", business_calendar_ref: "default", holiday_shift: "previous-business-day" },
     close: { weekday: "friday", reminder_time: "14:00", complete_by: "16:00", report_at: "17:00" },
     submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },

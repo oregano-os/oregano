@@ -102,3 +102,24 @@ create table if not exists companyos_records.sync_leases (
 );
 create index if not exists records_sync_leases_due_idx
   on companyos_records.sync_leases(lease_expires_at, instance_id, source_id);
+
+create table if not exists companyos_records.durable_timers (
+  instance_id text not null,
+  timer_id text not null,
+  timer_kind text not null,
+  due_at timestamptz not null,
+  idempotency_key text not null,
+  payload jsonb not null,
+  state text not null default 'scheduled' check (state in ('scheduled','leased','completed','failed','cancelled')),
+  attempts integer not null default 0,
+  lease_owner text,
+  lease_token text,
+  lease_expires_at timestamptz,
+  evidence jsonb,
+  completed_at timestamptz,
+  updated_at timestamptz not null default now(),
+  primary key (instance_id, timer_id),
+  unique (instance_id, idempotency_key)
+);
+create index if not exists records_durable_timers_due_idx
+  on companyos_records.durable_timers(instance_id, state, due_at, lease_expires_at);
