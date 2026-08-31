@@ -19,6 +19,10 @@ export interface KnowledgeStepChoice {
   readonly activeTools?: readonly string[];
 }
 
+export type KnowledgeTurnModelTask =
+  | { readonly profile: "agent"; readonly task: "agent.chat"; readonly configuration: "shared" }
+  | { readonly profile: "deep"; readonly task: "knowledge.cited-synthesis"; readonly configuration: "knowledge" };
+
 export interface CompletedToolResult {
   readonly toolName: string;
   readonly output: unknown;
@@ -54,8 +58,8 @@ const normalize = (value: string): string => value
 
 const explicitSearch = /(?:knowledge[\s._:/-]*search|wissenssuche|company[\s-]+knowledge|company[\s-]+brain)/u;
 const searchAction = /\b(?:search\w*|lookup|look\s+up|find\w*|durchsuch\w*|such\w*|recherchier\w*)\b/u;
-const question = /\b(?:was|welch\w*|wer|wann|wo|what|which|who|when|where)\b/u;
-const companyEvidence = /(?:company[\s-]+knowledge|company[\s-]+brain|granola|transkript\w*|transcript\w*|meeting\w*|gesprach\w*|conversation\w*|entscheidung\w*|decision\w*|beschloss\w*|decid\w*|vereinbart\w*|agreed|commitment\w*|projekt\w*|project\w*|research|forschung)/u;
+const question = /\b(?:was|welch\w*|wer|wann|wo|what|which|who|when|where|fass\w*|zusammenfass\w*|summar\w*|erklar\w*|explain|tell\s+me)\b/u;
+const companyEvidence = /(?:companyos|company[\s-]+knowledge|company[\s-]+brain|granola|transkript\w*|transcript\w*|meeting\w*|gesprach\w*|conversation\w*|besproch\w*|diskutier\w*|discuss\w*|erwahn\w*|mention\w*|entscheidung\w*|decision\w*|beschloss\w*|decid\w*|vereinbart\w*|agreed|commitment\w*|projekt\w*|project\w*|research|forschung)/u;
 
 /**
  * Selects the already-granted read-only search Tool for high-confidence
@@ -97,6 +101,33 @@ export function knowledgeStepChoice(route: KnowledgeTurnRoute, stepNumber: numbe
     };
   }
   return { toolChoice: "auto" };
+}
+
+/**
+ * Keeps ordinary conversation on the economical Agent profile while routing
+ * a required Company Knowledge turn through the qualified deep synthesis
+ * binding. The latter remains the same Tool loop, not a second model call.
+ */
+export function knowledgeTurnModelTask(route: KnowledgeTurnRoute): KnowledgeTurnModelTask {
+  return route.kind === "required-search"
+    ? { profile: "deep", task: "knowledge.cited-synthesis", configuration: "knowledge" }
+    : { profile: "agent", task: "agent.chat", configuration: "shared" };
+}
+
+const KNOWLEDGE_ANSWER_INSTRUCTIONS = `Company Knowledge answer contract for this turn:
+- Answer the human's question directly. Lead with the synthesized answer, not with search mechanics or a list of hits.
+- Use only successfully completed Company Knowledge Tool results as evidence. Never fill an evidence gap from general knowledge or conversation memory.
+- For a broad, temporal, or cross-meeting question, do not answer from search snippets alone. Search with the largest useful bounded result limit, traverse relevant Claim or Synthesis hits to their Page neighbors, and use knowledge.get to read the 3-5 most relevant full items when available. If fewer full items are available, state that scope instead of pretending the search was complete.
+- Combine related evidence into themes, decisions, commitments, changes, and open questions when those categories fit the question. Do not merely repeat each result in rank order.
+- Cite every material assertion inline with at least one exact returned source path and fragment_id. Never invent, shorten, or alter an evidence identity.
+- Distinguish official Handbook material, attributed statements, source evidence, and synthesized Brain material. A Claim, Working Synthesis, or Current Brief is not policy merely because it was retrieved.
+- Surface material conflicts, supersession, missing evidence, temporal limits, and retrieval degradations. Do not resolve disagreement by counting mentions.
+- Do not claim that the answer is exhaustive unless the completed bounded reads establish the requested scope. If evidence is insufficient, answer the supported part and state the specific gap.
+- Put an optional compact source list after the answer; never make the source list the answer itself.`;
+
+/** Returns the route-specific fragment compiled into the existing Agent prompt. */
+export function knowledgeTurnInstructions(route: KnowledgeTurnRoute): string {
+  return route.kind === "required-search" ? KNOWLEDGE_ANSWER_INSTRUCTIONS : "";
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {

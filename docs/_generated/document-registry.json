@@ -650,7 +650,7 @@
     "status": "building",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -947,7 +947,7 @@
     "status": "approved",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-08-30",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {

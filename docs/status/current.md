@@ -347,7 +347,19 @@ evidence, historical prototypes, and production gaps.
   identity. This qualifies roster admission, required Tool routing, isolated
   execution, Postgres retrieval and ACL audit, result validation, citation
   enforcement, and Slack delivery together for the current production
-  Artifact.
+  Artifact. A later broad CompanyOS question exposed a separate answer-quality
+  defect: the required search still ran under the ordinary `agent.chat` Nano
+  binding without the compiled Knowledge answer rules, so an uncited or thin
+  model response was replaced by the safe ranked-excerpt fallback. Core now
+  keeps normal conversation on the Agent profile but routes required Company
+  Knowledge turns through the Knowledge-only `knowledge.cited-synthesis` deep
+  binding in the same Tool loop. Its turn contract requires a direct synthesis,
+  bounded traversal and full-item reads for broad cross-source questions, exact
+  inline citations, and explicit authority, conflict, gap, freshness, and
+  scope language. The existing validated-result gate and extractive fallback
+  remain fail-closed. Health reports the non-secret ordinary Agent and required
+  Knowledge-answer model selections separately so an operator can verify the
+  live route without reading model configuration or credentials.
 - Company Knowledge Phase 6 implements focused, content-addressed Handbook
   promotion and Decision Receipts. Claim evidence, source and effect digests,
   conflicts, consequences, affected files, authority scope, and human
@@ -416,11 +428,11 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.0` for the productized Company Brain
-  release line. Its immutable GitHub `v0.5.0` tag and Release are the public
-  distribution evidence; the prior `v0.4.0` release remains available as an
-  exact rollback. Every Company Workspace advances independently under the
-  canonical Versioning Policy.
+- Oregano Core source is versioned `0.5.1` for the grounded interactive
+  Knowledge-answer patch. Its immutable GitHub `v0.5.1` tag and Release are the
+  public distribution evidence; the prior `v0.5.0` release remains available
+  as an exact rollback. Every Company Workspace advances independently under
+  the canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
   artifact. The artifact records both product versions, the SHA pair,

@@ -1,6 +1,7 @@
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
+import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,12 @@ export async function GET() {
     const artifact = loadArtifact();
     const agent = selectedAgent();
     const modelExecution = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
+    const knowledgeAnswerModelExecution = resolveModelExecution({
+      profile: "deep",
+      task: "knowledge.cited-synthesis",
+      requiredCapability: "tools",
+      configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
+    });
     const database = await qualifyCompanyDatabase();
     return Response.json({
       ok: true,
@@ -26,6 +33,9 @@ export async function GET() {
       modelRoute: modelExecution.selection.route,
       modelProvider: modelExecution.selection.provider,
       model: modelExecution.selection.model,
+      knowledgeAnswerModelRoute: knowledgeAnswerModelExecution.selection.route,
+      knowledgeAnswerModelProvider: knowledgeAnswerModelExecution.selection.provider,
+      knowledgeAnswerModel: knowledgeAnswerModelExecution.selection.model,
       databaseManifestId: database.manifestId,
       databaseManifestVersion: database.manifestVersion,
       databaseManifestDigest: database.manifestDigest,
