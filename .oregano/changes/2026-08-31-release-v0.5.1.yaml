@@ -1,0 +1,69 @@
+version: 1
+plan_id: release-v0.5.1-2026-08-31
+status: approved
+author: codex-agent
+created: 2026-08-31
+title: Release Oregano v0.5.1 with grounded interactive Knowledge synthesis
+objective: >-
+  Publish one backward-compatible Core patch that routes required interactive
+  Company Knowledge turns through the Knowledge-only deep cited-synthesis
+  binding, compiles the direct-answer contract, preserves fail-closed cited
+  fallback behavior, and exposes the live answer-model selection in health.
+non_goals:
+  - Change the database manifest, Retrieval V3 projection, or Knowledge authority.
+  - Add a Tool grant, a second synthesis call, or a separate Knowledge Agent.
+  - Change the Workbench version or public Knowledge contract version.
+  - Remove or rewrite the immutable v0.5.0 release.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Knowledge authority stays reviewed and singular
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/**
+  - docs/**
+  - package.json
+  - packages/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-31
+    evidence: explicit-user-request-in-codex-task-for-a-fast-material-fix-to-live-company-knowledge-answers
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-31-release-v0.5.1.yaml
+  - node packages/cli/src/cli.mjs versions packages/testkit/fixtures/acme-casas --format json
+  - node packages/cli/src/cli.mjs inspect-core --plan .oregano/changes/2026-08-31-release-v0.5.1.yaml
+  - node packages/cli/src/cli.mjs docs check
+  - node scripts/check-public-boundary.mjs
+  - node_modules/.bin/tsc --noEmit
+  - node_modules/.bin/tsc --noEmit -p packages/runner-vercel/tsconfig.json
+  - node --experimental-strip-types --test packages/testkit/tests/*.test.ts packages/cli/tests/*.test.mjs packages/runner-vercel/src/lib/builder/*.test.ts
+  - packages/runner-vercel/node_modules/.bin/next build packages/runner-vercel
+  - git diff --check
+tests:
+  - Core reports 0.5.1 and Workbench remains 0.1.0-experimental.9.
+  - Required CompanyOS and cross-meeting questions select deep cited synthesis while ordinary Agent chat retains its configured model.
+  - Opus can be selected from the Knowledge-only exact task binding without changing Agent chat.
+  - Grounded cited responses survive the gate and failed or uncited responses retain the authorized extractive fallback.
+  - Existing authorization, retrieval, citation, Tool, Workspace, setup, runtime, and release tests remain compatible.
+  - Release inputs contain no Company Workspace credential, source payload, query, or excerpt.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-knowledge-v0.2
+    - status.current
+    - guide.operate-knowledge-provider
+migration: >-
+  No schema or state migration. Company Workspaces update only their exact Core
+  version and commit pin. An existing Knowledge-only model configuration is
+  reused without changing its secret or task schema.
+rollback: >-
+  Deploy the immutable v0.5.0 Core and its matching Workspace artifact. The
+  Retrieval V3 projection, database 1.7.0 state, Source evidence, Claims,
+  syntheses, and model configuration remain unchanged.
+open_decisions: []

@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -136,6 +136,23 @@ synthesis retains Opus. The Prompt Registry maps every task to one of those
 tiers and exact task overrides remain possible. Embedding and optional
 cross-encoder reranking are separate capability adapters and are never
 fabricated from an Anthropic language model.
+
+The maintained Slack adapter keeps ordinary conversation on `agent.chat` but
+uses the `knowledge.cited-synthesis` deep binding for explicit Company
+Knowledge searches and high-confidence company-evidence questions. It reads
+that exact task or deep-profile override from
+`COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` and executes it inside the existing
+authorized Tool loop; it does not add a second synthesis call or grant a new
+Tool. The turn contract tells the model to answer directly, combine evidence
+across relevant results, and, for broad temporal or cross-source questions,
+traverse relevant Claim or Synthesis hits and read up to the most useful three
+to five full items. It must cite exact returned identities and state conflicts,
+gaps, freshness, and authority. A ranked excerpt list is the fail-closed
+fallback after model or citation-contract failure, not the expected answer.
+Health reports `modelRoute` and `model` for ordinary Agent chat separately from
+`knowledgeAnswerModelRoute` and `knowledgeAnswerModel` for required Knowledge
+turns. If the fallback becomes common, inspect those selections and the
+recorded response evidence before changing retrieval limits or ranking.
 
 Working Synthesis never sends an unbounded Subject to one call. Current Claims
 are sorted by stable identity into groups of at most 40. Each group receives a

@@ -5,7 +5,7 @@ kind: specification
 status: approved
 authority: normative
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -652,6 +652,18 @@ An Agent with Knowledge read grants uses the compiled `knowledge.answer@1`
 contract. Ordinary interactive answers do not require a separate synthesis
 model call. Core builds one internal, run-scoped, authorized context pack from
 the exact retrieval result and provides it to the Agent model.
+
+An adapter MAY select the qualified `knowledge.cited-synthesis` deep model
+binding for an interactive turn that it deterministically classifies as an
+explicit Company Knowledge search or high-confidence company-evidence
+question. That selection MUST remain inside the same authorized Agent Tool
+loop: ordinary conversation retains the `agent.chat` binding, the Knowledge-
+only model configuration MAY override the deep task, and the selection adds no
+Tool or grant. The compiled turn instructions MUST require a direct synthesized
+answer before any source appendix, exact returned citations for every material
+assertion, bounded full-item reads for broad temporal or cross-source questions,
+explicit conflicts and gaps, freshness and authority distinctions, and no claim
+of exhaustiveness beyond the completed bounded reads.
 
 An interactive adapter MAY deterministically require the already-granted
 `knowledge.search` Tool on the first model step when the current human turn is

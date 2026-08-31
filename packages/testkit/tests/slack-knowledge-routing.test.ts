@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   knowledgeStepChoice,
+  knowledgeTurnInstructions,
+  knowledgeTurnModelTask,
   renderKnowledgeTurnResponse,
   resolveKnowledgeTurnRoute,
 } from "../../runner-vercel/src/lib/knowledge-turn-routing.ts";
+import { decodeModelRuntimeConfiguration, resolveModelExecutionSelection } from "../../runner/model-execution.ts";
 
 const searchTool = {
   grantId: "oregano:knowledge/search",
@@ -42,6 +45,76 @@ test("explicit English lookup and company evidence questions require the granted
   });
   assert.equal(evidenceQuestion.kind, "required-search");
   if (evidenceQuestion.kind === "required-search") assert.equal(evidenceQuestion.reason, "company-evidence-question");
+
+  const reproducedCompanyOsQuestion = resolveKnowledgeTurnRoute({
+    text: "Was wurde alles zum Thema CompanyOS in den letzten Wochen besprochen? Alle Quellen.",
+    tools: [searchTool],
+  });
+  assert.equal(reproducedCompanyOsQuestion.kind, "required-search");
+});
+
+test("required Knowledge turns use deep cited synthesis and receive the answer contract", () => {
+  const route = resolveKnowledgeTurnRoute({
+    text: "Fasse die CompanyOS-Entscheidungen aus den letzten Meetings zusammen.",
+    tools: [searchTool],
+  });
+  assert.deepEqual(knowledgeTurnModelTask(route), {
+    profile: "deep",
+    task: "knowledge.cited-synthesis",
+    configuration: "knowledge",
+  });
+  const instructions = knowledgeTurnInstructions(route);
+  assert.match(instructions, /Lead with the synthesized answer/u);
+  assert.match(instructions, /do not answer from search snippets alone/u);
+  assert.match(instructions, /traverse relevant Claim or Synthesis hits/u);
+  assert.match(instructions, /3-5 most relevant full items/u);
+  assert.match(instructions, /exact returned source path and fragment_id/u);
+  assert.match(instructions, /Conflicts|conflicts/u);
+  assert.match(instructions, /not policy/u);
+  assert.match(instructions, /never make the source list the answer itself/u);
+
+  const ordinary = { kind: "auto" } as const;
+  assert.deepEqual(knowledgeTurnModelTask(ordinary), {
+    profile: "agent",
+    task: "agent.chat",
+    configuration: "shared",
+  });
+  assert.equal(knowledgeTurnInstructions(ordinary), "");
+});
+
+test("the Knowledge-only task binding can select Opus without changing ordinary Agent chat", () => {
+  const encoded = Buffer.from(JSON.stringify({
+    version: 1,
+    tasks: {
+      "knowledge.cited-synthesis": {
+        route: "anthropic-direct",
+        model: "anthropic/claude-opus-4-7",
+        maxOutputTokens: 8_000,
+        timeoutMs: 240_000,
+        retries: 0,
+      },
+    },
+  }), "utf8").toString("base64");
+  const configuration = decodeModelRuntimeConfiguration(encoded);
+  const selected = resolveModelExecutionSelection({
+    profile: "deep",
+    task: "knowledge.cited-synthesis",
+    configuration,
+    requiredCapability: "tools",
+    environment: { ANTHROPIC_API_KEY: "fixture-key" },
+  });
+  assert.deepEqual([selected.route, selected.model, selected.maxOutputTokens], [
+    "anthropic-direct",
+    "anthropic/claude-opus-4-7",
+    8_000,
+  ]);
+
+  const ordinary = resolveModelExecutionSelection({
+    profile: "agent",
+    task: "agent.chat",
+    environment: { OPENAI_API_KEY: "fixture-key" },
+  });
+  assert.deepEqual([ordinary.route, ordinary.model], ["openai-direct", "openai/gpt-5.4-nano"]);
 });
 
 test("ordinary conversation and an Agent without the search grant retain automatic Tool choice", () => {
