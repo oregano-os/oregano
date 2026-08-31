@@ -1,0 +1,63 @@
+version: 1
+plan_id: hourly-knowledge-compounding-schedule-2026-08-30
+status: approved
+author: codex-agent
+created: 2026-08-30
+title: Use an hourly nightly Knowledge compounding schedule
+objective: >-
+  Change the maintained Vercel Knowledge compounding continuation from every
+  fifteen minutes to once per hour during the existing 02:00-05:59 UTC
+  nightly window, and document evidence-based conditions for temporarily
+  shortening the interval when maintenance backlog grows.
+non_goals:
+  - Change Source reconciliation or extraction frequency.
+  - Change Compounding phase budgets, model bindings, spend ceilings, leases, or cache identities.
+  - Change Current Brief eligibility, authority, or freshness semantics.
+  - Deploy or promote a Vercel production Artifact from this repository change.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-30-hourly-knowledge-compounding-schedule.yaml
+  - docs/_generated/document-registry.json
+  - docs/status/current.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/runner-vercel/vercel.json
+  - packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - vercel.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-change-the-nightly-compounding-schedule-to-hourly
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-30-hourly-knowledge-compounding-schedule.yaml
+  - node packages/cli/src/cli.mjs inspect-core --plan .oregano/changes/2026-08-30-hourly-knowledge-compounding-schedule.yaml
+  - node packages/cli/src/cli.mjs docs check
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - git diff --check
+tests:
+  - Both maintained Vercel manifests schedule Compounding hourly during the exact 02:00-05:59 UTC window.
+  - Reconciliation and extraction retain their existing six-hour schedules.
+  - Canonical and packaged operator guidance describe the same hourly default and bounded interval-escalation criteria.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - guide.operate-knowledge-provider
+migration: >-
+  No schema, durable-state, or consumer migration. A deployment of the changed
+  Vercel manifest replaces the scheduler expression while resumable receipts,
+  continuations, caches, and spend reservations remain compatible.
+rollback: >-
+  Restore the Compounding expression in both maintained Vercel manifests to
+  */15 2-5 * * *, restore the matching test and operator text, validate the
+  Core diff, and deploy the prior or corrected Artifact. Durable Knowledge
+  state requires no rollback.
+open_decisions: []

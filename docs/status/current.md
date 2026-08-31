@@ -275,9 +275,15 @@ evidence, historical prototypes, and production gaps.
   that shared gate with exact/`0.45` duplicate, `0.20` relation, and same-kind
   `0.15` conflict gates plus durable result reuse. The maintained schedule is
   inside a bounded 02:00–05:59 UTC nightly continuation window rather than
-  every 15 minutes around the clock. Deployment
-  `dpl_EdrL7WjYjF3C2MgNJ6KnBKACdq3k` proved segment prompt `5`, and the final
-  production cron exposes `*/15 2-5 * * *`. Controlled alignment and backfill
+  continuous model polling. Deployment
+  `dpl_EdrL7WjYjF3C2MgNJ6KnBKACdq3k` proved segment prompt `5`. The maintained
+  Vercel manifest now declares the conservative hourly expression
+  `0 2-5 * * *`; an external production deployment must apply and verify that
+  scheduler change. Operators shorten it first to 30 and then to 15 minutes
+  only when incomplete continuations, a growing frontier, or maintenance-lag
+  freshness warnings persist across two consecutive nightly windows, and
+  restore hourly operation after two complete windows without backlog growth.
+  Controlled alignment and backfill
   runs have 89 successful rated executions totaling USD `0.51841000`, zero
   active reservations, and five failed full-Subject trials retained without a
   result or execution-ledger row. Their USD `1.07439900` failed-reservation sum

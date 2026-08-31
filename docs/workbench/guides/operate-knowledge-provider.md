@@ -149,10 +149,22 @@ estimated failure cost continues to count against both cycle and daily limits.
 An overlapping invocation inside that window fails closed instead of issuing a
 duplicate provider call.
 
-The maintained serverless schedule advances those durable continuations every
-15 minutes only during the 02:00–05:59 UTC nightly window. It does not run
-model maintenance every 15 minutes throughout the day. A long-running host can
-drive the same portable cycle until completion in one background worker.
+The maintained serverless schedule advances those durable continuations once
+per hour at `02:00`, `03:00`, `04:00`, and `05:00` UTC. It does not run model
+maintenance throughout the day. This hourly interval is the conservative
+operating default while the nightly frontier fits inside four bounded
+continuations. A long-running host can drive the same portable cycle until
+completion in one background worker.
+
+Inspect aggregate Compounding receipts and Current Brief freshness after each
+nightly window. Shorten the interval first to 30 minutes and then, if needed,
+to 15 minutes when incomplete continuations, a growing frontier, or
+maintenance-lag freshness warnings persist across two consecutive nightly
+windows. Keep the existing phase and spend ceilings, use an explicitly
+authorized bounded drain for initial or repair backfills, and restore the
+hourly interval after two consecutive windows complete without a growing
+backlog. A schedule change increases processing opportunities; it does not
+widen model authority or bypass cache, lease, or budget controls.
 
 Prompt Registry `2.0.0` compiles 13 generative Knowledge tasks. Runtime
 dispatch requires the exact prompt version and content hash plus the declared
@@ -237,10 +249,10 @@ Do not enable a scheduler merely because the endpoint deploys. First:
 Any runtime host may bind the same operation to its scheduler. The Vercel route
 is a maintained adapter, not a Core dependency. Its schedule runs reconciliation
 at minute `0` and extraction at minute `15` of every six-hour window. Expensive
-maintenance advances nightly at `02:00` UTC. Initial and repair backfills use
-repeated explicitly authorized bounded invocations until their durable cursors
-complete; they do not permanently increase the model-maintenance frequency.
-Leave the schedule disabled on
+maintenance advances hourly from `02:00` through `05:00` UTC. Initial and
+repair backfills use repeated explicitly authorized bounded invocations until
+their durable cursors complete; they do not permanently increase the
+model-maintenance frequency. Leave the schedule disabled on
 qualification failure, authorization denial, missing migration, or an
 unexpected proposal/synthesis count.
 
