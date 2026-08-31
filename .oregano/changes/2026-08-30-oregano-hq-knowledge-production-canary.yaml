@@ -1,0 +1,131 @@
+version: 1
+plan_id: oregano-hq-knowledge-production-canary-2026-08-30
+status: approved
+author: codex-agent
+created: 2026-08-30
+title: Qualify and activate Retrieval V3 as an Oregano HQ production canary
+objective: >-
+  Add an explicit internal-dogfood production-canary lane without weakening the
+  reusable non-production isolation contract, rehearse additive manifest 1.7.0
+  on a Neon branch, upgrade the Oregano HQ production database, build and
+  verify Retrieval V3 without serving it, compare V2 and V3 under real
+  production authorization, and activate V3 only for an allowlisted internal
+  Agent while retaining an immediate V2 fallback.
+non_goals:
+  - Make production-first rollout the default for customer Company Instances.
+  - Duplicate the Oregano HQ Vercel project, Slack application, Granola binding, or model-provider secrets.
+  - Serve Retrieval V3 to an Agent that is not explicitly allowlisted.
+  - Delete, truncate, rewrite, or downgrade durable Company Brain or Handbook data.
+  - Treat a production canary, Working Synthesis, or Current Brief as official Handbook truth.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-08-30-company-knowledge-productization-v1.yaml
+  - .oregano/changes/2026-08-30-company-knowledge-productization-v2.yaml
+  - .oregano/changes/2026-08-30-oregano-hq-knowledge-production-canary.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/src/cli.mjs
+  - packages/knowledge/knowledge-doctor.ts
+  - packages/knowledge/contracts.ts
+  - packages/knowledge/current-brief.ts
+  - packages/knowledge/knowledge-bench.ts
+  - packages/knowledge/knowledge-experiences.ts
+  - packages/knowledge/productization.ts
+  - packages/knowledge/retrieval-unit.ts
+  - packages/knowledge/retrieval-v3.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/state-postgres/knowledge-canary-provider.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-productization-store.ts
+  - packages/state-postgres/knowledge-production-qualification.ts
+  - packages/state-postgres/knowledge-retrieval-v3-store.ts
+  - packages/state-postgres/knowledge-schema-phase-seven.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/company-knowledge-experiences.test.ts
+  - packages/testkit/tests/company-knowledge-production-canary.test.ts
+  - packages/testkit/tests/company-knowledge-productization.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-projection-v3.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v3-postgres.test.ts
+required_approvals:
+  - oregano-maintainer
+  - oregano-hq-platform-administrator
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-use-the-guarded-production-canary-plan
+  - role: oregano-hq-platform-administrator
+    approver: fylingpete
+    approved_at: 2026-08-30
+    evidence: explicit-user-instruction-in-codex-task-to-use-the-guarded-production-canary-plan
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-30-oregano-hq-knowledge-production-canary.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-30-oregano-hq-knowledge-production-canary.yaml
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - node_modules/.bin/tsc --noEmit -p packages/runner-vercel/tsconfig.json
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-production-canary.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-productization.test.ts
+  - node --experimental-strip-types --test packages/testkit/tests/company-knowledge-retrieval-v3-postgres.test.ts
+  - rehearse prepareCompanyDatabase and qualifyCompanyDatabase on an exact Neon production branch
+  - run prepareCompanyDatabase and qualifyCompanyDatabase against Oregano HQ production
+  - build and verify Retrieval V3 in production without activation
+  - prove V2-served shadow comparisons, zero ACL leakage, citation membership, and V2 fallback
+  - activate the exact verified projection only for the allowlisted Oregano HQ Agent
+  - verify live health and one authorized plus one unauthorized production request
+  - git diff --check
+tests:
+  - The generic isolated non-production qualification remains strict and unchanged.
+  - Production-canary qualification requires an internal-only Agent allowlist, a Neon branch rehearsal, backup evidence, shadow evidence, and a tested V2 fallback.
+  - V2 is the default when the mode variable is absent, invalid, incomplete, or does not allowlist the selected Agent.
+  - Shadow mode executes V3 but returns the exact V2 response and persists only payload-free comparison evidence.
+  - Canary mode serves V3 only when the selected Agent and exact verified active projection match the declared bindings.
+  - Exact, lexical, semantic, graph, Current Brief, citation, and answer paths remain authorization-first.
+  - The production migration is additive and leaves all existing V2 tables and paths available.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-knowledge-v0.2
+    - status.current
+    - guide.prepare-instance
+    - guide.operate-knowledge-provider
+migration: >-
+  Create a point-in-time Neon branch from the Oregano HQ production branch and
+  run prepareCompanyDatabase plus read-only qualification there. After the
+  branch succeeds, run the same additive operation against the existing
+  production DATABASE_URL. Build Retrieval V3 as staged and verified, leaving
+  V2 as the served provider. Persist payload-free benchmark, authorization,
+  citation, shadow, doctor, branch, backup, fallback, and operator receipts.
+  Activate the exact projection and set the production runtime to V3 canary only
+  for the selected internal Agent after every pre-activation gate passes.
+rollback: >-
+  Set COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE to v2 and redeploy or promote the last
+  known-good V2 Artifact. If necessary, activate the prior verified retrieval
+  projection. Leave additive 1.7.0 schema objects dormant; do not delete durable
+  Brain or Handbook data. Use the pre-migration Neon branch or provider backup
+  only for a separately approved data-restoration incident.
+open_decisions:
+  - Select a stable operator-visible identifier for the exact Neon rehearsal branch and record it without credentials.
+  - Keep production-first canary eligibility limited to Oregano HQ internal dogfood until a separate change qualifies broader use.

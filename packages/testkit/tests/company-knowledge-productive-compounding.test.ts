@@ -493,6 +493,9 @@ test("the additive schema persists compounding state and proposals without destr
   assert.match(store, /pg_advisory_xact_lock/);
   assert.match(store, /10 \* 60_000/);
   assert.match(store, /stale-model-execution-reservation/);
+  assert.match(store, /status in \('reserved', 'failed'\)/);
+  assert.match(store, /coalesce\(charged_cost_usd, estimated_cost_usd\) \+ \$\{reservation\.estimatedCostUsd\}/);
+  assert.match(store, /when failure_digest is null then \$\{receipt\.costUsd\} else estimated_cost_usd/);
   assert.match(store, /with eligible_reservation as/);
 });
 
@@ -500,7 +503,7 @@ test("the maintained Vercel adapters schedule reconcile, extraction, and compoun
   const expected = [
     { path: "/api/knowledge/sources/granola/reconcile", schedule: "0 */6 * * *" },
     { path: "/api/knowledge/sources/granola/extract", schedule: "15 */6 * * *" },
-    { path: "/api/knowledge/compounding", schedule: "*/15 2-5 * * *" },
+    { path: "/api/knowledge/compounding", schedule: "0 2-5 * * *" },
   ];
   const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };

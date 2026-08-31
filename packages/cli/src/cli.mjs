@@ -54,8 +54,10 @@ import { cleanupExpiredSessionCorpus, transferSessionStopBuffer } from "../../kn
 import { PostgresSessionCorpusStore } from "../../state-postgres/session-corpus-store.ts";
 import { createRuntimeObservation, proposeRuntimeObservationPromotion, runtimeObservationsToReviewCandidates } from "../../knowledge/observations.ts";
 import { findByCanonicalPrincipal, parseRoster } from "../../state-store/roster.ts";
-import { bootstrapCompanyDatabase, prepareCompanyDatabase, qualifyCompanyDatabase } from "../../state-postgres/database-bootstrap.ts";
+import { bootstrapCompanyDatabase, inspectCompanyDatabaseState, prepareCompanyDatabase, qualifyCompanyDatabase, withNeonBranchDatabaseHost } from "../../state-postgres/database-bootstrap.ts";
 import { KNOWLEDGE_ADMIN_GROUP_ID } from "../../knowledge/access-control.ts";
+import { PostgresKnowledgeRetrievalV3Store, rebuildPostgresKnowledgeRetrievalProjectionV3 } from "../../state-postgres/knowledge-retrieval-v3-store.ts";
+import { diagnosePostgresKnowledgeProductionFollowup, qualifyPostgresKnowledgeProductionCanary, verifyPostgresKnowledgeCanaryLive } from "../../state-postgres/knowledge-production-qualification.ts";
 
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(sourceRoot, "..", "..", "..");
@@ -92,10 +94,20 @@ Usage:
   companyos package inspect <path> [--format human|json]
   companyos database prepare [--format human|json]
   companyos database bootstrap [--format human|json]
+  companyos database status [--format human|json]
   companyos database verify [--format human|json]
+  companyos database branch-status --host <neon-host> [--format human|json]
+  companyos database branch-prepare --host <neon-host> [--format human|json]
+  companyos database branch-verify --host <neon-host> [--format human|json]
   companyos build <workspace> --instance <file> --output <file> [--knowledge-output <file>]
   companyos knowledge inspect <workspace> [--format human|json]
   companyos knowledge build <workspace> --output <file>
+  companyos knowledge retrieval-v3-build [--format human|json]
+  companyos knowledge retrieval-v3-status [--projection <hash>] [--format human|json]
+  companyos knowledge retrieval-v3-qualify-production-canary --projection <hash> --environment <id> --company-instance <id> --agent <id> --state-project <id> --state-branch <id> --runtime-project <id> --rehearsal <receipt-id> --backup <receipt-id> --operator-approval <receipt-id> [--format human|json]
+  companyos knowledge retrieval-v3-activate --projection <hash> --qualification <receipt-id> [--format human|json]
+  companyos knowledge retrieval-v3-verify-live --projection <hash> --agent <id> [--format human|json]
+  companyos knowledge retrieval-v3-diagnose-followup --projection <hash> --agent <id> [--format human|json]
   companyos knowledge review <workspace> [--format human|json]
   companyos knowledge decide <workspace> --candidate <id> --decision accepted|rejected|superseded --principal <principal>
   companyos knowledge propose <workspace> --candidate <id> --output <file> --principal <principal>
@@ -288,11 +300,24 @@ try {
     const result = validateWorkspace(target);
     exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
   } else if (command === "database") {
-    if (!new Set(["prepare", "bootstrap", "verify"]).has(action)) throw new Error("Use `companyos database prepare`, `companyos database bootstrap`, or `companyos database verify`.");
-    const preparation = action === "prepare" ? await prepareCompanyDatabase() : undefined;
-    const qualification = preparation?.qualification ?? (action === "bootstrap" ? await bootstrapCompanyDatabase() : await qualifyCompanyDatabase());
-    const result = { ok: true, operation: preparation?.operation ?? action, ...(preparation ? { previous_manifest_versions: preparation.previousManifestVersions } : {}), qualification };
-    process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
+    if (!new Set(["prepare", "bootstrap", "status", "verify", "branch-status", "branch-prepare", "branch-verify"]).has(action)) throw new Error("Use a documented `companyos database` prepare, bootstrap, status, verify, or branch qualification action.");
+    const branchAction = action?.startsWith("branch-");
+    const branchHost = branchAction ? optionValue("--host") : undefined;
+    if (branchAction && !branchHost) throw new Error(`companyos database ${action} requires --host <neon-host>.`);
+    const databaseAction = branchAction ? action.slice("branch-".length) : action;
+    const executeDatabaseAction = async () => {
+      if (databaseAction === "status") return { ok: true, state: await inspectCompanyDatabaseState() };
+      const preparation = databaseAction === "prepare" ? await prepareCompanyDatabase() : undefined;
+      const qualification = preparation?.qualification ?? (databaseAction === "bootstrap" ? await bootstrapCompanyDatabase() : await qualifyCompanyDatabase());
+      return { ok: true, operation: preparation?.operation ?? databaseAction, ...(preparation ? { previous_manifest_versions: preparation.previousManifestVersions } : {}), qualification };
+    };
+    if (databaseAction === "status") {
+      const result = branchHost ? await withNeonBranchDatabaseHost(branchHost, executeDatabaseAction) : await executeDatabaseAction();
+      process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
+    } else {
+      const result = branchHost ? await withNeonBranchDatabaseHost(branchHost, executeDatabaseAction) : await executeDatabaseAction();
+      process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
+    }
   } else if (command === "knowledge") {
     if (action === "inspect") {
       const target = targetWorkspace(value?.startsWith("--") ? undefined : value);
@@ -383,6 +408,53 @@ try {
       mkdirSync(dirname(outputPath), { recursive: true });
       writeFileSync(outputPath, `${JSON.stringify(proposal, null, 2)}\n`, { flag: "wx" });
       process.stdout.write(`Wrote review-only Knowledge promotion proposal ${proposal.proposalId} at ${outputPath}\n`);
+    } else if (action === "retrieval-v3-build") {
+      const projection = await rebuildPostgresKnowledgeRetrievalProjectionV3();
+      process.stdout.write(`${JSON.stringify({ ok: true, projection_hash: projection.projectionHash, unit_count: projection.unitCount, status: projection.status, embedding_profile: projection.embeddingProfile ?? null }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "retrieval-v3-status") {
+      const projectionHash = optionValue("--projection");
+      const store = new PostgresKnowledgeRetrievalV3Store();
+      const projection = projectionHash ? await store.projection(projectionHash) : await store.activeProjection();
+      process.stdout.write(`${JSON.stringify({ ok: Boolean(projection), projection: projection ?? null }, null, format === "json" ? 2 : 0)}\n`);
+      if (!projection) process.exitCode = 2;
+    } else if (action === "retrieval-v3-qualify-production-canary") {
+      const requiredOptions = {
+        projectionHash: optionValue("--projection"),
+        environmentId: optionValue("--environment"),
+        companyInstanceId: optionValue("--company-instance"),
+        allowedAgentId: optionValue("--agent"),
+        stateProjectId: optionValue("--state-project"),
+        stateBranchId: optionValue("--state-branch"),
+        runtimeProjectId: optionValue("--runtime-project"),
+        stateBranchRehearsalReceiptId: optionValue("--rehearsal"),
+        databaseBackupReceiptId: optionValue("--backup"),
+        operatorApprovalReceiptId: optionValue("--operator-approval"),
+      };
+      if (Object.values(requiredOptions).some((entry) => !entry)) {
+        throw new Error("companyos knowledge retrieval-v3-qualify-production-canary requires exact projection, environment, Company Instance, Agent, Neon project/branch, Vercel project, rehearsal, backup, and operator-approval identities.");
+      }
+      const result = await qualifyPostgresKnowledgeProductionCanary(requiredOptions);
+      process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
+      if (!result.ok) process.exitCode = 1;
+    } else if (action === "retrieval-v3-activate") {
+      const projectionHash = optionValue("--projection");
+      const qualificationReceiptId = optionValue("--qualification");
+      if (!projectionHash || !qualificationReceiptId) throw new Error("companyos knowledge retrieval-v3-activate requires --projection <hash> and --qualification <receipt-id>.");
+      const projection = await new PostgresKnowledgeRetrievalV3Store().activateQualifiedProjection(projectionHash, qualificationReceiptId);
+      process.stdout.write(`${JSON.stringify({ ok: true, projection_hash: projection.projectionHash, unit_count: projection.unitCount, status: projection.status }, null, format === "json" ? 2 : 0)}\n`);
+    } else if (action === "retrieval-v3-verify-live") {
+      const projectionHash = optionValue("--projection");
+      const agentId = optionValue("--agent");
+      if (!projectionHash || !agentId) throw new Error("companyos knowledge retrieval-v3-verify-live requires --projection <hash> and --agent <id>.");
+      const result = await verifyPostgresKnowledgeCanaryLive({ projectionHash, agentId });
+      process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
+      if (!result.ok) process.exitCode = 1;
+    } else if (action === "retrieval-v3-diagnose-followup") {
+      const projectionHash = optionValue("--projection");
+      const agentId = optionValue("--agent");
+      if (!projectionHash || !agentId) throw new Error("companyos knowledge retrieval-v3-diagnose-followup requires --projection <hash> and --agent <id>.");
+      const result = await diagnosePostgresKnowledgeProductionFollowup({ projectionHash, agentId });
+      process.stdout.write(`${JSON.stringify(result, null, format === "json" ? 2 : 0)}\n`);
     } else if (action === "stage") {
       const bundlePath = optionValue("--bundle");
       if (!bundlePath) throw new Error("companyos knowledge stage requires --bundle <file>.");

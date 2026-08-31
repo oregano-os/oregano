@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-27
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -59,6 +59,36 @@ evidence, historical prototypes, and production gaps.
   exact get, and directional graph traversal; every result retains a stable
   path, fragment, digest, policy, and evidence status. The maintained Vercel
   Runner registers this provider through `oregano/knowledge-postgres@3.0.0`.
+- Company Knowledge productization implements the seven-phase Core path and an
+  explicit Oregano HQ internal production-canary control plane. Retrieval Projection V3 deterministically
+  normalizes Handbook fragments, Brain fragments, Claims, Source Objects,
+  Timeline Events, and Working Syntheses into policy-carrying Retrieval Units.
+  The additive `companyos-postgres@1.7.0` path can stage, hash- and count-verify,
+  retire, and independently activate derived projections and optional 256-
+  dimension embeddings. Exact, lexical, semantic, graph-neighbor, and Current
+  Brief reads pass only pre-authorized policy identities into SQL. Embedding
+  absence or failure retains lexical retrieval with an explicit degradation.
+  KnowledgeBench measures Recall at K, reciprocal rank, authority labels,
+  citation membership, ACL leakage, and degradation and persists payload-free
+  V2-versus-V3 shadow evidence. Context receipts bind the active projection and
+  authorized policy-set digest; the V3 Answer Envelope rejects unsupported
+  claims and citations. Current Brief, Open Loops, and Meeting Prep are cited
+  synthesized read models and never Handbook authority. The Knowledge Doctor
+  blocks readiness on missing rollout-lane qualification, schema, projection,
+  benchmark, shadow, ACL, citation, Source, restore, or rollback evidence. The
+  generic isolated non-production contract remains strict. Oregano HQ may
+  instead use a branch-rehearsed internal-only canary with exact Agent allowlist
+  and projection hash. Runtime modes default to V2, shadow V3 while serving V2,
+  or serve V3 canary with automatic V2 fallback. Database activation requires
+  a persisted exact qualification receipt. On 2026-08-30 the linked Oregano HQ
+  production Instance rehearsed the additive migration on a point-in-time Neon
+  branch, qualified and activated one 1,419-unit projection, passed the
+  payload-free benchmark, shadow, ACL, citation, fallback, and database gates,
+  and deployed V3 canary for the exact internal `oregano` Agent. Live evidence
+  recorded five authorized results, zero unresolved-subject results, and no V2
+  fallback. The Doctor has no failed check; stale Source synchronization and
+  the absence of a first Current Brief remain explicit warnings. Other Company
+  Instances remain on V2 unless independently qualified.
 - Company Knowledge Phase 5 includes the read-only
   `oregano/github-repository-source@1.0.0`, SecretRef-only binding, bounded and
   cursor-idempotent repository enumeration/fetch, immutable receipts/object
@@ -245,9 +275,15 @@ evidence, historical prototypes, and production gaps.
   that shared gate with exact/`0.45` duplicate, `0.20` relation, and same-kind
   `0.15` conflict gates plus durable result reuse. The maintained schedule is
   inside a bounded 02:00–05:59 UTC nightly continuation window rather than
-  every 15 minutes around the clock. Deployment
-  `dpl_EdrL7WjYjF3C2MgNJ6KnBKACdq3k` proved segment prompt `5`, and the final
-  production cron exposes `*/15 2-5 * * *`. Controlled alignment and backfill
+  continuous model polling. Deployment
+  `dpl_EdrL7WjYjF3C2MgNJ6KnBKACdq3k` proved segment prompt `5`. The maintained
+  Vercel manifest now declares the conservative hourly expression
+  `0 2-5 * * *`; an external production deployment must apply and verify that
+  scheduler change. Operators shorten it first to 30 and then to 15 minutes
+  only when incomplete continuations, a growing frontier, or maintenance-lag
+  freshness warnings persist across two consecutive nightly windows, and
+  restore hourly operation after two complete windows without backlog growth.
+  Controlled alignment and backfill
   runs have 89 successful rated executions totaling USD `0.51841000`, zero
   active reservations, and five failed full-Subject trials retained without a
   result or execution-ledger row. Their USD `1.07439900` failed-reservation sum
@@ -334,8 +370,8 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.6.0` additive manifest preserves the immutable `1.5.0`,
-  `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  `companyos-postgres@1.7.0` additive manifest preserves the immutable `1.6.0`,
+  `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares both `companyos` and `companyos_knowledge`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
@@ -351,8 +387,17 @@ evidence, historical prototypes, and production gaps.
   Knowledge tables. Phase 5 adds four compounding lease, receipt, pair-proposal,
   and grading-request relations for 59 required Knowledge tables. Phase 6 adds
   three model-result cache, spend-reservation, and execution-ledger relations
-  for 62 required Knowledge tables. On 2026-08-27 the linked production Instance
-  upgraded additively to 1.6.0 and passed a separate read-only qualification
+  for 62 required Knowledge tables. Phase 7 adds five rebuildable Retrieval V3,
+  benchmark, shadow-comparison, and productization-receipt relations for 67
+  required Knowledge tables. With `pgvector`, Handbook fragments and Retrieval
+  Units use two optional embedding tables for an expected total of 69 Knowledge
+  tables. On 2026-08-30 the linked production Instance upgraded additively to
+  manifest `1.7.0` and passed separate branch and production qualifications
+  with digest
+  `7114b3061ff5b277a931f33e08f1f6f803f2fbdd98539ffad9d487498e461167`,
+  12 Control tables, 67 required Knowledge tables plus two `pgvector` tables
+  for an observed total of 69, and 19 Core Page types. On 2026-08-27 the linked
+  production Instance upgraded additively to 1.6.0 and passed a separate read-only qualification
   with digest
   `b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`,
   12 Control tables, 62 required Knowledge tables plus `pgvector` for an
@@ -371,10 +416,11 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core has prepared the `0.4.0` initial-development release candidate;
-  `v0.3.2` remains the latest stable release until the reviewed candidate is
-  merged, tagged, and published. Every Company Workspace advances independently
-  under the canonical Versioning Policy.
+- Oregano Core source is versioned `0.5.0` for the productized Company Brain
+  release line. Its immutable GitHub `v0.5.0` tag and Release are the public
+  distribution evidence; the prior `v0.4.0` release remains available as an
+  exact rollback. Every Company Workspace advances independently under the
+  canonical Versioning Policy.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
   artifact. The artifact records both product versions, the SHA pair,
@@ -406,7 +452,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.8`; no
+  builds. Its repository release candidate is `0.1.0-experimental.9`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
@@ -481,6 +527,18 @@ evidence, historical prototypes, and production gaps.
 
 ## Approved targets not yet implemented
 
+- Retrieval V3 remains an Oregano HQ internal canary, not the reusable default.
+  The refreshed production projection passes all twelve relevance cases with
+  `1.0` recall, `0.91666667` mean reciprocal rank, complete authority and
+  citation accuracy, zero authorization leakage, and no degradation. The
+  stricter exact-sub-unit diagnostic remains `10/12`: both misses are
+  synthesized Timeline Events for which a higher-ranked unit from the same
+  parent event is returned. The Oregano HQ meeting Source is healthy with a
+  recorded successful-sync timestamp. Fourteen Current Briefs are current;
+  six of ten strategy-matching Pages have a current Strategy Brief. This is
+  Instance evidence, not reusable-default qualification. A separate isolated
+  non-production Instance and independent receipts remain mandatory before
+  using this rollout pattern for another company.
 - Meta, Monday, and other business-provider Connectors are not implemented or
   activated. Each still needs privileged isolation, provenance, SecretRefs,
   health, retry, reconciliation, read-after-write, and conformance evidence.
@@ -503,22 +561,23 @@ evidence, historical prototypes, and production gaps.
    meeting Source bindings, then run real synchronizations and ACL regressions.
    Connector implementations exist, but schema readiness supplies no Source
    SecretRef or provider-scope authority.
-3. Establish an isolated non-production Instance and Connector authorization
-   instead of testing future changes against production state.
-4. Reconcile, validate, tag, and publish the stable immutable `v0.4.0` GitHub
-   Release containing the Company Knowledge capability. There is no
-   `latest-stable` branch; `releases/latest` is discovery only and installation
-   pins the exact tag, commit, and Workbench version. The existing `v0.3.2`
-   release remains immutable and available.
-5. Re-qualify the hardened `vercel-neon-slack` setup profile through a fresh
-   external end-to-end installation before the next stable release. The prior
-   profile completed a real supervised installation and exposed the provider
-   receipt, runner-root, Slack-authorization, naming, and health-readiness gaps
-   addressed by the current Change Plan; the hardened revision still requires
-   its own release qualification.
-6. Publish a signed Workbench package so Workspace-only Contributors do not
+3. Decide whether the four strategy-matching Oregano HQ Pages without a Current
+   Brief have enough distinct Claims to justify synthesis, and improve the
+   strict exact-sub-unit Timeline diagnostic only if a product use case requires
+   that granularity. Establish a fully isolated non-production Instance before
+   broadening changes beyond internal dogfood or using the pattern for another
+   company.
+4. Re-qualify the hardened `vercel-neon-slack` setup profile through a fresh
+   external end-to-end installation before recommending that starter broadly
+   or expanding its activation claims. The prior profile completed a real
+   supervised installation and exposed the provider receipt, runner-root,
+   Slack-authorization, naming, and health-readiness gaps addressed by its
+   Change Plan; the hardened revision still requires its own independent
+   setup-profile qualification. The opt-in v0.5.0 Company Brain release does
+   not change or qualify that setup profile.
+5. Publish a signed Workbench package so Workspace-only Contributors do not
    require a Core source checkout.
-7. Require and qualify hosted repository protection before any future
+6. Require and qualify hosted repository protection before any future
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.

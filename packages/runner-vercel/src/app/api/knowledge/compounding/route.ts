@@ -12,7 +12,13 @@ async function handle(request: Request) {
   try {
     return Response.json(await new CompanyKnowledgeCompoundingRuntime().process(), { status: 200 });
   } catch (error) {
-    return Response.json({ ok: false, error: "compounding-failed", reasonCode: classifyKnowledgeSourceRuntimeError(error), diagnostic: describeKnowledgeSourceRuntimeError(error), errorDigest: errorDigest(error) }, { status: 503 });
+    const failure = {
+      reasonCode: classifyKnowledgeSourceRuntimeError(error),
+      diagnostic: describeKnowledgeSourceRuntimeError(error),
+      errorDigest: errorDigest(error),
+    };
+    console.error(JSON.stringify({ event: "knowledge.compounding.failed", ...failure }));
+    return Response.json({ ok: false, error: "compounding-failed", ...failure }, { status: 503 });
   }
 }
 

@@ -226,7 +226,9 @@ export class PostgresSourcePipelineStore implements SourcePipelineStore {
 
   async setSourceStatus(sourceId: string, status: "registered" | "healthy" | "stale" | "error" | "revoked"): Promise<void> {
     await ensureCompanyKnowledgeSchema();
-    const rows = await connection()`update companyos_knowledge.sources set status = ${status}, updated_at = now()
+    const rows = await connection()`update companyos_knowledge.sources set status = ${status},
+      last_successful_sync = case when ${status} = 'healthy' then now() else last_successful_sync end,
+      updated_at = now()
       where source_id = ${sourceId} returning source_id`;
     if (rows.length === 0) throw new Error(`Unknown Source '${sourceId}'.`);
   }

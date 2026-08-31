@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-08-30
 owners:
   - oregano-maintainers
 audience:
@@ -24,6 +24,93 @@ stage it, verify its counts, and activate its exact hash. Confirm a known
 lexical and hybrid query, a zero-result query, an exact `get`, and a bounded
 traversal before granting operating use. Provider health must state whether the
 optional vector index is available and name any lexical degradation.
+
+## Retrieval V3 production-canary operation
+
+Inspect the current additive manifest without changing it:
+
+```sh
+companyos database status --format json
+```
+
+On the exact Neon rehearsal branch, then on production only after that branch
+passes, run:
+
+```sh
+companyos database prepare --format json
+companyos database verify --format json
+```
+
+Build and verify a V3 projection without serving or activating it:
+
+```sh
+companyos knowledge retrieval-v3-build --format json
+companyos knowledge retrieval-v3-status --projection <hash> --format json
+```
+
+For an Instance-specific quality follow-up, run the payload-free diagnosis:
+
+```sh
+companyos knowledge retrieval-v3-diagnose-followup \
+  --projection <hash> \
+  --agent <allowlisted-agent-id> \
+  --format json
+```
+
+The diagnosis separates relevance recall from exact-unit recall. A synthesized
+Timeline Event uses its parent event as the relevance identity because a user
+query about the event is answered by any authorized unit from that event.
+Handbook fragments, Claims, Current Briefs, and other concrete identities remain
+exact-unit cases. Exact-unit misses remain visible as a stricter diagnostic and
+are never relabeled as exact hits. The same command reports only aggregate
+Source and Current Brief status; it emits no source query or content.
+
+Set `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE=v3-shadow`, the exact projection hash,
+and the internal Agent allowlist only after the V2 baseline is recorded. Shadow
+mode executes both providers for real authorized searches, persists a
+payload-free observation, and returns V2 unchanged. Do not infer promotion from
+live overlap alone: the bounded KnowledgeBench, ACL-negative, citation,
+Source-health, backup, fallback, and Doctor gates remain mandatory.
+
+Run those gates in the secret-bound production process. The command accepts
+only stable environment and evidence identities; it never accepts credentials
+or prints source queries. A failed gate returns no activation receipt:
+
+```sh
+companyos knowledge retrieval-v3-qualify-production-canary \
+  --projection <hash> \
+  --environment <production-environment-id> \
+  --company-instance <company-instance-id> \
+  --agent <allowlisted-agent-id> \
+  --state-project <neon-project-id> \
+  --state-branch <production-branch-id> \
+  --runtime-project <vercel-project-id> \
+  --rehearsal <branch-rehearsal-receipt-id> \
+  --backup <backup-or-safety-branch-receipt-id> \
+  --operator-approval <operator-approval-receipt-id> \
+  --format json
+```
+
+After persisting the exact activation-qualification receipt, activate only its
+projection:
+
+```sh
+companyos knowledge retrieval-v3-activate \
+  --projection <hash> \
+  --qualification <receipt-id> \
+  --format json
+
+companyos knowledge retrieval-v3-verify-live \
+  --projection <hash> \
+  --agent <allowlisted-agent-id> \
+  --format json
+```
+
+Then set `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE=v3-canary` for the same allowlisted
+internal Agent. If candidate search fails, the Runner serves V2 and reports
+`retrieval-v3-canary-fallback`. The immediate operator rollback is to restore
+mode `v2` and redeploy or promote the last known-good Artifact. The additive
+1.7.0 tables remain dormant and durable Brain or Handbook data is not deleted.
 
 ## Model runtime operation
 
@@ -55,10 +142,29 @@ are sorted by stable identity into groups of at most 40. Each group receives a
 separate cached result and receipt; the last group merges all prior cached
 components deterministically into one immutable synthesis version.
 
-The maintained serverless schedule advances those durable continuations every
-15 minutes only during the 02:00–05:59 UTC nightly window. It does not run
-model maintenance every 15 minutes throughout the day. A long-running host can
-drive the same portable cycle until completion in one background worker.
+Model maintenance reserves spend before a provider call. A failed or abandoned
+reservation remains conservative budget evidence. After the ten-minute stale
+window, the same cycle-and-task slot may be reopened atomically; accumulated
+estimated failure cost continues to count against both cycle and daily limits.
+An overlapping invocation inside that window fails closed instead of issuing a
+duplicate provider call.
+
+The maintained serverless schedule advances those durable continuations once
+per hour at `02:00`, `03:00`, `04:00`, and `05:00` UTC. It does not run model
+maintenance throughout the day. This hourly interval is the conservative
+operating default while the nightly frontier fits inside four bounded
+continuations. A long-running host can drive the same portable cycle until
+completion in one background worker.
+
+Inspect aggregate Compounding receipts and Current Brief freshness after each
+nightly window. Shorten the interval first to 30 minutes and then, if needed,
+to 15 minutes when incomplete continuations, a growing frontier, or
+maintenance-lag freshness warnings persist across two consecutive nightly
+windows. Keep the existing phase and spend ceilings, use an explicitly
+authorized bounded drain for initial or repair backfills, and restore the
+hourly interval after two consecutive windows complete without a growing
+backlog. A schedule change increases processing opportunities; it does not
+widen model authority or bypass cache, lease, or budget controls.
 
 Prompt Registry `2.0.0` compiles 13 generative Knowledge tasks. Runtime
 dispatch requires the exact prompt version and content hash plus the declared
@@ -131,7 +237,7 @@ budgeted maintenance until its price is qualified.
 
 Do not enable a scheduler merely because the endpoint deploys. First:
 
-1. prepare and read-only qualify `companyos-postgres@1.6.0`;
+1. prepare and read-only qualify `companyos-postgres@1.7.0`;
 2. pass the distinct-model smoke test;
 3. pass all 13 live synthetic fixtures;
 4. reconcile and extract one real authorized source object;
@@ -143,10 +249,10 @@ Do not enable a scheduler merely because the endpoint deploys. First:
 Any runtime host may bind the same operation to its scheduler. The Vercel route
 is a maintained adapter, not a Core dependency. Its schedule runs reconciliation
 at minute `0` and extraction at minute `15` of every six-hour window. Expensive
-maintenance advances nightly at `02:00` UTC. Initial and repair backfills use
-repeated explicitly authorized bounded invocations until their durable cursors
-complete; they do not permanently increase the model-maintenance frequency.
-Leave the schedule disabled on
+maintenance advances hourly from `02:00` through `05:00` UTC. Initial and
+repair backfills use repeated explicitly authorized bounded invocations until
+their durable cursors complete; they do not permanently increase the
+model-maintenance frequency. Leave the schedule disabled on
 qualification failure, authorization denial, missing migration, or an
 unexpected proposal/synthesis count.
 
