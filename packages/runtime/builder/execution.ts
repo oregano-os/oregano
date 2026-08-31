@@ -12,6 +12,13 @@ export interface BuilderExecutionRequest {
   readonly source: {
     readonly repository: string;
     readonly baseCommit: string;
+    readonly workspacePath?: string;
+    readonly sourceBundlePath?: string;
+    readonly contentDigest?: string;
+  };
+  readonly operation?: {
+    readonly requestId: string;
+    readonly prompt: string;
   };
   readonly codingAgent: {
     readonly profileId: string;
@@ -44,6 +51,10 @@ export interface BuilderExecutionResult {
   readonly startedAt: string;
   readonly finishedAt: string;
   readonly evidence: Readonly<Record<string, unknown>>;
+  readonly artifacts?: {
+    readonly diff: string;
+    readonly diffDigest: string;
+  };
 }
 
 /**
@@ -70,6 +81,26 @@ export function assertBuilderExecutionRequest(request: BuilderExecutionRequest):
   }
   if (request.source.repository.trim() === "") throw new Error("Builder execution requires a repository reference.");
   if (!FULL_GIT_SHA.test(request.source.baseCommit)) throw new Error("Builder execution requires an exact 40-character base commit.");
+  if (request.operation) {
+    if (request.limits.timeoutMs < 20_000) {
+      throw new Error("Production Builder execution timeout must be at least 20000ms.");
+    }
+    const localWorkspace = request.source.workspacePath?.startsWith("/") === true;
+    const transferredBundle = request.source.sourceBundlePath?.startsWith("/") === true
+      && request.source.sourceBundlePath.endsWith(".bundle");
+    if (localWorkspace === transferredBundle) {
+      throw new Error("Production Builder execution requires exactly one local workspace or transferred Git bundle.");
+    }
+    if (!/^[0-9a-f]{64}$/.test(request.source.contentDigest ?? "")) {
+      throw new Error("Production Builder execution requires an exact source content digest.");
+    }
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(request.operation.requestId)) {
+      throw new Error("Builder execution request id is invalid.");
+    }
+    if (request.operation.prompt.trim() === "" || request.operation.prompt.length > 100_000) {
+      throw new Error("Builder execution prompt must be non-empty and bounded.");
+    }
+  }
   if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(request.codingAgent.profileId)) {
     throw new Error("Builder coding-agent profile id is invalid.");
   }

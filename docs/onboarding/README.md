@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -136,3 +136,24 @@ sync. Synced objects remain raw review envelopes and never bypass the
 maximum-three human review queue. Hybrid retrieval requires no external
 credential: the default adapter is local, and optional vector-index failure is
 reported while lexical retrieval stays available.
+
+## Optional proposal-only Builder activation
+
+The normal starter does not activate the Builder. Activation is a separate,
+explicit Instance decision and requires all of the following together:
+
+- an exact Agent Binding for the `builder` Agent and one trusted channel;
+- an enabled non-secret Builder declaration in the immutable Artifact;
+- a verified repository installation and exact source/publisher bindings;
+- qualified isolated coding and trusted Git snapshots;
+- the general `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in the Instance secret
+  store; and
+- successful checks from the version-matched [Operate the
+  Builder](../workbench/guides/operate-builder.md) Guide.
+
+Selecting the Builder opens a normal Runner conversation. The coding agent
+starts only after the authenticated requester confirms the exact objective,
+repository, and base commit. A successful job creates a checked draft proposal;
+human review, merge, and deployment remain outside Builder authority. Removing
+the Agent Binding and Builder declaration returns the Instance to normal Agent
+operation without a Core migration or database rollback.

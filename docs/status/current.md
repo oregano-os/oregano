@@ -428,11 +428,31 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.1` for the grounded interactive
-  Knowledge-answer patch. Its immutable GitHub `v0.5.1` tag and Release are the
-  public distribution evidence; the prior `v0.5.0` release remains available
-  as an exact rollback. Every Company Workspace advances independently under
-  the canonical Versioning Policy.
+- Oregano Core source is versioned `0.5.2` for the experimental proposal-only
+  Builder integration on top of the grounded interactive Knowledge-answer
+  patch. Its immutable GitHub `v0.5.2` tag and Release are the public
+  distribution evidence; `v0.5.1` remains the exact rollback without the
+  integrated Builder. Every Company Workspace advances independently under the
+  canonical Versioning Policy.
+- Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
+  including `builder`, from exact trusted surface identities. The Builder is
+  opt-in: an Instance without both its non-secret Builder declaration and exact
+  Agent Binding continues normal Agent and Knowledge operation. Its scheduled
+  worker exits successfully without constructing a repository provider,
+  Sandbox, or coding runtime.
+- The experimental Builder control path persists immutable proposal jobs,
+  supports leases, cancellation, recovery, and terminal Slack-card delivery,
+  and separates exact repository source, credential-free coding, independent
+  diff/Workbench validation, and trusted draft publication. The Runner retains
+  only thin Tool, presentation, and action hooks; Builder chat behavior lives in
+  a separate integration module.
+- The maintained isolated worker pins ACP v1 plus Claude Code and Codex
+  profiles. The maintained repository provider uses a service-owned GitHub App
+  and separate trusted Git worker. Bounded Stage-0 evidence includes both model
+  profiles, token and reported-cost status, deliberate ACP-process crash
+  recovery, a mixed tracked/new-file digest match, one Slack-to-draft round
+  trip, and idempotent draft publication. None of this grants merge or deploy
+  authority, and no customer Instance is activated by the Core release.
 - `companyos build` combines clean exact Core and Workspace commits with a
   non-secret Instance declaration into one immutable content-addressed
   artifact. The artifact records both product versions, the SHA pair,
@@ -464,7 +484,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.9`; no
+  builds. Its repository release candidate is `0.1.0-experimental.10`; no
   public package release is claimed.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
@@ -585,7 +605,7 @@ evidence, historical prototypes, and production gaps.
    supervised installation and exposed the provider receipt, runner-root,
    Slack-authorization, naming, and health-readiness gaps addressed by its
    Change Plan; the hardened revision still requires its own independent
-   setup-profile qualification. The opt-in v0.5.0 Company Brain release does
+  setup-profile qualification. The opt-in v0.5.1 Company Brain release does
    not change or qualify that setup profile.
 5. Publish a signed Workbench package so Workspace-only Contributors do not
    require a Core source checkout.
@@ -593,6 +613,10 @@ evidence, historical prototypes, and production gaps.
    unattended agent receives repository write, merge, or deployment authority;
    the maintained supervised starter deliberately grants none of those
    capabilities.
+7. Operate and review 10–20 representative proposal-only Builder jobs across
+   content, behavior, expected failure, cancellation, and recovery cases before
+   considering broader pilot guidance. This is supervised operational evidence,
+   not a threshold for auto-merge or deployment authority.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.

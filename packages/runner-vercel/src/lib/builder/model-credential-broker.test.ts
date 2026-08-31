@@ -20,6 +20,7 @@ test("Codex credential binding keeps the real credential outside the agent envir
   const binding = createVercelModelCredentialBinding("codex", secret);
   assert.equal(binding.host, "api.openai.com");
   assert.equal(binding.agentEnvironment.CODEX_API_KEY, "companyos-builder-broker-placeholder");
+  assert.equal(binding.agentEnvironment.DEFAULT_AUTH_REQUEST, '{"methodId":"api-key"}');
   assert.equal(JSON.stringify(binding.agentEnvironment).includes(secret), false);
   assert.equal(JSON.stringify(modelCredentialBindingEvidence(binding)).includes(secret), false);
   assert.equal(JSON.stringify(binding.networkPolicy).includes(secret), true);

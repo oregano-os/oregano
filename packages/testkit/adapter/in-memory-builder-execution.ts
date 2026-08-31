@@ -16,6 +16,7 @@ interface FakeExecution {
   state: BuilderExecutionState;
   finishedAt?: string;
   evidence: Record<string, unknown>;
+  artifacts?: BuilderExecutionResult["artifacts"];
   disposed: boolean;
 }
 
@@ -69,6 +70,7 @@ export class InMemoryBuilderExecutionAdapter implements BuilderExecutionAdapter 
       startedAt: this.#now(),
       state: "running",
       evidence: {},
+      artifacts: undefined,
       disposed: false,
     });
     this.#store.jobExecutions.set(request.jobId, executionId);
@@ -98,6 +100,7 @@ export class InMemoryBuilderExecutionAdapter implements BuilderExecutionAdapter 
       startedAt: execution.startedAt,
       finishedAt: execution.finishedAt,
       evidence: structuredClone(execution.evidence),
+      artifacts: execution.artifacts ? structuredClone(execution.artifacts) : undefined,
     };
   }
 
@@ -110,12 +113,14 @@ export class InMemoryBuilderExecutionAdapter implements BuilderExecutionAdapter 
     handle: BuilderExecutionHandle,
     state: Extract<BuilderExecutionState, "succeeded" | "failed" | "timed_out">,
     evidence: Record<string, unknown> = {},
+    artifacts?: BuilderExecutionResult["artifacts"],
   ): void {
     const execution = this.#fromHandle(handle);
     if (this.#isTerminal(execution.state)) throw new Error("Builder execution is already terminal.");
     execution.state = state;
     execution.finishedAt = this.#now();
     execution.evidence = structuredClone(evidence);
+    execution.artifacts = artifacts ? structuredClone(artifacts) : undefined;
   }
 
   isDisposed(handle: BuilderExecutionHandle): boolean {

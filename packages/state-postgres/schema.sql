@@ -138,3 +138,53 @@ create table if not exists companyos.published_artifacts (
   run_id text not null references companyos.workflow_runs(run_id),
   published_at timestamptz not null default now()
 );
+
+create table if not exists companyos.builder_jobs (
+  job_id                text primary key,
+  request_id            text not null unique,
+  fingerprint           text not null,
+  input                 jsonb not null,
+  state                 text not null
+                        check (state in ('queued','preparing_source','executing','validating','publishing','published','failed','cancelled')),
+  attempts              integer not null default 0,
+  lease_owner           text,
+  lease_token           text,
+  lease_expires_at      timestamptz,
+  cancel_requested_at   timestamptz,
+  execution_handle      jsonb,
+  evidence              jsonb,
+  terminal_reason       text,
+  notification_state    text check (notification_state in ('pending','delivered')),
+  notification_attempts integer not null default 0,
+  notification_next_attempt_at timestamptz,
+  notification_lease_owner text,
+  notification_lease_token text,
+  notification_lease_expires_at timestamptz,
+  notification_delivered_at timestamptz,
+  notification_last_error text,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+create index if not exists builder_jobs_claim_idx
+  on companyos.builder_jobs(state, lease_expires_at, created_at);
+create index if not exists builder_notifications_claim_idx
+  on companyos.builder_jobs(notification_state, notification_next_attempt_at, notification_lease_expires_at)
+  where notification_state = 'pending';
+
+create table if not exists companyos.repository_installations (
+  binding_id             text primary key,
+  instance_id            text not null,
+  provider_id            text not null,
+  service_environment    text not null,
+  installation_id        text not null,
+  provider_repository_id text not null,
+  repository_id          text not null,
+  owner_name             text not null,
+  repository_name        text not null,
+  default_branch         text not null,
+  status                 text not null check (status in ('active','suspended','revoked')),
+  verified_at            timestamptz not null,
+  updated_at             timestamptz not null,
+  provider_receipt       jsonb not null,
+  unique (instance_id, provider_id, service_environment, provider_repository_id)
+);

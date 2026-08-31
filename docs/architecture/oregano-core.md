@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -24,7 +24,8 @@ used, and what evidence exists.
 The Core Builder compiles an exact Workspace and non-secret Instance
 declaration into an immutable artifact. The artifact contains scoped agent
 material, roster principals, resolved ToolSets, restricted Company Tool code,
-Capability contracts, exact Connector bindings, and provenance. Runtime
+Capability contracts, exact Connector bindings, deterministic Agent Bindings,
+optional non-secret Builder bindings, and provenance. Runtime
 execution validates schemas, grants, approvals, idempotent effects, and
 evidence without reading the Git repositories again.
 
@@ -37,6 +38,26 @@ Anthropic provider for model turns, and the Postgres Chat State adapter for
 durable subscriptions, locks, queues, and conversations. It
 registers only the Artifact's resolved ToolSet and delegates approvals and
 effects to `CompanyOSRuntime`. The legacy Eve adapter remains retired.
+
+Core also owns the provider-neutral, proposal-only Builder control path:
+
+- `AgentResolver` selects one compiled Company Agent from exact trusted
+  surface, account, and channel bindings and fails closed on ambiguity.
+- `BuilderService` owns immutable jobs, leases, recovery, cancellation,
+  independent diff inspection, Workbench validation, and proposal-only
+  authority.
+- `RepositorySourceAdapter` materializes one exact revision and
+  `ProposalPublisher` publishes only independently checked evidence.
+- The private `BuilderExecutionAdapter` controls isolated worker lifecycle.
+  The maintained profile uses Vercel Sandbox, but this host is replaceable.
+- ACP v1 is private communication inside that worker with exactly pinned
+  Claude Code or Codex adapters. ACP is not the normal Runner, Tool, approval,
+  repository, or governance contract.
+
+The Runner imports only a thin Builder chat integration. Removing or disabling
+that integration does not replace `CompanyOSRuntime`, the normal model loop,
+Knowledge Tools, or Agent routing. Concrete provider SDKs and credentials stay
+inside adapters or the Company Instance.
 
 Core changes are rare for Workspace Contributors. A Workspace Contributor who
 finds a missing generic mechanism files a Core capability request rather than

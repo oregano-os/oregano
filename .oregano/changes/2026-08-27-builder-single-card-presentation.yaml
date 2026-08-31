@@ -1,0 +1,60 @@
+version: 1
+plan_id: builder-single-card-presentation-2026-08-27
+status: implemented
+author: codex-agent
+created: 2026-08-27
+title: Make the Builder confirmation card the sole visible acknowledgement
+objective: >-
+  Suppress the normal generated Runner acknowledgement after
+  builder.propose_change has successfully posted its confirmation card, while
+  retaining a canonical hidden conversation-history entry for subsequent turns.
+non_goals:
+  - Delete Builder messages that were posted before this change.
+  - Change Builder execution, validation, proposal publication, or terminal notification behavior.
+  - Suppress normal model responses when no Builder confirmation card was successfully posted.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-27-builder-single-card-presentation.yaml
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/presentation.ts
+  - packages/runner-vercel/src/lib/builder/presentation.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-request-in-codex-task-for-one-builder-message-only
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-builder-single-card-presentation.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-builder-single-card-presentation.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/builder/presentation.test.ts
+  - git diff --check
+tests:
+  - A successful builder.propose_change result suppresses the generated visible acknowledgement.
+  - A failed or absent Builder confirmation result leaves the normal generated response visible.
+  - The conversation ledger receives a deterministic hidden acknowledgement instead of model-authored duplicate text.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - status.current
+    - guide.operate-builder
+rollback: >-
+  Revert the successful-card presentation check so the Runner resumes posting
+  the generated model response after every turn. Existing confirmation and
+  terminal cards remain valid and no Builder job state requires migration.
+open_decisions: []

@@ -1,0 +1,59 @@
+version: 1
+plan_id: builder-slack-confirmation-resolution-2026-08-27
+status: implemented
+author: codex-agent
+created: 2026-08-27
+title: Resolve Builder confirmation cards after a human decision
+objective: >-
+  Replace the original Builder confirmation card with its final queued or
+  cancelled state so a completed decision cannot remain visually actionable,
+  while preserving idempotent retry and provider-neutral Chat adapter behavior.
+non_goals:
+  - Change Agent resolution, Builder execution, repository publication, merge, or deployment behavior.
+  - Introduce Slack-specific API calls or Vercel Connect as a CompanyOS contract.
+  - Change the authenticated requester or exact-base confirmation requirements.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-27-builder-slack-confirmation-resolution.yaml
+  - docs/specifications/builder-governance.md
+  - docs/workbench/guides/operate-builder.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/action-cards.ts
+  - packages/runner-vercel/src/lib/builder/action-cards.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-27
+    evidence: explicit-user-instruction-in-codex-task-to-fix-the-builder-confirmation-card
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-27-builder-slack-confirmation-resolution.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-27-builder-slack-confirmation-resolution.yaml
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/builder/action-cards.test.ts
+  - git diff --check
+tests:
+  - A queued replacement card contains no Start proposal or confirmation Cancel action and retains only authenticated job cancellation.
+  - A cancelled replacement card contains no actions.
+  - The confirmation token is consumed only after the original action message is replaced successfully.
+  - A failed message replacement leaves the confirmation retryable without creating an untracked second Builder request.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - guide.operate-builder
+rollback: >-
+  Revert the provider-neutral action-card replacement helper and restore posting
+  a separate queued or cancelled message. Existing durable Builder jobs and
+  draft proposals remain unchanged and retain their normal evidence.
+open_decisions: []

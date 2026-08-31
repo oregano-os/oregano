@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -36,6 +36,39 @@ flowchart LR
     R --> N["StateStore<br/>reference: Neon/Postgres"]
     R --> K["Bound Connectors<br/>communication and business providers"]
 ```
+
+An Instance may additionally opt into the proposal-only Builder. These
+bindings are separate even when one maintained deployment hosts them:
+
+```mermaid
+flowchart TB
+    A["Immutable Artifact<br/>Agents + Agent Bindings"] --> R["Runner Adapter<br/>conversation transport"]
+    A --> BS["BuilderService<br/>provider-neutral control"]
+    I["Non-secret Instance configuration"] --> ER["BuilderExecutionAdapter<br/>maintained: Vercel Sandbox"]
+    I --> CP["Coding profile<br/>ACP v1: Claude Code or Codex"]
+    I --> RS["RepositorySourceAdapter"]
+    I --> PP["ProposalPublisher"]
+    S["Instance secret store"] --> R
+    S --> ER
+    S --> RS
+    S --> PP
+    BS --> ER
+    ER --> CP
+    BS --> RS
+    BS --> PP
+```
+
+Changing the runtime host does not select a repository provider or coding
+agent. Changing Claude Code to Codex does not change the normal Runner. The
+Workspace declares company behavior and repository identity; the Instance
+binds qualified implementations, repository installations, and secrets.
+
+The optional proposal target branch is compiled into the Artifact, copied into
+each immutable job, shown during confirmation, and checked with the exact base
+commit. Without it, the provider-verified default branch is used. A hosted
+provider may privately compose a separate trusted Git worker when the normal
+runtime lacks Git; that worker receives short-lived repository authority but
+never runs the coding agent. The coding snapshot remains credential-free.
 
 Vercel is the maintained reference runtime host, not the Instance itself.
 Neon/Postgres is the maintained reference durable StateStore. Both are
@@ -88,6 +121,18 @@ credentials live in CI secrets. The Workspace declares required logical
 connections, allowed scopes, and secret references but never contains values.
 Local development uses an ignored `.env.local` populated from an approved
 secret source.
+
+The maintained GitHub repository binding uses one service-owned GitHub App per
+service environment. Each company installs that same App and selects its
+repositories; customers do not create an App or copy a long-lived token.
+Verified installation and repository identities are durable Instance state.
+Separate short-lived, repository-scoped credentials are minted for exact
+source acquisition and checked proposal publication and never enter Builder
+jobs or coding-agent processes.
+
+The isolated coding snapshot pins the ACP SDK and Claude Code/Codex adapters.
+General provider keys remain ordinary Instance secrets named
+`ANTHROPIC_API_KEY` and `OPENAI_API_KEY`, not Builder-specific configuration.
 
 Database setup distinguishes resource provisioning from schema preparation.
 The State Service adapter first creates or explicitly adopts one database

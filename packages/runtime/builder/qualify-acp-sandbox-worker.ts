@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { isPathInsideBuilderWorkspace, runBuilderAcp } from "./acp-client.ts";
+import { createBuilderAcpPermissionPolicy, runBuilderAcp } from "./acp-client.ts";
 import { resolveBuilderAcpProfile } from "./profiles.ts";
 
 const profile = resolveBuilderAcpProfile(process.argv[2] ?? "");
@@ -19,13 +19,7 @@ const evidence = await runBuilderAcp({
   ].join("\n"),
   timeoutMs: 120_000,
   environment,
-  permissionPolicy: (permission) => {
-    const locations = permission.toolCall.locations ?? [];
-    const bounded = locations.length > 0
-      && locations.every((location) => isPathInsideBuilderWorkspace(workspace, location.path));
-    if (!bounded) return undefined;
-    return permission.options.find((option) => option.kind === "allow_once")?.optionId;
-  },
+  permissionPolicy: createBuilderAcpPermissionPolicy(profile, workspace),
 });
 
 const content = await readFile(resolve(workspace, "fixture.txt"), "utf8");
@@ -49,6 +43,9 @@ function agentEnvironment(profileId: typeof profile.id): Record<string, string> 
     TMPDIR: "/tmp",
   };
   if (profileId === "claude-code") environment.ANTHROPIC_API_KEY = placeholder;
-  else environment.CODEX_API_KEY = placeholder;
+  else {
+    environment.CODEX_API_KEY = placeholder;
+    environment.DEFAULT_AUTH_REQUEST = JSON.stringify({ methodId: "api-key" });
+  }
   return environment;
 }

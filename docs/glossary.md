@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -166,6 +166,43 @@ The technical distribution of the Workbench, initially the `@companyos/cli`
 package. “Workbench” is the product-facing name; “toolchain” describes the
 versioned artifact.
 
+### Agent Binding
+A non-secret Company Instance declaration that maps one exact trusted
+communication surface, account, and channel to one compiled Company Agent. It
+selects an Agent; it does not grant a Tool, start a coding worker, or infer
+intent from message text.
+
+### AgentResolver
+The deterministic Core component that evaluates Agent Bindings. An exact match
+wins; an explicitly declared default may handle unmatched routes; ambiguous or
+unconfigured multi-agent routes fail closed.
+
+### BuilderService
+The provider-neutral Core coordinator for confirmed proposal-only Builder jobs.
+It controls immutable input, leases, recovery, cancellation, repository source,
+isolated coding, independent validation, and checked draft publication. It has
+no merge or deployment authority.
+
+### RepositorySourceAdapter
+The provider-neutral contract that materializes one exact repository revision
+for a Builder job without exposing repository credentials to the coding
+process.
+
+### ProposalPublisher
+The separate trusted repository contract that may publish only an independently
+validated Builder diff as a draft proposal. It cannot merge or deploy it.
+
+### BuilderExecutionAdapter
+The private worker-lifecycle boundary used by `BuilderService`. The maintained
+implementation uses Vercel Sandbox, but the Core contract does not require
+Vercel.
+
+### Agent Client Protocol (ACP)
+The private protocol used inside the isolated Builder worker to communicate
+with an exactly pinned Claude Code or Codex adapter. ACP is not CompanyOS Agent
+routing and does not replace Runner, Tool, approval, StateStore, repository, or
+governance contracts.
+
 ## Ecosystem terms
 
 ### CompanyOS Package
@@ -284,9 +321,11 @@ An automated CompanyOS Contributor, such as Codex or Claude Code. An Agent
 Contributor receives no authority from its model, prompt, or contributor type.
 
 ### Builder Agent
-The future governed CompanyOS agent under `agents/builder/` that proposes
-Company Workspace changes from authorized requests. This name is reserved for
-that product component and is not a synonym for Contributor.
+The experimental governed CompanyOS agent under `agents/builder/` that proposes
+Company Workspace changes from authorized requests. Selecting it starts a
+normal Runner conversation; only the requester's explicit confirmation starts
+an isolated coding job. This name is reserved for that product component and
+is not a synonym for Contributor or coding agent.
 
 ## Authority roles
 

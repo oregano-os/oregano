@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-23
+updated: 2026-08-26
 owners:
   - oregano-maintainers
 audience:
@@ -168,6 +168,19 @@ Oregano Maintainer may authorize a checked Core change without a second person.
 Every operating agent MUST have a stable identifier, purpose, scope, allowed
 inputs, allowed outputs, escalation route, and explicit Tool grants.
 
+A multi-agent Artifact MUST compile deterministic Agent Bindings from
+non-secret Company Instance configuration. Runtime selection MUST use trusted
+surface, account, and channel identities; a model MUST NOT select an Agent from
+message intent. Exact duplicate routes are invalid. A multi-agent Instance
+without a matching binding MUST use an explicitly declared default Agent or
+fail closed. Artifact order MUST NOT select authority.
+
+The Builder Agent is an ordinary separately addressable Company Agent for
+conversation routing. Its confirmed proposal operation MAY delegate one
+Workspace-editing job to an isolated coding agent, but that execution does not
+grant the coding agent Company Agent, Tool, approval, repository-publication,
+merge, or deployment authority.
+
 Every executable workflow MUST define:
 
 - trigger, goal, owner, and process boundary;
@@ -255,6 +268,17 @@ Every controlled effect MUST have:
 
 Retries MUST NOT create duplicate effects. A completed approval MUST NOT be
 reused for a materially different effect.
+
+Builder proposal jobs MUST persist immutable requester, Instance, Agent,
+repository, exact-base, execution-profile, and coding-profile inputs.
+Transitions and leases MUST be guarded and recoverable. Source materialization,
+coding execution, diff validation, and proposal publication MUST be separate
+steps. Repository credentials MUST NOT enter the coding process. Publication
+MUST use independently checked diff evidence through a trusted outer
+publisher, and the Builder MUST NOT merge or deploy its proposal. A hosted
+repository adapter MAY delegate Git commands to a private trusted execution
+boundary, but that boundary MUST NOT run the coding agent and MUST transfer
+only bounded credential-free source into coding.
 
 ## 10. Company Instance and deployment provenance
 

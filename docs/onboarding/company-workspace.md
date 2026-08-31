@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -270,3 +270,24 @@ review quarantined candidates. Restricted OKF uses `visibility` plus
 or prompt text as access control. A sensitive Source Connector remains disabled
 until its external-principal and provider-ACL mappings pass negative conformance
 tests, even when the Core authorization tests pass.
+
+## 10. Activate the proposal-only Builder when approved
+
+Do not add the Builder merely to complete onboarding. When a Workspace Steward
+approves an experimental pilot, retain `agents/builder/` as ordinary company
+behavior and bind it through one exact Instance Agent Binding. Separately bind
+the isolated execution profile, one `claude-code` or `codex` ACP profile, the
+verified repository source and proposal publisher, and the optional fixed
+proposal target branch.
+
+Follow the version-matched [Operate the
+Builder](../workbench/guides/operate-builder.md) Guide. Qualify the coding and
+trusted Git snapshots, repository installation, model accounting, crash
+recovery, independent diff digest, Workbench validation, terminal Slack card,
+and idempotent draft publication before activating the channel. Keep model and
+repository credentials only in the Instance secret and provider boundaries.
+
+The first pilot remains proposal-only. The requester confirms execution in
+Slack, but reviews and merges the resulting draft in the Git host. Deployment
+uses the ordinary exact-pair Instance release process and is never implied by
+the Builder confirmation or draft proposal.

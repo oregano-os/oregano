@@ -1,17 +1,17 @@
 version: 1
 plan_id: builder-acp-stage-0-2026-08-26
-status: approved
+status: implemented
 author: codex-agent
 created: 2026-08-26
 title: Qualify the Builder ACP and execution-provider boundary
 objective: >-
   Prove a minimal provider-neutral Builder execution contract and a bounded ACP
-  v1 conformance path for exactly pinned Claude Code and Codex profiles before
-  integrating the Builder Agent into the production Runner or granting proposal
-  publication authority.
+  v1 conformance path for exactly pinned Claude Code and Codex profiles, then
+  qualify one explicitly isolated Slack-to-draft-proposal path before enabling
+  any customer production Builder binding.
 non_goals:
-  - Expose the Builder Agent in Slack or another production communication surface.
-  - Add production Builder jobs, database migrations, Agent Bindings, or Agent resolution.
+  - Enable a Builder Agent Binding in a customer production Company Instance.
+  - Merge or deploy a Builder proposal.
   - Grant a coding agent Git write, merge, deployment, production-provider, or production-database credentials.
   - Create a public execution-provider registry or a general AgentRuntimeAdapter.
   - Add silent native fallbacks when an ACP profile fails qualification.
@@ -26,12 +26,20 @@ vision_principles_affected:
 files_expected:
   - .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - docs/plans/2026-08-26-builder-acp-mvp-implementation.md
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/_generated/document-registry.json
+  - packages/cli/content/guides/operate-builder.md
+  - packages/builder-worker/**
   - packages/runtime/builder/**
   - packages/runner-vercel/package.json
+  - packages/runner-vercel/src/app/api/builder/qualification/route.ts
   - packages/runner-vercel/src/lib/builder/**
   - packages/testkit/adapter/in-memory-builder-execution.ts
   - packages/testkit/fixtures/acp/**
   - packages/testkit/tests/builder-execution.test.ts
+  - packages/testkit/tests/builder-service.test.ts
   - package.json
   - pnpm-lock.yaml
 required_approvals:
@@ -45,8 +53,10 @@ validation:
   - pnpm companyos plan --check .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - pnpm companyos inspect-core --plan .oregano/changes/2026-08-26-builder-acp-stage-0.yaml
   - pnpm docs:check
+  - pnpm check
   - pnpm typecheck
   - pnpm runner:typecheck
+  - pnpm runner:build
   - node --experimental-strip-types --test packages/testkit/tests/builder-execution.test.ts
   - node --experimental-strip-types packages/runtime/builder/qualify-acp.ts claude-code
   - node --experimental-strip-types packages/runtime/builder/qualify-acp.ts codex
@@ -65,19 +75,22 @@ tests:
   - Parallel duplicate delivery returns one named execution, a replacement coordinator recovers it, and provider timeout, cancellation, result collection, and cleanup remain deterministic.
   - Brokered-authentication and private-repository harnesses reject missing dedicated qualification inputs before creating a provider resource.
   - Failure of one profile cannot silently select another profile or protocol.
+  - An exact Slack Agent Binding resolves to Builder, requires human confirmation, and publishes only a checked draft proposal against the confirmed base.
+  - A completed detached worker exits after flushing its result, stale worker markers fail closed, and coordinator polling remains bounded.
+  - Coding and trusted Git sandboxes hash the same canonical multi-file diff before publication.
+  - Execution evidence survives later validation and publication evidence updates.
+  - Every successful fresh ACP session records job-bound token usage and an explicit cost status; provider-reported cost is persisted as estimated, while a missing provider receipt is recorded as unavailable rather than inferred.
+  - A deliberately injected ACP-process SIGKILL produces a job-bound terminal failure receipt; a replacement coordinator recovers the persisted execution handle, produces no diff, and disposes the Sandbox.
 documentation_impact:
-  required: false
-  affected_documents: []
-  reason_if_none: >-
-    This Stage-0 spike adds no production behavior or supported public
-    capability. Its findings update the approved informative implementation
-    plan; canonical architecture and operating documentation are a required
-    Stage-1 deliverable before any Runner integration.
+  required: true
+  affected_documents:
+    - status.current
+    - guide.operate-builder
+    - plan.builder-acp-mvp-implementation
+    - specification.builder-governance
 rollback: >-
-  Remove the isolated Stage-0 Builder files, exact experimental dependencies,
-  tests, and qualification evidence. No Company Workspace, Company Instance,
-  database, deployment, or external provider state is changed.
-open_decisions:
-  - Whether both pinned ACP profiles support brokered authentication without the real provider credential entering the worker environment.
-  - Whether the provider-neutral RepositorySourceAdapter and service-owned GitHub App installation profile materialize an exact private revision without any App or installation credential entering coding-agent execution.
-  - Whether model-backed representative Builder jobs stay within the required duration and cost envelope and recover cleanly from a process crash during an ACP prompt.
+  Revert the isolated Stage-0 Builder files, exact experimental dependencies,
+  tests, and qualification evidence; close the unmerged qualification drafts;
+  remove the isolated Instance deployment and bindings; and revoke its temporary
+  qualification access. No customer production Builder binding was enabled.
+open_decisions: []

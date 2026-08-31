@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   BuilderAcpTimeoutError,
+  createBuilderAcpPermissionPolicy,
   isPathInsideBuilderWorkspace,
   probeBuilderAcpLaunch,
   runBuilderAcp,
   type BuilderAcpLaunch,
+  type BuilderAcpProgressEvidence,
 } from "../../runtime/builder/acp-client.ts";
 import {
   assertBuilderExecutionHandle,
@@ -115,6 +117,7 @@ test("execution state survives coordinator replacement and duplicate delivery", 
 test("ACP profile selection is allowlisted and exactly pinned", () => {
   assert.equal(resolveBuilderAcpProfile("claude-code").version, "0.70.0");
   assert.equal(resolveBuilderAcpProfile("codex").version, "1.6.2");
+  assert.equal(resolveBuilderAcpProfile("codex").sessionMode, "agent");
   assert.throws(() => resolveBuilderAcpProfile("latest-agent"), /Unsupported Builder ACP profile/);
   assert.throws(
     () => assertBuilderAcpProfilePin({ ...BUILDER_ACP_PROFILES.codex, version: "^1.6.2" }),
@@ -124,6 +127,7 @@ test("ACP profile selection is allowlisted and exactly pinned", () => {
 
 test("ACP client probes the exact implementation and denies permissions by default", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-deny-"));
+  const progress: BuilderAcpProgressEvidence[] = [];
   try {
     await writeFile(join(cwd, "fixture.txt"), "base\n", "utf8");
     assert.equal(await probeBuilderAcpLaunch(fakeLaunch, environment), "1.6.2");
@@ -133,14 +137,38 @@ test("ACP client probes the exact implementation and denies permissions by defau
       prompt: "try-to-write-fixture",
       timeoutMs: 5_000,
       environment,
+      onProgress: (event) => { progress.push(event); },
     });
     assert.equal(result.protocolVersion, 1);
     assert.equal(result.profile.version, "1.6.2");
+    assert.equal(result.profile.sessionMode, "agent");
     assert.equal(result.permissionRequests, 1);
     assert.equal(result.approvedPermissions, 0);
     assert.equal(result.deniedPermissions, 1);
     assert.equal(await readFile(join(cwd, "fixture.txt"), "utf8"), "base\n");
-    assert.deepEqual(result.updateKinds, ["agent_message_chunk", "tool_call", "tool_call_update"]);
+    assert.deepEqual(result.updateKinds, ["agent_message_chunk", "tool_call", "tool_call_update", "usage_update"]);
+    assert.deepEqual(result.modelUsage, {
+      attribution: "fresh-acp-session-single-job",
+      model: "fake-model-v1",
+      tokens: {
+        total: 18,
+        input: 10,
+        output: 4,
+        thought: 0,
+        cachedRead: 4,
+        cachedWrite: 0,
+      },
+      cost: {
+        status: "reported",
+        amount: 0.00042,
+        currency: "USD",
+        source: "acp-usage-update",
+        estimated: true,
+      },
+    });
+    assert.equal(progress[0]?.phase, "prompt_started");
+    assert.equal(progress[1]?.phase, "usage_observed");
+    assert.deepEqual(progress[1]?.cost, result.modelUsage.cost);
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
@@ -189,6 +217,31 @@ test("ACP client can allow one bounded change and CompanyOS reads the diff indep
   }
 });
 
+test("Codex workspace-write policy allows one generic execute request without claimed paths", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-codex-execute-"));
+  try {
+    await writeFile(join(cwd, "fixture.txt"), "base\n", "utf8");
+    const result = await runBuilderAcp({
+      launch: fakeLaunch,
+      cwd,
+      prompt: "write-fixture-generic-execute",
+      timeoutMs: 5_000,
+      environment,
+      permissionPolicy: createBuilderAcpPermissionPolicy(BUILDER_ACP_PROFILES.codex, cwd),
+    });
+    assert.equal(result.approvedPermissions, 1);
+    assert.equal(result.deniedPermissions, 0);
+    assert.deepEqual(result.permissionEvidence, [{
+      toolKind: "execute",
+      locationScope: "none",
+      optionKinds: ["allow_once", "reject_once"],
+    }]);
+    assert.equal(await readFile(join(cwd, "fixture.txt"), "utf8"), "changed-by-fake-acp-agent\n");
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
 test("ACP client cancels a hung session at its hard timeout", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-timeout-"));
   try {
@@ -202,6 +255,64 @@ test("ACP client cancels a hung session at its hard timeout", async () => {
       }),
       BuilderAcpTimeoutError,
     );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("ACP client classifies an unexpected coding-agent process exit without waiting for the job timeout", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-crash-"));
+  const startedAt = Date.now();
+  try {
+    await assert.rejects(
+      runBuilderAcp({
+        launch: fakeLaunch,
+        cwd,
+        prompt: "crash-after-prompt",
+        timeoutMs: 5_000,
+        environment,
+      }),
+      /ACP (?:process exited before the active job completed \(SIGKILL\)|connection closed)/,
+    );
+    assert.ok(Date.now() - startedAt < 4_000);
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("ACP client fails closed when an exact profile omits job-bound token usage", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-usage-"));
+  try {
+    await assert.rejects(
+      runBuilderAcp({
+        launch: fakeLaunch,
+        cwd,
+        prompt: "omit-usage",
+        timeoutMs: 5_000,
+        environment,
+      }),
+      /did not report job-bound token usage/,
+    );
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("ACP client records unavailable cost instead of inventing a price when the profile omits it", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "companyos-builder-acp-cost-"));
+  try {
+    await writeFile(join(cwd, "fixture.txt"), "base\n", "utf8");
+    const result = await runBuilderAcp({
+      launch: fakeLaunch,
+      cwd,
+      prompt: "omit-cost",
+      timeoutMs: 5_000,
+      environment,
+    });
+    assert.deepEqual(result.modelUsage.cost, {
+      status: "unavailable",
+      reason: "acp-profile-did-not-report-cost",
+    });
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
