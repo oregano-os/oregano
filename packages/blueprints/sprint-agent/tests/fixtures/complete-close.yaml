@@ -1,0 +1,22 @@
+fixture_id: complete-friday-close
+input:
+  sprint_id: sprint-example-17
+  report_at: 2026-01-16T16:00:00Z
+  participants:
+    - participant_id: participant-alpha
+      display_name: Alex Example
+      approved_absence: false
+  committed_tasks:
+    participant-alpha:
+      - task-example-1
+  submissions:
+    - participant_id: participant-alpha
+      accepted_at: 2026-01-16T15:20:00Z
+      complete: true
+      task_ids:
+        - task-example-1
+expected:
+  classifications:
+    participant-alpha: complete
+  chase_count: 0
+  evaluative_text: false

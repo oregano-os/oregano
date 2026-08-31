@@ -138,3 +138,11 @@ create table if not exists companyos_records.connector_echo_receipts (
 );
 create index if not exists records_connector_echo_expiry_idx
   on companyos_records.connector_echo_receipts(expires_at);
+
+create table if not exists companyos_records.callback_replay_claims (
+  claim_digest text primary key,
+  expires_at timestamptz not null,
+  recorded_at timestamptz not null default now()
+);
+create index if not exists records_callback_replay_expiry_idx
+  on companyos_records.callback_replay_claims(expires_at);

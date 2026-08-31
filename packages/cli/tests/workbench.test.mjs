@@ -780,6 +780,30 @@ test("the property-campaign Blueprint stays declarative and authority-free", () 
   assert.deepEqual(result.package?.permissions.secret_refs, []);
 });
 
+test("the Sprint Agent Blueprint is inspectable, provider-neutral, and authority-free", () => {
+  const root = join(REPO, "packages", "blueprints", "sprint-agent");
+  const result = inspectCompanyOSPackage(root, REPO);
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.package?.id, "oregano/sprint-agent");
+  assert.equal(result.package?.components.filter((component) => component.type === "agent").length, 1);
+  assert.deepEqual(result.package?.requires.capabilities, [
+    "records.query",
+    "work-item.read",
+    "work-item.update",
+    "work-item.comment",
+    "communication.message.publish",
+  ]);
+  assert.deepEqual(result.package?.permissions, { runtime_code: false, network: [], secret_refs: [] });
+
+  const text = readdirSync(root, { recursive: true })
+    .map((relative) => join(root, relative))
+    .filter((path) => lstatSync(path).isFile())
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
+  assert.doesNotMatch(text, /\b[CTU][A-Z0-9]{10,}\b/, "Blueprint contains a provider account, channel, or user identifier.");
+  assert.doesNotMatch(text, /\b\d{10,}\b/, "Blueprint contains a provider resource identifier.");
+});
+
 test("Blueprint Package inspection rejects path, code, permission, and compatibility violations", () => {
   const cases = [
     ["invalid-path-escape", "PKG013"],

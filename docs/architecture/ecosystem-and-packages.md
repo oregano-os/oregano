@@ -86,6 +86,11 @@ Capabilities but does not know that Monday supplies them. A company selects and
 binds the provider in its Instance and grants only the resulting Tools to an
 agent.
 
+The same Sprint Blueprint may require `communication.message.publish` without
+naming Slack. A Slack or another communication Connector implements that
+contract for one exact Instance destination binding. The Blueprint cannot
+select a real channel or install the Connector.
+
 If a needed provider-neutral Capability Contract does not exist, the valid
 contribution is a Core contract proposal. A Package must not create an ad hoc
 provider escape hatch in a Workspace.
@@ -168,7 +173,7 @@ mutation or execution stage exists.
 
 | Stage | Status and outcome | Admission gate |
 |---|---|---|
-| Contract Foundation Lite | implemented: manifest schema, local read-only Blueprint Inspector, enforced seed Compatibility Registry, and repository-local neutral fixtures | this architecture and v0.1 specification approved |
+| Contract Foundation Lite | implemented: manifest schema, local read-only Blueprint Inspector, enforced seed Compatibility Registry, repository-local neutral fixtures, and the authority-free `oregano/sprint-agent` Blueprint | this architecture and v0.1 specifications approved |
 | Blueprint path | local and exact-Git inspect, plan, apply, lock, update, and remove for declarative Packages | deterministic diff, path safety, provenance, and drift tests |
 | Open Registry | open read/publish protocol and reference implementation without mandatory central hosting | publisher ownership, immutable versions, advisories, yank, and revocation policy |
 | Local Tool execution foundation | implemented experimentally: Company Tool contract loading, JSON Schema enforcement, restricted Tool SDK, process isolation, ToolSet resolution, runtime grants, and sandbox Capability evidence | reference campaign security and failure tests pass |

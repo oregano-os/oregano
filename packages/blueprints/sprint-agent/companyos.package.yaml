@@ -1,0 +1,46 @@
+schema_version: 1
+id: oregano/sprint-agent
+version: 0.1.0
+kind: blueprint
+name: Sprint Agent
+description: Provider-neutral supervised weekly Sprint coordination Components.
+license: Apache-2.0
+publisher:
+  id: oregano
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents:
+    - agents/sprint/instructions.md
+  workflows:
+    - workflows/sprint-week.md
+    - workflows/friday-close.md
+    - workflows/records-reconciliation.md
+  skills:
+    - agents/sprint/skills/sprint-sop/SKILL.md
+    - agents/sprint/skills/triage-sop/SKILL.md
+    - agents/sprint/skills/briefing-sop/SKILL.md
+requires:
+  tools:
+    - oregano:records/query
+    - oregano:work-items/read
+    - oregano:work-items/update
+    - oregano:work-items/comment
+    - oregano:communications/publish
+  capabilities:
+    - records.query
+    - work-item.read
+    - work-item.update
+    - work-item.comment
+    - communication.message.publish
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures:
+    - tests/fixtures/complete-close.yaml
+    - tests/fixtures/reformat-close.yaml
+    - tests/fixtures/late-close.yaml
+    - tests/fixtures/untrusted-provider-content.yaml

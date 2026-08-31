@@ -480,6 +480,14 @@
     "availability": null
   },
   {
+    "document_id": "specification.company-records-sprint-v0.1",
+    "title": "Company Records and Sprint Foundation v0.1",
+    "path": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "kind": "specification",
+    "status": "building",
+    "availability": null
+  },
+  {
     "document_id": "specification.companyos-core-v0.7",
     "title": "CompanyOS Core Specification v0.7",
     "path": "docs/specifications/companyos-core-v0.7-draft.md",

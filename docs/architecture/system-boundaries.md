@@ -37,6 +37,14 @@ relations:
 Core must not contain company names, board IDs, channel IDs, company roles,
 company thresholds, company policies, or provider credentials.
 
+Company Records and the Sprint domain follow the same rule. Core owns generic
+source-version, projection, access, freshness, reconciliation, business-time,
+Sprint-event, read-model, intent, durable-timer, idempotency, and evidence
+mechanisms. A maintained Connector may implement a provider protocol inside
+its privileged boundary, but the Sprint domain consumes only normalized
+records and Capability contracts. The declarative Sprint Blueprint remains
+separate from executable domain code.
+
 Every new Change Plan must make this boundary review explicit. It assigns
 responsibilities separately to Core, Packages or Blueprints, the Company
 Workspace, and the Company Instance; reviews the maintained catalog of
@@ -135,6 +143,13 @@ contracts.
 A Workspace never contains runner code, provider SDKs, direct secret access,
 generic enforcement, deployment code, or operational state.
 
+For Company Records and Sprint, the Workspace declares record sources,
+projections, explicit field mappings, access policy, participants, calendar,
+schedule, required briefing fields, close and Rollover policy, logical
+destinations, requested Tools, grants, and the model task profile. It does not
+contain durable synchronized rows, exact Connector credentials, or executable
+provider adapters.
+
 ## A Company Instance owns
 
 - immutable deployment artifacts and their provenance,
@@ -150,6 +165,12 @@ generic enforcement, deployment code, or operational state.
 General model credentials and a service-environment repository App key are
 Instance secrets. They are never Builder-specific Workspace fields and never
 enter the coding process.
+
+For Company Records and Sprint, the Instance also owns the exact database,
+board and channel resources, Connector and external-Agent installations,
+resource and destination bindings, provider permissions, model route, queues,
+durable timers, callback replay claims, echo receipts, approvals, effects, and
+operational evidence.
 
 ## A Package Registry owns
 

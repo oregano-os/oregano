@@ -84,6 +84,11 @@ export function ensureCompanyRecordsSchema(): Promise<void> {
       primary key (instance_id, connector_id, resource_binding, object_id, provider_version, actor_id))`;
     await sql`create index if not exists records_connector_echo_expiry_idx
       on companyos_records.connector_echo_receipts(expires_at)`;
+    await sql`create table if not exists companyos_records.callback_replay_claims (
+      claim_digest text primary key, expires_at timestamptz not null,
+      recorded_at timestamptz not null default now())`;
+    await sql`create index if not exists records_callback_replay_expiry_idx
+      on companyos_records.callback_replay_claims(expires_at)`;
   })();
   return migration;
 }

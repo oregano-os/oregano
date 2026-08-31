@@ -69,6 +69,60 @@ test("a material Workspace change changes the immutable artifact hash", () => {
   }
 });
 
+test("Artifact building resolves the provider-neutral Sprint standard Tools when explicitly granted and bound", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-sprint-standard-tools-"));
+  cpSync(FIXTURE, root, { recursive: true });
+  try {
+    const agentPath = join(root, "agents", "growth", "instructions.md");
+    writeFileSync(agentPath, readFileSync(agentPath, "utf8").replace(
+      "  - company:stop-asset\n",
+      "  - company:stop-asset\n  - oregano:records/query\n  - oregano:work-items/read\n  - oregano:work-items/update\n  - oregano:work-items/comment\n  - oregano:communications/publish\n",
+    ));
+    const connectionPath = join(root, "connections", "marketing.md");
+    writeFileSync(connectionPath, readFileSync(connectionPath, "utf8").replace(
+      "  - conversion.record\n",
+      "  - conversion.record\n  - records.query\n  - work-item.read\n  - work-item.update\n  - work-item.comment\n  - communication.message.publish\n",
+    ));
+    const sprintCapabilities = [
+      "records.query",
+      "work-item.read",
+      "work-item.update",
+      "work-item.comment",
+      "communication.message.publish",
+    ];
+    const artifact = buildCompanyOSArtifact({
+      workspaceRoot: root,
+      instance: {
+        ...instance,
+        bindings: [
+          ...instance.bindings,
+          ...sprintCapabilities.map((capability) => ({
+            capability,
+            contractVersion: "1.0.0",
+            connector: "oregano/synthetic-sprint-connector",
+            connectorVersion: "1.0.0",
+          })),
+        ],
+      },
+      coreVersion: "0.5.2",
+      coreCommit: CORE_COMMIT,
+      workspaceCommit: WORKSPACE_COMMIT,
+      workbenchVersion: "0.1.0-experimental.10",
+      builtAt: "2026-08-31T12:00:00.000Z",
+    });
+    const runtimeIds = artifact.agents[0].tools.map((tool) => tool.contract.runtimeId);
+    for (const runtimeId of [
+      "oregano:records/query",
+      "oregano:work-items/read",
+      "oregano:work-items/update",
+      "oregano:work-items/comment",
+      "oregano:communications/publish",
+    ]) assert.ok(runtimeIds.includes(runtimeId), runtimeId);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("the Builder rejects ambiguous product versions", () => {
   assert.throws(() => buildCompanyOSArtifact({
     workspaceRoot: FIXTURE,

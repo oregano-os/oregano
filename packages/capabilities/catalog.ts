@@ -258,4 +258,25 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
     idempotency: "required",
     evidence: ["resource_binding", "work_item_id", "comment_id", "provider_version", "created_at", "connector"],
   },
+  {
+    id: "communication.message.publish",
+    version: "1.0.0",
+    description: "Publish one bounded internal message through an exact Instance destination binding.",
+    mode: "effect",
+    minimumRisk: "R2",
+    inputSchema: object(["destination_binding", "content"], {
+      destination_binding: { type: "string", minLength: 1, maxLength: 63 },
+      content: { type: "string", minLength: 1, maxLength: 20_000 },
+      thread_reference: { type: "string", minLength: 1, maxLength: 1_000 },
+      format: { type: "string", enum: ["plain-text", "provider-markdown"] },
+    }),
+    outputSchema: object(["message_id", "destination_binding", "published_at"], {
+      message_id: { type: "string" },
+      destination_binding: { type: "string" },
+      thread_reference: { type: "string" },
+      published_at: { type: "string" },
+    }),
+    idempotency: "required",
+    evidence: ["destination_binding", "message_id", "thread_reference", "published_at", "connector"],
+  },
 ] as const;

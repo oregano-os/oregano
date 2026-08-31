@@ -287,6 +287,26 @@ exist only in an endpoint process. Durable authority remains in StateStore and
 Core controls; a queue is an execution mechanism, not an authority boundary.
 Webhook and scheduled execution enter the same provider-neutral module path.
 
+The maintained records foundation uses an additive `companyos_records` schema
+inside the existing Company Instance database. It is isolated from the
+`companyos` and `companyos_knowledge` schemas and contains immutable source
+events and object versions, current pointers, rebuildable projection rows,
+access decisions, synchronization receipts and watermarks, leases, durable
+timers, Connector echo receipts, and callback replay claims. The schema is
+prepared idempotently when the records implementation is activated; Core
+release alone does not migrate a real Instance. Synchronized values remain
+operational evidence and do not become Handbook or provider authority.
+
+The maintained Monday adapter is Core-owned privileged Connector code, while
+the board account, external Agent registration, permissions, board grants,
+callback route, signing material, exact resource bindings, and activation
+receipts are Instance state. Conversational callbacks are signature- and
+replay-verified before `AgentResolver` selects the compiled Agent. Board-change
+callbacks bypass the chat prompt and enter the records and Sprint path. An
+outbound Sprint message similarly resolves the provider-neutral
+`communication.message.publish` Capability to an exact destination binding;
+the Sprint Blueprint does not know a channel ID.
+
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent
 through the existing contracts. An Instance Gateway is considered only when

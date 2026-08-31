@@ -1,0 +1,21 @@
+fixture_id: friday-close-needs-reformat
+input:
+  sprint_id: sprint-example-18
+  participants:
+    - participant_id: participant-beta
+      display_name: Bailey Example
+      approved_absence: false
+  committed_tasks:
+    participant-beta:
+      - task-example-2
+      - task-example-3
+  submission:
+    participant_id: participant-beta
+    complete: false
+    task_ids:
+      - task-example-2
+expected:
+  classification: needs-reformat
+  clarification_questions: 1
+  invented_task_status: false
+  inferred_reason: false

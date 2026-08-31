@@ -4,6 +4,9 @@ import { test } from "node:test";
 import { CORE_CAPABILITY_CATALOG } from "../../capabilities/catalog.ts";
 import type { JsonSchema } from "../../capabilities/contracts.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
+import { STANDARD_COMMUNICATION_TOOLS } from "../../standard-tools/communication.ts";
+import { STANDARD_RECORDS_TOOLS } from "../../standard-tools/records.ts";
+import { STANDARD_WORK_ITEM_TOOLS } from "../../standard-tools/work-items.ts";
 
 const schema = (name: string): JsonSchema => JSON.parse(readFileSync(new URL(`../../schema/${name}`, import.meta.url), "utf8")) as JsonSchema;
 
@@ -38,16 +41,33 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
   assert.deepEqual(validateJsonSchemaValue(schema("sprint-domain-v1.schema.json"), sprint), []);
 });
 
-test("the Core catalog owns provider-neutral records and work-item contracts", () => {
+test("the Core catalog owns provider-neutral records, work-item, and communication contracts", () => {
   const byId = new Map(CORE_CAPABILITY_CATALOG.map((contract) => [contract.id, contract]));
   assert.equal(byId.get("records.query")?.mode, "read");
   assert.equal(byId.get("work-item.read")?.minimumRisk, "R0");
   assert.equal(byId.get("work-item.update")?.idempotency, "required");
   assert.equal(byId.get("work-item.comment")?.idempotency, "required");
+  assert.equal(byId.get("communication.message.publish")?.minimumRisk, "R2");
+  assert.equal(byId.get("communication.message.publish")?.idempotency, "required");
   assert.ok(validateJsonSchemaValue(byId.get("work-item.update")!.inputSchema, {
     resource_binding: "primary-board",
     work_item_id: "item-1",
     changes: { status: "done" },
     expected_version: "v1",
   }).length === 0);
+  assert.deepEqual(validateJsonSchemaValue(byId.get("communication.message.publish")!.inputSchema, {
+    destination_binding: "sprint-channel",
+    content: "The weekly close is ready.",
+    format: "plain-text",
+  }), []);
+});
+
+test("the reusable Sprint standard Tools are available for Artifact ToolSet resolution", () => {
+  assert.deepEqual(STANDARD_RECORDS_TOOLS.map((tool) => tool.contract.runtimeId), ["oregano:records/query"]);
+  assert.deepEqual(STANDARD_WORK_ITEM_TOOLS.map((tool) => tool.contract.runtimeId), [
+    "oregano:work-items/read",
+    "oregano:work-items/update",
+    "oregano:work-items/comment",
+  ]);
+  assert.deepEqual(STANDARD_COMMUNICATION_TOOLS.map((tool) => tool.contract.runtimeId), ["oregano:communications/publish"]);
 });

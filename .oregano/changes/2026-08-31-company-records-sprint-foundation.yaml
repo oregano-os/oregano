@@ -1,6 +1,6 @@
 version: 2
 plan_id: company-records-sprint-foundation-2026-08-31
-status: approved
+status: implemented
 author: codex-agent
 created: 2026-08-31
 title: Add the Company Records and provider-neutral Sprint foundation
@@ -34,6 +34,7 @@ files_expected:
   - packages/capabilities/**
   - packages/cli/src/**
   - packages/cli/tests/**
+  - packages/companyos-builder/**
   - packages/connectors/monday/**
   - packages/domains/sprint/**
   - packages/records/**

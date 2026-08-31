@@ -20,6 +20,39 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Company Records v0.1 implements validated generic source and projection
+  declarations, immutable deduplicated source events and object versions,
+  current pointers, access-scoped rebuildable projections, freshness,
+  watermarks, per-source reconciliation leases, receipts, in-memory and
+  additive Postgres stores, and the standard `records.query` Tool. The
+  isolated `companyos_records` schema also contains durable timers, Connector
+  echo receipts, and digest-only callback replay claims. No real Company
+  Instance database has been migrated by this Core change.
+- The provider-neutral Sprint domain implements validated policy, append-only
+  event reduction, controlled-clock business-time and holiday calculation,
+  frozen-participant Friday completeness, actual-effort and open-work read
+  models, deterministic reminder/report/Rollover intents, and durable timer
+  interfaces with in-memory and Postgres implementations. Public fixtures are
+  synthetic and contain no company people, resources, policy, or credentials.
+- Core now maintains `records.query`, `work-item.read`, `work-item.update`,
+  `work-item.comment`, and `communication.message.publish` Capability contracts
+  plus standard Tools. Artifact building makes those Tools available for
+  normal ToolSet resolution; a Workspace grant still fails unless its Instance
+  binds a compatible Connector.
+- The maintained Monday work-item adapter uses explicit API versioning, exact
+  resource and field bindings, minimum permissions, optimistic version checks,
+  read-after-write evidence, durable echo suppression, raw-body callback
+  signature and timestamp validation, durable replay prevention, and
+  `AgentResolver` for verified conversations. Synthetic Connector tests do not
+  claim a real external Agent registration, account permission, cost, provider
+  conformance, or production activation.
+- The repository-local `oregano/sprint-agent` Blueprint contains one logical
+  Agent Component, portable weekly, Friday Close, and reconciliation
+  Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
+  adversarial synthetic fixtures. Local Package inspection proves that it is
+  declarative and authority-free; Workspace materialization remains an
+  ordinary reviewed diff because Blueprint apply and lock are not implemented.
+
 - Company Knowledge Phase 3A publishes the provider-neutral Source Connector
   `2.0.0` contract for repository, meeting, messaging, email, document,
   local-file, and Session Sources over pull, webhook, and hybrid delivery. Its
@@ -577,9 +610,12 @@ evidence, historical prototypes, and production gaps.
   Instance evidence, not reusable-default qualification. A separate isolated
   non-production Instance and independent receipts remain mandatory before
   using this rollout pattern for another company.
-- Meta, Monday, and other business-provider Connectors are not implemented or
-  activated. Each still needs privileged isolation, provenance, SecretRefs,
-  health, retry, reconciliation, read-after-write, and conformance evidence.
+- Meta and other business-provider Connectors are not implemented or
+  activated. The maintained Monday adapter is implemented and synthetically
+  tested but is not externally registered, Instance-bound, provider-qualified,
+  or activated. Every real provider still needs exact installation authority,
+  secrets, resource grants, health, retry, reconciliation, cost review, staged
+  rollout, and live conformance evidence.
 - Pilot evidence does not establish general production enforcement. Instance
   readiness remains `validated`, not `enforced`, until backup restoration,
   rollback, recovery, alerting, and operator runbooks are exercised and

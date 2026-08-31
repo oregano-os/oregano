@@ -1,0 +1,9 @@
+fixture_id: post-report-friday-close
+input:
+  report_at: 2026-01-16T16:00:00Z
+  accepted_at: 2026-01-16T16:01:00Z
+  complete: true
+expected:
+  friday_report_changed: false
+  next_monday_handoff_eligible: true
+  duplicate_report_published: false
