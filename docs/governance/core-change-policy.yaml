@@ -1,7 +1,18 @@
-version: 1
+version: 2
 review_mode: maintainer
 core_defaults:
   may_only_tighten: true
+architecture_assessment:
+  required_from: "2026-09-01"
+  existing_mechanisms:
+    - agent-resolver
+    - toolset-resolver
+    - model-recipe-resolver
+    - company-records
+    - identity-and-authorization
+    - timers-and-business-time
+    - approvals-effects-and-idempotency
+    - capability-contracts-and-connectors
 documentation_contracts:
   maintained_live_setup:
     paths:

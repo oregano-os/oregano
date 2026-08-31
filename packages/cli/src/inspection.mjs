@@ -130,8 +130,10 @@ export function inspectWorkspace(root, planPath, baseRef) {
       facts,
       diff_classification: diffClassification,
       change_plan: plan,
+      architecture_assessment: plan?.architecture_assessment ?? null,
       required_judgments: [
         "Does this change belong in Core, the Company Workspace, or the Company Instance?",
+        "Does the plan reuse or deliberately extend each applicable Resolver, Company Records service, authority control, timer, effect control, and Connector contract before adding a new mechanism?",
         "Does it duplicate or bypass an existing source of truth?",
         "Can it weaken a Core safety invariant?",
         "Should a company-specific implementation graduate into a generic Core capability?",

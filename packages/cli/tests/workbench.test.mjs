@@ -6,7 +6,12 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import YAML from "yaml";
 import { checkGeneratedDocumentation, inspectDocumentation } from "../src/docs-control.mjs";
-import { changePlanTemplate, validateChangePlan } from "../src/change-plan.mjs";
+import {
+  changePlanTemplate,
+  REQUIRED_ARCHITECTURE_MECHANISMS,
+  validateChangePlan,
+  writeChangePlan,
+} from "../src/change-plan.mjs";
 import { validateWorkspace } from "../src/workspace-validator.mjs";
 import { inspectWorkspace } from "../src/inspection.mjs";
 import { inspectCore, inspectCoreDocumentationImpact } from "../src/core-inspection.mjs";
@@ -29,6 +34,29 @@ import { CORE_VERSION, PACKAGE_MANAGER_SPEC, PNPM_VERSION } from "../src/core-ve
 const REPO = resolve(import.meta.dirname, "..", "..", "..");
 const FIXTURE = join(REPO, "packages", "testkit", "fixtures", "acme-casas");
 const PACKAGE_FIXTURES = join(REPO, "packages", "testkit", "fixtures", "packages");
+
+const completeArchitectureAssessment = (placement = "workspace") => ({
+  responsibilities: {
+    core: [placement === "core" ? "Implement the reusable mechanism." : "No Core change."],
+    packages: ["No Package change."],
+    workspace: [placement === "workspace" ? "Define company policy and workflow values." : "No Workspace change."],
+    instance: [placement === "instance" ? "Bind provider state and secrets." : "No Instance change."],
+  },
+  existing_mechanisms: REQUIRED_ARCHITECTURE_MECHANISMS.map((mechanism) => ({
+    mechanism,
+    decision: "not-applicable",
+    reason: "The bounded test change does not affect this mechanism.",
+  })),
+  new_core_mechanisms: [],
+  boundary_assertions: {
+    company_values_in_core: false,
+    secrets_in_git: false,
+    public_fixtures: placement === "core" ? "synthetic-only" : "not-applicable",
+  },
+  core_reusability: placement === "core"
+    ? "The mechanism is reusable across companies without company values."
+    : "No Core mechanism changes in this plan.",
+});
 
 const withFixture = (fn) => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-workbench-"));
@@ -53,6 +81,7 @@ test("Core governance supports one accountable Oregano Maintainer", () => {
   assert.equal(policy.change_classes.security.approval, "oregano-maintainer");
   assert.equal(policy.change_classes.security.two_person_review, undefined);
   assert.equal(policy.change_classes.security.review_model, undefined);
+  assert.deepEqual(policy.architecture_assessment.existing_mechanisms, REQUIRED_ARCHITECTURE_MECHANISMS);
 
   const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-core-plan-"));
   const planPath = join(temporaryRoot, "self-approved-core-change.yaml");
@@ -71,6 +100,7 @@ test("Core governance supports one accountable Oregano Maintainer", () => {
     validation: ["pnpm check"],
     tests: ["Core inspection accepts the declared maintainer authority"],
     documentation_impact: { required: true, affected_documents: ["governance.core-change-policy"], reason_if_none: "" },
+    architecture_assessment: completeArchitectureAssessment("core"),
     rollback: "Revert the checked change.",
     open_decisions: [],
   }));
@@ -78,6 +108,7 @@ test("Core governance supports one accountable Oregano Maintainer", () => {
     const result = inspectCore(REPO, planPath);
     assert.ok(!result.diagnostics.some((item) => item.code === "PLAN011"));
     assert.ok(!result.diagnostics.some((item) => ["CFIT010", "CFIT011", "CFIT012"].includes(item.code)));
+    assert.deepEqual(result.report.architecture_assessment, completeArchitectureAssessment("core"));
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });
   }
@@ -439,9 +470,113 @@ test("behavior Change Plans require approval, docs impact, and rollback", () => 
     complete.validation = ["companyos validate"];
     complete.tests = ["board rhythm fixture"];
     complete.documentation_impact.affected_documents = ["guide.plan-change"];
+    complete.architecture_assessment = completeArchitectureAssessment("workspace");
     complete.rollback = "Revert the Workspace commit.";
     writeFileSync(path, YAML.stringify(complete));
     assert.deepEqual(validateChangePlan(path), []);
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test("new Change Plans generate the complete version 2 architecture review", () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-plan-generate-"));
+  try {
+    const corePath = join(temporaryRoot, "core.yaml");
+    writeChangePlan(corePath, "core");
+    const core = YAML.parse(readFileSync(corePath, "utf8"));
+    assert.equal(core.version, 2);
+    assert.equal(core.placement, "core");
+    assert.equal(core.architecture_assessment.boundary_assertions.public_fixtures, "synthetic-only");
+    assert.deepEqual(
+      core.architecture_assessment.existing_mechanisms.map((entry) => entry.mechanism),
+      REQUIRED_ARCHITECTURE_MECHANISMS,
+    );
+
+    const workspacePath = join(temporaryRoot, "workspace.yaml");
+    writeChangePlan(workspacePath, "workspace");
+    const workspace = YAML.parse(readFileSync(workspacePath, "utf8"));
+    assert.equal(workspace.architecture_assessment.boundary_assertions.public_fixtures, "not-applicable");
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test("Change Plan version 2 enforces placement, reuse, and neutral-boundary evidence", () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-plan-v2-"));
+  const path = join(temporaryRoot, "change-plan.yaml");
+  try {
+    const plan = structuredClone(changePlanTemplate);
+    Object.assign(plan, {
+      plan_id: "CP-V2",
+      author: "alice",
+      created: "2026-09-01",
+      title: "Add reusable behavior",
+      objective: "Prove architecture assessment enforcement.",
+      placement: "core",
+      change_class: "behavior",
+      required_approvals: ["oregano-maintainer"],
+      validation: ["companyos plan --check"],
+      tests: ["architecture assessment fixture"],
+      rollback: "Revert the change.",
+    });
+    plan.documentation_impact.affected_documents = ["guide.plan-change"];
+    writeFileSync(path, YAML.stringify(plan));
+    const incomplete = validateChangePlan(path);
+    assert.ok(incomplete.some((item) => item.code === "PLAN015"));
+    assert.ok(incomplete.some((item) => item.code === "PLAN017"));
+    assert.ok(incomplete.some((item) => item.code === "PLAN024"));
+
+    plan.architecture_assessment = completeArchitectureAssessment("core");
+    writeFileSync(path, YAML.stringify(plan));
+    assert.deepEqual(validateChangePlan(path), []);
+
+    plan.architecture_assessment.existing_mechanisms.push({
+      mechanism: "agent-resolver",
+      decision: "reuse",
+      reason: "Duplicate must fail.",
+    });
+    plan.architecture_assessment.boundary_assertions.public_fixtures = "not-applicable";
+    writeFileSync(path, YAML.stringify(plan));
+    const invalid = validateChangePlan(path);
+    assert.ok(invalid.some((item) => item.code === "PLAN016"));
+    assert.ok(invalid.some((item) => item.code === "PLAN023"));
+
+    plan.placement = "workspace";
+    plan.architecture_assessment = completeArchitectureAssessment("workspace");
+    plan.architecture_assessment.new_core_mechanisms = ["A misplaced Core mechanism."];
+    writeFileSync(path, YAML.stringify(plan));
+    assert.ok(validateChangePlan(path).some((item) => item.code === "PLAN020"));
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test("legacy Change Plans remain valid only through the version 2 cutoff", () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-plan-v1-"));
+  const path = join(temporaryRoot, "change-plan.yaml");
+  try {
+    const plan = {
+      ...structuredClone(changePlanTemplate),
+      version: 1,
+      plan_id: "CP-V1",
+      author: "alice",
+      created: "2026-08-31",
+      title: "Historical plan",
+      objective: "Prove bounded compatibility.",
+      required_approvals: ["process-steward"],
+      validation: ["companyos validate"],
+      tests: ["legacy plan fixture"],
+      rollback: "Revert the change.",
+    };
+    delete plan.architecture_assessment;
+    plan.documentation_impact.affected_documents = ["guide.plan-change"];
+    writeFileSync(path, YAML.stringify(plan));
+    assert.deepEqual(validateChangePlan(path), []);
+
+    plan.created = "2026-09-01";
+    writeFileSync(path, YAML.stringify(plan));
+    assert.ok(validateChangePlan(path).some((item) => item.code === "PLAN013"));
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });
   }
@@ -474,11 +609,13 @@ test("inspection rejects a plan that understates the governed diff class", () =>
     rollback: "Revert the commit.",
   });
   plan.documentation_impact.affected_documents = ["governance.roles"];
+  plan.architecture_assessment = completeArchitectureAssessment("workspace");
   const planPath = join(workspace, "plan.yaml");
   writeFileSync(planPath, YAML.stringify(plan));
 
   const result = inspectWorkspace(workspace, planPath);
   assert.ok(result.diagnostics.some((item) => item.code === "FIT009" && item.severity === "error"));
+  assert.deepEqual(result.report.architecture_assessment, plan.architecture_assessment);
 }));
 
 test("the Compatibility Registry is structurally valid and references canonical specifications", () => {

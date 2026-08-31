@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-08-31
 owners:
   - oregano-maintainers
 audience:
@@ -18,14 +18,25 @@ Before editing, an Agent Contributor reads the Vision, Glossary, relevant
 specification, relevant Workbench Guide, and the
 [Versioning Policy](versioning-policy.md). It then:
 
-1. classifies the requested outcome as Core, Workspace, or Instance work;
-2. creates a Change Plan for behavior or security changes;
+1. classifies every responsibility as Core, Package or Blueprint, Workspace, or
+   Instance work;
+2. creates a Change Plan for behavior or security changes and completes its
+   placement and reuse assessment;
 3. edits only the authorized repository and paths;
 4. never resolves an open product decision silently;
 5. runs Inspection and Validation;
 6. updates canonical documentation in the same change and lists each affected
    document ID in the Change Plan;
 7. reports tests, remaining risks, and required human approvals.
+
+The placement and reuse assessment is mandatory for newly created Change
+Plans. It records responsibilities at all four boundaries and reviews the
+governed catalog of existing Core mechanisms before proposing another one.
+An applicable Agent, ToolSet, or ModelRecipe Resolver, Company Records service,
+identity control, timer, effect control, or Connector contract must be reused
+or deliberately extended. `not-applicable` requires a reason; omission is not
+a decision. Core proposals must also explain cross-company reusability and
+confirm that public fixtures are synthetic.
 
 `companyos inspect-core` resolves every affected document ID and requires that
 document to be changed in the inspected diff. For contracts listed under

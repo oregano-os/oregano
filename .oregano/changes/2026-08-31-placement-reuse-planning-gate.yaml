@@ -1,0 +1,119 @@
+version: 2
+plan_id: placement-reuse-planning-gate-2026-08-31
+status: implemented
+author: codex-agent
+created: 2026-08-31
+title: Enforce placement, reuse, and company-neutrality review in Change Plans
+objective: >-
+  Make every newly generated Change Plan record and validate the Core,
+  Blueprint or Package, Company Workspace, and Company Instance responsibility
+  split; require an explicit review of existing Core mechanisms before adding
+  behavior; require synthetic public fixtures; and remove private repository
+  identities from public planning evidence.
+non_goals:
+  - Change Sprint runtime behavior or deploy a private pilot Sprint Agent.
+  - Move company-specific operating truth into Oregano Core.
+  - Revalidate or rewrite historical version 1 Change Plans.
+  - Automatically decide semantic architecture quality without accountable review.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - The Workbench guides every Contributor
+  - Documentation is part of the system
+  - Onboarding has no hidden steps
+  - Public contracts are portable and maintained
+files_expected:
+  - .oregano/changes/**
+  - AGENTS.md
+  - docs/**
+  - packages/cli/src/**
+  - packages/cli/content/**
+  - packages/cli/tests/**
+  - scripts/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-31
+    evidence: explicit-user-instruction-in-codex-task-to-implement-the-placement-and-reuse-gate
+architecture_assessment:
+  responsibilities:
+    core:
+      - Change Plan v2 schema, validation, inspection, documentation, and neutral public boundary enforcement.
+    packages:
+      - No Package or Blueprint behavior changes.
+    workspace:
+      - Company plans record company-specific policy, workflow, roles, mappings, and grants without moving them into Core.
+    instance:
+      - Plans record secrets, provider installations, exact bindings, and operational state as Instance responsibilities.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The gate must require future plans to consider the existing deterministic Agent routing mechanism.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: The gate must require future plans to consider existing Tool resolution before adding access paths.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The gate must require future plans to consider existing model task and profile routing.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: This governance change stores no company operational records.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing approval authority controls the protected Core change.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: The planning gate has no scheduled runtime behavior.
+    - mechanism: approvals-effects-and-idempotency
+      decision: not-applicable
+      reason: The planning gate performs no business effect.
+    - mechanism: capability-contracts-and-connectors
+      decision: not-applicable
+      reason: The planning gate adds no provider operation.
+  new_core_mechanisms:
+    - Change Plan v2 architecture assessment and deterministic validator.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The plan format and validator apply to every company, Workspace, Package,
+    provider, and Core feature without embedding one company's operating values.
+validation:
+  - node packages/cli/src/cli.mjs plan --check .oregano/changes/2026-08-31-placement-reuse-planning-gate.yaml
+  - node packages/cli/src/cli.mjs inspect-core --plan .oregano/changes/2026-08-31-placement-reuse-planning-gate.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Newly generated plans use version 2 and contain the complete architecture assessment.
+  - Version 2 plans fail when a responsibility, required mechanism review, boundary assertion, or Core reusability statement is missing or invalid.
+  - Historical version 1 plans remain readable and valid only through the documented legacy boundary.
+  - Core inspection reports the structured placement and reuse assessment.
+  - Public documentation and tests contain no private company or repository identity.
+documentation_impact:
+  required: true
+  affected_documents:
+    - governance.agent-agreement
+    - architecture.boundaries
+    - architecture.validation-inspection
+    - guide.plan-change
+    - command.plan
+    - command.inspect-core
+    - status.current
+migration: >-
+  Change Plan version 1 remains accepted only for plans created on or before
+  2026-08-31. The Workbench generates version 2 from this change forward.
+  Existing stored plans require no rewrite.
+rollback: >-
+  Revert the version 2 template, validator, inspection report, documentation,
+  generated guide, and public-evidence sanitization together. Existing version
+  2 plans remain readable YAML evidence but would require manual review under
+  the prior Workbench until the gate is restored.
+open_decisions: []

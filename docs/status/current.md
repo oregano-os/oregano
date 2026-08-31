@@ -486,6 +486,12 @@ evidence, historical prototypes, and production gaps.
   security checks, onboarding, Package inspection, and Instance artifact
   builds. Its repository release candidate is `0.1.0-experimental.10`; no
   public package release is claimed.
+- Newly generated Change Plans use version 2 and fail closed unless they record
+  the Core, Package or Blueprint, Workspace, and Instance responsibility split;
+  review the governed catalog of existing Resolver, Records, authority, timer,
+  effect, Capability, and Connector mechanisms; preserve company-neutral Core
+  and synthetic public fixtures; and explain Core reusability. Historical
+  version 1 plans dated on or before 2026-08-31 remain valid evidence.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
   compatibility entrypoint. `companyos create workspace` supports interactive

@@ -37,6 +37,16 @@ relations:
 Core must not contain company names, board IDs, channel IDs, company roles,
 company thresholds, company policies, or provider credentials.
 
+Every new Change Plan must make this boundary review explicit. It assigns
+responsibilities separately to Core, Packages or Blueprints, the Company
+Workspace, and the Company Instance; reviews the maintained catalog of
+existing mechanisms; and explains why any new Core mechanism is reusable
+across companies. Provider adapters and Connector Packages may use provider
+SDKs inside their privileged boundary. Generic business domains and
+Capability Contracts remain provider-neutral, while exact provider mappings,
+IDs, schedules, roles, thresholds, and operating policy remain Workspace or
+Instance truth.
+
 The Workbench may maintain a small private setup-adapter boundary for hosted
 installation. A setup profile composes exactly one typed adapter for each
 required role: source host, runtime host, state service, and communication
@@ -158,6 +168,13 @@ Package.
 If a Workspace Contributor needs a generic capability that does not exist, the
 valid action is a Core capability request. Reimplementing it inside a Workspace
 as direct provider access is forbidden, even when it appears faster.
+
+A request for a new Core capability must identify why AgentResolver,
+ToolSetResolver, ModelRecipeResolver, Company Records, identity and
+authorization, timers and business time, approval and effect controls, and
+existing Capability or Connector contracts cannot be reused as-is. Extension
+is preferred to a parallel mechanism when the existing contract has the same
+responsibility.
 
 ## Company Knowledge boundaries
 
