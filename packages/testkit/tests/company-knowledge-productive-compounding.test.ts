@@ -503,7 +503,7 @@ test("the maintained Vercel adapters schedule reconcile, extraction, and compoun
   const expected = [
     { path: "/api/knowledge/sources/granola/reconcile", schedule: "0 */6 * * *" },
     { path: "/api/knowledge/sources/granola/extract", schedule: "15 */6 * * *" },
-    { path: "/api/knowledge/compounding", schedule: "*/15 2-5 * * *" },
+    { path: "/api/knowledge/compounding", schedule: "0 2-5 * * *" },
   ];
   const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };
