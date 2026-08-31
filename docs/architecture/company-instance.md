@@ -307,6 +307,18 @@ outbound Sprint message similarly resolves the provider-neutral
 `communication.message.publish` Capability to an exact destination binding;
 the Sprint Blueprint does not know a channel ID.
 
+The first maintained Monday qualification is deliberately narrower than Agent
+provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
+Company Workspace, one registered OAuth client, API version `2026-07`, the
+read-only scopes `boards:read` and `me:read`, and explicit board IDs. It uses a
+loopback OAuth 2.1 callback with S256 PKCE. The authorization code, verifier,
+client secret, access token, and refresh token stay in process memory and are
+discarded after one metadata query. Only the consenting actor and account,
+scope evidence, board/group/column structure, request evidence, and discovery
+digest enter the mode-0600 Instance qualification receipt. Creating or
+activating an external Agent, retaining its one-time credentials, granting a
+board, deploying a callback, or writing remains a separate confirmed effect.
+
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent
 through the existing contracts. An Instance Gateway is considered only when

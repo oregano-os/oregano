@@ -46,6 +46,14 @@ evidence, historical prototypes, and production gaps.
   `AgentResolver` for verified conversations. Synthetic Connector tests do not
   claim a real external Agent registration, account permission, cost, provider
   conformance, or production activation.
+- The experimental `companyos monday qualify` Workbench path now plans and
+  records one exact read-only Monday OAuth 2.1 qualification. It uses S256 PKCE,
+  requests only `boards:read` and `me:read`, reads metadata for only the named
+  boards, and stores a mode-0600 non-secret receipt containing account,
+  board/group/column, scope, API, request, and digest evidence. Human OAuth
+  credentials are discarded after discovery. This implementation does not
+  prove a real consent, account permission, test board, external Agent,
+  callback deployment, board grant, activation, write, or provider cost.
 - The repository-local `oregano/sprint-agent` Blueprint contains one logical
   Agent Component, portable weekly, Friday Close, and reconciliation
   Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and

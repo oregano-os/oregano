@@ -1,0 +1,129 @@
+version: 2
+plan_id: sprint-instance-phase-6-2026-08-31
+status: implemented
+author: codex-agent
+created: 2026-08-31
+title: Add secret-safe Monday qualification for Sprint Instance rollout
+objective: >-
+  Add a governed Workbench qualification flow that uses Monday OAuth 2.1 with
+  PKCE to inspect explicitly selected test resources, records only non-secret
+  discovery evidence, and leaves real Agent provisioning, write grants,
+  activation, Workspace materialization, and production rollout behind
+  separate human confirmations.
+non_goals:
+  - Persist a human Monday OAuth access token or refresh token.
+  - Create, activate, disconnect, or modify a real Monday Agent in this change.
+  - Grant board write access, mutate a board, create a webhook, deploy a runtime, or change Company Workspace files.
+  - Put a client secret, authorization code, token, signing secret, or database URL in chat, Git, command arguments, logs, or qualification state.
+  - Hard-code a company account, board, group, column, person, schedule, channel, or policy in Oregano Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-08-31-sprint-instance-phase-6.yaml
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/monday-qualify.md
+  - docs/_generated/**
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/monday-qualification.mjs
+  - packages/cli/tests/monday-qualification.test.mjs
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/contracts.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-08-31
+    evidence: explicit-user-instruction-ok-dann-machen-wir-jetzt-phase-6
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the generic OAuth 2.1 PKCE qualification state machine, secret-redaction controls, read-only Monday discovery query, and synthetic tests.
+      - Keep Monday-specific transport behind the maintained Connector and Workbench adapter.
+    packages:
+      - The existing Sprint Blueprint remains unchanged and continues to declare requirements without credentials, bindings, or rollout authority.
+    workspace:
+      - A later reviewed Company Workspace diff will own logical record mappings, Sprint policy, participants, schedules, and connection references.
+    instance:
+      - Own the Monday app registration, browser consent, client-secret injection, selected account and resources, later Agent credentials, grants, callback binding, activation, and qualification receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Later conversational Monday callbacks continue to resolve an Agent only after callback verification; read-only resource discovery does not invoke an Agent.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Qualification grants no Tool; later runtime work-item Tools remain subject to the existing resolver and exact Instance bindings.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: OAuth qualification and board metadata discovery are deterministic and invoke no model.
+    - mechanism: company-records
+      decision: reuse
+      reason: Discovered identifiers prepare later Record Source declarations but do not synchronize provider data or create a second records service.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Monday OAuth identifies the consenting user and account while human approval remains separate from provider authentication.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: This qualification has no schedule or business-time decision.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: The plan hash, write-ahead qualification state, explicit resource list, and no-effect boundary reuse the existing confirmation discipline.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The maintained Monday client gains bounded metadata discovery while work-item capabilities and effect contracts remain unchanged.
+  new_core_mechanisms:
+    - A provider-independent qualification pattern for ephemeral OAuth 2.1 PKCE credentials and non-secret provider-resource discovery receipts, first maintained for Monday.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The qualification lifecycle separates browser consent, memory-only
+    credentials, bounded discovery, non-secret receipts, and later activation.
+    Its security rules apply to other provider adapters, while the maintained
+    Monday transport owns only Monday endpoints, scopes, and response shapes.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-31-sprint-instance-phase-6.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-31-sprint-instance-phase-6.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Planning is read-only, binds the exact client ID, redirect URI, scopes, selected board IDs, state path, and confirmation hash, and contains no secret.
+  - Qualification state refuses credential-shaped values and remains mode 0600 outside Company Workspace material.
+  - OAuth authorization uses a one-time state and S256 PKCE verifier, rejects denial and state mismatch, and never returns or persists tokens.
+  - Token exchange requires exactly the requested read-only scopes and rejects a missing refresh or access credential without logging it.
+  - Discovery requests only explicitly selected boards and returns board, group, and column metadata without items, updates, or values.
+  - Real company identifiers do not occur in Core fixtures or documentation examples.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - command.monday-qualify
+migration: >-
+  This adds an optional qualification command and a read-only Monday client
+  method. Existing Workspaces, Instances, Connectors, schemas, tokens, and
+  deployments remain unchanged. A real run requires a separately registered
+  Monday OAuth app and explicit browser consent.
+rollback: >-
+  Stop any in-progress local callback, discard its non-secret state file, and
+  revert the command, discovery method, documentation, and tests. No OAuth
+  token is retained and no provider resource is created or modified by this
+  qualification boundary.
+open_decisions:
+  - The exact non-production Monday board must be reviewed before a later Agent receives resource access.
+  - External Agent provisioning, one-time credential storage, callback deployment, activation, and write qualification require a separate effect plan and confirmation.

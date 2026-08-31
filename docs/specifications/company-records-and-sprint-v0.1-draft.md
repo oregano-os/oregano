@@ -144,6 +144,18 @@ provider signature. Conversational callbacks use `AgentResolver` after
 verification. Board-change events normalize directly into records and domain
 processing and MUST NOT invoke a conversational Agent.
 
+**CRS-034 — Read-only provider qualification.** The maintained first
+qualification MUST bind one exact Core identity, Company Workspace, OAuth
+client, loopback redirect URI, API version, scope set, and explicit board set
+before browser consent. It MUST use OAuth 2.1 with S256 PKCE and request exactly
+`boards:read` and `me:read`. The authorization code, PKCE verifier, client
+secret, access token, and refresh token MUST remain memory-only and MUST be
+discarded after one bounded metadata query. Persisted evidence MAY contain the
+consenting actor and account, granted scopes, board/group/column structure,
+request metadata, and a discovery digest. It MUST NOT contain items, updates,
+column values, provider credentials, or a completed provider effect. External
+Agent provisioning and activation require a separate effect plan.
+
 ## 5. Blueprint and materialization
 
 **CRS-040 — Sprint Blueprint.** `packages/blueprints/sprint-agent/` is one
@@ -163,7 +175,9 @@ reviewed.
 Repository tests prove schemas, deterministic in-memory and Postgres contracts,
 controlled-clock Sprint decisions, Tool resolution inputs, signed callback
 verification, replay and echo controls, Connector behavior with synthetic
-responses, and read-only Blueprint inspection. They do not prove a real
+responses, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
+discovery, credential-free qualification receipts, and read-only Blueprint
+inspection. They do not prove a real
 provider installation, exact account permission, provider cost, production
 message, production database migration, scheduled execution, or Company
 Workspace rollout. Those claims require separate Instance consent, non-

@@ -22,6 +22,35 @@ export interface MondayGraphqlResponse<T> {
   requestId: string | null;
 }
 
+export interface MondayBoardDiscovery {
+  id: string;
+  name: string;
+  boardKind: string;
+  state: string;
+  permissions: string;
+  workspace: { id: string; name: string } | null;
+  groups: Array<{
+    id: string;
+    title: string;
+    archived: boolean;
+    deleted: boolean;
+  }>;
+  columns: Array<{
+    id: string;
+    title: string;
+    type: string;
+    archived: boolean;
+    revision: string | null;
+    settings: string | null;
+  }>;
+}
+
+export interface MondayResourceDiscovery {
+  actor: { id: string; name: string };
+  account: { id: string; name: string };
+  boards: MondayBoardDiscovery[];
+}
+
 export interface MondayEchoReceipt {
   instanceId: string;
   resourceBinding: string;

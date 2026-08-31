@@ -66,6 +66,27 @@ test("the Monday Connector uses explicit versioning, exact board scope, optimist
   assert.equal(echo?.idempotencyKey, "effect-1");
 });
 
+test("Monday resource discovery returns only exact board structure in requested order", async () => {
+  const requests: Array<{ body: any; headers: Headers }> = [];
+  const fetcher = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    requests.push({ body: JSON.parse(String(init?.body)), headers: new Headers(init?.headers) });
+    return response({
+      me: { id: "member-1", name: "Fixture Member", account: { id: "account-1", name: "Fixture Account" } },
+      boards: [
+        { id: "200002", name: "Roles", board_kind: "private", state: "active", permissions: "view", workspace: null, groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }], columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "rev-2", settings_str: null }] },
+        { id: "200001", name: "Sprint", board_kind: "private", state: "active", permissions: "edit", workspace: { id: "workspace-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "rev-1", settings_str: "{}" }] },
+      ],
+    }, "2026-07");
+  };
+  const client = new MondayClient({ token: "fixture-memory-token", apiVersion: "2026-07", fetcher });
+  const result = await client.discoverResources(["200001", "200002"]);
+  assert.deepEqual(result.data.boards.map((board) => board.id), ["200001", "200002"]);
+  assert.equal(result.data.boards[0].columns[0].revision, "rev-1");
+  assert.deepEqual(requests[0].body.variables.boardIds, ["200001", "200002"]);
+  assert.doesNotMatch(requests[0].body.query, /items|updates|column_values/);
+  assert.equal(requests[0].headers.get("api-version"), "2026-07");
+});
+
 test("the Monday Connector refuses stale versions, unknown fields, read-only effects, and missing claims", async () => {
   const fetcher = async (): Promise<Response> => response(item("v2", "Working"));
   const connector = new MondayWorkItemConnector({

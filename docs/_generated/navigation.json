@@ -128,6 +128,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "command.monday-qualify",
+    "title": "companyos monday qualify",
+    "path": "docs/workbench/commands/monday-qualify.md",
+    "kind": "command",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
     "document_id": "command.onboard",
     "title": "companyos onboard",
     "path": "docs/workbench/commands/onboard.md",

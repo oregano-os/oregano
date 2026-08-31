@@ -1,5 +1,5 @@
 import type { JsonValue } from "../../capabilities/contracts.ts";
-import type { MondayGraphqlResponse, MondayResourceBinding, MondayWorkItem } from "./contracts.ts";
+import type { MondayGraphqlResponse, MondayResourceBinding, MondayResourceDiscovery, MondayWorkItem } from "./contracts.ts";
 
 export type MondayFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -41,6 +41,61 @@ export class MondayClient {
       data: envelope.data,
       apiVersion: response.headers.get("api-version"),
       requestId: response.headers.get("x-request-id"),
+    };
+  }
+
+  async discoverResources(boardIds: string[]): Promise<MondayGraphqlResponse<MondayResourceDiscovery>> {
+    const requested = [...new Set(boardIds.map(String))];
+    if (requested.length === 0 || requested.length > 20) throw new Error("Monday resource discovery requires between one and twenty exact board ids");
+    for (const boardId of requested) if (!/^\d{1,20}$/.test(boardId)) throw new Error(`Monday board id '${boardId}' is invalid`);
+    const response = await this.graphql<{
+      me: { id: string; name: string; account: { id: string; name: string } };
+      boards: Array<{
+        id: string;
+        name: string;
+        board_kind: string;
+        state: string;
+        permissions: string;
+        workspace: { id: string; name: string } | null;
+        groups: Array<{ id: string; title: string; archived?: boolean; deleted?: boolean }>;
+        columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings_str?: string | null }>;
+      }>;
+    }>(`query DiscoverCompanyOSResources($boardIds: [ID!]!) {
+      me { id name account { id name } }
+      boards(ids: $boardIds) {
+        id name board_kind state permissions
+        workspace { id name }
+        groups { id title archived deleted }
+        columns { id title type archived revision settings_str }
+      }
+    }`, { boardIds: requested });
+    const byId = new Map(response.data.boards.map((board) => [String(board.id), board]));
+    const missing = requested.filter((boardId) => !byId.has(boardId));
+    if (missing.length > 0) throw new Error(`Monday did not return explicitly selected board(s): ${missing.join(", ")}`);
+    return {
+      ...response,
+      data: {
+        actor: { id: String(response.data.me.id), name: response.data.me.name },
+        account: { id: String(response.data.me.account.id), name: response.data.me.account.name },
+        boards: requested.map((boardId) => {
+          const board = byId.get(boardId)!;
+          return {
+            id: String(board.id),
+            name: board.name,
+            boardKind: board.board_kind,
+            state: board.state,
+            permissions: board.permissions,
+            workspace: board.workspace ? { id: String(board.workspace.id), name: board.workspace.name } : null,
+            groups: board.groups.map((group) => ({
+              id: String(group.id), title: group.title, archived: group.archived === true, deleted: group.deleted === true,
+            })),
+            columns: board.columns.map((column) => ({
+              id: String(column.id), title: column.title, type: column.type, archived: column.archived === true,
+              revision: column.revision ?? null, settings: column.settings_str ?? null,
+            })),
+          };
+        }),
+      },
     };
   }
 
