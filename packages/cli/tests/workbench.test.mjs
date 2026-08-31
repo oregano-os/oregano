@@ -222,6 +222,87 @@ test("the neutral Company Workspace fixture passes validation", () => {
   assert.equal(result.summary.company_tools, 1);
 });
 
+test("Workspace validation accepts provider-neutral Company Records and Sprint declarations", () => withFixture((workspace) => {
+  mkdirSync(join(workspace, "records", "sources"), { recursive: true });
+  mkdirSync(join(workspace, "records", "projections"), { recursive: true });
+  mkdirSync(join(workspace, "domains"), { recursive: true });
+  writeFileSync(join(workspace, "records", "sources", "work-items.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "work-items",
+    record_type: "work-item",
+    connection: "connections/board.md",
+    resource_binding: "primary-board",
+    delivery: "hybrid",
+    identity: { source_field: "id" },
+    fields: [
+      { target: "title", source: "name", value_type: "string", required: true },
+      { target: "status", source: "columns.status", value_type: "status" },
+    ],
+    access: { read_groups: ["delivery"], write_roles: ["process-owner"] },
+  }));
+  for (const projection of [
+    { id: "participants", record_type: "person-role", fields: [{ name: "name", path: "name" }] },
+    { id: "sprint-items", record_type: "work-item", fields: [{ name: "status", path: "status" }] },
+  ]) writeFileSync(join(workspace, "records", "projections", `${projection.id}.yaml`), YAML.stringify({
+    schema_version: 1,
+    ...projection,
+    freshness: { max_age_minutes: 60 },
+    access: { read_groups: ["delivery"] },
+    materialization: { mode: "database-view" },
+  }));
+  writeFileSync(join(workspace, "domains", "sprint.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "weekly-delivery",
+    participants: { projection: "participants", absence_policy: "exclude-approved" },
+    work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready" },
+    calendar: { timezone: "Europe/Lisbon", business_calendar_ref: "company-calendar", holiday_shift: "previous-business-day" },
+    close: { weekday: "friday", reminder_time: "14:00", complete_by: "16:00", report_at: "17:00" },
+    submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },
+    effort: "actual-hours",
+    rollover: { eligible: "all-open" },
+    delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+    model_task_profile: "sprint-conversation",
+  }));
+
+  const result = validateWorkspace(workspace);
+  assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
+  assert.equal(result.summary.record_sources, 1);
+  assert.equal(result.summary.record_projections, 2);
+  assert.equal(result.summary.sprint_domains, 1);
+}));
+
+test("Workspace validation rejects unsafe or unresolved structured declarations", () => withFixture((workspace) => {
+  mkdirSync(join(workspace, "records", "projections"), { recursive: true });
+  mkdirSync(join(workspace, "domains"), { recursive: true });
+  writeFileSync(join(workspace, "records", "projections", "participants.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "participants",
+    record_type: "person-role",
+    fields: [{ name: "name", path: "name" }],
+    freshness: { max_age_minutes: 60 },
+    access: { read_groups: ["delivery"] },
+    materialization: { mode: "workspace-proposal", target: ".companyos/generated.md" },
+  }));
+  writeFileSync(join(workspace, "domains", "sprint.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "weekly-delivery",
+    participants: { projection: "participants", absence_policy: "exclude-approved" },
+    work_items: { projection: "missing-items", master_group: "current", ready_status: "ready" },
+    calendar: { timezone: "UTC", business_calendar_ref: "company-calendar", holiday_shift: "none" },
+    close: { weekday: "friday", reminder_time: "17:00", complete_by: "16:00", report_at: "15:00" },
+    submission: { task_line_rule: "one-per-committed-task", after_report: "reject" },
+    effort: "actual-hours",
+    rollover: { eligible: "selected-states" },
+    delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+  }));
+
+  const codes = new Set(validateWorkspace(workspace).diagnostics.filter((item) => item.severity === "error").map((item) => item.code));
+  assert.ok(codes.has("WS047"));
+  assert.ok(codes.has("WS049"));
+  assert.ok(codes.has("WS050"));
+  assert.ok(codes.has("WS051"));
+}));
+
 test("Core and Workspace versions are exact SemVer and visible through the Workbench", () => withFixture((workspace) => {
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
