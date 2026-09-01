@@ -72,11 +72,10 @@ company's Workspace.
 
 ## 2. Qualify the existing external Agent
 
-For Monday, use one already reviewed external Agent. Do not create a Developer
-App or use a human OAuth or personal API token for Company Records. The Agent's
-own `api_token` is the lasting Instance credential for reads and later
-allowlisted effects. Monday currently exposes this pre-release contract only
-through `API-Version: dev`; qualification blocks if that contract, identity, or
+For Monday, use one already reviewed external Agent. The Agent's own
+`api_token` is the lasting Instance credential for reads and later allowlisted
+effects. Monday currently exposes this pre-release contract only through
+`API-Version: dev`; qualification blocks if that contract, identity, or
 resource grants drift.
 
 Plan with the explicit target boards:

@@ -190,8 +190,8 @@ Persisted evidence MAY contain Agent and account identity, exact grants,
 board/group/column structure, request metadata, and a discovery digest. It
 MUST NOT contain items, updates, column values, provider credentials, or a
 completed provider effect. The Agent token remains an Instance secret and is
-not retained by the Workbench. A Developer App, browser consent, human OAuth
-token, or parallel Monday qualification path is not maintained.
+not retained by the Workbench. The exact external Agent is the sole maintained
+Monday qualification identity.
 
 **CRS-035 — Record Source Connector.** A trusted Instance synchronization
 worker resolves one exact versioned Record Source Connector from a non-secret

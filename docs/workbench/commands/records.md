@@ -46,8 +46,7 @@ database call.
 ## Qualification
 
 The first maintained Record Source Connector is Monday. It uses the same
-external Agent identity as the maintained Monday callback ingress. There is no
-Developer App, browser consent, human token, or parallel authorization path:
+external Agent identity as the maintained Monday callback ingress:
 
 ```bash
 companyos records source qualify \

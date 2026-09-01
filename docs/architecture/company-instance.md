@@ -334,7 +334,8 @@ grant evidence, board/group/column structure, request evidence, and a
 discovery digest enter the mode-0600 Instance qualification receipt. The Agent
 token remains in the protected Instance secret surface and is not retained by
 the Workbench. Qualification creates no Agent, grant, callback, board change,
-or write. There is no maintained Developer App or human OAuth path.
+or write. The external Agent is the sole maintained Monday qualification
+identity.
 
 After qualification, Company Records uses a separate non-secret Instance
 binding. It selects one exact Record Source Connector version, Instance and

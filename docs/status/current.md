@@ -77,8 +77,8 @@ evidence, historical prototypes, and production gaps.
   read-write board plan, and reads metadata for only those boards. It stores a
   mode-0600 non-secret receipt containing Agent, account, grant,
   board/group/column, API, request, and digest evidence. It retains no token
-  and performs no provider write. There is no maintained Developer App,
-  browser-consent, human-token, or parallel OAuth qualification path.
+  and performs no provider write. This external Agent is the sole maintained
+  Monday qualification identity.
 - The repository-local `oregano/sprint-agent` Blueprint contains one logical
   Agent Component, portable weekly, Friday Close, and reconciliation
   Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
