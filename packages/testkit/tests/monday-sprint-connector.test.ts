@@ -73,8 +73,8 @@ test("Monday resource discovery returns only exact board structure in requested 
     return response({
       me: { id: "member-1", name: "Fixture Member", account: { id: "account-1", name: "Fixture Account" } },
       boards: [
-        { id: "200002", name: "Roles", board_kind: "private", state: "active", permissions: "view", workspace: null, groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }], columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "rev-2", settings_str: null }] },
-        { id: "200001", name: "Sprint", board_kind: "private", state: "active", permissions: "edit", workspace: { id: "workspace-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "rev-1", settings_str: "{}" }] },
+        { id: "200002", name: "Roles", board_kind: "private", state: "active", permissions: "view", access_level: "view", workspace: null, groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }], columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "rev-2", settings: null }] },
+        { id: "200001", name: "Sprint", board_kind: "private", state: "active", permissions: "edit", access_level: "edit", workspace: { id: "workspace-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "rev-1", settings: {} }] },
       ],
     }, "dev");
   };

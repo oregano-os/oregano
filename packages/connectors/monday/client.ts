@@ -64,17 +64,18 @@ export class MondayClient {
         board_kind: string;
         state: string;
         permissions: string;
+        access_level: string;
         workspace: { id: string; name: string } | null;
         groups: Array<{ id: string; title: string; archived?: boolean; deleted?: boolean }>;
-        columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings_str?: string | null }>;
+        columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings?: JsonValue | null }>;
       }>;
     }>(`query DiscoverCompanyOSResources($boardIds: [ID!]!) {
       me { id name account { id name } }
       boards(ids: $boardIds) {
-        id name board_kind state permissions
+        id name board_kind state permissions access_level
         workspace { id name }
         groups { id title archived deleted }
-        columns { id title type archived revision settings_str }
+        columns { id title type archived revision settings }
       }
     }`, { boardIds: requested });
     const byId = new Map(response.data.boards.map((board) => [String(board.id), board]));
@@ -93,13 +94,14 @@ export class MondayClient {
             boardKind: board.board_kind,
             state: board.state,
             permissions: board.permissions,
+            accessLevel: board.access_level,
             workspace: board.workspace ? { id: String(board.workspace.id), name: board.workspace.name } : null,
             groups: board.groups.map((group) => ({
               id: String(group.id), title: group.title, archived: group.archived === true, deleted: group.deleted === true,
             })),
             columns: board.columns.map((column) => ({
               id: String(column.id), title: column.title, type: column.type, archived: column.archived === true,
-              revision: column.revision ?? null, settings: column.settings_str ?? null,
+              revision: column.revision ?? null, settings: column.settings ?? null,
             })),
           };
         }),
@@ -115,32 +117,26 @@ export class MondayClient {
     for (const boardId of requested) if (!/^\d{1,20}$/.test(boardId)) throw new Error(`Monday board id '${boardId}' is invalid`);
     const response = await this.graphql<{
       me: { id: string; name: string; kind: string; email: string; account: { id: string; name: string } };
-      agent_knowledge: {
-        resources: Array<{ resource_id: string; scope_type: string; permission_type: string }>;
-      } | null;
       boards: Array<{
         id: string;
         name: string;
         board_kind: string;
         state: string;
         permissions: string;
+        access_level: string;
         workspace: { id: string; name: string } | null;
         groups: Array<{ id: string; title: string; archived?: boolean; deleted?: boolean }>;
-        columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings_str?: string | null }>;
+        columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings?: JsonValue | null }>;
       }>;
-    }>(`query QualifyCompanyOSExternalAgent($agentId: ID!, $boardIds: [ID!]!) {
+    }>(`query QualifyCompanyOSExternalAgent($boardIds: [ID!]!) {
       me { id name kind email account { id name } }
-      agent_knowledge(id: $agentId) {
-        resources { resource_id scope_type permission_type }
-      }
       boards(ids: $boardIds) {
-        id name board_kind state permissions
+        id name board_kind state permissions access_level
         workspace { id name }
         groups { id title archived deleted }
-        columns { id title type archived revision settings_str }
+        columns { id title type archived revision settings }
       }
-    }`, { agentId, boardIds: requested });
-    if (!response.data.agent_knowledge) throw new Error(`Monday did not return knowledge grants for external Agent '${agentId}'`);
+    }`, { boardIds: requested });
     const externalAgentId = /^agent-(\d+)@agent\.monday\.com$/i.exec(response.data.me.email ?? "")?.[1] ?? null;
     const byId = new Map(response.data.boards.map((board) => [String(board.id), board]));
     const missing = requested.filter((boardId) => !byId.has(boardId));
@@ -156,11 +152,6 @@ export class MondayClient {
           externalAgentId,
         },
         account: { id: String(response.data.me.account.id), name: response.data.me.account.name },
-        resources: response.data.agent_knowledge.resources.map((resource) => ({
-          resourceId: String(resource.resource_id),
-          scopeType: resource.scope_type,
-          permissionType: resource.permission_type,
-        })),
         boards: requested.map((boardId) => {
           const board = byId.get(boardId)!;
           return {
@@ -169,13 +160,14 @@ export class MondayClient {
             boardKind: board.board_kind,
             state: board.state,
             permissions: board.permissions,
+            accessLevel: board.access_level,
             workspace: board.workspace ? { id: String(board.workspace.id), name: board.workspace.name } : null,
             groups: board.groups.map((group) => ({
               id: String(group.id), title: group.title, archived: group.archived === true, deleted: group.deleted === true,
             })),
             columns: board.columns.map((column) => ({
               id: String(column.id), title: column.title, type: column.type, archived: column.archived === true,
-              revision: column.revision ?? null, settings: column.settings_str ?? null,
+              revision: column.revision ?? null, settings: column.settings ?? null,
             })),
           };
         }),
@@ -189,9 +181,14 @@ export class MondayClient {
     groupIds?: string[];
     pageSize?: number;
     maxPages?: number;
+    maxObjects?: number;
+    inventoryMode?: "selected-items" | "complete-table";
+    allowedSubitemBoardIds?: string[];
   }): Promise<MondayRecordInventory> {
     const boardId = String(args.boardId);
     if (!/^\d{1,20}$/.test(boardId)) throw new Error(`Monday board id '${boardId}' is invalid`);
+    const inventoryMode = args.inventoryMode ?? "selected-items";
+    if (!new Set(["selected-items", "complete-table"]).has(inventoryMode)) throw new Error(`Monday inventory mode '${inventoryMode}' is invalid`);
     const columnIds = [...new Set(args.columnIds.map(String))].sort();
     if (columnIds.length > 100) throw new Error("Monday record inventory supports at most one hundred explicit column ids");
     for (const columnId of columnIds) {
@@ -203,34 +200,74 @@ export class MondayClient {
     }
     const pageSize = args.pageSize ?? 100;
     const maxPages = args.maxPages ?? 100;
+    const maxObjects = args.maxObjects ?? 50_000;
     if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) throw new Error("Monday inventory page size must be between 1 and 500");
     if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("Monday inventory max pages must be between 1 and 1000");
+    if (!Number.isInteger(maxObjects) || maxObjects < 1 || maxObjects > 1_000_000) throw new Error("Monday inventory max objects must be between 1 and 1000000");
+    if (inventoryMode === "complete-table" && groupIds.length > 0) throw new Error("Monday complete-table inventory cannot use group filters");
+    const allowedSubitemBoardIds = [...new Set((args.allowedSubitemBoardIds ?? []).map(String))].sort();
+    for (const childBoardId of allowedSubitemBoardIds) {
+      if (!/^\d{1,20}$/.test(childBoardId)) throw new Error(`Monday subitem board id '${childBoardId}' is invalid`);
+    }
 
+    type ColumnValue = { id: string; text: string | null; value: string | null };
     type Item = {
       id: string;
       name: string;
-      updated_at: string;
+      updated_at: string | null;
+      created_at?: string | null;
+      state?: string | null;
+      url?: string | null;
       board: { id: string };
       group: { id: string };
-      column_values: Array<{ id: string; text: string; value: string | null }>;
+      parent_item?: { id: string } | null;
+      column_values: ColumnValue[];
+      subitems?: Array<Item & { subitems?: Array<{ id: string }> }>;
     };
     type Page = { cursor: string | null; items: Item[] };
+    type BoardMetadata = {
+      id: string;
+      name: string;
+      board_kind: string;
+      state: string;
+      groups: Array<{ id: string; title: string; archived?: boolean; deleted?: boolean }>;
+      columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings?: JsonValue | null }>;
+    };
     const requests: Array<MondayGraphqlResponse<Page>> = [];
-    const first = await this.graphql<{ boards: Array<{ id: string; items_page: Page }> }>(`query ReadCompanyRecordsFirstPage($boardIds: [ID!]!, $limit: Int!, $columnIds: [String!]) {
+    const metadataRequests: Array<MondayGraphqlResponse<BoardMetadata[]>> = [];
+    const variableDefinition = inventoryMode === "complete-table"
+      ? "$boardIds: [ID!]!, $limit: Int!"
+      : "$boardIds: [ID!]!, $limit: Int!, $columnIds: [String!]";
+    const columnSelection = inventoryMode === "complete-table"
+      ? "column_values { id text value }"
+      : "column_values(ids: $columnIds) { id text value }";
+    const subitemSelection = inventoryMode === "complete-table" ? `
+            subitems {
+              id name updated_at created_at state url board { id } group { id } parent_item { id }
+              column_values { id text value }
+              subitems { id }
+            }` : "";
+    const itemSelection = `
+            id name updated_at created_at state url board { id } group { id }
+            ${columnSelection}${subitemSelection}`;
+    const variables: Record<string, unknown> = { boardIds: [boardId], limit: pageSize };
+    if (inventoryMode !== "complete-table") variables.columnIds = columnIds;
+    const first = await this.graphql<{ boards: Array<BoardMetadata & { items_page: Page }> }>(`query ReadCompanyRecordsFirstPage(${variableDefinition}) {
       boards(ids: $boardIds) {
-        id
+        id name board_kind state
+        groups { id title archived deleted }
+        columns { id title type archived revision settings }
         items_page(limit: $limit) {
           cursor
-          items {
-            id name updated_at board { id } group { id }
-            column_values(ids: $columnIds) { id text value }
+          items {${itemSelection}
           }
         }
       }
-    }`, { boardIds: [boardId], limit: pageSize, columnIds });
+    }`, variables);
     const board = first.data.boards[0];
     if (!board || String(board.id) !== boardId) throw new Error(`Monday did not return exact board '${boardId}' for record inventory`);
     requests.push({ ...first, data: board.items_page });
+    metadataRequests.push({ ...first, data: [board] });
 
     let cursor = board.items_page.cursor;
     const seenCursors = new Set<string>();
@@ -238,56 +275,153 @@ export class MondayClient {
       if (requests.length >= maxPages) throw new Error(`Monday record inventory exceeded the configured ${maxPages}-page bound`);
       if (seenCursors.has(cursor)) throw new Error("Monday record inventory returned a repeated cursor");
       seenCursors.add(cursor);
-      const next = await this.graphql<{ next_items_page: Page }>(`query ReadCompanyRecordsNextPage($cursor: String!, $limit: Int!, $columnIds: [String!]) {
+      const nextVariables: Record<string, unknown> = { cursor, limit: pageSize };
+      if (inventoryMode !== "complete-table") nextVariables.columnIds = columnIds;
+      const nextVariableDefinition = inventoryMode === "complete-table"
+        ? "$cursor: String!, $limit: Int!"
+        : "$cursor: String!, $limit: Int!, $columnIds: [String!]";
+      const next = await this.graphql<{ next_items_page: Page }>(`query ReadCompanyRecordsNextPage(${nextVariableDefinition}) {
         next_items_page(cursor: $cursor, limit: $limit) {
           cursor
-          items {
-            id name updated_at board { id } group { id }
-            column_values(ids: $columnIds) { id text value }
+          items {${itemSelection}
           }
         }
-      }`, { cursor, limit: pageSize, columnIds });
+      }`, nextVariables);
       requests.push({ ...next, data: next.data.next_items_page });
       cursor = next.data.next_items_page.cursor;
     }
 
+    const allMainItems = requests.flatMap((request) => request.data.items);
+    const allSubitems = inventoryMode === "complete-table" ? allMainItems.flatMap((item) => item.subitems ?? []) : [];
+    for (const subitem of allSubitems) {
+      if ((subitem.subitems ?? []).length > 0) {
+        throw new Error(`Monday complete-table inventory found nested subitems below '${subitem.id}'; V1 supports exactly one subitem level`);
+      }
+    }
+    const observedSubitemBoardIds = [...new Set(allSubitems.map((item) => String(item.board.id)).filter((id) => id !== boardId))].sort();
+    const unexpectedSubitemBoards = observedSubitemBoardIds.filter((id) => !allowedSubitemBoardIds.includes(id));
+    if (unexpectedSubitemBoards.length > 0) {
+      throw new Error(`Monday returned subitems on unqualified child board(s): ${unexpectedSubitemBoards.join(", ")}`);
+    }
+    const subitemBoardIds = inventoryMode === "complete-table" ? allowedSubitemBoardIds : [];
+    let tableBoards: BoardMetadata[] = [board];
+    if (subitemBoardIds.length > 0) {
+      const children = await this.graphql<{ boards: BoardMetadata[] }>(`query ReadCompanyRecordsChildBoardMetadata($boardIds: [ID!]!) {
+        boards(ids: $boardIds) {
+          id name board_kind state
+          groups { id title archived deleted }
+          columns { id title type archived revision settings }
+        }
+      }`, { boardIds: subitemBoardIds });
+      const returned = new Set(children.data.boards.map((candidate) => String(candidate.id)));
+      const missing = subitemBoardIds.filter((candidate) => !returned.has(candidate));
+      if (missing.length > 0) throw new Error(`Monday did not return subitem board metadata for '${missing.join(", ")}'`);
+      metadataRequests.push({ ...children, data: children.data.boards });
+      tableBoards = [board, ...subitemBoardIds.map((id) => children.data.boards.find((candidate) => String(candidate.id) === id)!)];
+    }
+
     const objects: MondayRecordObject[] = [];
     const seenObjects = new Set<string>();
+    const parseColumnValues = (values: ColumnValue[]) => {
+      const columns: Record<string, JsonValue> = {};
+      const columnText: Record<string, string> = {};
+      for (const column of values) {
+        const id = String(column.id);
+        columnText[id] = column.text ?? "";
+        if (column.value === null) columns[id] = column.text ?? "";
+        else {
+          try { columns[id] = JSON.parse(column.value) as JsonValue; }
+          catch { columns[id] = column.text ?? ""; }
+        }
+      }
+      return { columns, columnText };
+    };
+    const remember = (object: MondayRecordObject) => {
+      if (seenObjects.has(object.id)) throw new Error(`Monday record inventory returned duplicate object '${object.id}'`);
+      seenObjects.add(object.id);
+      objects.push(object);
+      if (objects.length > maxObjects) throw new Error(`Monday record inventory exceeded the configured ${maxObjects}-object bound`);
+    };
+    if (inventoryMode === "complete-table") {
+      for (const metadata of tableBoards) {
+        const metadataBoardId = String(metadata.id);
+        remember({
+          id: `board:${metadataBoardId}`, object_kind: "board", provider_id: metadataBoardId, name: metadata.name,
+          updated_at: null, created_at: null, state: metadata.state, url: null, root_board_id: boardId,
+          board_id: metadataBoardId, group_id: null, parent_item_id: null, columns: {}, column_text: {},
+          provider_payload: { board_kind: metadata.board_kind, state: metadata.state },
+        });
+        for (const group of metadata.groups.filter((candidate) => candidate.archived !== true && candidate.deleted !== true)) {
+          const providerId = String(group.id);
+          remember({
+            id: `group:${metadataBoardId}:${providerId}`, object_kind: "group", provider_id: providerId, name: group.title,
+            updated_at: null, created_at: null, state: "active", url: null, root_board_id: boardId,
+            board_id: metadataBoardId, group_id: providerId, parent_item_id: null, columns: {}, column_text: {},
+            provider_payload: { title: group.title, archived: false, deleted: false },
+          });
+        }
+        for (const column of metadata.columns.filter((candidate) => candidate.archived !== true)) {
+          const providerId = String(column.id);
+          remember({
+            id: `column:${metadataBoardId}:${providerId}`, object_kind: "column", provider_id: providerId, name: column.title,
+            updated_at: null, created_at: null, state: "active", url: null, root_board_id: boardId,
+            board_id: metadataBoardId, group_id: null, parent_item_id: null, columns: {}, column_text: {},
+            provider_payload: {
+              title: column.title, type: column.type, archived: false,
+              revision: column.revision ?? null, settings: column.settings ?? null,
+            },
+          });
+        }
+      }
+    }
+    const appendItem = (item: Item, kind: "item" | "subitem", parentItemId: string | null) => {
+      const actualBoardId = String(item.board.id);
+      if (kind === "item" && actualBoardId !== boardId) throw new Error(`Monday returned item '${item.id}' outside exact board '${boardId}'`);
+      if (kind === "subitem" && !new Set(subitemBoardIds).has(actualBoardId) && actualBoardId !== boardId) {
+        throw new Error(`Monday returned subitem '${item.id}' outside the discovered table surface`);
+      }
+      const providerId = String(item.id);
+      const groupId = String(item.group.id);
+      if (kind === "item" && groupIds.length > 0 && !groupIds.includes(groupId)) return;
+      const { columns, columnText } = parseColumnValues(item.column_values);
+      const id = inventoryMode === "complete-table" ? `${kind}:${providerId}` : providerId;
+      remember({
+        id, object_kind: kind, provider_id: providerId, name: item.name, updated_at: item.updated_at ?? null,
+        created_at: item.created_at ?? null, state: item.state ?? null, url: item.url ?? null,
+        root_board_id: boardId, board_id: actualBoardId, group_id: groupId,
+        parent_item_id: parentItemId ?? (item.parent_item ? String(item.parent_item.id) : null),
+        columns, column_text: columnText,
+        provider_payload: {
+          name: item.name, updated_at: item.updated_at ?? null, created_at: item.created_at ?? null,
+          state: item.state ?? null, url: item.url ?? null, board_id: actualBoardId, group_id: groupId,
+          parent_item_id: parentItemId ?? (item.parent_item ? String(item.parent_item.id) : null),
+          columns, column_text: columnText,
+        },
+      });
+    };
     for (const request of requests) {
       for (const item of request.data.items) {
         if (String(item.board.id) !== boardId) throw new Error(`Monday returned item '${item.id}' outside exact board '${boardId}'`);
-        const objectId = String(item.id);
-        if (seenObjects.has(objectId)) throw new Error(`Monday record inventory returned duplicate item '${objectId}'`);
-        seenObjects.add(objectId);
-        const groupId = String(item.group.id);
-        if (groupIds.length > 0 && !groupIds.includes(groupId)) continue;
-        const columns: Record<string, JsonValue> = {};
-        const columnText: Record<string, string> = {};
-        for (const column of item.column_values) {
-          columnText[column.id] = column.text ?? "";
-          if (column.value === null) columns[column.id] = column.text ?? "";
-          else {
-            try { columns[column.id] = JSON.parse(column.value) as JsonValue; }
-            catch { columns[column.id] = column.text ?? ""; }
-          }
+        appendItem(item, "item", null);
+        if (inventoryMode === "complete-table") {
+          for (const subitem of item.subitems ?? []) appendItem(subitem, "subitem", String(item.id));
         }
-        objects.push({
-          id: objectId,
-          name: item.name,
-          updated_at: item.updated_at,
-          board_id: boardId,
-          group_id: groupId,
-          columns,
-          column_text: columnText,
-        });
       }
     }
     objects.sort((left, right) => left.id.localeCompare(right.id));
+    const allResponses = [...requests, ...metadataRequests];
+    const objectCounts = objects.reduce<Record<string, number>>((counts, object) => {
+      counts[object.object_kind] = (counts[object.object_kind] ?? 0) + 1;
+      return counts;
+    }, {});
     return {
       boardId,
+      boardIds: tableBoards.map((candidate) => String(candidate.id)),
+      inventoryMode,
       objects,
-      requestIds: requests.flatMap((request) => request.requestId ? [request.requestId] : []),
-      reportedApiVersions: [...new Set(requests.flatMap((request) => request.apiVersion ? [request.apiVersion] : []))].sort(),
+      objectCounts,
+      requestIds: [...new Set(allResponses.flatMap((request) => request.requestId ? [request.requestId] : []))],
+      reportedApiVersions: [...new Set(allResponses.flatMap((request) => request.apiVersion ? [request.apiVersion] : []))].sort(),
       pageCount: requests.length,
     };
   }

@@ -6,9 +6,10 @@ created: 2026-09-01
 title: Make the external Monday Agent the only maintained Monday identity
 objective: >-
   Qualify Company Records through one Instance-owned external Monday Agent.
-  Prove the exact Agent identity, account, resource grants, API contract, and
-  selected board metadata without retaining credentials or performing a
-  provider write.
+  Prove the exact Agent identity, account, selected-board effective access,
+  API contract, and selected board metadata without retaining credentials or
+  performing a provider write. Complete administrative grants are attested in
+  the confirmed plan, not machine-listed by the external Agent token.
 non_goals:
   - Create, activate, disconnect, or change an external Monday Agent.
   - Add, update, or remove a Monday board or document grant.
@@ -86,7 +87,7 @@ architecture_assessment:
       reason: Company Records accepts one credential-bearing Instance Connector while keeping synchronized data and provider authority outside the Workspace.
     - mechanism: identity-and-authorization
       decision: reuse
-      reason: The provider token must identify an external Agent and its exact resource grants; it never substitutes for a human principal or effect approval.
+      reason: The provider token must identify an external Agent and prove effective selected-board access; the confirmed complete grant set remains an administrator attestation and never substitutes for a human principal or effect approval.
     - mechanism: timers-and-business-time
       decision: not-applicable
       reason: Qualification activates no schedule.
@@ -118,8 +119,8 @@ validation:
 tests:
   - Planning records only exact Agent, board-access, API-version, Core identity, and SecretRef expectations and performs no provider call.
   - A wrong confirmation hash performs no secret resolution and no provider call.
-  - Qualification accepts only external_agent_member or external_agent_detached_member and matches the Agent ID parsed from the provider identity.
-  - Qualification fails closed on an absent, extra, or wrong-permission Agent resource grant and on a missing selected board.
+  - Qualification accepts only external_agent_member or external_agent_detached_member, preserves provider ID namespaces separately, and requires a second administrator confirmation of their exact mapping.
+  - Qualification fails closed on a missing selected board or insufficient minimum access for the administrator-attested permission.
   - The roles-style read grant and Sprint-style read-write grant are distinguished while discovery itself remains read-only.
   - Qualification and synchronization send API-Version dev, retain no credential, and emit payload-free receipts.
   - The maintained source Connector accepts only a matching external-Agent receipt and denies undeclared boards.
@@ -139,4 +140,5 @@ rollback: >-
   is not part of rollback.
 open_decisions:
   - Monday's Agent API is pre-release and requires API-Version dev; every activation must requalify this contract and block on provider drift.
+  - The external Agent token does not expose agent_knowledge; plan 2026-09-01-monday-agent-effective-access-evidence governs the maintained attestation and effective-access semantics.
   - Production synchronization, webhook activation, and work-item effects remain separately approved Instance operations.

@@ -123,7 +123,10 @@ export function inspectRecordWorkspace({ workspaceRoot, sourceId, projectionId }
 
 const mondaySourcePaths = (source) => [source.identity.source_field, ...source.fields.map((field) => field.source)];
 const knownMondayPath = (path, columns) => {
-  if (new Set(["id", "name", "updated_at", "board_id", "group_id"]).has(path)) return true;
+  if (new Set([
+    "id", "source_id", "object_kind", "is_work_item", "provider_id", "name", "updated_at", "created_at", "state", "url",
+    "root_board_id", "board_id", "group_id", "parent_item_id", "provider_payload",
+  ]).has(path)) return true;
   const [root, columnId] = path.split(".");
   return new Set(["columns", "column_text"]).has(root) && Boolean(columnId) && columns.has(columnId);
 };

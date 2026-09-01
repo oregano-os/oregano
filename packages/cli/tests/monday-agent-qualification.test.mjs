@@ -36,15 +36,11 @@ const validPlan = () => {
   return { ...fixture, result };
 };
 
-const discoveryResponse = ({ kind = "external_agent_member", resources } = {}) => new Response(JSON.stringify({ data: {
-  me: { id: "member-1", name: "Fixture Agent", kind, email: "agent-700001@agent.monday.com", account: { id: "account-1", name: "Fixture Company" } },
-  agent_knowledge: { resources: resources ?? [
-    { resource_id: "100001", scope_type: "BOARD", permission_type: "READ" },
-    { resource_id: "100002", scope_type: "BOARD", permission_type: "READ_WRITE" },
-  ] },
-  boards: [
-    { id: "100001", name: "Roles Test", board_kind: "private", state: "active", permissions: "view", workspace: { id: "space-1", name: "Tests" }, groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }], columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "r1", settings_str: null }] },
-    { id: "100002", name: "Sprint Test", board_kind: "private", state: "active", permissions: "edit", workspace: { id: "space-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "r2", settings_str: "{\\\"labels\\\":{}}" }] },
+const discoveryResponse = ({ kind = "external_agent_member", roleAccess = "view", sprintAccess = "edit", boards } = {}) => new Response(JSON.stringify({ data: {
+  me: { id: "member-1", name: "Fixture Agent", kind, email: "agent-900001@agent.monday.com", account: { id: "account-1", name: "Fixture Company" } },
+  boards: boards ?? [
+    { id: "100001", name: "Roles Test", board_kind: "private", state: "active", permissions: "view", access_level: roleAccess, workspace: { id: "space-1", name: "Tests" }, groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }], columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "r1", settings: null }] },
+    { id: "100002", name: "Sprint Test", board_kind: "private", state: "active", permissions: "edit", access_level: sprintAccess, workspace: { id: "space-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "r2", settings: { labels: [] } }] },
   ],
 } }), { status: 200, headers: { "api-version": "dev", "x-request-id": "request-1" } });
 
@@ -87,11 +83,11 @@ test("wrong confirmation and absent Instance secret perform no provider call", a
   assert.equal(readMondayAgentQualificationState(state).phase, "agent-ready");
 });
 
-test("qualification proves the external Agent identity, exact grants, and exact boards", async () => {
+test("qualification proves external Agent identity and effective access while recording administrator-attested grants", async () => {
   const { result, state } = validPlan();
   initializeMondayAgentQualification({ planResult: result, confirmationHash: result.plan.confirmation_hash });
   const requests = [];
-  const qualification = await advanceMondayAgentQualification({
+  const discovered = await advanceMondayAgentQualification({
     statePath: state,
     agentToken: "fixture-agent-token",
     fetchImpl: async (_url, init) => {
@@ -99,42 +95,59 @@ test("qualification proves the external Agent identity, exact grants, and exact 
       return discoveryResponse();
     },
   });
-  assert.equal(qualification.status, "complete");
+  assert.equal(discovered.status, "waiting");
+  assert.equal(discovered.state.phase, "identity-review");
   assert.equal(requests.length, 1);
   assert.equal(requests[0].headers.get("authorization"), "fixture-agent-token");
   assert.equal(requests[0].headers.get("api-version"), "dev");
-  assert.deepEqual(requests[0].body.variables, { agentId: "700001", boardIds: ["100001", "100002"] });
-  assert.doesNotMatch(requests[0].body.query, /items_page|column_values|mutation/);
+  assert.deepEqual(requests[0].body.variables, { boardIds: ["100001", "100002"] });
+  assert.doesNotMatch(requests[0].body.query, /agent_knowledge|items_page|column_values|mutation/);
+  const reviewHash = discovered.next_action.confirmation_hash;
+  assert.match(reviewHash, /^[0-9a-f]{64}$/);
+  const qualification = await advanceMondayAgentQualification({ statePath: state, agentToken: "", identityConfirmationHash: reviewHash, fetchImpl: async () => { throw new Error("unexpected provider call"); } });
+  assert.equal(qualification.status, "complete");
   const raw = readFileSync(state, "utf8");
   assert.doesNotMatch(raw, /fixture-agent-token/);
   const receipt = readMondayAgentQualificationState(state).evidence.discovery;
-  assert.equal(receipt.identity.externalAgentId, "700001");
+  assert.equal(receipt.configured_agent_id, "700001");
+  assert.equal(receipt.identity.externalAgentId, "900001");
   assert.equal(receipt.identity.kind, "external_agent_member");
+  assert.equal(receipt.identity_mapping_status, "administrator-confirmed");
+  assert.equal(receipt.identity_mapping_confirmation_hash, reviewHash);
   assert.deepEqual(receipt.resources, [
-    { id: "100001", scope: "board", permission: "read" },
-    { id: "100002", scope: "board", permission: "read-write" },
+    { id: "100001", scope: "board", permission: "read", evidence: "administrator-attestation-and-effective-access" },
+    { id: "100002", scope: "board", permission: "read-write", evidence: "administrator-attestation-and-effective-access" },
+  ]);
+  assert.equal(receipt.grant_inventory.machine_listed_by_authenticated_agent, false);
+  assert.equal(receipt.grant_inventory.attestation_plan_hash, result.plan.confirmation_hash);
+  assert.deepEqual(receipt.effective_access.map(({ id, verified_minimum, provider_write_effect_verified }) => ({ id, verified_minimum, provider_write_effect_verified })), [
+    { id: "100001", verified_minimum: "read", provider_write_effect_verified: false },
+    { id: "100002", verified_minimum: "read-write-metadata", provider_write_effect_verified: false },
   ]);
   assert.equal(receipt.credentials_retained, false);
   assert.deepEqual(receipt.external_effects, []);
 });
 
-test("qualification rejects human tokens and any resource-grant drift", async () => {
+test("qualification rejects human tokens, missing boards, and effective-access drift", async () => {
   for (const response of [
     discoveryResponse({ kind: "admin" }),
-    discoveryResponse({ resources: [{ resource_id: "100001", scope_type: "BOARD", permission_type: "READ" }] }),
-    discoveryResponse({ resources: [
-      { resource_id: "100001", scope_type: "BOARD", permission_type: "READ_WRITE" },
-      { resource_id: "100002", scope_type: "BOARD", permission_type: "READ_WRITE" },
-    ] }),
-    discoveryResponse({ resources: [
-      { resource_id: "100001", scope_type: "BOARD", permission_type: "READ" },
-      { resource_id: "100002", scope_type: "BOARD", permission_type: "READ_WRITE" },
-      { resource_id: "100003", scope_type: "BOARD", permission_type: "READ" },
-    ] }),
+    discoveryResponse({ sprintAccess: "view" }),
+    discoveryResponse({ boards: [{ id: "100001", name: "Roles Test", board_kind: "private", state: "active", permissions: "view", access_level: "view", workspace: null, groups: [], columns: [] }] }),
   ]) {
     const { result, state } = validPlan();
     initializeMondayAgentQualification({ planResult: result, confirmationHash: result.plan.confirmation_hash });
-    await assert.rejects(() => advanceMondayAgentQualification({ statePath: state, agentToken: "fixture-agent-token", fetchImpl: async () => response }), /external Agent|resource grants/);
+    await assert.rejects(() => advanceMondayAgentQualification({ statePath: state, agentToken: "fixture-agent-token", fetchImpl: async () => response }), /external Agent|selected board|effective access/);
     assert.equal(readMondayAgentQualificationState(state).phase, "agent-ready");
   }
+});
+
+test("identity mapping review fails closed on a wrong confirmation hash without another provider call", async () => {
+  const { result, state } = validPlan();
+  initializeMondayAgentQualification({ planResult: result, confirmationHash: result.plan.confirmation_hash });
+  const discovered = await advanceMondayAgentQualification({ statePath: state, agentToken: "fixture-agent-token", fetchImpl: async () => discoveryResponse() });
+  assert.equal(discovered.state.phase, "identity-review");
+  let called = false;
+  await assert.rejects(() => advanceMondayAgentQualification({ statePath: state, identityConfirmationHash: "f".repeat(64), fetchImpl: async () => { called = true; throw new Error("unexpected"); } }), /does not match/);
+  assert.equal(called, false);
+  assert.equal(readMondayAgentQualificationState(state).phase, "identity-review");
 });

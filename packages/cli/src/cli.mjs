@@ -109,7 +109,8 @@ Usage:
   companyos records projection inspect --workspace <path> [--projection <id>] [--format human|json]
   companyos records source qualify --provider monday --workspace <path> --agent-id <id> --board-access <id>:read|read-write [--board-access <value>] --state <file> --plan [--format human|json]
   companyos records source qualify --provider monday <same options> --apply <hash> [--format human|json]
-  companyos records source qualify --provider monday --state <file> --resume|--status [--format human|json]
+  companyos records source qualify --provider monday --state <file> --resume [--identity-confirmation <hash>] [--format human|json]
+  companyos records source qualify --provider monday --state <file> --status [--format human|json]
   companyos records source materialize --provider monday --workspace <path> --qualification <state> --board <id> --declaration <yaml|json> --output <records/sources/name.yaml> --plan [--format human|json]
   companyos records source materialize <same-options> --apply <hash> [--format human|json]
   companyos records source sync|reconcile --workspace <path> --source <id> --binding <file> --plan [--format human|json]
@@ -970,7 +971,7 @@ try {
       }
     } else if (args.includes("--resume")) {
       if (!statePath) throw new Error("Monday qualification resume requires --state <file>.");
-      const result = await advanceMondayAgentQualification({ statePath });
+      const result = await advanceMondayAgentQualification({ statePath, identityConfirmationHash: optionValue("--identity-confirmation") });
       if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
       else {
         exitWithDiagnostics(result.diagnostics, { format, summary: "Monday external-Agent qualification" });
@@ -1004,7 +1005,7 @@ try {
           else exitWithDiagnostics(initialized.diagnostics, { format, summary: "Monday external-Agent qualification initialization" });
           process.exitCode = 1;
         } else {
-          const result = await advanceMondayAgentQualification({ statePath: initialized.statePath });
+          const result = await advanceMondayAgentQualification({ statePath: initialized.statePath, identityConfirmationHash: optionValue("--identity-confirmation") });
           if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
           else {
             exitWithDiagnostics(result.diagnostics, { format, summary: "Monday external-Agent qualification" });

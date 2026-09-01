@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import YAML from "yaml";
+import { MondayClient } from "../../connectors/monday/client.ts";
 import { MondayRecordSourceConnector } from "../../connectors/monday/records-source.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
 import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
@@ -246,7 +247,7 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
       source_id: "fixture-items",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.2.0",
+      connector_version: "0.3.0",
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "c".repeat(64) },
       configuration: { api_version: "dev", agent_id: "700001", board_id: "100001", permission: "read", group_ids: ["ready"], page_size: 2, max_pages: 5 },
@@ -259,7 +260,9 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
           discovery_hash: "c".repeat(64),
           credentials_retained: false,
           authentication_mode: "external-agent",
-          identity: { externalAgentId: "700001" },
+          configured_agent_id: "700001",
+          identity_mapping_status: "administrator-confirmed",
+          identity: { externalAgentId: "800001" },
           resources: [{ id: "100001", scope: "board", permission: "read" }],
           boards: [{
             id: "100001",
@@ -275,4 +278,130 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
   assert.deepEqual(inventory.receipt.request_ids, ["request-1", "request-2"]);
   assert.ok(requests.every((request) => request.headers.get("authorization") === "fixture-provider-value"));
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /fixture-provider-value|Included/);
+});
+
+test("the maintained Monday source adapter mirrors a complete table surface without widening projections", async () => {
+  const requests = [];
+  const response = (data, requestId) => new Response(JSON.stringify({ data }), {
+    status: 200,
+    headers: { "api-version": "dev", "x-request-id": requestId },
+  });
+  const queue = [
+    response({ boards: [{
+      id: "100001", name: "Synthetic Sprint", board_kind: "public", state: "active",
+      groups: [{ id: "backlog", title: "Backlog", archived: false, deleted: false }],
+      columns: [
+        { id: "name", title: "Name", type: "name", archived: false, revision: "r1", settings: {} },
+        { id: "status_col", title: "Status", type: "status", archived: false, revision: "r2", settings: { labels: { 1: "Done" } } },
+        { id: "subtasks", title: "Subitems", type: "subtasks", archived: false, revision: "r3", settings: { boardIds: [100002] } },
+      ],
+      items_page: { cursor: null, items: [{
+        id: "item-1", name: "Parent", updated_at: "2030-02-01T09:00:00Z", created_at: "2030-01-01T09:00:00Z",
+        state: "active", url: "https://example.invalid/item-1", board: { id: "100001" }, group: { id: "backlog" },
+        column_values: [{ id: "status_col", text: "Working", value: "{\"index\":2}" }],
+        subitems: [{
+          id: "subitem-1", name: "Child", updated_at: "2030-02-01T09:10:00Z", created_at: "2030-01-02T09:00:00Z",
+          state: "active", url: "https://example.invalid/subitem-1", board: { id: "100002" }, group: { id: "subitems" },
+          parent_item: { id: "item-1" }, column_values: [{ id: "hours", text: "3", value: "3" }], subitems: [],
+        }],
+      }] },
+    }] }, "request-root"),
+    response({ boards: [{
+      id: "100002", name: "Synthetic Sprint Subitems", board_kind: "public", state: "active",
+      groups: [{ id: "subitems", title: "Subitems", archived: false, deleted: false }],
+      columns: [{ id: "hours", title: "Hours", type: "numbers", archived: false, revision: "s1", settings: {} }],
+    }] }, "request-child"),
+  ];
+  const connector = new MondayRecordSourceConnector({
+    resolveSecret: () => "fixture-provider-value",
+    fetcher: async (_input, init) => {
+      requests.push(JSON.parse(String(init.body)));
+      return queue.shift();
+    },
+    now: () => new Date("2030-02-01T10:00:00.000Z"),
+  });
+  const source = {
+    schema_version: 1,
+    id: "fixture-table",
+    record_type: "work-item",
+    connection: "connections/monday.md",
+    resource_binding: "fixture-board",
+    delivery: "hybrid",
+    identity: { source_field: "id" },
+    fields: [
+      { target: "object_kind", source: "object_kind", value_type: "string", required: true },
+      { target: "provider_id", source: "provider_id", value_type: "string", required: true },
+      { target: "provider_payload", source: "provider_payload", value_type: "json", required: true },
+    ],
+    access: { read_groups: ["delivery"], write_roles: [] },
+  };
+  const inventory = await connector.readCompleteInventory({
+    source,
+    binding: {
+      schema_version: 1,
+      instance_id: "fixture-production",
+      source_id: "fixture-table",
+      resource_binding: "fixture-board",
+      connector: "oregano/monday-record-source",
+      connector_version: "0.3.0",
+      secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
+      qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
+      configuration: {
+        api_version: "dev", agent_id: "700001", board_id: "100001", permission: "read-write",
+        inventory_mode: "complete-table", page_size: 100, max_pages: 5, max_objects: 100,
+      },
+    },
+    qualification: {
+      kind: "monday-external-agent-qualification",
+      phase: "complete",
+      evidence: { discovery: {
+        discovery_hash: "d".repeat(64), credentials_retained: false, authentication_mode: "external-agent",
+        configured_agent_id: "700001", identity_mapping_status: "administrator-confirmed",
+        identity: { externalAgentId: "800001" },
+        resources: [{ id: "100001", scope: "board", permission: "read-write" }],
+        boards: [{ id: "100001", groups: [{ id: "backlog", archived: false, deleted: false }], columns: [
+          { id: "name", archived: false }, { id: "status_col", archived: false },
+          { id: "subtasks", type: "subtasks", archived: false, settings: { boardIds: [100002] } },
+        ] }],
+      } },
+    },
+  });
+  assert.deepEqual(inventory.objects.map((object) => object.object_kind).sort(), [
+    "board", "board", "column", "column", "column", "column", "group", "group", "item", "subitem",
+  ]);
+  assert.equal(inventory.objects.find((object) => object.id === "item:item-1").provider_payload.columns.status_col.index, 2);
+  assert.equal(inventory.objects.find((object) => object.id === "subitem:subitem-1").provider_payload.columns.hours, 3);
+  assert.deepEqual(inventory.receipt.object_counts, { board: 2, group: 2, column: 4, item: 1, subitem: 1 });
+  assert.deepEqual(inventory.receipt.request_ids, ["request-root", "request-child"]);
+  assert.equal(requests[0].query.includes("updates"), false);
+  assert.equal(requests[0].query.includes("assets"), false);
+  assert.doesNotMatch(JSON.stringify(inventory.receipt), /Parent|Child|Working|fixture-provider-value/);
+});
+
+test("complete-table inventory fails closed on filters and deeper subitems", async () => {
+  let invoked = false;
+  const filtered = new MondayClient({
+    token: "fixture-provider-value",
+    apiVersion: "dev",
+    fetcher: async () => { invoked = true; throw new Error("unexpected provider call"); },
+  });
+  await assert.rejects(filtered.readCompleteRecordInventory({
+    boardId: "100001", columnIds: [], groupIds: ["backlog"], inventoryMode: "complete-table",
+  }), /cannot use group filters/);
+  assert.equal(invoked, false);
+
+  const response = new Response(JSON.stringify({ data: { boards: [{
+    id: "100001", name: "Synthetic Sprint", board_kind: "public", state: "active", groups: [], columns: [],
+    items_page: { cursor: null, items: [{
+      id: "item-1", name: "Parent", updated_at: "2030-02-01T09:00:00Z", board: { id: "100001" }, group: { id: "backlog" },
+      column_values: [], subitems: [{
+        id: "subitem-1", name: "Child", updated_at: "2030-02-01T09:10:00Z", board: { id: "100002" }, group: { id: "subitems" },
+        parent_item: { id: "item-1" }, column_values: [], subitems: [{ id: "subitem-2" }],
+      }],
+    }] },
+  }] } }), { status: 200, headers: { "api-version": "dev" } });
+  const nested = new MondayClient({ token: "fixture-provider-value", apiVersion: "dev", fetcher: async () => response });
+  await assert.rejects(nested.readCompleteRecordInventory({
+    boardId: "100001", columnIds: [], inventoryMode: "complete-table", allowedSubitemBoardIds: ["100002"],
+  }), /supports exactly one subitem level/);
 });

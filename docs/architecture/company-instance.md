@@ -325,17 +325,25 @@ distinct Instance effects.
 The maintained Monday qualification uses that same external Agent rather than
 a second provider identity. `companyos records source qualify --provider
 monday` binds one clean Core checkout, exact Company Workspace, external Agent
-ID, `API-Version: dev`, complete expected resource-grant set, and explicit
-board IDs before resolving the Instance SecretRef. It accepts only
+ID, `API-Version: dev`, administrator-attested complete resource-grant set, and
+explicit board IDs before resolving the Instance SecretRef. It accepts only
 `external_agent_member` or `external_agent_detached_member`, derives the Agent
-ID from its provider identity, queries `agent_knowledge`, and fails on an
-absent, extra, or wrong-permission resource. Only Agent and account identity,
-grant evidence, board/group/column structure, request evidence, and a
-discovery digest enter the mode-0600 Instance qualification receipt. The Agent
-token remains in the protected Instance secret surface and is not retained by
-the Workbench. Qualification creates no Agent, grant, callback, board change,
-or write. The external Agent is the sole maintained Monday qualification
-identity.
+subject ID from its provider identity, and records it separately from the
+configured UI/callback Agent ID because monday uses different identifier
+namespaces. A second digest-bound administrator review confirms that exact
+mapping. Qualification reads only the explicitly selected boards. Successful
+return proves at least read access; `access_level: edit` is required as metadata
+evidence for an attested `READ_WRITE` board but does not prove a completed write
+effect. Monday does not expose `agent_knowledge` to the external Agent token, so
+the receipt distinguishes the administrator's complete-set attestation from
+machine-proven effective selected-board access. Only Agent and
+account identity, attestation evidence, effective access, board/group/column
+structure, request evidence, and a discovery digest enter the mode-0600
+Instance qualification receipt. The Agent token remains in the protected
+Instance secret surface and is not retained by the Workbench. Qualification
+creates no Agent, grant, callback, board change, or write. A later reversible,
+separately confirmed effect is still required to prove an operational write.
+The external Agent is the sole maintained Monday qualification identity.
 
 After qualification, Company Records uses a separate non-secret Instance
 binding. It selects one exact Record Source Connector version, Instance and

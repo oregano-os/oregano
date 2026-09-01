@@ -183,15 +183,25 @@ Agent ID, Agent-token SecretRef, `API-Version: dev`, explicit board set, and
 exact expected `READ` or `READ_WRITE` resource grants before secret resolution.
 It MUST accept only `external_agent_member` or
 `external_agent_detached_member`, match the Agent ID from the authenticated
-provider identity, read `agent_knowledge`, and fail closed on an absent, extra,
-or wrong-permission resource. The qualification query MUST read only identity,
-grant, and selected board/group/column metadata and MUST perform no mutation.
-Persisted evidence MAY contain Agent and account identity, exact grants,
-board/group/column structure, request metadata, and a discovery digest. It
+provider identity only within its own identifier namespace, and keep that
+subject ID separate from the configured UI/callback Agent ID. Qualification
+MUST pause for a second digest-bound administrator review of the exact mapping.
+It MUST read only the exact selected boards and fail closed on an absent board.
+A returned board proves minimum read access; an attested `READ_WRITE` board
+also requires `access_level: edit` as metadata evidence but remains without a
+verified write effect. Because the external Agent token cannot list `agent_knowledge`,
+the confirmed board set is an administrator attestation and MUST be recorded
+as such; Core MUST NOT represent it as a machine-listed complete inventory.
+The qualification query MUST read only identity and selected
+board/group/column metadata and MUST perform no mutation. Persisted evidence
+MAY contain Agent and account identity, the digest-bound attestation, effective
+selected-board access, board/group/column structure, request metadata, and a
+discovery digest. It
 MUST NOT contain items, updates, column values, provider credentials, or a
 completed provider effect. The Agent token remains an Instance secret and is
 not retained by the Workbench. The exact external Agent is the sole maintained
-Monday qualification identity.
+Monday qualification identity. `READ_WRITE` metadata qualification does not
+authorize or replace a separately confirmed reversible write proof.
 
 **CRS-035 — Record Source Connector.** A trusted Instance synchronization
 worker resolves one exact versioned Record Source Connector from a non-secret
@@ -201,9 +211,20 @@ one bounded complete inventory of provider observations plus payload-free
 request, version, scope, count, completeness, and digest evidence. It is not an
 Agent Tool, grants no Capability, performs no provider write, and MUST NOT
 return or retain its credential. The maintained Monday implementation reads
-one exact board, optional exact groups, and only explicitly mapped columns
-through bounded cursor pagination and API version `dev`. Other providers
-require separately maintained and qualified adapters behind the same contract.
+one exact board through bounded cursor pagination and API version `dev`. Its
+default `selected-items` mode may restrict exact groups and explicitly mapped
+columns. Its explicit `complete-table` mode rejects group filters and returns
+the selected board, every active group and active column, every main item,
+every one-level subitem, and every returned column value as collision-free raw
+record objects. A child board is readable only when its stable ID is present in
+the qualified parent board's subitems-column settings; any other child board
+fails closed. Raw completeness never widens a projection: Company Workspace
+projections still select reviewed object kinds and canonical fields. Updates,
+comments, attachment binaries, linked foreign-board contents, archived items,
+deleted-item history, and multi-level subitems are separate data classes;
+complete-table mode does not query them and fails closed if a deeper subitem
+level is observed. Other providers require separately maintained and qualified
+adapters behind the same contract.
 
 ## 5. Blueprint and materialization
 

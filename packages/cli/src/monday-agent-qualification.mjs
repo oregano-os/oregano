@@ -129,7 +129,7 @@ export function planMondayAgentQualification({ workspaceRoot, agentId, boardAcce
     secret_ref: `env:${MONDAY_AGENT_TOKEN_SECRET_REF}`,
     provider_reads: [
       "Read the authenticated Monday identity and require an external-Agent member kind.",
-      "Read the exact Agent knowledge grants and exact selected board metadata.",
+      "Read exact selected board metadata and effective access levels with the external-Agent token.",
     ],
     external_changes: [
       "No Monday Agent, grant, board, item, group, column, update, webhook, or provider permission is created or modified.",
@@ -143,6 +143,7 @@ export function planMondayAgentQualification({ workspaceRoot, agentId, boardAcce
     required_human_actions: [
       `Make the existing external Agent token available only through ${MONDAY_AGENT_TOKEN_SECRET_REF} in the selected Instance runtime.`,
       "Review the exact Agent ID and every board permission before confirming this plan.",
+      "Attest that the confirmed boards are the complete administrative grant set because an external-Agent token cannot list agent_knowledge.",
       "Keep the organizational roles board read-only and grant read-write only to an explicitly reviewed operational board.",
     ],
   };
@@ -179,53 +180,90 @@ export function initializeMondayAgentQualification({ planResult, confirmationHas
   return { state, statePath: planResult.plan.state_path, diagnostics: planResult.diagnostics };
 }
 
-const normalizeProviderPermission = (value) => {
-  if (value === "READ") return "read";
-  if (value === "READ_WRITE") return "read-write";
-  return clean(value).toLowerCase().replaceAll("_", "-");
-};
+const normalizeEffectiveAccess = (value) => value === "view" ? "read" : value === "edit" ? "read-write" : clean(value).toLowerCase();
 
 const validateDiscovery = (state, result) => {
   const identity = result.data.identity;
   if (!MONDAY_AGENT_KINDS.includes(identity.kind)) {
     throw new Error(`Monday token identifies '${identity.kind || "unknown"}' instead of an external Agent.`);
   }
-  if (identity.externalAgentId !== state.agent_id) {
-    throw new Error(`Monday token identifies external Agent '${identity.externalAgentId || "unknown"}' instead of '${state.agent_id}'.`);
-  }
-  const actualResources = result.data.resources
-    .map((resource) => ({
-      id: String(resource.resourceId),
-      scope: clean(resource.scopeType).toLowerCase(),
-      permission: normalizeProviderPermission(resource.permissionType),
-    }))
-    .sort((left, right) => `${left.scope}:${left.id}`.localeCompare(`${right.scope}:${right.id}`));
-  const expectedResources = state.boards
-    .map((board) => ({ id: board.id, scope: "board", permission: board.permission }))
-    .sort((left, right) => `${left.scope}:${left.id}`.localeCompare(`${right.scope}:${right.id}`));
-  if (JSON.stringify(actualResources) !== JSON.stringify(expectedResources)) {
-    throw new Error("Monday Agent resource grants do not exactly match the confirmed board-access plan.");
+  if (!/^\d{1,20}$/.test(identity.externalAgentId ?? "")) {
+    throw new Error("Monday token does not expose a valid external Agent subject ID.");
   }
   const returnedBoards = result.data.boards.map((board) => String(board.id)).sort();
   const expectedBoards = state.boards.map((board) => board.id).sort();
   if (JSON.stringify(returnedBoards) !== JSON.stringify(expectedBoards)) {
     throw new Error("Monday did not return exactly the confirmed boards for the external Agent.");
   }
+  const accessByBoard = new Map(result.data.boards.map((board) => [String(board.id), normalizeEffectiveAccess(board.accessLevel)]));
+  const effectiveAccess = state.boards.map((board) => ({
+    id: board.id,
+    scope: "board",
+    verified_minimum: board.permission === "read-write" ? "read-write-metadata" : "read",
+    administrator_attested_permission: board.permission,
+    access_level: result.data.boards.find((candidate) => String(candidate.id) === board.id)?.accessLevel ?? null,
+    provider_write_effect_verified: false,
+  }));
+  for (const board of state.boards) {
+    const access = accessByBoard.get(board.id);
+    const valid = board.permission === "read" ? ["read", "read-write"].includes(access) : access === "read-write";
+    if (!valid) {
+      throw new Error(`Monday board '${board.id}' does not expose the minimum effective access required by the administrator-attested '${board.permission}' permission.`);
+    }
+  }
   if (result.apiVersion && result.apiVersion !== state.api_version) {
     throw new Error(`Monday reported API version '${result.apiVersion}' instead of '${state.api_version}'.`);
   }
-  return actualResources;
+  return effectiveAccess;
 };
 
 export async function advanceMondayAgentQualification({
   statePath,
   agentToken = process.env[MONDAY_AGENT_TOKEN_SECRET_REF],
+  identityConfirmationHash,
   fetchImpl = globalThis.fetch,
 } = {}) {
   const absoluteStatePath = resolve(statePath);
   const state = readMondayAgentQualificationState(absoluteStatePath);
   if (state.phase === "complete") {
     return { status: "complete", statePath: absoluteStatePath, state, message: "Monday external-Agent qualification is already complete.", diagnostics: [] };
+  }
+  if (state.phase === "identity-review") {
+    const review = state.evidence?.identity_review;
+    const pending = state.evidence?.discovery_pending;
+    if (!review || !pending) throw new Error("Monday identity-review state is incomplete.");
+    if (!identityConfirmationHash) {
+      return {
+        status: "waiting",
+        statePath: absoluteStatePath,
+        state,
+        message: "Monday provider identity and selected-board metadata are discovered; the administrator must confirm the exact configured-to-authenticated Agent identity mapping.",
+        next_action: { type: "confirm-agent-identity-mapping", confirmation_hash: review.confirmation_hash, review: review.summary },
+        diagnostics: [],
+      };
+    }
+    if (identityConfirmationHash !== review.confirmation_hash) throw new Error("Monday Agent identity mapping confirmation does not match the pending review.");
+    const discovery = {
+      ...pending,
+      identity_mapping_status: "administrator-confirmed",
+      identity_mapping_confirmation_hash: review.confirmation_hash,
+    };
+    discovery.discovery_hash = sha256(JSON.stringify({ ...discovery, discovery_hash: undefined }));
+    const completed = {
+      ...state,
+      phase: "complete",
+      updated_at: now(),
+      evidence: { discovery, identity_review: review },
+      history: [...state.history, { phase: "identity-mapping-review", status: "confirmed", at: now(), receipt: review.confirmation_hash }],
+    };
+    writeMondayAgentQualificationState(absoluteStatePath, completed);
+    return {
+      status: "complete",
+      statePath: absoluteStatePath,
+      state: completed,
+      message: "Monday external-Agent identity mapping, administrator-attested resource set, effective selected-board access, and board metadata are qualified; no credential was retained and no provider write occurred.",
+      diagnostics: [],
+    };
   }
   if (state.phase !== "agent-ready") throw new Error(`Unknown Monday qualification phase '${state.phase}'.`);
   if (!agentToken) {
@@ -246,36 +284,70 @@ export async function advanceMondayAgentQualification({
 
   const client = new MondayClient({ token: agentToken, apiVersion: state.api_version, fetcher: fetchImpl });
   const result = await client.discoverAgentResources({ agentId: state.agent_id, boardIds: state.boards.map((board) => board.id) });
-  const resources = validateDiscovery(state, result);
+  const effectiveAccess = validateDiscovery(state, result);
+  const resources = state.boards.map((board) => ({
+    id: board.id,
+    scope: "board",
+    permission: board.permission,
+    evidence: "administrator-attestation-and-effective-access",
+  }));
   const discovery = {
     schema_version: 1,
     kind: "monday-external-agent-discovery-receipt",
     observed_at: now(),
     authentication_mode: state.authentication_mode,
+    configured_agent_id: state.agent_id,
+    identity_mapping_status: "administrator-review-required",
     api_version_requested: state.api_version,
     api_version_reported: result.apiVersion,
     request_id: result.requestId,
     identity: result.data.identity,
     account: result.data.account,
     resources,
+    grant_inventory: {
+      complete_set_source: "administrator-attestation",
+      attestation_plan_hash: state.plan_hash,
+      machine_listed_by_authenticated_agent: false,
+    },
+    effective_access: effectiveAccess,
     boards: result.data.boards,
     external_effects: [],
     credentials_retained: false,
   };
   discovery.discovery_hash = sha256(JSON.stringify(discovery));
-  const completed = {
-    ...state,
-    phase: "complete",
-    updated_at: now(),
-    evidence: { discovery },
-    history: [...state.history, { phase: "external-agent-discovery", status: "complete", at: now(), receipt: discovery.discovery_hash }],
+  const identityReviewBody = {
+    schema_version: 1,
+    kind: "monday-agent-identity-mapping-review",
+    plan_hash: state.plan_hash,
+    configured_agent_id: state.agent_id,
+    authenticated_identity: {
+      member_id: discovery.identity.memberId,
+      external_agent_subject_id: discovery.identity.externalAgentId,
+      name: discovery.identity.name,
+      kind: discovery.identity.kind,
+      account_id: discovery.account.id,
+    },
+    discovery_hash: discovery.discovery_hash,
   };
-  writeMondayAgentQualificationState(absoluteStatePath, completed);
+  const identityReview = {
+    ...identityReviewBody,
+    confirmation_hash: sha256(JSON.stringify(identityReviewBody)),
+    summary: identityReviewBody,
+  };
+  const pending = {
+    ...state,
+    phase: "identity-review",
+    updated_at: now(),
+    evidence: { discovery_pending: discovery, identity_review: identityReview },
+    history: [...state.history, { phase: "external-agent-discovery", status: "review-required", at: now(), receipt: discovery.discovery_hash }],
+  };
+  writeMondayAgentQualificationState(absoluteStatePath, pending);
   return {
-    status: "complete",
+    status: "waiting",
     statePath: absoluteStatePath,
-    state: completed,
-    message: "Monday external-Agent identity, exact resource grants, and board metadata are qualified; no credential was retained and no provider write occurred.",
+    state: pending,
+    message: "Monday provider identity and selected-board metadata are discovered; the administrator must confirm the exact configured-to-authenticated Agent identity mapping.",
+    next_action: { type: "confirm-agent-identity-mapping", confirmation_hash: identityReview.confirmation_hash, review: identityReview.summary },
     diagnostics: [],
   };
 }

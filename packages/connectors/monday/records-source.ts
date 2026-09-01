@@ -9,7 +9,7 @@ import type {
 import { MondayClient, type MondayFetch } from "./client.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
-export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.2.0";
+export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.0";
 export const MONDAY_RECORD_SOURCE_API_VERSION = "dev";
 
 const object = (value: JsonValue | undefined, label: string): Record<string, JsonValue> => {
@@ -68,6 +68,16 @@ const mondayConfiguration = (
       : (() => { throw new Error("Monday group_ids must be an array"); })();
   const pageSize = integer(configuration.page_size, "Monday page_size", 100, 1, 500);
   const maxPages = integer(configuration.max_pages, "Monday max_pages", 100, 1, 1000);
+  const maxObjects = integer(configuration.max_objects, "Monday max_objects", 50_000, 1, 1_000_000);
+  const inventoryMode = configuration.inventory_mode === undefined
+    ? "selected-items"
+    : string(configuration.inventory_mode, "Monday inventory_mode");
+  if (!new Set(["selected-items", "complete-table"]).has(inventoryMode)) {
+    throw new Error("Monday inventory_mode must be selected-items or complete-table");
+  }
+  if (inventoryMode === "complete-table" && groupIds.length > 0) {
+    throw new Error("Monday complete-table inventory cannot use group_ids because that would make the completeness claim false");
+  }
   const qualified = qualification as any;
   if (qualified?.kind !== "monday-external-agent-qualification" || qualified?.phase !== "complete") {
     throw new Error("Monday record-source binding requires one complete external-Agent qualification receipt");
@@ -79,7 +89,10 @@ const mondayConfiguration = (
   if (discovery.authentication_mode !== "external-agent" || discovery.credentials_retained !== false) {
     throw new Error("Monday qualification does not prove external-Agent authentication without retained credentials");
   }
-  if (String(discovery.identity?.externalAgentId) !== agentId) throw new Error(`Monday qualification does not identify external Agent '${agentId}'`);
+  if (String(discovery.configured_agent_id) !== agentId) throw new Error(`Monday qualification does not identify configured external Agent '${agentId}'`);
+  if (discovery.identity_mapping_status !== "administrator-confirmed" || !discovery.identity?.externalAgentId) {
+    throw new Error("Monday qualification does not contain an administrator-confirmed provider identity mapping");
+  }
   const resource = (discovery.resources ?? []).find((candidate: any) => candidate.scope === "board" && String(candidate.id) === boardId);
   if (!resource || resource.permission !== permission) throw new Error(`Monday qualification does not prove '${permission}' access to board '${boardId}'`);
   const board = (discovery.boards ?? []).find((candidate: any) => String(candidate.id) === boardId);
@@ -90,7 +103,14 @@ const mondayConfiguration = (
   for (const columnId of configuredColumnIds(source)) {
     if (!qualifiedColumns.has(columnId)) throw new Error(`Monday column '${columnId}' is not active in the qualified board evidence`);
   }
-  return { apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages };
+  const qualifiedSubitemBoardIds = [...new Set<string>((board.columns ?? [])
+    .filter((column: any) => !column.archived && column.type === "subtasks")
+    .flatMap((column: any): string[] => Array.isArray(column.settings?.boardIds) ? column.settings.boardIds.map(String) : []))].sort();
+  return {
+    apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
+    inventoryMode: inventoryMode as "selected-items" | "complete-table",
+    qualifiedSubitemBoardIds,
+  };
 };
 
 export class MondayRecordSourceConnector implements RecordSourceConnector {
@@ -120,21 +140,37 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
     qualification: Record<string, unknown>;
   }): Promise<RecordSourceInventory> {
     const { source, binding, qualification } = args;
-    const { apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages } = mondayConfiguration(source, binding, qualification);
+    const {
+      apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
+      inventoryMode, qualifiedSubitemBoardIds,
+    } = mondayConfiguration(source, binding, qualification);
     const token = this.resolveSecret(binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${binding.secret_ref}' is unavailable`);
     const client = new MondayClient({ token, apiVersion, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
     const columnIds = configuredColumnIds(source);
-    const inventory = await client.readCompleteRecordInventory({ boardId, columnIds, groupIds, pageSize, maxPages });
+    const inventory = await client.readCompleteRecordInventory({
+      boardId, columnIds, groupIds, pageSize, maxPages, maxObjects, inventoryMode,
+      allowedSubitemBoardIds: qualifiedSubitemBoardIds,
+    });
     const observedAt = this.now().toISOString();
     const objects: Array<Record<string, JsonValue>> = inventory.objects.map((item) => ({
       id: item.id,
+      source_id: source.id,
+      object_kind: item.object_kind,
+      is_work_item: item.object_kind === "item" || item.object_kind === "subitem",
+      provider_id: item.provider_id,
       name: item.name,
       updated_at: item.updated_at,
+      created_at: item.created_at,
+      state: item.state,
+      url: item.url,
+      root_board_id: item.root_board_id,
       board_id: item.board_id,
       group_id: item.group_id,
+      parent_item_id: item.parent_item_id,
       columns: item.columns,
       column_text: item.column_text,
+      provider_payload: item.provider_payload,
     }));
     const inventoryDigest = digest(objects);
     return {
@@ -152,10 +188,13 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         authentication_mode: "external-agent",
         agent_id: agentId,
         board_id: boardId,
+        board_ids: inventory.boardIds,
         permission,
+        inventory_mode: inventory.inventoryMode,
         group_ids: groupIds,
-        column_ids: columnIds,
+        column_ids: inventoryMode === "complete-table" ? "all-active-columns" : columnIds,
         pages: inventory.pageCount,
+        object_counts: inventory.objectCounts,
         objects: objects.length,
         inventory_digest: inventoryDigest,
         complete: true,

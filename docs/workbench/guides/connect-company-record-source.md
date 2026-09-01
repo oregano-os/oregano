@@ -76,7 +76,17 @@ For Monday, use one already reviewed external Agent. The Agent's own
 `api_token` is the lasting Instance credential for reads and later allowlisted
 effects. Monday currently exposes this pre-release contract only through
 `API-Version: dev`; qualification blocks if that contract, identity, or
-resource grants drift.
+effective selected-board access drifts. The external Agent token cannot list
+its own `agent_knowledge`, so the exact complete grant set in the confirmed
+plan is an administrator attestation. The qualification receipt labels that
+attestation separately from provider-proven identity and effective
+`access_level`; it never claims that the Agent machine-listed all grants.
+Monday also exposes different configured UI/callback, authenticated member,
+and external subject IDs. The first provider read therefore pauses with a
+second confirmation hash. Review that exact identity tuple, then resume with
+`--identity-confirmation <hash>`. `access_level: edit` is metadata evidence for
+an attested read-write board, not a substitute for a separately confirmed write
+proof.
 
 Plan with the explicit target boards:
 
@@ -134,12 +144,24 @@ access:
   write_roles: []
 ```
 
-Monday inventory exposes the stable item fields `id`, `name`, `updated_at`,
+Monday selected-item inventory exposes the stable item fields `id`, `name`, `updated_at`,
 `board_id`, and `group_id`; parsed provider values under
 `columns.<column-id>`; and display text under
 `column_text.<column-id>`. Choose the representation deliberately. The
 Workbench verifies that every named column exists on the qualified board but
 does not infer what it means.
+
+For a reviewed complete table surface, map the built-in fields `object_kind`,
+`provider_id`, `provider_payload`, `root_board_id`, `board_id`, `group_id`, and
+`parent_item_id`, and set the Instance binding to
+`inventory_mode: complete-table`. That mode stores board, active-group,
+active-column, main-item, and one-level-subitem objects plus every returned
+column value. The child board must be named by the qualified parent subitems
+column; any other child board fails closed. It rejects group filters. It does not fetch updates, comments,
+attachment binaries, linked foreign-board contents, archived items,
+deleted-item history, or deeper subitems. Those are separate reviewed data
+classes. A complete raw inventory does not expose complete data to an Agent;
+projections remain explicit allowlists.
 
 Preview materialization:
 
@@ -173,7 +195,7 @@ instance_id: example-staging
 source_id: delivery-items
 resource_binding: delivery-board
 connector: oregano/monday-record-source
-connector_version: 0.2.0
+connector_version: 0.3.0
 secret_ref: env:MONDAY_API_TOKEN
 qualification:
   receipt_ref: ./monday-agent-qualification.json
@@ -187,6 +209,7 @@ configuration:
     - ready_group
   page_size: 100
   max_pages: 100
+  max_objects: 50000
 ```
 
 Replace the fictional digest with the exact `discovery_hash` from the completed
@@ -200,6 +223,19 @@ refuses credential-shaped binding fields and fails before secret resolution
 when the receipt, digest, Agent, board, permission, active groups, mapped
 columns, or `dev` API contract do not match. Unknown or additional Agent
 resources also fail qualification rather than becoming implicit access.
+
+`agent_id` is the configured UI/callback Agent ID from the confirmed identity
+mapping. It is not the authenticated member ID or the external subject ID.
+
+For a complete-table binding, omit `group_ids` and add:
+
+```yaml
+  inventory_mode: complete-table
+```
+
+The default mode is `selected-items`. Use complete-table only after reviewing
+the broader personal and business data scope, provider API quota, database
+storage, retention, projection access, and rollback.
 
 ## 5. Inspect before any external call
 

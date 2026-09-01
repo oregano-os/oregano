@@ -1,0 +1,120 @@
+version: 2
+plan_id: monday-agent-effective-access-evidence-2026-09-01
+status: approved
+author: codex-agent
+created: 2026-09-01
+title: Represent external Monday Agent access evidence honestly
+objective: >-
+  Qualify an external Monday Agent with its own token by proving provider
+  identity, exact selected-board visibility, and minimum per-board access,
+  while recording the complete administrative grant set as a digest-bound
+  administrator attestation because monday does not expose agent_knowledge to
+  the external Agent token.
+non_goals:
+  - Read or retain an owner, administrator, OAuth, or personal Monday token.
+  - Claim that the external Agent can machine-list its complete administrative grant inventory.
+  - Perform a Monday mutation, production synchronization, or database migration.
+  - Put company identifiers, credentials, provider payloads, or synchronized records in Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-01-monday-external-agent-record-source.yaml
+  - .oregano/changes/2026-09-01-monday-agent-effective-access-evidence.yaml
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/monday-agent-qualification.mjs
+  - packages/cli/tests/monday-agent-qualification.test.mjs
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/contracts.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-confirmation-251595a6f626cfc4ba78f56a15471f0f3c0afa63eb062f72d3658fd93cf0495f
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic external-Agent identity verification across distinct provider ID namespaces, effective selected-resource access verification, attestation semantics, safe receipts, and maintained Monday transport.
+    packages:
+      - No Blueprint or third-party Package change is required.
+    workspace:
+      - Own company-specific resources, expected permissions, mappings, scope, and projection policy.
+    instance:
+      - Own exact Agent ID, secret references, administrative grant attestation, provider account, resource bindings, and operational receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Qualification verifies the provider Agent identity but does not change deterministic conversational routing.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Provider board access does not grant a CompanyOS Tool or authorize a write effect.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Qualification and identity review are deterministic and invoke no model.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Provider identity, administrator grant intent, effective access, and human effect approval must remain distinct evidence classes.
+    - mechanism: company-records
+      decision: reuse
+      reason: The qualification receipt gates source materialization without containing synchronized records or credentials.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The maintained Monday adapter must use the current structured column settings field and effective board access level.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: The exact administrative grant attestation is confirmation-hash bound, and write capability remains unproven until a separately confirmed reversible effect.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: Qualification activates no timer, schedule, or business-time calculation.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Any Company Instance can attest a different exact Monday resource set and
+    prove effective access with its own external Agent. Core contains no real
+    account, board, person, field, status, or policy value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-monday-agent-effective-access-evidence.yaml
+  - pnpm companyos inspect-core --base e53d201c386bdc5ff82f94976cf36b770debb301 --plan .oregano/changes/2026-09-01-monday-agent-effective-access-evidence.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Qualification accepts only external Agent member kinds and matches the Agent ID parsed from provider identity.
+  - Every selected board is returned exactly once, proves minimum read access, and an attested read-write board reports edit metadata access.
+  - Distinct configured UI/callback, authenticated member, and external subject IDs require a second digest-bound administrator confirmation.
+  - The receipt distinguishes administrator-attested resource inventory from provider-proven effective selected-board access.
+  - A missing board, unexpected effective edit access, insufficient effective access, human token, or API-version drift fails closed.
+  - Structured column settings are retained as JSON and no provider payload, credential, or unrestricted item content is committed.
+  - No qualification query calls agent_knowledge with an external Agent token.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - command.monday-qualify
+    - guide.connect-company-record-source
+rollback: >-
+  Revert this change and leave affected Instance qualification incomplete. Do
+  not restore the false claim that an external Agent token machine-verifies its
+  complete administrative grant inventory. Existing provider identity and
+  grants remain unchanged.
+open_decisions:
+  - Monday's Agent API remains pre-release and requires API-Version dev; every activation must requalify provider behavior.
+  - A reversible provider write is still required later to prove an operational write effect; metadata access alone does not authorize it.
