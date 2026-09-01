@@ -21,6 +21,8 @@ export interface MondayAgentTrigger {
   payload: Record<string, unknown>;
   agentId: string;
   routeChannelId: string;
+  stream: boolean;
+  text: string;
 }
 
 const header = (headers: Record<string, string | undefined>, name: string): string => {
@@ -56,17 +58,32 @@ export function parseMondayAgentTrigger(rawBody: string, agentId: string): Monda
   try { value = JSON.parse(rawBody); }
   catch { throw new Error("Monday callback body is not valid JSON"); }
   if (value?.event !== "agent_triggered") throw new Error("Monday callback event is unsupported");
-  if (!["chat", "mention", "assigned"].includes(value.triggerType)) throw new Error("Monday callback trigger type is unsupported");
+  const triggerType = value.triggerType === "mentioned"
+    ? "mention"
+    : value.triggerType === "assign"
+      ? "assigned"
+      : value.triggerType;
+  if (!["chat", "mention", "assigned"].includes(triggerType)) throw new Error("Monday callback trigger type is unsupported");
   if (!value.payload || typeof value.payload !== "object" || Array.isArray(value.payload)) throw new Error("Monday callback payload must be an object");
+  if (typeof value.payload.text !== "string" || value.payload.text.length === 0) throw new Error("Monday callback payload must contain text");
   const boardId = value.payload.boardId ?? value.payload.board_id;
   const routeChannelId = boardId ? `board:${String(boardId)}` : `agent:${agentId}`;
-  return { event: "agent_triggered", triggerType: value.triggerType, payload: value.payload, agentId, routeChannelId };
+  return {
+    event: "agent_triggered",
+    triggerType,
+    payload: value.payload,
+    agentId,
+    routeChannelId,
+    stream: value.stream !== false,
+    text: String(value.payload.text),
+  };
 }
 
 export async function routeMondayAgentCallback(args: {
   rawBody: string;
   headers: Record<string, string | undefined>;
   signingSecret: string;
+  expectedAgentId?: string;
   now: number;
   replayStore: MondayReplayStore;
   accountId: string;
@@ -74,6 +91,9 @@ export async function routeMondayAgentCallback(args: {
   agentIds: string[];
 }): Promise<{ trigger: MondayAgentTrigger; resolution: AgentResolution }> {
   const verified = await verifyMondayAgentCallback(args);
+  if (args.expectedAgentId && verified.agentId !== args.expectedAgentId) {
+    throw new Error("Monday callback Agent identity is not configured for this Instance");
+  }
   const trigger = parseMondayAgentTrigger(args.rawBody, verified.agentId);
   const resolution = resolveAgent(args.routing, args.agentIds, { surface: "monday", accountId: args.accountId, channelId: trigger.routeChannelId });
   return { trigger, resolution };

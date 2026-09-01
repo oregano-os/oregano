@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -46,6 +46,16 @@ evidence, historical prototypes, and production gaps.
   `AgentResolver` for verified conversations. Synthetic Connector tests do not
   claim a real external Agent registration, account permission, cost, provider
   conformance, or production activation.
+- The maintained Vercel Runner now has an optional fail-closed Monday
+  external-Agent ingress. It verifies the raw callback body, timestamp,
+  signature, configured Agent identity, and digest-only durable replay claim
+  before `AgentResolver`; normalizes current pre-release trigger aliases; and
+  returns Monday-compatible SSE or JSON. Because the provider envelope does
+  not identify the triggering human, only deterministic setup probes can
+  produce visible chat content. Ordinary chat opens no Workspace material,
+  model, or Tool, while mention and assignment are acknowledgement-only. This
+  implementation does not claim a real deployment, callback delivery, board
+  grant, human authorization, Agent-token action, or production verification.
 - The experimental `companyos monday qualify` Workbench path now plans and
   records one exact read-only Monday OAuth 2.1 qualification. It uses S256 PKCE,
   requests only `boards:read` and `me:read`, and asks Monday to route a missing

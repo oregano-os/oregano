@@ -1,0 +1,123 @@
+version: 2
+plan_id: monday-agent-runtime-ingress-2026-09-01
+status: implemented
+author: codex-agent
+created: 2026-09-01
+title: Add fail-closed Monday external-Agent runtime ingress
+objective: >-
+  Add a thin maintained Vercel ingress for signed Monday external-Agent
+  callbacks that verifies the raw request, rejects replay and wrong Agent
+  identities, resolves the compiled Agent through AgentResolver, implements
+  Monday's exact synchronous response formats, and keeps senderless
+  interactive traffic out of model and Tool execution.
+non_goals:
+  - Deploy the callback or claim production verification.
+  - Grant an external Agent access to a board or document.
+  - Invoke a model, disclose Company Workspace material, or execute a Tool for a Monday callback that lacks an authenticated human principal.
+  - Post an update, mutate a work item, synchronize records, run a Sprint workflow, or enable write permissions.
+  - Put an Agent token, signing secret, account id, Agent id, board id, or company policy in Oregano Core source or fixtures.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-09-01-monday-agent-runtime-ingress.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/status/current.md
+  - packages/connectors/monday/webhook.ts
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
+  - packages/runner-vercel/src/lib/monday-agent-webhook.ts
+  - packages/testkit/tests/monday-agent-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-instruction-ok-mach-weiter-after-review-of-the-runtime-webhook-scope
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own raw-body signature verification, replay rejection, trigger normalization, AgentResolver dispatch, protocol response formatting, and fail-closed sender-identity handling.
+    packages:
+      - The Sprint Blueprint remains declarative and unchanged; it does not own provider credentials, callbacks, or response formats.
+    workspace:
+      - A later reviewed Company Workspace diff owns logical Monday connection references, resource mappings, Sprint participants, schedules, and business policy.
+    instance:
+      - Own the external Agent registration, account and Agent identifiers, signing secret, Agent token, callback URL, board grants, runtime deployment, activation, and qualification receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Every verified conversational callback resolves the exact compiled Agent from surface, account, and Agent-or-board route facts.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: This ingress invokes no Tool; later Monday Tools still require normal Artifact grants and exact Instance Connector bindings.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Senderless Monday callbacks are blocked before model invocation; the setup proof is deterministic.
+    - mechanism: company-records
+      decision: reuse
+      reason: Board-change synchronization remains outside this conversational ingress and continues through Company Records.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Signed Agent identity authenticates the provider callback but not its human sender, so interactive Company data and Tools fail closed.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: This callback ingress schedules no Sprint work.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Digest-only durable replay claims precede routing; the ingress itself performs no provider effect.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The maintained Monday adapter gains current pre-release trigger aliases and response metadata while the Vercel endpoint remains thin.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The ingress accepts Instance-injected account, Agent, and signing material
+    and contains no company resource or policy value. The same protocol and
+    fail-closed identity rule apply to every Company Instance using a custom
+    Monday external Agent.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-monday-agent-runtime-ingress.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-01-monday-agent-runtime-ingress.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - The endpoint accepts POST only and never reads a parsed-and-reserialized body for HMAC verification.
+  - A valid signed setup probe resolves the exact Agent and returns Monday-compatible SSE or JSON.
+  - Wrong Agent identity, invalid signature, stale timestamp, replay, unsupported trigger, and unknown route fail before any reply handler.
+  - Current mentioned and assign aliases normalize to mention and assigned.
+  - Mention and assigned triggers receive only a protocol acknowledgement and perform no model, Tool, or provider effect.
+  - Ordinary chat receives a bounded identity-unavailable response and does not expose Company Workspace material.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - status.current
+migration: >-
+  This adds an optional Monday branch to the existing dynamic Vercel webhook
+  route. Existing Slack traffic remains unchanged. A real Instance must inject
+  MONDAY_SIGNING_SECRET, MONDAY_AGENT_ID, and MONDAY_ACCOUNT_ID before the
+  branch is usable; MONDAY_API_TOKEN is retained for later outbound Connector
+  work but is not consumed by this no-effect ingress.
+rollback: >-
+  Remove the Monday branch and handler, revert trigger normalization and
+  documentation, and leave the external Agent isolated from boards. Existing
+  secret values can remain dormant or be removed through a separately
+  confirmed Instance change.
+open_decisions:
+  - Monday's pre-release callback currently omits the triggering human identity; interactive CompanyOS model and Tool execution remains blocked until a provider fact or separately approved authorization design closes that gap.

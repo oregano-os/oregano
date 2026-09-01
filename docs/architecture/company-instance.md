@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -306,6 +306,21 @@ callbacks bypass the chat prompt and enter the records and Sprint path. An
 outbound Sprint message similarly resolves the provider-neutral
 `communication.message.publish` Capability to an exact destination binding;
 the Sprint Blueprint does not know a channel ID.
+
+The first maintained external-Agent runtime ingress implements Monday's exact
+signed synchronous callback and SSE/JSON acknowledgement formats. It binds an
+Instance-injected account id, external Agent id, and signing secret, retains
+only a digest for replay prevention, and rejects a wrong Agent identity before
+dispatch. Monday's current pre-release trigger envelope authenticates the
+external Agent callback but does not identify the human who initiated chat,
+mention, or assignment. That provider fact is insufficient to authorize a
+human principal. Ordinary interactive traffic therefore fails closed before
+Company Workspace material, model invocation, Tool resolution, or effect
+execution. A deterministic setup proof remains available to qualify delivery;
+mention and assignment receive protocol acknowledgement only. Company data or
+Tools require a later provider identity fact or separately approved
+authorization design. Board grants and outbound Agent-token actions remain
+distinct Instance effects.
 
 The first maintained Monday qualification is deliberately narrower than Agent
 provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
