@@ -18,7 +18,6 @@ relations:
     - specification.company-records-sprint-v0.1
     - architecture.company-instance
   related:
-    - command.monday-qualify
     - guide.connect-knowledge-source
 ---
 
@@ -71,13 +70,14 @@ Before writing a source declaration, obtain explicit answers for:
 Do not guess an answer from a screenshot, field title, sample item, or another
 company's Workspace.
 
-## 2. Qualify the provider without retaining a human credential
+## 2. Qualify the existing external Agent
 
-For Monday, register one OAuth 2.1 app version with the exact loopback redirect
-and only `boards:read` and `me:read`. Explain before consent that the browser
-authorization creates a read-only app authorization and may route an
-administrator through provider installation. It does not create or modify a
-board, item, Agent, webhook, or permission.
+For Monday, use one already reviewed external Agent. Do not create a Developer
+App or use a human OAuth or personal API token for Company Records. The Agent's
+own `api_token` is the lasting Instance credential for reads and later
+allowlisted effects. Monday currently exposes this pre-release contract only
+through `API-Version: dev`; qualification blocks if that contract, identity, or
+resource grants drift.
 
 Plan with the explicit target boards:
 
@@ -85,20 +85,22 @@ Plan with the explicit target boards:
 companyos records source qualify \
   --provider monday \
   --workspace <company-workspace> \
-  --client-id <non-secret-client-id> \
-  --app-version-id <exact-app-version-id> \
-  --redirect-uri http://127.0.0.1:43127/callback \
-  --board <test-board-id> \
+  --agent-id <exact-external-agent-id> \
+  --board-access <roles-board-id>:read \
+  --board-access <work-board-id>:read-write \
   --state <outside-workspace-state-file> \
   --plan
 ```
 
-Review and confirm the hash, inject `MONDAY_OAUTH_CLIENT_SECRET` through the
-runtime host's Sensitive secret surface, then apply and resume. Never paste the
-secret into chat, Git, the command, or the state file. The completed state file
-contains non-secret actor, account, scope, board, group, column, API, request,
-and digest evidence. It contains no items, column values, access token, refresh
-token, authorization code, verifier, or client secret.
+Review and confirm the hash, inject the existing `MONDAY_API_TOKEN` through the
+runtime host's Sensitive secret surface, then apply or resume. Never paste the
+token into chat, Git, the command, or the state file. Qualification accepts
+only `external_agent_member` or `external_agent_detached_member`, matches the
+Agent ID from its provider identity, and requires the complete returned
+resource-grant set to equal the confirmed plan. The completed mode-0600 state
+file contains non-secret Agent, account, grant, board, group, column, API,
+request, and digest evidence. It contains no items, column values, token, or
+provider effect.
 
 ## 3. Author and materialize the Workspace declaration
 
@@ -172,14 +174,16 @@ instance_id: example-staging
 source_id: delivery-items
 resource_binding: delivery-board
 connector: oregano/monday-record-source
-connector_version: 0.1.0
-secret_ref: env:MONDAY_RECORDS_TOKEN
+connector_version: 0.2.0
+secret_ref: env:MONDAY_API_TOKEN
 qualification:
-  receipt_ref: ./monday-read-qualification.json
+  receipt_ref: ./monday-agent-qualification.json
   digest: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 configuration:
-  api_version: "2026-07"
+  api_version: dev
+  agent_id: "700001"
   board_id: "100001"
+  permission: read
   group_ids:
     - ready_group
   page_size: 100
@@ -189,17 +193,14 @@ configuration:
 Replace the fictional digest with the exact `discovery_hash` from the completed
 qualification receipt. The relative receipt path resolves from the binding
 file. The binding contains identifiers, a qualification pin, and
-configuration, not secrets. Install the provider credential and `DATABASE_URL`
-only in the selected Instance runtime secret store. The maintained Connector
-uses the provider token only for read-only inventory. The Workbench refuses
-credential-shaped binding fields and fails before secret resolution when the
-receipt, digest, board, active groups, mapped columns, or exact read-only scopes
-do not match.
-
-The human OAuth token from qualification is deliberately discarded and is not
-the production synchronization credential. The accountable administrator must
-separately create or select the least-privileged Instance credential, explain
-its scopes and provider cost, and store it in the protected secret surface.
+configuration, not secrets. Store the Agent token and `DATABASE_URL` only in
+the selected Instance runtime secret store. The maintained Record Source
+Connector performs read-only inventory even when the Agent has an explicitly
+reviewed `read-write` grant for a separate work-item Capability. The Workbench
+refuses credential-shaped binding fields and fails before secret resolution
+when the receipt, digest, Agent, board, permission, active groups, mapped
+columns, or `dev` API contract do not match. Unknown or additional Agent
+resources also fail qualification rather than becoming implicit access.
 
 ## 5. Inspect before any external call
 

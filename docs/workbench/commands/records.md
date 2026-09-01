@@ -16,8 +16,6 @@ relations:
   depends_on:
     - architecture.company-instance
     - specification.company-records-sprint-v0.1
-  related:
-    - command.monday-qualify
 ---
 
 # `companyos records`
@@ -47,26 +45,27 @@ database call.
 
 ## Qualification
 
-The first maintained Record Source Connector is Monday. Its provider-neutral
-entrypoint delegates to the exact existing qualification implementation:
+The first maintained Record Source Connector is Monday. It uses the same
+external Agent identity as the maintained Monday callback ingress. There is no
+Developer App, browser consent, human token, or parallel authorization path:
 
 ```bash
 companyos records source qualify \
   --provider monday \
   --workspace <company-workspace> \
-  --client-id <non-secret-client-id> \
-  --app-version-id <exact-app-version-id> \
-  --redirect-uri http://127.0.0.1:43127/callback \
-  --board <exact-board-id> \
+  --agent-id <exact-external-agent-id> \
+  --board-access <roles-board-id>:read \
+  --board-access <work-board-id>:read-write \
   --state <outside-workspace-state-file> \
   --plan
 ```
 
 Use the returned hash with `--apply`, then use `--resume` and `--status` with
-the same `--provider monday` and state path. This is identical to
-`companyos monday qualify`; it requests only `boards:read` and `me:read`, reads
-only selected resource metadata, retains no human OAuth credential, and does
-not synchronize any item.
+the same `--provider monday` and state path. The Workbench resolves
+`env:MONDAY_API_TOKEN` only after the confirmed hash, requires a real external
+Agent token, verifies the exact Agent ID and complete resource-grant set, reads
+only selected board metadata with Monday's required `API-Version: dev`, retains
+no credential, and does not synchronize an item or change a provider grant.
 
 ## Reviewed materialization
 
@@ -146,13 +145,14 @@ missing schema.
 
 ## Secrets and production
 
-The binding must also pin its non-secret qualification receipt and digest. It
-may contain only a `secret_ref`, never a credential. The maintained commands
-accept `env:NAME` references and resolve them only after a valid apply hash.
-`DATABASE_URL` is resolved independently from the process environment.
-Inject both through the selected runtime host's protected secret mechanism;
-never put a value in chat, Git, a Workspace file, a binding, a plan, or a
-command argument.
+The binding must also pin its non-secret external-Agent qualification receipt
+and digest. It may contain only a `secret_ref`, never a credential. The
+maintained commands accept `env:NAME` references and resolve them only after a
+valid apply hash. `MONDAY_API_TOKEN` is the existing external Agent token;
+`DATABASE_URL` is resolved independently from the process environment. Inject
+both through the selected runtime host's protected secret mechanism; never put
+a value in chat, Git, a Workspace file, a binding, a plan, or a command
+argument.
 
 Provider API calls and database storage or compute may count against the
 company's existing provider plans. The Workbench does not purchase or upgrade

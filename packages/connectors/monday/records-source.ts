@@ -9,8 +9,8 @@ import type {
 import { MondayClient, type MondayFetch } from "./client.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
-export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.0";
-export const MONDAY_RECORD_SOURCE_API_VERSION = "2026-07";
+export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.2.0";
+export const MONDAY_RECORD_SOURCE_API_VERSION = "dev";
 
 const object = (value: JsonValue | undefined, label: string): Record<string, JsonValue> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -57,6 +57,10 @@ const mondayConfiguration = (
   }
   const boardId = string(configuration.board_id, "Monday board_id");
   if (!/^\d{1,20}$/.test(boardId)) throw new Error(`Monday board id '${boardId}' is invalid`);
+  const agentId = string(configuration.agent_id, "Monday agent_id");
+  if (!/^\d{1,20}$/.test(agentId)) throw new Error(`Monday external Agent id '${agentId}' is invalid`);
+  const permission = string(configuration.permission, "Monday permission");
+  if (!new Set(["read", "read-write"]).has(permission)) throw new Error("Monday permission must be read or read-write");
   const groupIds = configuration.group_ids === undefined
     ? []
     : Array.isArray(configuration.group_ids)
@@ -65,18 +69,19 @@ const mondayConfiguration = (
   const pageSize = integer(configuration.page_size, "Monday page_size", 100, 1, 500);
   const maxPages = integer(configuration.max_pages, "Monday max_pages", 100, 1, 1000);
   const qualified = qualification as any;
-  if (qualified?.kind !== "monday-read-qualification" || qualified?.phase !== "complete") {
-    throw new Error("Monday record-source binding requires one complete Monday qualification receipt");
+  if (qualified?.kind !== "monday-external-agent-qualification" || qualified?.phase !== "complete") {
+    throw new Error("Monday record-source binding requires one complete external-Agent qualification receipt");
   }
   const discovery = qualified?.evidence?.discovery;
   if (!discovery || discovery.discovery_hash !== binding.qualification.digest) {
     throw new Error("Monday qualification digest does not match the Instance binding");
   }
-  if (discovery.credentials_retained !== false) throw new Error("Monday qualification does not prove credential disposal");
-  const scopes = [...new Set((discovery.scopes ?? []).map(String))].sort();
-  if (JSON.stringify(scopes) !== JSON.stringify(["boards:read", "me:read"])) {
-    throw new Error("Monday qualification does not contain the exact read-only scopes");
+  if (discovery.authentication_mode !== "external-agent" || discovery.credentials_retained !== false) {
+    throw new Error("Monday qualification does not prove external-Agent authentication without retained credentials");
   }
+  if (String(discovery.identity?.externalAgentId) !== agentId) throw new Error(`Monday qualification does not identify external Agent '${agentId}'`);
+  const resource = (discovery.resources ?? []).find((candidate: any) => candidate.scope === "board" && String(candidate.id) === boardId);
+  if (!resource || resource.permission !== permission) throw new Error(`Monday qualification does not prove '${permission}' access to board '${boardId}'`);
   const board = (discovery.boards ?? []).find((candidate: any) => String(candidate.id) === boardId);
   if (!board) throw new Error(`Monday qualification does not contain exact board '${boardId}'`);
   const qualifiedGroups = new Set((board.groups ?? []).filter((group: any) => !group.archived && !group.deleted).map((group: any) => String(group.id)));
@@ -85,7 +90,7 @@ const mondayConfiguration = (
   for (const columnId of configuredColumnIds(source)) {
     if (!qualifiedColumns.has(columnId)) throw new Error(`Monday column '${columnId}' is not active in the qualified board evidence`);
   }
-  return { apiVersion, boardId, groupIds, pageSize, maxPages };
+  return { apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages };
 };
 
 export class MondayRecordSourceConnector implements RecordSourceConnector {
@@ -115,7 +120,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
     qualification: Record<string, unknown>;
   }): Promise<RecordSourceInventory> {
     const { source, binding, qualification } = args;
-    const { apiVersion, boardId, groupIds, pageSize, maxPages } = mondayConfiguration(source, binding, qualification);
+    const { apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages } = mondayConfiguration(source, binding, qualification);
     const token = this.resolveSecret(binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${binding.secret_ref}' is unavailable`);
     const client = new MondayClient({ token, apiVersion, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
@@ -144,7 +149,10 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         api_versions_reported: inventory.reportedApiVersions,
         request_ids: inventory.requestIds,
         resource_binding: binding.resource_binding,
+        authentication_mode: "external-agent",
+        agent_id: agentId,
         board_id: boardId,
+        permission,
         group_ids: groupIds,
         column_ids: columnIds,
         pages: inventory.pageCount,

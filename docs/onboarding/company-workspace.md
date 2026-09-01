@@ -61,7 +61,7 @@ personal account.
 | Runtime hosting | Vercel account/team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |
 | Model execution | Gateway access, a supported cloud-provider account and dedicated key, or an explicitly reachable compatible endpoint | Before deploying a model-backed Instance | The explicit recipe and exact route-prefixed model are selected, billing and data terms are accepted, and a deployed model-backed smoke test succeeds. A required key is entered only in the runtime host secret UI. |
 | Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |
-| Connected systems | For example Slack or Monday installations | Only when declared by an approved connection or Tool grant | Each installation has a named owner, minimum scopes, revocation path, and no secrets in Git. |
+| Connected systems | For example Slack or Monday provider connections | Only when declared by an approved connection or Tool grant | Each connection has a named owner, minimum access, revocation path, and no secrets in Git. |
 
 Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider
 account. The maintained complete starter does require a Vercel account, consent

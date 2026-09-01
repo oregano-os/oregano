@@ -80,7 +80,7 @@ architecture_assessment:
   new_core_mechanisms:
     - Generic Company Records registry, version, projection, access, synchronization, freshness, and reconciliation contracts.
     - Pure Sprint event, state, decision, read-model, business-time, timer-intent, and controlled-clock modules.
-    - Provider-independent secret-safe qualification discipline with a maintained read-only Monday OAuth adapter.
+    - Provider-independent secret-safe qualification discipline with a maintained external Monday Agent adapter.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
@@ -110,7 +110,7 @@ tests:
   - Sprint decisions remain deterministic under a controlled clock and Workspace-supplied policy and business-calendar facts.
   - Work-item Capabilities validate inputs and preserve effect, evidence, and idempotency boundaries across provider adapters.
   - The Sprint Blueprint contains no runtime code, company principal, provider resource, binding, grant, or secret.
-  - Monday qualification retains no human OAuth token and discovers only explicitly selected read-only metadata.
+  - Monday qualification proves one exact external Agent and discovers only explicitly selected metadata without retaining its token.
   - The external-Agent ingress rejects invalid, stale, replayed, or wrong-Agent callbacks before resolution and performs no Company action for senderless traffic.
   - All public fixtures use synthetic companies, people, provider resources, and events.
 documentation_impact:
@@ -124,7 +124,7 @@ documentation_impact:
     - specification.company-records-sprint-v0.1
     - status.current
     - command.inspect-core
-    - command.monday-qualify
+    - command.records
 migration: >-
   This integration is additive and optional. Existing Workspaces, Agents,
   Connectors, schemas, and deployments remain valid. A Company Instance must

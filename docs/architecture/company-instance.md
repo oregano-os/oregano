@@ -322,20 +322,19 @@ Tools require a later provider identity fact or separately approved
 authorization design. Board grants and outbound Agent-token actions remain
 distinct Instance effects.
 
-The first maintained Monday qualification is deliberately narrower than Agent
-provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
-Company Workspace, one registered OAuth client and exact app version, API version `2026-07`, the
-read-only scopes `boards:read` and `me:read`, and explicit board IDs. It uses a
-loopback OAuth 2.1 callback with S256 PKCE and requests Monday's explicit
-missing-installation handoff. Monday still requires an account administrator
-to install the app; the Workbench cannot install it automatically or treat
-browser consent as installation authority. The authorization code, verifier,
-client secret, access token, and refresh token stay in process memory and are
-discarded after one metadata query. Only the consenting actor and account,
-scope evidence, board/group/column structure, request evidence, and discovery
-digest enter the mode-0600 Instance qualification receipt. Creating or
-activating an external Agent, retaining its one-time credentials, granting a
-board, deploying a callback, or writing remains a separate confirmed effect.
+The maintained Monday qualification uses that same external Agent rather than
+a second provider identity. `companyos records source qualify --provider
+monday` binds one clean Core checkout, exact Company Workspace, external Agent
+ID, `API-Version: dev`, complete expected resource-grant set, and explicit
+board IDs before resolving the Instance SecretRef. It accepts only
+`external_agent_member` or `external_agent_detached_member`, derives the Agent
+ID from its provider identity, queries `agent_knowledge`, and fails on an
+absent, extra, or wrong-permission resource. Only Agent and account identity,
+grant evidence, board/group/column structure, request evidence, and a
+discovery digest enter the mode-0600 Instance qualification receipt. The Agent
+token remains in the protected Instance secret surface and is not retained by
+the Workbench. Qualification creates no Agent, grant, callback, board change,
+or write. There is no maintained Developer App or human OAuth path.
 
 After qualification, Company Records uses a separate non-secret Instance
 binding. It selects one exact Record Source Connector version, Instance and

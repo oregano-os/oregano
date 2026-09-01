@@ -262,24 +262,6 @@
     }
   },
   {
-    "document_id": "command.monday-qualify",
-    "title": "companyos monday qualify",
-    "path": "docs/workbench/commands/monday-qualify.md",
-    "kind": "command",
-    "status": "implemented",
-    "authority": "canonical",
-    "language": "en",
-    "updated": "2026-09-01",
-    "availability": "experimental",
-    "migration_sources": [],
-    "relations": {
-      "depends_on": [
-        "architecture.company-instance",
-        "specification.company-records-sprint-v0.1"
-      ]
-    }
-  },
-  {
     "document_id": "command.onboard",
     "title": "companyos onboard",
     "path": "docs/workbench/commands/onboard.md",
@@ -342,9 +324,6 @@
       "depends_on": [
         "architecture.company-instance",
         "specification.company-records-sprint-v0.1"
-      ],
-      "related": [
-        "command.monday-qualify"
       ]
     }
   },
@@ -667,7 +646,6 @@
         "architecture.company-instance"
       ],
       "related": [
-        "command.monday-qualify",
         "guide.connect-knowledge-source"
       ]
     }

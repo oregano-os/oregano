@@ -29,13 +29,15 @@ evidence, historical prototypes, and production gaps.
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
 - The experimental `companyos records` Workbench surface now inspects sources
-  and projections locally; reuses the exact-scope Monday qualification path;
+  and projections locally; qualifies the exact external Monday Agent identity
+  and complete resource-grant set;
   materializes only an explicitly authored, qualification-checked Workspace
   declaration; and plans and confirms secret-bound synchronization or full
   reconciliation into the existing Company Instance database. Its generic
   Record Source Connector registry has one maintained read-only Monday
   adapter with exact board and optional group scope, explicit mapped columns,
-  API version `2026-07`, bounded complete pagination, payload-free evidence,
+  required pre-release API version `dev`, bounded complete pagination,
+  payload-free evidence,
   and no retained credential. `status` reads counts, watermark time, and the
   latest receipt without record payloads and without creating a schema.
   Synthetic tests prove the lifecycle; no real provider read, database write,
@@ -68,16 +70,15 @@ evidence, historical prototypes, and production gaps.
   model, or Tool, while mention and assignment are acknowledgement-only. This
   implementation does not claim a real deployment, callback delivery, board
   grant, human authorization, Agent-token action, or production verification.
-- The experimental `companyos monday qualify` Workbench path now plans and
-  records one exact read-only Monday OAuth 2.1 qualification. It uses S256 PKCE,
-  requests only `boards:read` and `me:read`, and asks Monday to route a missing
-  installation through its administrator-controlled handoff without installing
-  the app automatically. It reads metadata for only the named boards and stores
-  a mode-0600 non-secret receipt containing account,
-  board/group/column, scope, API, request, and digest evidence. Human OAuth
-  credentials are discarded after discovery. This implementation does not
-  prove a real consent, account permission, test board, external Agent,
-  callback deployment, board grant, activation, write, or provider cost.
+- `companyos records source qualify --provider monday` is the only maintained
+  Monday qualification path. It accepts only the Instance-owned external
+  Agent token, verifies the exact Agent identity parsed from `me`, requires
+  the complete Agent knowledge-grant set to match the confirmed read and
+  read-write board plan, and reads metadata for only those boards. It stores a
+  mode-0600 non-secret receipt containing Agent, account, grant,
+  board/group/column, API, request, and digest evidence. It retains no token
+  and performs no provider write. There is no maintained Developer App,
+  browser-consent, human-token, or parallel OAuth qualification path.
 - The repository-local `oregano/sprint-agent` Blueprint contains one logical
   Agent Component, portable weekly, Friday Close, and reconciliation
   Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
@@ -567,7 +568,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.11`; no
+  builds. Its repository release candidate is `0.1.0-experimental.12`; no
   public package release is claimed.
 - Newly generated Change Plans use version 2 and fail closed unless they record
   the Core, Package or Blueprint, Workspace, and Instance responsibility split;

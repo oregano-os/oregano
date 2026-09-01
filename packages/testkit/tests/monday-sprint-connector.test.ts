@@ -76,21 +76,21 @@ test("Monday resource discovery returns only exact board structure in requested 
         { id: "200002", name: "Roles", board_kind: "private", state: "active", permissions: "view", workspace: null, groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }], columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "rev-2", settings_str: null }] },
         { id: "200001", name: "Sprint", board_kind: "private", state: "active", permissions: "edit", workspace: { id: "workspace-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "rev-1", settings_str: "{}" }] },
       ],
-    }, "2026-07");
+    }, "dev");
   };
-  const client = new MondayClient({ token: "fixture-memory-token", apiVersion: "2026-07", fetcher });
+  const client = new MondayClient({ token: "fixture-memory-token", apiVersion: "dev", fetcher });
   const result = await client.discoverResources(["200001", "200002"]);
   assert.deepEqual(result.data.boards.map((board) => board.id), ["200001", "200002"]);
   assert.equal(result.data.boards[0].columns[0].revision, "rev-1");
   assert.deepEqual(requests[0].body.variables.boardIds, ["200001", "200002"]);
   assert.doesNotMatch(requests[0].body.query, /items|updates|column_values/);
-  assert.equal(requests[0].headers.get("api-version"), "2026-07");
+  assert.equal(requests[0].headers.get("api-version"), "dev");
 });
 
 test("the Monday Connector refuses stale versions, unknown fields, read-only effects, and missing claims", async () => {
   const fetcher = async (): Promise<Response> => response(item("v2", "Working"));
   const connector = new MondayWorkItemConnector({
-    client: new MondayClient({ token: "fixture-token", apiVersion: "2026-07", fetcher }),
+    client: new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher }),
     bindings: [{ id: "read-only-board", boardId: "board-1", permission: "read", fields: { status: "status_col" } }],
     actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
   });

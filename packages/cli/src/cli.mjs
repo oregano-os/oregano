@@ -17,11 +17,11 @@ import {
   verifyLiveSetup,
 } from "./live-setup.mjs";
 import {
-  advanceMondayQualification,
-  initializeMondayQualification,
-  planMondayQualification,
-  readMondayQualificationState,
-} from "./monday-qualification.mjs";
+  advanceMondayAgentQualification,
+  initializeMondayAgentQualification,
+  planMondayAgentQualification,
+  readMondayAgentQualificationState,
+} from "./monday-agent-qualification.mjs";
 import {
   applyRecordSourceMaterialization,
   inspectRecordSourceStatus,
@@ -105,13 +105,11 @@ Usage:
   companyos setup --profile vercel-neon-slack --state <file> --resume [--operating-confirmation <hash>] [--merge-confirmation <hash>] [--production-confirmation <hash>] [--format human|json]
   companyos setup --profile vercel-neon-slack --state <file> --status [--format human|json]
   companyos verify-live --state <file> [--format human|json]
-  companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --plan [--format human|json]
-  companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --apply <hash> [--format human|json]
-  companyos monday qualify --state <file> --resume [--format human|json]
-  companyos monday qualify --state <file> --status [--format human|json]
   companyos records source inspect --workspace <path> [--source <id>] [--format human|json]
   companyos records projection inspect --workspace <path> [--projection <id>] [--format human|json]
-  companyos records source qualify --provider monday <same options as companyos monday qualify>
+  companyos records source qualify --provider monday --workspace <path> --agent-id <id> --board-access <id>:read|read-write [--board-access <value>] --state <file> --plan [--format human|json]
+  companyos records source qualify --provider monday <same options> --apply <hash> [--format human|json]
+  companyos records source qualify --provider monday --state <file> --resume|--status [--format human|json]
   companyos records source materialize --provider monday --workspace <path> --qualification <state> --board <id> --declaration <yaml|json> --output <records/sources/name.yaml> --plan [--format human|json]
   companyos records source materialize <same-options> --apply <hash> [--format human|json]
   companyos records source sync|reconcile --workspace <path> --source <id> --binding <file> --plan [--format human|json]
@@ -957,82 +955,59 @@ try {
       exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
       if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ projections: result.projections })}\n`);
     }
-  } else if (command === "monday" || (command === "records" && action === "source" && value === "qualify")) {
-    const recordsAlias = command === "records";
-    if ((!recordsAlias && action !== "qualify") || (recordsAlias && optionValue("--provider") !== "monday")) {
-      throw new Error(recordsAlias ? "Record source qualification currently requires --provider monday." : "Use `companyos monday qualify`.");
-    }
+  } else if (command === "records" && action === "source" && value === "qualify") {
+    if (optionValue("--provider") !== "monday") throw new Error("Record source qualification currently requires --provider monday.");
     const statePath = optionValue("--state");
     if (args.includes("--status")) {
       if (!statePath) throw new Error("Monday qualification status requires --state <file>.");
-      const state = readMondayQualificationState(resolve(statePath));
+      const state = readMondayAgentQualificationState(resolve(statePath));
       const result = { ok: state.phase === "complete", state_path: resolve(statePath), phase: state.phase, evidence: state.evidence, history: state.history };
       if (format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else {
-        process.stdout.write(`Monday qualification phase: ${state.phase}\n`);
+        process.stdout.write(`Monday external-Agent qualification phase: ${state.phase}\n`);
         process.stdout.write(`State: ${resolve(statePath)}\n`);
         if (state.evidence?.discovery) process.stdout.write(`Discovery receipt: ${state.evidence.discovery.discovery_hash}\n`);
       }
     } else if (args.includes("--resume")) {
       if (!statePath) throw new Error("Monday qualification resume requires --state <file>.");
-      const result = await advanceMondayQualification({
-        statePath,
-        onAuthorization: (authorization) => {
-          const notice = {
-            consent: "Monday will authorize only boards:read and me:read for the selected account. This creates an app authorization but no board, Agent, webhook, or write effect.",
-            ...authorization,
-          };
-          const output = `${YAML.stringify({ next_action: notice })}\n`;
-          if (format === "json") process.stderr.write(output);
-          else process.stdout.write(output);
-        },
-      });
+      const result = await advanceMondayAgentQualification({ statePath });
       if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
       else {
-        exitWithDiagnostics(result.diagnostics, { format, summary: "Monday read-only qualification" });
+        exitWithDiagnostics(result.diagnostics, { format, summary: "Monday external-Agent qualification" });
         process.stdout.write(`\nPhase: ${result.state.phase}\n${result.message}\n`);
         if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
       }
     } else {
       const workspacePath = optionValue("--workspace");
-      const clientId = optionValue("--client-id");
-      const appVersionId = optionValue("--app-version-id");
-      const redirectUri = optionValue("--redirect-uri");
-      const boardIds = optionValues("--board");
-      if (!workspacePath || !clientId || !appVersionId || !redirectUri || boardIds.length === 0 || !statePath) {
-        throw new Error("Monday qualification planning and apply require --workspace <path>, --client-id <id>, --app-version-id <id>, --redirect-uri <loopback-url>, at least one --board <id>, and --state <file>.");
+      const agentId = optionValue("--agent-id");
+      const boardAccesses = optionValues("--board-access");
+      if (!workspacePath || !agentId || boardAccesses.length === 0 || !statePath) {
+        throw new Error("Monday qualification planning and apply require --workspace <path>, --agent-id <id>, at least one --board-access <id>:read|read-write, and --state <file>.");
       }
       const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
-      const planResult = planMondayQualification({ workspaceRoot: workspacePath, clientId, appVersionId, redirectUri, boardIds, statePath, coreIdentity: checkout.identity });
+      const planResult = planMondayAgentQualification({ workspaceRoot: workspacePath, agentId, boardAccesses, statePath, coreIdentity: checkout.identity });
       planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
       if (args.includes("--plan")) {
         if (format === "json") {
           process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), ...planResult }, null, 2)}\n`);
           if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
         } else {
-          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Monday read-only qualification plan" });
+          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Monday external-Agent qualification plan" });
           if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
         }
       } else {
         const confirmationHash = optionValue("--apply");
         if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after explicit human confirmation.");
-        const initialized = initializeMondayQualification({ planResult, confirmationHash });
+        const initialized = initializeMondayAgentQualification({ planResult, confirmationHash });
         if (!initialized.state) {
           if (format === "json") process.stdout.write(`${JSON.stringify({ ok: false, ...initialized }, null, 2)}\n`);
-          else exitWithDiagnostics(initialized.diagnostics, { format, summary: "Monday qualification initialization" });
+          else exitWithDiagnostics(initialized.diagnostics, { format, summary: "Monday external-Agent qualification initialization" });
           process.exitCode = 1;
         } else {
-          const result = await advanceMondayQualification({
-            statePath: initialized.statePath,
-            onAuthorization: (authorization) => {
-              const output = `${YAML.stringify({ next_action: authorization })}\n`;
-              if (format === "json") process.stderr.write(output);
-              else process.stdout.write(output);
-            },
-          });
+          const result = await advanceMondayAgentQualification({ statePath: initialized.statePath });
           if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
           else {
-            exitWithDiagnostics(result.diagnostics, { format, summary: "Monday read-only qualification" });
+            exitWithDiagnostics(result.diagnostics, { format, summary: "Monday external-Agent qualification" });
             process.stdout.write(`\nPhase: ${result.state.phase}\n${result.message}\n`);
             if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
           }

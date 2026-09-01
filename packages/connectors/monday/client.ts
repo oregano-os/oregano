@@ -1,6 +1,7 @@
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import type {
   MondayGraphqlResponse,
+  MondayAgentResourceDiscovery,
   MondayRecordInventory,
   MondayRecordObject,
   MondayResourceBinding,
@@ -84,6 +85,82 @@ export class MondayClient {
       data: {
         actor: { id: String(response.data.me.id), name: response.data.me.name },
         account: { id: String(response.data.me.account.id), name: response.data.me.account.name },
+        boards: requested.map((boardId) => {
+          const board = byId.get(boardId)!;
+          return {
+            id: String(board.id),
+            name: board.name,
+            boardKind: board.board_kind,
+            state: board.state,
+            permissions: board.permissions,
+            workspace: board.workspace ? { id: String(board.workspace.id), name: board.workspace.name } : null,
+            groups: board.groups.map((group) => ({
+              id: String(group.id), title: group.title, archived: group.archived === true, deleted: group.deleted === true,
+            })),
+            columns: board.columns.map((column) => ({
+              id: String(column.id), title: column.title, type: column.type, archived: column.archived === true,
+              revision: column.revision ?? null, settings: column.settings_str ?? null,
+            })),
+          };
+        }),
+      },
+    };
+  }
+
+  async discoverAgentResources(args: { agentId: string; boardIds: string[] }): Promise<MondayGraphqlResponse<MondayAgentResourceDiscovery>> {
+    const agentId = String(args.agentId);
+    if (!/^\d{1,20}$/.test(agentId)) throw new Error(`Monday external Agent id '${agentId}' is invalid`);
+    const requested = [...new Set(args.boardIds.map(String))].sort();
+    if (requested.length === 0 || requested.length > 20) throw new Error("Monday Agent resource discovery requires between one and twenty exact board ids");
+    for (const boardId of requested) if (!/^\d{1,20}$/.test(boardId)) throw new Error(`Monday board id '${boardId}' is invalid`);
+    const response = await this.graphql<{
+      me: { id: string; name: string; kind: string; email: string; account: { id: string; name: string } };
+      agent_knowledge: {
+        resources: Array<{ resource_id: string; scope_type: string; permission_type: string }>;
+      } | null;
+      boards: Array<{
+        id: string;
+        name: string;
+        board_kind: string;
+        state: string;
+        permissions: string;
+        workspace: { id: string; name: string } | null;
+        groups: Array<{ id: string; title: string; archived?: boolean; deleted?: boolean }>;
+        columns: Array<{ id: string; title: string; type: string; archived?: boolean; revision?: string | null; settings_str?: string | null }>;
+      }>;
+    }>(`query QualifyCompanyOSExternalAgent($agentId: ID!, $boardIds: [ID!]!) {
+      me { id name kind email account { id name } }
+      agent_knowledge(id: $agentId) {
+        resources { resource_id scope_type permission_type }
+      }
+      boards(ids: $boardIds) {
+        id name board_kind state permissions
+        workspace { id name }
+        groups { id title archived deleted }
+        columns { id title type archived revision settings_str }
+      }
+    }`, { agentId, boardIds: requested });
+    if (!response.data.agent_knowledge) throw new Error(`Monday did not return knowledge grants for external Agent '${agentId}'`);
+    const externalAgentId = /^agent-(\d+)@agent\.monday\.com$/i.exec(response.data.me.email ?? "")?.[1] ?? null;
+    const byId = new Map(response.data.boards.map((board) => [String(board.id), board]));
+    const missing = requested.filter((boardId) => !byId.has(boardId));
+    if (missing.length > 0) throw new Error(`Monday did not return explicitly selected board(s): ${missing.join(", ")}`);
+    return {
+      ...response,
+      data: {
+        identity: {
+          memberId: String(response.data.me.id),
+          name: response.data.me.name,
+          kind: response.data.me.kind,
+          email: response.data.me.email,
+          externalAgentId,
+        },
+        account: { id: String(response.data.me.account.id), name: response.data.me.account.name },
+        resources: response.data.agent_knowledge.resources.map((resource) => ({
+          resourceId: String(resource.resource_id),
+          scopeType: resource.scope_type,
+          permissionType: resource.permission_type,
+        })),
         boards: requested.map((boardId) => {
           const board = byId.get(boardId)!;
           return {

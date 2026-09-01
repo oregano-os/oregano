@@ -18,7 +18,7 @@ import {
   inspectPostgresCompanyRecordSourceStatus,
 } from "../../state-postgres/records-store.ts";
 import { diagnostic } from "./diagnostics.mjs";
-import { readMondayQualificationState } from "./monday-qualification.mjs";
+import { readMondayAgentQualificationState } from "./monday-agent-qualification.mjs";
 import { inspectStructuredDeclarations } from "./structured-declarations.mjs";
 
 const schema = (name) => JSON.parse(readFileSync(new URL(`../../schema/${name}`, import.meta.url), "utf8"));
@@ -66,7 +66,7 @@ const loadBindingQualification = (binding, bindingPath) => {
   const reference = binding.qualification.receipt_ref;
   const qualificationPath = isAbsolute(reference) ? resolve(reference) : resolve(dirname(resolve(bindingPath)), reference);
   const value = binding.connector === MONDAY_RECORD_SOURCE_CONNECTOR_ID
-    ? readMondayQualificationState(qualificationPath)
+    ? readMondayAgentQualificationState(qualificationPath)
     : parseStructured(qualificationPath);
   return { path: qualificationPath, value };
 };
@@ -141,7 +141,7 @@ export function planRecordSourceMaterialization({
   if (!existsSync(join(workspace, "company.md"))) diagnostics.push(diagnostic("REC006", "error", "Materialization requires a Company Workspace with company.md.", { file: workspace }));
   if (provider !== "monday") diagnostics.push(diagnostic("REC007", "error", "The maintained materializer currently supports provider 'monday' only.", { field: "provider" }));
   let qualification;
-  try { qualification = readMondayQualificationState(resolve(qualificationPath)); }
+  try { qualification = readMondayAgentQualificationState(resolve(qualificationPath)); }
   catch (error) { diagnostics.push(diagnostic("REC008", "error", error.message, { file: resolve(qualificationPath) })); }
   const draft = loadSourceDraft(declarationPath);
   diagnostics.push(...draft.diagnostics);
@@ -153,9 +153,8 @@ export function planRecordSourceMaterialization({
   if (qualification && resolve(qualification.workspace) !== workspace) diagnostics.push(diagnostic("REC012", "error", "The qualification receipt belongs to another Company Workspace.", { file: resolve(qualificationPath) }));
   if (qualification?.phase === "complete") {
     const discovery = qualification.evidence?.discovery;
-    const scopes = [...new Set((discovery?.scopes ?? []).map(String))].sort();
-    if (JSON.stringify(scopes) !== JSON.stringify(["boards:read", "me:read"]) || discovery?.credentials_retained !== false) {
-      diagnostics.push(diagnostic("REC024", "error", "The Monday qualification receipt must prove exact read-only scopes and credential disposal.", { file: resolve(qualificationPath) }));
+    if (qualification.kind !== "monday-external-agent-qualification" || discovery?.authentication_mode !== "external-agent" || discovery?.credentials_retained !== false) {
+      diagnostics.push(diagnostic("REC024", "error", "The Monday qualification receipt must prove one external-Agent identity and no retained credential.", { file: resolve(qualificationPath) }));
     }
   }
   const board = qualification?.evidence?.discovery?.boards?.find((candidate) => String(candidate.id) === String(boardId));

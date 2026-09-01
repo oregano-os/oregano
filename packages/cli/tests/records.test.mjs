@@ -8,7 +8,7 @@ import YAML from "yaml";
 import { MondayRecordSourceConnector } from "../../connectors/monday/records-source.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
 import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
-import { writeMondayQualificationState } from "../src/monday-qualification.mjs";
+import { writeMondayAgentQualificationState } from "../src/monday-agent-qualification.mjs";
 import {
   applyRecordSourceMaterialization,
   inspectRecordWorkspace,
@@ -109,15 +109,17 @@ test("materialization requires qualified fields and an exact confirmation hash",
     const qualification = join(fixture.root, "qualification.json");
     const output = join(fixture.workspace, "records", "sources", "items.yaml");
     writeFileSync(draft, YAML.stringify(fixture.source));
-    writeMondayQualificationState(qualification, {
+    writeMondayAgentQualificationState(qualification, {
       schema_version: 1,
-      kind: "monday-read-qualification",
+      kind: "monday-external-agent-qualification",
       phase: "complete",
       workspace: fixture.workspace,
       evidence: {
         discovery: {
           discovery_hash: "a".repeat(64),
-          scopes: ["boards:read", "me:read"],
+          authentication_mode: "external-agent",
+          identity: { externalAgentId: "700001" },
+          resources: [{ id: "100001", scope: "board", permission: "read" }],
           boards: [{ id: "100001", columns: [{ id: "status_col", title: "Status" }] }],
           credentials_retained: false,
         },
@@ -173,7 +175,7 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
       },
     };
     const connectorRegistry = new RecordSourceConnectorRegistry([connector]);
-    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.4", workbench_version: "0.1.0-experimental.11", clean: true };
+    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.4", workbench_version: "0.1.0-experimental.12", clean: true };
     const syncPlan = planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "sync", coreIdentity, connectorRegistry });
     assert.deepEqual(syncPlan.diagnostics, []);
     assert.doesNotMatch(JSON.stringify(syncPlan.plan), /fixture-provider-value|DATABASE_URL=/);
@@ -202,7 +204,7 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
   const requests = [];
   const response = (data, requestId) => new Response(JSON.stringify({ data }), {
     status: 200,
-    headers: { "api-version": "2026-07", "x-request-id": requestId },
+    headers: { "api-version": "dev", "x-request-id": requestId },
   });
   const queue = [
     response({ boards: [{ id: "100001", items_page: { cursor: "cursor-2", items: [
@@ -244,19 +246,21 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
       source_id: "fixture-items",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.1.0",
+      connector_version: "0.2.0",
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "c".repeat(64) },
-      configuration: { api_version: "2026-07", board_id: "100001", group_ids: ["ready"], page_size: 2, max_pages: 5 },
+      configuration: { api_version: "dev", agent_id: "700001", board_id: "100001", permission: "read", group_ids: ["ready"], page_size: 2, max_pages: 5 },
     },
     qualification: {
-      kind: "monday-read-qualification",
+      kind: "monday-external-agent-qualification",
       phase: "complete",
       evidence: {
         discovery: {
           discovery_hash: "c".repeat(64),
           credentials_retained: false,
-          scopes: ["boards:read", "me:read"],
+          authentication_mode: "external-agent",
+          identity: { externalAgentId: "700001" },
+          resources: [{ id: "100001", scope: "board", permission: "read" }],
           boards: [{
             id: "100001",
             groups: [{ id: "ready", archived: false, deleted: false }],

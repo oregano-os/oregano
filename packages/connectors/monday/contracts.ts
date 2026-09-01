@@ -51,6 +51,23 @@ export interface MondayResourceDiscovery {
   boards: MondayBoardDiscovery[];
 }
 
+export interface MondayAgentResourceDiscovery {
+  identity: {
+    memberId: string;
+    name: string;
+    kind: string;
+    email: string;
+    externalAgentId: string | null;
+  };
+  account: { id: string; name: string };
+  resources: Array<{
+    resourceId: string;
+    scopeType: string;
+    permissionType: string;
+  }>;
+  boards: MondayBoardDiscovery[];
+}
+
 export interface MondayRecordObject {
   id: string;
   name: string;

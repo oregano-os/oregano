@@ -120,7 +120,7 @@ validation:
 tests:
   - Records source inspection reports validated source and projection declarations without provider or database access.
   - Materialization rejects invented or unqualified Monday resources and writes only the exact confirmed declaration under records/sources.
-  - The generic command alias reuses the existing exact-scope Monday qualification implementation and retains no credential.
+  - The generic command qualifies the exact external Monday Agent identity and grants while retaining no credential.
   - Synchronization and reconciliation plans contain no secret and a wrong confirmation hash performs no provider or database call.
   - The maintained Monday inventory adapter uses explicit API versioning, exact board and optional group scope, bounded pagination, and a complete-inventory receipt without leaking its token.
   - Synchronization preserves provider authority, creates idempotent object versions and projections, and reconciliation infers absence only from a complete inventory under a lease.
@@ -133,7 +133,6 @@ documentation_impact:
     - specification.company-records-sprint-v0.1
     - status.current
     - workbench.overview
-    - command.monday-qualify
     - command.records
     - guide.connect-company-record-source
   reason_if_none: ""
@@ -142,8 +141,7 @@ rollback: >-
   source-Connector registry, maintained Monday inventory adapter, and status
   reader. Keep additive companyos_records tables and previously written
   evidence dormant unless a separately approved destructive process exports
-  and removes them. The existing monday qualify command and records.query
-  runtime remain the fallback.
+  and removes them. The records.query runtime remains available independently.
 open_decisions:
   - Scheduled synchronization and webhook activation remain separate Instance deployment work.
   - Maintained Notion, ClickUp, and other provider adapters require their own qualification, conformance, documentation, and review changes.

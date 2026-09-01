@@ -177,21 +177,21 @@ provider signature. Conversational callbacks use `AgentResolver` after
 verification. Board-change events normalize directly into records and domain
 processing and MUST NOT invoke a conversational Agent.
 
-**CRS-034 — Read-only provider qualification.** The maintained first
-qualification MUST bind one exact Core identity, Company Workspace, OAuth
-client, app version, loopback redirect URI, API version, scope set, and explicit board set
-before browser consent. It MUST use OAuth 2.1 with S256 PKCE and request exactly
-`boards:read` and `me:read`. The authorization request MUST ask Monday to route
-a missing installation through its administrator-controlled installation
-handoff. That parameter MUST NOT be represented as automatic installation or
-as authority to bypass the provider's administrator. The authorization code,
-PKCE verifier, client secret, access token, and refresh token MUST remain
-memory-only and MUST be discarded after one bounded metadata query. Persisted
-evidence MAY contain the consenting actor and account, granted scopes,
+**CRS-034 — External-Agent provider qualification.** The maintained Monday
+qualification MUST bind one exact Core identity, Company Workspace, external
+Agent ID, Agent-token SecretRef, `API-Version: dev`, explicit board set, and
+exact expected `READ` or `READ_WRITE` resource grants before secret resolution.
+It MUST accept only `external_agent_member` or
+`external_agent_detached_member`, match the Agent ID from the authenticated
+provider identity, read `agent_knowledge`, and fail closed on an absent, extra,
+or wrong-permission resource. The qualification query MUST read only identity,
+grant, and selected board/group/column metadata and MUST perform no mutation.
+Persisted evidence MAY contain Agent and account identity, exact grants,
 board/group/column structure, request metadata, and a discovery digest. It
 MUST NOT contain items, updates, column values, provider credentials, or a
-completed provider effect. External Agent provisioning and activation require
-a separate effect plan.
+completed provider effect. The Agent token remains an Instance secret and is
+not retained by the Workbench. A Developer App, browser consent, human OAuth
+token, or parallel Monday qualification path is not maintained.
 
 **CRS-035 — Record Source Connector.** A trusted Instance synchronization
 worker resolves one exact versioned Record Source Connector from a non-secret
@@ -202,7 +202,7 @@ request, version, scope, count, completeness, and digest evidence. It is not an
 Agent Tool, grants no Capability, performs no provider write, and MUST NOT
 return or retain its credential. The maintained Monday implementation reads
 one exact board, optional exact groups, and only explicitly mapped columns
-through bounded cursor pagination and API version `2026-07`. Other providers
+through bounded cursor pagination and API version `dev`. Other providers
 require separately maintained and qualified adapters behind the same contract.
 
 ## 5. Blueprint and materialization
