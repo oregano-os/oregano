@@ -72,6 +72,10 @@ evidence, historical prototypes, and production gaps.
   adversarial synthetic fixtures. Local Package inspection proves that it is
   declarative and authority-free; Workspace materialization remains an
   ordinary reviewed diff because Blueprint apply and lock are not implemented.
+  Its first published Workspace surface keeps shared operational declarations
+  under `records/sources/` and `records/projections/`, places company Sprint
+  policy at `workflows/sprint/config.yaml`, and introduces no top-level
+  Workspace `domains/` directory. Executable Sprint Domain code remains in Core.
 
 - Company Knowledge Phase 3A publishes the provider-neutral Source Connector
   `2.0.0` contract for repository, meeting, messaging, email, document,
@@ -481,12 +485,14 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.2` for the experimental proposal-only
-  Builder integration on top of the grounded interactive Knowledge-answer
-  patch. Its immutable GitHub `v0.5.2` tag and Release are the public
-  distribution evidence; `v0.5.1` remains the exact rollback without the
-  integrated Builder. Every Company Workspace advances independently under the
-  canonical Versioning Policy.
+- Oregano Core source is versioned `0.5.3` for the reviewed experimental Sprint
+  and Company Records foundation, declarative Sprint Agent Blueprint, Monday
+  qualification, and fail-closed external-Agent ingress on top of the `0.5.2`
+  Builder line. The immutable GitHub `v0.5.3` tag and Release become public
+  distribution evidence only after the protected release workflow succeeds;
+  `v0.5.2` remains the exact rollback without these experimental additions.
+  Every Company Workspace advances independently under the canonical
+  Versioning Policy, and no Company Instance is activated by this Core version.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact

@@ -1,0 +1,130 @@
+version: 2
+plan_id: sprint-workspace-surface-simplification-2026-09-01
+status: approved
+author: codex-agent
+created: 2026-09-01
+title: Simplify the Sprint Workspace configuration surface before v0.5.3
+objective: >-
+  Keep Company Records as the reusable Workspace declaration surface for
+  provider-backed operational data, move the company-specific Sprint
+  configuration from the misleading top-level domains/sprint.yaml path to
+  workflows/sprint/config.yaml, and document the authoritative Monday to Neon
+  projection flow before the contract is first published in Core v0.5.3.
+non_goals:
+  - Remove the provider-neutral Sprint Domain from packages/domains/sprint.
+  - Store synchronized provider rows, cursors, or operational state in a Company Workspace.
+  - Make Neon, a Workspace Markdown file, or an Agent authoritative over Monday business objects.
+  - Automatically modify handbook/roster.md or derive CompanyOS authorization from an operational role board.
+  - Materialize a real Company Workspace, migrate its database, bind a provider, deploy, or activate production.
+  - Collapse record sources and projections into one contract or make record declarations Sprint-specific.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Files are the review surface
+  - Onboarding has no hidden steps
+  - The ecosystem is open and authority remains governed
+files_expected:
+  - .oregano/changes/2026-09-01-sprint-workspace-surface-simplification.yaml
+  - .oregano/changes/2026-09-01-release-v0.5.3.yaml
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - package.json
+  - packages/blueprints/sprint-agent/**
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/cli/tests/**
+  - packages/schema/**
+  - packages/testkit/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-instruction-ok-passe-den-plan-entsprechend-an
+architecture_assessment:
+  responsibilities:
+    core:
+      - Keep the executable provider-neutral Sprint Domain under packages/domains/sprint and validate its company-supplied configuration without owning company values.
+      - Validate Company Records sources and projections plus the simplified workflows/sprint/config.yaml Workspace path.
+    packages:
+      - Keep the Sprint Blueprint declarative and update its scoped material reference to workflows/sprint/config.yaml.
+    workspace:
+      - Declare provider-backed sources under records/sources, reusable read projections under records/projections, and company Sprint policy under workflows/sprint/config.yaml.
+      - Keep operational role data separate from handbook/roster.md authority and allow only a reviewed organization-document proposal.
+    instance:
+      - Read authoritative Monday objects through a Connector, persist normalized observations and projections in Neon, and own exact resources, credentials, cursors, timers, and synchronization state.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The path simplification does not change trusted Agent selection or conversational routing.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Agents continue to read scoped projections only through the records.query Tool and exact Instance bindings.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Moving Workspace configuration does not change logical task profiles or exact Instance model routing.
+    - mechanism: company-records
+      decision: reuse
+      reason: records remains the shared, provider-independent declaration and Neon projection boundary for multiple Agents.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Operational People and Role observations never create principals, active roster membership, groups, grants, or approvals.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: The same validated Sprint policy feeds existing deterministic business-time and durable-timer mechanisms from a clearer path.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Monday remains authoritative and every provider effect still requires version, idempotency, read-after-write, and evidence controls.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Normal Agent reads use Neon-backed records.query while discovery, reconciliation, and provider writes remain behind maintained Connectors.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    records/sources and records/projections remain reusable for arbitrary
+    company record types and Agents. workflows/sprint/config.yaml contains only
+    one company's Sprint configuration, while executable Sprint behavior stays
+    in Core. Monday is the first authoritative provider and Neon the maintained
+    operational projection, but another provider or StateStore may implement
+    the same contracts without changing the Sprint Domain.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-sprint-workspace-surface-simplification.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-01-sprint-workspace-surface-simplification.yaml
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-release-v0.5.3.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Structured declaration inspection recognizes workflows/sprint/config.yaml and no longer requires or documents a top-level Workspace domains directory.
+  - The unreleased domains/sprint.yaml path fails with a bounded migration diagnostic instead of being accepted or ignored.
+  - Public schema and Workbench summary names call the Workspace artifact a Sprint configuration rather than a Sprint Domain.
+  - The Sprint Blueprint scopes workflows/sprint/config.yaml and remains free of company values, runtime code, provider identifiers, grants, and secrets.
+  - Company Records source and projection declarations remain under records/sources and records/projections and continue to validate independently.
+  - Synthetic evidence proves Monday-authoritative ingestion into Neon-backed projections, projection-first Agent reads, direct provider reconciliation, and no automatic roster or authorization mutation.
+  - Existing Workspaces without Sprint declarations remain valid.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - status.current
+migration: >-
+  Core v0.5.2 has no published Sprint declaration contract and no real Company
+  Workspace has materialized the unreleased domains/sprint.yaml path. Rename the
+  path cleanly before v0.5.3 rather than retaining an alias. Company Records
+  declarations remain unchanged. A later reviewed Company Workspace diff will add
+  records/sources, records/projections, and workflows/sprint/config.yaml only
+  after exact company values and Instance bindings are reviewed.
+rollback: >-
+  Revert the path, Blueprint scope, documentation, tests, and release-plan
+  dependency together before v0.5.3 publication. No Company Instance state or
+  provider data is affected because this change activates no Workspace or
+  runtime binding.
+open_decisions: []

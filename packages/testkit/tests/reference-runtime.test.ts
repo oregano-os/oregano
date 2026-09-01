@@ -104,7 +104,7 @@ test("Artifact building resolves the provider-neutral Sprint standard Tools when
           })),
         ],
       },
-      coreVersion: "0.5.2",
+      coreVersion: "0.5.3",
       coreCommit: CORE_COMMIT,
       workspaceCommit: WORKSPACE_COMMIT,
       workbenchVersion: "0.1.0-experimental.10",

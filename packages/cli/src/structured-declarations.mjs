@@ -9,7 +9,7 @@ const schema = (name) => JSON.parse(readFileSync(new URL(`../../schema/${name}`,
 
 const RECORD_SOURCE_SCHEMA = schema("company-record-source-v1.schema.json");
 const RECORD_PROJECTION_SCHEMA = schema("company-record-projection-v1.schema.json");
-const SPRINT_DOMAIN_SCHEMA = schema("sprint-domain-v1.schema.json");
+const SPRINT_CONFIGURATION_SCHEMA = schema("sprint-configuration-v1.schema.json");
 
 const declarationFiles = (root, prefix) => walkFiles(root, {
   include: (path) => {
@@ -53,9 +53,18 @@ export function inspectStructuredDeclarations(root) {
     .map((path) => readDeclaration(root, path, RECORD_SOURCE_SCHEMA, diagnostics)).filter(Boolean);
   const projections = declarationFiles(root, "records/projections/")
     .map((path) => readDeclaration(root, path, RECORD_PROJECTION_SCHEMA, diagnostics)).filter(Boolean);
-  const sprintPath = join(root, "domains", "sprint.yaml");
+  const legacySprintPath = join(root, "domains", "sprint.yaml");
+  if (existsSync(legacySprintPath)) {
+    diagnostics.push(diagnostic(
+      "WS052",
+      "error",
+      "Sprint configuration must use 'workflows/sprint/config.yaml'; the unreleased 'domains/sprint.yaml' path is not supported.",
+      { file: relativePath(root, legacySprintPath) },
+    ));
+  }
+  const sprintPath = join(root, "workflows", "sprint", "config.yaml");
   const sprint = existsSync(sprintPath)
-    ? readDeclaration(root, sprintPath, SPRINT_DOMAIN_SCHEMA, diagnostics)
+    ? readDeclaration(root, sprintPath, SPRINT_CONFIGURATION_SCHEMA, diagnostics)
     : null;
 
   for (const id of duplicates(sources)) {
@@ -112,7 +121,7 @@ export function inspectStructuredDeclarations(root) {
     summary: {
       record_sources: sources.length,
       record_projections: projections.length,
-      sprint_domains: sprint ? 1 : 0,
+      sprint_configurations: sprint ? 1 : 0,
     },
   };
 }
