@@ -58,6 +58,14 @@ request, changes OAuth state, or does not provide the OAuth 2.1 refresh
 credential. The refresh credential proves the new flow is active; it is not
 retained.
 
+The authorization URL includes Monday's `force_install_if_needed=true`
+handoff. When the app is not installed in the selected account, Monday routes
+an account administrator to the installation screen before consent. This does
+not install the app automatically: the administrator MUST review and install
+it, and a non-administrator cannot bypass that decision. The installation is
+an Instance provider change and remains distinct from OAuth consent, later
+external-Agent provisioning, board grants, and write activation.
+
 `MONDAY_OAUTH_CLIENT_SECRET` is an Instance secret. Enter it only into the
 selected runtime host's Sensitive secret surface, then inject it into this
 command's process using the host's secret-bound execution mechanism. Do not put
@@ -68,7 +76,9 @@ non-persisting mechanism.
 
 During `--resume`, the Workbench starts the exact loopback receiver, generates
 one random OAuth state and S256 PKCE verifier, and displays the official Monday
-authorization URL. The human reviews the account and two scopes in the browser.
+authorization URL. If Monday first requires installation, an account
+administrator reviews that provider change; afterwards, the consenting human
+reviews the account and two scopes in the browser.
 The authorization code, verifier, app secret, access token, and refresh token
 remain in process memory only. The access token is used once to query `me` and
 the selected boards' metadata. Both tokens are then discarded.

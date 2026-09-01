@@ -148,13 +148,17 @@ processing and MUST NOT invoke a conversational Agent.
 qualification MUST bind one exact Core identity, Company Workspace, OAuth
 client, app version, loopback redirect URI, API version, scope set, and explicit board set
 before browser consent. It MUST use OAuth 2.1 with S256 PKCE and request exactly
-`boards:read` and `me:read`. The authorization code, PKCE verifier, client
-secret, access token, and refresh token MUST remain memory-only and MUST be
-discarded after one bounded metadata query. Persisted evidence MAY contain the
-consenting actor and account, granted scopes, board/group/column structure,
-request metadata, and a discovery digest. It MUST NOT contain items, updates,
-column values, provider credentials, or a completed provider effect. External
-Agent provisioning and activation require a separate effect plan.
+`boards:read` and `me:read`. The authorization request MUST ask Monday to route
+a missing installation through its administrator-controlled installation
+handoff. That parameter MUST NOT be represented as automatic installation or
+as authority to bypass the provider's administrator. The authorization code,
+PKCE verifier, client secret, access token, and refresh token MUST remain
+memory-only and MUST be discarded after one bounded metadata query. Persisted
+evidence MAY contain the consenting actor and account, granted scopes,
+board/group/column structure, request metadata, and a discovery digest. It
+MUST NOT contain items, updates, column values, provider credentials, or a
+completed provider effect. External Agent provisioning and activation require
+a separate effect plan.
 
 ## 5. Blueprint and materialization
 

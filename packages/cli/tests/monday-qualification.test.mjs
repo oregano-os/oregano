@@ -79,6 +79,7 @@ test("Monday OAuth authorization uses exact read scopes, one-time state, and S25
   assert.equal(url.origin + url.pathname, MONDAY_AUTHORIZATION_ENDPOINT);
   assert.equal(url.searchParams.get("app_version_id"), "700001");
   assert.equal(url.searchParams.get("scope"), [...MONDAY_OAUTH_SCOPES].sort().join(" "));
+  assert.equal(url.searchParams.get("force_install_if_needed"), "true");
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
   assert.equal(url.searchParams.get("code_challenge"), session.challenge);
   assert.ok(session.verifier.length >= 43 && session.verifier.length <= 128);
@@ -102,6 +103,15 @@ test("Monday OAuth 2.1 token exchange enforces the exact read-only scopes withou
     clientId: "client-fixture-1", clientSecret: "client-fixture-secret", redirectUri: "http://127.0.0.1:43127/callback", code: "temporary-code", verifier: "v".repeat(64),
     fetchImpl: async () => new Response(JSON.stringify({ access_token: "memory-access", refresh_token: "memory-refresh", scope: "boards:read boards:write me:read" }), { status: 200 }),
   }), /instead of the exact read-only/);
+  await assert.rejects(() => exchangeMondayAuthorizationCode({
+    clientId: "client-fixture-1", clientSecret: "client-fixture-secret", redirectUri: "http://127.0.0.1:43127/callback", code: "temporary-code", verifier: "v".repeat(64),
+    fetchImpl: async () => new Response(JSON.stringify({ error: "invalid_grant", error_description: "Rejected https://provider.example/callback using abcdefghijklmnopqrstuvwxyz0123456789" }), { status: 400 }),
+  }), (error) => {
+    assert.match(error.message, /HTTP 400 \(invalid_grant:/);
+    assert.doesNotMatch(error.message, /provider\.example|abcdefghijklmnopqrstuvwxyz0123456789/);
+    assert.match(error.message, /redacted-url|redacted/);
+    return true;
+  });
 });
 
 test("Monday qualification discovers only selected board metadata and retains no OAuth credential", async () => {

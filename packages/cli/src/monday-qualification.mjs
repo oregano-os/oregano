@@ -181,6 +181,7 @@ export function createMondayAuthorizationSession({ clientId, appVersionId, redir
   authorization.searchParams.set("scope", [...scopes].sort().join(" "));
   authorization.searchParams.set("state", state);
   authorization.searchParams.set("response_type", "code");
+  authorization.searchParams.set("force_install_if_needed", "true");
   authorization.searchParams.set("code_challenge", challenge);
   authorization.searchParams.set("code_challenge_method", "S256");
   return { authorizationUrl: authorization.toString(), state, verifier, challenge };
@@ -199,6 +200,18 @@ export function parseMondayAuthorizationCallback(callbackUrl, expectedState) {
 
 const parseGrantedScopes = (value) => [...new Set(clean(value).split(/[\s,]+/).filter(Boolean))].sort();
 
+const safeOAuthFailure = (payload) => {
+  const error = clean(payload?.error).replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 80);
+  const description = clean(payload?.error_description ?? payload?.message)
+    .replace(/https?:\/\/\S+/gi, "[redacted-url]")
+    .replace(/[A-Za-z0-9_-]{24,}/g, "[redacted]")
+    .replace(/[^\p{L}\p{N}\s.,:;_()'\/-]+/gu, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 240);
+  if (error && description) return `${error}: ${description}`;
+  return error || description || "unspecified_oauth_error";
+};
+
 export async function exchangeMondayAuthorizationCode({ clientId, clientSecret, redirectUri, code, verifier, fetchImpl = globalThis.fetch }) {
   if (!clientSecret) throw new Error(`Missing runtime secret ${MONDAY_OAUTH_CLIENT_SECRET_REF}.`);
   const response = await fetchImpl(MONDAY_TOKEN_ENDPOINT, {
@@ -216,7 +229,7 @@ export async function exchangeMondayAuthorizationCode({ clientId, clientSecret, 
   let payload;
   try { payload = await response.json(); }
   catch { throw new Error(`Monday OAuth token exchange failed with HTTP ${response.status}.`); }
-  if (!response.ok) throw new Error(`Monday OAuth token exchange failed with HTTP ${response.status}.`);
+  if (!response.ok) throw new Error(`Monday OAuth token exchange failed with HTTP ${response.status} (${safeOAuthFailure(payload)}).`);
   const accessToken = clean(payload?.access_token);
   const refreshToken = clean(payload?.refresh_token);
   if (!accessToken || !refreshToken) throw new Error("Monday OAuth 2.1 token exchange did not return the required in-memory credentials.");

@@ -311,7 +311,10 @@ The first maintained Monday qualification is deliberately narrower than Agent
 provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
 Company Workspace, one registered OAuth client and exact app version, API version `2026-07`, the
 read-only scopes `boards:read` and `me:read`, and explicit board IDs. It uses a
-loopback OAuth 2.1 callback with S256 PKCE. The authorization code, verifier,
+loopback OAuth 2.1 callback with S256 PKCE and requests Monday's explicit
+missing-installation handoff. Monday still requires an account administrator
+to install the app; the Workbench cannot install it automatically or treat
+browser consent as installation authority. The authorization code, verifier,
 client secret, access token, and refresh token stay in process memory and are
 discarded after one metadata query. Only the consenting actor and account,
 scope evidence, board/group/column structure, request evidence, and discovery

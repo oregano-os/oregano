@@ -12,6 +12,7 @@ objective: >-
   separate human confirmations.
 non_goals:
   - Persist a human Monday OAuth access token or refresh token.
+  - Install a Monday app automatically or bypass the provider's account-administrator approval.
   - Create, activate, disconnect, or modify a real Monday Agent in this change.
   - Grant board write access, mutate a board, create a webhook, deploy a runtime, or change Company Workspace files.
   - Put a client secret, authorization code, token, signing secret, or database URL in chat, Git, command arguments, logs, or qualification state.
@@ -54,7 +55,7 @@ architecture_assessment:
     workspace:
       - A later reviewed Company Workspace diff will own logical record mappings, Sprint policy, participants, schedules, and connection references.
     instance:
-      - Own the Monday app registration, browser consent, client-secret injection, selected account and resources, later Agent credentials, grants, callback binding, activation, and qualification receipts.
+      - Own the Monday app registration and administrator installation, browser consent, client-secret injection, selected account and resources, later Agent credentials, grants, callback binding, activation, and qualification receipts.
   existing_mechanisms:
     - mechanism: agent-resolver
       decision: reuse
@@ -103,8 +104,9 @@ validation:
 tests:
   - Planning is read-only, binds the exact client ID, app version ID, redirect URI, scopes, selected board IDs, state path, and confirmation hash, and contains no secret.
   - Qualification state refuses credential-shaped values and remains mode 0600 outside Company Workspace material.
-  - OAuth authorization uses a one-time state and S256 PKCE verifier, rejects denial and state mismatch, and never returns or persists tokens.
+  - OAuth authorization uses a one-time state and S256 PKCE verifier, requests Monday's explicit missing-installation handoff, rejects denial and state mismatch, and never returns or persists tokens.
   - Token exchange requires exactly the requested read-only scopes and rejects a missing refresh or access credential without logging it.
+  - OAuth token failures expose only a bounded provider error code and redacted description; URLs and credential-shaped values remain absent.
   - Discovery requests only explicitly selected boards and returns board, group, and column metadata without items, updates, or values.
   - Real company identifiers do not occur in Core fixtures or documentation examples.
 documentation_impact:

@@ -48,8 +48,10 @@ evidence, historical prototypes, and production gaps.
   conformance, or production activation.
 - The experimental `companyos monday qualify` Workbench path now plans and
   records one exact read-only Monday OAuth 2.1 qualification. It uses S256 PKCE,
-  requests only `boards:read` and `me:read`, reads metadata for only the named
-  boards, and stores a mode-0600 non-secret receipt containing account,
+  requests only `boards:read` and `me:read`, and asks Monday to route a missing
+  installation through its administrator-controlled handoff without installing
+  the app automatically. It reads metadata for only the named boards and stores
+  a mode-0600 non-secret receipt containing account,
   board/group/column, scope, API, request, and digest evidence. Human OAuth
   credentials are discarded after discovery. This implementation does not
   prove a real consent, account permission, test board, external Agent,
