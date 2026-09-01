@@ -14,7 +14,7 @@ objective: >-
 non_goals:
   - Deploy, release, merge, or activate this change in a Company Instance.
   - Put company people, boards, groups, columns, schedules, policies, identifiers, bindings, credentials, or secrets in Oregano Core.
-  - Materialize or modify an Isleño Company Workspace.
+  - Materialize or modify a real Company Workspace.
   - Grant the Monday Agent access to a board or document, enable board writes, synchronize real records, or run a live Sprint workflow.
   - Treat an authenticated provider callback as authentication of the human who caused it.
   - Invoke a model, disclose Company Workspace material, resolve Tools, or execute effects for a senderless Monday callback.
@@ -139,6 +139,6 @@ rollback: >-
   tables and evidence as dormant data unless a separately approved destructive
   migration exports and removes them.
 open_decisions:
-  - The exact Isleño Workspace material, model profile, record mappings, and resource bindings require a separate interview and reviewed Workspace diff.
+  - Exact company material, model profiles, record mappings, and resource bindings require a separate interview and reviewed Company Workspace diff.
   - Monday's pre-release callback omits the triggering human identity, so interactive Company material, model, and Tool access remains blocked pending a separately approved authorization design.
   - Real database migration, board grants, Agent-token writes, runtime deployment, and live Sprint qualification remain separate production gates.
