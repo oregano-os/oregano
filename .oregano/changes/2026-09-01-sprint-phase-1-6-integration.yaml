@@ -1,0 +1,144 @@
+version: 2
+plan_id: sprint-phase-1-6-integration-2026-09-01
+status: implemented
+author: codex-agent
+created: 2026-09-01
+title: Integrate the provider-neutral Sprint foundation through safe Monday Agent ingress
+objective: >-
+  Integrate the approved Phase 1–6 work as one reviewable Core change: enforce
+  placement and reuse planning, add generic Company Records and Sprint
+  contracts and implementations, distribute the declarative Sprint Agent
+  Blueprint, maintain the Monday Connector and read-only qualification path,
+  and terminate signed external-Agent callbacks at a fail-closed Vercel ingress
+  before any unauthorized model, Tool, or effect execution.
+non_goals:
+  - Deploy, release, merge, or activate this change in a Company Instance.
+  - Put company people, boards, groups, columns, schedules, policies, identifiers, bindings, credentials, or secrets in Oregano Core.
+  - Materialize or modify an Isleño Company Workspace.
+  - Grant the Monday Agent access to a board or document, enable board writes, synchronize real records, or run a live Sprint workflow.
+  - Treat an authenticated provider callback as authentication of the human who caused it.
+  - Invoke a model, disclose Company Workspace material, resolve Tools, or execute effects for a senderless Monday callback.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - Onboarding has no hidden steps
+  - The ecosystem is open and authority remains governed
+  - Public contracts are portable and maintained
+files_expected:
+  - .oregano/changes/**
+  - docs/**
+  - packages/**
+  - tsconfig.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-approval-for-phases-1-through-6-and-github-review-pr
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic planning enforcement, records contracts and persistence boundaries, deterministic Sprint behavior, portable Capability contracts, maintained Connector transports, callback verification, replay control, and Resolver dispatch.
+      - Fail closed when a provider fact cannot establish the human principal required for Company material, model, Tool, or effect access.
+    packages:
+      - Distribute a declarative Sprint Agent Blueprint with reusable workflows, skills, templates, and synthetic fixtures but no company bindings, credentials, runtime code, or authority.
+    workspace:
+      - A separately reviewed Company Workspace owns participants, roles, Sprint policy, schedules, business calendar, record mappings, Agent instructions, requested Tools, model task profiles, and logical connection references.
+    instance:
+      - A separately confirmed Company Instance owns provider installations, credentials, account and resource identifiers, exact bindings, grants, runtime deployment, activation, schedules, and qualification receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Verified conversational traffic resolves one compiled Agent from exact surface, account, and Agent-or-board route facts before any reply path.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Sprint Agents receive only resolved Tools backed by granted provider-neutral Capabilities and exact Instance bindings; senderless callbacks receive none.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The Workspace selects a task profile and the Instance resolves the exact model route; qualification and blocked callbacks invoke no model.
+    - mechanism: company-records
+      decision: extend
+      reason: The integration adds the planned generic records service for immutable observations, rebuildable projections, scoped access, freshness, and reconciliation.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing authenticated principals, roster authority, Agent bindings, resource scopes, and Connector grants remain authoritative; a signed callback alone does not identify its human initiator.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: The pure Sprint domain consumes a controlled clock and Workspace-supplied business calendar while durable timers remain generic runtime infrastructure.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Work-item writes and messages remain intents behind approval, effect, idempotency, and evidence controls; callback replay claims are durable and digest-only.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: Core adds stable records and work-item contracts, a maintained Monday adapter, read-only qualification, and current external-Agent protocol handling without company policy.
+  new_core_mechanisms:
+    - Generic Company Records registry, version, projection, access, synchronization, freshness, and reconciliation contracts.
+    - Pure Sprint event, state, decision, read-model, business-time, timer-intent, and controlled-clock modules.
+    - Provider-independent secret-safe qualification discipline with a maintained read-only Monday OAuth adapter.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Records support arbitrary registered provider record types and projections;
+    Sprint behavior consumes declarative policy and normalized events; provider
+    effects stay behind Capability contracts; and the Agent ingress accepts
+    only Instance-injected identifiers and secret material. No implementation
+    depends on one company's people, boards, columns, cadence, holidays, Slack
+    channel, model, or credentials.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-sprint-phase-1-6-integration.yaml
+  - pnpm companyos inspect-core --base main --plan .oregano/changes/2026-09-01-sprint-phase-1-6-integration.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm validate:fixture
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Planning inspection requires explicit Core, Package, Workspace, and Instance placement plus Resolver and mechanism reuse judgments.
+  - Company Records observations deduplicate, projections rebuild, access remains scoped, and reconciliation is explicit.
+  - Sprint decisions remain deterministic under a controlled clock and Workspace-supplied policy and business-calendar facts.
+  - Work-item Capabilities validate inputs and preserve effect, evidence, and idempotency boundaries across provider adapters.
+  - The Sprint Blueprint contains no runtime code, company principal, provider resource, binding, grant, or secret.
+  - Monday qualification retains no human OAuth token and discovers only explicitly selected read-only metadata.
+  - The external-Agent ingress rejects invalid, stale, replayed, or wrong-Agent callbacks before resolution and performs no Company action for senderless traffic.
+  - All public fixtures use synthetic companies, people, provider resources, and events.
+documentation_impact:
+  required: true
+  affected_documents:
+    - reference.glossary
+    - architecture.boundaries
+    - architecture.ecosystem-packages
+    - architecture.company-instance
+    - architecture.validation-inspection
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - command.inspect-core
+    - command.monday-qualify
+migration: >-
+  This integration is additive and optional. Existing Workspaces, Agents,
+  Connectors, schemas, and deployments remain valid. A Company Instance must
+  separately install, grant, bind, migrate, deploy, activate, and qualify the
+  new pieces. Existing Slack routing is unchanged. Monday Agent callbacks need
+  Instance-injected account, Agent, and signing configuration and still cannot
+  authorize an absent human principal.
+rollback: >-
+  Disable any later schedules and bindings first, then revert the integrated
+  Blueprint, records and Sprint modules, Connector extensions, qualification,
+  ingress, documentation, and planning enforcement. Retain additive database
+  tables and evidence as dormant data unless a separately approved destructive
+  migration exports and removes them.
+open_decisions:
+  - The exact Isleño Workspace material, model profile, record mappings, and resource bindings require a separate interview and reviewed Workspace diff.
+  - Monday's pre-release callback omits the triggering human identity, so interactive Company material, model, and Tool access remains blocked pending a separately approved authorization design.
+  - Real database migration, board grants, Agent-token writes, runtime deployment, and live Sprint qualification remain separate production gates.
