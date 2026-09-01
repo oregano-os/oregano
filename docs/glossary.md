@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -189,9 +189,27 @@ selects an Agent; it does not grant a Tool, start a coding worker, or infer
 intent from message text.
 
 ### AgentResolver
-The deterministic Core component that evaluates Agent Bindings. An exact match
-wins; an explicitly declared default may handle unmatched routes; ambiguous or
-unconfigured multi-agent routes fail closed.
+The deterministic Core component that performs initial Company Agent selection
+from trusted provider surface, account, and conversation-resource facts. An
+exact Agent Binding wins; an explicitly declared default may handle an
+unmatched route; ambiguous or unconfigured multi-agent routes fail closed. It
+does not classify message meaning, authorize a handoff, or grant Tools.
+
+### Agent Handoff
+An allowlisted request by one already active Company Agent or deterministic
+Workflow to transfer an authenticated conversation to one compiled target
+Agent for a declared purpose. A model may propose the request from conversation
+meaning, but Core authorizes it from trusted principal, surface, direction,
+target, purpose, and policy facts. A handoff never authenticates a principal,
+copies a Tool, grants a Capability, or overrides an exact Agent Binding.
+
+### Conversation Assignment
+Durable Company Instance state selecting the active Company Agent for one exact
+authenticated provider conversation after an accepted Agent Handoff. It records
+origin, target, purpose, policy and Artifact provenance, evidence, expiry,
+return, and revocation. It is operational state rather than a Workspace Agent
+Binding, message-intent classifier, raw transcript archive, or source of Tool
+authority.
 
 ### Sprint Domain
 The pure provider-neutral Core decision boundary for validated Sprint state,

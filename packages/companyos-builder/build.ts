@@ -62,6 +62,7 @@ export function buildCompanyOSArtifact(args: {
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));
   const agentRouting = {
     bindings: [...args.instance.agentBindings].sort((a, b) => a.id.localeCompare(b.id)),
+    handoffs: workspace.agents.flatMap((agent) => agent.handoffs).sort((a, b) => a.id.localeCompare(b.id)),
     defaultAgentId: args.instance.defaultAgentId,
   };
   validateAgentRouting(agentRouting, agents.map((agent) => agent.id));

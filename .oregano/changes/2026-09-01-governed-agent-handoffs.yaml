@@ -1,0 +1,134 @@
+version: 2
+plan_id: governed-agent-handoffs-2026-09-01
+status: approved
+author: codex-agent
+created: 2026-09-01
+title: Specify governed semantic Agent handoffs without weakening deterministic ingress
+objective: >-
+  Define one reusable two-stage Company Agent routing contract: deterministic
+  ingress selects an initial Agent from authenticated provider facts, while an
+  already active Agent may request an allowlisted semantic handoff that Core
+  authorizes, evidences, and persists as an exact Conversation Assignment.
+  Apply that contract to the Sprint product target so exact Sprint surfaces
+  route directly to a separate sprint Agent, general company conversations
+  remain with oregano, and approved Sprint one-to-one conversations may transfer
+  safely between them.
+non_goals:
+  - Implement AgentHandoffService, ConversationAssignmentStore, Runner integration, database migration, Workspace schemas, or provider behavior in this documentation change.
+  - Let message text authenticate a principal, grant a Tool, broaden a provider scope, select an approval authority, or bypass an exact Agent Binding.
+  - Replace deterministic AgentResolver ingress with an unconstrained model classifier or multi-Agent group chat.
+  - Treat Skills, Workflows, Tools, Agent handoffs, and non-conversational domain events as the same routing mechanism.
+  - Activate private Company production routing, create provider conversations, archive raw transcripts, or change a live Company Instance.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-01-governed-agent-handoffs.yaml
+  - docs/glossary.md
+  - docs/_generated/document-registry.json
+  - docs/architecture/overview.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/system-boundaries.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/plan-a-change.md
+  - packages/cli/content/guides/plan-a-change.md
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-instruction-ok-super-dann-passe-den-plan-und-die-dokumentation-an
+architecture_assessment:
+  responsibilities:
+    core:
+      - Preserve deterministic AgentResolver ingress and define reusable allowlisted handoff authorization, durable Conversation Assignment, expiry, revocation, return, and evidence contracts.
+      - Keep Agent identity, ToolSet, approval, and provider authorization independent from semantic handoff selection.
+    packages:
+      - Let a Blueprint declare portable Agent behavior and recommended handoff purposes without assigning a company principal, grant, target surface, or runtime authority.
+    workspace:
+      - Declare logical Agents, permitted handoff pairs and purposes, eligible roles or groups, conversation policy, retention policy, and the company-specific surfaces that may host them.
+    instance:
+      - Own exact provider Agent Bindings, live Conversation Assignments, authenticated principals, expiry and revocation state, provider conversation identifiers, and handoff receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: extend
+      reason: Deterministic exact bindings and defaults remain the only initial ingress selector; the shared routing control plane gains a separately authorized post-resolution handoff and durable Conversation Assignment stage.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: A handoff selects a separately compiled Agent and its already resolved ToolSet; it never copies, unions, or escalates Tools from the sending Agent.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The active Agent may use its resolved model to request a semantic handoff, but model selection neither authorizes the transfer nor changes the target Agent profile.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: Conversation Assignment is Instance routing state and handoff evidence, not provider-backed operational Company Records or a rebuildable record projection.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Core must intersect the authenticated principal, active roster and group state, approved surface, sending Agent, target Agent, purpose, and Workspace policy before accepting a handoff.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Assignment expiry may use the existing durable clock and timer primitives; no Agent-specific scheduler is introduced.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Handoff requests, assignment creation, return, expiry, and revocation need stable identities, duplicate suppression, append-only evidence, and safe retry behavior but do not authorize business effects.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Provider adapters continue to authenticate and normalize exact conversations; the handoff contract remains provider-neutral and grants no Connector capability.
+  new_core_mechanisms:
+    - A provider-neutral Agent handoff authorization service over allowlisted sending Agent, target Agent, purpose, principal, and surface facts.
+    - Durable exact Conversation Assignments with evidence, expiry, revocation, return, and deterministic precedence below exact static Agent Bindings and above a configured default Agent.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every multi-Agent CompanyOS deployment may reuse the same authenticated
+    ingress, allowlisted handoff, assignment, return, expiry, and evidence
+    contracts. Core contains no private-company person, provider resource,
+    Sprint policy, or company-specific target. Workspaces and Instances supply
+    those values and may tighten or disable semantic handoffs entirely.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-governed-agent-handoffs.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-01-governed-agent-handoffs.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - git diff --check
+tests:
+  - A later implementation must prove that exact Agent Bindings win and cannot be overridden by message text or a Conversation Assignment.
+  - A later implementation must prove that an authenticated general conversation may hand off only to an allowlisted compiled Agent for an allowed principal, surface, direction, and purpose.
+  - A later implementation must prove that handoff changes neither identity nor Tool grants and cannot union the sending and target ToolSets.
+  - A later implementation must prove sticky routing across turns and restarts plus explicit return, expiry, revocation, duplicate delivery, and stale-policy behavior.
+  - A later implementation must prove prompt-injected, unknown-target, cross-account, ambiguous, unauthorized, and group-DM handoffs fail closed with no protected material or effect.
+  - A later implementation must prove that every accepted or rejected handoff has bounded non-secret evidence and that raw transcript retention remains a separate Workspace policy.
+documentation_impact:
+  required: true
+  affected_documents:
+    - reference.glossary
+    - architecture.overview
+    - architecture.oregano-core
+    - architecture.boundaries
+    - specification.companyos-core-v0.7
+    - status.current
+    - guide.plan-change
+migration: >-
+  This change specifies an additive experimental contract and does not change
+  the v0.5.3 runtime. Existing single-Agent and exact-binding multi-Agent
+  Instances continue unchanged. A later implementation and Company Workspace
+  release must add schemas, policy, bindings, persistence, migration, tests,
+  deployment evidence, and rollback before any semantic handoff is activated.
+rollback: >-
+  Revert this Change Plan and the linked canonical documentation together. No
+  runtime, database, provider installation, Company Workspace, or live Agent
+  route is changed by this documentation-only step.
+open_decisions:
+  - Select the final public schema names and StateStore port names during the implementation Change Plan without weakening the documented semantics.
+  - Define Workspace-specific raw transcript retention separately from durable structured handoff and Sprint event evidence before production activation.

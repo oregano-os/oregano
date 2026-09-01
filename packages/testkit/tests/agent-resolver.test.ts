@@ -34,6 +34,27 @@ test("AgentResolver uses only an explicit default in a multi-agent Artifact", ()
   );
 });
 
+test("AgentResolver gives exact bindings precedence over assignments and assignments precedence over defaults", () => {
+  assert.deepEqual(
+    resolveAgent(routing, agents, {
+      surface: "slack",
+      accountId: "T1",
+      channelId: "C-BUILD",
+      assignment: { assignmentId: "ca_1", agentId: "sales" },
+    }),
+    { agentId: "builder", reason: "binding", bindingId: "builder-channel" },
+  );
+  assert.deepEqual(
+    resolveAgent(routing, agents, {
+      surface: "slack",
+      accountId: "T1",
+      channelId: "D-PERSON",
+      assignment: { assignmentId: "ca_1", agentId: "sales" },
+    }),
+    { agentId: "sales", reason: "assignment", assignmentId: "ca_1" },
+  );
+});
+
 test("AgentResolver permits the sole compiled Agent without a routing declaration", () => {
   assert.deepEqual(
     resolveAgent({ bindings: [] }, ["sales"], { surface: "slack", accountId: "T1", channelId: "C1" }),

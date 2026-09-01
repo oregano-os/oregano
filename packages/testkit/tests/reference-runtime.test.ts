@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -118,6 +118,61 @@ test("Artifact building resolves the provider-neutral Sprint standard Tools when
       "oregano:work-items/comment",
       "oregano:communications/publish",
     ]) assert.ok(runtimeIds.includes(runtimeId), runtimeId);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Artifact building compiles portable Agent handoff rules without merging Agent ToolSets", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-agent-handoff-"));
+  cpSync(FIXTURE, root, { recursive: true });
+  try {
+    const sprintRoot = join(root, "agents", "sprint");
+    mkdirSync(sprintRoot, { recursive: true });
+    writeFileSync(join(sprintRoot, "instructions.md"), `---
+description: Synthetic Sprint Agent.
+scope:
+  read:
+    - company.md
+---
+# Sprint
+Synthetic target Agent.
+`);
+    const agentPath = join(root, "agents", "growth", "instructions.md");
+    writeFileSync(agentPath, readFileSync(agentPath, "utf8").replace(
+      "scope:\n",
+      `handoffs:
+  - id: growth-to-sprint
+    target: sprint
+    purpose: sprint
+    surfaces: [slack]
+    eligible_roles: [contributor]
+    eligible_groups: [sprint-participant]
+    ttl_seconds: 3600
+scope:
+`,
+    ));
+    const artifact = buildCompanyOSArtifact({
+      workspaceRoot: root,
+      instance: { ...instance, defaultAgentId: "growth" },
+      coreVersion: "0.5.3",
+      coreCommit: CORE_COMMIT,
+      workspaceCommit: WORKSPACE_COMMIT,
+      workbenchVersion: "0.1.0-experimental.10",
+      builtAt: "2026-09-01T12:00:00.000Z",
+    });
+    assert.deepEqual(artifact.agentRouting.handoffs, [{
+      id: "growth-to-sprint",
+      fromAgentId: "growth",
+      toAgentId: "sprint",
+      purpose: "sprint",
+      surfaces: ["slack"],
+      eligibleRoles: ["contributor"],
+      eligibleGroups: ["sprint-participant"],
+      ttlSeconds: 3600,
+    }]);
+    assert.equal(artifact.agents.find((agent) => agent.id === "sprint")?.toolSet.tools.length, 0);
+    assert.ok((artifact.agents.find((agent) => agent.id === "growth")?.toolSet.tools.length ?? 0) > 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

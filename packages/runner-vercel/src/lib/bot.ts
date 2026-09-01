@@ -9,15 +9,20 @@ import { KnowledgeProviderConnector } from "../../../connectors/knowledge.ts";
 import { createUnifiedKnowledgeProvider } from "../../../knowledge/unified-provider.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { CompanyOSRuntime, type ExecuteToolRequest } from "../../../runtime/companyos-runtime.ts";
+import { AgentHandoffService } from "../../../runtime/agent-handoff.ts";
 import { PostgresBrainKnowledgeProjectionStore } from "../../../state-postgres/brain-retrieval-store.ts";
 import { PostgresKnowledgeAccessAuditor } from "../../../state-postgres/knowledge-access-store.ts";
 import { createPostgresKnowledgeCanaryProvider, resolveKnowledgeRetrievalRuntimeSelection } from "../../../state-postgres/knowledge-canary-provider.ts";
 import { createPostgresKnowledgeProvider } from "../../../state-postgres/knowledge-store.ts";
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
+import { createPostgresConversationAssignmentStore } from "../../../state-postgres/conversation-assignment-store.ts";
+import type { ConversationAssignmentStore } from "../../../state-store/conversation-assignments.ts";
 import type { RosterMember } from "../../../state-store/roster.ts";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
 import type { StateAdapter } from "chat";
 import { loadArtifact, resolvedAgentForConversation } from "./artifact.ts";
+import type { ResolvedConversationAgent } from "./artifact.ts";
+import { executeAgentHandoffControl } from "./agent-handoff-tools.ts";
 import {
   createBuilderChatIntegration,
   type BuilderChatIntegration,
@@ -42,6 +47,8 @@ let state: StateAdapter;
 let artifact: CompanyOSArtifact;
 let runtime: CompanyOSRuntime;
 let builderChat: BuilderChatIntegration;
+let assignmentStore: ConversationAssignmentStore;
+let handoffService: AgentHandoffService;
 
 const requireEnv = (name: string): string => {
   const value = process.env[name];
@@ -96,6 +103,7 @@ function resolvedTools(
   requester: string,
   runId: string,
   messageId: string,
+  conversation: ResolvedConversationAgent,
 ): ToolSet {
   const output: ToolSet = {};
   for (const resolved of agent.toolSet.tools) {
@@ -142,6 +150,34 @@ function resolvedTools(
       },
     });
   }
+  const hasOutgoingHandoff = (artifact.agentRouting.handoffs ?? [])
+    .some((rule) => rule.fromAgentId === agent.id && rule.surfaces.includes(conversation.assignmentKey.surface));
+  if (hasOutgoingHandoff || conversation.resolution.reason === "assignment") {
+    output.companyos_agent_handoff = tool({
+      description: "Request an allowlisted CompanyOS Agent handoff for this authenticated conversation, or return an assigned conversation to its deterministic route. This control changes only the next turn's Agent selection; it never copies Tool grants or proves a business effect.",
+      inputSchema: jsonSchema({
+        type: "object",
+        additionalProperties: false,
+        required: ["action"],
+        properties: {
+          action: { type: "string", enum: ["handoff", "return"] },
+          target_agent: { type: "string", minLength: 1, maxLength: 128 },
+          purpose: { type: "string", minLength: 1, maxLength: 128 },
+        },
+      }),
+      execute: async (input: unknown) => await executeAgentHandoffControl(
+        input as { action: "handoff" | "return"; target_agent?: string; purpose?: string },
+        {
+          service: handoffService,
+          assignmentKey: conversation.assignmentKey,
+          activeAgentId: agent.id,
+          resolution: conversation.resolution,
+          artifactHash: artifact.artifactHash,
+          messageId,
+        },
+      ),
+    });
+  }
   Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId }));
   return output;
 }
@@ -155,7 +191,12 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   if (!await state.setIfNotExists(`message:${message.id}`, true, 30 * DAY)) return;
   await thread.subscribe();
   const requester = principal(member);
-  const agent = resolvedAgentForConversation({ threadId: thread.id, requesterPrincipal: requester });
+  const conversation = await resolvedAgentForConversation({
+    threadId: thread.id,
+    requesterPrincipal: requester,
+    assignmentStore,
+  });
+  const agent = conversation.agent;
   const conversationKey = `conversation:${thread.id}:${agent.id}`;
   await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
     maxLength: 40,
@@ -183,7 +224,7 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
-  const tools = resolvedTools(agent, thread, requester, runId, message.id);
+  const tools = resolvedTools(agent, thread, requester, runId, message.id, conversation);
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
     tools: agent.toolSet.tools.map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
@@ -281,6 +322,14 @@ export function getBot(): Chat {
   if (botInstance) return botInstance;
   state = createPostgresChatState();
   artifact = loadArtifact();
+  assignmentStore = createPostgresConversationAssignmentStore();
+  handoffService = new AgentHandoffService({
+    artifactHash: artifact.artifactHash,
+    routing: artifact.agentRouting,
+    agentIds: artifact.agents.map((agent) => agent.id),
+    roster: artifact.roster,
+    store: assignmentStore,
+  });
   builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal });
   const connectorAgentId = process.env.COMPANYOS_AGENT_ID
     ?? artifact.agentRouting?.defaultAgentId

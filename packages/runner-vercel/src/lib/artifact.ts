@@ -2,6 +2,11 @@ import { gunzipSync } from "node:zlib";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { resolveAgent } from "../../../runtime/agent-resolver.ts";
+import type { AgentResolution } from "../../../runtime/agent-resolver.ts";
+import type {
+  ConversationAssignmentKey,
+  ConversationAssignmentStore,
+} from "../../../state-store/conversation-assignments.ts";
 
 let cachedArtifact: CompanyOSArtifact | undefined;
 
@@ -37,16 +42,34 @@ export function selectedAgent(): CompiledAgent {
   return agent;
 }
 
-export function resolvedAgentForConversation(args: {
+export interface ResolvedConversationAgent {
+  readonly agent: CompiledAgent;
+  readonly resolution: AgentResolution;
+  readonly assignmentKey: ConversationAssignmentKey;
+}
+
+export async function resolvedAgentForConversation(args: {
   threadId: string;
   requesterPrincipal: string;
-}): CompiledAgent {
+  assignmentStore?: ConversationAssignmentStore;
+  now?: string;
+}): Promise<ResolvedConversationAgent> {
   const artifact = loadArtifact();
   const thread = parseThreadIdentity(args.threadId);
   const principal = parsePrincipalIdentity(args.requesterPrincipal);
   if (thread.surface !== principal.surface) {
     throw new Error("Conversation surface does not match the authenticated requester principal.");
   }
+  const assignmentKey: ConversationAssignmentKey = {
+    instanceId: artifact.instance.id,
+    surface: thread.surface,
+    accountId: principal.accountId,
+    channelId: thread.channelId,
+    subjectPrincipal: args.requesterPrincipal,
+  };
+  const assignment = args.assignmentStore
+    ? await args.assignmentStore.getActive(assignmentKey, args.now ?? new Date().toISOString())
+    : undefined;
   const resolution = resolveAgent(
     artifact.agentRouting ?? { bindings: [] },
     artifact.agents.map((candidate) => candidate.id),
@@ -54,11 +77,14 @@ export function resolvedAgentForConversation(args: {
       surface: thread.surface,
       accountId: principal.accountId,
       channelId: thread.channelId,
+      assignment: assignment
+        ? { assignmentId: assignment.assignmentId, agentId: assignment.agentId }
+        : undefined,
     },
   );
   const agent = artifact.agents.find((candidate) => candidate.id === resolution.agentId);
   if (!agent) throw new Error(`Resolved Agent '${resolution.agentId}' is not present in the Artifact.`);
-  return agent;
+  return { agent, resolution, assignmentKey };
 }
 
 function parseThreadIdentity(threadId: string): { surface: string; channelId: string } {

@@ -130,6 +130,48 @@ create table if not exists companyos.chat_queue (
 create index if not exists chat_queue_thread_sequence_idx
   on companyos.chat_queue(thread_id, sequence);
 
+-- The current provider-neutral Agent assignment for one authenticated subject
+-- in one conversation. Agent instructions, ToolSets, and raw messages are not
+-- copied here; the Artifact remains their authority.
+create table if not exists companyos.conversation_assignments (
+  instance_id       text not null,
+  surface           text not null,
+  account_id        text not null,
+  channel_id        text not null,
+  subject_principal text not null,
+  assignment_id     text not null unique,
+  from_agent_id     text not null,
+  agent_id          text not null,
+  rule_id           text not null,
+  purpose           text not null,
+  artifact_hash     text not null,
+  assigned_at       timestamptz not null,
+  expires_at        timestamptz not null,
+  updated_at        timestamptz not null,
+  primary key (instance_id, surface, account_id, channel_id, subject_principal)
+);
+create index if not exists conversation_assignments_expiry_idx
+  on companyos.conversation_assignments(instance_id, expires_at);
+
+-- Append-only, idempotent assignment evidence. It stores policy facts and the
+-- resulting assignment snapshot, never provider message bodies or prompts.
+create table if not exists companyos.conversation_assignment_transitions (
+  instance_id            text not null,
+  transition_key         text not null,
+  action                 text not null check (action in ('assign','return','revoke')),
+  surface                text not null,
+  account_id             text not null,
+  channel_id             text not null,
+  subject_principal      text not null,
+  previous_assignment_id text,
+  next_assignment_id     text,
+  initiated_by_principal text not null,
+  occurred_at            timestamptz not null,
+  evidence               jsonb not null,
+  result_assignment      jsonb,
+  primary key (instance_id, transition_key)
+);
+
 create table if not exists companyos.published_artifacts (
   artifact_id text primary key,
   content text not null,

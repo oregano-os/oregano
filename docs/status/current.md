@@ -499,6 +499,18 @@ evidence, historical prototypes, and production gaps.
   Agent Binding continues normal Agent and Knowledge operation. Its scheduled
   worker exits successfully without constructing a repository provider,
   Sandbox, or coding runtime.
+- The unreleased v0.5.4 change branch implements governed semantic Agent
+  handoff and durable Conversation Assignment. Exact bindings remain stronger
+  than assignments, and assignments remain stronger than the explicit
+  default. Core authorization intersects the compiled direction, purpose,
+  surface, active roster role or group, authenticated principal, Artifact, and
+  current assignment. The Postgres adapter stores current assignments and
+  append-only idempotent transition receipts without raw message bodies; the
+  Runner exposes one bounded control Tool and changes routing on the next turn
+  without copying ToolSets. Return and expiry are implemented and covered by
+  neutral fixtures. Production remains unproved: no private Company Instance
+  migration, live deployment, live handoff, or live return evidence exists,
+  and v0.5.3 does not contain this behavior.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent

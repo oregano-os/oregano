@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -38,10 +38,14 @@ New plans use Change Plan version 2. Before implementation, the author must:
    no Core mechanism.
 
 The governed existing-mechanism catalog currently covers AgentResolver,
-ToolSetResolver, ModelRecipeResolver, Company Records, identity and
-authorization, timers and business time, approvals/effects/idempotency, and
-Capability Contracts/Connectors. This is a mandatory search for reuse, not a
-claim that every mechanism applies to every plan.
+governed Agent handoff and Conversation Assignment, ToolSetResolver,
+ModelRecipeResolver, Company Records, identity and authorization, timers and
+business time, approvals/effects/idempotency, and Capability
+Contracts/Connectors. This is a mandatory search for reuse, not a claim that
+every mechanism applies to every plan. A plan that routes from message meaning
+must state separately how authenticated ingress, semantic handoff, target
+authorization, ToolSet isolation, assignment persistence, return, expiry,
+revocation, and evidence are handled.
 
 Use `companyos plan --output <path>` to create a template and
 `companyos plan --check <path>` to validate a completed plan.
