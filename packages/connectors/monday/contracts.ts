@@ -86,6 +86,10 @@ export interface MondayRecordInventory {
   boardId: string;
   boardIds: string[];
   inventoryMode: "selected-items" | "complete-table";
+  tableSchema: Array<{
+    board_id: string;
+    columns: Array<{ id: string; title: string; type: string }>;
+  }>;
   objects: MondayRecordObject[];
   objectCounts: Record<string, number>;
   requestIds: string[];

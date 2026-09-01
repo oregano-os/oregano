@@ -90,6 +90,20 @@ test("records inspection reports only validated Workspace declarations", () => {
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
+test("records inspection rejects projection paths absent from the selected source", () => {
+  const fixture = temporaryWorkspace();
+  try {
+    writeFileSync(join(fixture.workspace, "records", "sources", "items.yaml"), YAML.stringify(fixture.source));
+    const projectionPath = join(fixture.workspace, "records", "projections", "items.yaml");
+    const projection = YAML.parse(readFileSync(projectionPath, "utf8"));
+    projection.selection = { source_id: "fixture-items" };
+    projection.fields.push({ name: "actual_hours", path: "actual_hours" });
+    writeFileSync(projectionPath, YAML.stringify(projection));
+    const result = inspectRecordWorkspace({ workspaceRoot: fixture.workspace, sourceId: "fixture-items" });
+    assert.equal(result.diagnostics.some((entry) => entry.code === "WS055" && entry.message.includes("actual_hours")), true);
+  } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
 test("the CLI exposes provider-neutral source and projection inspection", () => {
   const fixture = temporaryWorkspace();
   try {
@@ -372,6 +386,14 @@ test("the maintained Monday source adapter mirrors a complete table surface with
   assert.equal(inventory.objects.find((object) => object.id === "item:item-1").provider_payload.columns.status_col.index, 2);
   assert.equal(inventory.objects.find((object) => object.id === "subitem:subitem-1").provider_payload.columns.hours, 3);
   assert.deepEqual(inventory.receipt.object_counts, { board: 2, group: 2, column: 4, item: 1, subitem: 1 });
+  assert.deepEqual(inventory.receipt.schema_coverage, [
+    { board_id: "100001", columns: [
+      { id: "name", title: "Name", type: "name" },
+      { id: "status_col", title: "Status", type: "status" },
+      { id: "subtasks", title: "Subitems", type: "subtasks" },
+    ] },
+    { board_id: "100002", columns: [{ id: "hours", title: "Hours", type: "numbers" }] },
+  ]);
   assert.deepEqual(inventory.receipt.request_ids, ["request-root", "request-child"]);
   assert.equal(requests[0].query.includes("updates"), false);
   assert.equal(requests[0].query.includes("assets"), false);

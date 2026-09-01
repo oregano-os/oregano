@@ -8,11 +8,10 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../connectors/monday/records-source.ts";
-import { normalizeRecordObject } from "../../records/normalize.ts";
 import { reconcileRecordSnapshot } from "../../records/reconciliation.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
-import { CompanyRecordsService } from "../../records/service.ts";
 import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
+import { synchronizeRecordSnapshot } from "../../records/synchronization.ts";
 import {
   createPostgresCompanyRecordsStore,
   inspectPostgresCompanyRecordSourceStatus,
@@ -320,65 +319,6 @@ export function planRecordSourceOperation({
   return { plan, diagnostics, source, projections, binding, qualification: qualification?.value, inspected: selected.inspected };
 }
 
-const syncWithoutDeletion = async ({ instanceId, source, inventory, registry, store, runId, leaseOwner, leaseToken, leaseExpiresAt }) => {
-  const claimed = await store.claimSyncLease({
-    instanceId,
-    sourceId: source.id,
-    owner: leaseOwner,
-    token: leaseToken,
-    now: inventory.observed_at,
-    expiresAt: leaseExpiresAt,
-  });
-  if (!claimed) throw new Error(`Record source '${source.id}' already has an active synchronization lease`);
-  let inserted = 0;
-  let unchanged = 0;
-  const service = new CompanyRecordsService({ instanceId, registry, store, now: () => new Date(inventory.observed_at) });
-  try {
-    for (const raw of inventory.objects) {
-      const normalized = normalizeRecordObject({
-        instanceId,
-        source,
-        raw,
-        observedAt: inventory.observed_at,
-        receipt: { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest },
-      });
-      const current = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
-      if (current?.digest === normalized.digest) unchanged += 1;
-      else inserted += 1;
-      await service.ingest({
-        event: {
-          source_id: source.id,
-          event_id: `sync:${runId}:${normalized.object_id}:${normalized.digest}`,
-          object_id: normalized.object_id,
-          kind: current ? "updated" : "created",
-          observed_at: inventory.observed_at,
-          receipt: { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest },
-        },
-        raw,
-        receipt: { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest },
-      });
-    }
-    await store.setWatermark(instanceId, source.id, inventory.watermark, inventory.observed_at);
-    const receipt = {
-      instance_id: instanceId,
-      source_id: source.id,
-      run_id: runId,
-      started_at: inventory.observed_at,
-      completed_at: inventory.observed_at,
-      watermark: inventory.watermark,
-      observed: inventory.objects.length,
-      inserted,
-      unchanged,
-      deleted: 0,
-      errors: 0,
-    };
-    await store.appendSyncReceipt(receipt);
-    return receipt;
-  } finally {
-    await store.releaseSyncLease({ instanceId, sourceId: source.id, token: leaseToken });
-  }
-};
-
 export async function runRecordSourceOperation({
   planResult,
   confirmationHash,
@@ -416,7 +356,7 @@ export async function runRecordSourceOperation({
       registry,
       store: recordsStore,
     })
-    : await syncWithoutDeletion({
+    : await synchronizeRecordSnapshot({
       instanceId: planResult.binding.instance_id,
       source: planResult.source,
       inventory,

@@ -128,6 +128,25 @@ Both are idempotent, advance the watermark only after success, store a durable
 receipt, write only the existing Company Instance database, and perform no
 provider write.
 
+### Hosted Preview rehearsal
+
+The maintained Vercel Runner exposes an optional authenticated
+`POST /api/records/rehearsal` operator endpoint for an isolated Preview when a
+local process cannot resolve the Instance secrets. Supported request actions
+are `plan-migration`, `apply-migration`, `plan-sync`, `apply-sync`, and
+`status`. Migration and synchronization have independent confirmation hashes.
+
+The endpoint fails closed outside `VERCEL_ENV=preview`, when the deployed Git
+commit differs from the configured exact Core ref, or when its short-lived
+bearer secret is missing. Its compressed runtime configuration contains no
+credential and is separate from `DATABASE_URL`, provider SecretRefs, and
+`COMPANYOS_RECORDS_REHEARSAL_SECRET`. The endpoint does not support
+reconciliation, schedules, webhooks, provider writes, or production. Delete
+the Preview-only configuration and bearer secret after rehearsal. A maintained
+Monday `complete-table` apply response includes payload-free board/column
+schema coverage and its digest; `status` includes row counts for the exact
+declared projections selected by the source.
+
 ## Payload-free status
 
 ```bash

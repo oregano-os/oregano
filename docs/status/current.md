@@ -42,6 +42,18 @@ evidence, historical prototypes, and production gaps.
   latest receipt without record payloads and without creating a schema.
   Synthetic tests prove the lifecycle; no real provider read, database write,
   schedule, webhook, or production activation is claimed by this Core change.
+- The maintained Vercel Runner now has an optional fail-closed Company Records
+  rehearsal endpoint for protected Preview deployments. It independently
+  plans and confirms the additive records migration and one initial source
+  synchronization, reuses the maintained Connector and records store, reports
+  payload-free status, and rejects production or a mismatched Git commit.
+  Runtime configuration and credentials stay Instance-injected and the lane
+  cannot reconcile, schedule, receive webhooks, write to a provider, or grant
+  Agent Tools. No real Preview, database branch, migration, or provider read is
+  claimed by this Core change.
+- Workspace inspection now rejects projection and selection paths that are not
+  materialized by the exact selected Record Source set, preventing a declared
+  field from silently remaining empty at runtime.
 - The provider-neutral Sprint domain implements validated policy, append-only
   event reduction, controlled-clock business-time and holiday calculation,
   frozen-participant Friday completeness, actual-effort and open-work read

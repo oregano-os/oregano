@@ -195,6 +195,8 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         column_ids: inventoryMode === "complete-table" ? "all-active-columns" : columnIds,
         pages: inventory.pageCount,
         object_counts: inventory.objectCounts,
+        schema_coverage: inventory.tableSchema,
+        schema_digest: digest(inventory.tableSchema),
         objects: objects.length,
         inventory_digest: inventoryDigest,
         complete: true,

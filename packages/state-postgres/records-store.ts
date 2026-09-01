@@ -62,6 +62,28 @@ export interface PostgresCompanyRecordSourceStatus {
   };
 }
 
+export interface PostgresCompanyRecordProjectionStatus {
+  available: boolean;
+  projection_id: string;
+  rows: number;
+}
+
+/** Payload-free projection counts for a bounded, declared projection set. */
+export async function inspectPostgresCompanyRecordProjectionStatus(
+  instanceId: string,
+  projectionIds: readonly string[],
+): Promise<PostgresCompanyRecordProjectionStatus[]> {
+  if (projectionIds.length > 100) throw new Error("Company Records status supports at most one hundred projections");
+  const sql = connection();
+  const present = await sql`select to_regclass('companyos_records.projection_rows') as projection_rows`;
+  if (!present[0]?.projection_rows) return projectionIds.map((projectionId) => ({ available: false, projection_id: projectionId, rows: 0 }));
+  return Promise.all(projectionIds.map(async (projectionId) => {
+    const rows = await sql`select count(*) as count from companyos_records.projection_rows
+      where instance_id = ${instanceId} and projection_id = ${projectionId}`;
+    return { available: true, projection_id: projectionId, rows: Number(rows[0]?.count ?? 0) };
+  }));
+}
+
 /** Payload-free read. Unlike the mutating store, status never creates schema objects. */
 export async function inspectPostgresCompanyRecordSourceStatus(
   instanceId: string,

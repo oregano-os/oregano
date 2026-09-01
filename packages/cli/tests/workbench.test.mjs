@@ -240,6 +240,17 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     ],
     access: { read_groups: ["delivery"], write_roles: ["process-owner"] },
   }));
+  writeFileSync(join(workspace, "records", "sources", "person-roles.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "person-roles",
+    record_type: "person-role",
+    connection: "connections/board.md",
+    resource_binding: "roles-board",
+    delivery: "poll",
+    identity: { source_field: "id" },
+    fields: [{ target: "name", source: "name", value_type: "string", required: true }],
+    access: { read_groups: ["delivery"], write_roles: [] },
+  }));
   for (const projection of [
     { id: "participants", record_type: "person-role", fields: [{ name: "name", path: "name" }] },
     { id: "sprint-items", record_type: "work-item", fields: [{ name: "status", path: "status" }] },
@@ -266,7 +277,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
 
   const result = validateWorkspace(workspace);
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
-  assert.equal(result.summary.record_sources, 1);
+  assert.equal(result.summary.record_sources, 2);
   assert.equal(result.summary.record_projections, 2);
   assert.equal(result.summary.sprint_configurations, 1);
 }));

@@ -92,6 +92,45 @@ export function inspectStructuredDeclarations(root) {
     if (materialization?.mode === "database-view" && materialization.target !== undefined) {
       diagnostics.push(diagnostic("WS048", "error", "Database-view materialization must not declare a Workspace target.", { file: projection.path }));
     }
+
+    const selectedSourceId = projection.value.selection?.source_id;
+    let selectedSources;
+    if (typeof selectedSourceId === "string") {
+      const exact = sources.find((source) => source.value.id === selectedSourceId);
+      if (!exact) {
+        diagnostics.push(diagnostic("WS053", "error", `Record projection selects unknown source '${selectedSourceId}'.`, { file: projection.path }));
+        selectedSources = [];
+      } else if (exact.value.record_type !== projection.value.record_type) {
+        diagnostics.push(diagnostic("WS054", "error", `Record projection type '${projection.value.record_type}' does not match selected source '${selectedSourceId}' type '${exact.value.record_type}'.`, { file: projection.path }));
+        selectedSources = [];
+      } else selectedSources = [exact];
+    } else {
+      selectedSources = sources.filter((source) => source.value.record_type === projection.value.record_type);
+      if (selectedSources.length === 0) {
+        diagnostics.push(diagnostic("WS053", "error", `Record projection type '${projection.value.record_type}' has no matching Record Source.`, { file: projection.path }));
+      }
+    }
+
+    if (selectedSources.length > 0) {
+      const paths = [
+        ...Object.keys(projection.value.selection ?? {}),
+        ...(projection.value.fields ?? []).map((field) => field.path),
+      ];
+      for (const path of new Set(paths.filter((candidate) => typeof candidate === "string"))) {
+        const rootField = path.split(".")[0];
+        const missing = selectedSources
+          .filter((source) => !(source.value.fields ?? []).some((field) => field.target === rootField))
+          .map((source) => source.value.id);
+        if (missing.length > 0) {
+          diagnostics.push(diagnostic(
+            "WS055",
+            "error",
+            `Record projection path '${path}' is not materialized by selected source${missing.length === 1 ? "" : "s"} ${missing.map((id) => `'${id}'`).join(", ")}.`,
+            { file: projection.path },
+          ));
+        }
+      }
+    }
   }
 
   if (sprint) {

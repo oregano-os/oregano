@@ -367,6 +367,18 @@ after successful completion and store a receipt; neither grants an Agent a
 Tool or performs a provider write. `status` is payload-free and read-only and
 does not create the records schema when it is absent.
 
+When secrets can be resolved only inside a hosted Instance, the maintained
+Vercel Runner may expose the same operation through a temporary preview-only
+rehearsal lane. The lane accepts runtime-injected declarations, qualification
+evidence, bindings, exact Core and Workspace refs, and source confirmations;
+none are compiled into Core. It requires a constant-time bearer secret and an
+exact `VERCEL_GIT_COMMIT_SHA`, separates additive schema migration approval
+from provider synchronization approval, and returns payload-free receipts. It
+cannot run in production and cannot reconcile absence, activate a schedule or
+webhook, invoke a model or Tool, or write to a provider. Preview deployment,
+database branching, secrets, protection, cleanup, and retained evidence remain
+Instance responsibilities.
+
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent
 through the existing contracts. An Instance Gateway is considered only when

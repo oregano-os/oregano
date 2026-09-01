@@ -1,0 +1,141 @@
+version: 2
+plan_id: company-records-preview-rehearsal-2026-09-01
+status: approved
+author: codex-agent
+created: 2026-09-01
+title: Add a fail-closed Company Records preview rehearsal lane
+objective: >-
+  Add a provider-neutral, authenticated Vercel preview endpoint that can plan
+  and apply the additive Company Records schema migration, plan and apply one
+  explicitly confirmed Record Source synchronization, and report payload-free
+  status without ever running in production or retaining provider credentials.
+  Also fail Workspace inspection when a projection asks for fields that its
+  selected Record Source does not materialize.
+non_goals:
+  - Deploy the endpoint, create a Neon branch, configure Vercel, read Monday, or migrate any real database as part of this Core change.
+  - Enable reconciliation, provider deletion inference, schedules, webhooks, provider writes, or production synchronization.
+  - Store a Company Workspace, qualification receipt, Instance binding, provider credential, database URL, or company identifier in Core Git.
+  - Make a preview rehearsal approval valid for production.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-09-01-company-records-preview-rehearsal.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/status/current.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/src/records-operations.mjs
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/tests/records.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/contracts.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/state-postgres/records-store.ts
+  - packages/runner-vercel/src/app/api/records/rehearsal/route.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/records/synchronization.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-instruction-to-implement-the-selected-instance-through-stage-5d-and-confirmed-exact-record-source-plans
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the generic preview-only rehearsal guard, exact plan/apply boundary, credential-free runtime configuration contract, additive records migration, and payload-free status surface.
+      - Validate that projection paths are materialized by every Record Source selected by that projection.
+      - Expose payload-free provider schema coverage and projection counts so a complete-table rehearsal can prove field coverage without returning row values.
+    packages:
+      - The Sprint Blueprint remains declarative and gains no company value or deployment authority.
+    workspace:
+      - Own company source mappings, projections, policies, schedules, logical resources, access groups, and source confirmation evidence.
+    instance:
+      - Own the isolated database branch, runtime configuration, qualification evidence, bindings, secrets, deployment protection, explicit apply confirmations, and rehearsal receipts.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: reuse
+      reason: Rehearsal calls the same maintained plan, Connector registry, immutable store, projection builder, watermarks, leases, receipts, and status path as the Workbench CLI.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The route requires a constant-time bearer secret and an exact preview deployment identity before any configuration or database action.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Migration and synchronization each expose a separate exact confirmation hash, while the existing records store remains idempotent and receipt-backed.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The runtime configuration can select only an already maintained exact Record Source Connector through the existing registry.
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Rehearsal is an authenticated operator endpoint, not a conversational Agent ingress.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: The route grants no Agent Tool and does not bypass later Tool resolution.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: No model is invoked.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: Rehearsal activates no schedule or timer.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The endpoint accepts only runtime-injected declarations, bindings,
+    qualification evidence, exact source confirmations, and SecretRefs. It
+    contains no provider board, company, role, person, schedule, or policy
+    value and can rehearse any maintained Record Source Connector.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-company-records-preview-rehearsal.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-01-company-records-preview-rehearsal.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/cli/tests/records.test.mjs packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Production, development, missing Vercel identity, wrong Git commit, malformed configuration, and unauthorized requests fail before migration, provider read, or database access.
+  - Migration and each source synchronization expose separate stable plans and require their exact current confirmation hashes.
+  - Synchronization reuses the maintained Connector and database operation and returns counts and receipt evidence without record payloads or credentials.
+  - Complete-table evidence identifies active parent/child board columns and exact projection counts without returning provider row values.
+  - Status is read-only and does not create a missing schema.
+  - Projection inspection rejects unknown sources, mismatched record types, and field or selection paths absent from the selected source materialization.
+  - Runtime configuration rejects inline credential-shaped material and supports only bounded declarations and bindings.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - status.current
+    - command.records
+    - guide.connect-company-record-source
+migration: >-
+  The Core change itself migrates nothing. A later explicitly approved
+  Instance rehearsal must deploy this exact commit to a protected Vercel
+  Preview, bind an isolated Neon branch, inject the existing provider token and
+  a short-lived rehearsal secret through Preview-only sensitive variables,
+  review the migration plan hash, and only then apply the additive
+  companyos_records schema. Provider synchronization requires a second exact
+  confirmation.
+rollback: >-
+  Remove the preview deployment and its Preview-only runtime configuration and
+  rehearsal secret. Delete the isolated Neon branch only through a separately
+  confirmed provider action. The additive schema is never installed in
+  production by this change, and no provider object is modified.
+open_decisions:
+  - The selected Instance must use an isolated database branch before the first apply.

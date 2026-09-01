@@ -251,6 +251,11 @@ companyos records projection inspect \
 Resolve every error before continuing. Inspection is local and free of
 provider and database effects.
 
+Inspection also proves that every projection and selection path is
+materialized by the exact Record Source or Sources the projection selects. A
+projection cannot defer an unknown provider column until runtime; add the
+reviewed source mapping first or remove the projection field.
+
 ## 6. Rehearse synchronization outside production
 
 Use a dedicated test provider resource or explicitly safe read-only subset and
@@ -258,6 +263,34 @@ an isolated database branch. Explain that apply will read provider objects and
 write immutable observations, current pointers, projection rows, a watermark,
 and a receipt to that database. It will not write to the provider. Existing
 provider API quotas and database compute or storage charges may apply.
+
+When the maintained Vercel Runner is the only runtime that can resolve both an
+Instance provider SecretRef and the isolated database binding, use its optional
+`/api/records/rehearsal` operator endpoint. It is disabled unless all of these
+conditions hold:
+
+- `VERCEL_ENV` is exactly `preview`;
+- `VERCEL_GIT_COMMIT_SHA` matches the exact clean Core ref in the compressed
+  runtime configuration;
+- `COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64` contains only reviewed
+  declarations, non-secret bindings, qualification evidence, Workspace/Core
+  refs, and source-confirmation hashes;
+- `COMPANYOS_RECORDS_REHEARSAL_SECRET` matches the request bearer value; and
+- the database and provider credentials are injected separately through
+  Preview-only sensitive variables.
+
+The endpoint plans and applies migration and synchronization separately. It
+never enables reconciliation, schedules, webhooks, provider writes, or
+production. Its status and apply responses contain counts and receipts, not
+record payloads. For a maintained Monday `complete-table` source, apply also
+returns the active board and column identifiers, titles, and types as
+`schema_coverage`, plus a stable schema digest. This is table metadata, never
+row content, and lets the operator verify a child-board mapping. Status reports
+row counts for the declared projections selected by that source. Remove the
+short-lived configuration and rehearsal secret after evidence capture.
+Creating the Preview deployment, database branch, and environment variables
+remains an Instance change requiring its own review and does not follow from
+this Guide automatically.
 
 ```bash
 companyos records source sync \

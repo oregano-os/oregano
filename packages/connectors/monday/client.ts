@@ -418,6 +418,13 @@ export class MondayClient {
       boardId,
       boardIds: tableBoards.map((candidate) => String(candidate.id)),
       inventoryMode,
+      tableSchema: tableBoards.map((candidate) => ({
+        board_id: String(candidate.id),
+        columns: (candidate.columns ?? [])
+          .filter((column) => column.archived !== true)
+          .map((column) => ({ id: String(column.id), title: column.title, type: column.type }))
+          .sort((left, right) => left.id.localeCompare(right.id)),
+      })),
       objects,
       objectCounts,
       requestIds: [...new Set(allResponses.flatMap((request) => request.requestId ? [request.requestId] : []))],
