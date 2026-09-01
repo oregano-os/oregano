@@ -269,7 +269,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-31",
+    "updated": "2026-09-01",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -326,6 +326,27 @@
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
+  },
+  {
+    "document_id": "command.records",
+    "title": "companyos records",
+    "path": "docs/workbench/commands/records.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-01",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "architecture.company-instance",
+        "specification.company-records-sprint-v0.1"
+      ],
+      "related": [
+        "command.monday-qualify"
+      ]
+    }
   },
   {
     "document_id": "command.security",
@@ -627,6 +648,29 @@
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
+  },
+  {
+    "document_id": "guide.connect-company-record-source",
+    "title": "Connect a Company Record Source",
+    "path": "docs/workbench/guides/connect-company-record-source.md",
+    "kind": "guide",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-01",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "command.records",
+        "specification.company-records-sprint-v0.1",
+        "architecture.company-instance"
+      ],
+      "related": [
+        "command.monday-qualify",
+        "guide.connect-knowledge-source"
+      ]
+    }
   },
   {
     "document_id": "guide.connect-knowledge-source",
@@ -1185,7 +1229,7 @@
     "status": "building",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-31",
+    "updated": "2026-09-01",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}

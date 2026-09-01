@@ -68,7 +68,7 @@ const withFixture = (fn) => {
 
 test("the Workbench exposes its exact running version", () => {
   assert.equal(CORE_VERSION, "0.5.4");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.10");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.11");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -318,7 +318,7 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   assert.deepEqual(JSON.parse(result.stdout), {
     core: "0.5.4",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.10",
+    workbench: "0.1.0-experimental.11",
     companyos_spec: "0.7-draft",
   });
 

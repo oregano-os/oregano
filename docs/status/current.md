@@ -28,6 +28,18 @@ evidence, historical prototypes, and production gaps.
   isolated `companyos_records` schema also contains durable timers, Connector
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
+- The experimental `companyos records` Workbench surface now inspects sources
+  and projections locally; reuses the exact-scope Monday qualification path;
+  materializes only an explicitly authored, qualification-checked Workspace
+  declaration; and plans and confirms secret-bound synchronization or full
+  reconciliation into the existing Company Instance database. Its generic
+  Record Source Connector registry has one maintained read-only Monday
+  adapter with exact board and optional group scope, explicit mapped columns,
+  API version `2026-07`, bounded complete pagination, payload-free evidence,
+  and no retained credential. `status` reads counts, watermark time, and the
+  latest receipt without record payloads and without creating a schema.
+  Synthetic tests prove the lifecycle; no real provider read, database write,
+  schedule, webhook, or production activation is claimed by this Core change.
 - The provider-neutral Sprint domain implements validated policy, append-only
   event reduction, controlled-clock business-time and holiday calculation,
   frozen-participant Friday completeness, actual-effort and open-work read
@@ -555,7 +567,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.10`; no
+  builds. Its repository release candidate is `0.1.0-experimental.11`; no
   public package release is claimed.
 - Newly generated Change Plans use version 2 and fail closed unless they record
   the Core, Package or Blueprint, Workspace, and Instance responsibility split;

@@ -16,6 +16,9 @@ stable reusable public contracts.
 The first versioned Company Records and Sprint declarations are:
 
 - `company-record-source-v1.schema.json` for provider-neutral source mappings;
+- `company-record-source-binding-v1.schema.json` for non-secret Company
+  Instance bindings from one source declaration to an exact versioned Source
+  Connector and SecretRef;
 - `company-record-projection-v1.schema.json` for rebuildable, access-scoped
   projections; and
 - `sprint-configuration-v1.schema.json` for company policy consumed by the pure

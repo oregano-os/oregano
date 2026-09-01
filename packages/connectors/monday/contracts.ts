@@ -51,6 +51,24 @@ export interface MondayResourceDiscovery {
   boards: MondayBoardDiscovery[];
 }
 
+export interface MondayRecordObject {
+  id: string;
+  name: string;
+  updated_at: string;
+  board_id: string;
+  group_id: string;
+  columns: Record<string, JsonValue>;
+  column_text: Record<string, string>;
+}
+
+export interface MondayRecordInventory {
+  boardId: string;
+  objects: MondayRecordObject[];
+  requestIds: string[];
+  reportedApiVersions: string[];
+  pageCount: number;
+}
+
 export interface MondayEchoReceipt {
   instanceId: string;
   resourceBinding: string;

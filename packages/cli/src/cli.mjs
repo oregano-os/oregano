@@ -22,6 +22,14 @@ import {
   planMondayQualification,
   readMondayQualificationState,
 } from "./monday-qualification.mjs";
+import {
+  applyRecordSourceMaterialization,
+  inspectRecordSourceStatus,
+  inspectRecordWorkspace,
+  planRecordSourceMaterialization,
+  planRecordSourceOperation,
+  runRecordSourceOperation,
+} from "./records-operations.mjs";
 import { checkGeneratedDocumentation, generateDocumentation, inspectDocumentation } from "./docs-control.mjs";
 import { hasErrors, printDiagnostics } from "./diagnostics.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
@@ -101,6 +109,14 @@ Usage:
   companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --apply <hash> [--format human|json]
   companyos monday qualify --state <file> --resume [--format human|json]
   companyos monday qualify --state <file> --status [--format human|json]
+  companyos records source inspect --workspace <path> [--source <id>] [--format human|json]
+  companyos records projection inspect --workspace <path> [--projection <id>] [--format human|json]
+  companyos records source qualify --provider monday <same options as companyos monday qualify>
+  companyos records source materialize --provider monday --workspace <path> --qualification <state> --board <id> --declaration <yaml|json> --output <records/sources/name.yaml> --plan [--format human|json]
+  companyos records source materialize <same-options> --apply <hash> [--format human|json]
+  companyos records source sync|reconcile --workspace <path> --source <id> --binding <file> --plan [--format human|json]
+  companyos records source sync|reconcile <same-options> --apply <hash> [--format human|json]
+  companyos records source status --workspace <path> --source <id> --binding <file> [--format human|json]
   companyos package inspect <path> [--format human|json]
   companyos database prepare [--format human|json]
   companyos database bootstrap [--format human|json]
@@ -841,8 +857,111 @@ try {
       process.stdout.write("\nBootstrap phases:\n");
       for (const phase of result.phases) process.stdout.write(`- ${String(phase.status).toUpperCase()} ${phase.id}: ${phase.next}\n`);
     }
-  } else if (command === "monday") {
-    if (action !== "qualify") throw new Error("Use `companyos monday qualify`.");
+  } else if (command === "records" && action === "source" && value !== "qualify") {
+    const recordsAction = value;
+    const workspacePath = optionValue("--workspace") ?? process.cwd();
+    if (recordsAction === "inspect") {
+      const result = inspectRecordWorkspace({ workspaceRoot: workspacePath, sourceId: optionValue("--source") });
+      if (format === "json") {
+        process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+        if (hasErrors(result.diagnostics)) process.exitCode = 1;
+      } else {
+        exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
+        if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ sources: result.sources, projections: result.projections })}\n`);
+      }
+    } else if (recordsAction === "materialize") {
+      const provider = optionValue("--provider");
+      const qualificationPath = optionValue("--qualification");
+      const boardId = optionValue("--board");
+      const declarationPath = optionValue("--declaration");
+      const outputPath = optionValue("--output");
+      if (!provider || !qualificationPath || !boardId || !declarationPath || !outputPath) {
+        throw new Error("Record source materialization requires --provider, --workspace, --qualification, --board, --declaration, and --output.");
+      }
+      const planResult = planRecordSourceMaterialization({ workspaceRoot: workspacePath, provider, qualificationPath, boardId, declarationPath, outputPath });
+      if (args.includes("--plan")) {
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), ...planResult }, null, 2)}\n`);
+          if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Company Records source materialization plan" });
+          if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
+        }
+      } else {
+        const confirmationHash = optionValue("--apply");
+        if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after reviewing the exact Workspace declaration.");
+        const result = applyRecordSourceMaterialization({ planResult, confirmationHash });
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: result.applied && !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+          if (!result.applied || hasErrors(result.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(result.diagnostics, { format, summary: "Company Records source materialization" });
+          if (result.applied) process.stdout.write(`\nCreated reviewed source declaration: ${result.output}\n`);
+        }
+      }
+    } else if (new Set(["sync", "reconcile"]).has(recordsAction)) {
+      const sourceId = optionValue("--source");
+      const bindingPath = optionValue("--binding");
+      if (!sourceId || !bindingPath) throw new Error(`Record source ${recordsAction} requires --workspace, --source, and --binding.`);
+      const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
+      const planResult = planRecordSourceOperation({
+        workspaceRoot: workspacePath,
+        sourceId,
+        bindingPath,
+        operation: recordsAction,
+        coreIdentity: checkout.identity,
+      });
+      planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
+      if (args.includes("--plan")) {
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), plan: planResult.plan, diagnostics: planResult.diagnostics }, null, 2)}\n`);
+          if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(planResult.diagnostics, { format, summary: `Company Records source ${recordsAction} plan` });
+          if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
+        }
+      } else {
+        const confirmationHash = optionValue("--apply");
+        if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after explicit human confirmation of the provider read and database write.");
+        const result = await runRecordSourceOperation({ planResult, confirmationHash });
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: result.applied && !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+          if (!result.applied || hasErrors(result.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(result.diagnostics, { format, summary: `Company Records source ${recordsAction}` });
+          if (result.applied) process.stdout.write(`\n${YAML.stringify({ receipt: result.receipt, provider_evidence: result.provider_evidence, credentials_retained: result.credentials_retained })}\n`);
+        }
+      }
+    } else if (recordsAction === "status") {
+      const sourceId = optionValue("--source");
+      const bindingPath = optionValue("--binding");
+      if (!sourceId || !bindingPath) throw new Error("Record source status requires --workspace, --source, and --binding.");
+      const result = await inspectRecordSourceStatus({ workspaceRoot: workspacePath, sourceId, bindingPath });
+      if (format === "json") {
+        process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+        if (hasErrors(result.diagnostics)) process.exitCode = 1;
+      } else {
+        exitWithDiagnostics(result.diagnostics, { format, summary: "Company Records source status" });
+        if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ binding: result.binding, status: result.status })}\n`);
+      }
+    } else {
+      throw new Error("Use `companyos records source inspect|qualify|materialize|sync|reconcile|status`.");
+    }
+  } else if (command === "records" && action === "projection") {
+    if (value !== "inspect") throw new Error("Use `companyos records projection inspect`.");
+    const result = inspectRecordWorkspace({ workspaceRoot: optionValue("--workspace") ?? process.cwd(), projectionId: optionValue("--projection") });
+    if (format === "json") {
+      process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), diagnostics: result.diagnostics, workspace: result.workspace, projections: result.projections, summary: result.summary }, null, 2)}\n`);
+      if (hasErrors(result.diagnostics)) process.exitCode = 1;
+    } else {
+      exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
+      if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ projections: result.projections })}\n`);
+    }
+  } else if (command === "monday" || (command === "records" && action === "source" && value === "qualify")) {
+    const recordsAlias = command === "records";
+    if ((!recordsAlias && action !== "qualify") || (recordsAlias && optionValue("--provider") !== "monday")) {
+      throw new Error(recordsAlias ? "Record source qualification currently requires --provider monday." : "Use `companyos monday qualify`.");
+    }
     const statePath = optionValue("--state");
     if (args.includes("--status")) {
       if (!statePath) throw new Error("Monday qualification status requires --state <file>.");

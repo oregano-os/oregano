@@ -103,6 +103,20 @@ conflicting projection fails visibly and MUST NOT silently replace provider
 truth. An operational organizational projection may create a reviewed Handbook
 proposal but MUST NOT modify `handbook/roster.md` or authorization state.
 
+**CRS-016 — Governed source lifecycle.** The Workbench MUST expose one
+provider-neutral source lifecycle for local inspection, provider
+qualification, reviewed declaration materialization, synchronization,
+reconciliation, and payload-free status. A source write plan MUST bind the
+exact Core identity, Workspace declaration digest, applicable projection
+digests, non-secret Instance binding digest, Connector version, environment,
+provider resource, SecretRefs, and database effect before any credential is
+resolved or provider or database call is made. A wrong or stale confirmation
+MUST produce no external call. Synchronization MUST NOT infer provider
+deletion; reconciliation MAY record provider absence only from a bounded
+complete inventory under the source lease. Materialization creates only the
+exact reviewed Workspace file and MUST NOT commit it, activate it, or infer a
+company value.
+
 ## 3. Sprint domain
 
 **CRS-020 — Pure decision boundary.** The Sprint domain accepts one validated
@@ -178,6 +192,18 @@ board/group/column structure, request metadata, and a discovery digest. It
 MUST NOT contain items, updates, column values, provider credentials, or a
 completed provider effect. External Agent provisioning and activation require
 a separate effect plan.
+
+**CRS-035 — Record Source Connector.** A trusted Instance synchronization
+worker resolves one exact versioned Record Source Connector from a non-secret
+binding whose only credential reference is a SecretRef. The Connector returns
+and revalidates the pinned non-secret qualification receipt before returning
+one bounded complete inventory of provider observations plus payload-free
+request, version, scope, count, completeness, and digest evidence. It is not an
+Agent Tool, grants no Capability, performs no provider write, and MUST NOT
+return or retain its credential. The maintained Monday implementation reads
+one exact board, optional exact groups, and only explicitly mapped columns
+through bounded cursor pagination and API version `2026-07`. Other providers
+require separately maintained and qualified adapters behind the same contract.
 
 ## 5. Blueprint and materialization
 

@@ -1,5 +1,12 @@
 import type { JsonValue } from "../../capabilities/contracts.ts";
-import type { MondayGraphqlResponse, MondayResourceBinding, MondayResourceDiscovery, MondayWorkItem } from "./contracts.ts";
+import type {
+  MondayGraphqlResponse,
+  MondayRecordInventory,
+  MondayRecordObject,
+  MondayResourceBinding,
+  MondayResourceDiscovery,
+  MondayWorkItem,
+} from "./contracts.ts";
 
 export type MondayFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -96,6 +103,115 @@ export class MondayClient {
           };
         }),
       },
+    };
+  }
+
+  async readCompleteRecordInventory(args: {
+    boardId: string;
+    columnIds: string[];
+    groupIds?: string[];
+    pageSize?: number;
+    maxPages?: number;
+  }): Promise<MondayRecordInventory> {
+    const boardId = String(args.boardId);
+    if (!/^\d{1,20}$/.test(boardId)) throw new Error(`Monday board id '${boardId}' is invalid`);
+    const columnIds = [...new Set(args.columnIds.map(String))].sort();
+    if (columnIds.length > 100) throw new Error("Monday record inventory supports at most one hundred explicit column ids");
+    for (const columnId of columnIds) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(columnId)) throw new Error(`Monday column id '${columnId}' is invalid`);
+    }
+    const groupIds = [...new Set((args.groupIds ?? []).map(String))].sort();
+    for (const groupId of groupIds) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(groupId)) throw new Error(`Monday group id '${groupId}' is invalid`);
+    }
+    const pageSize = args.pageSize ?? 100;
+    const maxPages = args.maxPages ?? 100;
+    if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) throw new Error("Monday inventory page size must be between 1 and 500");
+    if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 1000) throw new Error("Monday inventory max pages must be between 1 and 1000");
+
+    type Item = {
+      id: string;
+      name: string;
+      updated_at: string;
+      board: { id: string };
+      group: { id: string };
+      column_values: Array<{ id: string; text: string; value: string | null }>;
+    };
+    type Page = { cursor: string | null; items: Item[] };
+    const requests: Array<MondayGraphqlResponse<Page>> = [];
+    const first = await this.graphql<{ boards: Array<{ id: string; items_page: Page }> }>(`query ReadCompanyRecordsFirstPage($boardIds: [ID!]!, $limit: Int!, $columnIds: [String!]) {
+      boards(ids: $boardIds) {
+        id
+        items_page(limit: $limit) {
+          cursor
+          items {
+            id name updated_at board { id } group { id }
+            column_values(ids: $columnIds) { id text value }
+          }
+        }
+      }
+    }`, { boardIds: [boardId], limit: pageSize, columnIds });
+    const board = first.data.boards[0];
+    if (!board || String(board.id) !== boardId) throw new Error(`Monday did not return exact board '${boardId}' for record inventory`);
+    requests.push({ ...first, data: board.items_page });
+
+    let cursor = board.items_page.cursor;
+    const seenCursors = new Set<string>();
+    while (cursor) {
+      if (requests.length >= maxPages) throw new Error(`Monday record inventory exceeded the configured ${maxPages}-page bound`);
+      if (seenCursors.has(cursor)) throw new Error("Monday record inventory returned a repeated cursor");
+      seenCursors.add(cursor);
+      const next = await this.graphql<{ next_items_page: Page }>(`query ReadCompanyRecordsNextPage($cursor: String!, $limit: Int!, $columnIds: [String!]) {
+        next_items_page(cursor: $cursor, limit: $limit) {
+          cursor
+          items {
+            id name updated_at board { id } group { id }
+            column_values(ids: $columnIds) { id text value }
+          }
+        }
+      }`, { cursor, limit: pageSize, columnIds });
+      requests.push({ ...next, data: next.data.next_items_page });
+      cursor = next.data.next_items_page.cursor;
+    }
+
+    const objects: MondayRecordObject[] = [];
+    const seenObjects = new Set<string>();
+    for (const request of requests) {
+      for (const item of request.data.items) {
+        if (String(item.board.id) !== boardId) throw new Error(`Monday returned item '${item.id}' outside exact board '${boardId}'`);
+        const objectId = String(item.id);
+        if (seenObjects.has(objectId)) throw new Error(`Monday record inventory returned duplicate item '${objectId}'`);
+        seenObjects.add(objectId);
+        const groupId = String(item.group.id);
+        if (groupIds.length > 0 && !groupIds.includes(groupId)) continue;
+        const columns: Record<string, JsonValue> = {};
+        const columnText: Record<string, string> = {};
+        for (const column of item.column_values) {
+          columnText[column.id] = column.text ?? "";
+          if (column.value === null) columns[column.id] = column.text ?? "";
+          else {
+            try { columns[column.id] = JSON.parse(column.value) as JsonValue; }
+            catch { columns[column.id] = column.text ?? ""; }
+          }
+        }
+        objects.push({
+          id: objectId,
+          name: item.name,
+          updated_at: item.updated_at,
+          board_id: boardId,
+          group_id: groupId,
+          columns,
+          column_text: columnText,
+        });
+      }
+    }
+    objects.sort((left, right) => left.id.localeCompare(right.id));
+    return {
+      boardId,
+      objects,
+      requestIds: requests.flatMap((request) => request.requestId ? [request.requestId] : []),
+      reportedApiVersions: [...new Set(requests.flatMap((request) => request.apiVersion ? [request.apiVersion] : []))].sort(),
+      pageCount: requests.length,
     };
   }
 

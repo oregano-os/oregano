@@ -38,6 +38,80 @@ const projectionRow = (row: Record<string, any>): RecordProjectionRow => ({
   values: json(row.values_json),
 });
 
+export interface PostgresCompanyRecordSourceStatus {
+  available: boolean;
+  instance_id: string;
+  source_id: string;
+  source_events: number;
+  current_objects: number;
+  object_versions: number;
+  watermark?: string;
+  watermark_observed_at?: string;
+  last_sync?: {
+    run_id: string;
+    started_at: string;
+    completed_at: string;
+    watermark?: string;
+    observed: number;
+    inserted: number;
+    unchanged: number;
+    deleted: number;
+    errors: number;
+    missing_from_provider?: number;
+    repaired_projections?: number;
+  };
+}
+
+/** Payload-free read. Unlike the mutating store, status never creates schema objects. */
+export async function inspectPostgresCompanyRecordSourceStatus(
+  instanceId: string,
+  sourceId: string,
+): Promise<PostgresCompanyRecordSourceStatus> {
+  const sql = connection();
+  const present = await sql`select to_regclass('companyos_records.source_events') as source_events`;
+  if (!present[0]?.source_events) {
+    return { available: false, instance_id: instanceId, source_id: sourceId, source_events: 0, current_objects: 0, object_versions: 0 };
+  }
+  const [eventRows, currentRows, versionRows, watermarkRows, receiptRows] = await Promise.all([
+    sql`select count(*) as count from companyos_records.source_events where instance_id = ${instanceId} and source_id = ${sourceId}`,
+    sql`select count(*) as count from companyos_records.current_objects where instance_id = ${instanceId} and source_id = ${sourceId}`,
+    sql`select count(*) as count from companyos_records.object_versions where instance_id = ${instanceId} and source_id = ${sourceId}`,
+    sql`select watermark, observed_at from companyos_records.source_watermarks where instance_id = ${instanceId} and source_id = ${sourceId} limit 1`,
+    sql`select run_id, started_at, completed_at, watermark, summary from companyos_records.sync_receipts
+      where instance_id = ${instanceId} and source_id = ${sourceId}
+      order by completed_at desc, run_id desc limit 1`,
+  ]);
+  const receipt = receiptRows[0];
+  const summary = receipt ? json(receipt.summary) : undefined;
+  return {
+    available: true,
+    instance_id: instanceId,
+    source_id: sourceId,
+    source_events: Number(eventRows[0]?.count ?? 0),
+    current_objects: Number(currentRows[0]?.count ?? 0),
+    object_versions: Number(versionRows[0]?.count ?? 0),
+    ...(watermarkRows[0] ? {
+      watermark: String(watermarkRows[0].watermark),
+      watermark_observed_at: postgresTimestampToIso(watermarkRows[0].observed_at),
+    } : {}),
+    ...(receipt ? {
+      last_sync: {
+        run_id: String(receipt.run_id),
+        started_at: postgresTimestampToIso(receipt.started_at),
+        completed_at: postgresTimestampToIso(receipt.completed_at),
+        ...(receipt.watermark ? { watermark: String(receipt.watermark) } : {}),
+        observed: Number(summary?.observed ?? 0),
+        inserted: Number(summary?.inserted ?? 0),
+        unchanged: Number(summary?.unchanged ?? 0),
+        deleted: Number(summary?.deleted ?? 0),
+        errors: Number(summary?.errors ?? 0),
+        ...(summary?.missing_from_provider !== undefined ? { missing_from_provider: Number(summary.missing_from_provider) } : {}),
+        ...(summary?.repaired_projections !== undefined ? { repaired_projections: Number(summary.repaired_projections) } : {}),
+      },
+    } : {}),
+  };
+}
+
 export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
   return {
     async appendSourceEvent(event) {

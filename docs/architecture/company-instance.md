@@ -337,6 +337,28 @@ digest enter the mode-0600 Instance qualification receipt. Creating or
 activating an external Agent, retaining its one-time credentials, granting a
 board, deploying a callback, or writing remains a separate confirmed effect.
 
+After qualification, Company Records uses a separate non-secret Instance
+binding. It selects one exact Record Source Connector version, Instance and
+source identity, logical resource binding, provider configuration, and one
+SecretRef. It also pins the non-secret qualification receipt and its digest so
+resource and scope evidence cannot be substituted at apply time. The
+credential value and `DATABASE_URL` remain in the Instance runtime secret
+surface. `companyos records source materialize` may turn an
+explicitly authored source draft into one reviewable Workspace file only when
+the named board and mapped columns exist in the non-secret qualification
+receipt. It never invents a mapping or commits the file.
+
+`companyos records source sync` and `reconcile` share the same provider-neutral
+plan/apply boundary. The plan resolves no credential and calls neither the
+provider nor the database. Apply first verifies the exact plan hash, then the
+trusted synchronization worker resolves the Connector and SecretRefs. `sync`
+appends observations and projections without inferring deletion. `reconcile`
+may record provider-absence tombstones only after one bounded complete
+inventory under the durable source lease. Both advance the watermark only
+after successful completion and store a receipt; neither grants an Agent a
+Tool or performs a provider write. `status` is payload-free and read-only and
+does not create the records schema when it is absent.
+
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent
 through the existing contracts. An Instance Gateway is considered only when

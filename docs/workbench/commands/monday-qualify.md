@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -24,6 +24,12 @@ This command performs the first read-only Company Instance qualification for a
 maintained Monday Connector. It does not provision an external Agent, retain a
 human OAuth credential, synchronize records, write to a board, or materialize a
 Company Workspace.
+
+The provider-neutral Company Records lifecycle exposes the same implementation
+as `companyos records source qualify --provider monday ...`. The original
+command remains a compatibility alias; the two forms create the same plan,
+consent boundary, and non-secret receipt rather than separate authorization
+paths.
 
 Plan the exact consent and discovery boundary first:
 

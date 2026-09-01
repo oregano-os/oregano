@@ -5,4 +5,4 @@ core:
   version: 0.5.4
   ref: "0000000000000000000000000000000000000000"
 workbench:
-  version: 0.1.0-experimental.10
+  version: 0.1.0-experimental.11

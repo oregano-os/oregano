@@ -160,6 +160,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "command.records",
+    "title": "companyos records",
+    "path": "docs/workbench/commands/records.md",
+    "kind": "command",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
     "document_id": "command.security",
     "title": "companyos security",
     "path": "docs/workbench/commands/security.md",
@@ -317,6 +325,14 @@
     "path": "docs/workbench/guides/configure-repository-protection.md",
     "kind": "guide",
     "status": "approved",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "guide.connect-company-record-source",
+    "title": "Connect a Company Record Source",
+    "path": "docs/workbench/guides/connect-company-record-source.md",
+    "kind": "guide",
+    "status": "implemented",
     "availability": "experimental"
   },
   {
