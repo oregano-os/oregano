@@ -12,7 +12,7 @@ scope:
     - handbook/**
     - policies/**
     - records/**
-    - domains/sprint.yaml
+    - workflows/sprint/config.yaml
     - schedules/**
     - connections/**
     - agents/sprint/skills/**

@@ -38,7 +38,7 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
     rollover: { eligible: "all-open" },
     delivery: { shared_thread: true, channel_binding: "sprint-channel" },
   };
-  assert.deepEqual(validateJsonSchemaValue(schema("sprint-domain-v1.schema.json"), sprint), []);
+  assert.deepEqual(validateJsonSchemaValue(schema("sprint-configuration-v1.schema.json"), sprint), []);
 });
 
 test("the Core catalog owns provider-neutral records, work-item, and communication contracts", () => {

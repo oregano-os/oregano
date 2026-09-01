@@ -72,6 +72,10 @@ evidence, historical prototypes, and production gaps.
   adversarial synthetic fixtures. Local Package inspection proves that it is
   declarative and authority-free; Workspace materialization remains an
   ordinary reviewed diff because Blueprint apply and lock are not implemented.
+  Its first published Workspace surface keeps shared operational declarations
+  under `records/sources/` and `records/projections/`, places company Sprint
+  policy at `workflows/sprint/config.yaml`, and introduces no top-level
+  Workspace `domains/` directory. Executable Sprint Domain code remains in Core.
 
 - Company Knowledge Phase 3A publishes the provider-neutral Source Connector
   `2.0.0` contract for repository, meeting, messaging, email, document,

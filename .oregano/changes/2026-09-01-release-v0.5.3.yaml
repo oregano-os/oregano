@@ -8,8 +8,9 @@ objective: >-
   Publish one immutable stable Core patch release from the reviewed Phase 1–6
   integration commit, including company-neutral planning governance, Company
   Records and Sprint foundations, the declarative Sprint Agent Blueprint,
-  maintained Monday qualification, and a fail-closed external-Agent ingress,
-  without activating any Company Workspace or Company Instance.
+  the simplified workflows/sprint/config.yaml Workspace surface, maintained
+  Monday qualification, and a fail-closed external-Agent ingress, without
+  activating any Company Workspace or Company Instance.
 non_goals:
   - Merge, tag, publish, deploy, or promote before the exact release commit, Workbench version, generated manifest, and checksums receive final confirmation.
   - Materialize or change a real Company Workspace, compatibility pin, provider mapping, participant list, schedule, policy, Agent instruction, or model recipe.
@@ -27,11 +28,18 @@ vision_principles_affected:
   - Onboarding has no hidden steps
 files_expected:
   - .oregano/changes/2026-09-01-release-v0.5.3.yaml
+  - .oregano/changes/2026-09-01-sprint-workspace-surface-simplification.yaml
   - docs/_generated/document-registry.json
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
   - docs/status/current.md
   - package.json
+  - packages/blueprints/sprint-agent/**
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/src/workspace-validator.mjs
   - packages/cli/tests/live-setup.test.mjs
   - packages/cli/tests/workbench.test.mjs
+  - packages/schema/**
+  - packages/testkit/tests/company-records-sprint-contracts.test.ts
   - packages/testkit/tests/reference-runtime.test.ts
   - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
 required_approvals:
@@ -49,7 +57,7 @@ architecture_assessment:
     packages:
       - Retain the Sprint Agent Blueprint as an experimental declarative package whose installation and grants remain separate.
     workspace:
-      - Remain unchanged; adoption requires a later reviewed Workspace compatibility pin and company-owned material.
+      - Remain unchanged; later adoption uses records/sources and records/projections for operational data declarations plus workflows/sprint/config.yaml for company Sprint policy.
     instance:
       - Remain unchanged; deployment, migration, credentials, bindings, grants, activation, and live qualification require separate confirmations.
   existing_mechanisms:
@@ -116,6 +124,8 @@ validation:
   - git diff --check
 tests:
   - Core reports 0.5.3 while Workbench remains 0.1.0-experimental.10.
+  - The first published Sprint Workspace contract uses workflows/sprint/config.yaml and does not introduce a top-level Workspace domains directory.
+  - The Workbench reports Sprint configurations rather than Workspace Sprint Domains and rejects the unreleased legacy path with migration guidance.
   - The neutral Company Workspace fixture pins Core 0.5.3 and validates against the exact checkout.
   - Existing Slack, Agent, Knowledge, Builder, Company Records, Sprint, Monday Connector, and setup regression suites remain green.
   - Public-boundary and documentation checks reject company data, secrets, stale generated control-plane files, or unsupported claims.

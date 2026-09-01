@@ -225,7 +225,7 @@ test("the neutral Company Workspace fixture passes validation", () => {
 test("Workspace validation accepts provider-neutral Company Records and Sprint declarations", () => withFixture((workspace) => {
   mkdirSync(join(workspace, "records", "sources"), { recursive: true });
   mkdirSync(join(workspace, "records", "projections"), { recursive: true });
-  mkdirSync(join(workspace, "domains"), { recursive: true });
+  mkdirSync(join(workspace, "workflows", "sprint"), { recursive: true });
   writeFileSync(join(workspace, "records", "sources", "work-items.yaml"), YAML.stringify({
     schema_version: 1,
     id: "work-items",
@@ -250,7 +250,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     access: { read_groups: ["delivery"] },
     materialization: { mode: "database-view" },
   }));
-  writeFileSync(join(workspace, "domains", "sprint.yaml"), YAML.stringify({
+  writeFileSync(join(workspace, "workflows", "sprint", "config.yaml"), YAML.stringify({
     schema_version: 1,
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
@@ -268,12 +268,12 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
   assert.equal(result.summary.record_sources, 1);
   assert.equal(result.summary.record_projections, 2);
-  assert.equal(result.summary.sprint_domains, 1);
+  assert.equal(result.summary.sprint_configurations, 1);
 }));
 
 test("Workspace validation rejects unsafe or unresolved structured declarations", () => withFixture((workspace) => {
   mkdirSync(join(workspace, "records", "projections"), { recursive: true });
-  mkdirSync(join(workspace, "domains"), { recursive: true });
+  mkdirSync(join(workspace, "workflows", "sprint"), { recursive: true });
   writeFileSync(join(workspace, "records", "projections", "participants.yaml"), YAML.stringify({
     schema_version: 1,
     id: "participants",
@@ -283,7 +283,7 @@ test("Workspace validation rejects unsafe or unresolved structured declarations"
     access: { read_groups: ["delivery"] },
     materialization: { mode: "workspace-proposal", target: ".companyos/generated.md" },
   }));
-  writeFileSync(join(workspace, "domains", "sprint.yaml"), YAML.stringify({
+  writeFileSync(join(workspace, "workflows", "sprint", "config.yaml"), YAML.stringify({
     schema_version: 1,
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
@@ -301,6 +301,15 @@ test("Workspace validation rejects unsafe or unresolved structured declarations"
   assert.ok(codes.has("WS049"));
   assert.ok(codes.has("WS050"));
   assert.ok(codes.has("WS051"));
+}));
+
+test("Workspace validation rejects the unreleased top-level Sprint domain path", () => withFixture((workspace) => {
+  mkdirSync(join(workspace, "domains"), { recursive: true });
+  writeFileSync(join(workspace, "domains", "sprint.yaml"), "schema_version: 1\n");
+
+  const result = validateWorkspace(workspace);
+  assert.ok(result.diagnostics.some((item) => item.code === "WS052" && item.severity === "error"));
+  assert.equal(result.summary.sprint_configurations, 0);
 }));
 
 test("Core and Workspace versions are exact SemVer and visible through the Workbench", () => withFixture((workspace) => {

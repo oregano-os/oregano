@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://companyos.org/schema/sprint-domain-v1.schema.json",
-  "title": "Sprint domain declaration",
+  "$id": "https://companyos.org/schema/sprint-configuration-v1.schema.json",
+  "title": "Sprint configuration declaration",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "id", "participants", "work_items", "calendar", "close", "submission", "effort", "rollover", "delivery"],

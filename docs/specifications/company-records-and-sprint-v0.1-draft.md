@@ -46,6 +46,13 @@ Core and Blueprint content MUST remain free of real company principals,
 resource identifiers, credentials, grants, completed approvals, and rollout
 state. The Blueprint MUST contain no executable runtime code.
 
+The Workspace declaration surface is intentionally small. Reusable operational
+data configuration lives under `records/sources/` and
+`records/projections/`. Company-specific Sprint configuration lives at
+`workflows/sprint/config.yaml` beside its owned Workflow material. A Company
+Workspace has no top-level `domains/` directory: executable provider-neutral
+Sprint Domain code remains in Core under `packages/domains/sprint/`.
+
 **CRS-002 — No second authority.** Synchronized Company Records are versioned
 operational evidence and rebuildable read models. They are not curated Company
 Knowledge, Handbook authority, provider authority, or an authorization roster.
@@ -83,6 +90,18 @@ It stores source events, immutable object versions, current pointers,
 projection rows, access decisions, receipts, watermarks, leases, durable
 timers, Connector echo receipts, and callback replay claims. Schema creation is
 idempotent. It MUST NOT store provider credentials.
+
+**CRS-015 — Authoritative provider and normal read path.** An external business
+provider remains authoritative for its declared objects. A Company Instance
+Connector ingests normalized immutable observations and rebuildable projections
+into the records StateStore; the maintained reference stores them in
+Neon/Postgres `companyos_records`. Normal Agent and Sprint Domain reads use
+authorized projections through `records.query`. Direct provider reads are
+reserved for discovery, synchronization, freshness recovery, reconciliation,
+and required read-before-write or read-after-write checks. A stale or
+conflicting projection fails visibly and MUST NOT silently replace provider
+truth. An operational organizational projection may create a reviewed Handbook
+proposal but MUST NOT modify `handbook/roster.md` or authorization state.
 
 ## 3. Sprint domain
 

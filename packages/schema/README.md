@@ -18,8 +18,8 @@ The first versioned Company Records and Sprint declarations are:
 - `company-record-source-v1.schema.json` for provider-neutral source mappings;
 - `company-record-projection-v1.schema.json` for rebuildable, access-scoped
   projections; and
-- `sprint-domain-v1.schema.json` for company policy consumed by the pure Sprint
-  domain.
+- `sprint-configuration-v1.schema.json` for company policy consumed by the pure
+  Sprint Domain.
 
 These schemas intentionally contain logical binding names, not provider
 resource identifiers, credentials, grants, or deployment state. Exact
