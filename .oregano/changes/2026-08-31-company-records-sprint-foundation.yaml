@@ -1,0 +1,150 @@
+version: 2
+plan_id: company-records-sprint-foundation-2026-08-31
+status: implemented
+author: codex-agent
+created: 2026-08-31
+title: Add the Company Records and provider-neutral Sprint foundation
+objective: >-
+  Implement the reusable Company Records contracts and persistence boundary,
+  a deterministic provider-neutral Sprint domain, provider-neutral work-item
+  Capabilities with a maintained Monday adapter, and a declarative Sprint Agent
+  Blueprint so a Company Workspace can configure a governed Sprint process
+  without embedding company policy, provider resources, secrets, or bindings in
+  Oregano Core.
+non_goals:
+  - Connect to a real Monday, Slack, Neon, or model-provider account in this change.
+  - Deploy, activate, or production-test a Company Instance.
+  - Store real company identifiers, people, schedules, policies, or credentials in Core.
+  - Make synchronized provider records curated Company Knowledge or Handbook authority.
+  - Add a second runtime kernel, direct Agent database access, or provider SDK imports to the Sprint domain.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - The ecosystem is open and authority remains governed
+  - Public contracts are portable and maintained
+files_expected:
+  - .oregano/changes/2026-08-31-company-records-sprint-foundation.yaml
+  - docs/**
+  - packages/blueprints/sprint-agent/**
+  - packages/capabilities/**
+  - packages/cli/src/**
+  - packages/cli/tests/**
+  - packages/companyos-builder/**
+  - packages/connectors/monday/**
+  - packages/domains/sprint/**
+  - packages/records/**
+  - packages/schema/**
+  - packages/standard-tools/**
+  - packages/state-postgres/**
+  - packages/state-store/**
+  - packages/testkit/**
+  - tsconfig.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-08-31
+    evidence: explicit-user-instruction-in-codex-task-to-implement-phases-one-through-five
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own provider-neutral record, Sprint, Capability, effect, evidence, and validation contracts plus deterministic implementations and synthetic tests.
+      - Maintain the privileged Monday Connector adapter without embedding any company resource or credential.
+    packages:
+      - Distribute the declarative Sprint Agent Blueprint containing reusable Agent, workflow, skill, and configuration templates without runtime code or authority.
+    workspace:
+      - Declare company Sprint policy, participant rules, schedule, record mappings, Agent instructions, workflow content, requested Tools, and model task profile.
+    instance:
+      - Bind exact provider resources, Connector installations, Agent identity, secret references, model route, database, grants, schedules, and deployment state.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Interactive provider events resolve the compiled Agent through existing deterministic Agent Bindings before any Agent response is generated.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Sprint Agents receive only resolved Tools backed by granted provider-neutral Capabilities and exact Instance bindings.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The Workspace selects a task profile while the Instance resolves the exact model and provider without hardcoding a model in Core.
+    - mechanism: company-records
+      decision: extend
+      reason: This change creates the previously planned generic records service for immutable source observations, rebuildable projections, access decisions, freshness, and reconciliation.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing authenticated subjects, Agent Bindings, roster authority, resource scopes, and Connector grants remain the authorization boundary.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: The pure Sprint domain consumes a controlled clock and Workspace-declared business-calendar facts without creating a second scheduler or hiding company cadence in Core.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Work-item writes and messages use existing approval, effect, idempotency, and evidence controls; the domain emits intents and never performs effects directly.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: Core adds stable records and work-item Capability Contracts and a thin Monday implementation behind the existing Connector registry.
+  new_core_mechanisms:
+    - Generic Company Records registry, source-version, projection, freshness, access, synchronization, and reconciliation contracts.
+    - Pure Sprint event, state, decision, read-model, business-time, and intent modules.
+    - Maintained Monday work-item adapter and signed callback verification behind provider-neutral Capabilities.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Company Records supports arbitrary registered provider record types and
+    projections, the Sprint domain accepts declarative policy and normalized
+    events, and the work-item contracts may be implemented by Monday or another
+    board provider. No implementation depends on one company's people, boards,
+    columns, cadence, holidays, Slack channel, or model choice.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-08-31-company-records-sprint-foundation.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-08-31-company-records-sprint-foundation.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Workspace validation accepts valid generic Sprint and record-sync declarations and rejects incomplete or unsafe declarations.
+  - Company Records source events and object versions deduplicate deterministically while projections remain rebuildable and access-scoped.
+  - The Postgres records migration is additive and idempotent in the existing Company Instance database.
+  - Sprint decisions are deterministic under a controlled clock and configurable business calendar.
+  - Rollover, readiness, submission windows, absence exclusion, and close intents are driven only by supplied policy and events.
+  - Capability and Connector inputs are schema validated and work-item effects require idempotency and evidence.
+  - Monday callback verification rejects stale, malformed, replayed, and invalid signatures without exposing secrets.
+  - The Sprint Agent Blueprint contains no runtime code, company principal, provider resource, grant, binding, or secret.
+  - All public fixtures use synthetic companies, people, provider resources, and events.
+documentation_impact:
+  required: true
+  affected_documents:
+    - reference.glossary
+    - architecture.boundaries
+    - architecture.ecosystem-packages
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - specifications.index
+    - status.current
+migration: >-
+  Add the companyos_records schema to the existing Company Instance database
+  without changing companyos or companyos_knowledge tables. Existing Workspaces
+  remain valid because the new declarations are optional until a Sprint
+  Blueprint is materialized. Existing Connectors and Agent Bindings remain
+  unchanged. A Company Instance must explicitly install, grant, bind, and
+  activate the new Connector and Tools before any provider event or effect is
+  possible.
+rollback: >-
+  Disable Sprint schedules and Connector bindings first, drain or cancel queued
+  intents, then revert the Blueprint, Connector, domain, contract, and validator
+  changes together. Retain additive companyos_records tables and evidence as
+  dormant data unless a separately approved destructive migration exports and
+  removes them. Existing agents, records, knowledge, and provider integrations
+  remain the active fallback.
+open_decisions:
+  - Real Company Workspace materialization requires exact reviewed provider column mappings and a dedicated non-production board before Instance activation.
+  - Production model and provider routing remains an Instance binding resolved from the Workspace task profile.

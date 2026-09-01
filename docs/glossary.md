@@ -27,6 +27,22 @@ contains versioned Pages, Claims, Timeline Events, graph relations, identity
 decisions, and Working Syntheses. Brain material is not curated company
 authority merely because it is active or model-generated.
 
+### Company Records
+The provider-neutral operational-data layer for versioned synchronized source
+objects, access-scoped rebuildable projections, freshness, and reconciliation.
+Company Records is not curated Company Knowledge, provider authority, or a
+human authorization roster.
+
+### Record Source
+A validated Company Workspace declaration mapping one exact logical provider
+resource and explicit provider fields into one canonical operational record
+type. The Company Instance supplies the provider binding and credential.
+
+### Record Projection
+A rebuildable, access-scoped read model over current Company Record object
+versions. Its declaration fixes selection, exposed fields, freshness, and
+materialization; it does not grant provider access.
+
 ### Page
 A stable source-specific knowledge identity with immutable versions and one
 registered Page type. Page verification does not establish cross-source Entity
@@ -176,6 +192,18 @@ intent from message text.
 The deterministic Core component that evaluates Agent Bindings. An exact match
 wins; an explicitly declared default may handle unmatched routes; ambiguous or
 unconfigured multi-agent routes fail closed.
+
+### Sprint Domain
+The pure provider-neutral Core decision boundary for validated Sprint state,
+events, business-time rules, read models, evidence, and effect intents. It does
+not contain a provider SDK, company value, prompt, credential, database access,
+or external-effect implementation.
+
+### Sprint Blueprint
+The declarative `oregano/sprint-agent` Blueprint Package containing reusable
+Sprint Agent instructions, Workflows, Skills, templates, and synthetic
+fixtures. It declares requirements but cannot assign principals, grants,
+approvals, provider bindings, or runtime authority.
 
 ### BuilderService
 The provider-neutral Core coordinator for confirmed proposal-only Builder jobs.

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companyos.org/schema/company-record-source-v1.schema.json",
+  "title": "Company Records source declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "record_type", "connection", "resource_binding", "delivery", "identity", "fields", "access"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+    "record_type": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" },
+    "connection": { "type": "string", "pattern": "^connections/[a-zA-Z0-9._/-]+\\.md$" },
+    "resource_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+    "delivery": { "type": "string", "enum": ["poll", "webhook", "hybrid"] },
+    "reconcile_schedule": { "type": "string", "pattern": "^schedules/[a-zA-Z0-9._/-]+\\.md$" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_field"],
+      "properties": {
+        "source_field": { "type": "string", "minLength": 1, "maxLength": 255 }
+      }
+    },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "source", "value_type"],
+        "properties": {
+          "target": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
+          "source": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "value_type": { "type": "string", "enum": ["string", "number", "boolean", "timestamp", "status", "identity", "url", "json"] },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_groups", "write_roles"],
+      "properties": {
+        "read_groups": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "write_roles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    }
+  }
+}

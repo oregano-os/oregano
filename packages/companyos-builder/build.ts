@@ -5,6 +5,9 @@ import { resolveToolSet } from "../toolset-resolver/resolver.ts";
 import { requireExactSemanticVersion } from "../runtime/semantic-version.ts";
 import { buildKnowledgeBundle } from "../knowledge/okf.ts";
 import { STANDARD_KNOWLEDGE_TOOLS } from "../standard-tools/knowledge.ts";
+import { STANDARD_RECORDS_TOOLS } from "../standard-tools/records.ts";
+import { STANDARD_WORK_ITEM_TOOLS } from "../standard-tools/work-items.ts";
+import { STANDARD_COMMUNICATION_TOOLS } from "../standard-tools/communication.ts";
 import type { CompanyOSArtifact, InstanceBuildConfiguration } from "./types.ts";
 import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 import { validateAgentRouting } from "../runtime/agent-resolver.ts";
@@ -18,6 +21,12 @@ export function buildCompanyOSArtifact(args: {
   workbenchVersion: string;
   builtAt?: string;
 }): CompanyOSArtifact {
+  const standardTools = [
+    ...STANDARD_KNOWLEDGE_TOOLS,
+    ...STANDARD_RECORDS_TOOLS,
+    ...STANDARD_WORK_ITEM_TOOLS,
+    ...STANDARD_COMMUNICATION_TOOLS,
+  ];
   for (const [label, value] of [["coreCommit", args.coreCommit], ["workspaceCommit", args.workspaceCommit]] as const) {
     if (!/^[0-9a-f]{40}$/.test(value)) throw new Error(`${label} must be an immutable 40-character Git SHA.`);
   }
@@ -34,7 +43,7 @@ export function buildCompanyOSArtifact(args: {
       agentId: agent.id,
       grants: agent.grants,
       companyTools: agent.tools.map((tool) => tool.contract),
-      standardTools: STANDARD_KNOWLEDGE_TOOLS.map((tool) => tool.contract),
+      standardTools: standardTools.map((tool) => tool.contract),
       capabilityCatalog: CORE_CAPABILITY_CATALOG,
       allowedCapabilities: workspace.allowedCapabilities,
       bindings: args.instance.bindings,
@@ -47,7 +56,7 @@ export function buildCompanyOSArtifact(args: {
         excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
       }),
       toolSet,
-      tools: [...agent.tools, ...STANDARD_KNOWLEDGE_TOOLS].filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
+      tools: [...agent.tools, ...standardTools].filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
     };
   });
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));

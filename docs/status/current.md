@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,59 @@ This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
+
+- Company Records v0.1 implements validated generic source and projection
+  declarations, immutable deduplicated source events and object versions,
+  current pointers, access-scoped rebuildable projections, freshness,
+  watermarks, per-source reconciliation leases, receipts, in-memory and
+  additive Postgres stores, and the standard `records.query` Tool. The
+  isolated `companyos_records` schema also contains durable timers, Connector
+  echo receipts, and digest-only callback replay claims. No real Company
+  Instance database has been migrated by this Core change.
+- The provider-neutral Sprint domain implements validated policy, append-only
+  event reduction, controlled-clock business-time and holiday calculation,
+  frozen-participant Friday completeness, actual-effort and open-work read
+  models, deterministic reminder/report/Rollover intents, and durable timer
+  interfaces with in-memory and Postgres implementations. Public fixtures are
+  synthetic and contain no company people, resources, policy, or credentials.
+- Core now maintains `records.query`, `work-item.read`, `work-item.update`,
+  `work-item.comment`, and `communication.message.publish` Capability contracts
+  plus standard Tools. Artifact building makes those Tools available for
+  normal ToolSet resolution; a Workspace grant still fails unless its Instance
+  binds a compatible Connector.
+- The maintained Monday work-item adapter uses explicit API versioning, exact
+  resource and field bindings, minimum permissions, optimistic version checks,
+  read-after-write evidence, durable echo suppression, raw-body callback
+  signature and timestamp validation, durable replay prevention, and
+  `AgentResolver` for verified conversations. Synthetic Connector tests do not
+  claim a real external Agent registration, account permission, cost, provider
+  conformance, or production activation.
+- The maintained Vercel Runner now has an optional fail-closed Monday
+  external-Agent ingress. It verifies the raw callback body, timestamp,
+  signature, configured Agent identity, and digest-only durable replay claim
+  before `AgentResolver`; normalizes current pre-release trigger aliases; and
+  returns Monday-compatible SSE or JSON. Because the provider envelope does
+  not identify the triggering human, only deterministic setup probes can
+  produce visible chat content. Ordinary chat opens no Workspace material,
+  model, or Tool, while mention and assignment are acknowledgement-only. This
+  implementation does not claim a real deployment, callback delivery, board
+  grant, human authorization, Agent-token action, or production verification.
+- The experimental `companyos monday qualify` Workbench path now plans and
+  records one exact read-only Monday OAuth 2.1 qualification. It uses S256 PKCE,
+  requests only `boards:read` and `me:read`, and asks Monday to route a missing
+  installation through its administrator-controlled handoff without installing
+  the app automatically. It reads metadata for only the named boards and stores
+  a mode-0600 non-secret receipt containing account,
+  board/group/column, scope, API, request, and digest evidence. Human OAuth
+  credentials are discarded after discovery. This implementation does not
+  prove a real consent, account permission, test board, external Agent,
+  callback deployment, board grant, activation, write, or provider cost.
+- The repository-local `oregano/sprint-agent` Blueprint contains one logical
+  Agent Component, portable weekly, Friday Close, and reconciliation
+  Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
+  adversarial synthetic fixtures. Local Package inspection proves that it is
+  declarative and authority-free; Workspace materialization remains an
+  ordinary reviewed diff because Blueprint apply and lock are not implemented.
 
 - Company Knowledge Phase 3A publishes the provider-neutral Source Connector
   `2.0.0` contract for repository, meeting, messaging, email, document,
@@ -486,6 +539,12 @@ evidence, historical prototypes, and production gaps.
   security checks, onboarding, Package inspection, and Instance artifact
   builds. Its repository release candidate is `0.1.0-experimental.10`; no
   public package release is claimed.
+- Newly generated Change Plans use version 2 and fail closed unless they record
+  the Core, Package or Blueprint, Workspace, and Instance responsibility split;
+  review the governed catalog of existing Resolver, Records, authority, timer,
+  effect, Capability, and Connector mechanisms; preserve company-neutral Core
+  and synthetic public fixtures; and explain Core reusability. Historical
+  version 1 plans dated on or before 2026-08-31 remain valid evidence.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
   compatibility entrypoint. `companyos create workspace` supports interactive
@@ -571,9 +630,12 @@ evidence, historical prototypes, and production gaps.
   Instance evidence, not reusable-default qualification. A separate isolated
   non-production Instance and independent receipts remain mandatory before
   using this rollout pattern for another company.
-- Meta, Monday, and other business-provider Connectors are not implemented or
-  activated. Each still needs privileged isolation, provenance, SecretRefs,
-  health, retry, reconciliation, read-after-write, and conformance evidence.
+- Meta and other business-provider Connectors are not implemented or
+  activated. The maintained Monday adapter is implemented and synthetically
+  tested but is not externally registered, Instance-bound, provider-qualified,
+  or activated. Every real provider still needs exact installation authority,
+  secrets, resource grants, health, retry, reconciliation, cost review, staged
+  rollout, and live conformance evidence.
 - Pilot evidence does not establish general production enforcement. Instance
   readiness remains `validated`, not `enforced`, until backup restoration,
   rollback, recovery, alerting, and operator runbooks are exercised and

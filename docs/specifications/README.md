@@ -39,9 +39,9 @@ No Agent Contributor may resolve a translation exception as a product decision.
 - [CompanyOS Packages v0.1](companyos-packages-v0.1-draft.md) — the draft open
   contract for Blueprint, Tool, and Connector Packages, Capability ownership,
   lifecycle, compatibility, conformance, and Registry separation.
-  — the approved English product, safety, placement, configuration, rollout,
-  and evidence target for Sprint V1. The v0.3 profile and German PRDs are
-  retained only as migration evidence.
+- [Company Records and Sprint Foundation v0.1](company-records-and-sprint-v0.1-draft.md)
+  — the provider-neutral operational-record, Sprint-domain, Tool, Connector,
+  persistence, and Blueprint contracts implemented for the Sprint foundation.
 - [Builder Governance](builder-governance.md) — proposal and change safety for
   the future Builder Agent; currently a draft, not an implemented capability.
 - [Company Workspace Generator v0.1](workspace-generator-v0.1-draft.md) — the

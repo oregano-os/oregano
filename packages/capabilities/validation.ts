@@ -8,12 +8,23 @@ const ajv = new Ajv2020({
 });
 
 const cache = new WeakMap<JsonSchema, ValidateFunction>();
+const cacheById = new Map<string, { serialized: string; validate: ValidateFunction }>();
 
 const validatorFor = (schema: JsonSchema): ValidateFunction => {
   const existing = cache.get(schema);
   if (existing) return existing;
+  const id = typeof schema.$id === "string" ? schema.$id : null;
+  if (id) {
+    const registered = cacheById.get(id);
+    if (registered) {
+      if (registered.serialized !== JSON.stringify(schema)) throw new Error(`Conflicting JSON Schema declarations use id '${id}'`);
+      cache.set(schema, registered.validate);
+      return registered.validate;
+    }
+  }
   const compiled = ajv.compile(schema);
   cache.set(schema, compiled);
+  if (id) cacheById.set(id, { serialized: JSON.stringify(schema), validate: compiled });
   return compiled;
 };
 

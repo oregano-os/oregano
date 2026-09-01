@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -286,6 +286,56 @@ module. Idempotency, ordering, evidence, retry, and reconciliation MUST NOT
 exist only in an endpoint process. Durable authority remains in StateStore and
 Core controls; a queue is an execution mechanism, not an authority boundary.
 Webhook and scheduled execution enter the same provider-neutral module path.
+
+The maintained records foundation uses an additive `companyos_records` schema
+inside the existing Company Instance database. It is isolated from the
+`companyos` and `companyos_knowledge` schemas and contains immutable source
+events and object versions, current pointers, rebuildable projection rows,
+access decisions, synchronization receipts and watermarks, leases, durable
+timers, Connector echo receipts, and callback replay claims. The schema is
+prepared idempotently when the records implementation is activated; Core
+release alone does not migrate a real Instance. Synchronized values remain
+operational evidence and do not become Handbook or provider authority.
+
+The maintained Monday adapter is Core-owned privileged Connector code, while
+the board account, external Agent registration, permissions, board grants,
+callback route, signing material, exact resource bindings, and activation
+receipts are Instance state. Conversational callbacks are signature- and
+replay-verified before `AgentResolver` selects the compiled Agent. Board-change
+callbacks bypass the chat prompt and enter the records and Sprint path. An
+outbound Sprint message similarly resolves the provider-neutral
+`communication.message.publish` Capability to an exact destination binding;
+the Sprint Blueprint does not know a channel ID.
+
+The first maintained external-Agent runtime ingress implements Monday's exact
+signed synchronous callback and SSE/JSON acknowledgement formats. It binds an
+Instance-injected account id, external Agent id, and signing secret, retains
+only a digest for replay prevention, and rejects a wrong Agent identity before
+dispatch. Monday's current pre-release trigger envelope authenticates the
+external Agent callback but does not identify the human who initiated chat,
+mention, or assignment. That provider fact is insufficient to authorize a
+human principal. Ordinary interactive traffic therefore fails closed before
+Company Workspace material, model invocation, Tool resolution, or effect
+execution. A deterministic setup proof remains available to qualify delivery;
+mention and assignment receive protocol acknowledgement only. Company data or
+Tools require a later provider identity fact or separately approved
+authorization design. Board grants and outbound Agent-token actions remain
+distinct Instance effects.
+
+The first maintained Monday qualification is deliberately narrower than Agent
+provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
+Company Workspace, one registered OAuth client and exact app version, API version `2026-07`, the
+read-only scopes `boards:read` and `me:read`, and explicit board IDs. It uses a
+loopback OAuth 2.1 callback with S256 PKCE and requests Monday's explicit
+missing-installation handoff. Monday still requires an account administrator
+to install the app; the Workbench cannot install it automatically or treat
+browser consent as installation authority. The authorization code, verifier,
+client secret, access token, and refresh token stay in process memory and are
+discarded after one metadata query. Only the consenting actor and account,
+scope evidence, board/group/column structure, request evidence, and discovery
+digest enter the mode-0600 Instance qualification receipt. Creating or
+activating an external Agent, retaining its one-time credentials, granting a
+board, deploying a callback, or writing remains a separate confirmed effect.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

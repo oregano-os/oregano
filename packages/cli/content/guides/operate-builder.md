@@ -269,13 +269,13 @@ selected private Workspace. The coding workspace contained no repository
 credential or remote.
 
 The refreshed trusted Git snapshot also passed mixed tracked-plus-new-file job
-`builder-e33e20f2141fc422efa9234335a75899` as checked draft
-`fylingpete/oregano-hq-companyos#7`, without merge or deployment.
+`builder-e33e20f2141fc422efa9234335a75899` as a checked draft in the selected
+private qualification Workspace, without merge or deployment.
 
 On 2026-08-27, the isolated qualification Instance completed the remaining
 Slack-to-draft gate through the normal Runner, an exact Builder Agent Binding,
-explicit confirmation, Claude ACP, independent validation, and checked draft
-`fylingpete/oregano-hq-companyos#6`, with no merge or deployment. The job took
+explicit confirmation, Claude ACP, independent validation, and a checked draft
+in the selected private qualification Workspace, with no merge or deployment. The job took
 298.240 seconds end to end. Its one-vCPU, 2 GB coding Sandbox ran for 264.182
 seconds, used 8.401 active CPU seconds, and incurred approximately USD 0.00374
 of listed provider compute, memory, network, and creation usage before included

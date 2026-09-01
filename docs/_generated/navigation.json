@@ -128,6 +128,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "command.monday-qualify",
+    "title": "companyos monday qualify",
+    "path": "docs/workbench/commands/monday-qualify.md",
+    "kind": "command",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
     "document_id": "command.onboard",
     "title": "companyos onboard",
     "path": "docs/workbench/commands/onboard.md",
@@ -477,6 +485,14 @@
     "path": "docs/specifications/company-knowledge-v0.2-draft.md",
     "kind": "specification",
     "status": "approved",
+    "availability": null
+  },
+  {
+    "document_id": "specification.company-records-sprint-v0.1",
+    "title": "Company Records and Sprint Foundation v0.1",
+    "path": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "kind": "specification",
+    "status": "building",
     "availability": null
   },
   {

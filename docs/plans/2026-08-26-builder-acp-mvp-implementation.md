@@ -51,7 +51,7 @@ both deployment gates:
 1. it bound the snapshots, cron secret, GitHub provider, exact Slack Agent
    route, and immutable Artifact; and
 2. one authenticated Slack request required explicit confirmation and produced
-   checked draft `fylingpete/oregano-hq-companyos#6` against exact base
+   a checked draft in the selected private qualification Workspace against exact base
    `b3024615d91cb1342d3eeab469a2bf61780f72dd`, with no merge or deployment.
 
 The service-owned GitHub App passed live exact-base source and idempotent draft
@@ -62,8 +62,8 @@ fixed placeholders. Vercel Sensitive values remain deliberately non-readable
 after creation and must never be imported into a local qualification process.
 The deployed trusted Git and onboarding path subsequently passed with a
 credential-free bundle, a freshly reread Postgres binding, three independent
-Workbench checks, one outer commit, and repeat-call reuse of stacked draft
-`fylingpete/oregano-hq-companyos#4`.
+Workbench checks, one outer commit, and repeat-call reuse of the same stacked
+private Workspace draft.
 
 The representative Slack job exposed and resolved three integration defects
 before the successful run: an ACP-owned handle kept a completed detached worker
@@ -83,8 +83,8 @@ cost.
 The mixed tracked-plus-new-file regression was also repeated through the real
 Slack confirmation path after rebinding the refreshed trusted Git snapshot.
 Job `builder-e33e20f2141fc422efa9234335a75899` updated one card from
-confirmation through queued to ready-for-review and created checked draft
-`fylingpete/oregano-hq-companyos#7`. The draft touches only `company.md` and its
+confirmation through queued to ready-for-review and created a checked private
+Workspace draft. The draft touches only `company.md` and its
 required Workspace Change Plan; no merge or deployment occurred.
 
 The final fixed Claude qualification on that same snapshot recorded one fresh
@@ -802,8 +802,8 @@ Postgres, and minted separate single-repository read and publication tokens.
 The trusted Git worker received those credentials only through host-scoped
 network-header transforms, produced a bounded credential-free Git bundle,
 closed network access before handoff, and independently validated the returned
-diff. Publication produced one outer commit and stacked draft
-`fylingpete/oregano-hq-companyos#4`; a repeated request returned the same commit
+diff. Publication produced one outer commit and a stacked private Workspace
+draft; a repeated request returned the same commit
 and proposal. Neither token entered the coding environment or persisted job
 state.
 
@@ -887,8 +887,8 @@ the Workbench, creates the canonical outer commit, and pushes only the bounded
 proposal branch before the GitHub provider opens a draft through the API. The
 live pass on 2026-08-26 proved this path and repeat-call idempotency. The
 normal Runner and Slack integration gate then passed on 2026-08-27 through one
-confirmed job in an isolated Instance Artifact and checked draft
-`fylingpete/oregano-hq-companyos#6`. Final protected gates on 2026-08-27 then
+confirmed job in an isolated Instance Artifact and a checked private Workspace
+draft. Final protected gates on 2026-08-27 then
 proved per-job model-token and cost-status evidence plus deliberate ACP-process
 crash recovery by a replacement coordinator, with no diff or proposal from the
 failed execution.

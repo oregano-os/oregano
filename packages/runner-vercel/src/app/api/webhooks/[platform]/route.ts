@@ -1,8 +1,10 @@
 import { after } from "next/server";
 import { getBot } from "../../../../lib/bot.ts";
+import { handleConfiguredMondayAgentWebhook } from "../../../../lib/monday-agent-webhook.ts";
 
 async function handleRequest(request: Request, context: { params: Promise<{ platform: string }> }) {
   const { platform } = await context.params;
+  if (platform === "monday") return await handleConfiguredMondayAgentWebhook(request);
   const bot = getBot();
   type Platform = keyof typeof bot.webhooks;
   const handler = bot.webhooks[platform as Platform];

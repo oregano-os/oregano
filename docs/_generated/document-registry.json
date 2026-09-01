@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-31",
+    "updated": "2026-09-01",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -118,7 +118,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -238,7 +238,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-31",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -258,6 +258,24 @@
       "depends_on": [
         "specification.company-knowledge-v0.1",
         "specification.company-knowledge-v0.2"
+      ]
+    }
+  },
+  {
+    "document_id": "command.monday-qualify",
+    "title": "companyos monday qualify",
+    "path": "docs/workbench/commands/monday-qualify.md",
+    "kind": "command",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-08-31",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "architecture.company-instance",
+        "specification.company-records-sprint-v0.1"
       ]
     }
   },
@@ -304,7 +322,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-31",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -416,7 +434,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-24",
+    "updated": "2026-08-31",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -687,7 +705,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-08-31",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -979,6 +997,27 @@
     }
   },
   {
+    "document_id": "specification.company-records-sprint-v0.1",
+    "title": "Company Records and Sprint Foundation v0.1",
+    "path": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-08-31",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7",
+        "specification.tool-architecture",
+        "specification.companyos-packages-v0.1",
+        "architecture.boundaries",
+        "architecture.company-instance"
+      ]
+    }
+  },
+  {
     "document_id": "specification.companyos-core-v0.7",
     "title": "CompanyOS Core Specification v0.7",
     "path": "docs/specifications/companyos-core-v0.7-draft.md",
@@ -1120,7 +1159,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-31",
+    "updated": "2026-09-01",
     "availability": null,
     "migration_sources": [],
     "relations": {}

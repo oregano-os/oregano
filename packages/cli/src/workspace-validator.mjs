@@ -10,6 +10,7 @@ import { scanCredentialIndicators } from "../../security/credential-scanner.ts";
 import { isExactSemanticVersion } from "../../runtime/semantic-version.ts";
 import { inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
 import { loadKnowledgeSourceRequirement } from "../../knowledge/source-config.ts";
+import { inspectStructuredDeclarations } from "./structured-declarations.mjs";
 
 const REQUIRED_PATHS = [
   "company.md",
@@ -177,6 +178,9 @@ export function validateWorkspace(root) {
     catch (error) { diagnostics.push(diagnostic("WS040", "error", error.message, { file: source.relative })); }
   }
 
+  const structured = inspectStructuredDeclarations(root);
+  diagnostics.push(...structured.diagnostics);
+
   for (const path of walkFiles(root, { skip: [".git", "node_modules"] })) {
     const relative = relativePath(root, path);
     if (/^\.env(?:\.|$)/.test(basename(path))) diagnostics.push(diagnostic("SEC001", "error", "Environment files must never be committed to a Company Workspace.", { file: relative }));
@@ -233,6 +237,9 @@ export function validateWorkspace(root) {
       company_tools: toolDocs.length,
       knowledge_documents: knowledge.bundle?.documentCount ?? 0,
       knowledge_fragments: knowledge.bundle?.fragmentCount ?? 0,
+      record_sources: structured.summary.record_sources,
+      record_projections: structured.summary.record_projections,
+      sprint_domains: structured.summary.sprint_domains,
     },
   };
 }

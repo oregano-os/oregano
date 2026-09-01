@@ -3,7 +3,7 @@ import { join } from "node:path";
 import YAML from "yaml";
 import { diagnostic } from "./diagnostics.mjs";
 import { checkGeneratedDocumentation, inspectDocumentation } from "./docs-control.mjs";
-import { readChangePlan, validateChangePlan } from "./change-plan.mjs";
+import { readChangePlan, REQUIRED_ARCHITECTURE_MECHANISMS, validateChangePlan } from "./change-plan.mjs";
 import { CLASS_RANK, changedFiles, classifyFiles, globToRegExp } from "./inspection.mjs";
 
 const REQUIRED_CONTROL_PLANE = [
@@ -84,6 +84,9 @@ export function inspectCore(root, planPath, baseRef) {
   if (governance?.review_mode !== "maintainer") diagnostics.push(diagnostic("CFIT010", "error", "Core governance must declare review_mode: maintainer.", { file: "docs/governance/core-change-policy.yaml" }));
   if (governance?.change_classes?.security?.approval !== "oregano-maintainer") diagnostics.push(diagnostic("CFIT011", "error", "Core security changes must require Oregano Maintainer authority.", { file: "docs/governance/core-change-policy.yaml" }));
   if (governance?.change_classes?.security?.two_person_review !== undefined || governance?.change_classes?.security?.review_model !== undefined) diagnostics.push(diagnostic("CFIT012", "error", "Maintainer review mode must not declare a mandatory second-person review.", { file: "docs/governance/core-change-policy.yaml" }));
+  if (JSON.stringify(governance?.architecture_assessment?.existing_mechanisms) !== JSON.stringify(REQUIRED_ARCHITECTURE_MECHANISMS)) {
+    diagnostics.push(diagnostic("CFIT018", "error", "The governed architecture-mechanism catalog does not match the Change Plan validator.", { file: "docs/governance/core-change-policy.yaml" }));
+  }
 
   const files = changedFiles(root, baseRef);
   let diffClassification = null;
@@ -136,9 +139,11 @@ export function inspectCore(root, planPath, baseRef) {
       },
       diff_classification: diffClassification,
       change_plan: plan,
+      architecture_assessment: plan?.architecture_assessment ?? null,
       required_judgments: [
         "Does the change move CompanyOS toward the North Star and preserve every affected Vision principle?",
         "Is each responsibility in Oregano Core, Company Workspace, or Company Instance for the right reason?",
+        "Does the plan reuse or deliberately extend each applicable Resolver, Company Records service, authority control, timer, effect control, and Connector contract before adding a new mechanism?",
         "Does the real implementation match the documented architecture and current status?",
         "Does the change preserve fail-closed authority, evidence, idempotency, and repository separation?",
         "Are compatibility, migration, documentation, tests, and rollback complete?",

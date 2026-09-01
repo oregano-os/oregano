@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companyos.org/schema/company-record-projection-v1.schema.json",
+  "title": "Company Records projection declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "record_type", "fields", "freshness", "access", "materialization"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+    "record_type": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" },
+    "selection": { "type": "object" },
+    "fields": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
+          "path": { "type": "string", "minLength": 1, "maxLength": 255 }
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_age_minutes"],
+      "properties": {
+        "max_age_minutes": { "type": "integer", "minimum": 1, "maximum": 525600 }
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_groups"],
+      "properties": {
+        "read_groups": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
+    "materialization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["database-view", "workspace-proposal"] },
+        "target": { "type": "string", "minLength": 1, "maxLength": 255 }
+      }
+    }
+  }
+}
