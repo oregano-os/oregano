@@ -481,12 +481,14 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.2` for the experimental proposal-only
-  Builder integration on top of the grounded interactive Knowledge-answer
-  patch. Its immutable GitHub `v0.5.2` tag and Release are the public
-  distribution evidence; `v0.5.1` remains the exact rollback without the
-  integrated Builder. Every Company Workspace advances independently under the
-  canonical Versioning Policy.
+- Oregano Core source is versioned `0.5.3` for the reviewed experimental Sprint
+  and Company Records foundation, declarative Sprint Agent Blueprint, Monday
+  qualification, and fail-closed external-Agent ingress on top of the `0.5.2`
+  Builder line. The immutable GitHub `v0.5.3` tag and Release become public
+  distribution evidence only after the protected release workflow succeeds;
+  `v0.5.2` remains the exact rollback without these experimental additions.
+  Every Company Workspace advances independently under the canonical
+  Versioning Policy, and no Company Instance is activated by this Core version.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
