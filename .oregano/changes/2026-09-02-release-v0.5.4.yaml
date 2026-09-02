@@ -8,10 +8,11 @@ objective: >-
   Prepare one reviewed Core patch candidate containing the optional,
   company-neutral Company Records lifecycle, governed Agent handoffs, external
   Monday Agent boundary, bounded rehearsal tooling, complete-table inventory,
-  resumable source connection, and System of Proof documentation without
-  activating any Company Workspace or Company Instance.
+  resumable source connection, fail-closed production operator and scheduled
+  reconciliation runtime, and System of Proof documentation without activating
+  any Company Workspace or Company Instance.
 non_goals:
-  - Merge the candidate pull request, create a tag, publish a GitHub Release, or mark the release stable before separate exact human confirmation.
+  - Merge the release-preparation pull request, create a tag, publish a GitHub Release, or mark the release stable before separate exact human confirmation.
   - Change, migrate, synchronize, deploy, or activate a production Company Instance.
   - Send a Slack message, write a Monday object, activate a webhook or scheduler, or broaden an external Agent grant.
   - Add a company identifier, provider credential, customer record, Workspace mapping, participant, schedule, or retention choice to Oregano Core.
@@ -37,11 +38,11 @@ approvals:
   - role: oregano-maintainer
     approver: workspace-steward
     approved_at: 2026-09-02
-    evidence: explicit-user-instruction-to-finish-stage-5d-and-prepare-an-exact-0.5.x-release-candidate
+    evidence: explicit-user-instruction-to-finish-stage-5d-and-prepare-an-exact-0.5.x-release-candidate; exact-confirmation-daa2815a163bd4d07ad31ba64e234aedbfe9fbd6bbc5c1549565745a0c914a4e-after-green-pr16
 architecture_assessment:
   responsibilities:
     core:
-      - Own provider-neutral record contracts, state, projections, reconciliation, Sprint decisions, Agent routing and handoff controls, Connector contracts, evidence rules, and the reusable Workbench process.
+      - Own provider-neutral record contracts, state, projections, reconciliation, production operator and scheduler controls, Sprint decisions, Agent routing and handoff controls, Connector contracts, evidence rules, and the reusable Workbench process.
       - Own the exact Core version, release candidate commit, release manifest contract, and public boundary checks.
     packages:
       - Keep the experimental Sprint Blueprint declarative and authority-free while reusing Core Domains, Tools, Capabilities, and Resolvers.
@@ -61,22 +62,23 @@ architecture_assessment:
       reason: The release selects no company model; model routes remain Workspace and Instance decisions resolved through the existing mechanism.
     - mechanism: company-records
       decision: extend
-      reason: The release completes the existing experimental record lifecycle with qualification, complete inventory, bounded synchronization, reconciliation, projections, receipts, and reusable rehearsal orchestration.
+      reason: The release completes the existing experimental record lifecycle with qualification, complete inventory, bounded synchronization, reconciliation, projections, receipts, reusable rehearsal orchestration, and a separately guarded production operator and due-source scheduler.
     - mechanism: identity-and-authorization
       decision: extend
       reason: Governed handoffs and Monday ingress require exact authenticated principals, resource grants, signatures, replay protection, and fail-closed scope.
     - mechanism: timers-and-business-time
-      decision: reuse
-      reason: Existing Sprint timers, calendar calculations, and controlled-clock fixtures remain the only scheduling mechanisms; this release activates none.
+      decision: extend
+      reason: Existing Sprint timers and calendar calculations remain authoritative, while the maintained Vercel adapter adds a generic wake-up boundary that evaluates reviewed company-local source schedules without embedding a company cadence; this release activates none.
     - mechanism: approvals-effects-and-idempotency
       decision: reuse
-      reason: Exact confirmations, version checks, durable leases, source-event deduplication, echo evidence, read-after-write, and receipts remain the effect boundary.
+      reason: Exact production confirmations, independent mutation and scheduler kill switches, version checks, durable leases, source-event deduplication, echo evidence, read-after-write, and receipts remain the effect boundary.
     - mechanism: capability-contracts-and-connectors
       decision: extend
       reason: The maintained Monday adapter and generic Record Source Connector are extended behind provider-neutral contracts without granting them directly to an Agent.
   new_core_mechanisms:
     - Durable governed Conversation Assignment and semantic Agent handoff state.
     - Resumable provider-neutral Record Source rehearsal orchestration with replaceable Instance profiles.
+    - Fail-closed production Company Records operator and scheduler adapter with independent authentication, activation controls, exact deployment identity, and idempotent receipts.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
@@ -120,36 +122,30 @@ tests:
   - AgentResolver and governed handoff fixtures prove exact routing precedence, sticky assignment, return, expiry, revocation, idempotency, authorization, and ToolSet separation without retaining transcripts.
   - Sprint controlled-clock fixtures prove business time, holiday movement, Friday Close cutoffs, absences, timers, output isolation, and duplicate suppression.
   - The Workbench source-connect state is credential-free, mode 0600, resumable, independently confirmation-bound, payload-free, and production-inactive.
+  - The production records lane refuses wrong environments, identities, authentication, disabled controls, and stale confirmations before any database or provider effect.
+  - Scheduled reconciliation evaluates only due reviewed sources, produces one stable service-date outcome, and reuses completed outcomes without duplicate provider reads.
+  - The additive companyos-postgres 1.8.0 manifest qualifies the Company Records schema, and the production operator and cron routes pass the production Runner build.
   - Documentation, TypeScript, public-boundary, fixture validation, Runner build, and all repository tests pass before merge.
   - Release assets can be generated only from the clean exact tag matching 0.5.4 after the protected release commit is merged.
 documentation_impact:
   required: true
   affected_documents:
-    - docs.index
-    - reference.glossary
-    - architecture.company-instance
-    - architecture.company-workspace
-    - architecture.oregano-core
-    - architecture.overview
-    - architecture.boundaries
-    - architecture.system-of-proof
-    - specification.company-records-sprint-v0.1
-    - specification.companyos-core-v0.7
     - status.current
-    - command.records
-    - guide.connect-company-record-source
-    - guide.plan-change
   reason_if_none: ""
 migration: >-
   Existing v0.5.3 Company Workspaces and Instances remain valid and require no
   migration. Adoption of Company Records, governed handoffs, or Monday Agent
-  integration is opt-in and requires separate Workspace review plus an additive
-  Instance migration, exact resource binding, qualification, secret setup, and
-  environment activation. No production migration is part of this release.
+  integration is opt-in and requires separate Workspace review plus adoption of
+  the additive companyos-postgres 1.8.0 manifest, exact resource binding,
+  qualification, secret setup, and environment activation. No production
+  migration is part of this release.
 rollback: >-
   Do not alter any immutable published release. Until v0.5.4 is tagged, close or
   revert the candidate PR and continue using exact v0.5.3. After publication,
   unchanged consumers may remain on v0.5.3; correct any release defect in a
   newer patch. Any Company Instance rollback remains a separately approved
-  exact Core/Workspace deployment and provider disable procedure.
+  exact Core/Workspace deployment and provider disable procedure. An opted-in
+  Instance can stop Company Records effects immediately through the independent
+  mutation and scheduler activation controls; additive database relations are
+  retained for evidence rather than destructively removed.
 open_decisions: []

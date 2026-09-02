@@ -538,22 +538,23 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.3` for the reviewed experimental Sprint
-  and Company Records foundation, declarative Sprint Agent Blueprint, Monday
-  qualification, and fail-closed external-Agent ingress on top of the `0.5.2`
-  Builder line. The immutable GitHub `v0.5.3` tag and Release become public
-  distribution evidence only after the protected release workflow succeeds;
-  `v0.5.2` remains the exact rollback without these experimental additions.
-  Every Company Workspace advances independently under the canonical
-  Versioning Policy, and no Company Instance is activated by this Core version.
+- Oregano Core source is versioned `0.5.4` as the reviewed release candidate
+  for the experimental Sprint and Company Records lifecycle, declarative Sprint
+  Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
+  external-Agent ingress, resumable source connection, and separately guarded
+  production records operator and scheduler runtime. The latest immutable
+  public distribution remains `v0.5.3` until the protected v0.5.4 release commit
+  is merged and its exact tag workflow succeeds. Existing consumers may remain
+  on `v0.5.3`, and no Company Workspace or Company Instance is activated by
+  preparing this candidate.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
   Agent Binding continues normal Agent and Knowledge operation. Its scheduled
   worker exits successfully without constructing a repository provider,
   Sandbox, or coding runtime.
-- The unreleased v0.5.4 change branch implements governed semantic Agent
-  handoff and durable Conversation Assignment. Exact bindings remain stronger
+- The v0.5.4 release candidate implements governed semantic Agent handoff and
+  durable Conversation Assignment. Exact bindings remain stronger
   than assignments, and assignments remain stronger than the explicit
   default. Core authorization intersects the compiled direction, purpose,
   surface, active roster role or group, authenticated principal, Artifact, and
@@ -563,7 +564,7 @@ evidence, historical prototypes, and production gaps.
   without copying ToolSets. Return and expiry are implemented and covered by
   neutral fixtures. Production remains unproved: no private Company Instance
   migration, live deployment, live handoff, or live return evidence exists,
-  and v0.5.3 does not contain this behavior.
+  and the latest immutable public release v0.5.3 does not contain this behavior.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent
