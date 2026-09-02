@@ -113,6 +113,7 @@ validation:
   - pnpm runner:build
   - git diff --check
 tests:
+  - Pull request CI resolves this exact release Change Plan from the explicit Change-Plan line instead of ambiguous automatic discovery.
   - Core reports 0.5.4 and Workbench reports 0.1.0-experimental.12 from one clean exact candidate commit.
   - Company Records retries repair interrupted materialization without duplicate current objects or projection rows and publish completion only after every object succeeds.
   - Signed Monday callbacks, replay protection, exact board scope, version control, read-after-write, reconciliation, provider deletion, archive semantics, and echo suppression fail closed.
