@@ -76,6 +76,35 @@ export function ensureCompanyRecordsSchema(): Promise<void> {
       unique (instance_id, idempotency_key))`;
     await sql`create index if not exists records_durable_timers_due_idx
       on companyos_records.durable_timers(instance_id, state, due_at, lease_expires_at)`;
+    await sql`create table if not exists companyos_records.sprint_states (
+      instance_id text not null, definition_id text not null,
+      state_version bigint not null check (state_version > 0), state_json jsonb not null,
+      updated_at timestamptz not null, primary key (instance_id, definition_id))`;
+    await sql`create table if not exists companyos_records.sprint_events (
+      instance_id text not null, definition_id text not null, event_id text not null,
+      event_type text not null, occurred_at timestamptz not null,
+      state_version bigint not null check (state_version > 0), event_json jsonb not null,
+      decision_json jsonb not null, committed_at timestamptz not null,
+      primary key (instance_id, definition_id, event_id))`;
+    await sql`create unique index if not exists records_sprint_events_sequence_idx
+      on companyos_records.sprint_events(instance_id, definition_id, state_version)`;
+    await sql`create table if not exists companyos_records.sprint_intents (
+      instance_id text not null, definition_id text not null, intent_id text not null,
+      created_by_event_id text not null, intent_type text not null, intent_json jsonb not null,
+      state text not null default 'pending' check (state in ('pending','leased','succeeded','failed','cancelled')),
+      available_at timestamptz not null, attempts integer not null default 0,
+      lease_owner text, lease_token text, lease_expires_at timestamptz, evidence jsonb,
+      completed_at timestamptz, updated_at timestamptz not null,
+      primary key (instance_id, definition_id, intent_id),
+      constraint records_sprint_intents_event_fk foreign key (instance_id, definition_id, created_by_event_id)
+        references companyos_records.sprint_events(instance_id, definition_id, event_id),
+      constraint records_sprint_intents_lease_check check (
+        state <> 'leased' or (lease_owner is not null and lease_token is not null and lease_expires_at is not null)),
+      constraint records_sprint_intents_completion_check check (
+        (state in ('succeeded','failed','cancelled') and completed_at is not null)
+        or (state in ('pending','leased') and completed_at is null)))`;
+    await sql`create index if not exists records_sprint_intents_due_idx
+      on companyos_records.sprint_intents(instance_id, definition_id, state, available_at, lease_expires_at)`;
     await sql`create table if not exists companyos_records.connector_echo_receipts (
       instance_id text not null, connector_id text not null, resource_binding text not null,
       object_id text not null, provider_version text not null, actor_id text not null,

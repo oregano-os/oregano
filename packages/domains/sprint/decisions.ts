@@ -39,6 +39,7 @@ export function decideSprintEvent(args: {
         intent_id: intentId("rollover", state.sprint_id, args.event.next_sprint_id, item.work_item_id),
         work_item_id: item.work_item_id,
         target_sprint_id: args.event.next_sprint_id,
+        expected_version: item.provider_version,
       });
     }
     evidence.push({ rule: "friday-close-report", outcome: "report-and-rollover-intents", facts: { report_at: schedule.report_at, included_participants: close.participants.filter((participant) => participant.included).length, open_work_items: close.open_work_items.length } });
@@ -49,11 +50,16 @@ export function decideSprintEvent(args: {
     const deadline = instant >= schedule.complete_by;
     state.phase = "reminding";
     for (const participant of close.participants.filter((item) => item.included && item.close_state !== "complete")) {
+      const source = state.participants[participant.participant_id];
+      if (!source?.communication_principal || !args.policy.delivery.direct_binding) {
+        throw new Error(`Sprint reminder target '${participant.participant_id}' has no reviewed direct-message principal and binding`);
+      }
       intents.push({
         type: "message.reminder",
         intent_id: intentId("reminder", state.sprint_id, participant.participant_id, deadline ? schedule.complete_by : schedule.reminder_at),
         participant_id: participant.participant_id,
-        channel_binding: args.policy.delivery.channel_binding,
+        destination_principal: source.communication_principal,
+        destination_binding: args.policy.delivery.direct_binding,
         due_at: deadline ? schedule.complete_by : schedule.reminder_at,
         reason: deadline ? "deadline" : "initial",
       });

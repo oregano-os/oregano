@@ -74,7 +74,7 @@ evidence, historical prototypes, and production gaps.
   performs only due complete-inventory reconciliation under the existing lease.
   Exact production deployment, Artifact, Core, Workspace, and Instance identity
   must agree; mutations and the scheduler have independent kill switches. The
-  database manifest is now `1.8.0` and qualifies `companyos_records` alongside
+  database manifest is now `1.9.0` and qualifies `companyos_records` alongside
   the existing schemas. Synthetic tests do not claim a real production
   migration, provider read, schedule activation, provider event, provider
   write, or message.
@@ -85,8 +85,15 @@ evidence, historical prototypes, and production gaps.
   event reduction, controlled-clock business-time and holiday calculation,
   frozen-participant Friday completeness, actual-effort and open-work read
   models, deterministic reminder/report/Rollover intents, and durable timer
-  interfaces with in-memory and Postgres implementations. Public fixtures are
-  synthetic and contain no company people, resources, policy, or credentials.
+  interfaces with in-memory and Postgres implementations. The reusable
+  orchestration library now atomically persists one normalized event, its
+  monotonic resulting state, decision evidence, and intents; consumes due
+  timers through the same event path; leases bounded intent work; and enters
+  provider execution only through an exact `CompanyOSRuntime`-backed adapter.
+  It remains unhosted and inactive until a Company Instance supplies reviewed
+  policy, calendar, Agent, Tool, destination, resource, ingress, schedule, and
+  worker bindings. Public fixtures are synthetic and contain no company people,
+  resources, policy, or credentials.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.comment`, and `communication.message.publish` Capability contracts
   plus standard Tools. Artifact building makes those Tools available for
@@ -491,13 +498,13 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.8.0` additive manifest preserves the immutable `1.7.0`,
-  `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  `companyos-postgres@1.9.0` additive manifest preserves the immutable `1.8.0`,
+  `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares `companyos`, `companyos_knowledge`, and `companyos_records`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
-  returns a bounded qualification receipt. The Record Source schema contains
-  11 required tables. The maintained Vercel profile wraps
+  returns a bounded qualification receipt. The records schema contains 14
+  required Record Source and Sprint tables. The maintained Vercel profile wraps
   this operation with `vercel env run`; the typed runtime-host contract also has
   a non-Vercel conformance fixture. Production health now verifies the schema
   read-only. A clean local PostgreSQL 14 database produced 12 control tables,

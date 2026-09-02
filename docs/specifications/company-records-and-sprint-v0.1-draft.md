@@ -170,9 +170,13 @@ NOT import a provider SDK, access the network, read environment credentials,
 execute SQL, invoke a model, or perform an external effect.
 
 **CRS-021 — Durable event truth.** Sprint events are append-only and deduplicated
-by stable event identity. Participant, work-item, submission, completeness,
-effort, and Rollover views are derived. A model conversation is never durable
-Sprint state.
+by stable event identity. Reuse of an event identity with different content
+MUST fail closed. An accepted event, its resulting monotonic state version,
+decision evidence, and newly created intents MUST commit atomically or not at
+all. Concurrent events use optimistic state-version control; an exact retry
+returns the original durable outcome. Participant, work-item, submission,
+completeness, effort, and Rollover views are derived. A model conversation is
+never durable Sprint state.
 
 **CRS-022 — Business time.** Business-time calculation uses only the Workspace
 timezone, business calendar, excluded dates, delivery window, and holiday-shift
@@ -188,9 +192,23 @@ the exact declared policy and never an inferred substitute.
 
 **CRS-024 — Intents, not effects.** Reminder, report, reconciliation, and
 Rollover outputs are stable intents with deterministic idempotency identities.
+An individual reminder freezes its destination principal and logical direct
+binding. A Rollover intent freezes the expected provider version of every work
+item it proposes to change.
 The runtime resolves and authorizes a Tool before an intent can become an
 effect. A failed, stale, ambiguous, or unbound intent remains an explicit
 no-effect result.
+
+**CRS-025 — Orchestration boundary.** Normalized provider events and due durable
+timers MUST enter the same validated event-processing path. Due timers complete
+only after their resulting Sprint outcome is durable. Intent workers claim
+bounded batches with expiring leases and record explicit success, retry,
+failure, or cancellation outcomes. A maintained dispatcher MUST resolve the
+exact compiled Agent, Tool grant, destination or resource binding, and Tool
+input, then execute through `CompanyOSRuntime`; it MUST NOT call a provider
+directly or treat persisted intent state as Tool authority. Missing policy,
+calendar, state identity, dispatcher, Agent, grant, destination, or resource
+binding fails before an effect.
 
 ## 4. Tools and Connectors
 
@@ -287,6 +305,8 @@ reviewed.
 ## 6. Current qualification boundary
 
 Repository tests prove schemas, deterministic in-memory and Postgres contracts,
+atomic Sprint event/state/decision/intent persistence, optimistic replay,
+leased intent outcomes, due-timer consumption through the same event path,
 controlled-clock Sprint decisions, Tool resolution inputs, signed callback
 verification, replay and echo controls, Connector behavior with synthetic
 responses, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
@@ -295,4 +315,6 @@ inspection. They do not prove a real
 provider installation, exact account permission, provider cost, production
 message, production database migration, scheduled execution, or Company
 Workspace rollout. Those claims require separate Instance consent, non-
-production qualification, staged activation, and live evidence.
+production qualification, staged activation, and live evidence. The reusable
+orchestrator is a Core library; it is not a deployed ingress, scheduler, worker,
+or company-specific renderer by itself.

@@ -19,15 +19,15 @@ const policy: SprintDomainDeclaration = {
   submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },
   effort: "actual-hours",
   rollover: { eligible: "all-open" },
-  delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+  delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
 };
 
 const calendar: BusinessCalendar = { id: "fixture-calendar", holidays: [] };
 
 const participants: SprintParticipant[] = [
-  { participant_id: "person-a", display_name: "Alex", roles: ["owner"], approved_absence: false },
-  { participant_id: "person-b", display_name: "Blair", roles: ["contributor"], approved_absence: false },
-  { participant_id: "person-c", display_name: "Casey", roles: ["contributor"], approved_absence: true },
+  { participant_id: "person-a", display_name: "Alex", roles: ["owner"], communication_principal: "chat:fixture:person-a", approved_absence: false },
+  { participant_id: "person-b", display_name: "Blair", roles: ["contributor"], communication_principal: "chat:fixture:person-b", approved_absence: false },
+  { participant_id: "person-c", display_name: "Casey", roles: ["contributor"], communication_principal: "chat:fixture:person-c", approved_absence: true },
 ];
 
 const workItems: SprintWorkItem[] = [
@@ -78,6 +78,7 @@ test("clock decisions emit reminders, one close report, and all-open rollover in
   const reminder = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-reminder", occurred_at: "2030-02-01T14:00:00.000Z", instant: "2030-02-01T14:00:00.000Z" } });
   assert.deepEqual(reminder.intents.filter((intent) => intent.type === "message.reminder").map((intent) => intent.participant_id), ["person-b"]);
   assert.equal(reminder.intents[0].type === "message.reminder" && reminder.intents[0].reason, "initial");
+  assert.equal(reminder.intents[0].type === "message.reminder" && reminder.intents[0].destination_principal, "chat:fixture:person-b");
   state = reminder.state;
 
   const deadline = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-deadline", occurred_at: "2030-02-01T16:00:00.000Z", instant: "2030-02-01T16:00:00.000Z" } });
@@ -87,6 +88,7 @@ test("clock decisions emit reminders, one close report, and all-open rollover in
   const report = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z", next_sprint_id: "sprint-6" } });
   assert.equal(report.intents.filter((intent) => intent.type === "message.close-report").length, 1);
   assert.deepEqual(report.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.work_item_id).sort(), ["item-a", "item-c"]);
+  assert.deepEqual(report.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.expected_version).sort(), ["v1", "v1"]);
   assert.equal(report.state.phase, "reporting");
   const duplicate = decideSprintEvent({ state: report.state, policy, calendar, event: { type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z", next_sprint_id: "sprint-6" } });
   assert.deepEqual(duplicate.intents, []);

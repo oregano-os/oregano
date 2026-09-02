@@ -75,6 +75,31 @@ Core changes are rare for Workspace Contributors. A Workspace Contributor who
 finds a missing generic mechanism files a Core capability request rather than
 placing platform code in the Workspace.
 
+## Sprint orchestration
+
+Core keeps Sprint policy separate from Sprint execution. The pure Sprint
+domain accepts a reviewed declaration, a Workspace-supplied business calendar,
+prior state, and one normalized event, then returns only deterministic state,
+evidence, and intents. It contains no provider client, SQL, model call, Tool
+execution, company template, or external effect.
+
+The provider-neutral orchestration service surrounds that pure boundary. It
+atomically commits each event, its monotonic state version, decision evidence,
+and stable pending intents; optimistic retries preserve concurrent events and
+event-identity collisions fail closed. Durable timers enter through the same
+event path. A bounded leased worker may dispatch an intent only after an exact
+adapter has been supplied. The maintained adapter resolves a compiled Agent
+and Tool grant and calls the existing `CompanyOSRuntime`, so ToolSet,
+Capability, authorization, approval, effect, idempotency, and Connector
+controls are not duplicated.
+
+Message text, participants, provider projections, calendar dates, schedules,
+language, and requested grants remain Company Workspace truth. Exact Agent,
+model, destination, work-item, database, secret, timer, and activation
+bindings remain Company Instance truth. Merely installing Core or preparing
+the additive database schema does not start a Sprint, lease an intent, send a
+message, or change a work item.
+
 ## Native Company Knowledge
 
 Core implements the OKF parser, deterministic heading-aware fragmenter,

@@ -52,8 +52,8 @@ runbook. It fails unless fresh or recorded evidence proves:
   evidence from a real selected-model call.
 
 The current Core target receipt identifies additive manifest
-`companyos-postgres@1.8.0`, its 67 required Knowledge tables, and its 11
-required Record Source tables. The linked
+`companyos-postgres@1.9.0`, its 67 required Knowledge tables, and its 14
+required Record Source and Sprint tables. The linked
 `oregano-hq-companyos` Instance last applied predecessor `1.6.0` and passed a separate
 read-only verification on 2026-08-27 with digest
 `b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`;

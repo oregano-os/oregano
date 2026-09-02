@@ -431,7 +431,8 @@ Deploy with both kill switches off. Confirm that the deployment is production
 and that its Artifact Instance, Core commit, and Workspace commit match the
 reviewed plan. Use `POST /api/records/operations` to obtain the production
 migration plan; review and confirm that hash before apply. The additive database
-manifest becomes `1.8.0` and includes `companyos_records`; it preserves the
+manifest becomes `1.9.0` and includes the current `companyos_records` Record
+Source and Sprint relations; it preserves the
 existing control, knowledge, and records data. Next obtain and independently
 confirm one `plan-sync` for each source. Initial synchronization reads the exact
 qualified provider resource and writes immutable production observations,

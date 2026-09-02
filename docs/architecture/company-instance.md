@@ -166,10 +166,10 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-The current additive database manifest is `companyos-postgres@1.8.0`. It
-retains the immutable `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
-contains 67 required `companyos_knowledge` tables, and adds 11 required
-`companyos_records` tables for provider-neutral Record Source state. Phase 3 adds durable Source
+The current additive database manifest is `companyos-postgres@1.9.0`. It
+retains the immutable `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
+contains 67 required `companyos_knowledge` tables, and contains 14 required
+`companyos_records` tables for provider-neutral Record Source and Sprint state. Phase 3 adds durable Source
 Events, provider ACL snapshots, bounded pipeline receipts, completed
 watermarks, an integrity-linked Knowledge change stream, and governed source
 lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
@@ -181,6 +181,10 @@ rebuildable Retrieval V3 projection runs and Units plus payload-free
 KnowledgeBench, shadow-comparison, and productization receipts. When `pgvector`
 is available, the two optional vector tables retain Handbook-fragment and
 Retrieval-Unit embeddings; neither is durable company authority.
+Phase 8 adds provider-neutral Record Source state. Phase 9 adds atomic Sprint
+event, monotonic state, decision, and intent persistence plus a bounded leased
+intent queue. Installing or qualifying these relations does not start a Sprint,
+schedule a timer, dispatch a message, or enable a provider effect.
 The reusable activation path qualifies a fully isolated non-production
 Instance. Oregano HQ also has one explicit internal-dogfood production-canary
 path: a Neon point-in-time branch rehearses the additive migration, production
@@ -415,11 +419,20 @@ inventory is mandatory before absence can become a retained tombstone. Neither
 production route modifies a provider, sends a message, invokes a model, grants
 an Agent Tool, or turns a conversational callback into a board event.
 
-The maintained Company Instance database manifest includes
-`companyos_records` from version `1.8.0`. Production migration remains an
+The maintained Company Instance database manifest includes Record Source
+relations from version `1.8.0` and Sprint orchestration relations from version
+`1.9.0`. Production migration remains an
 explicit exact-plan Instance effect; deploying Core alone does not apply it.
 Database qualification and `/api/health` then prove the exact records table and
 index set along with the control and knowledge schemas.
+
+The Sprint orchestration package is a reusable Core library, not a hosted
+surface. A Runner must bind the reviewed Sprint declaration and calendar,
+normalized ingress, durable timers, the Sprint store, the exact logical Agent,
+and an intent resolver. The maintained dispatcher then enters the ordinary
+`CompanyOSRuntime` Tool boundary; it does not bypass Agent, ToolSet,
+Capability, authorization, idempotency, effect, or evidence controls. Missing
+bindings fail before dispatch.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

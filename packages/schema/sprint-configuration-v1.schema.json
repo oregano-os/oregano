@@ -71,10 +71,11 @@
     "delivery": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["shared_thread", "channel_binding"],
+      "required": ["shared_thread", "channel_binding", "direct_binding"],
       "properties": {
         "shared_thread": { "type": "boolean" },
-        "channel_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" }
+        "channel_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+        "direct_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" }
       }
     },
     "model_task_profile": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" }

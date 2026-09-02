@@ -22,4 +22,16 @@ export class DurableTimerService {
   async complete(timer: ClaimedDurableTimer, evidence: JsonValue, completedAt: string): Promise<boolean> {
     return this.store.complete({ instanceId: this.instanceId, timerId: timer.timerId, leaseToken: timer.leaseToken, evidence, completedAt });
   }
+
+  async retry(timer: ClaimedDurableTimer, dueAt: string, evidence: JsonValue): Promise<boolean> {
+    return this.store.retry({ instanceId: this.instanceId, timerId: timer.timerId, leaseToken: timer.leaseToken, dueAt, evidence });
+  }
+
+  async fail(timer: ClaimedDurableTimer, evidence: JsonValue, failedAt: string): Promise<boolean> {
+    return this.store.fail({ instanceId: this.instanceId, timerId: timer.timerId, leaseToken: timer.leaseToken, evidence, failedAt });
+  }
+
+  async cancel(timerId: string, evidence: JsonValue, cancelledAt: string): Promise<boolean> {
+    return this.store.cancel({ instanceId: this.instanceId, timerId, evidence, cancelledAt });
+  }
 }

@@ -77,13 +77,14 @@ receipt. Runtime health and
 manifest or required schema objects are missing. The maintained Vercel profile
 uses `vercel env run`; another runtime profile must provide an equivalent
 secret-bound command without making Vercel part of the database contract.
-The current manifest is additive `companyos-postgres@1.8.0`: it preserves the
-immutable `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions, qualifies 67 required
-Knowledge tables and 11 Record Source tables, and adds durable Source event, ACL, receipt, watermark,
+The current manifest is additive `companyos-postgres@1.9.0`: it preserves the
+immutable `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions, qualifies 67 required
+Knowledge tables and 14 Record Source and Sprint tables, and adds durable Source event, ACL, receipt, watermark,
 change-stream, synchronization-lease, lifecycle, compounding-receipt,
 Claim-pair-proposal, grading-request, model-result-cache, spend-reservation, and
-execution-ledger, Retrieval V3 projection, benchmark, shadow-comparison, and
-productization-receipt state. Unresolved policies and ACL mappings remain
+execution-ledger, Retrieval V3 projection, benchmark, shadow-comparison,
+productization-receipt, and atomic Sprint event, state, decision, and intent
+records. Unresolved policies and ACL mappings remain
 in quarantine. Schema qualification does not authorize retrieval; runtime
 subject and policy conformance remain separate gates.
 

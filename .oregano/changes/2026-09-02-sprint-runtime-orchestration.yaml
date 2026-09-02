@@ -1,0 +1,166 @@
+version: 2
+plan_id: sprint-runtime-orchestration-2026-09-02
+status: approved
+author: codex-agent
+created: 2026-09-02
+title: Complete the provider-neutral Sprint runtime orchestration boundary
+objective: >-
+  Complete the reusable Core path from one validated normalized Sprint event or
+  durable Sprint timer through deterministic reduction, durable state and
+  evidence, idempotent intent creation, leased intent dispatch, and the
+  existing CompanyOS Tool/effect boundary, while remaining fail closed unless
+  a reviewed Company Workspace and Company Instance supply every policy,
+  calendar, Agent, Tool, destination, and resource binding.
+non_goals:
+  - Change a real Company Workspace, interview or invent missing company values, or activate a company Sprint Agent.
+  - Migrate or synchronize a production database, call Monday, send Slack messages, deploy a Runner, enable a schedule, or perform any provider effect.
+  - Add company people, boards, columns, channels, holidays, schedules, model choices, credentials, or provider identifiers to Core.
+  - Tag or publish Oregano v0.5.4, merge this work, or update a Company Instance without a separate exact review and approval.
+  - Render company-specific message content or translate a Sprint intent into provider input inside the pure Sprint domain.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - Security before autonomy
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-02-sprint-runtime-orchestration.yaml
+  - docs/architecture/company-instance.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/system-boundaries.md
+  - docs/architecture/system-of-proof.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/tests/workbench.test.mjs
+  - packages/domains/sprint/**
+  - packages/knowledge/knowledge-doctor.ts
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - packages/runtime/**
+  - packages/schema/sprint-configuration-v1.schema.json
+  - packages/state-store/**
+  - packages/state-postgres/**
+  - packages/testkit/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-ok-machen-wir-so-after-sprint-completeness-audit-and-recommended-core-first-implementation
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own normalized Sprint event processing, deterministic decisions, optimistic durable state commits, idempotent intent state, timer consumption, leases, evidence, and the generic dispatch boundary.
+      - Preserve the existing CompanyOSRuntime as the only path from a claimed Sprint intent to an authorized Tool and Connector effect.
+    packages:
+      - Keep the Sprint Blueprint declarative and company-neutral; it supplies no runtime authority or provider binding.
+    workspace:
+      - Continue to own Sprint policy, participants, projections, calendar, holidays, schedules, workflows, templates, skills, Agent instructions, language, and requested Tool grants.
+    instance:
+      - Continue to own exact Agent, model, database, timer, destination, resource, Connector, credential, activation, cost, and deployment bindings plus live receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Any later conversational handoff or provider-facing execution must use the already compiled Agent resolution and durable Conversation Assignment path; Sprint state does not route from message meaning.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: A dispatcher can execute only a grant already present in the resolved Sprint Agent ToolSet; intent persistence grants no Tool authority.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Core renders no company message and selects no model; any later templating or model task remains a reviewed Workspace profile and exact Instance route.
+    - mechanism: company-records
+      decision: extend
+      reason: The existing provider-neutral records schema already owns operational projections and durable timers, and is extended additively with Sprint events, state, and intents rather than creating another database schema.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Normalized events carry no implied human authority, and all later Tool execution still resolves authenticated subjects and exact resource grants through existing controls.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: Existing deterministic business-time calculations and durable timers are connected to the same Sprint event-processing boundary without an in-process clock or company cadence in Core.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Optimistic state commits, stable event and intent identities, intent leases, durable outcomes, and timer receipts close orchestration replay windows before the existing Tool effect claims handle provider mutation.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Sprint orchestration invokes no provider SDK and adds no Connector; a supplied dispatcher must reach external systems only through existing Capability and Connector contracts.
+  new_core_mechanisms:
+    - Provider-neutral Sprint orchestration store with atomic event, state, evidence, and intent commits.
+    - Leased Sprint intent work queue with explicit succeeded, failed, retry, and cancellation outcomes.
+    - Runner-neutral Sprint orchestration service that consumes durable timers and delegates claimed intents through an injected CompanyOSRuntime-backed dispatcher.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The orchestration accepts only generic Sprint declarations, normalized
+    events, controlled calendar facts, durable stores, and an injected dispatch
+    adapter. Every company can supply different providers, record projections,
+    people, cadence, templates, Tools, and bindings without changing Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-sprint-runtime-orchestration.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-02-sprint-runtime-orchestration.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm validate:fixture
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm builder:check
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Concurrent normalized events commit exactly once with monotonic state versions; duplicates return the prior outcome and create no duplicate intents.
+  - Event, resulting state, decision evidence, and pending intents commit atomically or not at all.
+  - Intent workers lease bounded work, cannot complete another lease, retry explicitly, and preserve durable success or failure evidence.
+  - Due Sprint timers become deterministic clock events and complete only after the event outcome is durable.
+  - Missing policy, calendar, state identity, dispatcher, Agent grant, destination, or resource binding fails closed before a provider effect.
+  - A synthetic CompanyOSRuntime-backed dispatcher proves that claimed intents still pass ToolSet, Capability, idempotency, effect, and evidence controls.
+  - The additive companyos-postgres manifest qualifies all Sprint orchestration tables and indexes without changing existing rows or schemas.
+  - Public fixtures contain no real company, person, resource, credential, or provider payload.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.boundaries
+    - architecture.system-of-proof
+    - onboarding.index
+    - onboarding.company-workspace
+    - command.setup
+    - command.verify-live
+    - guide.connect-company-record-source
+    - guide.prepare-instance
+    - specification.company-records-sprint-v0.1
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.2
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Adoption is optional and additive. A later, separately confirmed Company
+  Instance migration advances the maintained database manifest and adds Sprint
+  event, state, and intent relations inside companyos_records. Existing
+  Workspaces and Instances remain valid and inactive; no schedule or effect is
+  enabled by installing the Core version alone.
+rollback: >-
+  Disable later Sprint ingress and schedules, stop leasing new intents, and let
+  active leases expire before reverting runtime wiring. Retain additive Sprint
+  event, state, intent, timer, and effect evidence as dormant System of Proof
+  data unless a separate governed destructive migration authorizes removal.
+open_decisions:
+  - Company-specific calendar coverage, participant identities, projection freshness, model route, Agent handoffs, Tool grants, destination bindings, resource bindings, and activation remain a later interview and reviewed Workspace/Instance change.
+  - Company-specific rendering from a generic Sprint intent into a communication message or work-item mutation must be reviewed with the company's workflows before live dispatch is enabled.

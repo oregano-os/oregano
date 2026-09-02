@@ -101,14 +101,15 @@ MUST verify the manifest without performing schema DDL. A new host or database
 provider may replace the maintained Vercel and Neon bindings only after its
 secret transport and PostgreSQL behavior satisfy the same contract.
 
-The current `companyos-postgres@1.8.0` manifest is an additive Instance storage
-contract over immutable predecessors `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0`.
-Core defines and qualifies 67 required Knowledge relations and 11 required
-Record Source relations, including stable groups,
+The current `companyos-postgres@1.9.0` manifest is an additive Instance storage
+contract over immutable predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0`.
+Core defines and qualifies 67 required Knowledge relations and 14 required
+Record Source and Sprint relations, including stable groups,
 memberships, durable Source Events, provider ACL snapshots, pipeline receipts,
 completed watermarks, per-stream synchronization leases, lifecycle requests,
 and a payload-free integrity-linked change stream, compounding receipts,
-review-only Claim-pair proposals, explicit grading requests, a policy-bound
+review-only Claim-pair proposals, explicit grading requests, atomic Sprint
+events, monotonic Sprint state, leased Sprint intents, a policy-bound
 model-result cache, spend reservations, a rated execution ledger, rebuildable
 Retrieval V3 projections, and payload-free benchmark and productization evidence. Schema
 presence alone never grants access: the Runtime supplies

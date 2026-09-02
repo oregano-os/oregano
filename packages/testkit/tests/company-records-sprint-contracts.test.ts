@@ -36,7 +36,7 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
     submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },
     effort: "actual-hours",
     rollover: { eligible: "all-open" },
-    delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+    delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
   };
   assert.deepEqual(validateJsonSchemaValue(schema("sprint-configuration-v1.schema.json"), sprint), []);
 });
