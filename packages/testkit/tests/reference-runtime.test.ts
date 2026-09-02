@@ -178,6 +178,61 @@ scope:
   }
 });
 
+test("Artifact building compiles a reviewed local-day-end handoff expiry", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-agent-handoff-local-day-"));
+  cpSync(FIXTURE, root, { recursive: true });
+  try {
+    const sprintRoot = join(root, "agents", "sprint");
+    mkdirSync(sprintRoot, { recursive: true });
+    writeFileSync(join(sprintRoot, "instructions.md"), `---
+description: Synthetic Sprint Agent.
+scope:
+  read:
+    - company.md
+---
+# Sprint
+Synthetic target Agent.
+`);
+    const agentPath = join(root, "agents", "growth", "instructions.md");
+    writeFileSync(agentPath, readFileSync(agentPath, "utf8").replace(
+      "scope:\n",
+      `handoffs:
+  - id: growth-to-sprint
+    target: sprint
+    purpose: sprint
+    surfaces: [slack]
+    eligible_roles: [contributor]
+    eligible_groups: [sprint-participant]
+    expiry:
+      mode: local-day-end
+      timezone: Europe/Madrid
+scope:
+`,
+    ));
+    const artifact = buildCompanyOSArtifact({
+      workspaceRoot: root,
+      instance: { ...instance, defaultAgentId: "growth" },
+      coreVersion: "0.5.4",
+      coreCommit: CORE_COMMIT,
+      workspaceCommit: WORKSPACE_COMMIT,
+      workbenchVersion: "0.1.0-experimental.12",
+      builtAt: "2026-09-02T12:00:00.000Z",
+    });
+    assert.deepEqual(artifact.agentRouting.handoffs, [{
+      id: "growth-to-sprint",
+      fromAgentId: "growth",
+      toAgentId: "sprint",
+      purpose: "sprint",
+      surfaces: ["slack"],
+      eligibleRoles: ["contributor"],
+      eligibleGroups: ["sprint-participant"],
+      localDayEndTimeZone: "Europe/Madrid",
+    }]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("the Builder rejects ambiguous product versions", () => {
   assert.throws(() => buildCompanyOSArtifact({
     workspaceRoot: FIXTURE,

@@ -58,7 +58,7 @@
         "after_report": { "type": "string", "enum": ["provider-only", "next-report", "reject"] }
       }
     },
-    "effort": { "type": "string", "enum": ["actual-hours", "planned-effort"] },
+    "effort": { "type": "string", "enum": ["actual-hours", "planned-effort", "unavailable"] },
     "rollover": {
       "type": "object",
       "additionalProperties": false,

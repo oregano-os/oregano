@@ -1,4 +1,7 @@
 import type { SprintDomainDeclaration, Weekday } from "./contracts.ts";
+import { addLocalCalendarDays, zonedLocalDateTimeToIso } from "../../runtime/local-time.ts";
+
+export { zonedLocalDateTimeToIso } from "../../runtime/local-time.ts";
 
 export interface BusinessCalendar {
   id: string;
@@ -22,10 +25,7 @@ const assertDate = (value: string): void => {
 };
 
 export function addCalendarDays(value: string, days: number): string {
-  assertDate(value);
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+  return addLocalCalendarDays(value, days);
 }
 
 export function weekdayOf(value: string): Weekday {
@@ -56,36 +56,6 @@ const weekdayOnOrBefore = (periodEnd: string, target: Weekday): string => {
   }
   throw new Error(`Could not resolve weekday '${target}'`);
 };
-
-const partsAt = (instant: number, timezone: string): Record<string, number> => {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  }).formatToParts(new Date(instant));
-  return Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
-};
-
-/** Convert a Workspace-declared local time into a deterministic UTC instant. */
-export function zonedLocalDateTimeToIso(date: string, time: string, timezone: string): string {
-  assertDate(date);
-  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error(`Invalid local time '${time}'`);
-  new Intl.DateTimeFormat("en", { timeZone: timezone }).format();
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour, minute] = time.split(":").map(Number);
-  const target = Date.UTC(year, month - 1, day, hour, minute, 0);
-  let candidate = target;
-  for (let iteration = 0; iteration < 4; iteration += 1) {
-    const actual = partsAt(candidate, timezone);
-    const represented = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
-    candidate += target - represented;
-  }
-  const actual = partsAt(candidate, timezone);
-  if (actual.year !== year || actual.month !== month || actual.day !== day || actual.hour !== hour || actual.minute !== minute) {
-    throw new Error(`Local time '${date} ${time}' does not exist in timezone '${timezone}'`);
-  }
-  return new Date(candidate).toISOString();
-}
 
 export function sprintCloseSchedule(args: {
   policy: SprintDomainDeclaration;

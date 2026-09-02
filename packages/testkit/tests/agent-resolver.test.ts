@@ -77,3 +77,27 @@ test("AgentResolver fails closed for unknown and ambiguous multi-agent routes", 
     (error: unknown) => error instanceof AgentResolutionError && error.code === "ambiguous-route",
   );
 });
+
+test("AgentResolver requires exactly one bounded handoff expiry policy", () => {
+  const base = {
+    id: "handoff",
+    fromAgentId: "sales",
+    toAgentId: "marketing",
+    purpose: "campaign",
+    surfaces: ["slack"],
+    eligibleRoles: ["contributor"],
+    eligibleGroups: [],
+  };
+  assert.doesNotThrow(() => validateAgentRouting({ ...routing, handoffs: [{ ...base, ttlSeconds: 600 }] }, agents));
+  assert.doesNotThrow(() => validateAgentRouting({ ...routing, handoffs: [{ ...base, localDayEndTimeZone: "Europe/Madrid" }] }, agents));
+  for (const handoff of [
+    base,
+    { ...base, ttlSeconds: 600, localDayEndTimeZone: "Europe/Madrid" },
+    { ...base, localDayEndTimeZone: "Not/A-Timezone" },
+  ]) {
+    assert.throws(
+      () => validateAgentRouting({ ...routing, handoffs: [handoff] }, agents),
+      (error: unknown) => error instanceof AgentResolutionError && error.code === "invalid-routing",
+    );
+  }
+});

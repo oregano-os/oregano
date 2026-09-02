@@ -152,6 +152,27 @@ test("expired assignments no longer route and may be replaced safely", async () 
   assert.notEqual(replacement.assignment?.assignmentId, first.assignment?.assignmentId);
 });
 
+test("a local-day assignment expires at the next reviewed local midnight", async () => {
+  const store = new InMemoryConversationAssignmentStore();
+  const localDayRouting: CompiledAgentRouting = {
+    ...routing,
+    handoffs: [{ ...routing.handoffs![0]!, ttlSeconds: undefined, localDayEndTimeZone: "Europe/Madrid" }],
+  };
+  const service = new AgentHandoffService({ artifactHash, routing: localDayRouting, agentIds: agents, roster, store });
+  const result = await service.handoff({
+    ...key,
+    activeAgentId: "oregano",
+    targetAgentId: "sprint",
+    purpose: "sprint",
+    transitionKey: "local-day-turn",
+    artifactHash,
+    requestedAt: "2026-09-01T10:00:00.000Z",
+  });
+  assert.equal(result.assignment?.expiresAt, "2026-09-01T22:00:00.000Z");
+  assert.ok(await store.getActive(key, "2026-09-01T21:59:59.999Z"));
+  assert.equal(await store.getActive(key, "2026-09-01T22:00:00.000Z"), undefined);
+});
+
 test("the assigned subject or an R2 approver can revoke without deleting evidence", async () => {
   const store = new InMemoryConversationAssignmentStore();
   const service = new AgentHandoffService({

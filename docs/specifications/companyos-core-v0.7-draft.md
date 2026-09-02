@@ -194,7 +194,35 @@ provenance, decision evidence, expiry, return, and revocation MUST remain
 auditable. Unknown, ambiguous, expired, stale-policy, cross-account,
 unallowlisted, or unauthorized handoffs MUST fail closed. Raw transcript
 retention is a separate Workspace policy and MUST NOT be implied by assignment
-or handoff evidence.
+or handoff evidence. A handoff rule MUST choose exactly one bounded expiry:
+either a fixed TTL from 60 seconds through 30 days, or the first instant of the
+next local calendar day in one valid, explicitly reviewed IANA timezone. The
+compiled Artifact records the policy and the Instance persists the resolved
+absolute expiry instant.
+
+The portable Workspace form remains explicit and mutually exclusive:
+
+```yaml
+handoffs:
+  - id: general-to-specialist
+    target: specialist
+    purpose: reviewed-purpose
+    surfaces: [slack]
+    eligible_roles: [contributor]
+    eligible_groups: []
+    expiry:
+      mode: local-day-end
+      timezone: Europe/Madrid
+```
+
+Legacy and fixed-duration declarations continue to use `ttl_seconds` instead
+of `expiry`; declaring both or neither is invalid.
+
+A Sprint effort basis MAY be actual hours, planned effort, or explicitly
+unavailable. A read model MUST calculate only the selected basis. If that basis
+is unavailable, or any applicable committed item lacks its required observed
+value, participant and total effort MUST remain unavailable; missing values
+MUST NOT be converted to zero or substituted from another basis.
 
 The Builder Agent is an ordinary separately addressable Company Agent for
 conversation routing. Its confirmed proposal operation MAY delegate one

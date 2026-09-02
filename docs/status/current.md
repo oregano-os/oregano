@@ -569,9 +569,16 @@ evidence, historical prototypes, and production gaps.
   append-only idempotent transition receipts without raw message bodies; the
   Runner exposes one bounded control Tool and changes routing on the next turn
   without copying ToolSets. Return and expiry are implemented and covered by
-  neutral fixtures. Production remains unproved: no private Company Instance
+  neutral fixtures. Expiry may use the existing bounded fixed TTL or the first
+  instant of the next local calendar day in an explicit IANA timezone; the
+  latter still persists one absolute expiry and grants no additional authority.
+  Production remains unproved: no private Company Instance
   migration, live deployment, live handoff, or live return evidence exists,
   and the latest immutable public release v0.5.3 does not contain this behavior.
+- Sprint close read models now distinguish unavailable effort from zero and
+  calculate only the explicitly declared actual-hours or planned-effort basis.
+  An absent required observation makes the derived participant and total metric
+  unavailable instead of silently substituting zero or another metric.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent

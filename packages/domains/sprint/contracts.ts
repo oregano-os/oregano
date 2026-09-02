@@ -30,7 +30,7 @@ export interface SprintDomainDeclaration {
     task_line_rule: "one-per-committed-task";
     after_report: "provider-only" | "next-report" | "reject";
   };
-  effort: "actual-hours" | "planned-effort";
+  effort: "actual-hours" | "planned-effort" | "unavailable";
   rollover: {
     eligible: "all-open" | "selected-states";
     states?: string[];

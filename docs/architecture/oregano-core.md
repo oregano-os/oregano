@@ -46,7 +46,9 @@ Core also owns the provider-neutral, proposal-only Builder control path:
 - The planned Agent handoff control extends that deterministic ingress without
   replacing it: an active Agent may request one allowlisted target from message
   meaning, Core authorizes the request from trusted facts, and the Company
-  Instance persists an exact, expiring Conversation Assignment. Exact static
+  Instance persists an exact, expiring Conversation Assignment. A reviewed
+  Workspace may bound it by a fixed TTL or by the next local calendar-day
+  boundary in an explicit IANA timezone. Exact static
   Agent Bindings retain precedence, and neither the request nor assignment
   changes identity, ToolSet, grants, approvals, or provider authority.
 - `BuilderService` owns immutable jobs, leases, recovery, cancellation,
@@ -61,7 +63,8 @@ Core also owns the provider-neutral, proposal-only Builder control path:
   repository, or governance contract.
 
 The v0.5.4 implementation candidate adds governed semantic handoff,
-Conversation Assignment persistence, return, expiry, and revocation to the
+Conversation Assignment persistence, fixed-TTL or local-day-boundary expiry,
+return, and revocation to the
 deterministic initial resolver. It remains ineligible for a production claim
 until release, the additive Company Instance migration, deployment,
 conformance, and live evidence are complete.

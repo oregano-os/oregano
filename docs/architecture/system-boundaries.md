@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -156,8 +156,9 @@ provider adapters.
 
 For multi-Agent conversation behavior, the Workspace declares logical Agents,
 allowlisted handoff directions and purposes, eligible roles or groups,
-permitted logical surfaces, return behavior, and conversation and retention
-policy. It cannot infer authorization from text, assign a live provider
+permitted logical surfaces, one fixed-TTL or local-day-boundary expiry policy,
+return behavior, and conversation and retention policy. It cannot infer
+authorization from text, assign a live provider
 conversation, merge two Agents' ToolSets, or weaken exact-binding precedence.
 
 ## A Company Instance owns

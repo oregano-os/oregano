@@ -20,7 +20,8 @@ export interface AgentHandoffRule {
   readonly surfaces: readonly string[];
   readonly eligibleRoles: readonly string[];
   readonly eligibleGroups: readonly string[];
-  readonly ttlSeconds: number;
+  readonly ttlSeconds?: number;
+  readonly localDayEndTimeZone?: string;
 }
 
 export interface ActiveAgentAssignment {
@@ -118,11 +119,26 @@ export function validateAgentRouting(
         `Agent handoff '${handoff.id}' requires at least one eligible role or group.`,
       );
     }
-    if (!Number.isSafeInteger(handoff.ttlSeconds) || handoff.ttlSeconds < 60 || handoff.ttlSeconds > 30 * 24 * 60 * 60) {
+    const hasFixedTtl = handoff.ttlSeconds !== undefined;
+    const hasLocalDayEnd = handoff.localDayEndTimeZone !== undefined;
+    if (hasFixedTtl === hasLocalDayEnd) {
+      throw new AgentResolutionError("invalid-routing", `Agent handoff '${handoff.id}' requires exactly one expiry policy.`);
+    }
+    if (hasFixedTtl && (!Number.isSafeInteger(handoff.ttlSeconds) || handoff.ttlSeconds! < 60 || handoff.ttlSeconds! > 30 * 24 * 60 * 60)) {
       throw new AgentResolutionError(
         "invalid-routing",
         `Agent handoff '${handoff.id}' ttlSeconds must be between 60 seconds and 30 days.`,
       );
+    }
+    if (hasLocalDayEnd) {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: handoff.localDayEndTimeZone }).format(new Date(0));
+      } catch {
+        throw new AgentResolutionError(
+          "invalid-routing",
+          `Agent handoff '${handoff.id}' localDayEndTimeZone must be a valid IANA timezone.`,
+        );
+      }
     }
   }
   if (agentIds.length > 1 && !routing.defaultAgentId && routing.bindings.length === 0) {

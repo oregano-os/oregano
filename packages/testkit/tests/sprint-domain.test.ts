@@ -69,8 +69,38 @@ test("the close read model includes submissions through report time and excludes
     "person-c": "complete",
   });
   assert.equal(close.participants.find((person) => person.participant_id === "person-c")?.included, false);
-  assert.equal(close.total_actual_hours, 5.5);
+  assert.equal(close.effort_basis, "actual-hours");
+  assert.equal(close.total_effort_hours, 5.5);
   assert.deepEqual(close.open_work_items.map((item) => item.work_item_id).sort(), ["item-a", "item-c"]);
+});
+
+test("unavailable or incomplete effort remains unavailable instead of becoming zero", () => {
+  const state = preparedState();
+  const unavailable = buildSprintCloseReadModel({
+    state,
+    policy: { ...policy, effort: "unavailable" },
+    reportAt: "2030-02-01T17:00:00.000Z",
+  });
+  assert.equal(unavailable.effort_basis, "unavailable");
+  assert.equal(unavailable.total_effort_hours, null);
+  assert.ok(unavailable.participants.every((participant) => participant.effort_hours === null));
+
+  const incompleteState = structuredClone(state);
+  delete incompleteState.work_items["item-a"]!.actual_hours;
+  const incomplete = buildSprintCloseReadModel({ state: incompleteState, policy, reportAt: "2030-02-01T17:00:00.000Z" });
+  assert.equal(incomplete.participants.find((participant) => participant.participant_id === "person-a")?.effort_hours, null);
+  assert.equal(incomplete.total_effort_hours, null);
+
+  const planned = buildSprintCloseReadModel({
+    state: {
+      ...state,
+      work_items: Object.fromEntries(Object.entries(state.work_items).map(([id, item]) => [id, { ...item, planned_effort: item.actual_hours }])),
+    },
+    policy: { ...policy, effort: "planned-effort" },
+    reportAt: "2030-02-01T17:00:00.000Z",
+  });
+  assert.equal(planned.effort_basis, "planned-effort");
+  assert.equal(planned.total_effort_hours, 5.5);
 });
 
 test("clock decisions emit reminders, one close report, and all-open rollover intents", () => {
