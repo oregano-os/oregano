@@ -1,0 +1,93 @@
+version: 2
+plan_id: vercel-curl-scope-order-2026-09-02
+status: implemented
+author: codex-agent
+created: 2026-09-02
+title: Keep the Vercel scope out of the curl subprocess arguments
+objective: >-
+  Correct the reusable Vercel-Neon runtime profile so its audited runtime scope
+  remains in the frozen plan while the Vercel CLI targets the exact protected
+  deployment URL without forwarding an unsupported scope option to curl.
+non_goals:
+  - Change any company, deployment, database, provider resource, or credential.
+  - Alter the protected Preview confirmation or qualification lifecycle.
+placement: core
+change_class: security
+vision_principles_affected:
+  - The runtime is replaceable
+  - Evidence beats claims
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-09-02-vercel-curl-scope-order.yaml
+  - packages/cli/src/records/profiles/vercel-neon.mjs
+  - packages/cli/tests/record-source-connect.test.mjs
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the provider-independent runtime profile and correct Vercel CLI invocation.
+    packages:
+      - No Package or Blueprint change.
+    workspace:
+      - No Company Workspace change.
+    instance:
+      - Continue to supply its own Vercel scope, project, endpoint, and secrets.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: reuse
+      reason: This corrects the existing Vercel-Neon request transport only.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Existing exact plans and confirmations remain unchanged.
+    - mechanism: capability-contracts-and-connectors
+      decision: not-applicable
+      reason: No Connector contract or provider capability changes.
+    - mechanism: identity-and-authorization
+      decision: not-applicable
+      reason: The fix occurs before any provider identity request.
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: This is an operator transport, not Agent ingress.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: No Tool resolution changes.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: No model is invoked.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: No timer or schedule changes.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The invocation order applies to every company using the Vercel-Neon runtime
+    profile and contains no company-specific value.
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-approval-to-complete-the-protected-preview-qualification
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-vercel-curl-scope-order.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-vercel-curl-scope-order.yaml
+  - node --experimental-strip-types --test packages/cli/tests/record-source-connect.test.mjs packages/cli/tests/monday-agent-qualification.test.mjs
+  - pnpm typecheck
+  - pnpm docs:check
+  - pnpm public:check
+  - git diff --check
+tests:
+  - The exact deployment URL is passed without forwarding runtime scope to curl.
+  - The short-lived bearer remains only in subprocess stdin.
+  - Protected Monday qualification planning remains fail-closed.
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: The documented runtime behavior is unchanged; only the CLI argument position is corrected.
+rollback: >-
+  Revert the argument-order correction and its regression assertion. No
+  provider, database, deployment, or credential rollback is required.
+open_decisions: []

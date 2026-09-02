@@ -40,6 +40,7 @@ import {
 } from "./knowledge-turn-routing.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "../../../runner/model-execution.ts";
+import { createConfiguredRuntimeConnectors } from "./runtime-connectors.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const TOOL_EXECUTION_TIMEOUT_MS = 30_000;
@@ -305,7 +306,10 @@ function registerHandlers(bot: Chat) {
 
 let botInstance: Chat | undefined;
 
-export function createCompanyOSRuntimeConnectors(selectedAgentId = process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent") {
+export function createCompanyOSRuntimeConnectors(
+  selectedAgentId = process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent",
+  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat },
+) {
   const baseline = createUnifiedKnowledgeProvider({
     handbook: createPostgresKnowledgeProvider(),
     brain: new PostgresBrainKnowledgeProjectionStore(),
@@ -315,7 +319,13 @@ export function createCompanyOSRuntimeConnectors(selectedAgentId = process.env.C
     baseline,
     selection: resolveKnowledgeRetrievalRuntimeSelection({ environment: process.env, selectedAgentId }),
   });
-  return [new ArtifactPostgresConnector(), new KnowledgeProviderConnector(knowledge)];
+  return [
+    new ArtifactPostgresConnector(),
+    new KnowledgeProviderConnector(knowledge),
+    ...(options?.artifact && options.chat
+      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat })
+      : []),
+  ];
 }
 
 export function getBot(): Chat {
@@ -331,15 +341,6 @@ export function getBot(): Chat {
     store: assignmentStore,
   });
   builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal });
-  const connectorAgentId = process.env.COMPANYOS_AGENT_ID
-    ?? artifact.agentRouting?.defaultAgentId
-    ?? "multi-agent";
-  runtime = new CompanyOSRuntime({
-    artifact,
-    state: createPostgresStateStore(),
-    connectors: createCompanyOSRuntimeConnectors(connectorAgentId),
-    toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
-  });
   botInstance = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",
     adapters: {
@@ -350,6 +351,20 @@ export function getBot(): Chat {
     state,
     concurrency: { strategy: "queue", maxQueueSize: 20 },
   });
+  const connectorAgentId = process.env.COMPANYOS_AGENT_ID
+    ?? artifact.agentRouting?.defaultAgentId
+    ?? "multi-agent";
+  runtime = new CompanyOSRuntime({
+    artifact,
+    state: createPostgresStateStore(),
+    connectors: createCompanyOSRuntimeConnectors(connectorAgentId, { artifact, chat: () => botInstance! }),
+    toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
+  });
   registerHandlers(botInstance);
   return botInstance;
+}
+
+export function getCompanyOSRuntime(): CompanyOSRuntime {
+  getBot();
+  return runtime;
 }

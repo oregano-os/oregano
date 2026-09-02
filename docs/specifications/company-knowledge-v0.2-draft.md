@@ -43,9 +43,9 @@ Instance-specific activation evidence and are not implied by that Core status.
 
 The existing Source Connector `1.0.0`, Knowledge Provider and Tool contract
 `3.0.0`, Runtime Observation `1.0.0`, OKF `0.1`, and historical database
-manifests through `companyos-postgres@1.7.0` remain supported until their
+manifests through `companyos-postgres@1.8.0` remain supported until their
 documented replacement gates are met. The current additive schema target is
-`companyos-postgres@1.8.0`. Unknown major versions fail closed.
+`companyos-postgres@1.9.0`. Unknown major versions fail closed.
 
 ## 2. Authority layers
 
@@ -769,7 +769,7 @@ Production activation requires:
 - explicit operator approval for the final cutover.
 
 The Knowledge Doctor evaluates these gates as a payload-free report. Missing
-rollout-lane qualification, schema `1.8.0`, a verified fresh projection before
+rollout-lane qualification, schema `1.9.0`, a verified fresh projection before
 activation or active fresh projection after activation, a passing
 KnowledgeBench and shadow comparison, zero-leak ACL negatives, exact citation
 membership, healthy qualified Sources, backup restoration, or rollback evidence

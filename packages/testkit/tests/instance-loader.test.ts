@@ -25,10 +25,40 @@ bindings:
     contract_version: 1.0.0
     connector: oregano/artifact-sandbox
     connector_version: 1.0.0
+connectors:
+  - id: monday-test
+    connector: oregano/monday-work-items
+    connector_version: 0.1.0
+    configuration:
+      token_ref: env:MONDAY_API_TOKEN
+      api_version: dev
+      actor_id: agent-1
+      resources:
+        - id: sprint-test-board
+          board_id: "10000000001"
+          permission: read-write
+          fields:
+            status: status
 `, (path) => {
   const configuration = loadInstanceBuildConfiguration(path);
   assert.equal(configuration.instanceId, "fixture-test");
   assert.equal(configuration.bindings[0]?.connector, "oregano/artifact-sandbox");
+  assert.deepEqual(configuration.connectors, [{
+    id: "monday-test",
+    connector: "oregano/monday-work-items",
+    connectorVersion: "0.1.0",
+    configuration: {
+      token_ref: "env:MONDAY_API_TOKEN",
+      api_version: "dev",
+      actor_id: "agent-1",
+      resources: [{
+        id: "sprint-test-board",
+        board_id: "10000000001",
+        permission: "read-write",
+        fields: { status: "status" },
+      }],
+    },
+  }]);
   assert.deepEqual(configuration.agentBindings, []);
 }));
 
@@ -40,6 +70,24 @@ api_key: sk-live-value-that-must-never-be-committed
 bindings: []
 `, (path) => {
   assert.throws(() => loadInstanceBuildConfiguration(path), /resolved credentials|credential-like assignment/);
+}));
+
+test("Instance build declarations reject duplicate runtime Connector instances", () => withFile(`
+version: 1
+instance_id: fixture-test
+environment: test
+bindings: []
+connectors:
+  - id: monday-test
+    connector: oregano/monday-work-items
+    connector_version: 0.1.0
+    configuration: { token_ref: env:MONDAY_API_TOKEN }
+  - id: monday-test
+    connector: oregano/monday-work-items
+    connector_version: 0.1.0
+    configuration: { token_ref: env:MONDAY_API_TOKEN }
+`, (path) => {
+  assert.throws(() => loadInstanceBuildConfiguration(path), /duplicate Connector instance/);
 }));
 
 test("Instance build declarations keep Agent, execution, coding, and repository bindings separate", () => withFile(`

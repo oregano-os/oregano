@@ -55,7 +55,7 @@ The layers have different jobs and MUST NOT be collapsed:
 | Company Workspace Git history | Reviewed company intent, policies, Workflows, Agents, grants, and exact change history | That a deployment or provider effect occurred |
 | Oregano Core and immutable Artifact provenance | Exact executable contracts, compiled material, versions, and hashes used by one Instance | Company approval or provider success |
 | `companyos` | Workflow, identity, approval, handoff, idempotency, and effect-control evidence | External provider business truth by itself |
-| `companyos_records` | Versioned provider observations, current pointers, authorized projections, freshness, reconciliation, and synchronization receipts | Curated Handbook authority or a second provider authority |
+| `companyos_records` | Versioned provider observations, current pointers, authorized projections, freshness, reconciliation, synchronization receipts, and atomic Sprint event, state, decision, and intent evidence | Curated Handbook authority or a second provider authority |
 | `companyos_knowledge` | Knowledge sources, versions, observations, Claims, evidence, review decisions, lifecycle state, and activation evidence | Automatic promotion into reviewed Workspace authority |
 | External provider receipt or verified reread | The provider accepted or currently exposes the exact bounded effect or object version | That CompanyOS policy authorized the action |
 
@@ -88,8 +88,11 @@ The maintained DDL is `packages/state-postgres/schema.sql`.
 This schema records immutable Source Events and object versions, current object
 pointers, rebuildable projection rows, access decisions, synchronization
 receipts and watermarks, reconciliation leases, durable timers, Connector echo
-receipts, and callback replay claims. Provider deletion is an observed version
-or absence decision; it does not silently erase retained CompanyOS evidence.
+receipts, callback replay claims, and atomic Sprint event, monotonic state,
+decision, and intent outcomes. A Sprint event, its resulting state and decision
+evidence, and its newly created intents commit together or not at all. Provider
+deletion is an observed version or absence decision; it does not silently erase
+retained CompanyOS evidence.
 
 The maintained DDL is `packages/state-postgres/records-schema.sql`.
 
@@ -124,6 +127,11 @@ CompanyOS distinguishes three categories:
    echo-suppression entries, queues, and explicitly temporary conversation or
    session state. Its mechanism-defined expiry continues to apply even when a
    company retains durable proof indefinitely.
+
+The queued or leased status of a Sprint intent is coordination state. The
+accepted Sprint event, resulting state version, deterministic intent content,
+and terminal dispatch outcome remain durable proof; expiring a lease never
+erases them.
 
 `retention: retain` means that CompanyOS does not schedule an automatic purge
 merely because evidence has reached an age or disappeared from its provider.

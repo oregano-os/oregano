@@ -46,7 +46,9 @@ Core also owns the provider-neutral, proposal-only Builder control path:
 - The planned Agent handoff control extends that deterministic ingress without
   replacing it: an active Agent may request one allowlisted target from message
   meaning, Core authorizes the request from trusted facts, and the Company
-  Instance persists an exact, expiring Conversation Assignment. Exact static
+  Instance persists an exact, expiring Conversation Assignment. A reviewed
+  Workspace may bound it by a fixed TTL or by the next local calendar-day
+  boundary in an explicit IANA timezone. Exact static
   Agent Bindings retain precedence, and neither the request nor assignment
   changes identity, ToolSet, grants, approvals, or provider authority.
 - `BuilderService` owns immutable jobs, leases, recovery, cancellation,
@@ -61,7 +63,8 @@ Core also owns the provider-neutral, proposal-only Builder control path:
   repository, or governance contract.
 
 The v0.5.4 implementation candidate adds governed semantic handoff,
-Conversation Assignment persistence, return, expiry, and revocation to the
+Conversation Assignment persistence, fixed-TTL or local-day-boundary expiry,
+return, and revocation to the
 deterministic initial resolver. It remains ineligible for a production claim
 until release, the additive Company Instance migration, deployment,
 conformance, and live evidence are complete.
@@ -74,6 +77,31 @@ inside adapters or the Company Instance.
 Core changes are rare for Workspace Contributors. A Workspace Contributor who
 finds a missing generic mechanism files a Core capability request rather than
 placing platform code in the Workspace.
+
+## Sprint orchestration
+
+Core keeps Sprint policy separate from Sprint execution. The pure Sprint
+domain accepts a reviewed declaration, a Workspace-supplied business calendar,
+prior state, and one normalized event, then returns only deterministic state,
+evidence, and intents. It contains no provider client, SQL, model call, Tool
+execution, company template, or external effect.
+
+The provider-neutral orchestration service surrounds that pure boundary. It
+atomically commits each event, its monotonic state version, decision evidence,
+and stable pending intents; optimistic retries preserve concurrent events and
+event-identity collisions fail closed. Durable timers enter through the same
+event path. A bounded leased worker may dispatch an intent only after an exact
+adapter has been supplied. The maintained adapter resolves a compiled Agent
+and Tool grant and calls the existing `CompanyOSRuntime`, so ToolSet,
+Capability, authorization, approval, effect, idempotency, and Connector
+controls are not duplicated.
+
+Message text, participants, provider projections, calendar dates, schedules,
+language, and requested grants remain Company Workspace truth. Exact Agent,
+model, destination, work-item, database, secret, timer, and activation
+bindings remain Company Instance truth. Merely installing Core or preparing
+the additive database schema does not start a Sprint, lease an intent, send a
+message, or change a work item.
 
 ## Native Company Knowledge
 

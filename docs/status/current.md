@@ -49,9 +49,13 @@ evidence, historical prototypes, and production gaps.
   schedule, webhook, or production activation is claimed by this Core change.
 - The maintained Vercel Runner now has an optional fail-closed Company Records
   rehearsal endpoint for protected Preview deployments. It independently
-  plans and confirms the additive records migration and one initial source
-  synchronization, reuses the maintained Connector and records store, reports
-  payload-free status, and rejects production or a mismatched Git commit.
+  plans and confirms a metadata-only Monday external-Agent qualification, the
+  additive records migration, and one initial source synchronization. Hosted
+  qualification keeps a non-exportable Sensitive provider token inside the
+  deployment, returns only non-secret identity and selected-board metadata,
+  and still requires a separate human identity-mapping confirmation. The lane
+  reuses the maintained Connector and records store, reports payload-free
+  status, and rejects production or a mismatched Git commit.
   Runtime configuration and credentials stay Instance-injected and the lane
   cannot reconcile, schedule, receive webhooks, write to a provider, or grant
   Agent Tools. No real Preview, database branch, migration, or provider read is
@@ -74,7 +78,7 @@ evidence, historical prototypes, and production gaps.
   performs only due complete-inventory reconciliation under the existing lease.
   Exact production deployment, Artifact, Core, Workspace, and Instance identity
   must agree; mutations and the scheduler have independent kill switches. The
-  database manifest is now `1.8.0` and qualifies `companyos_records` alongside
+  database manifest is now `1.9.0` and qualifies `companyos_records` alongside
   the existing schemas. Synthetic tests do not claim a real production
   migration, provider read, schedule activation, provider event, provider
   write, or message.
@@ -85,13 +89,38 @@ evidence, historical prototypes, and production gaps.
   event reduction, controlled-clock business-time and holiday calculation,
   frozen-participant Friday completeness, actual-effort and open-work read
   models, deterministic reminder/report/Rollover intents, and durable timer
-  interfaces with in-memory and Postgres implementations. Public fixtures are
-  synthetic and contain no company people, resources, policy, or credentials.
+  interfaces with in-memory and Postgres implementations. The reusable
+  orchestration library now atomically persists one normalized event, its
+  monotonic resulting state, decision evidence, and intents; consumes due
+  timers through the same event path; leases bounded intent work; and enters
+  provider execution only through an exact `CompanyOSRuntime`-backed adapter.
+  It remains unhosted and inactive until a Company Instance supplies reviewed
+  policy, calendar, Agent, Tool, destination, resource, ingress, schedule, and
+  worker bindings. Public fixtures are synthetic and contain no company people,
+  resources, policy, or credentials.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.comment`, and `communication.message.publish` Capability contracts
   plus standard Tools. Artifact building makes those Tools available for
   normal ToolSet resolution; a Workspace grant still fails unless its Instance
   binds a compatible Connector.
+- Immutable Artifacts may now freeze optional non-secret runtime Connector
+  instance configuration separately from Capability bindings. The maintained
+  Vercel Runner constructs exact-version Monday work-item and Slack
+  communication Connectors plus the Postgres Company Records query Connector
+  only from those entries. It verifies the Records configuration against the
+  Artifact identity, resolves Monday credentials
+  only through an environment SecretRef, and restricts provider calls to exact
+  board/field or channel/DM bindings. The protected Preview-only Stage-0 surface
+  adds digest-bound reversible Monday and exact Slack delivery qualification,
+  including read-after-write, duplicate, echo, restoration, unbound-resource,
+  provider-receipt, signature, and replay evidence. Repository tests prove the
+  generic contracts. One supervised non-production Instance additionally
+  produced real Slack `app_mention` and `message.im` deliveries with HTTP 200,
+  exact `sprint` and `oregano` routing, visible single responses under provider
+  retries, exact outbound channel and direct-message receipts, and one
+  reversible Monday test-board write with read-after-write and restoration.
+  This is Instance qualification evidence, not Core authority or production
+  activation.
 - The maintained Monday work-item adapter uses explicit API versioning, exact
   resource and field bindings, minimum permissions, optimistic version checks,
   read-after-write evidence, durable echo suppression, raw-body callback
@@ -107,8 +136,12 @@ evidence, historical prototypes, and production gaps.
   not identify the triggering human, only deterministic setup probes can
   produce visible chat content. Ordinary chat opens no Workspace material,
   model, or Tool, while mention and assignment are acknowledgement-only. This
-  implementation does not claim a real deployment, callback delivery, board
-  grant, human authorization, Agent-token action, or production verification.
+  A real provider chat probe reached the configured public Company Instance on
+  2026-09-02 and returned HTTP 404 because that Instance still ran Core v0.5.2,
+  which predates this ingress. Signature, wrong-signature, and replay behavior
+  passed through the protected candidate handler. A successful real callback
+  remains an explicit post-deployment smoke test; no board trigger, Agent-token
+  action, or production verification is claimed.
 - `companyos records source qualify --provider monday` is the only maintained
   Monday qualification path. It accepts only the Instance-owned external
   Agent token, verifies the exact Agent identity parsed from `me`, requires
@@ -116,8 +149,12 @@ evidence, historical prototypes, and production gaps.
   read-write board plan, and reads metadata for only those boards. It stores a
   mode-0600 non-secret receipt containing Agent, account, grant,
   board/group/column, API, request, and digest evidence. It retains no token
-  and performs no provider write. This external Agent is the sole maintained
-  Monday qualification identity.
+  and performs no provider write. When the token is non-exportable, the same
+  command can use the maintained `vercel-neon` profile: it obtains and
+  separately confirms an exact metadata-read plan, executes the read inside a
+  protected Preview, validates the returned evidence locally, and retains the
+  same final human identity-mapping gate. This external Agent is the sole
+  maintained Monday qualification identity.
 - The repository-local `oregano/sprint-agent` Blueprint contains one logical
   Agent Component, portable weekly, Friday Close, and reconciliation
   Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
@@ -491,13 +528,13 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.8.0` additive manifest preserves the immutable `1.7.0`,
-  `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  `companyos-postgres@1.9.0` additive manifest preserves the immutable `1.8.0`,
+  `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares `companyos`, `companyos_knowledge`, and `companyos_records`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
-  returns a bounded qualification receipt. The Record Source schema contains
-  11 required tables. The maintained Vercel profile wraps
+  returns a bounded qualification receipt. The records schema contains 14
+  required Record Source and Sprint tables. The maintained Vercel profile wraps
   this operation with `vercel env run`; the typed runtime-host contract also has
   a non-Vercel conformance fixture. Production health now verifies the schema
   read-only. A clean local PostgreSQL 14 database produced 12 control tables,
@@ -538,15 +575,15 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.4` as the reviewed release candidate
+- Oregano Core source is versioned `0.5.4` as the reviewed release
   for the experimental Sprint and Company Records lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
   external-Agent ingress, resumable source connection, and separately guarded
-  production records operator and scheduler runtime. The latest immutable
-  public distribution remains `v0.5.3` until the protected v0.5.4 release commit
-  is merged and its exact tag workflow succeeds. Existing consumers may remain
-  on `v0.5.3`, and no Company Workspace or Company Instance is activated by
-  preparing this candidate.
+  production records operator and scheduler runtime. The current release line
+  is `v0.5.4`; its exact immutable tag and protected release commit are the
+  authority after the release workflow succeeds. Existing consumers may remain
+  on `v0.5.3` until they adopt the new exact Core authority, and publishing the
+  Core does not activate a Company Workspace or Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
@@ -562,9 +599,17 @@ evidence, historical prototypes, and production gaps.
   append-only idempotent transition receipts without raw message bodies; the
   Runner exposes one bounded control Tool and changes routing on the next turn
   without copying ToolSets. Return and expiry are implemented and covered by
-  neutral fixtures. Production remains unproved: no private Company Instance
-  migration, live deployment, live handoff, or live return evidence exists,
-  and the latest immutable public release v0.5.3 does not contain this behavior.
+  neutral fixtures. Expiry may use the existing bounded fixed TTL or the first
+  instant of the next local calendar day in an explicit IANA timezone; the
+  latter still persists one absolute expiry and grants no additional authority.
+  Production remains unproved: no private Company Instance migration, live
+  deployment, live handoff, or live return evidence exists. Publishing Core
+  v0.5.4 supplies this reusable behavior but does not deploy it to a Company
+  Instance.
+- Sprint close read models now distinguish unavailable effort from zero and
+  calculate only the explicitly declared actual-hours or planned-effort basis.
+  An absent required observation makes the derived participant and total metric
+  unavailable instead of silently substituting zero or another metric.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent
@@ -703,9 +748,10 @@ evidence, historical prototypes, and production gaps.
   non-production Instance and independent receipts remain mandatory before
   using this rollout pattern for another company.
 - Meta and other business-provider Connectors are not implemented or
-  activated. The maintained Monday adapter is implemented and synthetically
-  tested but is not externally registered, Instance-bound, provider-qualified,
-  or activated. Every real provider still needs exact installation authority,
+  activated. The maintained Monday and Slack adapters are implemented and
+  synthetically tested; each exact Company Instance still requires external
+  registration, non-production binding and qualification, staged activation,
+  and production evidence. Every real provider still needs exact installation authority,
   secrets, resource grants, health, retry, reconciliation, cost review, staged
   rollout, and live conformance evidence.
 - Pilot evidence does not establish general production enforcement. Instance

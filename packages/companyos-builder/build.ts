@@ -83,6 +83,7 @@ export function buildCompanyOSArtifact(args: {
     },
     capabilityCatalog: [...CORE_CAPABILITY_CATALOG],
     bindings: [...args.instance.bindings].sort((a, b) => a.capability.localeCompare(b.capability)),
+    connectors: [...(args.instance.connectors ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
     knowledge: {
       bundleSchemaVersion: knowledgeBundle.schemaVersion,
       okfVersion: knowledgeBundle.okfVersion,

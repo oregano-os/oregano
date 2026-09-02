@@ -30,7 +30,7 @@ export interface SprintDomainDeclaration {
     task_line_rule: "one-per-committed-task";
     after_report: "provider-only" | "next-report" | "reject";
   };
-  effort: "actual-hours" | "planned-effort";
+  effort: "actual-hours" | "planned-effort" | "unavailable";
   rollover: {
     eligible: "all-open" | "selected-states";
     states?: string[];
@@ -38,6 +38,7 @@ export interface SprintDomainDeclaration {
   delivery: {
     shared_thread: boolean;
     channel_binding: string;
+    direct_binding?: string;
   };
   model_task_profile?: string;
 }
@@ -92,9 +93,9 @@ export interface SprintState {
 }
 
 export type SprintIntent =
-  | { type: "message.reminder"; intent_id: string; participant_id: string; channel_binding: string; due_at: string; reason: "initial" | "deadline" }
+  | { type: "message.reminder"; intent_id: string; participant_id: string; destination_principal: string; destination_binding: string; due_at: string; reason: "initial" | "deadline" }
   | { type: "message.close-report"; intent_id: string; channel_binding: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing"> }
-  | { type: "work-item.rollover"; intent_id: string; work_item_id: string; target_sprint_id: string }
+  | { type: "work-item.rollover"; intent_id: string; work_item_id: string; target_sprint_id: string; expected_version: string }
   | { type: "records.reconcile"; intent_id: string; projection_id: string; due_at: string };
 
 export interface SprintDecision {

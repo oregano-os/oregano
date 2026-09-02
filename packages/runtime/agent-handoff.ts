@@ -11,6 +11,7 @@ import {
   type ConversationAssignmentTransitionResult,
 } from "../state-store/conversation-assignments.ts";
 import { findByCanonicalPrincipal, type RosterMember } from "../state-store/roster.ts";
+import { nextLocalDayStartIso } from "./local-time.ts";
 
 export interface AgentHandoffRequest extends ConversationAssignmentKey {
   readonly activeAgentId: string;
@@ -90,7 +91,9 @@ export class AgentHandoffService {
         `The active Conversation Assignment targets '${current.agentId}', not '${request.activeAgentId}'.`,
       );
     }
-    const expiresAt = new Date(Date.parse(request.requestedAt) + rule.ttlSeconds * 1000).toISOString();
+    const expiresAt = rule.localDayEndTimeZone
+      ? nextLocalDayStartIso(request.requestedAt, rule.localDayEndTimeZone)
+      : new Date(Date.parse(request.requestedAt) + rule.ttlSeconds! * 1000).toISOString();
     const assignment: ConversationAssignment = {
       instanceId: request.instanceId,
       surface: request.surface,

@@ -325,10 +325,13 @@ test("synchronization leases fail closed for an active owner", async () => {
 
 test("the additive records schema contains durable deduplication, projection, access, and reconciliation tables", () => {
   const sql = readFileSync(new URL("../../state-postgres/records-schema.sql", import.meta.url), "utf8");
-  for (const table of ["source_events", "object_versions", "current_objects", "projection_rows", "access_decisions", "sync_receipts", "source_watermarks", "sync_leases", "durable_timers", "connector_echo_receipts", "callback_replay_claims"]) {
+  for (const table of ["source_events", "object_versions", "current_objects", "projection_rows", "access_decisions", "sync_receipts", "source_watermarks", "sync_leases", "durable_timers", "sprint_states", "sprint_events", "sprint_intents", "connector_echo_receipts", "callback_replay_claims"]) {
     assert.match(sql, new RegExp(`create table if not exists companyos_records\\.${table}`));
   }
   assert.match(sql, /primary key \(instance_id, source_id, event_id\)/);
   assert.match(sql, /primary key \(instance_id, projection_id, record_id\)/);
+  assert.match(sql, /create unique index if not exists records_sprint_events_sequence_idx/);
+  assert.match(sql, /constraint records_sprint_intents_lease_check/);
+  assert.match(sql, /constraint records_sprint_intents_completion_check/);
   assert.doesNotMatch(sql, /api[_-]?key|password|database_url/i);
 });

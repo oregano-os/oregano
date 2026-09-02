@@ -1,0 +1,137 @@
+version: 2
+plan_id: bounded-day-handoffs-and-unavailable-effort-2026-09-02
+status: approved
+author: codex-agent
+created: 2026-09-02
+title: Add local-day handoff expiry and honest unavailable Sprint effort
+objective: >-
+  Extend the provider-neutral v0.5.4 candidate so a reviewed Workspace can
+  expire one Conversation Assignment at the next local day boundary and can
+  represent a deliberately unavailable Sprint effort metric without treating
+  missing values as zero.
+non_goals:
+  - Add a real company person, timezone, Agent, board, channel, holiday, schedule, or model value to Core.
+  - Change, deploy, migrate, synchronize, or activate a Company Workspace or Company Instance.
+  - Send a provider message, mutate a work item, publish a release, or change a production database.
+  - Infer actual effort from planned effort, status, message text, or missing values.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - Files are the review surface
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-02-bounded-day-handoffs-and-unavailable-effort.yaml
+  - docs/architecture/oregano-core.md
+  - docs/architecture/system-boundaries.md
+  - docs/glossary.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/domains/sprint/business-time.ts
+  - packages/domains/sprint/contracts.ts
+  - packages/domains/sprint/read-models.ts
+  - packages/runtime/agent-handoff.ts
+  - packages/runtime/agent-resolver.ts
+  - packages/runtime/local-time.ts
+  - packages/schema/sprint-configuration-v1.schema.json
+  - packages/runner-vercel/src/lib/agent-handoff-tools.test.ts
+  - packages/testkit/tests/agent-handoff.test.ts
+  - packages/testkit/tests/agent-resolver.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/sprint-domain.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-decisions-sprint-dm-until-day-end-and-effort-unavailable-then-go
+architecture_assessment:
+  responsibilities:
+    core:
+      - Validate one of two bounded Conversation Assignment expiry policies and calculate exact local-day expiry with a controlled instant.
+      - Preserve missing Sprint effort as unavailable and calculate only the explicitly selected, completely observed metric.
+    packages:
+      - Blueprint Packages may demonstrate the declarations but cannot choose a company timezone or effort availability.
+    workspace:
+      - Choose fixed TTL or local-day-end expiry, supply the IANA timezone, and declare the reviewed effort basis.
+    instance:
+      - Persist the resulting absolute assignment expiry and continue to own exact bindings, authenticated principals, clocks, and live receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: extend
+      reason: The existing handoff policy is the only authority for bounded Conversation Assignment expiry.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Expiry changes routing duration only and never copies or grants Tools.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Neither local-day expiry nor metric availability changes model selection.
+    - mechanism: company-records
+      decision: reuse
+      reason: Work-item observations already carry optional planned and actual effort; no new store or schema is required.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing authenticated roster and group checks remain mandatory before a handoff.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: A shared provider-neutral local-time conversion produces one absolute next-day boundary without a scheduler.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Assignment transitions and Sprint decisions retain their existing idempotent evidence paths.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The change invokes no Connector and grants no Capability.
+  new_core_mechanisms:
+    - Optional local-day-end expiry policy for an otherwise unchanged governed Agent handoff.
+    - Explicit unavailable Sprint effort basis with null, rather than invented zero, read-model values.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Any Company Workspace may choose a fixed TTL, a reviewed IANA local-day
+    boundary, or an unavailable effort metric without embedding a provider or
+    company value in Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-bounded-day-handoffs-and-unavailable-effort.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-02-bounded-day-handoffs-and-unavailable-effort.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Fixed TTL declarations compile and expire exactly as before.
+  - Local-day-end declarations compile only with one valid IANA timezone and expire at the next local midnight across UTC offsets.
+  - A rule with both expiry forms, neither form, an invalid timezone, or an unbounded TTL fails closed.
+  - Exact Agent Bindings, identity authorization, ToolSet isolation, return, revocation, and evidence remain unchanged.
+  - Unavailable effort produces null participant and total metric values.
+  - Actual or planned effort is calculated only when every applicable committed item supplies the selected value; missing data remains unavailable.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.boundaries
+    - reference.glossary
+    - specification.companyos-core-v0.7
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Existing ttl_seconds Workspace declarations remain valid and compile to the
+  same fixed-TTL Artifact field. The additive local-day form and unavailable
+  effort enum are dormant until selected by a reviewed Workspace. No database
+  migration is required because assignments already persist an absolute
+  expires_at and read models are derived values.
+rollback: >-
+  Restore a fixed ttl_seconds declaration and an available reviewed effort
+  basis, rebuild the Artifact, and deploy it through the normal governed path.
+  Existing assignment receipts retain their absolute expiry as evidence.
+open_decisions: []

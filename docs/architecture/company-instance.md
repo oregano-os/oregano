@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -89,6 +89,42 @@ only scoped Workspace material and resolved Tools, combines them with the
 non-secret Instance declaration, and writes one artifact. Runtime code consumes
 that artifact; it does not reach back into either Git repository.
 
+## Runtime Connector instances
+
+Capability bindings answer which versioned Connector may implement a
+provider-neutral Capability. Runtime Connector instances answer how that
+implementation is installed for one exact environment. The non-secret
+Instance declaration may therefore contain a bounded `connectors` list. Each
+entry pins an instance-local identifier, maintained Connector identity and
+version, exact resource or destination bindings, and SecretRefs such as
+`env:MONDAY_API_TOKEN`. The resulting Artifact contains those non-secret values
+and includes them in its content hash. Resolved credentials never enter the
+declaration or Artifact.
+
+The maintained Vercel Runner constructs only explicitly supported Connector
+identities from that frozen list. The Monday work-item Connector resolves one
+token SecretRef and exposes only named boards, permissions, and logical field
+mappings. The Slack communication Connector exposes only named channel or DM
+destinations. The Company Records Connector resolves one environment-specific
+configuration SecretRef, verifies that its Instance, Core, and Workspace
+identities match the Artifact, registers the reviewed projections, and reads
+their rows from the Instance Postgres store. A Workspace grant does not add a
+resource, destination, or credential; a configured Connector instance does not
+add a Tool grant. Both the ToolSet and Instance binding must agree before a call
+can reach a provider.
+
+For rollout qualification, the Runner may expose a bearer-protected Stage-0
+surface in a `preview` deployment. It binds one test Artifact and a separate
+compressed, non-secret qualification declaration. A Monday write is first
+frozen as a digest-bound plan, then uses optimistic versioning, read-after-
+write, duplicate and self-echo controls, restores the prior value, and rereads
+it. Slack qualification similarly freezes exact test-channel and approved-DM
+content and returns provider receipts. Unknown boards or destinations fail
+before a provider call. Callback qualification proves valid signature,
+invalid-signature denial, and replay denial. This harness cannot run with a
+production Artifact and is evidence for the named test resources only; it is
+not production activation.
+
 ## Reference deployment and replacement boundary
 
 The maintained reference deployment uses a company-controlled Vercel
@@ -166,10 +202,10 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-The current additive database manifest is `companyos-postgres@1.8.0`. It
-retains the immutable `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
-contains 67 required `companyos_knowledge` tables, and adds 11 required
-`companyos_records` tables for provider-neutral Record Source state. Phase 3 adds durable Source
+The current additive database manifest is `companyos-postgres@1.9.0`. It
+retains the immutable `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
+contains 67 required `companyos_knowledge` tables, and contains 14 required
+`companyos_records` tables for provider-neutral Record Source and Sprint state. Phase 3 adds durable Source
 Events, provider ACL snapshots, bounded pipeline receipts, completed
 watermarks, an integrity-linked Knowledge change stream, and governed source
 lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
@@ -181,6 +217,10 @@ rebuildable Retrieval V3 projection runs and Units plus payload-free
 KnowledgeBench, shadow-comparison, and productization receipts. When `pgvector`
 is available, the two optional vector tables retain Handbook-fragment and
 Retrieval-Unit embeddings; neither is durable company authority.
+Phase 8 adds provider-neutral Record Source state. Phase 9 adds atomic Sprint
+event, monotonic state, decision, and intent persistence plus a bounded leased
+intent queue. Installing or qualifying these relations does not start a Sprint,
+schedule a timer, dispatch a message, or enable a provider effect.
 The reusable activation path qualifies a fully isolated non-production
 Instance. Oregano HQ also has one explicit internal-dogfood production-canary
 path: a Neon point-in-time branch rehearses the additive migration, production
@@ -415,11 +455,20 @@ inventory is mandatory before absence can become a retained tombstone. Neither
 production route modifies a provider, sends a message, invokes a model, grants
 an Agent Tool, or turns a conversational callback into a board event.
 
-The maintained Company Instance database manifest includes
-`companyos_records` from version `1.8.0`. Production migration remains an
+The maintained Company Instance database manifest includes Record Source
+relations from version `1.8.0` and Sprint orchestration relations from version
+`1.9.0`. Production migration remains an
 explicit exact-plan Instance effect; deploying Core alone does not apply it.
 Database qualification and `/api/health` then prove the exact records table and
 index set along with the control and knowledge schemas.
+
+The Sprint orchestration package is a reusable Core library, not a hosted
+surface. A Runner must bind the reviewed Sprint declaration and calendar,
+normalized ingress, durable timers, the Sprint store, the exact logical Agent,
+and an intent resolver. The maintained dispatcher then enters the ordinary
+`CompanyOSRuntime` Tool boundary; it does not bypass Agent, ToolSet,
+Capability, authorization, idempotency, effect, or evidence controls. Missing
+bindings fail before dispatch.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

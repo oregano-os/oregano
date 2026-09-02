@@ -216,7 +216,7 @@ const REQUIRED_CONSTRAINTS = [
 
 const CORE_PAGE_TYPE_KEYS = BASE_BRAIN_PAGE_TYPES.map((entry) => entry.key).sort();
 
-const RECORDS_TABLES = [
+const RECORDS_TABLES_PHASE_EIGHT = [
   "access_decisions",
   "callback_replay_claims",
   "connector_echo_receipts",
@@ -230,7 +230,9 @@ const RECORDS_TABLES = [
   "sync_receipts",
 ] as const;
 
-const RECORDS_REQUIRED_INDEXES = [
+const RECORDS_TABLES = [...RECORDS_TABLES_PHASE_EIGHT, "sprint_events", "sprint_intents", "sprint_states"].sort();
+
+const RECORDS_REQUIRED_INDEXES_PHASE_EIGHT = [
   "companyos_records.records_access_decisions_principal_idx",
   "companyos_records.records_callback_replay_expiry_idx",
   "companyos_records.records_connector_echo_expiry_idx",
@@ -239,6 +241,18 @@ const RECORDS_REQUIRED_INDEXES = [
   "companyos_records.records_projection_rows_values_idx",
   "companyos_records.records_source_events_object_idx",
   "companyos_records.records_sync_leases_due_idx",
+] as const;
+
+const RECORDS_REQUIRED_INDEXES = [
+  ...RECORDS_REQUIRED_INDEXES_PHASE_EIGHT,
+  "companyos_records.records_sprint_events_sequence_idx",
+  "companyos_records.records_sprint_intents_due_idx",
+].sort();
+
+const RECORDS_REQUIRED_CONSTRAINTS = [
+  "companyos_records.records_sprint_intents_completion_check",
+  "companyos_records.records_sprint_intents_event_fk",
+  "companyos_records.records_sprint_intents_lease_check",
 ] as const;
 
 export const COMPANY_DATABASE_MANIFEST_V1 = Object.freeze({
@@ -416,7 +430,7 @@ export const COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST = createHash("sha256")
   .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_SEVEN))
   .digest("hex");
 
-export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+export const COMPANY_DATABASE_MANIFEST_PHASE_EIGHT = Object.freeze({
   schemaVersion: 1,
   id: "companyos-postgres",
   version: "1.8.0",
@@ -425,10 +439,31 @@ export const COMPANY_DATABASE_MANIFEST = Object.freeze({
   schemas: Object.freeze({
     companyos: Object.freeze({ tables: CONTROL_TABLES }),
     companyos_knowledge: Object.freeze({ tables: Object.freeze(KNOWLEDGE_TABLES) }),
+    companyos_records: Object.freeze({ tables: Object.freeze(RECORDS_TABLES_PHASE_EIGHT) }),
+  }),
+  requiredIndexes: Object.freeze([...REQUIRED_INDEXES, ...RECORDS_REQUIRED_INDEXES_PHASE_EIGHT]),
+  requiredConstraints: REQUIRED_CONSTRAINTS,
+  corePageTypes: Object.freeze(CORE_PAGE_TYPE_KEYS),
+  optionalFeatures: Object.freeze(["vector"]),
+});
+
+export const COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST = createHash("sha256")
+  .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_EIGHT))
+  .digest("hex");
+
+export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+  schemaVersion: 1,
+  id: "companyos-postgres",
+  version: "1.9.0",
+  predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version,
+  migrationMode: "additive",
+  schemas: Object.freeze({
+    companyos: Object.freeze({ tables: CONTROL_TABLES }),
+    companyos_knowledge: Object.freeze({ tables: Object.freeze(KNOWLEDGE_TABLES) }),
     companyos_records: Object.freeze({ tables: Object.freeze(RECORDS_TABLES) }),
   }),
   requiredIndexes: Object.freeze([...REQUIRED_INDEXES, ...RECORDS_REQUIRED_INDEXES]),
-  requiredConstraints: REQUIRED_CONSTRAINTS,
+  requiredConstraints: Object.freeze([...REQUIRED_CONSTRAINTS, ...RECORDS_REQUIRED_CONSTRAINTS]),
   corePageTypes: Object.freeze(CORE_PAGE_TYPE_KEYS),
   optionalFeatures: Object.freeze(["vector"]),
 });
@@ -506,6 +541,7 @@ const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version, COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version, COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST],
+  [COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version, COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST],
   [COMPANY_DATABASE_MANIFEST.version, COMPANY_DATABASE_MANIFEST_DIGEST],
 ]);
 
@@ -595,7 +631,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
   const indexes = indexRows.map((row) => `${String(row.schemaname)}.${String(row.indexname)}`);
   const constraintRows = await sql`select n.nspname as schema_name, c.conname
     from pg_constraint c join pg_namespace n on n.oid = c.connamespace
-    where n.nspname in ('companyos', 'companyos_knowledge') order by n.nspname, c.conname`;
+    where n.nspname in ('companyos', 'companyos_knowledge', 'companyos_records') order by n.nspname, c.conname`;
   const constraints = constraintRows.map((row) => `${String(row.schema_name)}.${String(row.conname)}`);
   const pageTypeRows = await sql`select type_key from companyos_knowledge.page_type_registry
     where origin = 'core' and lifecycle_status = 'active' order by type_key`;
@@ -614,7 +650,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
   const failures: string[] = [];
   const missingTables = missing(expectedTables, tables);
   const missingIndexes = missing(expectedIndexes, indexes);
-  const missingConstraints = missing(REQUIRED_CONSTRAINTS, constraints);
+  const missingConstraints = missing(COMPANY_DATABASE_MANIFEST.requiredConstraints, constraints);
   const missingPageTypes = missing(COMPANY_DATABASE_MANIFEST.corePageTypes, pageTypes);
   const unexpectedPageTypes = missing(pageTypes, COMPANY_DATABASE_MANIFEST.corePageTypes);
   if (missingTables.length > 0) failures.push(`missing tables ${missingTables.join(", ")}`);

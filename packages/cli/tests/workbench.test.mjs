@@ -271,7 +271,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },
     effort: "actual-hours",
     rollover: { eligible: "all-open" },
-    delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+    delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
     model_task_profile: "sprint-conversation",
   }));
 
@@ -304,7 +304,7 @@ test("Workspace validation rejects unsafe or unresolved structured declarations"
     submission: { task_line_rule: "one-per-committed-task", after_report: "reject" },
     effort: "actual-hours",
     rollover: { eligible: "selected-states" },
-    delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+    delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
   }));
 
   const codes = new Set(validateWorkspace(workspace).diagnostics.filter((item) => item.severity === "error").map((item) => item.code));

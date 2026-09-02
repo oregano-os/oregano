@@ -1,0 +1,124 @@
+version: 2
+plan_id: monday-protected-preview-qualification-2026-09-02
+status: implemented
+author: codex-agent
+created: 2026-09-02
+title: Qualify Monday external Agents inside a protected Preview runtime
+objective: >-
+  Extend the existing Monday external-Agent qualification and Vercel-Neon
+  rehearsal profile so a sensitive provider token that cannot be exported by
+  the runtime host can remain inside one protected Preview deployment while
+  the Workbench plans, separately confirms, executes, validates, and records a
+  metadata-only qualification read without retaining the credential.
+non_goals:
+  - Add a company, board, Agent, Workspace mapping, credential, or provider payload to Core Git.
+  - Create or change a Monday Agent, board, group, column, item, grant, webhook, or provider permission.
+  - Synchronize Company Records, migrate a database, write to Monday, enable a schedule, or activate production.
+  - Weaken the existing local in-memory qualification path or make a Preview confirmation valid for production.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-02-monday-protected-preview-qualification.yaml
+  - docs/_generated/document-registry.json
+  - docs/status/current.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/monday-agent-qualification.mjs
+  - packages/cli/tests/monday-agent-qualification.test.mjs
+  - packages/connectors/monday/external-agent-qualification.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the provider-independent plan, confirmation, evidence, credential-retention, and fail-closed qualification lifecycle plus the maintained Monday adapter.
+      - Reuse the existing protected Preview operator route and Vercel-Neon request profile without adding a second deployment surface.
+    packages:
+      - No Blueprint or portable Package changes; the Workbench distribution receives the canonical Guide copy.
+    workspace:
+      - Continue to own company source declarations, projections, logical resources, mappings, policies, and access groups; it contains no runtime credential or hosted qualification state.
+    instance:
+      - Own the exact external Agent, selected board grants, protected Preview deployment, provider token, rehearsal bearer, runtime configuration, and resulting qualification receipt.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: reuse
+      reason: The qualification remains the existing prerequisite for a Company Records binding and changes no source or projection contract.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: The existing external-Agent identity mapping is performed inside the protected runtime and still requires a separate human mapping confirmation.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: A new exact provider-read plan is persisted before the remote metadata read and cannot authorize another Agent or board set.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The maintained Monday client performs the same bounded metadata-only discovery and no provider write capability is added.
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Qualification is an authenticated operator operation, not a conversational Agent ingress.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: Qualification grants no Tool or Capability to an Agent.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Qualification is deterministic and invokes no model.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: Qualification activates no timer or schedule.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Any Company Instance using the maintained Monday external-Agent adapter
+    and a protected Vercel-Neon Preview can use this path with its own runtime
+    identifiers and secrets. Core contains no company-specific identifiers,
+    mappings, policy, people, or provider credential.
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-approval-for-protected-preview-qualification-of-the-selected-test-board
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-monday-protected-preview-qualification.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-monday-protected-preview-qualification.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/cli/tests/monday-agent-qualification.test.mjs packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Direct in-memory Monday qualification remains unchanged and retains no credential.
+  - Remote qualification first returns a stable exact provider-read plan and makes no Monday call.
+  - A missing or wrong provider-read confirmation makes no Monday call.
+  - The protected Preview rejects production, wrong Core identity, malformed scope, inline credentials, and unsupported boards before provider access.
+  - A confirmed remote read returns only identity, account, selected-board metadata, effective access, request evidence, and a separate human identity-mapping hash.
+  - The Workbench rejects a remote response for another Agent, board set, permission, Core commit, or plan and writes no credential to qualification state.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - command.records
+    - guide.connect-company-record-source
+  reason_if_none: ""
+rollback: >-
+  Remove the hosted Monday qualification actions and remote Workbench branch,
+  retaining the existing local in-memory path and all non-secret completed
+  receipts. Remove only the short-lived Preview rehearsal bearer and temporary
+  Preview configuration through separately reviewed Instance operations; do
+  not delete provider or System-of-Proof evidence.
+open_decisions: []

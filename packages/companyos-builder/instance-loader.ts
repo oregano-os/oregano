@@ -3,7 +3,8 @@ import YAML from "yaml";
 import type { InstanceBuildConfiguration } from "./types.ts";
 import { scanCredentialIndicators } from "../security/credential-scanner.ts";
 import type { AgentBinding } from "../runtime/agent-resolver.ts";
-import type { BuilderInstanceConfiguration } from "./types.ts";
+import type { JsonValue } from "../capabilities/contracts.ts";
+import type { BuilderInstanceConfiguration, RuntimeConnectorConfiguration } from "./types.ts";
 
 export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfiguration {
   const raw = readFileSync(path, "utf8");
@@ -19,6 +20,7 @@ export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfi
   if (typeof data.instance_id !== "string" || !data.instance_id) throw new Error(`${path}: instance_id is required.`);
   if (typeof data.environment !== "string" || !data.environment) throw new Error(`${path}: environment is required.`);
   if (!Array.isArray(data.bindings)) throw new Error(`${path}: bindings must be a list.`);
+  const connectors = parseConnectors(data.connectors, path);
   const agentBindings = parseAgentBindings(data.agent_bindings, path);
   const defaultAgentId = optionalIdentifier(data.default_agent, `${path}: default_agent`);
   const builder = parseBuilder(data.builder, path);
@@ -37,10 +39,58 @@ export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfi
         connectorVersion: binding.connector_version,
       };
     }),
+    connectors,
     agentBindings,
     defaultAgentId,
     builder,
   };
+}
+
+function parseConnectors(value: unknown, path: string): RuntimeConnectorConfiguration[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`${path}: connectors must be a list.`);
+  const seen = new Set<string>();
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`${path}: connectors[${index}] must be an object.`);
+    }
+    const candidate = entry as Record<string, unknown>;
+    const keys = Object.keys(candidate);
+    if (keys.some((key) => !["id", "connector", "connector_version", "configuration"].includes(key))) {
+      throw new Error(`${path}: connectors[${index}] contains unsupported fields.`);
+    }
+    const id = requiredIdentifier(candidate.id, `${path}: connectors[${index}].id`);
+    if (seen.has(id)) throw new Error(`${path}: duplicate Connector instance id '${id}'.`);
+    seen.add(id);
+    const configuration = candidate.configuration;
+    if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) {
+      throw new Error(`${path}: connectors[${index}].configuration must be an object.`);
+    }
+    assertJsonValue(configuration, `${path}: connectors[${index}].configuration`);
+    return {
+      id,
+      connector: requiredIdentifier(candidate.connector, `${path}: connectors[${index}].connector`),
+      connectorVersion: requiredIdentifier(candidate.connector_version, `${path}: connectors[${index}].connector_version`),
+      configuration: structuredClone(configuration) as Record<string, JsonValue>,
+    };
+  });
+}
+
+function assertJsonValue(value: unknown, label: string): asserts value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number" && Number.isFinite(value)) return;
+  if (Array.isArray(value)) {
+    value.forEach((child, index) => assertJsonValue(child, `${label}[${index}]`));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) {
+      if (!/^[A-Za-z][A-Za-z0-9_-]{0,127}$/.test(key)) throw new Error(`${label} has invalid key '${key}'.`);
+      assertJsonValue(child, `${label}.${key}`);
+    }
+    return;
+  }
+  throw new Error(`${label} must contain only JSON values.`);
 }
 
 function parseAgentBindings(value: unknown, path: string): AgentBinding[] {

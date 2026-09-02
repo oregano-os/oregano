@@ -1,18 +1,17 @@
 version: 2
 plan_id: release-v0.5.4-2026-09-02
-status: approved
+status: implemented
 author: codex-agent
 created: 2026-09-02
-title: Prepare governed Company Records and Agent handoffs as Oregano v0.5.4
+title: Release governed Company Records and Agent handoffs as Oregano v0.5.4
 objective: >-
-  Prepare one reviewed Core patch candidate containing the optional,
+  Publish one reviewed Core patch release containing the optional,
   company-neutral Company Records lifecycle, governed Agent handoffs, external
   Monday Agent boundary, bounded rehearsal tooling, complete-table inventory,
   resumable source connection, fail-closed production operator and scheduled
   reconciliation runtime, and System of Proof documentation without activating
   any Company Workspace or Company Instance.
 non_goals:
-  - Merge the release-preparation pull request, create a tag, publish a GitHub Release, or mark the release stable before separate exact human confirmation.
   - Change, migrate, synchronize, deploy, or activate a production Company Instance.
   - Send a Slack message, write a Monday object, activate a webhook or scheduler, or broaden an external Agent grant.
   - Add a company identifier, provider credential, customer record, Workspace mapping, participant, schedule, or retention choice to Oregano Core.
@@ -39,6 +38,10 @@ approvals:
     approver: workspace-steward
     approved_at: 2026-09-02
     evidence: explicit-user-instruction-to-finish-stage-5d-and-prepare-an-exact-0.5.x-release-candidate; exact-confirmation-daa2815a163bd4d07ad31ba64e234aedbfe9fbd6bbc5c1549565745a0c914a4e-after-green-pr16
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-complete-stage0-core-release-and-pilot-company-workspace-finalization-in-one-run-without-further-intermediate-approvals
 architecture_assessment:
   responsibilities:
     core:
@@ -124,7 +127,7 @@ tests:
   - The Workbench source-connect state is credential-free, mode 0600, resumable, independently confirmation-bound, payload-free, and production-inactive.
   - The production records lane refuses wrong environments, identities, authentication, disabled controls, and stale confirmations before any database or provider effect.
   - Scheduled reconciliation evaluates only due reviewed sources, produces one stable service-date outcome, and reuses completed outcomes without duplicate provider reads.
-  - The additive companyos-postgres 1.8.0 manifest qualifies the Company Records schema, and the production operator and cron routes pass the production Runner build.
+  - The additive companyos-postgres 1.9.0 manifest qualifies the Company Records schema, and the production operator and cron routes pass the production Runner build.
   - Documentation, TypeScript, public-boundary, fixture validation, Runner build, and all repository tests pass before merge.
   - Release assets can be generated only from the clean exact tag matching 0.5.4 after the protected release commit is merged.
 documentation_impact:
@@ -136,7 +139,7 @@ migration: >-
   Existing v0.5.3 Company Workspaces and Instances remain valid and require no
   migration. Adoption of Company Records, governed handoffs, or Monday Agent
   integration is opt-in and requires separate Workspace review plus adoption of
-  the additive companyos-postgres 1.8.0 manifest, exact resource binding,
+  the additive companyos-postgres 1.9.0 manifest, exact resource binding,
   qualification, secret setup, and environment activation. No production
   migration is part of this release.
 rollback: >-

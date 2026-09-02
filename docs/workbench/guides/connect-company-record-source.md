@@ -111,6 +111,33 @@ file contains non-secret Agent, account, grant, board, group, column, API,
 request, and digest evidence. It contains no items, column values, token, or
 provider effect.
 
+If the runtime host makes a Sensitive token available only inside a protected
+deployment, keep the same qualification lifecycle and add the existing hosted
+runtime profile:
+
+```bash
+companyos records source qualify \
+  --provider monday \
+  --workspace <company-workspace> \
+  --agent-id <exact-external-agent-id> \
+  --board-access <test-board-id>:read-write \
+  --runtime-profile vercel-neon \
+  --runtime-scope <vercel-team> \
+  --runtime-project <vercel-project> \
+  --endpoint https://<protected-preview>/api/records/rehearsal \
+  --state <outside-workspace-state-file> \
+  --plan
+```
+
+The first hosted resume obtains a separate provider-read plan and calls no
+provider. Confirm its exact hash with
+`--provider-read-confirmation <hash>`. The protected Preview then performs one
+metadata-only Monday read and returns non-secret discovery evidence. The same
+human `--identity-confirmation <hash>` remains mandatory before the receipt is
+complete. Only the short-lived rehearsal bearer enters the local process; the
+Monday token stays in the deployment and is neither exported nor stored by the
+Workbench.
+
 ## 3. Author and materialize the Workspace declaration
 
 Create an explicit draft after the interview. This fictional Monday example
@@ -330,9 +357,13 @@ the Instance provider SecretRef, `DATABASE_URL`, and production remain separate
 accountable decisions.
 
 The endpoint plans and applies migration and synchronization separately. It
+also plans and applies external-Agent qualification separately when the
+provider token cannot leave the protected runtime. That qualification reads
+only the authenticated identity, account, selected-board metadata, and
+effective access, and requires a later human identity-mapping confirmation. It
 never enables reconciliation, schedules, webhooks, provider writes, or
-production. Its status and apply responses contain counts and receipts, not
-record payloads. For a maintained Monday `complete-table` source, apply also
+production. Its status and apply responses contain metadata, counts, and
+receipts, not record payloads. For a maintained Monday `complete-table` source, apply also
 returns the active board and column identifiers, titles, and types as
 `schema_coverage`, plus a stable schema digest. This is table metadata, never
 row content, and lets the operator verify a child-board mapping. Status reports
@@ -431,7 +462,8 @@ Deploy with both kill switches off. Confirm that the deployment is production
 and that its Artifact Instance, Core commit, and Workspace commit match the
 reviewed plan. Use `POST /api/records/operations` to obtain the production
 migration plan; review and confirm that hash before apply. The additive database
-manifest becomes `1.8.0` and includes `companyos_records`; it preserves the
+manifest becomes `1.9.0` and includes the current `companyos_records` Record
+Source and Sprint relations; it preserves the
 existing control, knowledge, and records data. Next obtain and independently
 confirm one `plan-sync` for each source. Initial synchronization reads the exact
 qualified provider resource and writes immutable production observations,

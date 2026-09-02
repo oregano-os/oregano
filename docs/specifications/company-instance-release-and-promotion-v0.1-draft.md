@@ -398,13 +398,14 @@ maintained Vercel profile's `vercel env run` transport is one adapter binding,
 not a requirement on a conforming alternative runtime host.
 
 The current bounded subset targets additive manifest
-`companyos-postgres@1.8.0`, which preserves predecessors `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,
-`1.1.0`, and `1.0.0`, qualifies 67 required Knowledge relations plus 11 Record
-Source relations, and assigns unresolved
+`companyos-postgres@1.9.0`, which preserves predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,
+`1.1.0`, and `1.0.0`, qualifies 67 required Knowledge relations plus 14 Record
+Source and Sprint relations, and assigns unresolved
 existing access-policy identities to quarantine. The successor adds durable
 Source Events, provider ACL snapshots, pipeline receipts, completed watermarks,
 synchronization leases, lifecycle requests, an integrity-linked change stream,
-and rebuildable Retrieval V3 projection and qualification evidence. Deployment
+and rebuildable Retrieval V3 projection and qualification evidence plus atomic
+Sprint event, state, decision, and intent persistence. Deployment
 qualification proves schema readiness only. Runtime authorization and
 provider-ACL mapping conformance are separate release evidence and MUST pass
 before a sensitive Source is enabled.

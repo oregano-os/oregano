@@ -153,8 +153,33 @@ function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): 
       if (!Array.isArray(candidate)) throw new Error(`${path}: handoffs[${index}].${field} must be a list.`);
       return [...new Set(candidate.map((item) => requireString(item, `${path}: handoffs[${index}].${field}`)))].sort();
     };
-    if (!Number.isSafeInteger(rule.ttl_seconds)) {
-      throw new Error(`${path}: handoffs[${index}].ttl_seconds must be an integer.`);
+    const expiry = rule.expiry;
+    const hasFixedTtl = rule.ttl_seconds !== undefined;
+    const hasExpiry = expiry !== undefined;
+    if (hasFixedTtl === hasExpiry) {
+      throw new Error(`${path}: handoffs[${index}] must declare exactly one of ttl_seconds or expiry.`);
+    }
+    let compiledExpiry: Pick<AgentHandoffRule, "ttlSeconds" | "localDayEndTimeZone">;
+    if (hasFixedTtl) {
+      if (!Number.isSafeInteger(rule.ttl_seconds)) {
+        throw new Error(`${path}: handoffs[${index}].ttl_seconds must be an integer.`);
+      }
+      compiledExpiry = { ttlSeconds: rule.ttl_seconds as number };
+    } else {
+      if (!expiry || typeof expiry !== "object" || Array.isArray(expiry)) {
+        throw new Error(`${path}: handoffs[${index}].expiry must be an object.`);
+      }
+      const declaration = expiry as Record<string, unknown>;
+      if (declaration.mode !== "local-day-end") {
+        throw new Error(`${path}: handoffs[${index}].expiry.mode must be 'local-day-end'.`);
+      }
+      const timeZone = requireString(declaration.timezone, `${path}: handoffs[${index}].expiry.timezone`);
+      try {
+        new Intl.DateTimeFormat("en", { timeZone }).format(new Date(0));
+      } catch {
+        throw new Error(`${path}: handoffs[${index}].expiry.timezone must be a valid IANA timezone.`);
+      }
+      compiledExpiry = { localDayEndTimeZone: timeZone };
     }
     return {
       id: requireString(rule.id, `${path}: handoffs[${index}].id`),
@@ -164,7 +189,7 @@ function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): 
       surfaces: list("surfaces"),
       eligibleRoles: list("eligible_roles"),
       eligibleGroups: list("eligible_groups"),
-      ttlSeconds: rule.ttl_seconds as number,
+      ...compiledExpiry,
     };
   });
 }

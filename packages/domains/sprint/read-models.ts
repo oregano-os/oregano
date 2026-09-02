@@ -9,13 +9,14 @@ export interface ParticipantSprintReadModel {
   committed_task_ids: string[];
   submission?: SprintSubmissionState;
   close_state: ParticipantCloseState;
-  actual_hours: number;
+  effort_hours: number | null;
 }
 
 export interface SprintCloseReadModel {
   sprint_id: string;
+  effort_basis: SprintDomainDeclaration["effort"];
   participants: ParticipantSprintReadModel[];
-  total_actual_hours: number;
+  total_effort_hours: number | null;
   open_work_items: SprintWorkItem[];
 }
 
@@ -23,6 +24,11 @@ const sameSet = (left: string[], right: string[]): boolean => {
   const a = [...new Set(left)].sort();
   const b = [...new Set(right)].sort();
   return a.length === b.length && a.every((value, index) => value === b[index]);
+};
+
+const sumComplete = (values: readonly (number | null | undefined)[] | null): number | null => {
+  if (values === null || values.some((value) => value === null || value === undefined)) return null;
+  return values.reduce<number>((sum, value) => sum + value!, 0);
 };
 
 export function buildSprintCloseReadModel(args: {
@@ -43,6 +49,10 @@ export function buildSprintCloseReadModel(args: {
     const closeState: ParticipantCloseState = !included || (timely?.complete && sameSet(timely.task_ids, committed.map((item) => item.work_item_id)))
       ? "complete"
       : timely ? "needs-reformat" : "missing";
+    const selectedEffort = policy.effort === "unavailable"
+      ? null
+      : committed.map((item) => policy.effort === "actual-hours" ? item.actual_hours : item.planned_effort);
+    const effortHours = sumComplete(selectedEffort);
     return {
       participant_id: participant.participant_id,
       display_name: participant.display_name,
@@ -50,17 +60,19 @@ export function buildSprintCloseReadModel(args: {
       committed_task_ids: committed.map((item) => item.work_item_id).sort(),
       ...(timely ? { submission: structuredClone(timely) } : {}),
       close_state: closeState,
-      actual_hours: committed.reduce((sum, item) => sum + (item.actual_hours ?? 0), 0),
+      effort_hours: effortHours,
     };
   });
   const openWorkItems = items.filter((item) => {
     if (item.group !== policy.work_items.master_group || policy.work_items.closed_statuses.includes(item.status)) return false;
     return policy.rollover.eligible === "all-open" || (policy.rollover.states ?? []).includes(item.status);
   });
+  const includedEffort = participants.filter((participant) => participant.included).map((participant) => participant.effort_hours);
   return {
     sprint_id: state.sprint_id,
+    effort_basis: policy.effort,
     participants,
-    total_actual_hours: participants.filter((participant) => participant.included).reduce((sum, participant) => sum + participant.actual_hours, 0),
+    total_effort_hours: sumComplete(includedEffort),
     open_work_items: openWorkItems.map((item) => structuredClone(item)),
   };
 }

@@ -9,15 +9,23 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { MondayClient } from "../../connectors/monday/client.ts";
+import {
+  assertMondayExternalAgentQualificationEvidence,
+  createMondayExternalAgentQualificationEvidence,
+  MONDAY_EXTERNAL_AGENT_API_VERSION,
+  MONDAY_EXTERNAL_AGENT_KINDS,
+} from "../../connectors/monday/external-agent-qualification.ts";
 import { diagnostic } from "./diagnostics.mjs";
+import {
+  VERCEL_NEON_RECORD_SOURCE_PROFILE,
+  VERCEL_NEON_RECORD_SOURCE_PROFILE_ID,
+  validateVercelNeonRecordSourceProfileInput,
+} from "./records/profiles/vercel-neon.mjs";
 
 export const MONDAY_AGENT_QUALIFICATION_STATE_VERSION = 1;
-export const MONDAY_AGENT_API_VERSION = "dev";
+export const MONDAY_AGENT_API_VERSION = MONDAY_EXTERNAL_AGENT_API_VERSION;
 export const MONDAY_AGENT_TOKEN_SECRET_REF = "MONDAY_API_TOKEN";
-export const MONDAY_AGENT_KINDS = Object.freeze([
-  "external_agent_detached_member",
-  "external_agent_member",
-]);
+export const MONDAY_AGENT_KINDS = MONDAY_EXTERNAL_AGENT_KINDS;
 
 const clean = (value) => String(value ?? "").normalize("NFC").trim();
 const now = () => new Date().toISOString();
@@ -95,7 +103,17 @@ const normalizeBoardAccesses = (values, diagnostics) => {
   return normalized;
 };
 
-export function planMondayAgentQualification({ workspaceRoot, agentId, boardAccesses, statePath, coreIdentity }) {
+export function planMondayAgentQualification({
+  workspaceRoot,
+  agentId,
+  boardAccesses,
+  statePath,
+  coreIdentity,
+  runtimeProfile,
+  endpoint,
+  runtimeScope,
+  runtimeProject,
+}) {
   const diagnostics = [];
   const workspace = resolve(workspaceRoot ?? "");
   if (!existsSync(resolve(workspace, "company.md"))) diagnostics.push(diagnostic("MON001", "error", "Monday qualification requires a Company Workspace with company.md.", { file: workspace }));
@@ -114,6 +132,16 @@ export function planMondayAgentQualification({ workspaceRoot, agentId, boardAcce
   };
   if (!/^[0-9a-f]{40}$/.test(core.ref) || !core.repository || !core.version || !core.workbench_version) {
     diagnostics.push(diagnostic("MON008", "error", "Monday qualification requires one clean exact Oregano Core identity.", { field: "core" }));
+  }
+  const runtimeRequested = [runtimeProfile, endpoint, runtimeScope, runtimeProject].some((value) => clean(value) !== "");
+  let runtime;
+  if (runtimeRequested) {
+    if (runtimeProfile !== VERCEL_NEON_RECORD_SOURCE_PROFILE_ID) {
+      diagnostics.push(diagnostic("MON011", "error", `Unsupported Monday qualification runtime profile '${clean(runtimeProfile)}'.`, { field: "runtime_profile" }));
+    } else {
+      try { runtime = validateVercelNeonRecordSourceProfileInput({ endpoint, runtimeScope, runtimeProject }); }
+      catch (error) { diagnostics.push(diagnostic("MON012", "error", error instanceof Error ? error.message : "Invalid Monday qualification runtime.", { field: "runtime" })); }
+    }
   }
 
   const plan = {
@@ -146,6 +174,7 @@ export function planMondayAgentQualification({ workspaceRoot, agentId, boardAcce
       "Attest that the confirmed boards are the complete administrative grant set because an external-Agent token cannot list agent_knowledge.",
       "Keep the organizational roles board read-only and grant read-write only to an explicitly reviewed operational board.",
     ],
+    ...(runtime ? { runtime: { profile: runtimeProfile, ...runtime } } : {}),
   };
   plan.confirmation_hash = sha256(JSON.stringify(plan));
   return { plan, diagnostics };
@@ -173,6 +202,7 @@ export function initializeMondayAgentQualification({ planResult, confirmationHas
     api_version: planResult.plan.api_version,
     boards: planResult.plan.boards,
     secret_ref: planResult.plan.secret_ref,
+    ...(planResult.plan.runtime ? { runtime: planResult.plan.runtime } : {}),
     evidence: {},
     history: [{ phase: "plan", status: "confirmed", at: now() }],
   };
@@ -180,51 +210,71 @@ export function initializeMondayAgentQualification({ planResult, confirmationHas
   return { state, statePath: planResult.plan.state_path, diagnostics: planResult.diagnostics };
 }
 
-const normalizeEffectiveAccess = (value) => value === "view" ? "read" : value === "edit" ? "read-write" : clean(value).toLowerCase();
+const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
-const validateDiscovery = (state, result) => {
-  const identity = result.data.identity;
-  if (!MONDAY_AGENT_KINDS.includes(identity.kind)) {
-    throw new Error(`Monday token identifies '${identity.kind || "unknown"}' instead of an external Agent.`);
+const assertRemoteProviderReadPlan = (response, state) => {
+  const plan = response?.plan;
+  if (!plan || plan.kind !== "company-records-preview-monday-agent-qualification" || !/^[0-9a-f]{64}$/.test(String(plan.confirmation_hash ?? ""))) {
+    throw new Error("Protected Preview did not return a valid Monday provider-read plan.");
   }
-  if (!/^\d{1,20}$/.test(identity.externalAgentId ?? "")) {
-    throw new Error("Monday token does not expose a valid external Agent subject ID.");
+  const { confirmation_hash: confirmationHash, ...planBody } = plan;
+  if (confirmationHash !== sha256(JSON.stringify(planBody))) throw new Error("Protected Preview Monday provider-read plan has an invalid digest.");
+  if (plan.environment !== "preview" || plan.core?.ref !== state.core.ref || plan.qualification_plan_hash !== state.plan_hash
+    || plan.agent_id !== state.agent_id || plan.provider_secret_ref !== state.secret_ref || !same(plan.boards, state.boards)) {
+    throw new Error("Protected Preview Monday provider-read plan does not match the frozen Core, Agent, board access, or qualification plan.");
   }
-  const returnedBoards = result.data.boards.map((board) => String(board.id)).sort();
-  const expectedBoards = state.boards.map((board) => board.id).sort();
-  if (JSON.stringify(returnedBoards) !== JSON.stringify(expectedBoards)) {
-    throw new Error("Monday did not return exactly the confirmed boards for the external Agent.");
-  }
-  const accessByBoard = new Map(result.data.boards.map((board) => [String(board.id), normalizeEffectiveAccess(board.accessLevel)]));
-  const effectiveAccess = state.boards.map((board) => ({
-    id: board.id,
-    scope: "board",
-    verified_minimum: board.permission === "read-write" ? "read-write-metadata" : "read",
-    administrator_attested_permission: board.permission,
-    access_level: result.data.boards.find((candidate) => String(candidate.id) === board.id)?.accessLevel ?? null,
-    provider_write_effect_verified: false,
-  }));
-  for (const board of state.boards) {
-    const access = accessByBoard.get(board.id);
-    const valid = board.permission === "read" ? ["read", "read-write"].includes(access) : access === "read-write";
-    if (!valid) {
-      throw new Error(`Monday board '${board.id}' does not expose the minimum effective access required by the administrator-attested '${board.permission}' permission.`);
-    }
-  }
-  if (result.apiVersion && result.apiVersion !== state.api_version) {
-    throw new Error(`Monday reported API version '${result.apiVersion}' instead of '${state.api_version}'.`);
-  }
-  return effectiveAccess;
+  return plan;
+};
+
+const qualificationEvidenceFromResult = (state, result) => createMondayExternalAgentQualificationEvidence({
+  agentId: state.agent_id,
+  apiVersion: state.api_version,
+  boards: state.boards,
+  planHash: state.plan_hash,
+  result,
+  observedAt: now(),
+});
+
+const persistIdentityReview = (absoluteStatePath, state, evidence) => {
+  assertMondayExternalAgentQualificationEvidence({
+    agentId: state.agent_id,
+    apiVersion: state.api_version,
+    boards: state.boards,
+    planHash: state.plan_hash,
+    evidence,
+  });
+  const pending = {
+    ...state,
+    phase: "identity-review",
+    updated_at: now(),
+    evidence: {
+      ...state.evidence,
+      discovery_pending: evidence.discovery,
+      identity_review: evidence.identity_review,
+    },
+    history: [...state.history, { phase: "external-agent-discovery", status: "review-required", at: now(), receipt: evidence.discovery.discovery_hash }],
+  };
+  writeMondayAgentQualificationState(absoluteStatePath, pending);
+  return {
+    status: "waiting",
+    statePath: absoluteStatePath,
+    state: pending,
+    message: "Monday provider identity and selected-board metadata are discovered; the administrator must confirm the exact configured-to-authenticated Agent identity mapping.",
+    next_action: { type: "confirm-agent-identity-mapping", confirmation_hash: evidence.identity_review.confirmation_hash, review: evidence.identity_review.summary },
+    diagnostics: [],
+  };
 };
 
 export async function advanceMondayAgentQualification({
   statePath,
   agentToken = process.env[MONDAY_AGENT_TOKEN_SECRET_REF],
+  providerReadConfirmationHash,
   identityConfirmationHash,
   fetchImpl = globalThis.fetch,
+  remoteProfile = VERCEL_NEON_RECORD_SOURCE_PROFILE,
 } = {}) {
   const absoluteStatePath = resolve(statePath);
-  const state = readMondayAgentQualificationState(absoluteStatePath);
+  let state = readMondayAgentQualificationState(absoluteStatePath);
   if (state.phase === "complete") {
     return { status: "complete", statePath: absoluteStatePath, state, message: "Monday external-Agent qualification is already complete.", diagnostics: [] };
   }
@@ -265,7 +315,68 @@ export async function advanceMondayAgentQualification({
       diagnostics: [],
     };
   }
+  if (state.phase === "provider-read-review") {
+    const plan = state.evidence?.provider_read_plan;
+    if (!plan) throw new Error("Monday provider-read review state is incomplete.");
+    if (!providerReadConfirmationHash) {
+      return {
+        status: "waiting",
+        statePath: absoluteStatePath,
+        state,
+        message: "The protected Preview metadata read requires its exact independent confirmation.",
+        next_action: { type: "confirm-provider-metadata-read", confirmation_hash: plan.confirmation_hash, plan },
+        diagnostics: [],
+      };
+    }
+    if (providerReadConfirmationHash !== plan.confirmation_hash) throw new Error("Monday provider-read confirmation does not match the pending protected Preview plan.");
+    if (!state.runtime || remoteProfile.id !== state.runtime.profile) throw new Error("Monday qualification runtime profile is unavailable.");
+    const response = await remoteProfile.request({
+      endpoint: state.runtime.endpoint,
+      runtimeScope: state.runtime.runtimeScope,
+      runtimeProject: state.runtime.runtimeProject,
+      body: {
+        action: "apply-monday-qualification",
+        agent_id: state.agent_id,
+        boards: state.boards,
+        qualification_plan_hash: state.plan_hash,
+        confirmation_hash: providerReadConfirmationHash,
+      },
+    });
+    if (!response?.applied || response.operation !== "monday-agent-qualification-read") throw new Error("Protected Preview did not prove the Monday metadata read.");
+    return persistIdentityReview(absoluteStatePath, state, response.evidence);
+  }
   if (state.phase !== "agent-ready") throw new Error(`Unknown Monday qualification phase '${state.phase}'.`);
+  if (state.runtime) {
+    if (remoteProfile.id !== state.runtime.profile) throw new Error(`Monday qualification requires runtime profile '${state.runtime.profile}'.`);
+    const response = await remoteProfile.request({
+      endpoint: state.runtime.endpoint,
+      runtimeScope: state.runtime.runtimeScope,
+      runtimeProject: state.runtime.runtimeProject,
+      body: {
+        action: "plan-monday-qualification",
+        agent_id: state.agent_id,
+        boards: state.boards,
+        qualification_plan_hash: state.plan_hash,
+      },
+    });
+    const plan = assertRemoteProviderReadPlan(response, state);
+    state = {
+      ...state,
+      phase: "provider-read-review",
+      updated_at: now(),
+      evidence: { ...state.evidence, provider_read_plan: plan },
+      history: [...state.history, { phase: "provider-read-review", status: "confirmation-required", at: now(), receipt: plan.confirmation_hash }],
+    };
+    writeMondayAgentQualificationState(absoluteStatePath, state);
+    return {
+      status: "waiting",
+      statePath: absoluteStatePath,
+      state,
+      message: "The protected Preview has planned the exact metadata-only Monday read; no provider call has occurred.",
+      next_action: { type: "confirm-provider-metadata-read", confirmation_hash: plan.confirmation_hash, plan },
+      diagnostics: [],
+    };
+  }
   if (!agentToken) {
     return {
       status: "waiting",
@@ -284,70 +395,5 @@ export async function advanceMondayAgentQualification({
 
   const client = new MondayClient({ token: agentToken, apiVersion: state.api_version, fetcher: fetchImpl });
   const result = await client.discoverAgentResources({ agentId: state.agent_id, boardIds: state.boards.map((board) => board.id) });
-  const effectiveAccess = validateDiscovery(state, result);
-  const resources = state.boards.map((board) => ({
-    id: board.id,
-    scope: "board",
-    permission: board.permission,
-    evidence: "administrator-attestation-and-effective-access",
-  }));
-  const discovery = {
-    schema_version: 1,
-    kind: "monday-external-agent-discovery-receipt",
-    observed_at: now(),
-    authentication_mode: state.authentication_mode,
-    configured_agent_id: state.agent_id,
-    identity_mapping_status: "administrator-review-required",
-    api_version_requested: state.api_version,
-    api_version_reported: result.apiVersion,
-    request_id: result.requestId,
-    identity: result.data.identity,
-    account: result.data.account,
-    resources,
-    grant_inventory: {
-      complete_set_source: "administrator-attestation",
-      attestation_plan_hash: state.plan_hash,
-      machine_listed_by_authenticated_agent: false,
-    },
-    effective_access: effectiveAccess,
-    boards: result.data.boards,
-    external_effects: [],
-    credentials_retained: false,
-  };
-  discovery.discovery_hash = sha256(JSON.stringify(discovery));
-  const identityReviewBody = {
-    schema_version: 1,
-    kind: "monday-agent-identity-mapping-review",
-    plan_hash: state.plan_hash,
-    configured_agent_id: state.agent_id,
-    authenticated_identity: {
-      member_id: discovery.identity.memberId,
-      external_agent_subject_id: discovery.identity.externalAgentId,
-      name: discovery.identity.name,
-      kind: discovery.identity.kind,
-      account_id: discovery.account.id,
-    },
-    discovery_hash: discovery.discovery_hash,
-  };
-  const identityReview = {
-    ...identityReviewBody,
-    confirmation_hash: sha256(JSON.stringify(identityReviewBody)),
-    summary: identityReviewBody,
-  };
-  const pending = {
-    ...state,
-    phase: "identity-review",
-    updated_at: now(),
-    evidence: { discovery_pending: discovery, identity_review: identityReview },
-    history: [...state.history, { phase: "external-agent-discovery", status: "review-required", at: now(), receipt: discovery.discovery_hash }],
-  };
-  writeMondayAgentQualificationState(absoluteStatePath, pending);
-  return {
-    status: "waiting",
-    statePath: absoluteStatePath,
-    state: pending,
-    message: "Monday provider identity and selected-board metadata are discovered; the administrator must confirm the exact configured-to-authenticated Agent identity mapping.",
-    next_action: { type: "confirm-agent-identity-mapping", confirmation_hash: identityReview.confirmation_hash, review: identityReview.summary },
-    diagnostics: [],
-  };
+  return persistIdentityReview(absoluteStatePath, state, qualificationEvidenceFromResult(state, result));
 }

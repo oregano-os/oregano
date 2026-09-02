@@ -19,15 +19,15 @@ const policy: SprintDomainDeclaration = {
   submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },
   effort: "actual-hours",
   rollover: { eligible: "all-open" },
-  delivery: { shared_thread: true, channel_binding: "sprint-channel" },
+  delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
 };
 
 const calendar: BusinessCalendar = { id: "fixture-calendar", holidays: [] };
 
 const participants: SprintParticipant[] = [
-  { participant_id: "person-a", display_name: "Alex", roles: ["owner"], approved_absence: false },
-  { participant_id: "person-b", display_name: "Blair", roles: ["contributor"], approved_absence: false },
-  { participant_id: "person-c", display_name: "Casey", roles: ["contributor"], approved_absence: true },
+  { participant_id: "person-a", display_name: "Alex", roles: ["owner"], communication_principal: "chat:fixture:person-a", approved_absence: false },
+  { participant_id: "person-b", display_name: "Blair", roles: ["contributor"], communication_principal: "chat:fixture:person-b", approved_absence: false },
+  { participant_id: "person-c", display_name: "Casey", roles: ["contributor"], communication_principal: "chat:fixture:person-c", approved_absence: true },
 ];
 
 const workItems: SprintWorkItem[] = [
@@ -69,8 +69,38 @@ test("the close read model includes submissions through report time and excludes
     "person-c": "complete",
   });
   assert.equal(close.participants.find((person) => person.participant_id === "person-c")?.included, false);
-  assert.equal(close.total_actual_hours, 5.5);
+  assert.equal(close.effort_basis, "actual-hours");
+  assert.equal(close.total_effort_hours, 5.5);
   assert.deepEqual(close.open_work_items.map((item) => item.work_item_id).sort(), ["item-a", "item-c"]);
+});
+
+test("unavailable or incomplete effort remains unavailable instead of becoming zero", () => {
+  const state = preparedState();
+  const unavailable = buildSprintCloseReadModel({
+    state,
+    policy: { ...policy, effort: "unavailable" },
+    reportAt: "2030-02-01T17:00:00.000Z",
+  });
+  assert.equal(unavailable.effort_basis, "unavailable");
+  assert.equal(unavailable.total_effort_hours, null);
+  assert.ok(unavailable.participants.every((participant) => participant.effort_hours === null));
+
+  const incompleteState = structuredClone(state);
+  delete incompleteState.work_items["item-a"]!.actual_hours;
+  const incomplete = buildSprintCloseReadModel({ state: incompleteState, policy, reportAt: "2030-02-01T17:00:00.000Z" });
+  assert.equal(incomplete.participants.find((participant) => participant.participant_id === "person-a")?.effort_hours, null);
+  assert.equal(incomplete.total_effort_hours, null);
+
+  const planned = buildSprintCloseReadModel({
+    state: {
+      ...state,
+      work_items: Object.fromEntries(Object.entries(state.work_items).map(([id, item]) => [id, { ...item, planned_effort: item.actual_hours }])),
+    },
+    policy: { ...policy, effort: "planned-effort" },
+    reportAt: "2030-02-01T17:00:00.000Z",
+  });
+  assert.equal(planned.effort_basis, "planned-effort");
+  assert.equal(planned.total_effort_hours, 5.5);
 });
 
 test("clock decisions emit reminders, one close report, and all-open rollover intents", () => {
@@ -78,6 +108,7 @@ test("clock decisions emit reminders, one close report, and all-open rollover in
   const reminder = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-reminder", occurred_at: "2030-02-01T14:00:00.000Z", instant: "2030-02-01T14:00:00.000Z" } });
   assert.deepEqual(reminder.intents.filter((intent) => intent.type === "message.reminder").map((intent) => intent.participant_id), ["person-b"]);
   assert.equal(reminder.intents[0].type === "message.reminder" && reminder.intents[0].reason, "initial");
+  assert.equal(reminder.intents[0].type === "message.reminder" && reminder.intents[0].destination_principal, "chat:fixture:person-b");
   state = reminder.state;
 
   const deadline = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-deadline", occurred_at: "2030-02-01T16:00:00.000Z", instant: "2030-02-01T16:00:00.000Z" } });
@@ -87,6 +118,7 @@ test("clock decisions emit reminders, one close report, and all-open rollover in
   const report = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z", next_sprint_id: "sprint-6" } });
   assert.equal(report.intents.filter((intent) => intent.type === "message.close-report").length, 1);
   assert.deepEqual(report.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.work_item_id).sort(), ["item-a", "item-c"]);
+  assert.deepEqual(report.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.expected_version).sort(), ["v1", "v1"]);
   assert.equal(report.state.phase, "reporting");
   const duplicate = decideSprintEvent({ state: report.state, policy, calendar, event: { type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z", next_sprint_id: "sprint-6" } });
   assert.deepEqual(duplicate.intents, []);

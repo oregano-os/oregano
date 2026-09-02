@@ -238,6 +238,7 @@ test("connect state rejects credentials and the Vercel profile passes its bearer
     await profile.request({ endpoint: "https://fixture.vercel.app/api/records/rehearsal", runtimeScope: "fixture", body: { action: "plan-migration" } });
     assert.equal(calls[0].file, "/fixture/vercel");
     assert.deepEqual(calls[0].args.slice(0, 4), ["curl", "/api/records/rehearsal", "--deployment", "https://fixture.vercel.app"]);
+    assert.equal(calls[0].args.includes("--scope"), false);
     assert.deepEqual(calls[0].args.slice(-3), ["--", "--config", "-"]);
     assert.equal(calls[0].args.join(" ").includes("fixture-rehearsal-secret"), false);
     assert.equal(calls[0].input.includes("fixture-rehearsal-secret-value-long"), true);

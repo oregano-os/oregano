@@ -49,10 +49,42 @@ test("the exact Core, Workspace, and Instance inputs produce one deterministic a
   assert.equal(first.provenance.workspaceVersion, "0.1.0");
   assert.equal(first.provenance.resolvedToolSetHash, second.provenance.resolvedToolSetHash);
   assert.equal(first.agents.length, 1);
+  assert.deepEqual(first.connectors, []);
   assert.equal(first.agents[0].toolSet.tools.length, 5);
   assert.equal(first.roster.length, 3);
   assert.ok(first.agents[0].materials["workflows/property-campaign.md"]);
   assert.equal(first.agents[0].materials["connections/marketing.md"], undefined, "undeclared material must stay out of the agent snapshot");
+});
+
+test("the Artifact freezes non-secret runtime Connector installation configuration", () => {
+  const artifact = buildCompanyOSArtifact({
+    workspaceRoot: FIXTURE,
+    instance: {
+      ...instance,
+      connectors: [{
+        id: "slack-test",
+        connector: "oregano/slack-communication",
+        connectorVersion: "0.1.0",
+        configuration: {
+          destinations: [{ id: "test-channel", account_id: "T12345", kind: "channel", channel_id: "C12345" }],
+        },
+      }],
+    },
+    coreVersion: "0.5.4",
+    coreCommit: CORE_COMMIT,
+    workspaceCommit: WORKSPACE_COMMIT,
+    workbenchVersion: "0.1.0-experimental.12",
+    builtAt: "2026-09-02T12:00:00.000Z",
+  });
+  assert.deepEqual(artifact.connectors, [{
+    id: "slack-test",
+    connector: "oregano/slack-communication",
+    connectorVersion: "0.1.0",
+    configuration: {
+      destinations: [{ id: "test-channel", account_id: "T12345", kind: "channel", channel_id: "C12345" }],
+    },
+  }]);
+  assert.doesNotMatch(JSON.stringify(artifact), /xoxb-|MONDAY_API_TOKEN=/);
 });
 
 test("a material Workspace change changes the immutable artifact hash", () => {
@@ -173,6 +205,61 @@ scope:
     }]);
     assert.equal(artifact.agents.find((agent) => agent.id === "sprint")?.toolSet.tools.length, 0);
     assert.ok((artifact.agents.find((agent) => agent.id === "growth")?.toolSet.tools.length ?? 0) > 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("Artifact building compiles a reviewed local-day-end handoff expiry", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-agent-handoff-local-day-"));
+  cpSync(FIXTURE, root, { recursive: true });
+  try {
+    const sprintRoot = join(root, "agents", "sprint");
+    mkdirSync(sprintRoot, { recursive: true });
+    writeFileSync(join(sprintRoot, "instructions.md"), `---
+description: Synthetic Sprint Agent.
+scope:
+  read:
+    - company.md
+---
+# Sprint
+Synthetic target Agent.
+`);
+    const agentPath = join(root, "agents", "growth", "instructions.md");
+    writeFileSync(agentPath, readFileSync(agentPath, "utf8").replace(
+      "scope:\n",
+      `handoffs:
+  - id: growth-to-sprint
+    target: sprint
+    purpose: sprint
+    surfaces: [slack]
+    eligible_roles: [contributor]
+    eligible_groups: [sprint-participant]
+    expiry:
+      mode: local-day-end
+      timezone: Europe/Madrid
+scope:
+`,
+    ));
+    const artifact = buildCompanyOSArtifact({
+      workspaceRoot: root,
+      instance: { ...instance, defaultAgentId: "growth" },
+      coreVersion: "0.5.4",
+      coreCommit: CORE_COMMIT,
+      workspaceCommit: WORKSPACE_COMMIT,
+      workbenchVersion: "0.1.0-experimental.12",
+      builtAt: "2026-09-02T12:00:00.000Z",
+    });
+    assert.deepEqual(artifact.agentRouting.handoffs, [{
+      id: "growth-to-sprint",
+      fromAgentId: "growth",
+      toAgentId: "sprint",
+      purpose: "sprint",
+      surfaces: ["slack"],
+      eligibleRoles: ["contributor"],
+      eligibleGroups: ["sprint-participant"],
+      localDayEndTimeZone: "Europe/Madrid",
+    }]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
