@@ -10,6 +10,31 @@ import type {
 
 let cachedArtifact: CompanyOSArtifact | undefined;
 
+const VERCEL_ENVIRONMENTS = new Set(["production", "preview", "development"]);
+
+export function assertArtifactDeploymentEnvironment(
+  artifactEnvironment: string,
+  deploymentEnvironment = process.env.VERCEL_ENV,
+): void {
+  const deployed = deploymentEnvironment?.trim();
+  if (!deployed) {
+    if (artifactEnvironment !== "production") {
+      throw new Error(
+        `Refusing to run non-production Artifact environment '${artifactEnvironment}' without an explicit deployment environment.`,
+      );
+    }
+    return;
+  }
+  if (!VERCEL_ENVIRONMENTS.has(deployed)) {
+    throw new Error(`Refusing unknown Vercel deployment environment '${deployed}'.`);
+  }
+  if (artifactEnvironment !== deployed) {
+    throw new Error(
+      `Artifact environment '${artifactEnvironment}' does not match Vercel deployment environment '${deployed}'.`,
+    );
+  }
+}
+
 export function loadArtifact(): CompanyOSArtifact {
   if (cachedArtifact) return cachedArtifact;
   const encoded = process.env.COMPANYOS_ARTIFACT_GZIP_BASE64;
@@ -22,9 +47,7 @@ export function loadArtifact(): CompanyOSArtifact {
   };
   const actualHash = sha256(hashInput);
   if (actualHash !== artifactHash) throw new Error(`Artifact integrity failure: expected ${artifactHash}, got ${actualHash}.`);
-  if (parsed.instance.environment !== "production") {
-    throw new Error(`Refusing to run non-production Artifact environment '${parsed.instance.environment}'.`);
-  }
+  assertArtifactDeploymentEnvironment(parsed.instance.environment);
   cachedArtifact = parsed;
   return parsed;
 }

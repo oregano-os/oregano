@@ -1,0 +1,106 @@
+version: 2
+plan_id: stage0-preview-artifact-environment-2026-09-02
+status: implemented
+author: codex-agent
+created: 2026-09-02
+title: Bind non-production Artifacts to the matching Runner environment
+objective: >-
+  Let the maintained Vercel Runner execute an immutable preview or development
+  Artifact only when the deployment environment has the exact same identity,
+  while preserving the production-only fallback outside an explicit Vercel
+  environment.
+non_goals:
+  - Deploy a Preview or Production Company Instance.
+  - Change a Company Workspace, provider binding, credential, database, model, or external resource.
+  - Permit a production Artifact in Preview or a non-production Artifact in Production.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-09-02-stage0-preview-artifact-environment.yaml
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/artifact.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-complete-rollout-stage-zero-before-production
+architecture_assessment:
+  responsibilities:
+    core:
+      - Enforce an exact match between immutable Artifact environment and trusted deployment environment.
+    packages:
+      - No Blueprint or Tool Package behavior changes.
+    workspace:
+      - A Company Workspace remains environment-neutral and contains no deployment authority.
+    instance:
+      - Build the Artifact with the intended environment and deploy it only to the matching runtime environment.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Agent resolution remains unchanged after the Artifact passes environment verification.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Tool resolution remains unchanged and receives no authority from the environment label.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Model selection remains an Instance binding after Artifact verification.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: This change performs no record synchronization or database migration.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Environment identity is already part of the immutable Artifact and Vercel supplies the trusted deployment environment; human and provider identity checks remain unchanged.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: No timer or calendar behavior changes.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: No external effect is added or authorized.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Capability and Connector bindings remain unchanged.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The environment match uses only generic Artifact and Vercel deployment
+    identities and contains no company, provider-resource, or credential value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-stage0-preview-artifact-environment.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-stage0-preview-artifact-environment.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/artifact.test.ts
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Production accepts only a production Artifact.
+  - Preview accepts only a preview Artifact.
+  - Development accepts only a development Artifact.
+  - An absent or unknown deployment identity preserves the production-only fail-closed behavior.
+documentation_impact:
+  required: true
+  affected_documents:
+    - guide.prepare-instance
+migration: >-
+  Existing production deployments are unchanged. A Preview that previously
+  carried a production Artifact must rebuild an exact preview Artifact before
+  it can become ready.
+rollback: >-
+  Revert this change and remove non-production Artifact deployments. Do not
+  relabel an Artifact or reuse it across environments.
+open_decisions: []
