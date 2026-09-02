@@ -73,6 +73,14 @@ ToolSet hash, roster, scoped agent material, and exact Connector bindings.
 Production and non-production should not share secrets or state without an
 explicit risk decision.
 
+The maintained Vercel Runner also verifies the Artifact environment against
+Vercel's trusted deployment identity. A `production` deployment accepts only a
+`production` Artifact, a `preview` deployment accepts only a `preview`
+Artifact, and `development` accepts only `development`. Outside an explicit
+Vercel environment the Runner preserves the production-only default. Never
+relabel or reuse an Artifact across environments; rebuild it from the exact
+Core, Workspace, and non-secret Instance declaration instead.
+
 Deployment must consume generated company artifacts only after validation.
 Those artifacts are disposable build outputs, not an additional source of truth.
 
