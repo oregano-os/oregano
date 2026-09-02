@@ -1,0 +1,119 @@
+version: 2
+plan_id: company-records-bounded-resume-2026-09-02
+status: implemented
+author: codex-agent
+created: 2026-09-02
+title: Make large Company Records snapshots bounded and safely resumable
+objective: >-
+  Process independent objects from one already bounded complete Record Source
+  inventory with bounded concurrency, and repair the exact current projection
+  after an interrupted snapshot step without duplicating Source Events,
+  advancing an incomplete watermark, or allowing an older replay to replace a
+  newer current projection.
+non_goals:
+  - Change a Company Workspace declaration, provider binding, permission, credential, board, projection, or production environment.
+  - Add provider writes, unbounded parallelism, durable inventory payload storage, deletion inference, scheduling, or webhook activation.
+  - Treat a partial snapshot as complete or publish its watermark and receipt before every object has completed.
+  - Release, merge, deploy, or retry a real-company rehearsal as part of this repository change.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-02-company-records-bounded-resume.yaml
+  - docs/_generated/document-registry.json
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/records/service.ts
+  - packages/records/synchronization.ts
+  - packages/testkit/tests/company-records-foundation.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-complete-stage-5d-and-confirmation-of-the-exact-isolated-source-synchronization-plans
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own bounded provider-neutral snapshot orchestration, exact-version recovery, completion receipts, watermarks, and failure behavior.
+    packages:
+      - No Blueprint or portable Package changes; the Workbench distribution receives the canonical Guide copy.
+    workspace:
+      - Continue to own company source mappings, projections, access groups, schedules, and logical resources without a new setting for Core execution concurrency.
+    instance:
+      - Continue to own exact provider and database bindings, credentials, runtime limits, deployment, confirmation, and non-production or production activation.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Snapshot synchronization is a trusted Instance operation and does not select a conversational Agent.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: The operation grants no Agent Tool and does not expose the Store or Connector to an Agent.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Snapshot normalization, persistence, projection, and recovery are deterministic and invoke no model.
+    - mechanism: company-records
+      decision: extend
+      reason: The existing synchronization service gains bounded execution and exact-current repair while retaining its declarations, versions, projections, leases, watermarks, and receipts.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing trusted Instance authorization and projection access policy remain unchanged.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: This change neither activates a schedule nor changes timer or calendar behavior.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: An exact snapshot replay can finish a partially materialized current version while Source Event deduplication and final completion evidence remain authoritative.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The same bounded complete-inventory Connector contract is consumed; provider implementations and permissions do not change.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Bounded concurrency and exact-current recovery operate on generic Record
+    Source inventories and Company Records Store contracts. Any company and any
+    maintained provider adapter can use the behavior without placing company
+    identifiers, field mappings, provider credentials, or runtime bindings in
+    Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-company-records-bounded-resume.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-company-records-bounded-resume.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-records-foundation.test.ts packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A large synthetic complete inventory uses more than one worker but never exceeds the fixed Core concurrency bound.
+  - A failure after a Source Event or current version write leaves no watermark or successful receipt and an exact retry repairs the missing current projection.
+  - Exact retries retain one Source Event and one object version per immutable identity.
+  - A replay of an older already-recorded version never replaces the projection of a newer current version.
+  - Watermark and successful receipt are written only after every inventory object completes.
+  - Existing single-object idempotency, access, reconciliation, and Preview rehearsal tests remain green.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - guide.connect-company-record-source
+  reason_if_none: ""
+rollback: >-
+  Revert bounded snapshot execution and exact-current duplicate repair to the
+  prior sequential behavior. Keep all additive Company Records rows and
+  incomplete rehearsal evidence; do not publish a watermark or receipt for an
+  interrupted run and do not delete persisted evidence as part of rollback.
+open_decisions:
+  - Durable provider-inventory checkpointing across separate runtime invocations remains future work if a bounded complete inventory itself exceeds the runtime window.

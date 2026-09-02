@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-31
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -116,6 +116,17 @@ deletion; reconciliation MAY record provider absence only from a bounded
 complete inventory under the source lease. Materialization creates only the
 exact reviewed Workspace file and MUST NOT commit it, activate it, or infer a
 company value.
+
+**CRS-017 — Bounded and resumable snapshots.** After a Record Source Connector
+returns one bounded complete inventory, synchronization MUST process independent
+objects with a fixed Core-owned concurrency bound. A runtime interruption MAY
+leave immutable Source Events, object versions, current pointers, or projection
+rows, but MUST NOT advance the source watermark or append a successful sync
+receipt. An exact retry MUST deduplicate Source Events and MAY repair a missing
+version or projection only when the retried immutable version is still the
+current object version. Replaying an older version MUST NOT replace a projection
+of newer current state. Watermark and completion evidence are written only after
+every inventory object succeeds.
 
 ## 3. Sprint domain
 

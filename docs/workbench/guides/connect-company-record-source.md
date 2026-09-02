@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -291,6 +291,15 @@ short-lived configuration and rehearsal secret after evidence capture.
 Creating the Preview deployment, database branch, and environment variables
 remains an Instance change requiring its own review and does not follow from
 this Guide automatically.
+
+The synchronization worker uses fixed bounded concurrency after it has received
+the complete inventory. A timeout or worker failure can therefore leave partial
+immutable rows, but it cannot publish the source watermark or a successful
+receipt. Inspect status before retrying. A missing watermark or receipt means
+the pass is incomplete even when object and projection counts are non-zero. An
+exact retry reuses the same immutable identities and repairs only a missing
+materialization of the matching current version; it never promotes an older
+replay over newer current state. Do not delete partial evidence before retrying.
 
 ```bash
 companyos records source sync \

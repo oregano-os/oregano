@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -28,6 +28,11 @@ evidence, historical prototypes, and production gaps.
   isolated `companyos_records` schema also contains durable timers, Connector
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
+- Initial Record Source snapshots process independent objects with a fixed
+  Core-owned concurrency bound. An interrupted pass remains visibly incomplete:
+  it publishes no watermark or successful receipt. An exact retry deduplicates
+  Source Events and repairs only the matching current version and projection,
+  so an older replay cannot replace newer projected state.
 - The experimental `companyos records` Workbench surface now inspects sources
   and projections locally; qualifies the exact external Monday Agent identity
   and complete resource-grant set;

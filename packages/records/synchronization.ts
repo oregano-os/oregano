@@ -1,10 +1,41 @@
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordsStore } from "../state-store/records.ts";
 import type { CompanyRecordSourceDeclaration } from "./contracts.ts";
+import { projectionRecordId } from "./identity.ts";
 import { normalizeRecordObject } from "./normalize.ts";
+import { projectRecord } from "./projection.ts";
 import type { CompanyRecordsRegistry } from "./registry.ts";
 import { CompanyRecordsService } from "./service.ts";
 import type { RecordSourceInventory } from "./source-connector.ts";
+
+export const DEFAULT_RECORD_SNAPSHOT_CONCURRENCY = 8;
+export const MAX_RECORD_SNAPSHOT_CONCURRENCY = 32;
+
+async function mapWithBoundedConcurrency<T, R>(
+  values: readonly T[],
+  concurrency: number,
+  operation: (value: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > MAX_RECORD_SNAPSHOT_CONCURRENCY) {
+    throw new Error(`Record snapshot concurrency must be between 1 and ${MAX_RECORD_SNAPSHOT_CONCURRENCY}`);
+  }
+  const results = new Array<R>(values.length);
+  let nextIndex = 0;
+  let failure: unknown;
+  const workers = Array.from({ length: Math.min(concurrency, values.length) }, async () => {
+    while (nextIndex < values.length && failure === undefined) {
+      const index = nextIndex++;
+      try {
+        results[index] = await operation(values[index]!, index);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
+  });
+  await Promise.all(workers);
+  if (failure !== undefined) throw failure;
+  return results;
+}
 
 /** Append one complete source inventory without inferring deletion from absence. */
 export async function synchronizeRecordSnapshot(args: {
@@ -17,8 +48,10 @@ export async function synchronizeRecordSnapshot(args: {
   leaseOwner: string;
   leaseToken: string;
   leaseExpiresAt: string;
+  concurrency?: number;
 }) {
   const { instanceId, source, inventory, registry, store, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
+  const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
     instanceId,
     sourceId: source.id,
@@ -28,17 +61,13 @@ export async function synchronizeRecordSnapshot(args: {
     expiresAt: leaseExpiresAt,
   });
   if (!claimed) throw new Error(`Record source '${source.id}' already has an active synchronization lease`);
-  let inserted = 0;
-  let unchanged = 0;
   const service = new CompanyRecordsService({ instanceId, registry, store, now: () => new Date(inventory.observed_at) });
   try {
-    for (const raw of inventory.objects) {
+    const outcomes = await mapWithBoundedConcurrency(inventory.objects, concurrency, async (raw) => {
       const receipt: Record<string, JsonValue> = { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest ?? "unavailable" };
       const normalized = normalizeRecordObject({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
       const current = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
-      if (current?.digest === normalized.digest) unchanged += 1;
-      else inserted += 1;
-      await service.ingest({
+      const ingested = await service.ingest({
         event: {
           source_id: source.id,
           event_id: `sync:${runId}:${normalized.object_id}:${normalized.digest}`,
@@ -50,7 +79,21 @@ export async function synchronizeRecordSnapshot(args: {
         raw,
         receipt,
       });
-    }
+      if (ingested.duplicate) {
+        await store.putObjectVersion(normalized);
+        const exactCurrent = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
+        if (exactCurrent?.version_id === normalized.version_id) {
+          for (const projection of registry.projectionsForRecordType(exactCurrent.record_type)) {
+            const row = projectRecord({ projection, version: exactCurrent, projectedAt: inventory.observed_at });
+            if (row) await store.upsertProjectionRow(row);
+            else await store.removeProjectionRow(instanceId, projection.id, projectionRecordId(projection.id, exactCurrent.source_id, exactCurrent.object_id));
+          }
+        }
+      }
+      return current?.digest === normalized.digest ? "unchanged" as const : "inserted" as const;
+    });
+    const inserted = outcomes.filter((outcome) => outcome === "inserted").length;
+    const unchanged = outcomes.length - inserted;
     await store.setWatermark(instanceId, source.id, inventory.watermark, inventory.observed_at);
     const receipt = {
       instance_id: instanceId,
