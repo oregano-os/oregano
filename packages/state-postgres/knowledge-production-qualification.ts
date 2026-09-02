@@ -473,7 +473,7 @@ export async function qualifyPostgresKnowledgeProductionCanary(input: PostgresKn
   const database = await qualifyCompanyDatabase();
   const databaseReceipt = createKnowledgeOperationalGateReceipt({
     gateId: "database-qualification",
-    passed: database.status === "qualified" && database.manifestVersion === "1.7.0",
+    passed: database.status === "qualified" && database.manifestVersion === "1.8.0",
     metrics: { qualified: database.status === "qualified", manifestVersion: database.manifestVersion, vector: database.features.vector },
     evidenceIds: [database.manifestDigest],
     recordedAt: qualifiedAt,

@@ -170,8 +170,8 @@ resource and binds its `DATABASE_URL` only in the runtime secret environment.
 The next phase runs `companyos database prepare` through that runtime profile.
 Prepare detects an empty, older, or current database and selects `bootstrap`,
 `upgrade`, or read-only `verify`; callers do not have to guess which lifecycle
-operation applies. It creates or upgrades both `companyos` and
-`companyos_knowledge`, records the exact version-manifest entry, and performs
+operation applies. It creates or upgrades `companyos`, `companyos_knowledge`,
+and `companyos_records`, records the exact version-manifest entry, and performs
 read-only qualification before setup may continue. Setup records only the
 selected operation, previous manifest versions, and non-secret manifest,
 feature, object-count, provider-resource, and timestamp evidence. The
@@ -179,9 +179,9 @@ maintained Vercel path uses
 `vercel env run`; this is an adapter detail rather than a requirement for other
 runtime hosts.
 
-The current additive manifest is `companyos-postgres@1.7.0`, succeeding the
-immutable `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions. It qualifies 67
-required Knowledge tables, including stable groups, durable Source Events, ACL
+The current additive manifest is `companyos-postgres@1.8.0`, succeeding the
+immutable `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions. It qualifies 67
+required Knowledge tables and 11 Record Source tables, including stable groups, durable Source Events, ACL
 snapshots, pipeline receipts, completed watermarks, lifecycle requests, an
 integrity-linked change stream, durable synchronization leases, compounding
 receipts, review-only Claim-pair proposals, explicit grading requests,

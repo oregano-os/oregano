@@ -69,10 +69,10 @@ export function runKnowledgeDoctor(input: {
         : "No qualified Knowledge rollout lane evidence is available.",
     [input.environment?.receiptId], "Qualify either the strict isolated non-production lane or the internal-only production-canary lane with its branch rehearsal, backup, shadow, and V2 fallback controls.");
 
-  const databaseReady = Boolean(input.database?.qualified) && input.database?.manifestVersion === "1.7.0";
+  const databaseReady = Boolean(input.database?.qualified) && input.database?.manifestVersion === "1.8.0";
   add("database-manifest", databaseReady ? "pass" : "fail",
-    databaseReady ? "Database manifest 1.7.0 is qualified." : input.database?.qualified ? `Database manifest ${input.database.manifestVersion} is qualified but is not the Retrieval V3 target.` : "Database manifest qualification is missing or failed.",
-    [input.database?.receiptId], "Run the secret-bound additive database prepare operation and record the 1.7.0 qualification receipt.");
+    databaseReady ? "Database manifest 1.8.0 is qualified." : input.database?.qualified ? `Database manifest ${input.database.manifestVersion} is qualified but is not the Retrieval V3 target.` : "Database manifest qualification is missing or failed.",
+    [input.database?.receiptId], "Run the secret-bound additive database prepare operation and record the 1.8.0 qualification receipt.");
 
   const requiredProjectionStatus = input.rolloutPhase === "post-activation" ? "active" : "verified";
   const projectionReady = input.projection && (input.projection.status === "active" || (requiredProjectionStatus === "verified" && input.projection.status === "verified"));

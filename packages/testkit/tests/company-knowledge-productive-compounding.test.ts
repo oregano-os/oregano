@@ -505,6 +505,7 @@ test("the maintained Vercel adapters preserve Knowledge order and add the fail-c
     { path: "/api/knowledge/sources/granola/extract", schedule: "15 */6 * * *" },
     { path: "/api/knowledge/compounding", schedule: "0 2-5 * * *" },
     { path: "/api/builder/worker", schedule: "* * * * *" },
+    { path: "/api/records/reconcile", schedule: "*/15 * * * *" },
   ];
   const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };

@@ -30,10 +30,19 @@ export const COMPANY_RECORDS_REHEARSAL_SECRET_ENV = "COMPANYOS_RECORDS_REHEARSAL
 
 type JsonObject = Record<string, unknown>;
 type RehearsalEnvironment = Readonly<Record<string, string | undefined>>;
+export type CompanyRecordsRuntimeEnvironment = "preview" | "production";
 
-export interface CompanyRecordsRehearsalConfiguration {
+export interface CompanyRecordsReconciliationSchedule {
+  readonly source_id: string;
+  readonly time_zone: string;
+  readonly local_time: string;
+  readonly weekdays: readonly number[];
+  readonly max_lateness_minutes: number;
+}
+
+export interface CompanyRecordsRuntimeConfiguration<Environment extends CompanyRecordsRuntimeEnvironment = CompanyRecordsRuntimeEnvironment> {
   readonly version: 1;
-  readonly environment: "preview";
+  readonly environment: Environment;
   readonly instance_id: string;
   readonly core: {
     readonly repository: string;
@@ -51,7 +60,10 @@ export interface CompanyRecordsRehearsalConfiguration {
     readonly binding: JsonObject;
     readonly qualification: JsonObject;
   }[];
+  readonly reconciliation?: readonly CompanyRecordsReconciliationSchedule[];
 }
+
+export type CompanyRecordsRehearsalConfiguration = CompanyRecordsRuntimeConfiguration<"preview">;
 
 export type CompanyRecordsRehearsalRequest =
   | { readonly action: "plan-migration" }
@@ -109,18 +121,22 @@ export function authorizeCompanyRecordsRehearsal(request: Request, secret = proc
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
 
-export function decodeCompanyRecordsRehearsalConfiguration(encoded = process.env[COMPANY_RECORDS_REHEARSAL_CONFIG_ENV]): CompanyRecordsRehearsalConfiguration {
-  if (!encoded) throw new CompanyRecordsRehearsalError("missing-configuration", `${COMPANY_RECORDS_REHEARSAL_CONFIG_ENV} is not configured`, 503);
+export function decodeCompanyRecordsRuntimeConfiguration<Environment extends CompanyRecordsRuntimeEnvironment>(
+  encoded: string | undefined,
+  expectedEnvironment: Environment,
+  environmentVariable: string,
+): CompanyRecordsRuntimeConfiguration<Environment> {
+  if (!encoded) throw new CompanyRecordsRehearsalError("missing-configuration", `${environmentVariable} is not configured`, 503);
   let parsed: unknown;
   try { parsed = JSON.parse(gunzipSync(Buffer.from(encoded, "base64")).toString("utf8")); }
-  catch { throw new CompanyRecordsRehearsalError("invalid-configuration", `${COMPANY_RECORDS_REHEARSAL_CONFIG_ENV} is malformed`, 503); }
-  const value = object(parsed, "Company Records rehearsal configuration");
+  catch { throw new CompanyRecordsRehearsalError("invalid-configuration", `${environmentVariable} is malformed`, 503); }
+  const value = object(parsed, "Company Records runtime configuration");
   const credentialPath = findCredentialField(value);
   if (credentialPath || scanCredentialIndicators(JSON.stringify(value)).length > 0) {
-    throw new CompanyRecordsRehearsalError("credential-in-configuration", "Company Records rehearsal configuration must contain SecretRefs, never resolved credentials", 503);
+    throw new CompanyRecordsRehearsalError("credential-in-configuration", "Company Records runtime configuration must contain SecretRefs, never resolved credentials", 503);
   }
-  exactKeys(value, ["version", "environment", "instance_id", "core", "workspace", "source_confirmations", "sources", "projections", "bindings"], "Company Records rehearsal configuration");
-  if (value.version !== 1 || value.environment !== "preview") throw new CompanyRecordsRehearsalError("invalid-configuration", "Company Records rehearsal configuration must select version 1 and preview", 503);
+  exactKeys(value, ["version", "environment", "instance_id", "core", "workspace", "source_confirmations", "sources", "projections", "bindings", "reconciliation"], "Company Records runtime configuration");
+  if (value.version !== 1 || value.environment !== expectedEnvironment) throw new CompanyRecordsRehearsalError("invalid-configuration", `Company Records runtime configuration must select version 1 and ${expectedEnvironment}`, 503);
   const instanceId = string(value.instance_id, "instance_id", /^[a-z][a-z0-9-]{1,62}$/);
   const core = object(value.core, "core");
   exactKeys(core, ["repository", "ref", "core_version", "workbench_version", "clean"], "core");
@@ -163,7 +179,63 @@ export function decodeCompanyRecordsRehearsalConfiguration(encoded = process.env
     const bound = bindings.find((entry) => entry.source_id === sourceId);
     if (!bound || bound.binding.source_id !== sourceId) throw new CompanyRecordsRehearsalError("invalid-configuration", `Source '${sourceId}' has no exact binding`, 503);
   }
-  return { version: 1, environment: "preview", instance_id: instanceId, core: coreIdentity, workspace: workspaceIdentityValue, source_confirmations: confirmations as Record<string, string>, sources, projections, bindings };
+  if (expectedEnvironment === "preview" && value.reconciliation !== undefined) {
+    throw new CompanyRecordsRehearsalError("invalid-configuration", "Preview rehearsal configuration cannot activate reconciliation schedules", 503);
+  }
+  const reconciliation = value.reconciliation === undefined
+    ? undefined
+    : (() => {
+        if (!Array.isArray(value.reconciliation) || value.reconciliation.length > 20) {
+          throw new CompanyRecordsRehearsalError("invalid-configuration", "reconciliation must contain at most twenty schedules", 503);
+        }
+        const schedules = value.reconciliation.map((entry, index) => {
+          const candidate = object(entry, `reconciliation[${index}]`);
+          exactKeys(candidate, ["source_id", "time_zone", "local_time", "weekdays", "max_lateness_minutes"], `reconciliation[${index}]`);
+          const sourceId = string(candidate.source_id, `reconciliation[${index}].source_id`, /^[a-z][a-z0-9-]{1,62}$/);
+          if (!sourceIds.includes(sourceId)) throw new CompanyRecordsRehearsalError("invalid-configuration", `Reconciliation schedule selects unknown source '${sourceId}'`, 503);
+          const timeZone = string(candidate.time_zone, `reconciliation[${index}].time_zone`, /^[A-Za-z_]+(?:\/[A-Za-z0-9_+.-]+)+$/);
+          try { new Intl.DateTimeFormat("en", { timeZone }).format(new Date(0)); }
+          catch { throw new CompanyRecordsRehearsalError("invalid-configuration", `Reconciliation schedule time zone '${timeZone}' is invalid`, 503); }
+          const localTime = string(candidate.local_time, `reconciliation[${index}].local_time`, /^(?:[01]\d|2[0-3]):[0-5]\d$/);
+          if (!Array.isArray(candidate.weekdays) || candidate.weekdays.length === 0 || candidate.weekdays.some((day) => !Number.isInteger(day) || Number(day) < 1 || Number(day) > 7)) {
+            throw new CompanyRecordsRehearsalError("invalid-configuration", `reconciliation[${index}].weekdays must contain ISO weekdays 1 through 7`, 503);
+          }
+          if (!Number.isInteger(candidate.max_lateness_minutes) || Number(candidate.max_lateness_minutes) < 0 || Number(candidate.max_lateness_minutes) > 1_440) {
+            throw new CompanyRecordsRehearsalError("invalid-configuration", `reconciliation[${index}].max_lateness_minutes must be between 0 and 1440`, 503);
+          }
+          const [hour, minute] = localTime.split(":").map(Number);
+          if (hour! * 60 + minute! + Number(candidate.max_lateness_minutes) >= 1_440) {
+            throw new CompanyRecordsRehearsalError("invalid-configuration", `reconciliation[${index}] may not cross a local service-day boundary`, 503);
+          }
+          return {
+            source_id: sourceId,
+            time_zone: timeZone,
+            local_time: localTime,
+            weekdays: [...new Set((candidate.weekdays as number[]).map(Number))].sort((left, right) => left - right),
+            max_lateness_minutes: Number(candidate.max_lateness_minutes),
+          };
+        });
+        if (new Set(schedules.map((schedule) => schedule.source_id)).size !== schedules.length) {
+          throw new CompanyRecordsRehearsalError("invalid-configuration", "Each source may have at most one reconciliation schedule", 503);
+        }
+        return schedules;
+      })();
+  return {
+    version: 1,
+    environment: expectedEnvironment,
+    instance_id: instanceId,
+    core: coreIdentity,
+    workspace: workspaceIdentityValue,
+    source_confirmations: confirmations as Record<string, string>,
+    sources,
+    projections,
+    bindings,
+    ...(reconciliation ? { reconciliation } : {}),
+  };
+}
+
+export function decodeCompanyRecordsRehearsalConfiguration(encoded = process.env[COMPANY_RECORDS_REHEARSAL_CONFIG_ENV]): CompanyRecordsRehearsalConfiguration {
+  return decodeCompanyRecordsRuntimeConfiguration(encoded, "preview", COMPANY_RECORDS_REHEARSAL_CONFIG_ENV);
 }
 
 export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyRecordsRehearsalRequest {
@@ -189,8 +261,8 @@ export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyReco
   return { action: "status", source_id: sourceId! };
 }
 
-const configurationDigest = (configuration: CompanyRecordsRehearsalConfiguration): string => sha256(JSON.stringify(configuration));
-const workspaceIdentity = (configuration: CompanyRecordsRehearsalConfiguration): string => `${configuration.workspace.repository}@${configuration.workspace.ref}`;
+export const companyRecordsConfigurationDigest = (configuration: CompanyRecordsRuntimeConfiguration): string => sha256(JSON.stringify(configuration));
+export const companyRecordsWorkspaceIdentity = (configuration: CompanyRecordsRuntimeConfiguration): string => `${configuration.workspace.repository}@${configuration.workspace.ref}`;
 
 export function planCompanyRecordsPreviewMigration(configuration: CompanyRecordsRehearsalConfiguration) {
   const plan = {
@@ -199,8 +271,8 @@ export function planCompanyRecordsPreviewMigration(configuration: CompanyRecords
     environment: "preview",
     instance_id: configuration.instance_id,
     core: configuration.core,
-    workspace: workspaceIdentity(configuration),
-    configuration_digest: configurationDigest(configuration),
+    workspace: companyRecordsWorkspaceIdentity(configuration),
+    configuration_digest: companyRecordsConfigurationDigest(configuration),
     source_confirmations: configuration.source_confirmations,
     database_secret_ref: "env:DATABASE_URL",
     database_effect: "Create the additive companyos_records schema and its idempotent tables and indexes in the isolated preview database branch.",
@@ -221,7 +293,7 @@ const resolveEnvironmentSecretRef = (secretRef: string): string => {
   return value;
 };
 
-function validatedSelection(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string) {
+export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRuntimeConfiguration, sourceId: string) {
   const sourceValue = configuration.sources.find((candidate) => candidate.id === sourceId);
   const bindingEntry = configuration.bindings.find((candidate) => candidate.source_id === sourceId);
   if (!sourceValue || !bindingEntry || !configuration.source_confirmations[sourceId]) throw new CompanyRecordsRehearsalError("unknown-source", `Unknown confirmed source '${sourceId}'`, 404);
@@ -259,13 +331,13 @@ function validatedSelection(configuration: CompanyRecordsRehearsalConfiguration,
 }
 
 export function planCompanyRecordsPreviewSync(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string) {
-  const selected = validatedSelection(configuration, sourceId);
+  const selected = validatedCompanyRecordsSelection(configuration, sourceId);
   const plan = {
     schema_version: 1,
     kind: "company-record-source-operation",
     operation: "sync",
     environment: "preview",
-    workspace: workspaceIdentity(configuration),
+    workspace: companyRecordsWorkspaceIdentity(configuration),
     core: configuration.core,
     source_id: sourceId,
     source_digest: sha256(JSON.stringify(selected.source)),
@@ -281,7 +353,7 @@ export function planCompanyRecordsPreviewSync(configuration: CompanyRecordsRehea
     database_secret_ref: "env:DATABASE_URL",
     provider_access: "read-only-complete-inventory",
     database_effect: "Append immutable observations, update current pointers and projections, and advance the watermark; do not infer provider deletion.",
-    rehearsal: { configuration_digest: configurationDigest(configuration), workspace_ref: configuration.workspace.ref, source_confirmation_hash: configuration.source_confirmations[sourceId] },
+    rehearsal: { configuration_digest: companyRecordsConfigurationDigest(configuration), workspace_ref: configuration.workspace.ref, source_confirmation_hash: configuration.source_confirmations[sourceId] },
     external_changes: [
       "Read the exact provider resource through the selected read-only Record Source Connector.",
       "Write idempotent Company Records observations and projections to the isolated preview database without deleting missing records.",
@@ -327,7 +399,7 @@ const defaultDependencies: RehearsalDependencies = {
     return { applied: true, receipt, provider_evidence: inventory.receipt, credentials_retained: false };
   },
   async inspectStatus(configuration, sourceId) {
-    const selected = validatedSelection(configuration, sourceId);
+    const selected = validatedCompanyRecordsSelection(configuration, sourceId);
     const [status, projections] = await Promise.all([
       inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, sourceId),
       inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => projection.id)),

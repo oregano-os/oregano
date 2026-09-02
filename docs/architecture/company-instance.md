@@ -166,9 +166,10 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-The current additive database manifest is `companyos-postgres@1.7.0`. It
-retains the immutable `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities
-and contains 67 required `companyos_knowledge` tables. Phase 3 adds durable Source
+The current additive database manifest is `companyos-postgres@1.8.0`. It
+retains the immutable `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
+contains 67 required `companyos_knowledge` tables, and adds 11 required
+`companyos_records` tables for provider-neutral Record Source state. Phase 3 adds durable Source
 Events, provider ACL snapshots, bounded pipeline receipts, completed
 watermarks, an integrity-linked Knowledge change stream, and governed source
 lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
@@ -313,8 +314,10 @@ The maintained Monday adapter is Core-owned privileged Connector code, while
 the board account, external Agent registration, permissions, board grants,
 callback route, signing material, exact resource bindings, and activation
 receipts are Instance state. Conversational callbacks are signature- and
-replay-verified before `AgentResolver` selects the compiled Agent. Board-change
-callbacks bypass the chat prompt and enter the records and Sprint path. An
+replay-verified before `AgentResolver` selects the compiled Agent. A separately
+qualified board-change subscription would bypass the chat prompt and enter the
+records and Sprint path; a conversational external-Agent callback MUST NOT be
+treated as that subscription. An
 outbound Sprint message similarly resolves the provider-neutral
 `communication.message.publish` Capability to an exact destination binding;
 the Sprint Blueprint does not know a channel ID.
@@ -390,6 +393,33 @@ cannot run in production and cannot reconcile absence, activate a schedule or
 webhook, invoke a model or Tool, or write to a provider. Preview deployment,
 database branching, secrets, protection, cleanup, and retained evidence remain
 Instance responsibilities.
+
+The maintained Vercel Runner also exposes a separate production-only Company
+Records lane. `POST /api/records/operations` is authenticated by an
+Instance-owned operator bearer and supports payload-free planning, exact
+confirmation of the additive database manifest and initial synchronization,
+full reconciliation, and status. It requires `VERCEL_ENV=production`, the
+exact deployed Git commit, and exact Core, Workspace, and Instance identities
+from the production Artifact. `COMPANYOS_RECORDS_ENABLED` is the mutation kill
+switch. An exact completed confirmation reuses its stored receipt instead of
+reading the provider again.
+
+`GET /api/records/reconcile` is a distinct `CRON_SECRET`-authenticated scheduler
+surface. The hosting cron is only a 15-minute wake-up adapter. Reviewed Instance
+configuration supplies each source's IANA time zone, local service time,
+weekdays, and bounded retry window. Core runs only a due configured source,
+uses a stable service-day run identity and the durable source lease, and reuses
+an existing completion receipt. `COMPANYOS_RECORDS_SCHEDULER_ENABLED` activates
+or disables recurring work independently from operator preparation. A complete
+inventory is mandatory before absence can become a retained tombstone. Neither
+production route modifies a provider, sends a message, invokes a model, grants
+an Agent Tool, or turns a conversational callback into a board event.
+
+The maintained Company Instance database manifest includes
+`companyos_records` from version `1.8.0`. Production migration remains an
+explicit exact-plan Instance effect; deploying Core alone does not apply it.
+Database qualification and `/api/health` then prove the exact records table and
+index set along with the control and knowledge schemas.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

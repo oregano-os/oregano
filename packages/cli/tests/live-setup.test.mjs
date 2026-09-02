@@ -102,6 +102,7 @@ const databaseQualification = (overrides = {}) => ({
   schemas: {
     companyos: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length },
     companyosKnowledge: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length },
+    companyosRecords: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length },
   },
   corePageTypeCount: COMPANY_DATABASE_MANIFEST.corePageTypes.length,
   features: { vector: false },

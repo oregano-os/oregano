@@ -48,6 +48,12 @@ export async function GET() {
       databaseManifestVersion: database.manifestVersion,
       databaseManifestDigest: database.manifestDigest,
       databaseFeatures: database.features,
+      companyRecords: {
+        configured: Boolean(process.env.COMPANYOS_RECORDS_CONFIG_GZIP_BASE64),
+        enabled: process.env.COMPANYOS_RECORDS_ENABLED === "true",
+        schedulerEnabled: process.env.COMPANYOS_RECORDS_SCHEDULER_ENABLED === "true",
+        schemaTableCount: database.schemas.companyosRecords.tableCount,
+      },
       meta: "disabled-until-real-connector-binding",
     });
   } catch (error) {
