@@ -1,0 +1,154 @@
+version: 2
+plan_id: release-v0.5.4-2026-09-02
+status: approved
+author: codex-agent
+created: 2026-09-02
+title: Prepare governed Company Records and Agent handoffs as Oregano v0.5.4
+objective: >-
+  Prepare one reviewed Core patch candidate containing the optional,
+  company-neutral Company Records lifecycle, governed Agent handoffs, external
+  Monday Agent boundary, bounded rehearsal tooling, complete-table inventory,
+  resumable source connection, and System of Proof documentation without
+  activating any Company Workspace or Company Instance.
+non_goals:
+  - Merge the candidate pull request, create a tag, publish a GitHub Release, or mark the release stable before separate exact human confirmation.
+  - Change, migrate, synchronize, deploy, or activate a production Company Instance.
+  - Send a Slack message, write a Monday object, activate a webhook or scheduler, or broaden an external Agent grant.
+  - Add a company identifier, provider credential, customer record, Workspace mapping, participant, schedule, or retention choice to Oregano Core.
+  - Change the selected 0.5.x release line or the Workbench version 0.1.0-experimental.12.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - Security before autonomy
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/**
+  - docs/**
+  - package.json
+  - packages/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-finish-stage-5d-and-prepare-an-exact-0.5.x-release-candidate
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own provider-neutral record contracts, state, projections, reconciliation, Sprint decisions, Agent routing and handoff controls, Connector contracts, evidence rules, and the reusable Workbench process.
+      - Own the exact Core version, release candidate commit, release manifest contract, and public boundary checks.
+    packages:
+      - Keep the experimental Sprint Blueprint declarative and authority-free while reusing Core Domains, Tools, Capabilities, and Resolvers.
+    workspace:
+      - Continue to own company sources, field mappings, projections, policies, schedules, participants, Agent instructions, grants, and logical provider destinations.
+    instance:
+      - Continue to own external Agent identities, exact resources, credentials, database, migration state, webhooks, schedules, deployment, costs, live receipts, and production activation.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: extend
+      reason: Exact bindings, explicit defaults, and durable Conversation Assignments now resolve multi-Agent conversations without routing from free-form message content.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Handoffs never copy ToolSets, and every Agent continues to receive only its separately compiled grants.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The release selects no company model; model routes remain Workspace and Instance decisions resolved through the existing mechanism.
+    - mechanism: company-records
+      decision: extend
+      reason: The release completes the existing experimental record lifecycle with qualification, complete inventory, bounded synchronization, reconciliation, projections, receipts, and reusable rehearsal orchestration.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Governed handoffs and Monday ingress require exact authenticated principals, resource grants, signatures, replay protection, and fail-closed scope.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Existing Sprint timers, calendar calculations, and controlled-clock fixtures remain the only scheduling mechanisms; this release activates none.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Exact confirmations, version checks, durable leases, source-event deduplication, echo evidence, read-after-write, and receipts remain the effect boundary.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The maintained Monday adapter and generic Record Source Connector are extended behind provider-neutral contracts without granting them directly to an Agent.
+  new_core_mechanisms:
+    - Durable governed Conversation Assignment and semantic Agent handoff state.
+    - Resumable provider-neutral Record Source rehearsal orchestration with replaceable Instance profiles.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every mechanism is expressed through provider-neutral contracts and
+    synthetic fixtures. Company resources, identities, mappings, policies,
+    schedules, grants, secrets, data, environment choices, and production
+    decisions remain outside Core and can vary independently per company.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.3
+  target_version: 0.5.4
+  rationale: >-
+    The included capabilities remain experimental, optional, fail closed, and
+    inactive for existing consumers. Existing v0.5.3 Workspaces and Instances
+    require no migration merely to stay supported. Companies that opt in must
+    separately review their Workspace declarations and additive Instance
+    migration. The default Slack, Knowledge, Builder, and provider behavior is
+    not broadened, so this is a backward-compatible experimental extension and
+    hardening release within the approved 0.5.x line.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-release-v0.5.4.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-02-release-v0.5.4.yaml
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas --format json
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm validate:fixture
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm builder:check
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core reports 0.5.4 and Workbench reports 0.1.0-experimental.12 from one clean exact candidate commit.
+  - Company Records retries repair interrupted materialization without duplicate current objects or projection rows and publish completion only after every object succeeds.
+  - Signed Monday callbacks, replay protection, exact board scope, version control, read-after-write, reconciliation, provider deletion, archive semantics, and echo suppression fail closed.
+  - AgentResolver and governed handoff fixtures prove exact routing precedence, sticky assignment, return, expiry, revocation, idempotency, authorization, and ToolSet separation without retaining transcripts.
+  - Sprint controlled-clock fixtures prove business time, holiday movement, Friday Close cutoffs, absences, timers, output isolation, and duplicate suppression.
+  - The Workbench source-connect state is credential-free, mode 0600, resumable, independently confirmation-bound, payload-free, and production-inactive.
+  - Documentation, TypeScript, public-boundary, fixture validation, Runner build, and all repository tests pass before merge.
+  - Release assets can be generated only from the clean exact tag matching 0.5.4 after the protected release commit is merged.
+documentation_impact:
+  required: true
+  affected_documents:
+    - docs.index
+    - reference.glossary
+    - architecture.company-instance
+    - architecture.company-workspace
+    - architecture.oregano-core
+    - architecture.overview
+    - architecture.boundaries
+    - architecture.system-of-proof
+    - specification.company-records-sprint-v0.1
+    - specification.companyos-core-v0.7
+    - status.current
+    - command.records
+    - guide.connect-company-record-source
+    - guide.plan-change
+  reason_if_none: ""
+migration: >-
+  Existing v0.5.3 Company Workspaces and Instances remain valid and require no
+  migration. Adoption of Company Records, governed handoffs, or Monday Agent
+  integration is opt-in and requires separate Workspace review plus an additive
+  Instance migration, exact resource binding, qualification, secret setup, and
+  environment activation. No production migration is part of this release.
+rollback: >-
+  Do not alter any immutable published release. Until v0.5.4 is tagged, close or
+  revert the candidate PR and continue using exact v0.5.3. After publication,
+  unchanged consumers may remain on v0.5.3; correct any release defect in a
+  newer patch. Any Company Instance rollback remains a separately approved
+  exact Core/Workspace deployment and provider disable procedure.
+open_decisions: []
