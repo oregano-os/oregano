@@ -279,6 +279,56 @@ conditions hold:
 - the database and provider credentials are injected separately through
   Preview-only sensitive variables.
 
+After the protected Preview, isolated database branch, and Preview-only
+Sensitive bindings exist, replace ad hoc scripts with one resumable command:
+
+```bash
+companyos records source connect \
+  --profile vercel-neon \
+  --workspace <company-workspace> \
+  --source delivery-items \
+  --binding <staging-binding.yaml> \
+  --runtime-scope <vercel-team> \
+  --runtime-project <vercel-project> \
+  --endpoint https://<protected-preview>/api/records/rehearsal \
+  --state <outside-workspace-state-file> \
+  --plan
+```
+
+Review the exact Core and Workspace commits, source and projection selection,
+binding and qualification evidence, runtime target, costs, and effects. Use
+`--apply <connect-hash>` to create only a mode-0600 credential-free local state.
+Then run `--status` to see the required Preview variable names. Use
+`--status --show-preview-configuration` only in the operator terminal to obtain
+the compressed credential-free configuration for the corresponding Vercel
+Sensitive value. Never copy it to chat or Git.
+
+Inject the same short-lived `COMPANYOS_RECORDS_REHEARSAL_SECRET` into the one
+local process and the protected Preview. The local Vercel CLI must already be
+signed into an account that may access the exact deployment; the Workbench does
+not log in or grant consent. A first `--resume` obtains the
+independent migration and synchronization hashes without reading the provider
+or writing the database. After reviewing both effects, continue with:
+
+```bash
+companyos records source connect \
+  --state <state-file> \
+  --resume \
+  --migration-confirmation <migration-hash> \
+  --sync-confirmation <sync-hash>
+```
+
+The command records migration before starting synchronization, so a timeout or
+failed provider pass resumes without repeating an unrecorded effect. It calls
+status only after apply and completes only when the isolated database proves an
+available schema, a watermark, a successful zero-error receipt, and every
+selected projection. It retains counts and receipts, never record payloads or
+credentials. Remove only
+`COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64` and
+`COMPANYOS_RECORDS_REHEARSAL_SECRET` after evidence capture. Infrastructure,
+the Instance provider SecretRef, `DATABASE_URL`, and production remain separate
+accountable decisions.
+
 The endpoint plans and applies migration and synchronization separately. It
 never enables reconciliation, schedules, webhooks, provider writes, or
 production. Its status and apply responses contain counts and receipts, not

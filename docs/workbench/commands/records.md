@@ -147,6 +147,49 @@ Monday `complete-table` apply response includes payload-free board/column
 schema coverage and its digest; `status` includes row counts for the exact
 declared projections selected by the source.
 
+Use the high-level resumable operator command instead of temporary scripts:
+
+```bash
+companyos records source connect \
+  --profile vercel-neon \
+  --workspace <company-workspace> \
+  --source <source-id> \
+  --binding <outside-workspace-instance-binding.yaml> \
+  --runtime-scope <vercel-team> \
+  --runtime-project <vercel-project> \
+  --endpoint https://<protected-preview>/api/records/rehearsal \
+  --state <outside-workspace-state-file> \
+  --plan
+
+companyos records source connect <same-options> --apply <connect-hash>
+companyos records source connect --state <state-file> --status
+companyos records source connect --state <state-file> --status \
+  --show-preview-configuration
+companyos records source connect --state <state-file> --resume
+companyos records source connect --state <state-file> --resume \
+  --migration-confirmation <migration-hash> \
+  --sync-confirmation <sync-hash>
+```
+
+Plan and initialization make no external call. `--status` lists the required
+Preview-only Sensitive names; `--show-preview-configuration` emits the
+credential-free compressed configuration only on explicit request for entry in
+the operator's Vercel UI. It is company metadata and still must not enter chat
+or Git. The matching short-lived `COMPANYOS_RECORDS_REHEARSAL_SECRET` is
+injected into the one local resume process and is sent to `vercel curl` through
+standard input, not an argument or state field.
+Resume uses the locally signed-in Vercel CLI session only to reach the exact
+protected deployment. It does not sign in, grant consent, or change the linked
+project; missing account or team access fails visibly.
+
+The first resume obtains migration and synchronization plans only. The second
+resume requires both exact hashes, records migration before synchronization so
+an interruption is resumable, and then requires payload-free status proving a
+watermark, zero-error receipt, and all selected projections. It does not create
+the Preview, database branch, or Sensitive values; remove only the two
+Workbench-owned rehearsal values afterwards. Production is always a separate
+plan.
+
 ## Payload-free status
 
 ```bash

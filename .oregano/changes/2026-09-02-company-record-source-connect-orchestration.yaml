@@ -1,0 +1,127 @@
+version: 2
+plan_id: company-record-source-connect-orchestration-2026-09-02
+status: implemented
+author: codex-agent
+created: 2026-09-02
+title: Add a resumable Company Record Source rehearsal orchestrator
+objective: >-
+  Replace one-off operator scripts with one provider-neutral, resumable
+  Workbench command that freezes a reviewed Company Record Source selection,
+  uses a replaceable Instance rehearsal profile, obtains independent migration
+  and synchronization plans, applies only exact human-confirmed hashes, and
+  records payload-free verification evidence without retaining credentials.
+non_goals:
+  - Create, delete, deploy, or reconfigure a real Vercel project, Neon branch, provider resource, provider Agent, Workspace, or production environment.
+  - Retrieve, copy, print, persist, or infer provider credentials, DATABASE_URL, a rehearsal bearer, or a Vercel protection credential.
+  - Add a second Company Records synchronization implementation or a provider-specific lifecycle.
+  - Activate production, schedules, webhooks, reconciliation, or provider writes.
+  - Make the first profile a requirement for runtimes or state stores other than Vercel and Neon/Postgres.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Security before autonomy
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-02-company-record-source-connect-orchestration.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/record-source-connect.mjs
+  - packages/cli/src/records/profiles/vercel-neon.mjs
+  - packages/cli/tests/record-source-connect.test.mjs
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-build-the-agreed-pragmatic-provider-neutral-process
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the generic resumable orchestration, exact-plan confirmation, credential-free state, profile contract, diagnostics, and payload-free evidence rules.
+    packages:
+      - No Blueprint behavior changes; the Workbench distribution receives the generated canonical Guide copy.
+    workspace:
+      - Continue to own company source declarations, projections, connections, schedules, access groups, and field mappings.
+    instance:
+      - Own the exact provider binding, qualification receipt, runtime endpoint, runtime and database resources, secrets, deployment protection, costs, environment activation, and production decision.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Record Source rehearsal is a trusted operator process and does not resolve a conversational Agent.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: The command grants no Agent Tool and does not expose a Connector or database directly to an Agent.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Planning, synchronization, verification, and state transitions are deterministic and invoke no model.
+    - mechanism: company-records
+      decision: extend
+      reason: The command orchestrates the existing declarations, bindings, Connector registry, Preview rehearsal endpoint, synchronization service, status, receipts, and watermarks without duplicating them.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing external-Agent qualification and projection access policies remain authoritative.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: The rehearsal command activates no schedule or recurring synchronization.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Independent exact migration and source synchronization hashes, idempotent storage, and payload-free receipts remain the effect boundary.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The selected provider is resolved through the maintained Record Source Connector named by the Instance binding.
+  new_core_mechanisms:
+    - A small resumable Record Source rehearsal state machine with replaceable Instance profiles.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The state machine accepts generic source, projection, binding, qualification,
+    and hosted rehearsal contracts. Its first profile describes Vercel and
+    Neon/Postgres mechanics only; it contains no company, board, field, person,
+    schedule, or credential value, and another runtime/state pair can implement
+    the same narrow profile contract.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-company-record-source-connect-orchestration.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-company-record-source-connect-orchestration.yaml
+  - node --test packages/cli/tests/record-source-connect.test.mjs packages/cli/tests/records.test.mjs
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - git diff --check
+tests:
+  - Planning freezes exact clean Core and Workspace identities, selected declarations, projections, binding, qualification, endpoint, profile, and expected effects without a provider or database call.
+  - Initialization creates one mode-0600 state file and refuses overwrite or credential-shaped state.
+  - Resume obtains migration and synchronization plans only from the bound Preview endpoint and stores no bearer or row payload.
+  - Apply rejects a missing, stale, duplicate, or mismatched human confirmation before any remote apply request.
+  - Successful apply requires payload-free status with a watermark, successful receipt, zero errors, and declared projection evidence before completion.
+  - Runtime failures preserve a resumable non-complete state and never convert partial rows into a successful claim.
+  - A second synthetic runtime profile can satisfy the provider-neutral orchestration contract without changing Company Records logic.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - command.records
+    - guide.connect-company-record-source
+  reason_if_none: ""
+rollback: >-
+  Remove the high-level connect command and its first Instance profile while
+  retaining the existing qualification, materialization, sync, reconcile,
+  status, Preview endpoint, database schema, immutable evidence, and all
+  incomplete local state files. The command owns no production activation or
+  external resource, so rollback deletes no provider or company data.
+open_decisions:
+  - Additional Instance profiles are added only after a real second runtime/state combination needs the same rehearsal contract.

@@ -30,6 +30,13 @@ import {
   planRecordSourceOperation,
   runRecordSourceOperation,
 } from "./records-operations.mjs";
+import {
+  advanceRecordSourceConnect,
+  initializeRecordSourceConnect,
+  planRecordSourceConnect,
+  readRecordSourceConnectState,
+  recordSourceConnectRuntimeConfigurationValue,
+} from "./record-source-connect.mjs";
 import { checkGeneratedDocumentation, generateDocumentation, inspectDocumentation } from "./docs-control.mjs";
 import { hasErrors, printDiagnostics } from "./diagnostics.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
@@ -116,6 +123,10 @@ Usage:
   companyos records source sync|reconcile --workspace <path> --source <id> --binding <file> --plan [--format human|json]
   companyos records source sync|reconcile <same-options> --apply <hash> [--format human|json]
   companyos records source status --workspace <path> --source <id> --binding <file> [--format human|json]
+  companyos records source connect --profile vercel-neon --workspace <path> --source <id> --binding <file> --runtime-scope <scope> --runtime-project <project> --endpoint <preview-url>/api/records/rehearsal --state <file> --plan [--format human|json]
+  companyos records source connect <same-options> --apply <hash> [--format human|json]
+  companyos records source connect --state <file> --resume [--migration-confirmation <hash>] [--sync-confirmation <hash>] [--format human|json]
+  companyos records source connect --state <file> --status [--show-preview-configuration] [--format human|json]
   companyos package inspect <path> [--format human|json]
   companyos database prepare [--format human|json]
   companyos database bootstrap [--format human|json]
@@ -859,7 +870,81 @@ try {
   } else if (command === "records" && action === "source" && value !== "qualify") {
     const recordsAction = value;
     const workspacePath = optionValue("--workspace") ?? process.cwd();
-    if (recordsAction === "inspect") {
+    if (recordsAction === "connect") {
+      const statePath = optionValue("--state");
+      if (!statePath) throw new Error("Record source connect requires --state <outside-workspace-state-file>.");
+      if (args.includes("--status")) {
+        const state = readRecordSourceConnectState(resolve(statePath));
+        const result = {
+          ok: state.phase === "complete",
+          state_path: resolve(statePath),
+          phase: state.phase,
+          profile: state.profile,
+          source_id: state.source_id,
+          configuration_digest: state.configuration_digest,
+          expected_preview_environment: state.expected_preview_environment,
+          evidence: state.evidence,
+          ...(args.includes("--show-preview-configuration") ? { preview_configuration_gzip_base64: recordSourceConnectRuntimeConfigurationValue(state) } : {}),
+        };
+        if (format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        else {
+          process.stdout.write(`Record Source connect phase: ${state.phase}\nState: ${resolve(statePath)}\nProfile: ${state.profile}\nSource: ${state.source_id}\nConfiguration digest: ${state.configuration_digest}\n`);
+          process.stdout.write(`${YAML.stringify({ expected_preview_environment: state.expected_preview_environment })}\n`);
+          if (args.includes("--show-preview-configuration")) process.stdout.write(`COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64=${result.preview_configuration_gzip_base64}\n`);
+          else process.stdout.write("Use --show-preview-configuration only in the operator terminal when setting the Preview-only Sensitive value; do not paste it into chat or Git.\n");
+        }
+      } else if (args.includes("--resume")) {
+        const result = await advanceRecordSourceConnect({
+          statePath: resolve(statePath),
+          migrationConfirmation: optionValue("--migration-confirmation"),
+          syncConfirmation: optionValue("--sync-confirmation"),
+        });
+        if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
+        else {
+          process.stdout.write(`Record Source connect phase: ${result.state.phase}\n${result.message}\n`);
+          if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
+          if (result.cleanup) process.stdout.write(`${YAML.stringify({ cleanup: result.cleanup })}\n`);
+        }
+      } else {
+        const sourceId = optionValue("--source");
+        const bindingPath = optionValue("--binding");
+        if (!sourceId || !bindingPath || !optionValue("--runtime-scope") || !optionValue("--runtime-project") || !optionValue("--endpoint")) {
+          throw new Error("Record source connect plan requires --workspace, --source, --binding, --runtime-scope, --runtime-project, --endpoint, and --state.");
+        }
+        const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
+        const planResult = planRecordSourceConnect({
+          workspaceRoot: workspacePath,
+          sourceId,
+          bindingPath,
+          profile: optionValue("--profile") ?? "vercel-neon",
+          endpoint: optionValue("--endpoint"),
+          runtimeScope: optionValue("--runtime-scope"),
+          runtimeProject: optionValue("--runtime-project"),
+          statePath,
+          coreIdentity: checkout.identity,
+        });
+        planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
+        if (args.includes("--plan")) {
+          if (format === "json") process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), plan: planResult.plan, diagnostics: planResult.diagnostics }, null, 2)}\n`);
+          else {
+            exitWithDiagnostics(planResult.diagnostics, { format, summary: "Company Records source connect plan" });
+            if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
+          }
+        } else {
+          const confirmationHash = optionValue("--apply");
+          if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash>; initialization itself makes no external change.");
+          const result = initializeRecordSourceConnect({ planResult, confirmationHash });
+          if (format === "json") process.stdout.write(`${JSON.stringify({ ok: Boolean(result.state) && !hasErrors(result.diagnostics), state_path: result.statePath, phase: result.state?.phase, diagnostics: result.diagnostics }, null, 2)}\n`);
+          else {
+            exitWithDiagnostics(result.diagnostics, { format, summary: "Company Records source connect" });
+            if (result.state) {
+              process.stdout.write(`Initialized resumable state: ${result.statePath}\n`);
+              process.stdout.write("No provider, database, deployment, or production effect was made. Run --status to review the exact Preview-only environment requirements, then --resume after those values and the protected Preview deployment exist.\n");
+            }
+          }
+        }
+      }
+    } else if (recordsAction === "inspect") {
       const result = inspectRecordWorkspace({ workspaceRoot: workspacePath, sourceId: optionValue("--source") });
       if (format === "json") {
         process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
@@ -944,7 +1029,7 @@ try {
         if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ binding: result.binding, status: result.status })}\n`);
       }
     } else {
-      throw new Error("Use `companyos records source inspect|qualify|materialize|sync|reconcile|status`.");
+      throw new Error("Use `companyos records source inspect|qualify|materialize|connect|sync|reconcile|status`.");
     }
   } else if (command === "records" && action === "projection") {
     if (value !== "inspect") throw new Error("Use `companyos records projection inspect`.");

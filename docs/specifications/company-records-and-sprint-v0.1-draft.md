@@ -128,6 +128,22 @@ current object version. Replaying an older version MUST NOT replace a projection
 of newer current state. Watermark and completion evidence are written only after
 every inventory object succeeds.
 
+**CRS-018 — Resumable rehearsal orchestration.** The Workbench MUST be able to
+freeze one reviewed Record Source, its selected projections, non-secret
+binding and qualification, exact clean Core and Workspace identities, and one
+non-production Instance profile into a credential-free mode-0600 local state.
+The orchestrator MUST reuse the maintained rehearsal, synchronization, Store,
+receipt, and watermark contracts rather than implement another provider
+pipeline. Remote planning MUST have no provider or database effect. Migration
+and source synchronization MUST retain independent exact human confirmations;
+a missing or stale confirmation makes no apply request. An interrupted apply
+remains resumable from the last recorded effect. Completion requires
+payload-free proof of an available Store, a successful zero-error receipt, a
+watermark, and every selected projection. Runtime and StateStore details belong
+to a replaceable Instance profile; company values and provider mappings remain
+Workspace or Instance truth. Infrastructure creation, secret copying, cleanup,
+schedule activation, and production activation are outside this command.
+
 ## 3. Sprint domain
 
 **CRS-020 — Pure decision boundary.** The Sprint domain accepts one validated

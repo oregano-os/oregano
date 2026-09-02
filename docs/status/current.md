@@ -56,6 +56,16 @@ evidence, historical prototypes, and production gaps.
   cannot reconcile, schedule, receive webhooks, write to a provider, or grant
   Agent Tools. No real Preview, database branch, migration, or provider read is
   claimed by this Core change.
+- The experimental `companyos records source connect --profile vercel-neon`
+  command replaces one-off hosted-rehearsal scripts with credential-free
+  mode-0600 state. It freezes one exact clean Workspace/Core/source/binding
+  selection, obtains migration and synchronization plans without effects,
+  requires their independent exact confirmations, persists the migration
+  boundary before synchronization, and completes only with payload-free
+  watermark, zero-error receipt, and declared-projection evidence. Its first
+  Instance profile reaches an already prepared protected Vercel Preview backed
+  by an isolated Neon/Postgres branch; it does not create infrastructure,
+  retain secrets, clean up provider resources, or activate production.
 - Workspace inspection now rejects projection and selection paths that are not
   materialized by the exact selected Record Source set, preventing a declared
   field from silently remaining empty at runtime.

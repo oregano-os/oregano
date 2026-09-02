@@ -150,6 +150,18 @@ retains `DATABASE_URL`. The maintained Vercel adapter uses `vercel env run` as
 its secret transport, while another qualified runtime adapter may provide an
 equivalent process without changing the database manifest.
 
+Company Record Source delivery uses the same replacement boundary. The
+provider-neutral Workbench orchestrator freezes declarations, bindings,
+qualification evidence, exact identities, independent confirmation hashes, and
+payload-free completion evidence. Its first narrow `vercel-neon` rehearsal
+profile knows how to reach the protected Vercel Preview endpoint backed by an
+isolated Neon/Postgres branch. It does not know the business provider or
+company mapping; those resolve through the maintained Record Source Connector
+and the exact Workspace/Instance material. A future runtime or StateStore adds
+another qualified profile behind this contract instead of another Record
+Source lifecycle. The profile starts after infrastructure and Preview-only
+Sensitive values exist and never creates, deletes, or activates them.
+
 Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
