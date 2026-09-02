@@ -74,7 +74,7 @@ export function createVercelNeonRecordSourceProfile({ executor = createRecordSou
         "",
       ].join("\n");
       const target = new URL(endpoint);
-      const result = executor.run(vercelCli, ["curl", target.pathname, "--deployment", target.origin, "--scope", runtimeScope, "--", "--config", "-"], { input });
+      const result = executor.run(vercelCli, ["curl", target.pathname, "--deployment", target.origin, "--", "--config", "-"], { input });
       if (result.status !== 0) throw new Error(`Vercel Preview request failed: ${safeDiagnostic(result.stderr || result.stdout, secret)}`);
       let parsed;
       try { parsed = JSON.parse(result.stdout); }
