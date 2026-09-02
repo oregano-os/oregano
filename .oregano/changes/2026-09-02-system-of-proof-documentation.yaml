@@ -1,0 +1,110 @@
+version: 2
+plan_id: system-of-proof-documentation-2026-09-02
+status: implemented
+author: codex-agent
+created: 2026-09-02
+title: Document the CompanyOS System of Proof and retention boundary
+objective: >-
+  Establish one canonical, provider-neutral architecture page that explains
+  how reviewed files, immutable deployment provenance, control evidence,
+  Company Records evidence, Company Knowledge evidence, and external provider
+  receipts compose the CompanyOS System of Proof without creating a fourth
+  database schema or another source of business authority.
+non_goals:
+  - Add, migrate, rename, or delete a database schema or table.
+  - Implement a generic purge engine, legal decision engine, backup policy, or production retention schedule.
+  - Add a company name, retention period, provider resource, credential, or customer record to Oregano Core.
+  - Change a deployed Company Instance or claim that every retention and deletion path is already enforced.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+  - Knowledge authority stays reviewed and singular
+files_expected:
+  - .oregano/changes/2026-09-02-system-of-proof-documentation.yaml
+  - docs/README.md
+  - docs/_generated/architecture-index.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-workspace.md
+  - docs/architecture/system-of-proof.md
+  - docs/glossary.md
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: peter-notzel
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-create-the-system-of-proof-documentation
+architecture_assessment:
+  responsibilities:
+    core:
+      - Define the provider-neutral evidence chain, schema responsibilities, proof requirements, retention semantics, and minimum safety boundary.
+    packages:
+      - No Blueprint, Tool Package, or Connector Package behavior changes.
+    workspace:
+      - Declare each company's retention policy, access policy, legal overrides, and operating choices without redefining the Core evidence model.
+    instance:
+      - Own the exact database, provider receipts, backups, credentials, operational state, and enforcement evidence for one environment.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Agent resolution and Conversation Assignment evidence are one existing part of the proof chain; no new routing path is introduced.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Resolved Tool identity and grants remain existing inputs to effect evidence.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Exact model-route evidence remains existing provenance where a model is invoked; the document adds no model behavior.
+    - mechanism: company-records
+      decision: reuse
+      reason: Source Events, object versions, access decisions, watermarks, and synchronization receipts already provide the operational-record portion of the proof chain.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Attributable principal and policy evidence remain prerequisites for approvals, reads, handoffs, and effects.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Durable timer evidence remains part of scheduled workflow proof while temporary leases retain their intrinsic expiry semantics.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Existing requests, decisions, idempotency claims, effect states, and provider receipts are the control-plane proof path.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Existing Connector receipts and read-after-write evidence bind provider outcomes without making a provider the CompanyOS policy authority.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The documentation describes existing provider-neutral evidence categories
+    and PostgreSQL schema responsibilities. Company-specific retention,
+    resources, people, legal decisions, and backup choices remain Workspace or
+    Instance truth and can vary without changing Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-system-of-proof-documentation.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-system-of-proof-documentation.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - git diff --check
+tests:
+  - The documentation registry resolves the new canonical System of Proof document and every declared relation.
+  - The architecture page maps proof categories to the three existing schemas and explicitly rejects a fourth proof schema.
+  - Retention wording distinguishes durable evidence, rebuildable projections, and intrinsically temporary coordination state.
+  - Indefinite retention is defined as no age-based automatic purge, not as permission to ignore a valid legal or governed deletion requirement.
+documentation_impact:
+  required: true
+  affected_documents:
+    - docs.index
+    - reference.glossary
+    - architecture.company-workspace
+    - architecture.system-of-proof
+  reason_if_none: ""
+rollback: >-
+  Revert the new architecture page, navigation links, glossary entry, and
+  Workspace-retention cross-reference. No database or provider state changes,
+  so rollback requires no migration, purge, or external action.
+open_decisions:
+  - A future Core Change Plan must define a generic cross-schema purge and legal-disposition contract before CompanyOS claims automated enforcement for every durable data class.

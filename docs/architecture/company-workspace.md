@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -88,3 +88,7 @@ ordinary OKF Workspace diff.
 Retention is either indefinite (`retention: retain`) or finite
 (`retention_days: N`). Indefinite retention prevents automatic source-content
 purge even after provider deletion; legal hold is a separate temporary control.
+The same distinction between durable proof, rebuildable projections, and
+temporary coordination state applies across the Company Instance; see
+[System of Proof](system-of-proof.md). A Workspace policy cannot override a
+valid legal or governed deletion requirement.

@@ -56,6 +56,14 @@
     "availability": null
   },
   {
+    "document_id": "architecture.system-of-proof",
+    "title": "System of Proof",
+    "path": "docs/architecture/system-of-proof.md",
+    "kind": "architecture",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "architecture.validation-inspection",
     "title": "Validation and Inspection",
     "path": "docs/architecture/validation-and-inspection.md",

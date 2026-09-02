@@ -5,7 +5,7 @@ kind: index
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -24,13 +24,16 @@ future public documentation website.
 1. [Vision](vision.md) — the North Star and architecture fitness principles.
 2. [Glossary](glossary.md) — canonical names for the system's parts and roles.
 3. [Architecture overview](architecture/overview.md) — how the parts interact.
-4. [Ecosystem and packages](architecture/ecosystem-and-packages.md) — how
+4. [System of Proof](architecture/system-of-proof.md) — how versions,
+   approvals, effects, records, knowledge, and provider receipts form one
+   explainable evidence chain.
+5. [Ecosystem and packages](architecture/ecosystem-and-packages.md) — how
    portable contributions remain separate from company authority.
-5. [Current status](status/current.md) — what is real, simulated, or planned.
-6. [Workbench](workbench/overview.md) — how humans and agents change Core and Company Workspaces.
-7. [Onboarding](onboarding/README.md) — how a new Workspace reaches protected collaboration safely.
-8. [Documentation rules](governance/documentation-rules.md) — authority, metadata, and maintenance.
-9. [Versioning policy](governance/versioning-policy.md) — how Core, Workspace,
+6. [Current status](status/current.md) — what is real, simulated, or planned.
+7. [Workbench](workbench/overview.md) — how humans and agents change Core and Company Workspaces.
+8. [Onboarding](onboarding/README.md) — how a new Workspace reaches protected collaboration safely.
+9. [Documentation rules](governance/documentation-rules.md) — authority, metadata, and maintenance.
+10. [Versioning policy](governance/versioning-policy.md) — how Core, Workspace,
    and prerelease versions are numbered and advanced.
 
 ## Source-of-truth map
@@ -43,6 +46,7 @@ future public documentation website.
 | What is formally required? | `docs/specifications/` |
 | Which public contracts are stable or changing? | `docs/compatibility/` |
 | What is implemented now? | `docs/status/current.md` |
+| What evidence proves what ran, was approved, or changed externally? | `docs/architecture/system-of-proof.md` |
 | How is a change made safely? | `docs/workbench/` and `docs/governance/` |
 | Which Core or Workspace version should change? | `docs/governance/versioning-policy.md` |
 | How is a new Workspace set up and verified? | `docs/onboarding/` |

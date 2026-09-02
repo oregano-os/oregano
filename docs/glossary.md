@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -171,6 +171,13 @@ One deployed pairing of an exact Oregano Core version and an exact Company
 Workspace version, connected to environment-specific infrastructure,
 configuration, secrets, integrations, and operational state. An environment
 is part of the identity, for example `acme-production` or `acme-staging`.
+
+### System of Proof
+The connected, provider-neutral evidence chain that binds exact Core,
+Workspace, Artifact, policy, principal, approval, effect, record, knowledge,
+and provider-receipt facts so a CompanyOS run can be explained and verified.
+It is a logical architecture across existing authority and Instance schemas,
+not a fourth database schema or another source of business truth.
 
 ### CompanyOS Workbench
 The versioned development environment for humans and agents who build and
