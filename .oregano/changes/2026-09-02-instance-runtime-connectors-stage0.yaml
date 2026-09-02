@@ -1,0 +1,144 @@
+version: 2
+plan_id: instance-runtime-connectors-stage0-2026-09-02
+status: approved
+author: codex-agent
+created: 2026-09-02
+title: Bind maintained Monday and Slack Connectors in a protected Stage-0 Instance
+objective: >-
+  Complete the reusable Core runtime path that compiles non-secret Connector
+  instance configuration into the Artifact, instantiates the maintained Monday
+  work-item and Slack communication Connectors in the Vercel Runner, and
+  exposes a protected non-production qualification harness for exact,
+  reversible, receipt-backed Stage-0 tests.
+non_goals:
+  - Add any pilot-company board, channel, person, account, or provider identifier to Core source, documentation, or public fixtures.
+  - Touch a production Monday board, publish to a production Slack destination, migrate production data, enable a schedule, or deploy production.
+  - Store a provider credential in an Artifact, Company Workspace, request, response, log, receipt, or Git.
+  - Treat the Stage-0 harness as production workflow execution or as permission to promote a Company Instance.
+  - Change Sprint business policy, message templates, participants, model policy, or provider grants.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Security before autonomy
+  - Onboarding has no hidden steps
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-02-instance-runtime-connectors-stage0.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/build.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/types.ts
+  - packages/connectors/slack/communication.ts
+  - packages/runner-vercel/src/app/api/stage0/qualification/route.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/stage0-qualification.ts
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/slack-communication-connector.test.ts
+  - packages/testkit/tests/stage0-qualification.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-authorization-to-complete-the-listed-stage0-test-scope-with-test-resources-only
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic non-secret Connector instance configuration, maintained Connector factories, exact binding validation, runtime effect controls, and the reusable protected Stage-0 qualification harness.
+    packages:
+      - Keep the Sprint Blueprint declarative and provider-neutral; it requests Capabilities but owns no live destination, board, token, or deployment.
+    workspace:
+      - Continue to own company Sprint policy, logical connection and resource names, Agent instructions, Tool requests, workflows, schedules, participants, and templates.
+    instance:
+      - Own exact test account, board, field, destination, Agent, credential SecretRef, deployment, activation, confirmation, and provider receipt values.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Stage-0 channel and board routes use exact trusted Instance bindings; message content never selects the initial Agent.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: A live Connector is reachable only for a Tool already granted by the Workspace and bound by the Instance Artifact.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Connector qualification is deterministic and model-free; later Slack turns retain the separately configured model route.
+    - mechanism: company-records
+      decision: reuse
+      reason: Monday echo evidence and callback replay claims use the existing additive companyos_records StateStore schema.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Slack incoming identities continue to resolve against the active roster, while proactive destinations are exact Instance bindings.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: This change activates no schedule and performs no time-based Sprint decision.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: The protected harness adds digest-bound non-production plans around the existing Runtime effect claim, optimistic provider version, read-after-write, echo, and duplicate controls.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The existing maintained Monday Connector is registered in the real Runner, and a thin Slack Connector implements the existing provider-neutral communication Capability.
+  new_core_mechanisms:
+    - Generic non-secret Connector instance entries compiled into a CompanyOS Artifact.
+    - Maintained Slack communication Connector with exact channel or direct-message destination bindings.
+    - Protected preview-only Stage-0 plan/apply qualification surface that cannot select production resources.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every company may compile different Connector instances, resource bindings,
+    destinations, accounts, and SecretRefs into its own Artifact without
+    changing the maintained Connector implementations or Sprint domain.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-instance-runtime-connectors-stage0.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-02-instance-runtime-connectors-stage0.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Instance loading accepts bounded non-secret Connector configuration and rejects credential-shaped values or duplicate instance ids.
+  - Artifact hashing includes exact Connector instance configuration and remains deterministic.
+  - Monday runtime construction resolves only an environment SecretRef, exact resource bindings, explicit API version, actor, and durable echo store.
+  - Slack publication refuses unknown destinations, distinguishes channel and DM bindings, requires an idempotency claim, and returns provider message receipts without credentials.
+  - The preview harness refuses production, unauthorized requests, wrong confirmation hashes, unbound boards and destinations, stale versions, and oversized requests.
+  - The reversible Monday test records before, write, read-after-write, duplicate suppression, echo suppression, restoration, and final reread evidence for one exact test item.
+  - Slack qualification posts only the exact configured test messages to the exact configured channel and DM and records provider receipts.
+  - Signed callback qualification proves valid delivery, invalid-signature denial, and replay denial through the deployed handler logic.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - guide.prepare-instance
+    - command.build
+    - status.current
+migration: >-
+  Existing Instance declarations and Artifacts remain valid because Connector
+  instance configuration is optional. A live Company must rebuild and deploy
+  an exact Artifact before a maintained runtime Connector becomes available.
+  No database migration is introduced; existing companyos and
+  companyos_records tables provide effect, echo, replay, and conversation state.
+rollback: >-
+  Remove the non-production Artifact and Stage-0 environment bindings, disable
+  the protected qualification secret, and redeploy the prior Preview. Any test
+  item is restored inside the same confirmed operation; retain non-sensitive
+  receipts as test evidence. Production remains unchanged.
+open_decisions:
+  - Production source activation, production destination bindings, schedules, and staged Sprint promotion remain separately reviewed and approved work.

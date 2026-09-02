@@ -288,6 +288,30 @@ complete-table mode does not query them and fails closed if a deeper subitem
 level is observed. Other providers require separately maintained and qualified
 adapters behind the same contract.
 
+**CRS-036 — Runtime Connector installation.** An immutable Artifact MAY carry
+bounded non-secret runtime Connector instance configuration from the exact
+Instance declaration. Each entry MUST pin an instance-local id, maintained
+Connector id and exact version, resource or destination bindings, and only
+SecretRefs for credentials. It MUST participate in Artifact hashing. A Runner
+MUST reject an unsupported Connector identity or version, unresolved SecretRef,
+duplicate instance id, malformed resource, and unknown configuration field.
+Runtime installation MUST NOT grant a Tool, widen a Workspace Capability, or
+make an undeclared resource available.
+
+**CRS-037 — Preview Stage-0 qualification.** A maintained qualification
+surface MUST be bearer protected, accept bounded exact request shapes, require
+a `preview` Artifact and matching preview qualification declaration, and fail
+closed in production. A reversible provider-write plan MUST freeze the exact
+test resource, item, field, prior value, proposed value, expected version,
+restoration value, and confirmation digest before execution. Successful
+evidence MUST include read-after-write, duplicate-effect denial, self-echo
+handling, restoration and final reread, plus denial of an unbound resource.
+Communication qualification MUST freeze exact channel and approved-DM
+destinations and content and return provider receipts. Signed callback
+qualification MUST prove valid delivery, invalid-signature denial, and replay
+denial. No result may contain a credential, and qualification MUST NOT imply
+production activation.
+
 ## 5. Blueprint and materialization
 
 **CRS-040 — Sprint Blueprint.** `packages/blueprints/sprint-agent/` is one

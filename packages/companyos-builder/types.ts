@@ -1,4 +1,4 @@
-import type { CapabilityBinding, CapabilityContract } from "../capabilities/contracts.ts";
+import type { CapabilityBinding, CapabilityContract, JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyToolContract } from "../tool-sdk/contracts.ts";
 import type { ResolvedToolSet } from "../toolset-resolver/resolver.ts";
 import type { RosterMember } from "../state-store/roster.ts";
@@ -22,11 +22,24 @@ export interface BuilderInstanceConfiguration {
   };
 }
 
+/**
+ * One exact, non-secret Connector installation for a Company Instance.
+ * Provider credentials are represented only by bounded SecretRefs inside the
+ * configuration object and are resolved by the selected Runner.
+ */
+export interface RuntimeConnectorConfiguration {
+  id: string;
+  connector: string;
+  connectorVersion: string;
+  configuration: { [key: string]: JsonValue };
+}
+
 export interface InstanceBuildConfiguration {
   version: 1;
   instanceId: string;
   environment: string;
   bindings: CapabilityBinding[];
+  connectors?: RuntimeConnectorConfiguration[];
   agentBindings: AgentBinding[];
   defaultAgentId?: string;
   builder?: BuilderInstanceConfiguration;
@@ -63,6 +76,7 @@ export interface CompanyOSArtifact {
   };
   capabilityCatalog: CapabilityContract[];
   bindings: CapabilityBinding[];
+  connectors?: RuntimeConnectorConfiguration[];
   knowledge?: {
     bundleSchemaVersion: 3;
     okfVersion: "0.1";

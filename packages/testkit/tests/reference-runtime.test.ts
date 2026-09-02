@@ -49,10 +49,42 @@ test("the exact Core, Workspace, and Instance inputs produce one deterministic a
   assert.equal(first.provenance.workspaceVersion, "0.1.0");
   assert.equal(first.provenance.resolvedToolSetHash, second.provenance.resolvedToolSetHash);
   assert.equal(first.agents.length, 1);
+  assert.deepEqual(first.connectors, []);
   assert.equal(first.agents[0].toolSet.tools.length, 5);
   assert.equal(first.roster.length, 3);
   assert.ok(first.agents[0].materials["workflows/property-campaign.md"]);
   assert.equal(first.agents[0].materials["connections/marketing.md"], undefined, "undeclared material must stay out of the agent snapshot");
+});
+
+test("the Artifact freezes non-secret runtime Connector installation configuration", () => {
+  const artifact = buildCompanyOSArtifact({
+    workspaceRoot: FIXTURE,
+    instance: {
+      ...instance,
+      connectors: [{
+        id: "slack-test",
+        connector: "oregano/slack-communication",
+        connectorVersion: "0.1.0",
+        configuration: {
+          destinations: [{ id: "test-channel", account_id: "T12345", kind: "channel", channel_id: "C12345" }],
+        },
+      }],
+    },
+    coreVersion: "0.5.4",
+    coreCommit: CORE_COMMIT,
+    workspaceCommit: WORKSPACE_COMMIT,
+    workbenchVersion: "0.1.0-experimental.12",
+    builtAt: "2026-09-02T12:00:00.000Z",
+  });
+  assert.deepEqual(artifact.connectors, [{
+    id: "slack-test",
+    connector: "oregano/slack-communication",
+    connectorVersion: "0.1.0",
+    configuration: {
+      destinations: [{ id: "test-channel", account_id: "T12345", kind: "channel", channel_id: "C12345" }],
+    },
+  }]);
+  assert.doesNotMatch(JSON.stringify(artifact), /xoxb-|MONDAY_API_TOKEN=/);
 });
 
 test("a material Workspace change changes the immutable artifact hash", () => {

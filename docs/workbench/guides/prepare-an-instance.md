@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -73,6 +73,46 @@ ToolSet hash, roster, scoped agent material, and exact Connector bindings.
 Production and non-production should not share secrets or state without an
 explicit risk decision.
 
+When a maintained live Connector is required, declare its installation under
+the optional top-level `connectors` list. Keep exact resources and destinations
+in the Instance declaration and reference credentials only by environment
+SecretRef. For example:
+
+```yaml
+connectors:
+  - id: records
+    connector: oregano/company-records
+    connector_version: 0.1.0
+    configuration:
+      configuration_ref: env:COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64
+  - id: work-items
+    connector: oregano/monday-work-items
+    connector_version: 0.1.0
+    configuration:
+      token_ref: env:MONDAY_API_TOKEN
+      api_version: dev
+      actor_id: external-agent-member-id
+      resources:
+        - id: sprint-test-board
+          board_id: "10000000001"
+          permission: read-write
+          fields:
+            status: status
+  - id: communication
+    connector: oregano/slack-communication
+    connector_version: 0.1.0
+    configuration:
+      destinations:
+        - id: sprint-test-channel
+          account_id: T00001
+          kind: channel
+          channel_id: C00001
+```
+
+The declaration must never contain a token, signing secret, database URL, or
+other resolved credential. A Capability binding and Agent grant are still
+required independently; Connector configuration alone grants no authority.
+
 The maintained Vercel Runner also verifies the Artifact environment against
 Vercel's trusted deployment identity. A `production` deployment accepts only a
 `production` Artifact, a `preview` deployment accepts only a `preview`
@@ -93,6 +133,8 @@ The maintained Runner requires these Instance values:
 | `SLACK_CONNECTOR` | Vercel Connect resource identifier for the environment-specific Slack installation |
 | `DATABASE_URL` | isolated Neon/Postgres connection used by the `companyos` schema |
 | `COMPANYOS_ARTIFACT_GZIP_BASE64` | gzip-compressed immutable Artifact built from clean exact checkouts |
+| `COMPANYOS_STAGE0_CONFIG_GZIP_BASE64` | optional Preview-only, gzip-compressed non-secret qualification scope for exact test resources and destinations |
+| `COMPANYOS_STAGE0_SECRET` | optional Sensitive bearer protecting the Preview-only Stage-0 qualification route |
 | `COMPANYOS_PUBLIC_BASE_URL` | canonical deployment origin returned by real artifact-publication evidence |
 | `COMPANYOS_MODEL_CONFIG_BASE64` | optional Base64 JSON with exact task, profile, and default recipe bindings |
 | `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` | optional Knowledge-only configuration using the same binding shape; overrides the shared model configuration for Knowledge tasks |
@@ -132,6 +174,14 @@ Core commit, Workspace commit, Artifact hash, resolved ToolSet hash, model
 route, and model; an
 authorized roster member reaches the selected Agent; and an unknown identity
 is blocked before model invocation.
+
+`POST /api/stage0/qualification` is an optional test-only route. It must exist
+only in a protected Preview deployment with a `preview` Artifact. Use `inspect`
+before any effect. Plan and apply actions are digest-bound; the Monday action
+must restore the prior test value, and Slack actions must name only the exact
+test channel and approved DM destination. Remove or disable the Stage-0 bearer
+and configuration after qualification. Never bind production boards or normal
+operating channels to this harness.
 
 For `vercel-ai-gateway`, the Runner authenticates through the Vercel deployment
 identity and consumes no provider API key. Direct recipes use the official

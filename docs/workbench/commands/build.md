@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -28,10 +28,12 @@ The command compiles one exact CompanyOS pairing. Both the Oregano Core and
 Company Workspace must be clean Git checkouts so their recorded 40-character
 commit SHAs identify all material source.
 
-The Instance declaration contains only an Instance ID, environment, and exact
-Capability-to-Connector contract bindings. It must not contain resolved
-credentials. Secrets, accounts, and provider configuration remain in the
-deployment environment.
+The Instance declaration contains an Instance ID, environment, exact
+Capability-to-Connector contract bindings, and optional non-secret runtime
+Connector installation entries. Those entries may name exact resources,
+destinations, permissions, logical field mappings, and environment SecretRefs.
+It must not contain resolved credentials. Credential values remain in the
+deployment environment and participate in neither Artifact content nor hashes.
 
 The build validates Tool and Capability JSON Schemas, compiles restricted
 Company Tools, resolves each agent grant against the Workspace allowlist and

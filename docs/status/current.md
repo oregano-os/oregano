@@ -103,6 +103,18 @@ evidence, historical prototypes, and production gaps.
   plus standard Tools. Artifact building makes those Tools available for
   normal ToolSet resolution; a Workspace grant still fails unless its Instance
   binds a compatible Connector.
+- Immutable Artifacts may now freeze optional non-secret runtime Connector
+  instance configuration separately from Capability bindings. The maintained
+  Vercel Runner constructs exact-version Monday work-item and Slack
+  communication Connectors plus the Postgres Company Records query Connector
+  only from those entries. It verifies the Records configuration against the
+  Artifact identity, resolves Monday credentials
+  only through an environment SecretRef, and restricts provider calls to exact
+  board/field or channel/DM bindings. The protected Preview-only Stage-0 surface
+  adds digest-bound reversible Monday and exact Slack delivery qualification,
+  including read-after-write, duplicate, echo, restoration, unbound-resource,
+  provider-receipt, signature, and replay evidence. Repository tests prove the
+  generic contracts only; no production resource activation is claimed.
 - The maintained Monday work-item adapter uses explicit API versioning, exact
   resource and field bindings, minimum permissions, optimistic version checks,
   read-after-write evidence, durable echo suppression, raw-body callback
@@ -725,9 +737,10 @@ evidence, historical prototypes, and production gaps.
   non-production Instance and independent receipts remain mandatory before
   using this rollout pattern for another company.
 - Meta and other business-provider Connectors are not implemented or
-  activated. The maintained Monday adapter is implemented and synthetically
-  tested but is not externally registered, Instance-bound, provider-qualified,
-  or activated. Every real provider still needs exact installation authority,
+  activated. The maintained Monday and Slack adapters are implemented and
+  synthetically tested; each exact Company Instance still requires external
+  registration, non-production binding and qualification, staged activation,
+  and production evidence. Every real provider still needs exact installation authority,
   secrets, resource grants, health, retry, reconciliation, cost review, staged
   rollout, and live conformance evidence.
 - Pilot evidence does not establish general production enforcement. Instance
