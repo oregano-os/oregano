@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-26
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -169,11 +169,32 @@ Every operating agent MUST have a stable identifier, purpose, scope, allowed
 inputs, allowed outputs, escalation route, and explicit Tool grants.
 
 A multi-agent Artifact MUST compile deterministic Agent Bindings from
-non-secret Company Instance configuration. Runtime selection MUST use trusted
-surface, account, and channel identities; a model MUST NOT select an Agent from
-message intent. Exact duplicate routes are invalid. A multi-agent Instance
-without a matching binding MUST use an explicitly declared default Agent or
-fail closed. Artifact order MUST NOT select authority.
+non-secret Company Instance configuration. Initial runtime selection MUST use
+trusted surface, account, and conversation-resource identities; a model MUST
+NOT replace that ingress decision with message-intent classification. Exact
+duplicate routes are invalid. A multi-agent Instance without a matching
+binding MUST use an explicitly declared default Agent or fail closed. Artifact
+order MUST NOT select authority.
+
+After initial selection, an active Agent or deterministic Workflow MAY request
+an Agent Handoff from conversation meaning only when the Artifact and Workspace
+policy allow the exact sending Agent, target Agent, purpose, principal class,
+and surface. Core MUST authorize that request from authenticated principal,
+active roster and group state, exact provider route, compiled target, policy
+version, and current assignment facts before target instructions or Tools are
+used. Message text may propose a handoff but MUST NOT authenticate a principal,
+grant or union Tools, broaden a Connector scope, satisfy an approval, or
+override an exact Agent Binding.
+
+An accepted handoff MUST create one idempotent durable Conversation Assignment
+for the exact provider conversation. Exact Agent Bindings have precedence over
+Conversation Assignments; a valid assignment has precedence over an explicit
+default. Assignment origin, target, purpose, actor, policy and Artifact
+provenance, decision evidence, expiry, return, and revocation MUST remain
+auditable. Unknown, ambiguous, expired, stale-policy, cross-account,
+unallowlisted, or unauthorized handoffs MUST fail closed. Raw transcript
+retention is a separate Workspace policy and MUST NOT be implied by assignment
+or handoff evidence.
 
 The Builder Agent is an ordinary separately addressable Company Agent for
 conversation routing. Its confirmed proposal operation MAY delegate one

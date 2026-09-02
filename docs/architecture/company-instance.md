@@ -150,6 +150,18 @@ retains `DATABASE_URL`. The maintained Vercel adapter uses `vercel env run` as
 its secret transport, while another qualified runtime adapter may provide an
 equivalent process without changing the database manifest.
 
+Company Record Source delivery uses the same replacement boundary. The
+provider-neutral Workbench orchestrator freezes declarations, bindings,
+qualification evidence, exact identities, independent confirmation hashes, and
+payload-free completion evidence. Its first narrow `vercel-neon` rehearsal
+profile knows how to reach the protected Vercel Preview endpoint backed by an
+isolated Neon/Postgres branch. It does not know the business provider or
+company mapping; those resolve through the maintained Record Source Connector
+and the exact Workspace/Instance material. A future runtime or StateStore adds
+another qualified profile behind this contract instead of another Record
+Source lifecycle. The profile starts after infrastructure and Preview-only
+Sensitive values exist and never creates, deletes, or activates them.
+
 Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
@@ -322,20 +334,62 @@ Tools require a later provider identity fact or separately approved
 authorization design. Board grants and outbound Agent-token actions remain
 distinct Instance effects.
 
-The first maintained Monday qualification is deliberately narrower than Agent
-provisioning. `companyos monday qualify` binds one clean Core checkout, an exact
-Company Workspace, one registered OAuth client and exact app version, API version `2026-07`, the
-read-only scopes `boards:read` and `me:read`, and explicit board IDs. It uses a
-loopback OAuth 2.1 callback with S256 PKCE and requests Monday's explicit
-missing-installation handoff. Monday still requires an account administrator
-to install the app; the Workbench cannot install it automatically or treat
-browser consent as installation authority. The authorization code, verifier,
-client secret, access token, and refresh token stay in process memory and are
-discarded after one metadata query. Only the consenting actor and account,
-scope evidence, board/group/column structure, request evidence, and discovery
-digest enter the mode-0600 Instance qualification receipt. Creating or
-activating an external Agent, retaining its one-time credentials, granting a
-board, deploying a callback, or writing remains a separate confirmed effect.
+The maintained Monday qualification uses that same external Agent rather than
+a second provider identity. `companyos records source qualify --provider
+monday` binds one clean Core checkout, exact Company Workspace, external Agent
+ID, `API-Version: dev`, administrator-attested complete resource-grant set, and
+explicit board IDs before resolving the Instance SecretRef. It accepts only
+`external_agent_member` or `external_agent_detached_member`, derives the Agent
+subject ID from its provider identity, and records it separately from the
+configured UI/callback Agent ID because monday uses different identifier
+namespaces. A second digest-bound administrator review confirms that exact
+mapping. Qualification reads only the explicitly selected boards. Successful
+return proves at least read access; `access_level: edit` is required as metadata
+evidence for an attested `READ_WRITE` board but does not prove a completed write
+effect. Monday does not expose `agent_knowledge` to the external Agent token, so
+the receipt distinguishes the administrator's complete-set attestation from
+machine-proven effective selected-board access. Only Agent and
+account identity, attestation evidence, effective access, board/group/column
+structure, request evidence, and a discovery digest enter the mode-0600
+Instance qualification receipt. The Agent token remains in the protected
+Instance secret surface and is not retained by the Workbench. Qualification
+creates no Agent, grant, callback, board change, or write. A later reversible,
+separately confirmed effect is still required to prove an operational write.
+The external Agent is the sole maintained Monday qualification identity.
+
+After qualification, Company Records uses a separate non-secret Instance
+binding. It selects one exact Record Source Connector version, Instance and
+source identity, logical resource binding, provider configuration, and one
+SecretRef. It also pins the non-secret qualification receipt and its digest so
+resource and scope evidence cannot be substituted at apply time. The
+credential value and `DATABASE_URL` remain in the Instance runtime secret
+surface. `companyos records source materialize` may turn an
+explicitly authored source draft into one reviewable Workspace file only when
+the named board and mapped columns exist in the non-secret qualification
+receipt. It never invents a mapping or commits the file.
+
+`companyos records source sync` and `reconcile` share the same provider-neutral
+plan/apply boundary. The plan resolves no credential and calls neither the
+provider nor the database. Apply first verifies the exact plan hash, then the
+trusted synchronization worker resolves the Connector and SecretRefs. `sync`
+appends observations and projections without inferring deletion. `reconcile`
+may record provider-absence tombstones only after one bounded complete
+inventory under the durable source lease. Both advance the watermark only
+after successful completion and store a receipt; neither grants an Agent a
+Tool or performs a provider write. `status` is payload-free and read-only and
+does not create the records schema when it is absent.
+
+When secrets can be resolved only inside a hosted Instance, the maintained
+Vercel Runner may expose the same operation through a temporary preview-only
+rehearsal lane. The lane accepts runtime-injected declarations, qualification
+evidence, bindings, exact Core and Workspace refs, and source confirmations;
+none are compiled into Core. It requires a constant-time bearer secret and an
+exact `VERCEL_GIT_COMMIT_SHA`, separates additive schema migration approval
+from provider synchronization approval, and returns payload-free receipts. It
+cannot run in production and cannot reconcile absence, activate a schedule or
+webhook, invoke a model or Tool, or write to a provider. Preview deployment,
+database branching, secrets, protection, cleanup, and retained evidence remain
+Instance responsibilities.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

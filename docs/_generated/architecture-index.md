@@ -8,5 +8,6 @@
 - [Oregano Core](../../docs/architecture/oregano-core.md) — approved
 - [CompanyOS Architecture Overview](../../docs/architecture/overview.md) — approved
 - [Security and Governance](../../docs/architecture/security-and-governance.md) — approved
+- [System of Proof](../../docs/architecture/system-of-proof.md) — approved
 - [Validation and Inspection](../../docs/architecture/validation-and-inspection.md) — approved
 - [CompanyOS Workbench](../../docs/architecture/companyos-workbench.md) — approved

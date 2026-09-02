@@ -28,6 +28,7 @@ export interface MondayBoardDiscovery {
   boardKind: string;
   state: string;
   permissions: string;
+  accessLevel: string;
   workspace: { id: string; name: string } | null;
   groups: Array<{
     id: string;
@@ -41,7 +42,7 @@ export interface MondayBoardDiscovery {
     type: string;
     archived: boolean;
     revision: string | null;
-    settings: string | null;
+    settings: JsonValue | null;
   }>;
 }
 
@@ -49,6 +50,51 @@ export interface MondayResourceDiscovery {
   actor: { id: string; name: string };
   account: { id: string; name: string };
   boards: MondayBoardDiscovery[];
+}
+
+export interface MondayAgentResourceDiscovery {
+  identity: {
+    memberId: string;
+    name: string;
+    kind: string;
+    email: string;
+    externalAgentId: string | null;
+  };
+  account: { id: string; name: string };
+  boards: MondayBoardDiscovery[];
+}
+
+export interface MondayRecordObject {
+  id: string;
+  object_kind: "board" | "group" | "column" | "item" | "subitem";
+  provider_id: string;
+  name: string;
+  updated_at: string | null;
+  created_at: string | null;
+  state: string | null;
+  url: string | null;
+  root_board_id: string;
+  board_id: string;
+  group_id: string | null;
+  parent_item_id: string | null;
+  columns: Record<string, JsonValue>;
+  column_text: Record<string, string>;
+  provider_payload: Record<string, JsonValue>;
+}
+
+export interface MondayRecordInventory {
+  boardId: string;
+  boardIds: string[];
+  inventoryMode: "selected-items" | "complete-table";
+  tableSchema: Array<{
+    board_id: string;
+    columns: Array<{ id: string; title: string; type: string }>;
+  }>;
+  objects: MondayRecordObject[];
+  objectCounts: Record<string, number>;
+  requestIds: string[];
+  reportedApiVersions: string[];
+  pageCount: number;
 }
 
 export interface MondayEchoReceipt {

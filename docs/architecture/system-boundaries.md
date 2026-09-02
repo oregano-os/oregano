@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -30,7 +30,9 @@ relations:
 - Package manifest schemas, Inspectors, resolution contracts, and conformance
   test fixtures,
 - the CompanyOS Workbench and its Guides,
-- deterministic Agent Binding resolution and the provider-neutral Builder job,
+- deterministic Agent Binding resolution, provider-neutral governed Agent
+  handoff and Conversation Assignment contracts, and the provider-neutral
+  Builder job,
   repository-source, checked-proposal, and validation contracts,
 - neutral fixtures and compatibility tests.
 
@@ -150,6 +152,12 @@ destinations, requested Tools, grants, and the model task profile. It does not
 contain durable synchronized rows, exact Connector credentials, or executable
 provider adapters.
 
+For multi-Agent conversation behavior, the Workspace declares logical Agents,
+allowlisted handoff directions and purposes, eligible roles or groups,
+permitted logical surfaces, return behavior, and conversation and retention
+policy. It cannot infer authorization from text, assign a live provider
+conversation, merge two Agents' ToolSets, or weaken exact-binding precedence.
+
 ## A Company Instance owns
 
 - immutable deployment artifacts and their provenance,
@@ -161,6 +169,8 @@ provider adapters.
 - Slack, Monday, Vercel, Neon, and other provider installations,
 - Agent Binding declarations, optional Builder execution and coding-profile
   bindings, repository-provider installations, and their verified receipts.
+- live Conversation Assignments, handoff request and decision receipts,
+  provider conversation identifiers, expiry, return, and revocation state.
 
 General model credentials and a service-environment repository App key are
 Instance secrets. They are never Builder-specific Workspace fields and never
@@ -190,12 +200,12 @@ If a Workspace Contributor needs a generic capability that does not exist, the
 valid action is a Core capability request. Reimplementing it inside a Workspace
 as direct provider access is forbidden, even when it appears faster.
 
-A request for a new Core capability must identify why AgentResolver,
-ToolSetResolver, ModelRecipeResolver, Company Records, identity and
-authorization, timers and business time, approval and effect controls, and
-existing Capability or Connector contracts cannot be reused as-is. Extension
-is preferred to a parallel mechanism when the existing contract has the same
-responsibility.
+A request for a new Core capability must identify why AgentResolver, governed
+Agent handoff and Conversation Assignment, ToolSetResolver,
+ModelRecipeResolver, Company Records, identity and authorization, timers and
+business time, approval and effect controls, and existing Capability or
+Connector contracts cannot be reused as-is. Extension is preferred to a
+parallel mechanism when the existing contract has the same responsibility.
 
 ## Company Knowledge boundaries
 

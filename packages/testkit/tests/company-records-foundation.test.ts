@@ -7,6 +7,8 @@ import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
 import { reconcileRecordSnapshot } from "../../records/reconciliation.ts";
 import { CompanyRecordsService, RecordAccessDeniedError } from "../../records/service.ts";
+import { normalizeRecordObject } from "../../records/normalize.ts";
+import { synchronizeRecordSnapshot } from "../../records/synchronization.ts";
 
 const source: CompanyRecordSourceDeclaration = {
   schema_version: 1,
@@ -72,6 +74,173 @@ test("Company Records normalization is deterministic and source events are idemp
   assert.equal(store.objectVersions.size, 1);
   assert.equal(store.projectionRows.size, 1);
   assert.equal(await store.getWatermark("fixture-instance", source.id), "cursor-1");
+});
+
+test("an exact snapshot retry repairs interruption without replacing newer state", async () => {
+  const { registry, service, store } = fixture();
+  const raw = { id: "item-1", name: "First title", columns: { status: "active" } };
+  const inventory = {
+    complete: true as const,
+    observed_at: "2030-02-01T09:00:00.000Z",
+    objects: [raw],
+    watermark: "inventory-1",
+    receipt: { inventory_digest: "digest-1" },
+  };
+  const normalized = normalizeRecordObject({
+    instanceId: "fixture-instance",
+    source,
+    raw,
+    observedAt: inventory.observed_at,
+    receipt: { operation: "sync", run_id: "sync-1", inventory_digest: "digest-1" },
+  });
+  await store.appendSourceEvent({
+    instance_id: "fixture-instance",
+    source_id: source.id,
+    event_id: `sync:sync-1:${normalized.object_id}:${normalized.digest}`,
+    object_id: normalized.object_id,
+    kind: "created",
+    observed_at: inventory.observed_at,
+    receipt: { operation: "sync", run_id: "sync-1", inventory_digest: "digest-1" },
+  });
+  await synchronizeRecordSnapshot({
+    instanceId: "fixture-instance",
+    source,
+    inventory,
+    registry,
+    store,
+    runId: "sync-1",
+    leaseOwner: "worker-1",
+    leaseToken: "lease-1",
+    leaseExpiresAt: "2030-02-01T09:15:00.000Z",
+    concurrency: 1,
+  });
+  assert.equal(store.sourceEvents.size, 1);
+  assert.equal(store.objectVersions.size, 1);
+  assert.equal(store.projectionRows.size, 1);
+
+  await service.ingest({
+    event: {
+      source_id: source.id,
+      event_id: "event-2",
+      object_id: "item-1",
+      kind: "updated",
+      observed_at: "2030-02-01T09:30:00.000Z",
+      receipt: { delivery: "fixture" },
+    },
+    raw: { id: "item-1", name: "Newer title", columns: { status: "active" } },
+  });
+  await synchronizeRecordSnapshot({
+    instanceId: "fixture-instance",
+    source,
+    inventory,
+    registry,
+    store,
+    runId: "sync-1",
+    leaseOwner: "worker-2",
+    leaseToken: "lease-2",
+    leaseExpiresAt: "2030-02-01T09:15:00.000Z",
+    concurrency: 1,
+  });
+  assert.equal([...store.projectionRows.values()][0]?.values.title, "Newer title");
+});
+
+test("large snapshots use bounded concurrency and publish completion evidence only after every object", async () => {
+  class TrackingStore extends InMemoryCompanyRecordsStore {
+    activeReads = 0;
+    maximumActiveReads = 0;
+
+    override async getCurrentObjectVersion(instanceId: string, sourceId: string, objectId: string) {
+      this.activeReads += 1;
+      this.maximumActiveReads = Math.max(this.maximumActiveReads, this.activeReads);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      try {
+        return await super.getCurrentObjectVersion(instanceId, sourceId, objectId);
+      } finally {
+        this.activeReads -= 1;
+      }
+    }
+  }
+
+  const { registry } = fixture();
+  const store = new TrackingStore();
+  const objects = Array.from({ length: 24 }, (_, index) => ({
+    id: `item-${String(index).padStart(2, "0")}`,
+    name: `Item ${index}`,
+    columns: { status: "active" },
+  }));
+  const receipt = await synchronizeRecordSnapshot({
+    instanceId: "fixture-instance",
+    source,
+    inventory: {
+      complete: true,
+      observed_at: "2030-02-01T10:00:00.000Z",
+      objects,
+      watermark: "inventory-1",
+      receipt: { inventory_digest: "digest-1" },
+    },
+    registry,
+    store,
+    runId: "sync-1",
+    leaseOwner: "worker-1",
+    leaseToken: "lease-1",
+    leaseExpiresAt: "2030-02-01T10:15:00.000Z",
+    concurrency: 4,
+  });
+  assert.ok(store.maximumActiveReads > 1);
+  assert.ok(store.maximumActiveReads <= 4);
+  assert.equal(receipt.observed, objects.length);
+  assert.equal(store.sourceEvents.size, objects.length);
+  assert.equal(store.projectionRows.size, objects.length);
+  assert.equal(store.syncReceipts.length, 1);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-1");
+});
+
+test("an interrupted snapshot has no completion evidence and its exact retry repairs materialization", async () => {
+  class FailOnceStore extends InMemoryCompanyRecordsStore {
+    shouldFail = true;
+
+    override async upsertProjectionRow(row: Parameters<InMemoryCompanyRecordsStore["upsertProjectionRow"]>[0]) {
+      if (this.shouldFail) {
+        this.shouldFail = false;
+        throw new Error("synthetic interruption");
+      }
+      await super.upsertProjectionRow(row);
+    }
+  }
+
+  const { registry } = fixture();
+  const store = new FailOnceStore();
+  const common = {
+    instanceId: "fixture-instance",
+    source,
+    inventory: {
+      complete: true as const,
+      observed_at: "2030-02-01T10:00:00.000Z",
+      objects: [
+        { id: "item-1", name: "First", columns: { status: "active" } },
+        { id: "item-2", name: "Second", columns: { status: "active" } },
+      ],
+      watermark: "inventory-1",
+      receipt: { inventory_digest: "digest-1" },
+    },
+    registry,
+    store,
+    runId: "sync-1",
+    leaseOwner: "worker-1",
+    leaseExpiresAt: "2030-02-01T10:15:00.000Z",
+    concurrency: 1,
+  };
+  await assert.rejects(() => synchronizeRecordSnapshot({ ...common, leaseToken: "lease-1" }), /synthetic interruption/);
+  assert.equal(store.syncReceipts.length, 0);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), undefined);
+
+  const resumed = await synchronizeRecordSnapshot({ ...common, leaseToken: "lease-2", leaseOwner: "worker-2" });
+  assert.equal(resumed.observed, 2);
+  assert.equal(store.sourceEvents.size, 2);
+  assert.equal(store.objectVersions.size, 2);
+  assert.equal(store.projectionRows.size, 2);
+  assert.equal(store.syncReceipts.length, 1);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-1");
 });
 
 test("Company Records queries enforce projection groups and return freshness evidence", async () => {

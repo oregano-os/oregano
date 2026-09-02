@@ -17,11 +17,26 @@ import {
   verifyLiveSetup,
 } from "./live-setup.mjs";
 import {
-  advanceMondayQualification,
-  initializeMondayQualification,
-  planMondayQualification,
-  readMondayQualificationState,
-} from "./monday-qualification.mjs";
+  advanceMondayAgentQualification,
+  initializeMondayAgentQualification,
+  planMondayAgentQualification,
+  readMondayAgentQualificationState,
+} from "./monday-agent-qualification.mjs";
+import {
+  applyRecordSourceMaterialization,
+  inspectRecordSourceStatus,
+  inspectRecordWorkspace,
+  planRecordSourceMaterialization,
+  planRecordSourceOperation,
+  runRecordSourceOperation,
+} from "./records-operations.mjs";
+import {
+  advanceRecordSourceConnect,
+  initializeRecordSourceConnect,
+  planRecordSourceConnect,
+  readRecordSourceConnectState,
+  recordSourceConnectRuntimeConfigurationValue,
+} from "./record-source-connect.mjs";
 import { checkGeneratedDocumentation, generateDocumentation, inspectDocumentation } from "./docs-control.mjs";
 import { hasErrors, printDiagnostics } from "./diagnostics.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
@@ -97,10 +112,21 @@ Usage:
   companyos setup --profile vercel-neon-slack --state <file> --resume [--operating-confirmation <hash>] [--merge-confirmation <hash>] [--production-confirmation <hash>] [--format human|json]
   companyos setup --profile vercel-neon-slack --state <file> --status [--format human|json]
   companyos verify-live --state <file> [--format human|json]
-  companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --plan [--format human|json]
-  companyos monday qualify --workspace <path> --client-id <id> --app-version-id <id> --redirect-uri <loopback-url> --board <id> [--board <id>] --state <file> --apply <hash> [--format human|json]
-  companyos monday qualify --state <file> --resume [--format human|json]
-  companyos monday qualify --state <file> --status [--format human|json]
+  companyos records source inspect --workspace <path> [--source <id>] [--format human|json]
+  companyos records projection inspect --workspace <path> [--projection <id>] [--format human|json]
+  companyos records source qualify --provider monday --workspace <path> --agent-id <id> --board-access <id>:read|read-write [--board-access <value>] --state <file> --plan [--format human|json]
+  companyos records source qualify --provider monday <same options> --apply <hash> [--format human|json]
+  companyos records source qualify --provider monday --state <file> --resume [--identity-confirmation <hash>] [--format human|json]
+  companyos records source qualify --provider monday --state <file> --status [--format human|json]
+  companyos records source materialize --provider monday --workspace <path> --qualification <state> --board <id> --declaration <yaml|json> --output <records/sources/name.yaml> --plan [--format human|json]
+  companyos records source materialize <same-options> --apply <hash> [--format human|json]
+  companyos records source sync|reconcile --workspace <path> --source <id> --binding <file> --plan [--format human|json]
+  companyos records source sync|reconcile <same-options> --apply <hash> [--format human|json]
+  companyos records source status --workspace <path> --source <id> --binding <file> [--format human|json]
+  companyos records source connect --profile vercel-neon --workspace <path> --source <id> --binding <file> --runtime-scope <scope> --runtime-project <project> --endpoint <preview-url>/api/records/rehearsal --state <file> --plan [--format human|json]
+  companyos records source connect <same-options> --apply <hash> [--format human|json]
+  companyos records source connect --state <file> --resume [--migration-confirmation <hash>] [--sync-confirmation <hash>] [--format human|json]
+  companyos records source connect --state <file> --status [--show-preview-configuration] [--format human|json]
   companyos package inspect <path> [--format human|json]
   companyos database prepare [--format human|json]
   companyos database bootstrap [--format human|json]
@@ -841,79 +867,233 @@ try {
       process.stdout.write("\nBootstrap phases:\n");
       for (const phase of result.phases) process.stdout.write(`- ${String(phase.status).toUpperCase()} ${phase.id}: ${phase.next}\n`);
     }
-  } else if (command === "monday") {
-    if (action !== "qualify") throw new Error("Use `companyos monday qualify`.");
+  } else if (command === "records" && action === "source" && value !== "qualify") {
+    const recordsAction = value;
+    const workspacePath = optionValue("--workspace") ?? process.cwd();
+    if (recordsAction === "connect") {
+      const statePath = optionValue("--state");
+      if (!statePath) throw new Error("Record source connect requires --state <outside-workspace-state-file>.");
+      if (args.includes("--status")) {
+        const state = readRecordSourceConnectState(resolve(statePath));
+        const result = {
+          ok: state.phase === "complete",
+          state_path: resolve(statePath),
+          phase: state.phase,
+          profile: state.profile,
+          source_id: state.source_id,
+          configuration_digest: state.configuration_digest,
+          expected_preview_environment: state.expected_preview_environment,
+          evidence: state.evidence,
+          ...(args.includes("--show-preview-configuration") ? { preview_configuration_gzip_base64: recordSourceConnectRuntimeConfigurationValue(state) } : {}),
+        };
+        if (format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+        else {
+          process.stdout.write(`Record Source connect phase: ${state.phase}\nState: ${resolve(statePath)}\nProfile: ${state.profile}\nSource: ${state.source_id}\nConfiguration digest: ${state.configuration_digest}\n`);
+          process.stdout.write(`${YAML.stringify({ expected_preview_environment: state.expected_preview_environment })}\n`);
+          if (args.includes("--show-preview-configuration")) process.stdout.write(`COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64=${result.preview_configuration_gzip_base64}\n`);
+          else process.stdout.write("Use --show-preview-configuration only in the operator terminal when setting the Preview-only Sensitive value; do not paste it into chat or Git.\n");
+        }
+      } else if (args.includes("--resume")) {
+        const result = await advanceRecordSourceConnect({
+          statePath: resolve(statePath),
+          migrationConfirmation: optionValue("--migration-confirmation"),
+          syncConfirmation: optionValue("--sync-confirmation"),
+        });
+        if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
+        else {
+          process.stdout.write(`Record Source connect phase: ${result.state.phase}\n${result.message}\n`);
+          if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
+          if (result.cleanup) process.stdout.write(`${YAML.stringify({ cleanup: result.cleanup })}\n`);
+        }
+      } else {
+        const sourceId = optionValue("--source");
+        const bindingPath = optionValue("--binding");
+        if (!sourceId || !bindingPath || !optionValue("--runtime-scope") || !optionValue("--runtime-project") || !optionValue("--endpoint")) {
+          throw new Error("Record source connect plan requires --workspace, --source, --binding, --runtime-scope, --runtime-project, --endpoint, and --state.");
+        }
+        const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
+        const planResult = planRecordSourceConnect({
+          workspaceRoot: workspacePath,
+          sourceId,
+          bindingPath,
+          profile: optionValue("--profile") ?? "vercel-neon",
+          endpoint: optionValue("--endpoint"),
+          runtimeScope: optionValue("--runtime-scope"),
+          runtimeProject: optionValue("--runtime-project"),
+          statePath,
+          coreIdentity: checkout.identity,
+        });
+        planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
+        if (args.includes("--plan")) {
+          if (format === "json") process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), plan: planResult.plan, diagnostics: planResult.diagnostics }, null, 2)}\n`);
+          else {
+            exitWithDiagnostics(planResult.diagnostics, { format, summary: "Company Records source connect plan" });
+            if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
+          }
+        } else {
+          const confirmationHash = optionValue("--apply");
+          if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash>; initialization itself makes no external change.");
+          const result = initializeRecordSourceConnect({ planResult, confirmationHash });
+          if (format === "json") process.stdout.write(`${JSON.stringify({ ok: Boolean(result.state) && !hasErrors(result.diagnostics), state_path: result.statePath, phase: result.state?.phase, diagnostics: result.diagnostics }, null, 2)}\n`);
+          else {
+            exitWithDiagnostics(result.diagnostics, { format, summary: "Company Records source connect" });
+            if (result.state) {
+              process.stdout.write(`Initialized resumable state: ${result.statePath}\n`);
+              process.stdout.write("No provider, database, deployment, or production effect was made. Run --status to review the exact Preview-only environment requirements, then --resume after those values and the protected Preview deployment exist.\n");
+            }
+          }
+        }
+      }
+    } else if (recordsAction === "inspect") {
+      const result = inspectRecordWorkspace({ workspaceRoot: workspacePath, sourceId: optionValue("--source") });
+      if (format === "json") {
+        process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+        if (hasErrors(result.diagnostics)) process.exitCode = 1;
+      } else {
+        exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
+        if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ sources: result.sources, projections: result.projections })}\n`);
+      }
+    } else if (recordsAction === "materialize") {
+      const provider = optionValue("--provider");
+      const qualificationPath = optionValue("--qualification");
+      const boardId = optionValue("--board");
+      const declarationPath = optionValue("--declaration");
+      const outputPath = optionValue("--output");
+      if (!provider || !qualificationPath || !boardId || !declarationPath || !outputPath) {
+        throw new Error("Record source materialization requires --provider, --workspace, --qualification, --board, --declaration, and --output.");
+      }
+      const planResult = planRecordSourceMaterialization({ workspaceRoot: workspacePath, provider, qualificationPath, boardId, declarationPath, outputPath });
+      if (args.includes("--plan")) {
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), ...planResult }, null, 2)}\n`);
+          if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Company Records source materialization plan" });
+          if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
+        }
+      } else {
+        const confirmationHash = optionValue("--apply");
+        if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after reviewing the exact Workspace declaration.");
+        const result = applyRecordSourceMaterialization({ planResult, confirmationHash });
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: result.applied && !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+          if (!result.applied || hasErrors(result.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(result.diagnostics, { format, summary: "Company Records source materialization" });
+          if (result.applied) process.stdout.write(`\nCreated reviewed source declaration: ${result.output}\n`);
+        }
+      }
+    } else if (new Set(["sync", "reconcile"]).has(recordsAction)) {
+      const sourceId = optionValue("--source");
+      const bindingPath = optionValue("--binding");
+      if (!sourceId || !bindingPath) throw new Error(`Record source ${recordsAction} requires --workspace, --source, and --binding.`);
+      const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
+      const planResult = planRecordSourceOperation({
+        workspaceRoot: workspacePath,
+        sourceId,
+        bindingPath,
+        operation: recordsAction,
+        coreIdentity: checkout.identity,
+      });
+      planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
+      if (args.includes("--plan")) {
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), plan: planResult.plan, diagnostics: planResult.diagnostics }, null, 2)}\n`);
+          if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(planResult.diagnostics, { format, summary: `Company Records source ${recordsAction} plan` });
+          if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
+        }
+      } else {
+        const confirmationHash = optionValue("--apply");
+        if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after explicit human confirmation of the provider read and database write.");
+        const result = await runRecordSourceOperation({ planResult, confirmationHash });
+        if (format === "json") {
+          process.stdout.write(`${JSON.stringify({ ok: result.applied && !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+          if (!result.applied || hasErrors(result.diagnostics)) process.exitCode = 1;
+        } else {
+          exitWithDiagnostics(result.diagnostics, { format, summary: `Company Records source ${recordsAction}` });
+          if (result.applied) process.stdout.write(`\n${YAML.stringify({ receipt: result.receipt, provider_evidence: result.provider_evidence, credentials_retained: result.credentials_retained })}\n`);
+        }
+      }
+    } else if (recordsAction === "status") {
+      const sourceId = optionValue("--source");
+      const bindingPath = optionValue("--binding");
+      if (!sourceId || !bindingPath) throw new Error("Record source status requires --workspace, --source, and --binding.");
+      const result = await inspectRecordSourceStatus({ workspaceRoot: workspacePath, sourceId, bindingPath });
+      if (format === "json") {
+        process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), ...result }, null, 2)}\n`);
+        if (hasErrors(result.diagnostics)) process.exitCode = 1;
+      } else {
+        exitWithDiagnostics(result.diagnostics, { format, summary: "Company Records source status" });
+        if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ binding: result.binding, status: result.status })}\n`);
+      }
+    } else {
+      throw new Error("Use `companyos records source inspect|qualify|materialize|connect|sync|reconcile|status`.");
+    }
+  } else if (command === "records" && action === "projection") {
+    if (value !== "inspect") throw new Error("Use `companyos records projection inspect`.");
+    const result = inspectRecordWorkspace({ workspaceRoot: optionValue("--workspace") ?? process.cwd(), projectionId: optionValue("--projection") });
+    if (format === "json") {
+      process.stdout.write(`${JSON.stringify({ ok: !hasErrors(result.diagnostics), diagnostics: result.diagnostics, workspace: result.workspace, projections: result.projections, summary: result.summary }, null, 2)}\n`);
+      if (hasErrors(result.diagnostics)) process.exitCode = 1;
+    } else {
+      exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
+      if (!hasErrors(result.diagnostics)) process.stdout.write(`\n${YAML.stringify({ projections: result.projections })}\n`);
+    }
+  } else if (command === "records" && action === "source" && value === "qualify") {
+    if (optionValue("--provider") !== "monday") throw new Error("Record source qualification currently requires --provider monday.");
     const statePath = optionValue("--state");
     if (args.includes("--status")) {
       if (!statePath) throw new Error("Monday qualification status requires --state <file>.");
-      const state = readMondayQualificationState(resolve(statePath));
+      const state = readMondayAgentQualificationState(resolve(statePath));
       const result = { ok: state.phase === "complete", state_path: resolve(statePath), phase: state.phase, evidence: state.evidence, history: state.history };
       if (format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       else {
-        process.stdout.write(`Monday qualification phase: ${state.phase}\n`);
+        process.stdout.write(`Monday external-Agent qualification phase: ${state.phase}\n`);
         process.stdout.write(`State: ${resolve(statePath)}\n`);
         if (state.evidence?.discovery) process.stdout.write(`Discovery receipt: ${state.evidence.discovery.discovery_hash}\n`);
       }
     } else if (args.includes("--resume")) {
       if (!statePath) throw new Error("Monday qualification resume requires --state <file>.");
-      const result = await advanceMondayQualification({
-        statePath,
-        onAuthorization: (authorization) => {
-          const notice = {
-            consent: "Monday will authorize only boards:read and me:read for the selected account. This creates an app authorization but no board, Agent, webhook, or write effect.",
-            ...authorization,
-          };
-          const output = `${YAML.stringify({ next_action: notice })}\n`;
-          if (format === "json") process.stderr.write(output);
-          else process.stdout.write(output);
-        },
-      });
+      const result = await advanceMondayAgentQualification({ statePath, identityConfirmationHash: optionValue("--identity-confirmation") });
       if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
       else {
-        exitWithDiagnostics(result.diagnostics, { format, summary: "Monday read-only qualification" });
+        exitWithDiagnostics(result.diagnostics, { format, summary: "Monday external-Agent qualification" });
         process.stdout.write(`\nPhase: ${result.state.phase}\n${result.message}\n`);
         if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
       }
     } else {
       const workspacePath = optionValue("--workspace");
-      const clientId = optionValue("--client-id");
-      const appVersionId = optionValue("--app-version-id");
-      const redirectUri = optionValue("--redirect-uri");
-      const boardIds = optionValues("--board");
-      if (!workspacePath || !clientId || !appVersionId || !redirectUri || boardIds.length === 0 || !statePath) {
-        throw new Error("Monday qualification planning and apply require --workspace <path>, --client-id <id>, --app-version-id <id>, --redirect-uri <loopback-url>, at least one --board <id>, and --state <file>.");
+      const agentId = optionValue("--agent-id");
+      const boardAccesses = optionValues("--board-access");
+      if (!workspacePath || !agentId || boardAccesses.length === 0 || !statePath) {
+        throw new Error("Monday qualification planning and apply require --workspace <path>, --agent-id <id>, at least one --board-access <id>:read|read-write, and --state <file>.");
       }
       const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
-      const planResult = planMondayQualification({ workspaceRoot: workspacePath, clientId, appVersionId, redirectUri, boardIds, statePath, coreIdentity: checkout.identity });
+      const planResult = planMondayAgentQualification({ workspaceRoot: workspacePath, agentId, boardAccesses, statePath, coreIdentity: checkout.identity });
       planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
       if (args.includes("--plan")) {
         if (format === "json") {
           process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), ...planResult }, null, 2)}\n`);
           if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
         } else {
-          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Monday read-only qualification plan" });
+          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Monday external-Agent qualification plan" });
           if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
         }
       } else {
         const confirmationHash = optionValue("--apply");
         if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after explicit human confirmation.");
-        const initialized = initializeMondayQualification({ planResult, confirmationHash });
+        const initialized = initializeMondayAgentQualification({ planResult, confirmationHash });
         if (!initialized.state) {
           if (format === "json") process.stdout.write(`${JSON.stringify({ ok: false, ...initialized }, null, 2)}\n`);
-          else exitWithDiagnostics(initialized.diagnostics, { format, summary: "Monday qualification initialization" });
+          else exitWithDiagnostics(initialized.diagnostics, { format, summary: "Monday external-Agent qualification initialization" });
           process.exitCode = 1;
         } else {
-          const result = await advanceMondayQualification({
-            statePath: initialized.statePath,
-            onAuthorization: (authorization) => {
-              const output = `${YAML.stringify({ next_action: authorization })}\n`;
-              if (format === "json") process.stderr.write(output);
-              else process.stdout.write(output);
-            },
-          });
+          const result = await advanceMondayAgentQualification({ statePath: initialized.statePath, identityConfirmationHash: optionValue("--identity-confirmation") });
           if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
           else {
-            exitWithDiagnostics(result.diagnostics, { format, summary: "Monday read-only qualification" });
+            exitWithDiagnostics(result.diagnostics, { format, summary: "Monday external-Agent qualification" });
             process.stdout.write(`\nPhase: ${result.state.phase}\n${result.message}\n`);
             if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
           }

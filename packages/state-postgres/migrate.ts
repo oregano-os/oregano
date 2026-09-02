@@ -57,6 +57,24 @@ export function ensureCompanyOSSchema(): Promise<void> {
     await sql`create table if not exists companyos.chat_queue (
       sequence bigserial primary key, thread_id text not null, entry jsonb not null, expires_at timestamptz not null)`;
     await sql`create index if not exists chat_queue_thread_sequence_idx on companyos.chat_queue(thread_id, sequence)`;
+    await sql`create table if not exists companyos.conversation_assignments (
+      instance_id text not null, surface text not null, account_id text not null,
+      channel_id text not null, subject_principal text not null,
+      assignment_id text not null unique, from_agent_id text not null, agent_id text not null,
+      rule_id text not null, purpose text not null, artifact_hash text not null,
+      assigned_at timestamptz not null, expires_at timestamptz not null,
+      updated_at timestamptz not null,
+      primary key (instance_id, surface, account_id, channel_id, subject_principal))`;
+    await sql`create index if not exists conversation_assignments_expiry_idx
+      on companyos.conversation_assignments(instance_id, expires_at)`;
+    await sql`create table if not exists companyos.conversation_assignment_transitions (
+      instance_id text not null, transition_key text not null,
+      action text not null check (action in ('assign','return','revoke')),
+      surface text not null, account_id text not null, channel_id text not null,
+      subject_principal text not null, previous_assignment_id text, next_assignment_id text,
+      initiated_by_principal text not null, occurred_at timestamptz not null,
+      evidence jsonb not null, result_assignment jsonb,
+      primary key (instance_id, transition_key))`;
     await sql`create table if not exists companyos.published_artifacts (
       artifact_id text primary key, content text not null, content_type text not null, digest text not null,
       run_id text not null references companyos.workflow_runs(run_id), published_at timestamptz not null default now())`;

@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companyos.org/schema/company-record-source-binding-v1.schema.json",
+  "title": "Company Records source Instance binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "instance_id",
+    "source_id",
+    "resource_binding",
+    "connector",
+    "connector_version",
+    "secret_ref",
+    "qualification",
+    "configuration"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "instance_id": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{1,127}$" },
+    "source_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+    "resource_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+    "connector": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._/-]{2,127}$" },
+    "connector_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+    "secret_ref": { "type": "string", "pattern": "^env:[A-Z][A-Z0-9_]{0,127}$" },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt_ref", "digest"],
+      "properties": {
+        "receipt_ref": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "configuration": { "type": "object" }
+  }
+}

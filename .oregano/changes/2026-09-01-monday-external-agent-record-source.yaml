@@ -1,0 +1,144 @@
+version: 2
+plan_id: monday-external-agent-record-source-2026-09-01
+status: implemented
+author: codex-agent
+created: 2026-09-01
+title: Make the external Monday Agent the only maintained Monday identity
+objective: >-
+  Qualify Company Records through one Instance-owned external Monday Agent.
+  Prove the exact Agent identity, account, selected-board effective access,
+  API contract, and selected board metadata without retaining credentials or
+  performing a provider write. Complete administrative grants are attested in
+  the confirmed plan, not machine-listed by the external Agent token.
+non_goals:
+  - Create, activate, disconnect, or change an external Monday Agent.
+  - Add, update, or remove a Monday board or document grant.
+  - Synchronize provider objects, migrate a production database, deploy, or activate a schedule.
+  - Store an Agent API token, signing secret, provider payload, or company identifier in Oregano Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-08-31-sprint-instance-phase-6.yaml
+  - .oregano/changes/2026-09-01-company-records-workbench-lifecycle.yaml
+  - .oregano/changes/2026-09-01-monday-external-agent-record-source.yaml
+  - .oregano/changes/2026-09-01-sprint-phase-1-6-integration.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/commands/monday-qualify.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/workbench/overview.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/package.json
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/monday-agent-qualification.mjs
+  - packages/cli/src/monday-qualification.mjs
+  - packages/cli/src/records-operations.mjs
+  - packages/cli/tests/monday-agent-qualification.test.mjs
+  - packages/cli/tests/monday-qualification.test.mjs
+  - packages/cli/tests/records.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/contracts.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/fixtures/acme-casas/package.json
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-instruction-use-only-the-existing-external-monday-agent
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic external-Agent identity and resource-grant qualification, safe receipt persistence, exact API-version enforcement, and the maintained Monday adapter.
+    packages:
+      - No Blueprint or third-party Package change is required.
+    workspace:
+      - Own logical Monday resources, source mappings, access policy, and company-specific read versus read-write intent.
+    instance:
+      - Own the exact Monday Agent ID, API token SecretRef, signing secret, account, provider grants, binding, environment, and operational receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The same external Agent identity remains the trusted Monday conversational ingress; record qualification does not perform conversational routing.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Resource qualification does not grant an Agent a CompanyOS Tool; later work-item effects still require compiled Tool grants and exact bindings.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Qualification is deterministic and invokes no model.
+    - mechanism: company-records
+      decision: extend
+      reason: Company Records accepts one credential-bearing Instance Connector while keeping synchronized data and provider authority outside the Workspace.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The provider token must identify an external Agent and prove effective selected-board access; the confirmed complete grant set remains an administrator attestation and never substitutes for a human principal or effect approval.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: Qualification activates no schedule.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Plan and apply remain digest-bound; provider qualification is read-only and later writes preserve confirmation, version, allowlist, and read-after-write controls.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The maintained Monday Connector standardizes one external-Agent authentication mode and fails closed on identity, grant, resource, or API-contract drift.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every Company Instance supplies its own Agent identity, SecretRef, and
+    exact resource expectations. Core validates the same provider contract for
+    any company and contains no real account, board, person, or policy value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-monday-external-agent-record-source.yaml
+  - pnpm companyos inspect-core --base ecf6f50d4195eba7a72e77cbe691768b70cf6dc6 --plan .oregano/changes/2026-09-01-monday-external-agent-record-source.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Planning records only exact Agent, board-access, API-version, Core identity, and SecretRef expectations and performs no provider call.
+  - A wrong confirmation hash performs no secret resolution and no provider call.
+  - Qualification accepts only external_agent_member or external_agent_detached_member, preserves provider ID namespaces separately, and requires a second administrator confirmation of their exact mapping.
+  - Qualification fails closed on a missing selected board or insufficient minimum access for the administrator-attested permission.
+  - The roles-style read grant and Sprint-style read-write grant are distinguished while discovery itself remains read-only.
+  - Qualification and synchronization send API-Version dev, retain no credential, and emit payload-free receipts.
+  - The maintained source Connector accepts only a matching external-Agent receipt and denies undeclared boards.
+  - No parallel Monday authorization command, state, secret name, or documentation remains in the maintained tree.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - command.records
+    - guide.connect-company-record-source
+rollback: >-
+  Revert this change before activating an affected Company Instance. Existing
+  external Agent credentials and provider grants remain unchanged. Introducing
+  another provider identity would require a new reviewed Core Change Plan and
+  is not part of rollback.
+open_decisions:
+  - Monday's Agent API is pre-release and requires API-Version dev; every activation must requalify this contract and block on provider drift.
+  - The external Agent token does not expose agent_knowledge; plan 2026-09-01-monday-agent-effective-access-evidence governs the maintained attestation and effective-access semantics.
+  - Production synchronization, webhook activation, and work-item effects remain separately approved Instance operations.

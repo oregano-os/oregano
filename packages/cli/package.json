@@ -1,6 +1,6 @@
 {
   "name": "@companyos/cli",
-  "version": "0.1.0-experimental.10",
+  "version": "0.1.0-experimental.12",
   "private": true,
   "license": "Apache-2.0",
   "type": "module",

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -43,6 +43,12 @@ Core also owns the provider-neutral, proposal-only Builder control path:
 
 - `AgentResolver` selects one compiled Company Agent from exact trusted
   surface, account, and channel bindings and fails closed on ambiguity.
+- The planned Agent handoff control extends that deterministic ingress without
+  replacing it: an active Agent may request one allowlisted target from message
+  meaning, Core authorizes the request from trusted facts, and the Company
+  Instance persists an exact, expiring Conversation Assignment. Exact static
+  Agent Bindings retain precedence, and neither the request nor assignment
+  changes identity, ToolSet, grants, approvals, or provider authority.
 - `BuilderService` owns immutable jobs, leases, recovery, cancellation,
   independent diff inspection, Workbench validation, and proposal-only
   authority.
@@ -53,6 +59,12 @@ Core also owns the provider-neutral, proposal-only Builder control path:
 - ACP v1 is private communication inside that worker with exactly pinned
   Claude Code or Codex adapters. ACP is not the normal Runner, Tool, approval,
   repository, or governance contract.
+
+The v0.5.4 implementation candidate adds governed semantic handoff,
+Conversation Assignment persistence, return, expiry, and revocation to the
+deterministic initial resolver. It remains ineligible for a production claim
+until release, the additive Company Instance migration, deployment,
+conformance, and live evidence are complete.
 
 The Runner imports only a thin Builder chat integration. Removing or disabling
 that integration does not replace `CompanyOSRuntime`, the normal model loop,

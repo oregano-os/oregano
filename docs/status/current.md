@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -28,6 +28,47 @@ evidence, historical prototypes, and production gaps.
   isolated `companyos_records` schema also contains durable timers, Connector
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
+- Initial Record Source snapshots process independent objects with a fixed
+  Core-owned concurrency bound. An interrupted pass remains visibly incomplete:
+  it publishes no watermark or successful receipt. An exact retry deduplicates
+  Source Events and repairs only the matching current version and projection,
+  so an older replay cannot replace newer projected state.
+- The experimental `companyos records` Workbench surface now inspects sources
+  and projections locally; qualifies the exact external Monday Agent identity
+  and complete resource-grant set;
+  materializes only an explicitly authored, qualification-checked Workspace
+  declaration; and plans and confirms secret-bound synchronization or full
+  reconciliation into the existing Company Instance database. Its generic
+  Record Source Connector registry has one maintained read-only Monday
+  adapter with exact board and optional group scope, explicit mapped columns,
+  required pre-release API version `dev`, bounded complete pagination,
+  payload-free evidence,
+  and no retained credential. `status` reads counts, watermark time, and the
+  latest receipt without record payloads and without creating a schema.
+  Synthetic tests prove the lifecycle; no real provider read, database write,
+  schedule, webhook, or production activation is claimed by this Core change.
+- The maintained Vercel Runner now has an optional fail-closed Company Records
+  rehearsal endpoint for protected Preview deployments. It independently
+  plans and confirms the additive records migration and one initial source
+  synchronization, reuses the maintained Connector and records store, reports
+  payload-free status, and rejects production or a mismatched Git commit.
+  Runtime configuration and credentials stay Instance-injected and the lane
+  cannot reconcile, schedule, receive webhooks, write to a provider, or grant
+  Agent Tools. No real Preview, database branch, migration, or provider read is
+  claimed by this Core change.
+- The experimental `companyos records source connect --profile vercel-neon`
+  command replaces one-off hosted-rehearsal scripts with credential-free
+  mode-0600 state. It freezes one exact clean Workspace/Core/source/binding
+  selection, obtains migration and synchronization plans without effects,
+  requires their independent exact confirmations, persists the migration
+  boundary before synchronization, and completes only with payload-free
+  watermark, zero-error receipt, and declared-projection evidence. Its first
+  Instance profile reaches an already prepared protected Vercel Preview backed
+  by an isolated Neon/Postgres branch; it does not create infrastructure,
+  retain secrets, clean up provider resources, or activate production.
+- Workspace inspection now rejects projection and selection paths that are not
+  materialized by the exact selected Record Source set, preventing a declared
+  field from silently remaining empty at runtime.
 - The provider-neutral Sprint domain implements validated policy, append-only
   event reduction, controlled-clock business-time and holiday calculation,
   frozen-participant Friday completeness, actual-effort and open-work read
@@ -56,16 +97,15 @@ evidence, historical prototypes, and production gaps.
   model, or Tool, while mention and assignment are acknowledgement-only. This
   implementation does not claim a real deployment, callback delivery, board
   grant, human authorization, Agent-token action, or production verification.
-- The experimental `companyos monday qualify` Workbench path now plans and
-  records one exact read-only Monday OAuth 2.1 qualification. It uses S256 PKCE,
-  requests only `boards:read` and `me:read`, and asks Monday to route a missing
-  installation through its administrator-controlled handoff without installing
-  the app automatically. It reads metadata for only the named boards and stores
-  a mode-0600 non-secret receipt containing account,
-  board/group/column, scope, API, request, and digest evidence. Human OAuth
-  credentials are discarded after discovery. This implementation does not
-  prove a real consent, account permission, test board, external Agent,
-  callback deployment, board grant, activation, write, or provider cost.
+- `companyos records source qualify --provider monday` is the only maintained
+  Monday qualification path. It accepts only the Instance-owned external
+  Agent token, verifies the exact Agent identity parsed from `me`, requires
+  the complete Agent knowledge-grant set to match the confirmed read and
+  read-write board plan, and reads metadata for only those boards. It stores a
+  mode-0600 non-secret receipt containing Agent, account, grant,
+  board/group/column, API, request, and digest evidence. It retains no token
+  and performs no provider write. This external Agent is the sole maintained
+  Monday qualification identity.
 - The repository-local `oregano/sprint-agent` Blueprint contains one logical
   Agent Component, portable weekly, Friday Close, and reconciliation
   Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
@@ -499,6 +539,18 @@ evidence, historical prototypes, and production gaps.
   Agent Binding continues normal Agent and Knowledge operation. Its scheduled
   worker exits successfully without constructing a repository provider,
   Sandbox, or coding runtime.
+- The unreleased v0.5.4 change branch implements governed semantic Agent
+  handoff and durable Conversation Assignment. Exact bindings remain stronger
+  than assignments, and assignments remain stronger than the explicit
+  default. Core authorization intersects the compiled direction, purpose,
+  surface, active roster role or group, authenticated principal, Artifact, and
+  current assignment. The Postgres adapter stores current assignments and
+  append-only idempotent transition receipts without raw message bodies; the
+  Runner exposes one bounded control Tool and changes routing on the next turn
+  without copying ToolSets. Return and expiry are implemented and covered by
+  neutral fixtures. Production remains unproved: no private Company Instance
+  migration, live deployment, live handoff, or live return evidence exists,
+  and v0.5.3 does not contain this behavior.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent
@@ -543,7 +595,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.10`; no
+  builds. Its repository release candidate is `0.1.0-experimental.12`; no
   public package release is claimed.
 - Newly generated Change Plans use version 2 and fail closed unless they record
   the Core, Package or Blueprint, Workspace, and Instance responsibility split;

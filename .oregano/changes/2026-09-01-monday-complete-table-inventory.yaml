@@ -1,0 +1,121 @@
+version: 2
+plan_id: monday-complete-table-inventory-2026-09-01
+status: approved
+author: codex-agent
+created: 2026-09-01
+title: Mirror a complete bounded Monday table surface
+objective: >-
+  Extend the provider-neutral Company Records path so a reviewed Monday source
+  can mirror the complete active table surface: board, active groups, active
+  columns, every main item, every one-level subitem, and every returned column
+  value, while projections remain explicitly allowlisted.
+non_goals:
+  - Read updates, comments, attachment binaries, foreign-board contents, archived items, or deleted-item history.
+  - Add an unrestricted Monday Tool or authorize any provider write.
+  - Put company identifiers, provider payloads, credentials, or synchronized records in Core.
+  - Activate any company production synchronization or production database migration.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-01-monday-agent-effective-access-evidence.yaml
+  - .oregano/changes/2026-09-01-monday-complete-table-inventory.yaml
+  - .oregano/changes/2026-09-01-monday-external-agent-record-source.yaml
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/monday-agent-qualification.mjs
+  - packages/cli/src/records-operations.mjs
+  - packages/cli/tests/monday-agent-qualification.test.mjs
+  - packages/cli/tests/records.test.mjs
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/contracts.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/schema/company-record-source-v1.schema.json
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-requirement-mirror-the-entire-sprint-table
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic bounded table enumeration, object-class normalization, pagination, completeness checks, and payload-free receipts.
+    packages:
+      - No Blueprint or third-party Package change is required.
+    workspace:
+      - Declare whether a company source uses selected items or the complete table surface, plus logical mappings, access policy, projections, and excluded data classes.
+    instance:
+      - Own the exact board, external Agent, SecretRef, qualified metadata, bounds, database binding, synchronized payloads, watermarks, and receipts.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: extend
+      reason: One complete inventory must retain raw table evidence while projections expose only reviewed canonical fields.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: The maintained Monday adapter needs an explicit complete-table mode without granting an Agent unrestricted provider access.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Synchronization remains hash-confirmed, bounded, read-only at the provider, leased, idempotent, and receipted.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Source access and projection access remain separate from provider authentication and write authority.
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Deterministic background synchronization performs no conversational routing.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: The privileged synchronization Connector is not an Agent Tool and grants no conversational Capability.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Table enumeration and normalization invoke no model.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Existing reconciliation scheduling can invoke the same complete inventory after Instance activation.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Any Company Instance may select a different Monday board and table shape.
+    Core stores no real board, group, column, item, person, or policy value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-monday-complete-table-inventory.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-01-monday-complete-table-inventory.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Complete-table mode returns board, active group, active column, main-item, and one-level subitem objects with stable collision-free identities.
+  - Every main-item and subitem column value is retained in the raw provider payload while the synchronization receipt contains no names or values.
+  - Pagination is bounded, duplicate items and cursors fail closed, and nested subitems beyond the declared one-level surface fail closed.
+  - Selected-item mode remains compatible with narrow group and column synchronization.
+  - Complete-table mode rejects group filters because they would make its completeness claim false.
+  - Record source declarations accept existing Markdown schedules and structured YAML schedules under schedules/.
+  - Updates, comments, attachment binaries, foreign-board contents, archived items, and deletion history are not queried.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - guide.connect-company-record-source
+rollback: >-
+  Revert this change and keep complete-table sources inactive. Existing provider
+  grants and data remain unchanged. Any isolated rehearsal observations are
+  removed only through a separately approved database cleanup.
+open_decisions:
+  - Multi-level subitems beyond one level require a future explicit contract; V1 fails closed if they are observed.
+  - Archived items, deletions, updates, comments, attachment binaries, and foreign-board expansion remain separate data-class decisions.

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-01
 owners:
   - oregano-maintainers
 audience:
@@ -61,6 +61,29 @@ Runtime Observations, and provider-neutral contracts. The maintained read-only
 repository Source Connector feeds the same review boundary. Raw review input is
 not operating truth and an external source never becomes a second authority
 plane.
+
+Multi-Agent conversation routing is deliberately two-stage. Deterministic
+ingress chooses the first Agent from authenticated provider facts. An exact
+binding remains fixed; an unmatched general conversation may begin at an
+explicit default Agent. Only after that selection may the active Agent propose
+an allowlisted semantic handoff. Core authorizes it without trusting message
+text for identity or permission and the Instance persists the resulting exact
+Conversation Assignment:
+
+```mermaid
+flowchart LR
+    M["Authenticated provider message"] --> AR["AgentResolver<br/>exact binding or default"]
+    AR --> A["Active Company Agent"]
+    A -->|"bounded semantic request"| H["Agent handoff authorization"]
+    H -->|"denied"| A
+    H -->|"accepted"| CA["Conversation Assignment<br/>Instance state + evidence"]
+    CA --> S["Target Company Agent<br/>own scoped ToolSet"]
+```
+
+Skills remain scoped material of the active Agent and may be selected from task
+meaning because they do not select another Agent or increase authority. A
+handoff changes the active compiled Agent, so it requires the separate Core
+authorization and evidence path above.
 
 The experimental Builder follows the same placement rule. A trusted Agent
 Binding selects the ordinary `builder` Company Agent for one exact

@@ -9,6 +9,7 @@ import { inspectAndCompileCompanyTool } from "../tool-sdk/source-inspector.ts";
 import { parseRoster, type RosterMember } from "../state-store/roster.ts";
 import { requireExactSemanticVersion } from "../runtime/semantic-version.ts";
 import type { CompiledCompanyTool } from "./types.ts";
+import type { AgentHandoffRule } from "../runtime/agent-resolver.ts";
 
 const parseDocument = (path: string) => {
   const raw = readFileSync(path, "utf8");
@@ -54,6 +55,7 @@ export interface LoadedAgent {
   instructions: string;
   grants: string[];
   scopeRead: string[];
+  handoffs: AgentHandoffRule[];
   tools: CompiledCompanyTool[];
 }
 
@@ -83,6 +85,7 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
     const document = parseDocument(join(root, path));
     const grants = Array.isArray(document.data.tools) ? document.data.tools.map((entry: unknown) => requireString(entry, `${path} grant`)) : [];
     const scopeRead = Array.isArray(document.data.scope?.read) ? document.data.scope.read.map((entry: unknown) => requireString(entry, `${path} scope.read`)) : [];
+    const handoffs = parseAgentHandoffs(document.data.handoffs, id, path);
     const toolRoot = join(root, "agents", id, "tools");
     const tools: CompiledCompanyTool[] = [];
     if (Object.keys(allFiles).some((entry) => entry.startsWith(`agents/${id}/tools/`))) {
@@ -117,7 +120,14 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
         tools.push({ contract, compiledSource: inspection.compiledSource, sourceDigest: sha256(source) });
       }
     }
-    agents.push({ id, instructions: document.body, grants, scopeRead, tools: tools.sort((a, b) => a.contract.runtimeId.localeCompare(b.contract.runtimeId)) });
+    agents.push({
+      id,
+      instructions: document.body,
+      grants,
+      scopeRead,
+      handoffs,
+      tools: tools.sort((a, b) => a.contract.runtimeId.localeCompare(b.contract.runtimeId)),
+    });
   }
   return {
     company: requireString(company.data.name, "company.name"),
@@ -128,6 +138,35 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
     allFiles,
     workspaceHash: sha256(allFiles),
   };
+}
+
+function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): AgentHandoffRule[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`${path}: handoffs must be a list.`);
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`${path}: handoffs[${index}] must be an object.`);
+    }
+    const rule = entry as Record<string, unknown>;
+    const list = (field: string): string[] => {
+      const candidate = rule[field];
+      if (!Array.isArray(candidate)) throw new Error(`${path}: handoffs[${index}].${field} must be a list.`);
+      return [...new Set(candidate.map((item) => requireString(item, `${path}: handoffs[${index}].${field}`)))].sort();
+    };
+    if (!Number.isSafeInteger(rule.ttl_seconds)) {
+      throw new Error(`${path}: handoffs[${index}].ttl_seconds must be an integer.`);
+    }
+    return {
+      id: requireString(rule.id, `${path}: handoffs[${index}].id`),
+      fromAgentId,
+      toAgentId: requireString(rule.target, `${path}: handoffs[${index}].target`),
+      purpose: requireString(rule.purpose, `${path}: handoffs[${index}].purpose`),
+      surfaces: list("surfaces"),
+      eligibleRoles: list("eligible_roles"),
+      eligibleGroups: list("eligible_groups"),
+      ttlSeconds: rule.ttl_seconds as number,
+    };
+  });
 }
 
 export function scopedMaterials(

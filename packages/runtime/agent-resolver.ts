@@ -8,19 +8,38 @@ export interface AgentBinding {
 
 export interface CompiledAgentRouting {
   readonly bindings: readonly AgentBinding[];
+  readonly handoffs?: readonly AgentHandoffRule[];
   readonly defaultAgentId?: string;
+}
+
+export interface AgentHandoffRule {
+  readonly id: string;
+  readonly fromAgentId: string;
+  readonly toAgentId: string;
+  readonly purpose: string;
+  readonly surfaces: readonly string[];
+  readonly eligibleRoles: readonly string[];
+  readonly eligibleGroups: readonly string[];
+  readonly ttlSeconds: number;
+}
+
+export interface ActiveAgentAssignment {
+  readonly assignmentId: string;
+  readonly agentId: string;
 }
 
 export interface AgentResolutionRequest {
   readonly surface: string;
   readonly accountId: string;
   readonly channelId: string;
+  readonly assignment?: ActiveAgentAssignment;
 }
 
 export interface AgentResolution {
   readonly agentId: string;
-  readonly reason: "binding" | "default" | "single-agent";
+  readonly reason: "binding" | "assignment" | "default" | "single-agent";
   readonly bindingId?: string;
+  readonly assignmentId?: string;
 }
 
 export class AgentResolutionError extends Error {
@@ -72,6 +91,40 @@ export function validateAgentRouting(
     }
     routeKeys.add(key);
   }
+  const handoffIds = new Set<string>();
+  for (const handoff of routing.handoffs ?? []) {
+    if (handoffIds.has(handoff.id)) {
+      throw new AgentResolutionError("invalid-routing", `Duplicate Agent handoff id '${handoff.id}'.`);
+    }
+    handoffIds.add(handoff.id);
+    if (!known.has(handoff.fromAgentId) || !known.has(handoff.toAgentId)) {
+      throw new AgentResolutionError(
+        "invalid-routing",
+        `Agent handoff '${handoff.id}' references an Agent that is not present in the Artifact.`,
+      );
+    }
+    if (handoff.fromAgentId === handoff.toAgentId) {
+      throw new AgentResolutionError("invalid-routing", `Agent handoff '${handoff.id}' must change the active Agent.`);
+    }
+    if (!handoff.purpose || handoff.surfaces.length === 0) {
+      throw new AgentResolutionError(
+        "invalid-routing",
+        `Agent handoff '${handoff.id}' requires a purpose and at least one surface.`,
+      );
+    }
+    if (handoff.eligibleRoles.length === 0 && handoff.eligibleGroups.length === 0) {
+      throw new AgentResolutionError(
+        "invalid-routing",
+        `Agent handoff '${handoff.id}' requires at least one eligible role or group.`,
+      );
+    }
+    if (!Number.isSafeInteger(handoff.ttlSeconds) || handoff.ttlSeconds < 60 || handoff.ttlSeconds > 30 * 24 * 60 * 60) {
+      throw new AgentResolutionError(
+        "invalid-routing",
+        `Agent handoff '${handoff.id}' ttlSeconds must be between 60 seconds and 30 days.`,
+      );
+    }
+  }
   if (agentIds.length > 1 && !routing.defaultAgentId && routing.bindings.length === 0) {
     throw new AgentResolutionError(
       "invalid-routing",
@@ -99,6 +152,19 @@ export function resolveAgent(
   const matched = matches[0];
   if (matched) {
     return { agentId: matched.agentId, reason: "binding", bindingId: matched.id };
+  }
+  if (request.assignment) {
+    if (!agentIds.includes(request.assignment.agentId)) {
+      throw new AgentResolutionError(
+        "invalid-routing",
+        `Conversation Assignment '${request.assignment.assignmentId}' references unknown Agent '${request.assignment.agentId}'.`,
+      );
+    }
+    return {
+      agentId: request.assignment.agentId,
+      reason: "assignment",
+      assignmentId: request.assignment.assignmentId,
+    };
   }
   if (routing.defaultAgentId) {
     return { agentId: routing.defaultAgentId, reason: "default" };

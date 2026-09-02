@@ -1,0 +1,148 @@
+version: 2
+plan_id: company-records-workbench-lifecycle-2026-09-01
+status: implemented
+author: codex-agent
+created: 2026-09-01
+title: Add the provider-neutral Company Records source lifecycle to the Workbench
+objective: >-
+  Add one provider-neutral Company Records Workbench surface for inspecting
+  Workspace declarations, reusing provider qualification evidence,
+  materializing an explicitly authored source declaration, synchronizing or
+  reconciling a complete qualified source inventory into the existing Company
+  Instance database, and reporting durable source status without exposing
+  credentials or embedding provider-specific workflow policy in Core.
+non_goals:
+  - Connect to, mutate, or activate a real company provider or database as part of this repository change.
+  - Infer company field mappings, record types, access groups, schedules, provider resources, or production rollout decisions.
+  - Make synchronized records curated Company Knowledge, Workspace authority, or provider authority.
+  - Add provider writes, Agent provisioning, scheduled execution, webhook activation, or automatic Git commits.
+  - Implement maintained record-source adapters for providers other than Monday in this change.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Files are the review surface
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-01-company-records-workbench-lifecycle.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/overview.md
+  - docs/workbench/commands/monday-qualify.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/package.json
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/records-operations.mjs
+  - packages/cli/tests/records.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/contracts.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/records/source-connector.ts
+  - packages/schema/README.md
+  - packages/schema/company-record-source-binding-v1.schema.json
+  - packages/state-postgres/records-store.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/acme-casas/package.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: fylingpete
+    approved_at: 2026-09-01
+    evidence: explicit-user-approval-after-reviewing-the-proposed-records-cli-and-guide
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the generic source lifecycle command contract, source-Connector registry, validation, plan/apply protection, durable synchronization and reconciliation orchestration, status evidence, and maintained Monday adapter.
+    packages:
+      - No Blueprint, Tool, or third-party Package changes; the versioned Workbench distribution receives the generated Guide copy.
+    workspace:
+      - Own explicit company source and projection declarations, logical connection references, field mappings, access groups, schedules, and reviewed materialized files.
+    instance:
+      - Own exact provider and database bindings, account and resource identifiers, SecretRefs, credentials, environment, activation, schedules, and production confirmations.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Record-source lifecycle commands are administrator operations and do not select or invoke a conversational Agent.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: Synchronization is a trusted Instance operation and does not grant an Agent direct access to a Connector or database.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Inspection, materialization, synchronization, reconciliation, and status are deterministic and invoke no model.
+    - mechanism: company-records
+      decision: extend
+      reason: The change exposes the existing records declarations, immutable versions, projections, watermarks, leases, receipts, and reconciliation through one governed Workbench lifecycle.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Workspace access declarations remain separate from the accountable administrator who explicitly confirms an Instance database write.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: This change performs explicit operator-run synchronization only; schedules and durable timer activation remain separate Instance work.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Provider reads and database writes are separated, write plans are digest-bound, exact retries are idempotent, and durable receipts remain the evidence boundary.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: A provider-neutral read-only record-source inventory contract receives one maintained Monday implementation while existing Agent Capability contracts remain unchanged.
+  new_core_mechanisms:
+    - A provider-neutral Record Source Connector registry and bounded complete-inventory contract used only by trusted Instance synchronization operations.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The Workbench lifecycle consumes generic Workspace declarations and one
+    Instance binding contract. Provider-specific enumeration remains behind a
+    registry, so another company or maintained provider can use the same
+    inspect, materialize, plan/apply, synchronization, reconciliation, status,
+    receipt, and secret-handling behavior without changing company policy in
+    Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-company-records-workbench-lifecycle.yaml
+  - pnpm companyos inspect-core --base main --plan .oregano/changes/2026-09-01-company-records-workbench-lifecycle.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm test
+  - git diff --check
+tests:
+  - Records source inspection reports validated source and projection declarations without provider or database access.
+  - Materialization rejects invented or unqualified Monday resources and writes only the exact confirmed declaration under records/sources.
+  - The generic command qualifies the exact external Monday Agent identity and grants while retaining no credential.
+  - Synchronization and reconciliation plans contain no secret and a wrong confirmation hash performs no provider or database call.
+  - The maintained Monday inventory adapter uses explicit API versioning, exact board and optional group scope, bounded pagination, and a complete-inventory receipt without leaking its token.
+  - Synchronization preserves provider authority, creates idempotent object versions and projections, and reconciliation infers absence only from a complete inventory under a lease.
+  - Status exposes counts, freshness evidence, watermarks, and receipt summaries without record payloads or credentials.
+  - All public fixtures use fictional providers, principals, resources, records, and secrets.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - workbench.overview
+    - command.records
+    - guide.connect-company-record-source
+  reason_if_none: ""
+rollback: >-
+  Remove the records command group, generated Guide, binding schema, generic
+  source-Connector registry, maintained Monday inventory adapter, and status
+  reader. Keep additive companyos_records tables and previously written
+  evidence dormant unless a separately approved destructive process exports
+  and removes them. The records.query runtime remains available independently.
+open_decisions:
+  - Scheduled synchronization and webhook activation remain separate Instance deployment work.
+  - Maintained Notion, ClickUp, and other provider adapters require their own qualification, conformance, documentation, and review changes.
+  - A real production source and database require a separately reviewed Company Workspace, Instance binding, non-production rehearsal, and explicit production confirmation.

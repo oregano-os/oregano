@@ -12,7 +12,7 @@
     "connection": { "type": "string", "pattern": "^connections/[a-zA-Z0-9._/-]+\\.md$" },
     "resource_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
     "delivery": { "type": "string", "enum": ["poll", "webhook", "hybrid"] },
-    "reconcile_schedule": { "type": "string", "pattern": "^schedules/[a-zA-Z0-9._/-]+\\.md$" },
+    "reconcile_schedule": { "type": "string", "pattern": "^schedules/[a-zA-Z0-9._/-]+\\.(?:md|ya?ml)$" },
     "identity": {
       "type": "object",
       "additionalProperties": false,

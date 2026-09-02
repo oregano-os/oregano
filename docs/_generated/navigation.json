@@ -56,6 +56,14 @@
     "availability": null
   },
   {
+    "document_id": "architecture.system-of-proof",
+    "title": "System of Proof",
+    "path": "docs/architecture/system-of-proof.md",
+    "kind": "architecture",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "architecture.validation-inspection",
     "title": "Validation and Inspection",
     "path": "docs/architecture/validation-and-inspection.md",
@@ -128,14 +136,6 @@
     "availability": "experimental"
   },
   {
-    "document_id": "command.monday-qualify",
-    "title": "companyos monday qualify",
-    "path": "docs/workbench/commands/monday-qualify.md",
-    "kind": "command",
-    "status": "implemented",
-    "availability": "experimental"
-  },
-  {
     "document_id": "command.onboard",
     "title": "companyos onboard",
     "path": "docs/workbench/commands/onboard.md",
@@ -155,6 +155,14 @@
     "document_id": "command.plan",
     "title": "companyos plan",
     "path": "docs/workbench/commands/plan.md",
+    "kind": "command",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "command.records",
+    "title": "companyos records",
+    "path": "docs/workbench/commands/records.md",
     "kind": "command",
     "status": "implemented",
     "availability": "experimental"
@@ -317,6 +325,14 @@
     "path": "docs/workbench/guides/configure-repository-protection.md",
     "kind": "guide",
     "status": "approved",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "guide.connect-company-record-source",
+    "title": "Connect a Company Record Source",
+    "path": "docs/workbench/guides/connect-company-record-source.md",
+    "kind": "guide",
+    "status": "implemented",
     "availability": "experimental"
   },
   {

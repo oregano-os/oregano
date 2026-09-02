@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-31
+updated: 2026-09-02
 owners:
   - oregano-maintainers
 audience:
@@ -103,6 +103,47 @@ conflicting projection fails visibly and MUST NOT silently replace provider
 truth. An operational organizational projection may create a reviewed Handbook
 proposal but MUST NOT modify `handbook/roster.md` or authorization state.
 
+**CRS-016 — Governed source lifecycle.** The Workbench MUST expose one
+provider-neutral source lifecycle for local inspection, provider
+qualification, reviewed declaration materialization, synchronization,
+reconciliation, and payload-free status. A source write plan MUST bind the
+exact Core identity, Workspace declaration digest, applicable projection
+digests, non-secret Instance binding digest, Connector version, environment,
+provider resource, SecretRefs, and database effect before any credential is
+resolved or provider or database call is made. A wrong or stale confirmation
+MUST produce no external call. Synchronization MUST NOT infer provider
+deletion; reconciliation MAY record provider absence only from a bounded
+complete inventory under the source lease. Materialization creates only the
+exact reviewed Workspace file and MUST NOT commit it, activate it, or infer a
+company value.
+
+**CRS-017 — Bounded and resumable snapshots.** After a Record Source Connector
+returns one bounded complete inventory, synchronization MUST process independent
+objects with a fixed Core-owned concurrency bound. A runtime interruption MAY
+leave immutable Source Events, object versions, current pointers, or projection
+rows, but MUST NOT advance the source watermark or append a successful sync
+receipt. An exact retry MUST deduplicate Source Events and MAY repair a missing
+version or projection only when the retried immutable version is still the
+current object version. Replaying an older version MUST NOT replace a projection
+of newer current state. Watermark and completion evidence are written only after
+every inventory object succeeds.
+
+**CRS-018 — Resumable rehearsal orchestration.** The Workbench MUST be able to
+freeze one reviewed Record Source, its selected projections, non-secret
+binding and qualification, exact clean Core and Workspace identities, and one
+non-production Instance profile into a credential-free mode-0600 local state.
+The orchestrator MUST reuse the maintained rehearsal, synchronization, Store,
+receipt, and watermark contracts rather than implement another provider
+pipeline. Remote planning MUST have no provider or database effect. Migration
+and source synchronization MUST retain independent exact human confirmations;
+a missing or stale confirmation makes no apply request. An interrupted apply
+remains resumable from the last recorded effect. Completion requires
+payload-free proof of an available Store, a successful zero-error receipt, a
+watermark, and every selected projection. Runtime and StateStore details belong
+to a replaceable Instance profile; company values and provider mappings remain
+Workspace or Instance truth. Infrastructure creation, secret copying, cleanup,
+schedule activation, and production activation are outside this command.
+
 ## 3. Sprint domain
 
 **CRS-020 — Pure decision boundary.** The Sprint domain accepts one validated
@@ -163,21 +204,54 @@ provider signature. Conversational callbacks use `AgentResolver` after
 verification. Board-change events normalize directly into records and domain
 processing and MUST NOT invoke a conversational Agent.
 
-**CRS-034 — Read-only provider qualification.** The maintained first
-qualification MUST bind one exact Core identity, Company Workspace, OAuth
-client, app version, loopback redirect URI, API version, scope set, and explicit board set
-before browser consent. It MUST use OAuth 2.1 with S256 PKCE and request exactly
-`boards:read` and `me:read`. The authorization request MUST ask Monday to route
-a missing installation through its administrator-controlled installation
-handoff. That parameter MUST NOT be represented as automatic installation or
-as authority to bypass the provider's administrator. The authorization code,
-PKCE verifier, client secret, access token, and refresh token MUST remain
-memory-only and MUST be discarded after one bounded metadata query. Persisted
-evidence MAY contain the consenting actor and account, granted scopes,
-board/group/column structure, request metadata, and a discovery digest. It
+**CRS-034 — External-Agent provider qualification.** The maintained Monday
+qualification MUST bind one exact Core identity, Company Workspace, external
+Agent ID, Agent-token SecretRef, `API-Version: dev`, explicit board set, and
+exact expected `READ` or `READ_WRITE` resource grants before secret resolution.
+It MUST accept only `external_agent_member` or
+`external_agent_detached_member`, match the Agent ID from the authenticated
+provider identity only within its own identifier namespace, and keep that
+subject ID separate from the configured UI/callback Agent ID. Qualification
+MUST pause for a second digest-bound administrator review of the exact mapping.
+It MUST read only the exact selected boards and fail closed on an absent board.
+A returned board proves minimum read access; an attested `READ_WRITE` board
+also requires `access_level: edit` as metadata evidence but remains without a
+verified write effect. Because the external Agent token cannot list `agent_knowledge`,
+the confirmed board set is an administrator attestation and MUST be recorded
+as such; Core MUST NOT represent it as a machine-listed complete inventory.
+The qualification query MUST read only identity and selected
+board/group/column metadata and MUST perform no mutation. Persisted evidence
+MAY contain Agent and account identity, the digest-bound attestation, effective
+selected-board access, board/group/column structure, request metadata, and a
+discovery digest. It
 MUST NOT contain items, updates, column values, provider credentials, or a
-completed provider effect. External Agent provisioning and activation require
-a separate effect plan.
+completed provider effect. The Agent token remains an Instance secret and is
+not retained by the Workbench. The exact external Agent is the sole maintained
+Monday qualification identity. `READ_WRITE` metadata qualification does not
+authorize or replace a separately confirmed reversible write proof.
+
+**CRS-035 — Record Source Connector.** A trusted Instance synchronization
+worker resolves one exact versioned Record Source Connector from a non-secret
+binding whose only credential reference is a SecretRef. The Connector returns
+and revalidates the pinned non-secret qualification receipt before returning
+one bounded complete inventory of provider observations plus payload-free
+request, version, scope, count, completeness, and digest evidence. It is not an
+Agent Tool, grants no Capability, performs no provider write, and MUST NOT
+return or retain its credential. The maintained Monday implementation reads
+one exact board through bounded cursor pagination and API version `dev`. Its
+default `selected-items` mode may restrict exact groups and explicitly mapped
+columns. Its explicit `complete-table` mode rejects group filters and returns
+the selected board, every active group and active column, every main item,
+every one-level subitem, and every returned column value as collision-free raw
+record objects. A child board is readable only when its stable ID is present in
+the qualified parent board's subitems-column settings; any other child board
+fails closed. Raw completeness never widens a projection: Company Workspace
+projections still select reviewed object kinds and canonical fields. Updates,
+comments, attachment binaries, linked foreign-board contents, archived items,
+deleted-item history, and multi-level subitems are separate data classes;
+complete-table mode does not query them and fails closed if a deeper subitem
+level is observed. Other providers require separately maintained and qualified
+adapters behind the same contract.
 
 ## 5. Blueprint and materialization
 

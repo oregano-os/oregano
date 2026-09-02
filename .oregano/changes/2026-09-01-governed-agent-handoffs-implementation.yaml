@@ -1,0 +1,145 @@
+version: 2
+plan_id: governed-agent-handoffs-implementation-2026-09-01
+status: approved
+author: codex-agent
+created: 2026-09-01
+title: Implement governed Agent handoffs and durable Conversation Assignments
+objective: >-
+  Implement the approved two-stage multi-Agent conversation routing contract:
+  deterministic authenticated ingress, allowlisted Core authorization, durable
+  exact Conversation Assignments, explicit return and revocation, bounded
+  expiry, Runner integration, and fail-closed evidence without changing Agent
+  identity, Tool grants, approvals, or provider authority.
+non_goals:
+  - Deploy or activate a private Company Instance.
+  - Apply a production database migration or read any provider credential.
+  - Let message text authenticate a principal, override an exact Agent Binding, or union ToolSets.
+  - Archive full provider transcripts as part of assignment evidence.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - Safety cannot be weakened from a Workspace
+  - The runtime is replaceable
+files_expected:
+  - .oregano/changes/2026-09-01-governed-agent-handoffs-implementation.yaml
+  - .oregano/changes/2026-09-01-governed-agent-handoffs.yaml
+  - package.json
+  - docs/architecture/oregano-core.md
+  - docs/architecture/overview.md
+  - docs/architecture/system-boundaries.md
+  - docs/glossary.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/workbench/guides/plan-a-change.md
+  - packages/cli/content/guides/plan-a-change.md
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/runtime/agent-handoff.ts
+  - packages/runtime/agent-resolver.ts
+  - packages/state-store/conversation-assignments.ts
+  - packages/state-postgres/conversation-assignment-store.ts
+  - packages/state-postgres/schema.sql
+  - packages/state-postgres/migrate.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/companyos-builder/build.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.ts
+  - packages/testkit/adapter/in-memory-conversation-assignment-store.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/tests/agent-handoff.test.ts
+  - packages/testkit/tests/agent-resolver.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.test.ts
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-01
+    evidence: explicit-user-instruction-implement-everything-through-phase-four
+architecture_assessment:
+  responsibilities:
+    core:
+      - Validate portable handoff rules, authorize requests from trusted facts, enforce resolution precedence, and define provider-neutral assignment persistence.
+      - Preserve exact Agent Binding precedence, Agent ToolSet isolation, idempotency, expiry, return, revocation, and evidence.
+    packages:
+      - Blueprints may recommend portable handoff purposes but cannot grant principals, surfaces, or live assignments.
+    workspace:
+      - Declare sending and target Agents, purposes, eligible roles or groups, surfaces, and bounded TTLs.
+    instance:
+      - Own exact Agent Bindings, authenticated principals, Artifact provenance, live assignments, transition receipts, and the production database migration.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: extend
+      reason: Preserve exact binding and default behavior while inserting a verified active assignment between them.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Handoff selects an independently compiled Agent and never copies or unions Tool grants.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: A model may request a handoff through a bounded control Tool, but model routing never authorizes it.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: Conversation Assignment is Company Instance routing state, not provider-backed operating data.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Authorization intersects the authenticated principal with active roster role and group facts plus the compiled route policy.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Assignment TTL uses a controlled clock and absolute expiry without introducing a scheduler.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Stable transition keys and append-only receipts make duplicate handoff requests safe; handoffs remain non-business effects.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Provider adapters still authenticate exact conversation facts and receive no broader capability.
+  new_core_mechanisms:
+    - Governed Agent handoff authorization over compiled portable rules and trusted runtime facts.
+    - Durable Conversation Assignment current state plus append-only transition receipts.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The same contracts support any number of company-defined Agents and
+    provider conversations. Core contains no private principal, channel, board,
+    provider credential, Sprint policy, or company-specific target.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-01-governed-agent-handoffs-implementation.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-01-governed-agent-handoffs-implementation.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Exact bindings always win over assignments and defaults.
+  - Accepted assignments remain sticky across turns and store recreation until return, revocation, or expiry.
+  - Unauthorized role, group, surface, direction, purpose, target, stale Artifact, inactive principal, and cross-account requests fail closed.
+  - Duplicate transition keys return the prior outcome without a second transition receipt.
+  - Handoff never changes the authenticated principal, target ToolSet, Capability bindings, or effect approval state.
+  - Full raw message bodies are absent from assignment state and evidence.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+migration: >-
+  Existing Artifacts without handoff rules remain valid and route exactly as
+  before. The additive Company Instance tables are dormant until a Workspace
+  compiles at least one handoff rule and a production deployment explicitly
+  enables the Runner path.
+rollback: >-
+  Disable Workspace handoff declarations, revoke active assignments, and
+  deploy the prior Artifact. Retain additive assignment receipts as dormant
+  evidence unless a separately approved destructive retention action removes
+  them.
+open_decisions: []

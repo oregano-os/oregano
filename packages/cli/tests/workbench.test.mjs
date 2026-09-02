@@ -67,8 +67,8 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.5.3");
-  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.10");
+  assert.equal(CORE_VERSION, "0.5.4");
+  assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.12");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), WORKBENCH_VERSION);
@@ -240,6 +240,17 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     ],
     access: { read_groups: ["delivery"], write_roles: ["process-owner"] },
   }));
+  writeFileSync(join(workspace, "records", "sources", "person-roles.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "person-roles",
+    record_type: "person-role",
+    connection: "connections/board.md",
+    resource_binding: "roles-board",
+    delivery: "poll",
+    identity: { source_field: "id" },
+    fields: [{ target: "name", source: "name", value_type: "string", required: true }],
+    access: { read_groups: ["delivery"], write_roles: [] },
+  }));
   for (const projection of [
     { id: "participants", record_type: "person-role", fields: [{ name: "name", path: "name" }] },
     { id: "sprint-items", record_type: "work-item", fields: [{ name: "status", path: "status" }] },
@@ -266,7 +277,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
 
   const result = validateWorkspace(workspace);
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
-  assert.equal(result.summary.record_sources, 1);
+  assert.equal(result.summary.record_sources, 2);
   assert.equal(result.summary.record_projections, 2);
   assert.equal(result.summary.sprint_configurations, 1);
 }));
@@ -316,9 +327,9 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.5.3",
+    core: "0.5.4",
     workspace: "0.1.0",
-    workbench: "0.1.0-experimental.10",
+    workbench: "0.1.0-experimental.12",
     companyos_spec: "0.7-draft",
   });
 
@@ -952,7 +963,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.5.3",
+  core_version: "0.5.4",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };
