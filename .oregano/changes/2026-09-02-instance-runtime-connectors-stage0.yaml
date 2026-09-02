@@ -1,6 +1,6 @@
 version: 2
 plan_id: instance-runtime-connectors-stage0-2026-09-02
-status: approved
+status: implemented
 author: codex-agent
 created: 2026-09-02
 title: Bind maintained Monday and Slack Connectors in a protected Stage-0 Instance
@@ -53,7 +53,12 @@ approvals:
   - role: oregano-maintainer
     approver: workspace-steward
     approved_at: 2026-09-02
-    evidence: explicit-user-authorization-to-complete-the-listed-stage0-test-scope-with-test-resources-only
+    evidence: >-
+      explicit-user-authorization-to-complete-the-listed-stage0-test-scope-with-test-resources-only;
+      the reversible Monday test-board effect, Slack test-channel and direct-message
+      deliveries, real Slack app-mention and message.im ingress, exact Agent routing,
+      duplicate suppression, denied-resource checks, and callback security fixtures
+      were reviewed in the supervised 2026-09-02 Stage-0 session
 architecture_assessment:
   responsibilities:
     core:
@@ -142,3 +147,4 @@ rollback: >-
   receipts as test evidence. Production remains unchanged.
 open_decisions:
   - Production source activation, production destination bindings, schedules, and staged Sprint promotion remain separately reviewed and approved work.
+  - The real Monday chat callback reached the still-deployed v0.5.2 production endpoint and correctly exposed that the route is absent there; repeat the deterministic setup probe after the new Core is deployed before enabling any Monday production trigger or effect.

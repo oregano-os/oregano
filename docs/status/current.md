@@ -114,7 +114,13 @@ evidence, historical prototypes, and production gaps.
   adds digest-bound reversible Monday and exact Slack delivery qualification,
   including read-after-write, duplicate, echo, restoration, unbound-resource,
   provider-receipt, signature, and replay evidence. Repository tests prove the
-  generic contracts only; no production resource activation is claimed.
+  generic contracts. One supervised non-production Instance additionally
+  produced real Slack `app_mention` and `message.im` deliveries with HTTP 200,
+  exact `sprint` and `oregano` routing, visible single responses under provider
+  retries, exact outbound channel and direct-message receipts, and one
+  reversible Monday test-board write with read-after-write and restoration.
+  This is Instance qualification evidence, not Core authority or production
+  activation.
 - The maintained Monday work-item adapter uses explicit API versioning, exact
   resource and field bindings, minimum permissions, optimistic version checks,
   read-after-write evidence, durable echo suppression, raw-body callback
@@ -130,8 +136,12 @@ evidence, historical prototypes, and production gaps.
   not identify the triggering human, only deterministic setup probes can
   produce visible chat content. Ordinary chat opens no Workspace material,
   model, or Tool, while mention and assignment are acknowledgement-only. This
-  implementation does not claim a real deployment, callback delivery, board
-  grant, human authorization, Agent-token action, or production verification.
+  A real provider chat probe reached the configured public Company Instance on
+  2026-09-02 and returned HTTP 404 because that Instance still ran Core v0.5.2,
+  which predates this ingress. Signature, wrong-signature, and replay behavior
+  passed through the protected candidate handler. A successful real callback
+  remains an explicit post-deployment smoke test; no board trigger, Agent-token
+  action, or production verification is claimed.
 - `companyos records source qualify --provider monday` is the only maintained
   Monday qualification path. It accepts only the Instance-owned external
   Agent token, verifies the exact Agent identity parsed from `me`, requires
@@ -565,15 +575,15 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.4` as the reviewed release candidate
+- Oregano Core source is versioned `0.5.4` as the reviewed release
   for the experimental Sprint and Company Records lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
   external-Agent ingress, resumable source connection, and separately guarded
-  production records operator and scheduler runtime. The latest immutable
-  public distribution remains `v0.5.3` until the protected v0.5.4 release commit
-  is merged and its exact tag workflow succeeds. Existing consumers may remain
-  on `v0.5.3`, and no Company Workspace or Company Instance is activated by
-  preparing this candidate.
+  production records operator and scheduler runtime. The current release line
+  is `v0.5.4`; its exact immutable tag and protected release commit are the
+  authority after the release workflow succeeds. Existing consumers may remain
+  on `v0.5.3` until they adopt the new exact Core authority, and publishing the
+  Core does not activate a Company Workspace or Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
@@ -592,9 +602,10 @@ evidence, historical prototypes, and production gaps.
   neutral fixtures. Expiry may use the existing bounded fixed TTL or the first
   instant of the next local calendar day in an explicit IANA timezone; the
   latter still persists one absolute expiry and grants no additional authority.
-  Production remains unproved: no private Company Instance
-  migration, live deployment, live handoff, or live return evidence exists,
-  and the latest immutable public release v0.5.3 does not contain this behavior.
+  Production remains unproved: no private Company Instance migration, live
+  deployment, live handoff, or live return evidence exists. Publishing Core
+  v0.5.4 supplies this reusable behavior but does not deploy it to a Company
+  Instance.
 - Sprint close read models now distinguish unavailable effort from zero and
   calculate only the explicitly declared actual-hours or planned-effort basis.
   An absent required observation makes the derived participant and total metric
