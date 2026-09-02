@@ -8,8 +8,10 @@ import {
   executeCompanyRecordsRehearsal,
   parseCompanyRecordsRehearsalRequest,
   planCompanyRecordsPreviewMigration,
+  planCompanyRecordsPreviewMondayQualification,
   type CompanyRecordsRehearsalConfiguration,
 } from "./company-records-rehearsal.ts";
+import { createMondayExternalAgentQualificationEvidence } from "../../../connectors/monday/external-agent-qualification.ts";
 
 const configuration = (): CompanyRecordsRehearsalConfiguration => ({
   version: 1,
@@ -164,4 +166,58 @@ test("production and mismatched Core deployments fail before planning", async ()
   await assert.rejects(executeCompanyRecordsRehearsal({ action: "plan-sync", source_id: "fixture-items" }, selected, { ...environment, VERCEL_ENV: "production" }, dependencies), /only in a Vercel Preview/);
   await assert.rejects(executeCompanyRecordsRehearsal({ action: "plan-sync", source_id: "fixture-items" }, selected, { ...environment, VERCEL_GIT_COMMIT_SHA: "9".repeat(40) }, dependencies), /does not match/);
   assert.equal(planned, false);
+});
+
+test("protected Preview Monday qualification requires an exact metadata-read confirmation", async () => {
+  const selected = configuration();
+  const request = parseCompanyRecordsRehearsalRequest({
+    action: "plan-monday-qualification",
+    agent_id: "700001",
+    boards: [{ id: "100002", permission: "read-write" }],
+    qualification_plan_hash: "7".repeat(64),
+  });
+  if (request.action !== "plan-monday-qualification") throw new Error("fixture request did not parse as Monday qualification");
+  let providerReads = 0;
+  const dependencies: any = {
+    ensureSchema: async () => {},
+    planOperation: () => { throw new Error("not reached"); },
+    runOperation: () => { throw new Error("not reached"); },
+    inspectStatus: () => { throw new Error("not reached"); },
+    qualifyMonday: async () => {
+      providerReads += 1;
+      return createMondayExternalAgentQualificationEvidence({
+        agentId: "700001",
+        apiVersion: "dev",
+        boards: [{ id: "100002", permission: "read-write" }],
+        planHash: "7".repeat(64),
+        observedAt: "2026-09-02T10:00:00.000Z",
+        result: {
+          apiVersion: "dev",
+          requestId: "request-1",
+          data: {
+            identity: { memberId: "member-1", name: "Fixture Agent", kind: "external_agent_member", email: "agent-900001@agent.monday.com", externalAgentId: "900001" },
+            account: { id: "account-1", name: "Fixture Company" },
+            boards: [{ id: "100002", name: "Sprint Test", boardKind: "private", state: "active", permissions: "edit", accessLevel: "edit", workspace: null, groups: [], columns: [] }],
+          },
+        },
+      });
+    },
+  };
+  const planned: any = await executeCompanyRecordsRehearsal(request, selected, environment, dependencies);
+  assert.equal(planned.plan.kind, "company-records-preview-monday-agent-qualification");
+  assert.equal(planned.plan.provider_secret_ref, "env:MONDAY_API_TOKEN");
+  assert.deepEqual(planned.plan.provider_effects, []);
+  assert.equal(providerReads, 0);
+  await assert.rejects(
+    executeCompanyRecordsRehearsal({ ...request, action: "apply-monday-qualification", confirmation_hash: "0".repeat(64) }, selected, environment, dependencies),
+    /confirmation does not match/,
+  );
+  assert.equal(providerReads, 0);
+  const exact = planCompanyRecordsPreviewMondayQualification(selected, request).confirmation_hash;
+  const applied: any = await executeCompanyRecordsRehearsal({ ...request, action: "apply-monday-qualification", confirmation_hash: exact }, selected, environment, dependencies);
+  assert.equal(providerReads, 1);
+  assert.equal(applied.operation, "monday-agent-qualification-read");
+  assert.equal(applied.credentials_retained, false);
+  assert.equal(applied.evidence.discovery.configured_agent_id, "700001");
+  assert.deepEqual(applied.provider_effects, []);
 });

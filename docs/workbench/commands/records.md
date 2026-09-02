@@ -66,6 +66,33 @@ Agent token, verifies the exact Agent ID and complete resource-grant set, reads
 only selected board metadata with Monday's required `API-Version: dev`, retains
 no credential, and does not synchronize an item or change a provider grant.
 
+When the Instance marks that token as non-exportable and only a protected
+Vercel Preview can resolve it, add the existing `vercel-neon` runtime profile
+to the same qualification plan:
+
+```bash
+companyos records source qualify \
+  --provider monday \
+  --workspace <company-workspace> \
+  --agent-id <exact-external-agent-id> \
+  --board-access <test-board-id>:read-write \
+  --runtime-profile vercel-neon \
+  --runtime-scope <vercel-team> \
+  --runtime-project <vercel-project> \
+  --endpoint https://<protected-preview>/api/records/rehearsal \
+  --state <outside-workspace-state-file> \
+  --plan
+```
+
+After the initial qualification hash is confirmed, the first remote `--resume`
+only obtains an exact provider-metadata-read plan. It performs no Monday call.
+Resume again with `--provider-read-confirmation <hash>` to perform that one
+read inside the protected Preview, then review the returned identity tuple and
+finish with `--identity-confirmation <hash>`. The Preview response and local
+mode-0600 state contain no credential or item payload. The local process needs
+only the matching short-lived rehearsal bearer; the Monday token never leaves
+the hosting runtime.
+
 ## Reviewed materialization
 
 Author the complete non-secret source declaration outside the target path. The
@@ -133,8 +160,12 @@ provider write.
 The maintained Vercel Runner exposes an optional authenticated
 `POST /api/records/rehearsal` operator endpoint for an isolated Preview when a
 local process cannot resolve the Instance secrets. Supported request actions
-are `plan-migration`, `apply-migration`, `plan-sync`, `apply-sync`, and
-`status`. Migration and synchronization have independent confirmation hashes.
+are `plan-monday-qualification`, `apply-monday-qualification`,
+`plan-migration`, `apply-migration`, `plan-sync`, `apply-sync`, and `status`.
+Monday qualification, migration, and synchronization have independent
+confirmation hashes. Qualification reads only the authenticated external-Agent
+identity plus metadata and effective access for the exact selected boards; it
+does not read items or modify Monday.
 
 The endpoint fails closed outside `VERCEL_ENV=preview`, when the deployed Git
 commit differs from the configured exact Core ref, or when its short-lived

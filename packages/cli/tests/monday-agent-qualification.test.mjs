@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +11,9 @@ import {
   readMondayAgentQualificationState,
   writeMondayAgentQualificationState,
 } from "../src/monday-agent-qualification.mjs";
+import { createMondayExternalAgentQualificationEvidence } from "../../connectors/monday/external-agent-qualification.ts";
+
+const sha256 = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 const workspace = () => {
   const root = mkdtempSync(join(tmpdir(), "companyos-monday-agent-qualification-"));
@@ -36,6 +40,27 @@ const validPlan = () => {
   return { ...fixture, result };
 };
 
+const validRemotePlan = () => {
+  const fixture = workspace();
+  const result = planMondayAgentQualification({
+    workspaceRoot: fixture.company,
+    agentId: "700001",
+    boardAccesses: ["100002:read-write", "100001:read"],
+    statePath: fixture.state,
+    coreIdentity: {
+      repository: "https://github.com/example/oregano",
+      ref: "a".repeat(40),
+      core_version: "0.5.4",
+      workbench_version: "0.1.0-experimental.12",
+    },
+    runtimeProfile: "vercel-neon",
+    endpoint: "https://fixture-preview.vercel.app/api/records/rehearsal",
+    runtimeScope: "fixture-team",
+    runtimeProject: "fixture-project",
+  });
+  return { ...fixture, result };
+};
+
 const discoveryResponse = ({ kind = "external_agent_member", roleAccess = "view", sprintAccess = "edit", boards } = {}) => new Response(JSON.stringify({ data: {
   me: { id: "member-1", name: "Fixture Agent", kind, email: "agent-900001@agent.monday.com", account: { id: "account-1", name: "Fixture Company" } },
   boards: boards ?? [
@@ -43,6 +68,40 @@ const discoveryResponse = ({ kind = "external_agent_member", roleAccess = "view"
     { id: "100002", name: "Sprint Test", board_kind: "private", state: "active", permissions: "edit", access_level: sprintAccess, workspace: { id: "space-1", name: "Tests" }, groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status", title: "Status", type: "status", archived: false, revision: "r2", settings: { labels: [] } }] },
   ],
 } }), { status: 200, headers: { "api-version": "dev", "x-request-id": "request-1" } });
+
+const remoteDiscoveryResult = () => ({
+  apiVersion: "dev",
+  requestId: "request-remote",
+  data: {
+    identity: { memberId: "member-1", name: "Fixture Agent", kind: "external_agent_member", email: "agent-900001@agent.monday.com", externalAgentId: "900001" },
+    account: { id: "account-1", name: "Fixture Company" },
+    boards: [
+      { id: "100001", name: "Roles Test", boardKind: "private", state: "active", permissions: "view", accessLevel: "view", workspace: { id: "space-1", name: "Tests" }, groups: [], columns: [] },
+      { id: "100002", name: "Sprint Test", boardKind: "private", state: "active", permissions: "edit", accessLevel: "edit", workspace: { id: "space-1", name: "Tests" }, groups: [], columns: [] },
+    ],
+  },
+});
+
+const protectedPreviewPlan = (state) => {
+  const body = {
+    schema_version: 1,
+    kind: "company-records-preview-monday-agent-qualification",
+    environment: "preview",
+    instance_id: "fixture-instance",
+    core: { ...state.core, clean: true, core_version: state.core.version },
+    workspace: "example/company@" + "b".repeat(40),
+    qualification_plan_hash: state.plan_hash,
+    agent_id: state.agent_id,
+    boards: state.boards,
+    provider_secret_ref: state.secret_ref,
+    provider_access: "external-agent-identity-and-selected-board-metadata-only",
+    provider_effects: [],
+    database_effects: [],
+    production_effects: [],
+    external_changes: [],
+  };
+  return { ...body, confirmation_hash: sha256(body) };
+};
 
 test("Monday Agent qualification planning is exact, effect-free, and secret-free", () => {
   const { result } = validPlan();
@@ -150,4 +209,48 @@ test("identity mapping review fails closed on a wrong confirmation hash without 
   await assert.rejects(() => advanceMondayAgentQualification({ statePath: state, identityConfirmationHash: "f".repeat(64), fetchImpl: async () => { called = true; throw new Error("unexpected"); } }), /does not match/);
   assert.equal(called, false);
   assert.equal(readMondayAgentQualificationState(state).phase, "identity-review");
+});
+
+test("protected Preview qualification plans before reading and accepts only the exact provider-read confirmation", async () => {
+  const { result, state } = validRemotePlan();
+  assert.deepEqual(result.diagnostics, []);
+  assert.equal(result.plan.runtime.profile, "vercel-neon");
+  initializeMondayAgentQualification({ planResult: result, confirmationHash: result.plan.confirmation_hash });
+  let providerReads = 0;
+  const remoteProfile = {
+    id: "vercel-neon",
+    async request({ body }) {
+      const current = readMondayAgentQualificationState(state);
+      const plan = protectedPreviewPlan(current);
+      if (body.action === "plan-monday-qualification") return { ok: true, plan };
+      providerReads += 1;
+      const evidence = createMondayExternalAgentQualificationEvidence({
+        agentId: current.agent_id,
+        apiVersion: current.api_version,
+        boards: current.boards,
+        planHash: current.plan_hash,
+        result: remoteDiscoveryResult(),
+        observedAt: "2026-09-02T10:00:00.000Z",
+      });
+      return { ok: true, applied: true, operation: "monday-agent-qualification-read", evidence };
+    },
+  };
+  const planned = await advanceMondayAgentQualification({ statePath: state, agentToken: "", remoteProfile });
+  assert.equal(planned.state.phase, "provider-read-review");
+  assert.equal(providerReads, 0);
+  await assert.rejects(
+    advanceMondayAgentQualification({ statePath: state, agentToken: "", providerReadConfirmationHash: "f".repeat(64), remoteProfile }),
+    /does not match/,
+  );
+  assert.equal(providerReads, 0);
+  const discovered = await advanceMondayAgentQualification({
+    statePath: state,
+    agentToken: "",
+    providerReadConfirmationHash: planned.next_action.confirmation_hash,
+    remoteProfile,
+  });
+  assert.equal(providerReads, 1);
+  assert.equal(discovered.state.phase, "identity-review");
+  assert.equal(discovered.state.evidence.discovery_pending.credentials_retained, false);
+  assert.doesNotMatch(readFileSync(state, "utf8"), /fixture-agent-token/);
 });

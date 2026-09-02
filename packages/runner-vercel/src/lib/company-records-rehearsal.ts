@@ -6,6 +6,12 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../../connectors/monday/records-source.ts";
+import { MondayClient } from "../../../connectors/monday/client.ts";
+import {
+  createMondayExternalAgentQualificationEvidence,
+  MONDAY_EXTERNAL_AGENT_API_VERSION,
+  type MondayAgentBoardAccessExpectation,
+} from "../../../connectors/monday/external-agent-qualification.ts";
 import type {
   CompanyRecordProjectionDeclaration,
   CompanyRecordSourceDeclaration,
@@ -70,7 +76,20 @@ export type CompanyRecordsRehearsalRequest =
   | { readonly action: "apply-migration"; readonly confirmation_hash: string }
   | { readonly action: "plan-sync"; readonly source_id: string }
   | { readonly action: "apply-sync"; readonly source_id: string; readonly confirmation_hash: string }
-  | { readonly action: "status"; readonly source_id: string };
+  | { readonly action: "status"; readonly source_id: string }
+  | {
+      readonly action: "plan-monday-qualification";
+      readonly agent_id: string;
+      readonly boards: readonly MondayAgentBoardAccessExpectation[];
+      readonly qualification_plan_hash: string;
+    }
+  | {
+      readonly action: "apply-monday-qualification";
+      readonly agent_id: string;
+      readonly boards: readonly MondayAgentBoardAccessExpectation[];
+      readonly qualification_plan_hash: string;
+      readonly confirmation_hash: string;
+    };
 
 export class CompanyRecordsRehearsalError extends Error {
   readonly code: string;
@@ -243,17 +262,42 @@ export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyReco
   const action = string(input.action, "request.action");
   const migrationActions = new Set(["plan-migration", "apply-migration"]);
   const sourceActions = new Set(["plan-sync", "apply-sync", "status"]);
-  if (!migrationActions.has(action) && !sourceActions.has(action)) throw new CompanyRecordsRehearsalError("invalid-request", "Unsupported rehearsal action");
+  const mondayQualificationActions = new Set(["plan-monday-qualification", "apply-monday-qualification"]);
+  if (!migrationActions.has(action) && !sourceActions.has(action) && !mondayQualificationActions.has(action)) throw new CompanyRecordsRehearsalError("invalid-request", "Unsupported rehearsal action");
   const allowedKeys = action === "plan-migration"
     ? ["action"]
     : action === "apply-migration"
       ? ["action", "confirmation_hash"]
+      : action === "plan-monday-qualification"
+        ? ["action", "agent_id", "boards", "qualification_plan_hash"]
+        : action === "apply-monday-qualification"
+          ? ["action", "agent_id", "boards", "qualification_plan_hash", "confirmation_hash"]
       : action === "apply-sync"
         ? ["action", "source_id", "confirmation_hash"]
         : ["action", "source_id"];
   exactKeys(input, allowedKeys, "request");
   const confirmationHash = action.startsWith("apply-") ? string(input.confirmation_hash, "request.confirmation_hash", /^[0-9a-f]{64}$/) : undefined;
   const sourceId = sourceActions.has(action) ? string(input.source_id, "request.source_id", /^[a-z][a-z0-9-]{1,62}$/) : undefined;
+  if (mondayQualificationActions.has(action)) {
+    const agentId = string(input.agent_id, "request.agent_id", /^\d{1,20}$/);
+    const qualificationPlanHash = string(input.qualification_plan_hash, "request.qualification_plan_hash", /^[0-9a-f]{64}$/);
+    if (!Array.isArray(input.boards) || input.boards.length === 0 || input.boards.length > 20) {
+      throw new CompanyRecordsRehearsalError("invalid-request", "request.boards must contain between one and twenty exact board-access expectations");
+    }
+    const seen = new Set<string>();
+    const boards: MondayAgentBoardAccessExpectation[] = input.boards.map((entry, index) => {
+      const board = object(entry, `request.boards[${index}]`);
+      exactKeys(board, ["id", "permission"], `request.boards[${index}]`);
+      const id = string(board.id, `request.boards[${index}].id`, /^\d{1,20}$/);
+      const permission = string(board.permission, `request.boards[${index}].permission`);
+      if (permission !== "read" && permission !== "read-write") throw new CompanyRecordsRehearsalError("invalid-request", `request.boards[${index}].permission must be read or read-write`);
+      if (seen.has(id)) throw new CompanyRecordsRehearsalError("invalid-request", `request.boards contains duplicate board '${id}'`);
+      seen.add(id);
+      return { id, permission: permission as "read" | "read-write" };
+    }).sort((left, right) => left.id.localeCompare(right.id));
+    if (action === "plan-monday-qualification") return { action: "plan-monday-qualification", agent_id: agentId, boards, qualification_plan_hash: qualificationPlanHash };
+    return { action: "apply-monday-qualification", agent_id: agentId, boards, qualification_plan_hash: qualificationPlanHash, confirmation_hash: confirmationHash! };
+  }
   if (action === "plan-migration") return { action };
   if (action === "apply-migration") return { action, confirmation_hash: confirmationHash! };
   if (action === "plan-sync") return { action, source_id: sourceId! };
@@ -278,6 +322,34 @@ export function planCompanyRecordsPreviewMigration(configuration: CompanyRecords
     database_effect: "Create the additive companyos_records schema and its idempotent tables and indexes in the isolated preview database branch.",
     provider_effects: [],
     production_effects: [],
+  };
+  return { ...plan, confirmation_hash: sha256(JSON.stringify(plan)) };
+}
+
+export function planCompanyRecordsPreviewMondayQualification(
+  configuration: CompanyRecordsRehearsalConfiguration,
+  request: Extract<CompanyRecordsRehearsalRequest, { action: "plan-monday-qualification" | "apply-monday-qualification" }>,
+) {
+  const plan = {
+    schema_version: 1,
+    kind: "company-records-preview-monday-agent-qualification",
+    environment: "preview",
+    instance_id: configuration.instance_id,
+    core: configuration.core,
+    workspace: companyRecordsWorkspaceIdentity(configuration),
+    qualification_plan_hash: request.qualification_plan_hash,
+    agent_id: request.agent_id,
+    boards: request.boards,
+    provider_secret_ref: "env:MONDAY_API_TOKEN",
+    provider_access: "external-agent-identity-and-selected-board-metadata-only",
+    provider_effects: [],
+    database_effects: [],
+    production_effects: [],
+    external_changes: [
+      "Read the authenticated Monday external-Agent identity and account metadata.",
+      "Read metadata and effective access for only the exact selected boards.",
+      "Do not create or modify a Monday Agent, grant, board, group, column, item, update, webhook, Workspace file, database, deployment, schedule, or production state.",
+    ],
   };
   return { ...plan, confirmation_hash: sha256(JSON.stringify(plan)) };
 }
@@ -373,6 +445,11 @@ interface RehearsalDependencies {
   planOperation(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): ReturnType<typeof planCompanyRecordsPreviewSync>;
   runOperation(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string, confirmationHash: string): Promise<Record<string, unknown>>;
   inspectStatus(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): Promise<Record<string, unknown>>;
+  qualifyMonday(input: {
+    readonly agentId: string;
+    readonly boards: readonly MondayAgentBoardAccessExpectation[];
+    readonly qualificationPlanHash: string;
+  }): Promise<ReturnType<typeof createMondayExternalAgentQualificationEvidence>>;
 }
 
 const defaultDependencies: RehearsalDependencies = {
@@ -406,10 +483,49 @@ const defaultDependencies: RehearsalDependencies = {
     ]);
     return { status, projections, binding: { instance_id: configuration.instance_id, connector: `${selected.binding.connector}@${selected.binding.connector_version}`, resource_binding: selected.binding.resource_binding } };
   },
+  async qualifyMonday(input) {
+    const client = new MondayClient({
+      token: resolveEnvironmentSecretRef("env:MONDAY_API_TOKEN"),
+      apiVersion: MONDAY_EXTERNAL_AGENT_API_VERSION,
+    });
+    const result = await client.discoverAgentResources({
+      agentId: input.agentId,
+      boardIds: input.boards.map((board) => board.id),
+    });
+    return createMondayExternalAgentQualificationEvidence({
+      agentId: input.agentId,
+      apiVersion: MONDAY_EXTERNAL_AGENT_API_VERSION,
+      boards: input.boards,
+      planHash: input.qualificationPlanHash,
+      result,
+      observedAt: new Date().toISOString(),
+    });
+  },
 };
 
 export async function executeCompanyRecordsRehearsal(request: CompanyRecordsRehearsalRequest, configuration: CompanyRecordsRehearsalConfiguration, environment: RehearsalEnvironment = process.env, dependencies: RehearsalDependencies = defaultDependencies) {
   assertPreviewIdentity(configuration, environment);
+  if (request.action === "plan-monday-qualification") {
+    return { ok: true, plan: planCompanyRecordsPreviewMondayQualification(configuration, request) };
+  }
+  if (request.action === "apply-monday-qualification") {
+    const plan = planCompanyRecordsPreviewMondayQualification(configuration, request);
+    if (request.confirmation_hash !== plan.confirmation_hash) throw new CompanyRecordsRehearsalError("confirmation-mismatch", "Monday qualification confirmation does not match the current exact provider-read plan", 409);
+    const evidence = await dependencies.qualifyMonday({
+      agentId: request.agent_id,
+      boards: request.boards,
+      qualificationPlanHash: request.qualification_plan_hash,
+    });
+    return {
+      ok: true,
+      applied: true,
+      operation: "monday-agent-qualification-read",
+      evidence,
+      confirmation_hash: request.confirmation_hash,
+      credentials_retained: false,
+      provider_effects: [],
+    };
+  }
   if (request.action === "plan-migration") return { ok: true, plan: planCompanyRecordsPreviewMigration(configuration) };
   if (request.action === "apply-migration") {
     const plan = planCompanyRecordsPreviewMigration(configuration);

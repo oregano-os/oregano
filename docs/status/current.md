@@ -49,9 +49,13 @@ evidence, historical prototypes, and production gaps.
   schedule, webhook, or production activation is claimed by this Core change.
 - The maintained Vercel Runner now has an optional fail-closed Company Records
   rehearsal endpoint for protected Preview deployments. It independently
-  plans and confirms the additive records migration and one initial source
-  synchronization, reuses the maintained Connector and records store, reports
-  payload-free status, and rejects production or a mismatched Git commit.
+  plans and confirms a metadata-only Monday external-Agent qualification, the
+  additive records migration, and one initial source synchronization. Hosted
+  qualification keeps a non-exportable Sensitive provider token inside the
+  deployment, returns only non-secret identity and selected-board metadata,
+  and still requires a separate human identity-mapping confirmation. The lane
+  reuses the maintained Connector and records store, reports payload-free
+  status, and rejects production or a mismatched Git commit.
   Runtime configuration and credentials stay Instance-injected and the lane
   cannot reconcile, schedule, receive webhooks, write to a provider, or grant
   Agent Tools. No real Preview, database branch, migration, or provider read is
@@ -123,8 +127,12 @@ evidence, historical prototypes, and production gaps.
   read-write board plan, and reads metadata for only those boards. It stores a
   mode-0600 non-secret receipt containing Agent, account, grant,
   board/group/column, API, request, and digest evidence. It retains no token
-  and performs no provider write. This external Agent is the sole maintained
-  Monday qualification identity.
+  and performs no provider write. When the token is non-exportable, the same
+  command can use the maintained `vercel-neon` profile: it obtains and
+  separately confirms an exact metadata-read plan, executes the read inside a
+  protected Preview, validates the returned evidence locally, and retains the
+  same final human identity-mapping gate. This external Agent is the sole
+  maintained Monday qualification identity.
 - The repository-local `oregano/sprint-agent` Blueprint contains one logical
   Agent Component, portable weekly, Friday Close, and reconciliation
   Workflows, Sprint, triage, and briefing Skills, owned Friday templates, and
