@@ -4,6 +4,7 @@ import { BASE_BRAIN_PAGE_TYPES } from "../knowledge/brain-contracts.ts";
 import { ensureCompanyKnowledgeSchema } from "./knowledge-migrate.ts";
 import { ensureCompanyOSSchema } from "./migrate.ts";
 import { postgresTimestampToIso } from "./postgres-values.ts";
+import { ensureCompanyRecordsSchema } from "./records-migrate.ts";
 
 const CONTROL_TABLES = [
   "approval_requests",
@@ -215,6 +216,31 @@ const REQUIRED_CONSTRAINTS = [
 
 const CORE_PAGE_TYPE_KEYS = BASE_BRAIN_PAGE_TYPES.map((entry) => entry.key).sort();
 
+const RECORDS_TABLES = [
+  "access_decisions",
+  "callback_replay_claims",
+  "connector_echo_receipts",
+  "current_objects",
+  "durable_timers",
+  "object_versions",
+  "projection_rows",
+  "source_events",
+  "source_watermarks",
+  "sync_leases",
+  "sync_receipts",
+] as const;
+
+const RECORDS_REQUIRED_INDEXES = [
+  "companyos_records.records_access_decisions_principal_idx",
+  "companyos_records.records_callback_replay_expiry_idx",
+  "companyos_records.records_connector_echo_expiry_idx",
+  "companyos_records.records_durable_timers_due_idx",
+  "companyos_records.records_object_versions_object_idx",
+  "companyos_records.records_projection_rows_values_idx",
+  "companyos_records.records_source_events_object_idx",
+  "companyos_records.records_sync_leases_due_idx",
+] as const;
+
 export const COMPANY_DATABASE_MANIFEST_V1 = Object.freeze({
   schemaVersion: 1,
   id: "companyos-postgres",
@@ -370,7 +396,7 @@ export const COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST = createHash("sha256")
   .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_SIX))
   .digest("hex");
 
-export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+export const COMPANY_DATABASE_MANIFEST_PHASE_SEVEN = Object.freeze({
   schemaVersion: 1,
   id: "companyos-postgres",
   version: "1.7.0",
@@ -381,6 +407,27 @@ export const COMPANY_DATABASE_MANIFEST = Object.freeze({
     companyos_knowledge: Object.freeze({ tables: Object.freeze(KNOWLEDGE_TABLES) }),
   }),
   requiredIndexes: REQUIRED_INDEXES,
+  requiredConstraints: REQUIRED_CONSTRAINTS,
+  corePageTypes: Object.freeze(CORE_PAGE_TYPE_KEYS),
+  optionalFeatures: Object.freeze(["vector"]),
+});
+
+export const COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST = createHash("sha256")
+  .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_SEVEN))
+  .digest("hex");
+
+export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+  schemaVersion: 1,
+  id: "companyos-postgres",
+  version: "1.8.0",
+  predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version,
+  migrationMode: "additive",
+  schemas: Object.freeze({
+    companyos: Object.freeze({ tables: CONTROL_TABLES }),
+    companyos_knowledge: Object.freeze({ tables: Object.freeze(KNOWLEDGE_TABLES) }),
+    companyos_records: Object.freeze({ tables: Object.freeze(RECORDS_TABLES) }),
+  }),
+  requiredIndexes: Object.freeze([...REQUIRED_INDEXES, ...RECORDS_REQUIRED_INDEXES]),
   requiredConstraints: REQUIRED_CONSTRAINTS,
   corePageTypes: Object.freeze(CORE_PAGE_TYPE_KEYS),
   optionalFeatures: Object.freeze(["vector"]),
@@ -400,6 +447,7 @@ export interface CompanyDatabaseQualificationReceipt {
   schemas: {
     companyos: { tableCount: number };
     companyosKnowledge: { tableCount: number };
+    companyosRecords: { tableCount: number };
   };
   corePageTypeCount: number;
   features: { vector: boolean };
@@ -413,8 +461,8 @@ export interface CompanyDatabasePreparationReceipt {
 }
 
 export interface CompanyDatabaseStateInspection {
-  schemas: { companyos: boolean; companyosKnowledge: boolean };
-  tableCounts: { companyos: number; companyosKnowledge: number };
+  schemas: { companyos: boolean; companyosKnowledge: boolean; companyosRecords: boolean };
+  tableCounts: { companyos: number; companyosKnowledge: number; companyosRecords: number };
   manifests: Array<{ manifestId: string; manifestVersion: string; manifestDigest: string; appliedAt: string }>;
   vector: boolean;
   retrievalV3: { available: boolean; activeProjectionHash: string | null };
@@ -457,6 +505,7 @@ const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_PHASE_FOUR.version, COMPANY_DATABASE_MANIFEST_PHASE_FOUR_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_FIVE.version, COMPANY_DATABASE_MANIFEST_PHASE_FIVE_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST],
+  [COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version, COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST],
   [COMPANY_DATABASE_MANIFEST.version, COMPANY_DATABASE_MANIFEST_DIGEST],
 ]);
 
@@ -478,10 +527,11 @@ export async function inspectCompanyDatabaseState(): Promise<CompanyDatabaseStat
   const relations = (await sql`select
     to_regnamespace('companyos')::text as control_schema,
     to_regnamespace('companyos_knowledge')::text as knowledge_schema,
+    to_regnamespace('companyos_records')::text as records_schema,
     to_regclass('companyos.schema_manifests')::text as manifest_ledger,
     to_regclass('companyos_knowledge.retrieval_projection_runs')::text as retrieval_projection_runs`)[0] ?? {};
   const tableRows = await sql`select schemaname, count(*)::int as table_count from pg_tables
-    where schemaname in ('companyos', 'companyos_knowledge') group by schemaname order by schemaname`;
+    where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') group by schemaname order by schemaname`;
   const tableCounts = new Map(tableRows.map((row) => [String(row.schemaname), Number(row.table_count)]));
   const manifestRows = relations.manifest_ledger
     ? await sql`select manifest_id, manifest_version, manifest_digest, applied_at from companyos.schema_manifests order by applied_at, manifest_id, manifest_version`
@@ -491,8 +541,16 @@ export async function inspectCompanyDatabaseState(): Promise<CompanyDatabaseStat
     : [];
   const vector = Boolean((await sql`select exists(select 1 from pg_extension where extname = 'vector') as enabled`)[0]?.enabled);
   return {
-    schemas: { companyos: Boolean(relations.control_schema), companyosKnowledge: Boolean(relations.knowledge_schema) },
-    tableCounts: { companyos: tableCounts.get("companyos") ?? 0, companyosKnowledge: tableCounts.get("companyos_knowledge") ?? 0 },
+    schemas: {
+      companyos: Boolean(relations.control_schema),
+      companyosKnowledge: Boolean(relations.knowledge_schema),
+      companyosRecords: Boolean(relations.records_schema),
+    },
+    tableCounts: {
+      companyos: tableCounts.get("companyos") ?? 0,
+      companyosKnowledge: tableCounts.get("companyos_knowledge") ?? 0,
+      companyosRecords: tableCounts.get("companyos_records") ?? 0,
+    },
     manifests: manifestRows.map((row) => ({
       manifestId: String(row.manifest_id),
       manifestVersion: String(row.manifest_version),
@@ -522,6 +580,7 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
   if (receipt.schemas?.companyos?.tableCount !== CONTROL_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos table count.");
   const expectedKnowledgeTables = KNOWLEDGE_TABLES.length + (receipt.features?.vector ? 2 : 0);
   if (receipt.schemas?.companyosKnowledge?.tableCount !== expectedKnowledgeTables) throw new Error("Database qualification receipt has the wrong companyos_knowledge table count.");
+  if (receipt.schemas?.companyosRecords?.tableCount !== RECORDS_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos_records table count.");
   if (receipt.corePageTypeCount !== CORE_PAGE_TYPE_KEYS.length) throw new Error("Database qualification receipt has the wrong Core Page type count.");
   if (typeof receipt.features?.vector !== "boolean") throw new Error("Database qualification receipt requires explicit vector feature evidence.");
 }
@@ -529,10 +588,10 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
 export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualificationReceipt> {
   const sql = neon(databaseUrl());
   const tableRows = await sql`select schemaname, tablename from pg_tables
-    where schemaname in ('companyos', 'companyos_knowledge') order by schemaname, tablename`;
+    where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') order by schemaname, tablename`;
   const tables = tableRows.map((row) => `${String(row.schemaname)}.${String(row.tablename)}`);
   const indexRows = await sql`select schemaname, indexname from pg_indexes
-    where schemaname in ('companyos', 'companyos_knowledge') order by schemaname, indexname`;
+    where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') order by schemaname, indexname`;
   const indexes = indexRows.map((row) => `${String(row.schemaname)}.${String(row.indexname)}`);
   const constraintRows = await sql`select n.nspname as schema_name, c.conname
     from pg_constraint c join pg_namespace n on n.oid = c.connamespace
@@ -548,9 +607,10 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
   const expectedTables = [
     ...CONTROL_TABLES.map((name) => `companyos.${name}`),
     ...KNOWLEDGE_TABLES.map((name) => `companyos_knowledge.${name}`),
+    ...RECORDS_TABLES.map((name) => `companyos_records.${name}`),
     ...(vector ? ["companyos_knowledge.fragment_embeddings", "companyos_knowledge.retrieval_unit_embeddings"] : []),
   ];
-  const expectedIndexes = [...REQUIRED_INDEXES, ...(vector ? ["companyos_knowledge.knowledge_fragment_embeddings_hnsw_idx", "companyos_knowledge.knowledge_retrieval_unit_embeddings_hnsw_idx"] : [])];
+  const expectedIndexes = [...COMPANY_DATABASE_MANIFEST.requiredIndexes, ...(vector ? ["companyos_knowledge.knowledge_fragment_embeddings_hnsw_idx", "companyos_knowledge.knowledge_retrieval_unit_embeddings_hnsw_idx"] : [])];
   const failures: string[] = [];
   const missingTables = missing(expectedTables, tables);
   const missingIndexes = missing(expectedIndexes, indexes);
@@ -575,6 +635,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
     schemas: {
       companyos: { tableCount: CONTROL_TABLES.length },
       companyosKnowledge: { tableCount: KNOWLEDGE_TABLES.length + (vector ? 2 : 0) },
+      companyosRecords: { tableCount: RECORDS_TABLES.length },
     },
     corePageTypeCount: CORE_PAGE_TYPE_KEYS.length,
     features: { vector },
@@ -586,6 +647,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
 export async function bootstrapCompanyDatabase(): Promise<CompanyDatabaseQualificationReceipt> {
   await ensureCompanyOSSchema();
   const features = await ensureCompanyKnowledgeSchema();
+  await ensureCompanyRecordsSchema();
   const sql = neon(databaseUrl());
   const rows = await sql`insert into companyos.schema_manifests
       (manifest_id, manifest_version, manifest_digest, features)
@@ -604,6 +666,7 @@ export async function prepareCompanyDatabase(): Promise<CompanyDatabasePreparati
   const relationRows = await sql`select
     to_regnamespace('companyos')::text as control_schema,
     to_regnamespace('companyos_knowledge')::text as knowledge_schema,
+    to_regnamespace('companyos_records')::text as records_schema,
     to_regclass('companyos.schema_manifests')::text as manifest_ledger,
     to_regclass('companyos_knowledge.snapshots')::text as knowledge_snapshots,
     to_regclass('companyos_knowledge.sources')::text as knowledge_sources`;
@@ -612,7 +675,7 @@ export async function prepareCompanyDatabase(): Promise<CompanyDatabasePreparati
     ? assertSupportedCompanyDatabaseManifestHistory(await sql`select manifest_version, manifest_digest from companyos.schema_manifests
         where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} order by manifest_version`)
     : [];
-  const hasExistingState = Boolean(relation.control_schema || relation.knowledge_schema || relation.manifest_ledger || relation.knowledge_snapshots || relation.knowledge_sources);
+  const hasExistingState = Boolean(relation.control_schema || relation.knowledge_schema || relation.records_schema || relation.manifest_ledger || relation.knowledge_snapshots || relation.knowledge_sources);
   const operation: CompanyDatabasePreparationReceipt["operation"] = previousManifestVersions.includes(COMPANY_DATABASE_MANIFEST.version)
     ? "verify"
     : hasExistingState ? "upgrade" : "bootstrap";

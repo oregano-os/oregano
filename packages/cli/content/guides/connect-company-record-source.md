@@ -413,6 +413,47 @@ Production synchronization, schedule activation, webhook activation, provider
 writes, Agent provisioning, and Workspace proposal publication are separate
 changes. This Guide authorizes none of them automatically.
 
+For the maintained Vercel Runner, production uses neither the Preview endpoint
+nor its configuration or bearer. Prepare these separate protected production
+values without placing their values in chat, Git, a Workspace, or a command
+argument:
+
+- `COMPANYOS_RECORDS_CONFIG_GZIP_BASE64`: reviewed credential-free production
+  declarations, qualifications, bindings, exact refs, and local-time schedules;
+- `COMPANYOS_RECORDS_ADMIN_SECRET`: operator authentication for explicit
+  plan/apply and status requests;
+- `COMPANYOS_RECORDS_ENABLED`: the operator mutation kill switch;
+- `COMPANYOS_RECORDS_SCHEDULER_ENABLED`: the independent recurring-work switch;
+- `CRON_SECRET`, `DATABASE_URL`, and every provider SecretRef value: independent
+  Instance-owned secrets.
+
+Deploy with both kill switches off. Confirm that the deployment is production
+and that its Artifact Instance, Core commit, and Workspace commit match the
+reviewed plan. Use `POST /api/records/operations` to obtain the production
+migration plan; review and confirm that hash before apply. The additive database
+manifest becomes `1.8.0` and includes `companyos_records`; it preserves the
+existing control, knowledge, and records data. Next obtain and independently
+confirm one `plan-sync` for each source. Initial synchronization reads the exact
+qualified provider resource and writes immutable production observations,
+projections, watermark, and receipt without inferring deletion or modifying the
+provider. An already completed confirmation reuses its receipt.
+
+Review payload-free status and projection counts before enabling the scheduler.
+`GET /api/records/reconcile` is authenticated only by `CRON_SECRET`. Vercel wakes
+it every 15 minutes, while Core selects due allowlisted sources from their IANA
+time zone, local time, weekdays, and bounded lateness window. One stable local
+service-day receipt prevents repeat provider reads. A failed due run may retry
+inside the window; a complete successful run may record retained tombstones for
+objects absent from the complete provider inventory. Disable the scheduler
+switch first for rollback, then disable the records switch if all production
+records effects must stop. Do not delete schemas or evidence during rollback.
+
+Conversational provider callbacks are not board-change subscriptions. Activate
+a webhook or hybrid event path only after that exact provider mode separately
+proves signed board-event delivery, resource identity, replay protection, and
+the same records reconciliation boundary. Until then, scheduled reconciliation
+is the production freshness path.
+
 ## 9. Add another provider
 
 Do not copy this command into `companyos notion sync` or

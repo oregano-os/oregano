@@ -144,6 +144,23 @@ to a replaceable Instance profile; company values and provider mappings remain
 Workspace or Instance truth. Infrastructure creation, secret copying, cleanup,
 schedule activation, and production activation are outside this command.
 
+**CRS-019 — Governed production runtime.** A maintained hosted production lane
+MUST be separate from rehearsal and MUST fail before database or provider access
+unless the production deployment, exact Git commit, Artifact Core and Workspace
+refs, Company Instance, runtime configuration, and authenticated caller agree.
+Migration and initial synchronization MUST retain independent exact plan/apply
+confirmation. A completed confirmation MUST reuse its exact stored receipt and
+MUST NOT read the provider again. Recurring reconciliation MUST require a
+separate scheduler secret and activation switch, select only a due allowlisted
+source from reviewed local-time configuration, use a stable service-day run
+identity and durable source lease, and infer absence only from a complete
+inventory. The hosting cron is a wake-up adapter rather than schedule authority.
+Production status MUST be payload-free. The runtime MUST NOT modify a provider,
+send a message, grant an Agent Tool, invoke a model, or accept a conversational
+Agent callback as board-change evidence. The maintained database manifest MUST
+qualify the exact additive records tables and indexes before readiness is
+claimed.
+
 ## 3. Sprint domain
 
 **CRS-020 — Pure decision boundary.** The Sprint domain accepts one validated

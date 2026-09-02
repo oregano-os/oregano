@@ -69,16 +69,17 @@ binds its connection only in the runtime host's secret environment. The next
 phase invokes the provider-neutral `companyos database prepare` operation
 through that environment. Prepare detects an empty, older, or current database
 and selects `bootstrap`, `upgrade`, or read-only `verify`. It creates or
-upgrades the `companyos` and `companyos_knowledge` schemas, records their
+upgrades the `companyos`, `companyos_knowledge`, and `companyos_records`
+schemas, records their
 immutable schema manifest, and returns a bounded non-secret qualification
 receipt. Runtime health and
 `companyos database verify` are read-only and fail closed when the prepared
 manifest or required schema objects are missing. The maintained Vercel profile
 uses `vercel env run`; another runtime profile must provide an equivalent
 secret-bound command without making Vercel part of the database contract.
-The current manifest is additive `companyos-postgres@1.7.0`: it preserves the
-immutable `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions, qualifies 67 required
-Knowledge tables, and adds durable Source event, ACL, receipt, watermark,
+The current manifest is additive `companyos-postgres@1.8.0`: it preserves the
+immutable `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions, qualifies 67 required
+Knowledge tables and 11 Record Source tables, and adds durable Source event, ACL, receipt, watermark,
 change-stream, synchronization-lease, lifecycle, compounding-receipt,
 Claim-pair-proposal, grading-request, model-result-cache, spend-reservation, and
 execution-ledger, Retrieval V3 projection, benchmark, shadow-comparison, and

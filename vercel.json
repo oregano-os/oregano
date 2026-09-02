@@ -20,6 +20,10 @@
     {
       "path": "/api/builder/worker",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/records/reconcile",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

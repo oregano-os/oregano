@@ -1,0 +1,156 @@
+version: 2
+plan_id: company-records-production-runtime-2026-09-02
+status: approved
+author: codex-agent
+created: 2026-09-02
+title: Add a governed production runtime for Company Records
+objective: >-
+  Promote the already rehearsed Company Records mechanisms into a separate,
+  fail-closed production runtime that can apply the additive database manifest,
+  perform exact-confirmation initial synchronization, run immutable scheduled
+  reconciliation, and expose payload-free status evidence while preserving
+  exact Core, Workspace, Instance, provider-resource, and SecretRef bindings.
+non_goals:
+  - Deploy or activate a real Company Instance, change a provider resource, read a company board, or migrate a production database in this Core change.
+  - Reuse the Preview-only rehearsal endpoint in production or weaken its Preview guard.
+  - Add company identifiers, people, schedules, field mappings, credentials, or approval values to Core Git.
+  - Treat a conversational Monday Agent callback as a verified board-change event subscription.
+  - Enable Agent-visible messages or provider writes.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Onboarding has no hidden steps
+files_expected:
+  - .oregano/changes/2026-09-02-company-records-production-runtime.yaml
+  - docs/_generated/document-registry.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/app/api/records/operations/route.ts
+  - packages/runner-vercel/src/app/api/records/reconcile/route.ts
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - packages/runner-vercel/src/lib/company-records-production.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/runner-vercel/vercel.json
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/knowledge-production-qualification.ts
+  - packages/state-postgres/records-store.ts
+  - packages/knowledge/knowledge-doctor.ts
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/company-knowledge-experiences.test.ts
+  - packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - vercel.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-02
+    evidence: explicit-user-instruction-to-skip-the-redundant-preview-link-and-build-the-production-path
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the generic production environment and Artifact identity guards, authenticated operator and scheduler boundaries, exact plan/apply checks, due-schedule evaluation, immutable reconciliation, payload-free status, and additive database manifest.
+      - Keep Preview rehearsal and production activation as different endpoints, configurations, secrets, and confirmation scopes.
+    packages:
+      - No Blueprint behavior or company policy changes; the Workbench distribution receives the generated canonical Guide copy.
+    workspace:
+      - Own company Record Source and Projection declarations, local-time schedule choices, access policy, provider field mappings, and retention policy.
+    instance:
+      - Own exact bindings and qualification receipts, runtime configuration, secrets, enabled state, production approval, deployment, database, scheduler, receipts, rollback, and live verification.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: extend
+      reason: Production reuses the maintained declarations, Connector registry, immutable store, synchronization, reconciliation, projections, watermarks, leases, and receipts.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Runtime requests bind to the exact production Artifact, Instance, Core commit, Workspace commit, authenticated operator or scheduler, and qualified provider resource.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Migration and initial synchronization retain separate exact confirmations; recurring reconciliation is activated only by reviewed immutable Instance configuration and remains lease- and receipt-backed.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Production resolves only maintained Record Source Connectors from exact qualified bindings and never grants the Connector directly to an Agent.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: A provider-neutral local-time due evaluator selects only configured reconciliation schedules; the Vercel cron is merely the wake-up adapter.
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Record synchronization is an operator or scheduler process, not conversational Agent selection.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: This runtime grants no Agent Tool and performs no provider write.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Migration, scheduling, synchronization, reconciliation, and status are deterministic and invoke no model.
+  new_core_mechanisms:
+    - A production-only Company Records operator and scheduled-reconciliation runtime around the existing Company Records contracts.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Runtime configuration supplies company-specific declarations, schedules,
+    bindings, qualifications, and SecretRefs. Core code contains no company,
+    board, person, role, field, provider-account, or destination value and can
+    run the same contract for any maintained Record Source Connector.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-02-company-records-production-runtime.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-02-company-records-production-runtime.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/company-records-production.test.ts packages/runner-vercel/src/lib/company-records-rehearsal.test.ts packages/testkit/tests/company-database-bootstrap.test.ts
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Preview, development, disabled runtime, missing Artifact identity, wrong Core commit, wrong Workspace commit, wrong Instance, malformed configuration, and unauthorized requests fail before database or provider access.
+  - Migration and initial synchronization expose independent stable plans and reject missing, stale, mismatched, or reused confirmation scope.
+  - Production configuration contains only validated declarations, schedules, bindings, qualification evidence, and SecretRefs and rejects credential-shaped content.
+  - Scheduled reconciliation runs only a due allowlisted source, retries a failed due window, does not repeat a completed local service day, infers deletion only from a complete inventory, and records payload-free receipts.
+  - Duplicate invocations and provider objects remain lease-, event-, version-, and receipt-idempotent.
+  - The database manifest additively qualifies companyos_records tables and indexes without changing existing schemas or deleting data.
+  - Health and status report exact versions, enabled/configured state, freshness, counts, and receipts without provider row values or credentials.
+  - No production path modifies Monday, sends Slack messages, grants Agent Tools, or treats Monday conversational callbacks as board events.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - command.records
+    - guide.connect-company-record-source
+migration: >-
+  This Core change migrates no real database. After an exact release is pinned,
+  a separately approved Company Instance Stage 5E plan may configure the
+  production runtime disabled, review and apply the additive database-manifest
+  hash, confirm each initial source synchronization, verify payload-free
+  receipts, and only then enable scheduled reconciliation.
+rollback: >-
+  Disable COMPANYOS_RECORDS_ENABLED and remove the production Records runtime
+  configuration and scheduler invocation. Roll back the deployed Core and
+  Workspace pins through the normal Instance process. Additive schemas,
+  immutable observations, tombstones, watermarks, and receipts are retained;
+  rollback never deletes provider or company data.
+open_decisions:
+  - Verified provider event delivery remains blocked until the selected provider mode exposes a separately qualified signed board-event subscription; reconciliation is the production freshness path in this change.

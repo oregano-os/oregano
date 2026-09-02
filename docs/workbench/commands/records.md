@@ -190,6 +190,36 @@ the Preview, database branch, or Sensitive values; remove only the two
 Workbench-owned rehearsal values afterwards. Production is always a separate
 plan.
 
+### Hosted production runtime
+
+The maintained Vercel Runner exposes production Company Records through two
+surfaces that are never shared with Preview:
+
+- `POST /api/records/operations` uses the Instance-owned
+  `COMPANYOS_RECORDS_ADMIN_SECRET` and supports `plan-migration`,
+  `apply-migration`, `plan-sync`, `apply-sync`, `plan-reconcile`,
+  `apply-reconcile`, and `status`;
+- `GET /api/records/reconcile` accepts only the hosting scheduler bearer in
+  `CRON_SECRET` and runs due configured reconciliation.
+
+`COMPANYOS_RECORDS_CONFIG_GZIP_BASE64` contains only reviewed declarations,
+qualification evidence, non-secret bindings, exact identities, local-time
+schedule declarations, and SecretRefs. Credentials remain separate protected
+production variables. Every request requires `VERCEL_ENV=production`, the
+exact deployed Core commit, and the matching production Artifact Instance,
+Core, and Workspace refs. `COMPANYOS_RECORDS_ENABLED=true` enables confirmed
+operator effects; `COMPANYOS_RECORDS_SCHEDULER_ENABLED=true` separately enables
+recurring reconciliation. Either can be turned off without deleting evidence.
+
+The Runner wakes the scheduler every 15 minutes, but Core—not Vercel—decides
+whether a source is due from its configured IANA time zone, local time,
+weekdays, retry window, and exact service-day receipt. An already completed
+confirmation or service day returns the prior outcome without another provider
+read. Production responses contain counts and receipts, never record payloads
+or credentials. These endpoints do not modify the provider or send messages.
+Production configuration and apply remain an explicit Company Instance rollout
+decision; this command reference grants no such approval.
+
 ## Payload-free status
 
 ```bash

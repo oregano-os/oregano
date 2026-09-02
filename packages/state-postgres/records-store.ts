@@ -68,6 +68,37 @@ export interface PostgresCompanyRecordProjectionStatus {
   rows: number;
 }
 
+/** Payload-free lookup used to reuse one exact completed operation outcome. */
+export async function inspectPostgresCompanyRecordSyncReceipt(
+  instanceId: string,
+  sourceId: string,
+  runId: string,
+): Promise<PostgresCompanyRecordSourceStatus["last_sync"] | undefined> {
+  const sql = connection();
+  const present = await sql`select to_regclass('companyos_records.sync_receipts') as sync_receipts`;
+  if (!present[0]?.sync_receipts) return undefined;
+  const rows = await sql`select run_id, started_at, completed_at, watermark, summary
+    from companyos_records.sync_receipts
+    where instance_id = ${instanceId} and source_id = ${sourceId} and run_id = ${runId}
+    limit 1`;
+  const receipt = rows[0];
+  if (!receipt) return undefined;
+  const summary = json(receipt.summary);
+  return {
+    run_id: String(receipt.run_id),
+    started_at: postgresTimestampToIso(receipt.started_at),
+    completed_at: postgresTimestampToIso(receipt.completed_at),
+    ...(receipt.watermark ? { watermark: String(receipt.watermark) } : {}),
+    observed: Number(summary?.observed ?? 0),
+    inserted: Number(summary?.inserted ?? 0),
+    unchanged: Number(summary?.unchanged ?? 0),
+    deleted: Number(summary?.deleted ?? 0),
+    errors: Number(summary?.errors ?? 0),
+    ...(summary?.missing_from_provider !== undefined ? { missing_from_provider: Number(summary.missing_from_provider) } : {}),
+    ...(summary?.repaired_projections !== undefined ? { repaired_projections: Number(summary.repaired_projections) } : {}),
+  };
+}
+
 /** Payload-free projection counts for a bounded, declared projection set. */
 export async function inspectPostgresCompanyRecordProjectionStatus(
   instanceId: string,

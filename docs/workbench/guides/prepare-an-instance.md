@@ -187,8 +187,8 @@ identities before execution. Cross-encoder reranking remains a separate
 capability and is not part of the 13 task bindings.
 
 Database preparation targets additive manifest
-`companyos-postgres@1.7.0`. It creates the existing control and Knowledge
-schemas plus durable compounding state, policy-bound model-result cache, spend
+`companyos-postgres@1.8.0`. It creates the existing control and Knowledge
+schemas, the provider-neutral Record Source schema, durable compounding state, policy-bound model-result cache, spend
 reservations, execution ledger, and derived Retrieval V3 projection and
 qualification tables when the database is initially absent, or upgrades
 an older supported manifest in place. Run the separate read-only qualification
@@ -212,7 +212,7 @@ the following before Retrieval V3 is activated anywhere:
   read scope; and
 - model execution has an explicit small cycle or UTC-day budget.
 
-Prepare and read-only verify schema `1.7.0` on that Instance. Build the derived
+Prepare and read-only verify schema `1.8.0` on that Instance. Build the derived
 projection from the active Handbook snapshot and current durable Brain
 frontier, stage it, and verify its deterministic hash and complete Unit count.
 Do not activate it during the build step. Run KnowledgeBench against Retrieval

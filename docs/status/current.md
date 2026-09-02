@@ -66,6 +66,18 @@ evidence, historical prototypes, and production gaps.
   Instance profile reaches an already prepared protected Vercel Preview backed
   by an isolated Neon/Postgres branch; it does not create infrastructure,
   retain secrets, clean up provider resources, or activate production.
+- The maintained Vercel Runner now has a separate fail-closed Company Records
+  production lane. An operator endpoint plans and exactly confirms the additive
+  database manifest, initial synchronization, or reconciliation and reuses a
+  stored receipt for an already completed confirmation. A separately
+  authenticated cron endpoint evaluates reviewed company-local schedules and
+  performs only due complete-inventory reconciliation under the existing lease.
+  Exact production deployment, Artifact, Core, Workspace, and Instance identity
+  must agree; mutations and the scheduler have independent kill switches. The
+  database manifest is now `1.8.0` and qualifies `companyos_records` alongside
+  the existing schemas. Synthetic tests do not claim a real production
+  migration, provider read, schedule activation, provider event, provider
+  write, or message.
 - Workspace inspection now rejects projection and selection paths that are not
   materialized by the exact selected Record Source set, preventing a declared
   field from silently remaining empty at runtime.
@@ -160,7 +172,7 @@ evidence, historical prototypes, and production gaps.
   explicit Oregano HQ internal production-canary control plane. Retrieval Projection V3 deterministically
   normalizes Handbook fragments, Brain fragments, Claims, Source Objects,
   Timeline Events, and Working Syntheses into policy-carrying Retrieval Units.
-  The additive `companyos-postgres@1.7.0` path can stage, hash- and count-verify,
+  The Phase 7 `companyos-postgres@1.7.0` path can stage, hash- and count-verify,
   retire, and independently activate derived projections and optional 256-
   dimension embeddings. Exact, lexical, semantic, graph-neighbor, and Current
   Brief reads pass only pre-authorized policy identities into SQL. Embedding
@@ -479,12 +491,13 @@ evidence, historical prototypes, and production gaps.
   from schema preparation. New runs use the `database-prepare` phase; legacy
   pending `database-bootstrap` phases resume compatibly through the same
   idempotent preparation entrypoint. The deterministic
-  `companyos-postgres@1.7.0` additive manifest preserves the immutable `1.6.0`,
-  `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
-  prepares both `companyos` and `companyos_knowledge`, records an immutable
+  `companyos-postgres@1.8.0` additive manifest preserves the immutable `1.7.0`,
+  `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
+  prepares `companyos`, `companyos_knowledge`, and `companyos_records`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
-  returns a bounded qualification receipt. The maintained Vercel profile wraps
+  returns a bounded qualification receipt. The Record Source schema contains
+  11 required tables. The maintained Vercel profile wraps
   this operation with `vercel env run`; the typed runtime-host contract also has
   a non-Vercel conformance fixture. Production health now verifies the schema
   read-only. A clean local PostgreSQL 14 database produced 12 control tables,

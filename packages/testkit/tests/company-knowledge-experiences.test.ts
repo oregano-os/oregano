@@ -76,7 +76,7 @@ test("Knowledge Doctor blocks production readiness until every critical proof ex
   });
   const report = runKnowledgeDoctor({
     environment,
-    database: { qualified: true, manifestVersion: "1.7.0", receiptId: "database:qualified" },
+    database: { qualified: true, manifestVersion: "1.8.0", receiptId: "database:qualified" },
     projection: { projectionHash: sha256("projection"), sourceSnapshotIds: ["brain:1"], unitCount: 2, status: "active", embeddingProfile: { adapterId: "local", adapterVersion: "1", dimensions: 256, embeddedUnitCount: 2 }, createdAt: now, verifiedAt: now, activatedAt: now },
     benchmark: { contractVersion: "1.0.0", reportId: "bench:passed", suiteId: "suite", implementationId: "v3", status: "passed", sampleSize: 10, metrics: { meanRecallAtK: 1, meanReciprocalRank: 1, authorityAccuracy: 1, citationMembership: 1, authorizationLeakage: 0, degradationRate: 0 }, gates: { minimumMeanRecallAtK: 1, minimumMeanReciprocalRank: 1, minimumAuthorityAccuracy: 1, minimumCitationMembership: 1, maximumAuthorizationLeakage: 0, maximumDegradationRate: 0 }, failures: [], cases: [], recordedAt: now },
     shadow: { comparisonId: "shadow:passed", baselineReportId: "v2", candidateReportId: "v3", status: "promotable", deltas: { meanRecallAtK: 0, meanReciprocalRank: 0, authorityAccuracy: 0, citationMembership: 0, authorizationLeakage: 0, degradationRate: 0 }, blockers: [], comparedAt: now },
