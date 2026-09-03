@@ -64,6 +64,17 @@ test("Stage-0 effect requests require exact confirmation hashes and reject extra
     at: "2030-02-01T17:00:00.000Z",
   });
   assert.deepEqual(parseStage0Request({
+    action: "apply-slack-direct",
+    test_id: "stage0-direct-1",
+    direct_content: "test",
+    confirmation_hash: "b".repeat(64),
+  }), {
+    action: "apply-slack-direct",
+    test_id: "stage0-direct-1",
+    direct_content: "test",
+    confirmation_hash: "b".repeat(64),
+  });
+  assert.deepEqual(parseStage0Request({
     action: "apply-monday-reversible",
     test_id: "stage0-test-1",
     work_item_id: "123456",
@@ -77,6 +88,39 @@ test("Stage-0 effect requests require exact confirmation hashes and reject extra
   assert.throws(() => parseStage0Request({ action: "inspect", production: true }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
   assert.throws(() => parseStage0Request({ action: "test-sprint-workers", test_id: "stage0-clock-1", at: "not-a-time" }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
   assert.throws(() => parseStage0Request({ action: "apply-slack-delivery", test_id: "stage0-test-1", channel_content: "x", direct_content: "y" }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
+  assert.throws(() => parseStage0Request({ action: "plan-slack-direct", test_id: "stage0-direct-1", direct_content: "x", channel_content: "not-allowed" }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
+});
+
+test("Stage-0 direct-message qualification executes only as the compiled Sprint service principal", async () => {
+  const calls: Record<string, unknown>[] = [];
+  const artifact = {
+    instance: { id: configuration.instance_id, environment: "preview" },
+    agents: [{ id: configuration.general_agent_id }, { id: configuration.sprint_agent_id }],
+    sprints: [{ agentId: configuration.sprint_agent_id, servicePrincipal: "agent:sprint" }],
+  } as never;
+  const runtime = {
+    execute: async (request: Record<string, unknown>) => {
+      calls.push(request);
+      return { output: { message_id: "1", destination_binding: "steward-test-dm" } };
+    },
+  } as never;
+  const planned = await executeStage0({
+    action: "plan-slack-direct",
+    test_id: "stage0-direct-2",
+    direct_content: "test",
+  }, configuration, { artifact, runtime, chat: {} as never });
+  const confirmationHash = (planned as { plan: { confirmation_hash: string } }).plan.confirmation_hash;
+  const applied = await executeStage0({
+    action: "apply-slack-direct",
+    test_id: "stage0-direct-2",
+    direct_content: "test",
+    confirmation_hash: confirmationHash,
+  }, configuration, { artifact, runtime, chat: {} as never });
+  assert.equal(applied.ok, true);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]!.subjectPrincipal, "agent:sprint");
+  assert.equal(calls[0]!.runId, "stage0-slack-direct-stage0-direct-2");
+  assert.equal(calls[1]!.runId, calls[0]!.runId);
 });
 
 test("Stage-0 can qualify hosted Sprint workers at a controlled Preview time", async () => {
