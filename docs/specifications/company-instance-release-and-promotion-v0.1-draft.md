@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-30
+updated: 2026-09-03
 owners:
   - oregano-maintainers
   - product-owner
@@ -216,6 +216,21 @@ are retained under an explicit evidence, investigation, or staging policy.
 Deleting a preview never deletes production state or effect evidence.
 
 ## 7. Review and approval
+
+**CIRP-APR-001 — Minimal interruption.** An explicit task request or confirmed
+plan authorizes unchanged-scope Authoring and Preview preparation. Read-only
+inspection, local editing, validation, retry and resume, branch publication,
+and pull-request preparation MUST NOT create additional conversational approval
+gates. They do not grant merge, release, deployment, or Effect authority.
+
+An Agent Contributor MUST pause only for human authentication or provider
+consent; a new or increased permission, cost, external resource, or secret
+placement outside the confirmed plan; protected merge or release; production
+deployment, migration, externally visible effect, or destructive action; or a
+material unresolved scope decision. Currently available Workbench confirmation
+artifacts SHOULD be presented as one batch. Batching MUST NOT let the Agent
+invent an approval, bypass an enforced confirmation, or extend an approval to a
+different target or scope.
 
 At minimum:
 

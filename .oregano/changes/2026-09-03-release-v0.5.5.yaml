@@ -3,14 +3,17 @@ plan_id: release-v0.5.5-2026-09-03
 status: approved
 author: codex-agent
 created: 2026-09-03
-title: Prepare Oregano v0.5.5 reconciliation hardening candidate
+title: Prepare Oregano v0.5.5 reconciliation and contributor-workflow candidate
 objective: >-
   Prepare one exact Oregano Core patch candidate that bounds and safely resumes
   complete Company Records reconciliation, and advance the Workbench version
-  because its maintained Record Source Guide changes with the correction.
+  because its maintained Record Source Guide changes with the correction. Also
+  document a company-neutral minimal-interruption rule for Agent Contributors
+  without changing CompanyOS runtime approval enforcement.
 non_goals:
   - Tag, publish, merge, deploy, promote, or activate this candidate without a separate exact human review.
   - Change any Company Workspace, provider resource, permission, credential, production data, schedule, or Agent behavior.
+  - Remove, weaken, or bypass the CompanyOS R0-R4 runtime effect model or any Workbench-enforced confirmation.
   - Change the approved 0.5.x release line or introduce a consumer migration.
 placement: core
 change_class: security
@@ -20,6 +23,7 @@ vision_principles_affected:
   - Documentation is part of the system
 files_expected:
   - .oregano/changes/**
+  - INSTALL-COMPANYOS.md
   - docs/**
   - package.json
   - packages/**
@@ -33,7 +37,7 @@ approvals:
 architecture_assessment:
   responsibilities:
     core:
-      - Own the corrected generic reconciliation implementation, atomic current-version projection mutation, exact Core version, candidate identity, release checks, and documentation.
+      - Own the corrected generic reconciliation implementation, atomic current-version projection mutation, contributor authorization guidance, exact Core version, candidate identity, release checks, and documentation.
     packages:
       - Keep the Sprint Blueprint unchanged; advance the Workbench prerelease only because its maintained Guide copy changes.
     workspace:
@@ -55,13 +59,13 @@ architecture_assessment:
       reason: The candidate contains only the existing Company Records reconciliation hardening.
     - mechanism: identity-and-authorization
       decision: reuse
-      reason: Existing release, runtime, deployment, and caller identity checks remain unchanged.
+      reason: Existing release, runtime, deployment, caller identity, and human authority checks remain unchanged; contributor guidance removes only redundant conversational pauses.
     - mechanism: timers-and-business-time
       decision: reuse
       reason: Existing schedule selection remains unchanged.
     - mechanism: approvals-effects-and-idempotency
       decision: extend
-      reason: The candidate corrects interrupted reconciliation recovery, atomically guards projection mutations against concurrent newer events, and preserves completion evidence.
+      reason: The candidate corrects interrupted reconciliation recovery, atomically guards projection mutations against concurrent newer events, preserves completion evidence, and explicitly retains all runtime approval gates while batching contributor-facing setup prompts.
     - mechanism: capability-contracts-and-connectors
       decision: reuse
       reason: Connector and Capability contracts remain compatible and unchanged.
@@ -80,10 +84,11 @@ release_classification:
   target_version: 0.5.5
   rationale: >-
     This is a backward-compatible correction behind the existing experimental
-    Company Records contract. It requires no Workspace declaration, database
-    migration, provider-permission, or consumer behavior change. The Workbench
-    advances from 0.1.0-experimental.12 to 0.1.0-experimental.13 because its
-    bundled operator Guide documents the corrected recovery behavior.
+    Company Records contract plus company-neutral contributor guidance. It
+    requires no Workspace declaration, database migration, provider-permission,
+    runtime approval, or consumer behavior change. The Workbench advances from
+    0.1.0-experimental.12 to 0.1.0-experimental.13 because its bundled operator
+    Guide documents the corrected recovery behavior.
 validation:
   - pnpm companyos plan --check .oregano/changes/2026-09-03-release-v0.5.5.yaml
   - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-03-release-v0.5.5.yaml
@@ -103,11 +108,16 @@ tests:
   - Bounded reconciliation and exact interrupted-retry tests pass with no premature completion evidence.
   - Concurrent newer Source Events cannot be overwritten or removed by an older synchronization or reconciliation projection mutation.
   - Existing production scheduler, identity, authorization, and idempotency tests remain green.
+  - Contributor documentation permits autonomous unchanged-scope preparation, batches unavoidable prompts, and preserves every human authority and runtime R0-R4 boundary.
   - Documentation, public boundaries, fixture validation, TypeScript, Builder, Runner, and full repository tests pass.
   - Release assets remain impossible until a clean protected commit is merged and tagged exactly v0.5.5.
 documentation_impact:
   required: true
   affected_documents:
+    - governance.agent-agreement
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
     - status.current
     - workbench.overview
   reason_if_none: ""

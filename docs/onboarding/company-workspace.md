@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -28,8 +28,12 @@ Codex and Claude Code share the Release-matched `INSTALL-COMPANYOS.md` runbook;
 `BOOTSTRAP_FOR_AGENTS.md` is its compatibility entrypoint. No harness plugin,
 MCP server, hook, or OpenClaw component is required. The human pastes one
 prompt into the ordinary coding-agent chat. The agent asks one bounded question
-at a time, explains what will happen before each provider step, shows complete
-plans, and waits for the human at authority boundaries.
+at a time only while collecting missing company facts, explains each grouped
+provider decision, shows complete plans, and waits for the human only at actual
+authority boundaries. After a plan is confirmed, unchanged-scope inspection,
+local changes, tests, retries, branch publication, and pull-request preparation
+continue without another conversational approval. Required hashes and browser
+actions that are known together are presented together.
 
 The generated Workspace is deliberately `authoring-only`;
 `companyos bootstrap verify <workspace>` is only the local checkpoint. The

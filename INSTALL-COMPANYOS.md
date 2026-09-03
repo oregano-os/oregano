@@ -2,8 +2,10 @@
 
 You are an AI coding agent reading this runbook because a human asked you to
 set up Oregano as their company's CompanyOS. Follow it from top to bottom. The
-human does not need technical background. Explain the outcome before each
-login, consent, cost decision, protected change, and production action.
+human does not need technical background. Explain each grouped human decision
+before a login, consent, cost decision, protected change, or production action.
+Do not pause between ordinary technical steps inside an already confirmed
+plan.
 
 ## Verified outcome
 
@@ -52,6 +54,23 @@ OpenClaw component, MCP server, or global hook for this path.
     file. Never start a second installation over an unfinished one.
 11. Completion requires a successful `companyos verify-live`. Local bootstrap
     verification alone is not the requested outcome.
+
+### Minimal human gates
+
+Once the human requests this installation or confirms a displayed plan,
+continue autonomously through every unchanged-scope read, local file change,
+validation, retry, resume, branch push, and pull-request preparation. Do not ask
+for permission before ordinary commands and do not repeat an explanation the
+human has already accepted.
+
+Pause only when the human must authenticate or consent in a provider; accept a
+new permission, cost, external resource, or secret placement not already
+covered by the confirmed plan; authorize a protected merge or release;
+authorize production, a destructive action, or an externally visible effect;
+or decide a material scope question. If several required browser actions or
+confirmation hashes are known, explain them once and request them together.
+Never fabricate or bypass a Workbench confirmation, and never treat a broad
+chat instruction as approval for a different target or expanded scope.
 
 ## Phase 0 — resolve and verify the stable release
 
@@ -364,10 +383,11 @@ through `--apply`.
 
 ## Phase 4 — execute and resume
 
-The Workbench advances until it needs a browser login, human confirmation, or
-correction. It stores only non-secret resource identity and evidence
-in the mode-0600 state file. Relay every `next_action` in plain language,
-perform only that action, and resume with the same state file:
+The Workbench advances until it needs a browser login, a required human
+confirmation, or correction. It stores only non-secret resource identity and
+evidence in the mode-0600 state file. Explain only `next_action` entries that
+cross a human gate; perform routine technical actions and resume with the same
+state file without asking again:
 
 ```bash
 npm exec --yes --package="pnpm@$exact_pnpm_version" -- \
@@ -392,7 +412,8 @@ qualification receipt to setup state. It never pulls or prints the connection
 value. A conforming non-Vercel profile performs the same logical operation
 through its own secret-injection mechanism.
 
-Expected human gates:
+Expected human gates (combine all currently available actions into one
+request):
 
 1. GitHub browser login when the CLI is not authenticated.
 2. Vercel browser login and selected team.

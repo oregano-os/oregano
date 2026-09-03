@@ -1,0 +1,105 @@
+version: 2
+plan_id: minimal-interruption-agent-workflow-2026-09-03
+status: implemented
+author: codex-agent
+created: 2026-09-03
+title: Minimize Agent Contributor interruptions without weakening CompanyOS approval
+objective: >-
+  Give Agent Contributors one simple authorization rule: continue autonomously
+  within an explicitly requested or confirmed plan, batch any unavoidable
+  confirmation artifacts, and stop only at the few boundaries that require a
+  human decision or action.
+non_goals:
+  - Remove, weaken, or reinterpret the CompanyOS R0-R4 runtime effect model.
+  - Let an Agent authenticate as a human, accept provider terms, approve its own protected change, merge without authority, or activate production without authorization.
+  - Change a Company Workspace, Company Instance, provider permission, secret, deployment, database, or runtime behavior.
+  - Add a generic approval bypass or suppress a Workbench-enforced confirmation.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Humans remain accountable
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/**
+  - INSTALL-COMPANYOS.md
+  - docs/_generated/**
+  - docs/governance/**
+  - docs/onboarding/**
+  - docs/specifications/**
+  - docs/workbench/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-03
+    evidence: explicit-user-instruction-to-keep-runtime-approval-and-minimize-all-other-agent-confirmations
+architecture_assessment:
+  responsibilities:
+    core:
+      - Document the contributor authorization boundary and preserve the existing runtime effect and release controls.
+    packages:
+      - No Blueprint, Connector, Tool, Skill, Agent, or Workbench command behavior changes.
+    workspace:
+      - Continue to own company facts, operating authority, governance, and explicit approval of protected Workspace changes.
+    instance:
+      - Continue to require human provider consent and explicit authorization for new permissions, costs, production activation, and destructive effects.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: The change governs contributor conduct and does not alter runtime conversational routing.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: No Tool grant or resolution changes.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: No model route or recipe changes.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: No source, projection, synchronization, or records retention changes.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing human authority and provider-authentication boundaries remain authoritative.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: No scheduled runtime behavior changes.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Runtime R0-R4 controls and Workbench-enforced confirmation hashes remain unchanged; only redundant conversational pauses are removed.
+    - mechanism: capability-contracts-and-connectors
+      decision: not-applicable
+      reason: No Capability or Connector behavior changes.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The contributor rule is company-neutral and applies to every installation
+    and Core change without encoding a provider, company, Agent, resource, or
+    approval holder.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-03-minimal-interruption-agent-workflow.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-03-minimal-interruption-agent-workflow.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - git diff --check
+tests:
+  - Documentation states that explicit task or plan authorization covers all unchanged-scope local work, inspection, tests, retries, branch publication, and pull-request preparation.
+  - Documentation names only human authentication and consent, new permissions or costs, protected merge or release, production effects, destructive actions, and scope expansion as stop boundaries.
+  - Documentation requires currently available confirmation artifacts to be batched without allowing an Agent to fabricate or bypass one.
+  - CompanyOS runtime R0-R4 approval semantics remain unchanged.
+documentation_impact:
+  required: true
+  affected_documents:
+    - governance.agent-agreement
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - workbench.overview
+  reason_if_none: ""
+rollback: >-
+  Revert only this documentation change. Runtime approval enforcement, provider
+  resources, Company Workspaces, and Company Instances are unaffected.
+open_decisions: []

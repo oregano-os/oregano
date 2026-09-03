@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -18,6 +18,17 @@ availability: experimental
 
 The Workbench is the versioned CLI and Guide library used to build and maintain
 Company Workspaces safely.
+
+Its contributor workflow is intentionally low-interruption. After a human
+requests a task or confirms a plan, an Agent Contributor continues through all
+unchanged-scope inspection, local work, validation, retry and resume, branch
+publication, and pull-request preparation. It stops only for human
+authentication or consent, new permissions or costs outside the plan,
+protected merge or release, production or destructive effects, or a material
+scope decision. If several Workbench confirmation hashes are available at the
+same boundary, the agent presents them together instead of asking one by one.
+This workflow convenience does not change the runtime R0-R4 effect model or
+allow a required confirmation to be bypassed.
 
 The current repository release candidate is `0.1.0-experimental.13`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
