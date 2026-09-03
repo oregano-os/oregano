@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -380,7 +380,9 @@ receipt. Inspect status before retrying. A missing watermark or receipt means
 the pass is incomplete even when object and projection counts are non-zero. An
 exact retry reuses the same immutable identities and repairs only a missing
 materialization of the matching current version; it never promotes an older
-replay over newer current state. Do not delete partial evidence before retrying.
+replay over newer current state. The StateStore performs that version check and
+projection mutation atomically, including while webhooks arrive. Do not delete
+partial evidence before retrying.
 
 ```bash
 companyos records source sync \
@@ -426,7 +428,12 @@ companyos records source reconcile \
 
 Review the possible provider-absence tombstone effect and confirm the exact
 hash before apply. A tombstone preserves observed evidence; it does not delete
-provider data or silently purge retained database history.
+provider data or silently purge retained database history. Core processes
+independent objects with the same fixed bounded concurrency used for initial
+synchronization. A runtime interruption publishes no watermark or successful
+receipt; an exact retry deduplicates prior events and repairs only the immutable
+version that is still current. The current-version check and projection change
+are atomic, so a concurrent provider event cannot be overwritten or removed.
 
 ## 8. Activate production separately
 

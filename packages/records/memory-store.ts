@@ -50,12 +50,20 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
     return [...this.currentObjects.keys()].filter((item) => item.startsWith(prefix)).map((item) => item.slice(prefix.length)).sort();
   }
 
-  async upsertProjectionRow(row: RecordProjectionRow): Promise<void> {
-    this.projectionRows.set(key(row.instance_id, row.projection_id, row.record_id), structuredClone(row));
-  }
-
-  async removeProjectionRow(instanceId: string, projectionId: string, recordId: string): Promise<void> {
-    this.projectionRows.delete(key(instanceId, projectionId, recordId));
+  async applyProjectionMutationIfCurrent(args: {
+    instanceId: string;
+    sourceId: string;
+    objectId: string;
+    expectedVersionId: string;
+    projectionId: string;
+    recordId: string;
+    row?: RecordProjectionRow;
+  }): Promise<boolean> {
+    if (this.currentObjects.get(key(args.instanceId, args.sourceId, args.objectId)) !== args.expectedVersionId) return false;
+    const projectionKey = key(args.instanceId, args.projectionId, args.recordId);
+    if (args.row) this.projectionRows.set(projectionKey, structuredClone(args.row));
+    else this.projectionRows.delete(projectionKey);
+    return true;
   }
 
   async queryProjectionRows(args: { instanceId: string; projectionId: string; filters?: Record<string, unknown>; limit: number; cursor?: string }): Promise<ProjectionPage> {

@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -39,6 +39,19 @@ Do not select MINOR merely because a change adds internal types, adapters, or a
 large diff. If an existing public behavior remains compatible and no supported
 consumer state requires intervention, use PATCH. The release Change Plan must
 name the new external contract or migration that justifies every MINOR bump.
+
+## Verify runtime claims
+
+Before a release describes a runtime capability as runnable or ready for
+production, its Change Plan must name both the exact hosted entrypoint that
+invokes it and successful execution evidence through that entrypoint. Calling a
+library directly or passing unit tests alone does not establish runtime
+readiness. If either item is absent, describe the capability as `implemented,
+not runnable`.
+
+A capability recorded in `docs/status/current.md` as `unhosted`, `inactive`, or
+`blocked` must not be presented as runnable until the implementation, hosted
+integration test, and status update land together.
 
 ## Apply the release
 

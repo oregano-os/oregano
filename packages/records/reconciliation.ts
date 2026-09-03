@@ -5,6 +5,10 @@ import { projectionRecordId, recordDigest, recordVersionId } from "./identity.ts
 import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
+import {
+  DEFAULT_RECORD_SNAPSHOT_CONCURRENCY,
+  mapRecordSnapshotWithBoundedConcurrency,
+} from "./synchronization.ts";
 
 /** Reconcile a complete provider snapshot under one durable lease. */
 export async function reconcileRecordSnapshot(args: {
@@ -19,8 +23,10 @@ export async function reconcileRecordSnapshot(args: {
   watermark?: string;
   registry: CompanyRecordsRegistry;
   store: CompanyRecordsStore;
+  concurrency?: number;
 }): Promise<RecordReconciliationReceipt> {
   const { store, registry } = args;
+  const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
     instanceId: args.instanceId,
     sourceId: args.sourceId,
@@ -32,16 +38,17 @@ export async function reconcileRecordSnapshot(args: {
   if (!claimed) throw new Error(`Record source '${args.sourceId}' already has an active synchronization lease`);
 
   const startedAt = args.observedAt;
-  let inserted = 0;
-  let unchanged = 0;
-  let deleted = 0;
-  let repairedProjections = 0;
-  const observedIds = new Set<string>();
   const source = registry.source(args.sourceId);
   try {
-    for (const raw of args.objects) {
-      const version = normalizeRecordObject({ instanceId: args.instanceId, source, raw, observedAt: args.observedAt, receipt: { operation: "reconcile", run_id: args.runId } });
-      observedIds.add(version.object_id);
+    const versions = args.objects.map((raw) => normalizeRecordObject({
+      instanceId: args.instanceId,
+      source,
+      raw,
+      observedAt: args.observedAt,
+      receipt: { operation: "reconcile", run_id: args.runId },
+    }));
+    const observedIds = new Set(versions.map((version) => version.object_id));
+    const outcomes = await mapRecordSnapshotWithBoundedConcurrency(versions, concurrency, async (version) => {
       const event: RecordSourceEvent = {
         instance_id: args.instanceId,
         source_id: args.sourceId,
@@ -52,19 +59,45 @@ export async function reconcileRecordSnapshot(args: {
         ...(args.watermark ? { cursor: args.watermark } : {}),
         receipt: { operation: "reconcile", run_id: args.runId },
       };
-      if (!await store.appendSourceEvent(event)) { unchanged += 1; continue; }
-      if (await store.putObjectVersion(version)) inserted += 1;
-      else unchanged += 1;
+      await store.appendSourceEvent(event);
+      const inserted = await store.putObjectVersion(version);
+      let repairedProjections = 0;
       for (const projection of registry.projectionsForRecordType(version.record_type)) {
         const row = projectRecord({ projection, version, projectedAt: args.observedAt });
-        if (row) { await store.upsertProjectionRow(row); repairedProjections += 1; }
+        const applied = await store.applyProjectionMutationIfCurrent({
+          instanceId: args.instanceId,
+          sourceId: args.sourceId,
+          objectId: version.object_id,
+          expectedVersionId: version.version_id,
+          projectionId: projection.id,
+          recordId: projectionRecordId(projection.id, args.sourceId, version.object_id),
+          ...(row ? { row } : {}),
+        });
+        if (applied) repairedProjections += 1;
       }
-    }
+      return { inserted: inserted ? 1 : 0, unchanged: inserted ? 0 : 1, repairedProjections };
+    });
 
-    for (const objectId of await store.listCurrentObjectIds(args.instanceId, args.sourceId)) {
-      if (observedIds.has(objectId)) continue;
+    const currentObjectIds = await store.listCurrentObjectIds(args.instanceId, args.sourceId);
+    const missingObjectIds = currentObjectIds.filter((objectId) => !observedIds.has(objectId));
+    const deletionOutcomes = await mapRecordSnapshotWithBoundedConcurrency(missingObjectIds, concurrency, async (objectId) => {
       const current = await store.getCurrentObjectVersion(args.instanceId, args.sourceId, objectId);
-      if (!current || current.deleted) continue;
+      if (!current) return { deleted: 0, repairedProjections: 0 };
+      if (current.deleted) {
+        let repairedProjections = 0;
+        for (const projection of registry.projectionsForRecordType(current.record_type)) {
+          const applied = await store.applyProjectionMutationIfCurrent({
+            instanceId: args.instanceId,
+            sourceId: args.sourceId,
+            objectId,
+            expectedVersionId: current.version_id,
+            projectionId: projection.id,
+            recordId: projectionRecordId(projection.id, args.sourceId, objectId),
+          });
+          if (applied) repairedProjections += 1;
+        }
+        return { deleted: 0, repairedProjections };
+      }
       const digest = recordDigest({ deleted: true, values: {} });
       const version: RecordObjectVersion = {
         ...current,
@@ -80,12 +113,26 @@ export async function reconcileRecordSnapshot(args: {
         event_id: `reconcile:${args.runId}:${objectId}:deleted`, object_id: objectId,
         kind: "deleted", observed_at: args.observedAt, receipt: { operation: "reconcile-delete", run_id: args.runId },
       });
-      await store.putObjectVersion(version);
+      const inserted = await store.putObjectVersion(version);
+      let repairedProjections = 0;
       for (const projection of registry.projectionsForRecordType(current.record_type)) {
-        await store.removeProjectionRow(args.instanceId, projection.id, projectionRecordId(projection.id, args.sourceId, objectId));
+        const applied = await store.applyProjectionMutationIfCurrent({
+          instanceId: args.instanceId,
+          sourceId: args.sourceId,
+          objectId,
+          expectedVersionId: version.version_id,
+          projectionId: projection.id,
+          recordId: projectionRecordId(projection.id, args.sourceId, objectId),
+        });
+        if (applied) repairedProjections += 1;
       }
-      deleted += 1;
-    }
+      return { deleted: inserted ? 1 : 0, repairedProjections };
+    });
+    const inserted = outcomes.reduce((total, outcome) => total + outcome.inserted, 0);
+    const unchanged = outcomes.reduce((total, outcome) => total + outcome.unchanged, 0);
+    const deleted = deletionOutcomes.reduce((total, outcome) => total + outcome.deleted, 0);
+    const repairedProjections = [...outcomes, ...deletionOutcomes]
+      .reduce((total, outcome) => total + outcome.repairedProjections, 0);
     if (args.watermark) await store.setWatermark(args.instanceId, args.sourceId, args.watermark, args.observedAt);
     const receipt: RecordReconciliationReceipt = {
       instance_id: args.instanceId,

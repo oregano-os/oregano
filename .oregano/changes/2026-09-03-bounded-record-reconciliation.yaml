@@ -1,0 +1,115 @@
+version: 2
+plan_id: bounded-record-reconciliation-2026-09-03
+status: implemented
+author: codex-agent
+created: 2026-09-03
+title: Bound and resume complete Company Records reconciliation
+objective: >-
+  Apply the existing Core-owned snapshot concurrency bound to complete
+  Company Records reconciliation, and make an exact retry repair only the
+  matching current version and projection before publishing a watermark or
+  successful receipt.
+non_goals:
+  - Change a Company Workspace source, projection, mapping, schedule, retention policy, provider resource, or credential.
+  - Increase a provider permission, modify a provider object, send a message, activate a webhook, or select a Company Agent.
+  - Add unbounded concurrency, split one inventory across invocations, infer deletion from an incomplete inventory, or extend a hosting timeout.
+  - Deploy, promote, tag, publish, or activate a Company Instance as part of this repository change.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/**
+  - docs/**
+  - package.json
+  - packages/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-03
+    evidence: exact-stage-5e-confirmation-b9681cf1c819564bc45d11446ae5a2b426512b08e3e9100690a21f637cd0d3a9-and-explicit-instruction-to-continue-after-the-protected-production-timeout
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own bounded provider-neutral reconciliation, atomic exact-version projection mutation, tombstones, watermarks, receipts, and failure behavior.
+    packages:
+      - No Blueprint behavior or company authority changes; the Workbench distribution receives the maintained Guide copy.
+    workspace:
+      - Continue to own company source declarations, projections, schedules, access policy, mappings, and logical resources.
+    instance:
+      - Continue to own exact provider and database bindings, credentials, runtime activation, hosting limits, deployment, rollback, and live receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Scheduled Record Source reconciliation is an authenticated Instance operation, not conversational Agent selection.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: The operation grants no Agent Tool and exposes neither provider credentials nor the records Store to an Agent.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: Reconciliation is deterministic and invokes no model.
+    - mechanism: company-records
+      decision: extend
+      reason: The existing complete-inventory reconciliation path reuses the snapshot concurrency bound and exact-current recovery behavior already used by initial synchronization.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Existing production Artifact, Instance, caller, source, binding, and deployment checks remain unchanged.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Existing due-source selection and service-day identity remain unchanged; only the selected source operation is accelerated.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: An exact interrupted reconciliation can atomically repair missing current materialization without duplicating an event, replacing newer state, or publishing premature completion evidence.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The same maintained Connector returns the same bounded complete inventory with unchanged permissions and provider behavior.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The correction operates only on generic Record Source inventories and the
+    provider-neutral CompanyRecordsStore. Every company and maintained source
+    provider receives the same bounded behavior without adding a company ID,
+    resource, mapping, credential, schedule, or runtime choice to Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-03-bounded-record-reconciliation.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-03-bounded-record-reconciliation.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/testkit/tests/company-records-foundation.test.ts packages/runner-vercel/src/lib/company-records-production.test.ts
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A large synthetic reconciliation uses more than one worker and never exceeds the fixed Core-owned concurrency bound.
+  - A failed reconciliation publishes no watermark or successful receipt.
+  - An exact retry deduplicates its Source Event and repairs missing materialization only when that immutable version is still current.
+  - An older retry cannot replace a projection of newer current state.
+  - A provider event inserted between reconciliation work and projection materialization wins because the current-version check and projection mutation are atomic.
+  - Provider-absence tombstones remain complete-inventory-only, idempotent, and projection-removing.
+  - Production scheduling, authentication, exact identity, service-day reuse, and payload-free response tests remain green.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - guide.connect-company-record-source
+  reason_if_none: ""
+rollback: >-
+  Disable the Company Records scheduler before reverting the Core correction.
+  Keep all immutable events, object versions, tombstones, watermarks, and
+  receipts. Do not promote an unqualified deployment and do not delete
+  production evidence. A subsequent exact retry may safely resume after the
+  corrected Core is restored.
+open_decisions:
+  - Durable complete-inventory checkpointing across separate runtime invocations remains future work if provider reading plus bounded persistence itself exceeds the hosting window.

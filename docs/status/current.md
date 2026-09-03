@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -28,11 +28,25 @@ evidence, historical prototypes, and production gaps.
   isolated `companyos_records` schema also contains durable timers, Connector
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
+- Projection writes and removals now compare the expected immutable object
+  version and mutate the projection atomically in the StateStore. A concurrent
+  webhook, synchronization, or reconciliation pass therefore cannot let an
+  older observation overwrite or remove a newer current projection.
 - Initial Record Source snapshots process independent objects with a fixed
   Core-owned concurrency bound. An interrupted pass remains visibly incomplete:
   it publishes no watermark or successful receipt. An exact retry deduplicates
   Source Events and repairs only the matching current version and projection,
   so an older replay cannot replace newer projected state.
+- Complete-inventory reconciliation now uses that same fixed Core-owned
+  concurrency bound for observed objects and provider-absence checks. Exact
+  retries repair interrupted current projections and tombstone removal only
+  when the immutable version is still current. That check and mutation are
+  atomic; watermarks and successful receipts remain completion-only. This
+  provider-neutral correction addresses
+  a separately governed production qualification in which a complete inventory
+  of more than one thousand objects exceeded a five-minute hosted invocation
+  while the bounded initial snapshot had completed successfully. The failed
+  deployment was not promoted.
 - The experimental `companyos records` Workbench surface now inspects sources
   and projections locally; qualifies the exact external Monday Agent identity
   and complete resource-grant set;
@@ -575,15 +589,16 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.4` as the reviewed release
+- Oregano Core source is versioned `0.5.5` as the prepared patch candidate
   for the experimental Sprint and Company Records lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
   external-Agent ingress, resumable source connection, and separately guarded
-  production records operator and scheduler runtime. The current release line
-  is `v0.5.4`; its exact immutable tag and protected release commit are the
-  authority after the release workflow succeeds. Existing consumers may remain
-  on `v0.5.3` until they adopt the new exact Core authority, and publishing the
-  Core does not activate a Company Workspace or Company Instance.
+  production records operator and scheduler runtime. The latest published
+  release remains `v0.5.4`; `v0.5.5` becomes authority only after its exact
+  immutable tag and protected release commit pass the release workflow.
+  Existing consumers may remain on `v0.5.4` until they adopt the new exact Core
+  authority, and publishing the Core does not activate a Company Workspace or
+  Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
@@ -654,7 +669,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.12`; no
+  builds. Its repository release candidate is `0.1.0-experimental.13`; no
   public package release is claimed.
 - Newly generated Change Plans use version 2 and fail closed unless they record
   the Core, Package or Blueprint, Workspace, and Instance responsibility split;

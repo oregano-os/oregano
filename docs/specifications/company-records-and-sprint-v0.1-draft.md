@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-02
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -82,7 +82,14 @@ access decision.
 per-source lease. It compares only a complete declared inventory, records
 missing objects as provider absence, advances the watermark only after
 successful completion, emits one receipt, and releases the lease. An incomplete
-provider pass MUST NOT infer deletion.
+provider pass MUST NOT infer deletion. Independent observed and missing objects
+MUST use the fixed Core-owned snapshot concurrency bound. An interrupted pass
+MUST publish neither its watermark nor a successful receipt. An exact retry
+MUST repair missing version, current-pointer, projection, or tombstone
+materialization only when the retried immutable version is still current; it
+MUST NOT replace a newer current projection. The current-version check and
+projection mutation MUST be one atomic StateStore operation so a concurrent
+Source Event cannot enter between the check and the mutation.
 
 **CRS-014 — Persistence.** The maintained Postgres implementation uses the
 additive `companyos_records` schema in the existing Company Instance database.
@@ -124,9 +131,10 @@ leave immutable Source Events, object versions, current pointers, or projection
 rows, but MUST NOT advance the source watermark or append a successful sync
 receipt. An exact retry MUST deduplicate Source Events and MAY repair a missing
 version or projection only when the retried immutable version is still the
-current object version. Replaying an older version MUST NOT replace a projection
-of newer current state. Watermark and completion evidence are written only after
-every inventory object succeeds.
+current object version. The StateStore MUST compare and mutate atomically;
+replaying an older version MUST NOT replace or remove a projection of newer
+current state. Watermark and completion evidence are written only after every
+inventory object succeeds.
 
 **CRS-018 — Resumable rehearsal orchestration.** The Workbench MUST be able to
 freeze one reviewed Record Source, its selected projections, non-secret

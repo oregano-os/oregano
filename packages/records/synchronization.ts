@@ -11,7 +11,7 @@ import type { RecordSourceInventory } from "./source-connector.ts";
 export const DEFAULT_RECORD_SNAPSHOT_CONCURRENCY = 8;
 export const MAX_RECORD_SNAPSHOT_CONCURRENCY = 32;
 
-async function mapWithBoundedConcurrency<T, R>(
+export async function mapRecordSnapshotWithBoundedConcurrency<T, R>(
   values: readonly T[],
   concurrency: number,
   operation: (value: T, index: number) => Promise<R>,
@@ -63,7 +63,7 @@ export async function synchronizeRecordSnapshot(args: {
   if (!claimed) throw new Error(`Record source '${source.id}' already has an active synchronization lease`);
   const service = new CompanyRecordsService({ instanceId, registry, store, now: () => new Date(inventory.observed_at) });
   try {
-    const outcomes = await mapWithBoundedConcurrency(inventory.objects, concurrency, async (raw) => {
+    const outcomes = await mapRecordSnapshotWithBoundedConcurrency(inventory.objects, concurrency, async (raw) => {
       const receipt: Record<string, JsonValue> = { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest ?? "unavailable" };
       const normalized = normalizeRecordObject({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
       const current = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
@@ -81,13 +81,17 @@ export async function synchronizeRecordSnapshot(args: {
       });
       if (ingested.duplicate) {
         await store.putObjectVersion(normalized);
-        const exactCurrent = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
-        if (exactCurrent?.version_id === normalized.version_id) {
-          for (const projection of registry.projectionsForRecordType(exactCurrent.record_type)) {
-            const row = projectRecord({ projection, version: exactCurrent, projectedAt: inventory.observed_at });
-            if (row) await store.upsertProjectionRow(row);
-            else await store.removeProjectionRow(instanceId, projection.id, projectionRecordId(projection.id, exactCurrent.source_id, exactCurrent.object_id));
-          }
+        for (const projection of registry.projectionsForRecordType(normalized.record_type)) {
+          const row = projectRecord({ projection, version: normalized, projectedAt: inventory.observed_at });
+          await store.applyProjectionMutationIfCurrent({
+            instanceId,
+            sourceId: normalized.source_id,
+            objectId: normalized.object_id,
+            expectedVersionId: normalized.version_id,
+            projectionId: projection.id,
+            recordId: projectionRecordId(projection.id, normalized.source_id, normalized.object_id),
+            ...(row ? { row } : {}),
+          });
         }
       }
       return current?.digest === normalized.digest ? "unchanged" as const : "inserted" as const;

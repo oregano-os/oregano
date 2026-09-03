@@ -226,21 +226,39 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
       return rows.map((row) => String(row.object_id));
     },
 
-    async upsertProjectionRow(row) {
+    async applyProjectionMutationIfCurrent(args) {
       await ensureCompanyRecordsSchema();
-      await connection()`insert into companyos_records.projection_rows
-        (instance_id, projection_id, record_id, record_type, source_version_id, projected_at, values_json)
-        values (${row.instance_id}, ${row.projection_id}, ${row.record_id}, ${row.record_type},
-          ${row.source_version_id}, ${row.projected_at}, ${JSON.stringify(row.values)})
-        on conflict (instance_id, projection_id, record_id) do update
-          set record_type = excluded.record_type, source_version_id = excluded.source_version_id,
-              projected_at = excluded.projected_at, values_json = excluded.values_json`;
-    },
-
-    async removeProjectionRow(instanceId, projectionId, recordId) {
-      await ensureCompanyRecordsSchema();
-      await connection()`delete from companyos_records.projection_rows
-        where instance_id = ${instanceId} and projection_id = ${projectionId} and record_id = ${recordId}`;
+      if (args.row) {
+        const rows = await connection()`with expected_current as materialized (
+            select 1 from companyos_records.current_objects
+            where instance_id = ${args.instanceId} and source_id = ${args.sourceId}
+              and object_id = ${args.objectId} and version_id = ${args.expectedVersionId}
+            for update
+          )
+          insert into companyos_records.projection_rows
+            (instance_id, projection_id, record_id, record_type, source_version_id, projected_at, values_json)
+          select ${args.row.instance_id}, ${args.row.projection_id}, ${args.row.record_id}, ${args.row.record_type},
+            ${args.row.source_version_id}, ${args.row.projected_at}, ${JSON.stringify(args.row.values)}
+          from expected_current
+          on conflict (instance_id, projection_id, record_id) do update
+            set record_type = excluded.record_type, source_version_id = excluded.source_version_id,
+                projected_at = excluded.projected_at, values_json = excluded.values_json
+          returning record_id`;
+        return rows.length === 1;
+      }
+      const rows = await connection()`with expected_current as materialized (
+          select 1 from companyos_records.current_objects
+          where instance_id = ${args.instanceId} and source_id = ${args.sourceId}
+            and object_id = ${args.objectId} and version_id = ${args.expectedVersionId}
+          for update
+        ), removed as (
+          delete from companyos_records.projection_rows
+          where instance_id = ${args.instanceId} and projection_id = ${args.projectionId}
+            and record_id = ${args.recordId} and exists (select 1 from expected_current)
+          returning record_id
+        )
+        select exists(select 1 from expected_current) as applied`;
+      return rows[0]?.applied === true;
     },
 
     async queryProjectionRows(args) {

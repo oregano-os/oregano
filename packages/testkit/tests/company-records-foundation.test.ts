@@ -149,12 +149,12 @@ test("large snapshots use bounded concurrency and publish completion evidence on
     activeReads = 0;
     maximumActiveReads = 0;
 
-    override async getCurrentObjectVersion(instanceId: string, sourceId: string, objectId: string) {
+    override async applyProjectionMutationIfCurrent(args: Parameters<InMemoryCompanyRecordsStore["applyProjectionMutationIfCurrent"]>[0]) {
       this.activeReads += 1;
       this.maximumActiveReads = Math.max(this.maximumActiveReads, this.activeReads);
       await new Promise((resolve) => setTimeout(resolve, 2));
       try {
-        return await super.getCurrentObjectVersion(instanceId, sourceId, objectId);
+        return await super.applyProjectionMutationIfCurrent(args);
       } finally {
         this.activeReads -= 1;
       }
@@ -195,16 +195,64 @@ test("large snapshots use bounded concurrency and publish completion evidence on
   assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-1");
 });
 
+test("large reconciliation snapshots use the same bounded concurrency", async () => {
+  class TrackingStore extends InMemoryCompanyRecordsStore {
+    activeReads = 0;
+    maximumActiveReads = 0;
+
+    override async applyProjectionMutationIfCurrent(args: Parameters<InMemoryCompanyRecordsStore["applyProjectionMutationIfCurrent"]>[0]) {
+      this.activeReads += 1;
+      this.maximumActiveReads = Math.max(this.maximumActiveReads, this.activeReads);
+      await new Promise((resolve) => setTimeout(resolve, 2));
+      try {
+        return await super.applyProjectionMutationIfCurrent(args);
+      } finally {
+        this.activeReads -= 1;
+      }
+    }
+  }
+
+  const { registry } = fixture();
+  const store = new TrackingStore();
+  const objects = Array.from({ length: 24 }, (_, index) => ({
+    id: `item-${String(index).padStart(2, "0")}`,
+    name: `Item ${index}`,
+    columns: { status: "active" },
+  }));
+  const receipt = await reconcileRecordSnapshot({
+    instanceId: "fixture-instance",
+    sourceId: source.id,
+    runId: "reconcile-1",
+    leaseOwner: "worker-1",
+    leaseToken: "lease-1",
+    observedAt: "2030-02-01T10:00:00.000Z",
+    leaseExpiresAt: "2030-02-01T10:15:00.000Z",
+    objects,
+    watermark: "inventory-1",
+    registry,
+    store,
+    concurrency: 4,
+  });
+  assert.ok(store.maximumActiveReads > 1);
+  assert.ok(store.maximumActiveReads <= 4);
+  assert.equal(receipt.observed, objects.length);
+  assert.equal(receipt.inserted, objects.length);
+  assert.equal(store.sourceEvents.size, objects.length);
+  assert.equal(store.projectionRows.size, objects.length);
+  assert.equal(store.syncReceipts.length, 1);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-1");
+});
+
 test("an interrupted snapshot has no completion evidence and its exact retry repairs materialization", async () => {
   class FailOnceStore extends InMemoryCompanyRecordsStore {
     shouldFail = true;
 
-    override async upsertProjectionRow(row: Parameters<InMemoryCompanyRecordsStore["upsertProjectionRow"]>[0]) {
-      if (this.shouldFail) {
+    override async applyProjectionMutationIfCurrent(args: Parameters<InMemoryCompanyRecordsStore["applyProjectionMutationIfCurrent"]>[0]) {
+      if (args.row && this.shouldFail) {
         this.shouldFail = false;
         throw new Error("synthetic interruption");
       }
-      await super.upsertProjectionRow(row);
+      return super.applyProjectionMutationIfCurrent(args);
     }
   }
 
@@ -241,6 +289,195 @@ test("an interrupted snapshot has no completion evidence and its exact retry rep
   assert.equal(store.projectionRows.size, 2);
   assert.equal(store.syncReceipts.length, 1);
   assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-1");
+});
+
+test("an interrupted reconciliation retry repairs only the exact current version", async () => {
+  class FailOnceStore extends InMemoryCompanyRecordsStore {
+    shouldFail = true;
+
+    override async applyProjectionMutationIfCurrent(args: Parameters<InMemoryCompanyRecordsStore["applyProjectionMutationIfCurrent"]>[0]) {
+      if (args.row && this.shouldFail) {
+        this.shouldFail = false;
+        throw new Error("synthetic reconcile interruption");
+      }
+      return super.applyProjectionMutationIfCurrent(args);
+    }
+  }
+
+  const { registry } = fixture();
+  const store = new FailOnceStore();
+  const oldRaw = { id: "item-1", name: "Old title", columns: { status: "active" } };
+  const common = {
+    instanceId: "fixture-instance",
+    sourceId: source.id,
+    runId: "reconcile-1",
+    leaseOwner: "worker-1",
+    observedAt: "2030-02-01T09:00:00.000Z",
+    leaseExpiresAt: "2030-02-01T09:15:00.000Z",
+    objects: [oldRaw],
+    watermark: "inventory-1",
+    registry,
+    store,
+    concurrency: 1,
+  };
+  await assert.rejects(
+    () => reconcileRecordSnapshot({ ...common, leaseToken: "lease-1" }),
+    /synthetic reconcile interruption/,
+  );
+  assert.equal(store.syncReceipts.length, 0);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), undefined);
+
+  const service = new CompanyRecordsService({
+    instanceId: "fixture-instance",
+    registry,
+    store,
+    now: () => new Date("2030-02-01T09:30:00.000Z"),
+  });
+  await service.ingest({
+    event: {
+      source_id: source.id,
+      event_id: "newer-event",
+      object_id: "item-1",
+      kind: "updated",
+      observed_at: "2030-02-01T09:30:00.000Z",
+      receipt: { delivery: "fixture" },
+    },
+    raw: { id: "item-1", name: "Newer title", columns: { status: "active" } },
+  });
+
+  const resumed = await reconcileRecordSnapshot({
+    ...common,
+    leaseOwner: "worker-2",
+    leaseToken: "lease-2",
+  });
+  assert.equal(resumed.unchanged, 1);
+  assert.equal(store.sourceEvents.size, 2);
+  assert.equal(store.objectVersions.size, 2);
+  assert.equal(store.projectionRows.size, 1);
+  assert.equal([...store.projectionRows.values()][0]?.values.title, "Newer title");
+  assert.equal(store.syncReceipts.length, 1);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-1");
+});
+
+test("a concurrent newer event cannot be overwritten by an older reconciliation projection", async () => {
+  class InterleavingStore extends InMemoryCompanyRecordsStore {
+    beforeOldProjection?: () => Promise<void>;
+
+    override async applyProjectionMutationIfCurrent(args: Parameters<InMemoryCompanyRecordsStore["applyProjectionMutationIfCurrent"]>[0]) {
+      if (this.beforeOldProjection) {
+        const callback = this.beforeOldProjection;
+        this.beforeOldProjection = undefined;
+        await callback();
+      }
+      return super.applyProjectionMutationIfCurrent(args);
+    }
+  }
+
+  const { registry } = fixture();
+  const store = new InterleavingStore();
+  const service = new CompanyRecordsService({
+    instanceId: "fixture-instance",
+    registry,
+    store,
+    now: () => new Date("2030-02-01T09:30:00.000Z"),
+  });
+  store.beforeOldProjection = () => service.ingest({
+    event: {
+      source_id: source.id,
+      event_id: "newer-event",
+      object_id: "item-1",
+      kind: "updated",
+      observed_at: "2030-02-01T09:30:00.000Z",
+      receipt: { delivery: "fixture" },
+    },
+    raw: { id: "item-1", name: "Newer title", columns: { status: "active" } },
+  }).then(() => undefined);
+
+  const receipt = await reconcileRecordSnapshot({
+    instanceId: "fixture-instance",
+    sourceId: source.id,
+    runId: "older-reconcile",
+    leaseOwner: "worker-1",
+    leaseToken: "lease-1",
+    observedAt: "2030-02-01T09:00:00.000Z",
+    leaseExpiresAt: "2030-02-01T09:15:00.000Z",
+    objects: [{ id: "item-1", name: "Old title", columns: { status: "active" } }],
+    watermark: "inventory-1",
+    registry,
+    store,
+    concurrency: 1,
+  });
+  assert.equal(receipt.repaired_projections, 0);
+  assert.equal((await store.getCurrentObjectVersion("fixture-instance", source.id, "item-1"))?.values.title, "Newer title");
+  assert.equal([...store.projectionRows.values()][0]?.values.title, "Newer title");
+});
+
+test("an interrupted reconciliation retry finishes current tombstone projection removal", async () => {
+  class FailOnceRemoveStore extends InMemoryCompanyRecordsStore {
+    shouldFail = true;
+
+    override async applyProjectionMutationIfCurrent(args: Parameters<InMemoryCompanyRecordsStore["applyProjectionMutationIfCurrent"]>[0]) {
+      if (!args.row && this.shouldFail) {
+        this.shouldFail = false;
+        throw new Error("synthetic tombstone interruption");
+      }
+      return super.applyProjectionMutationIfCurrent(args);
+    }
+  }
+
+  const { registry } = fixture();
+  const store = new FailOnceRemoveStore();
+  const service = new CompanyRecordsService({
+    instanceId: "fixture-instance",
+    registry,
+    store,
+    now: () => new Date("2030-02-01T09:00:00.000Z"),
+  });
+  await service.ingest({
+    event: {
+      source_id: source.id,
+      event_id: "seed-event",
+      object_id: "item-1",
+      kind: "created",
+      observed_at: "2030-02-01T09:00:00.000Z",
+      receipt: { delivery: "fixture" },
+    },
+    raw: { id: "item-1", name: "Removed at provider", columns: { status: "active" } },
+  });
+
+  const common = {
+    instanceId: "fixture-instance",
+    sourceId: source.id,
+    runId: "reconcile-delete-1",
+    leaseOwner: "worker-1",
+    observedAt: "2030-02-01T10:00:00.000Z",
+    leaseExpiresAt: "2030-02-01T10:15:00.000Z",
+    objects: [],
+    watermark: "inventory-2",
+    registry,
+    store,
+    concurrency: 1,
+  };
+  await assert.rejects(
+    () => reconcileRecordSnapshot({ ...common, leaseToken: "lease-1" }),
+    /synthetic tombstone interruption/,
+  );
+  assert.equal((await store.getCurrentObjectVersion("fixture-instance", source.id, "item-1"))?.deleted, true);
+  assert.equal(store.projectionRows.size, 1);
+  assert.equal(store.syncReceipts.length, 0);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), undefined);
+
+  const resumed = await reconcileRecordSnapshot({
+    ...common,
+    leaseOwner: "worker-2",
+    leaseToken: "lease-2",
+  });
+  assert.equal(resumed.repaired_projections, 1);
+  assert.equal(store.sourceEvents.size, 2);
+  assert.equal(store.objectVersions.size, 2);
+  assert.equal(store.projectionRows.size, 0);
+  assert.equal(store.syncReceipts.length, 1);
+  assert.equal(await store.getWatermark("fixture-instance", source.id), "inventory-2");
 });
 
 test("Company Records queries enforce projection groups and return freshness evidence", async () => {
@@ -334,4 +571,8 @@ test("the additive records schema contains durable deduplication, projection, ac
   assert.match(sql, /constraint records_sprint_intents_lease_check/);
   assert.match(sql, /constraint records_sprint_intents_completion_check/);
   assert.doesNotMatch(sql, /api[_-]?key|password|database_url/i);
+  const store = readFileSync(new URL("../../state-postgres/records-store.ts", import.meta.url), "utf8");
+  assert.match(store, /applyProjectionMutationIfCurrent/);
+  assert.match(store, /with expected_current as materialized/);
+  assert.match(store, /for update/);
 });

@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-31
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -34,9 +34,14 @@ routes them through `companyos create workspace`, and treats
 `companyos bootstrap verify` as an internal local checkpoint. The maintained
 live path then uses `companyos setup --profile vercel-neon-slack` and finishes
 only when `companyos verify-live` proves the narrow supervised starter scope.
-The agent waits for the human's browser authentication, provider consent,
+The agent pauses for the human's browser authentication, provider consent,
 hash-bound Steward merge authorization, and production confirmation; it does
-not obtain those authorities from the chat prompt.
+not obtain those authorities from the chat prompt. One confirmed setup plan
+covers all unchanged-scope inspection, local work, retries, resume operations,
+branch publication, and pull-request preparation. The agent does not ask for
+separate conversational permission for those steps. It groups all currently
+available human actions or confirmation hashes into one concise request and
+continues until the next actual authority boundary.
 
 Start with [Onboard a Company Workspace](company-workspace.md), then run:
 
