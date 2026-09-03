@@ -15,9 +15,18 @@ export interface SlackMessageReceipt {
 }
 
 export interface SlackMessagePublisher {
-  publishChannel(channelId: string, content: string): Promise<SlackMessageReceipt>;
-  publishDirect(userId: string, content: string): Promise<SlackMessageReceipt>;
+  publishChannel(channelId: string, content: string, threadReference?: string): Promise<SlackMessageReceipt>;
+  openDirect(userId: string): Promise<{
+    threadReference: string;
+    publish(content: string): Promise<SlackMessageReceipt>;
+  }>;
 }
+
+export type BeforeSlackDirectPublish = (args: {
+  binding: SlackDestinationBinding;
+  threadReference: string;
+  context: CapabilityCallContext;
+}) => Promise<void>;
 
 const object = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -31,8 +40,9 @@ export class SlackCommunicationConnector implements Connector {
   readonly capabilities = ["communication.message.publish"] as const;
   readonly #bindings: Map<string, SlackDestinationBinding>;
   readonly #publisher: SlackMessagePublisher;
+  readonly #beforeDirectPublish?: BeforeSlackDirectPublish;
 
-  constructor(args: { bindings: readonly SlackDestinationBinding[]; publisher: SlackMessagePublisher }) {
+  constructor(args: { bindings: readonly SlackDestinationBinding[]; publisher: SlackMessagePublisher; beforeDirectPublish?: BeforeSlackDirectPublish }) {
     this.#bindings = new Map(args.bindings.map((binding) => [binding.id, structuredClone(binding)]));
     if (this.#bindings.size !== args.bindings.length) throw new Error("Slack destination binding ids must be unique");
     for (const binding of this.#bindings.values()) {
@@ -41,6 +51,7 @@ export class SlackCommunicationConnector implements Connector {
       if (binding.kind === "direct-message" && (!binding.userId || binding.channelId)) throw new Error(`Slack direct-message destination '${binding.id}' requires only userId`);
     }
     this.#publisher = args.publisher;
+    this.#beforeDirectPublish = args.beforeDirectPublish;
   }
 
   async invoke(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult> {
@@ -51,9 +62,19 @@ export class SlackCommunicationConnector implements Connector {
     const binding = this.#bindings.get(bindingId);
     if (!binding) throw new Error(`Slack destination binding '${bindingId}' is not available to this Connector`);
     const content = String(value.content);
-    const receipt = binding.kind === "channel"
-      ? await this.#publisher.publishChannel(binding.channelId!, content)
-      : await this.#publisher.publishDirect(binding.userId!, content);
+    const threadReference = value.thread_reference === undefined ? undefined : String(value.thread_reference);
+    let receipt: SlackMessageReceipt;
+    if (binding.kind === "channel") {
+      receipt = await this.#publisher.publishChannel(binding.channelId!, content, threadReference);
+    } else {
+      if (threadReference !== undefined) throw new Error("A direct-message destination cannot accept an unverified thread reference");
+      const target = await this.#publisher.openDirect(binding.userId!);
+      if (!target.threadReference) throw new Error("Slack provider returned an incomplete direct-message target");
+      if (this.#beforeDirectPublish) {
+        await this.#beforeDirectPublish({ binding: structuredClone(binding), threadReference: target.threadReference, context: structuredClone(context) });
+      }
+      receipt = await target.publish(content);
+    }
     if (!receipt.messageId || !receipt.threadReference || !receipt.publishedAt) throw new Error("Slack provider returned an incomplete message receipt");
     return {
       output: {

@@ -102,16 +102,39 @@ evidence, historical prototypes, and production gaps.
 - The provider-neutral Sprint domain implements validated policy, append-only
   event reduction, controlled-clock business-time and holiday calculation,
   frozen-participant Friday completeness, actual-effort and open-work read
-  models, deterministic reminder/report/Rollover intents, and durable timer
+  models, deterministic shared-thread reminder/chase/report/retro/Rollover
+  intents, and durable timer
   interfaces with in-memory and Postgres implementations. The reusable
   orchestration library now atomically persists one normalized event, its
   monotonic resulting state, decision evidence, and intents; consumes due
   timers through the same event path; leases bounded intent work; and enters
   provider execution only through an exact `CompanyOSRuntime`-backed adapter.
-  It remains unhosted and inactive until a Company Instance supplies reviewed
-  policy, calendar, Agent, Tool, destination, resource, ingress, schedule, and
-  worker bindings. Public fixtures are synthetic and contain no company people,
-  resources, policy, or credentials.
+  Workbench now compiles reviewed Sprint policy, schedule and template digests,
+  participant identity namespace, logical Agent and service principal, and
+  exact destination/resource bindings into the immutable Artifact. The
+  maintained Vercel Runner hosts authenticated inspect/open actions, bounded
+  timer and intent workers, fresh projection resolution through
+  `records.query`, Slack Friday-update normalization after roster and Agent
+  resolution, a generic template renderer, and `disabled`, `shadow`, and
+  `active` modes. The hosted Friday path creates one shared Close thread,
+  accepts submissions only in that exact thread, and orders chase, report,
+  retro, then Rollover preparation using provider-delivery events. Timer kinds
+  are isolated per Sprint definition. Shadow mode stores digest evidence
+  without effects; active messages still cross the standard Tool boundary.
+  Rollover remains deliberately blocked until a
+  separately confirmed frozen-proposal path is integrated. The initial profile
+  uses Monday polling and Slack interaction; Monday board-change webhooks and
+  card chat remain deferred. No real Company Instance runtime, schedule,
+  message, work-item effect, or production activation is claimed. Public
+  fixtures are synthetic and contain no company people, resources, policy, or
+  credentials.
+- The hosted Sprint surface currently makes the ordered shared-thread Friday
+  Close subset executable. It does not yet prove the complete weekly Sprint
+  product: Monday planning, weekday digest and readiness checkpoints,
+  structured `NEXT WEEK` carry-forward, confirmed Rollover effects, and the
+  person-facing Sprint DM workflows that consume the compiled assignment
+  mechanism must each have an executable path and Stage-0 evidence before a
+  final Sprint Agent release or Company rollout may be claimed.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.comment`, and `communication.message.publish` Capability contracts
   plus standard Tools. Artifact building makes those Tools available for

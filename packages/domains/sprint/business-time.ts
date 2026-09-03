@@ -13,6 +13,7 @@ export interface SprintCloseSchedule {
   local_date: string;
   reminder_at: string;
   complete_by: string;
+  chase_at: string;
   report_at: string;
 }
 
@@ -73,6 +74,7 @@ export function sprintCloseSchedule(args: {
     local_date: localDate,
     reminder_at: zonedLocalDateTimeToIso(localDate, policy.close.reminder_time, policy.calendar.timezone),
     complete_by: zonedLocalDateTimeToIso(localDate, policy.close.complete_by, policy.calendar.timezone),
+    chase_at: zonedLocalDateTimeToIso(localDate, policy.close.chase_time ?? policy.close.complete_by, policy.calendar.timezone),
     report_at: zonedLocalDateTimeToIso(localDate, policy.close.report_at, policy.calendar.timezone),
   };
 }

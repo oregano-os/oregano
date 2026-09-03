@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -107,6 +107,20 @@ connectors:
           account_id: T00001
           kind: channel
           channel_id: C00001
+        - id: sprint-direct-alex
+          account_id: T00001
+          kind: direct-message
+          user_id: U00001
+sprint_runtimes:
+  - definition: weekly-delivery
+    agent: sprint
+    service_principal: companyos:instance:sprint
+    participant_identity_prefix: monday:account:
+    direct_destinations:
+      slack:T00001:U00001: sprint-direct-alex
+    work_item:
+      resource_binding: sprint-test-board
+      rollover_field: sprint
 ```
 
 The declaration must never contain a token, signing secret, database URL, or
@@ -137,6 +151,9 @@ The maintained Runner requires these Instance values:
 | `COMPANYOS_STAGE0_SECRET` | optional Sensitive bearer protecting the Preview-only Stage-0 qualification route |
 | `COMPANYOS_PUBLIC_BASE_URL` | canonical deployment origin returned by real artifact-publication evidence |
 | `COMPANYOS_MODEL_CONFIG_BASE64` | optional Base64 JSON with exact task, profile, and default recipe bindings |
+| `COMPANYOS_SPRINT_RUNTIME_MODE` | hosted Sprint kill switch: `disabled` (default), `shadow`, or `active` |
+| `COMPANYOS_SPRINT_OPERATOR_SECRET` | Sensitive bearer protecting Sprint inspect/open actions |
+| `COMPANYOS_SPRINT_DEFINITION_ID` | optional exact compiled Sprint definition when an Instance contains more than one |
 | `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` | optional Knowledge-only configuration using the same binding shape; overrides the shared model configuration for Knowledge tasks |
 | `COMPANYOS_KNOWLEDGE_CYCLE_BUDGET_USD` | optional productive-maintenance cycle ceiling; defaults to `5` USD |
 | `COMPANYOS_KNOWLEDGE_DAILY_BUDGET_USD` | optional UTC-day productive-maintenance ceiling; defaults to `10` USD |
@@ -174,6 +191,35 @@ Core commit, Workspace commit, Artifact hash, resolved ToolSet hash, model
 route, and model; an
 authorized roster member reaches the selected Agent; and an unknown identity
 is blocked before model invocation.
+
+The hosted Sprint operator path is `POST /api/sprint/operator`; it supports
+only `inspect` and `open` and requires `COMPANYOS_SPRINT_OPERATOR_SECRET`.
+`GET /api/sprint/timers` and `GET /api/sprint/intents` are bounded wake-up
+routes protected by `CRON_SECRET`. The immutable Workspace schedule, not the
+hosting cron, decides whether work is due. Leave the runtime `disabled` until
+the Artifact contains the reviewed Sprint declaration, schedule, templates,
+Agent, service principal, exact participant identity namespace, destination
+bindings, and fresh Record projections. Use `shadow` before `active`; shadow
+persists digest evidence but sends no message and changes no work item.
+
+The checked-in Vercel reference wakes the Sprint workers once per minute.
+Vercel currently supports that frequency only on plans with per-minute Cron;
+Hobby Cron is limited to once per day with hourly precision. A Company
+Instance whose hosting plan cannot support the reviewed wake-up frequency MUST
+either bind a separately authenticated scheduler or remain disabled. Verify
+the current host limits, usage price, and selected plan in the Instance change
+plan before Stage 5E; never silently weaken the company schedule to make a
+deployment pass. See Vercel's current
+[Cron usage and pricing](https://vercel.com/docs/cron-jobs/usage-and-pricing)
+and [Cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+
+Bind `sprint.coordination` under `tasks` in
+`COMPANYOS_MODEL_CONFIG_BASE64` when the interactive Sprint Agent needs an
+exact model recipe. Core stores only that provider-neutral task name; the
+Instance selects the provider and model. The initial maintained profile uses
+the records reconciliation scheduler for Monday freshness and Slack for
+interactive submissions. Do not treat Monday card chat or board webhooks as
+available until a later separately qualified extension supplies them.
 
 `POST /api/stage0/qualification` is an optional test-only route. It must exist
 only in a protected Preview deployment with a `preview` Artifact. Use `inspect`

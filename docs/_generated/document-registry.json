@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-02",
+    "updated": "2026-09-03",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -74,7 +74,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-01",
+    "updated": "2026-09-03",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -118,7 +118,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-02",
+    "updated": "2026-09-03",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -760,7 +760,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-02",
+    "updated": "2026-09-03",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}

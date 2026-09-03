@@ -3,6 +3,7 @@
 // protection, atomic approval consumption, effect claiming, and evidence.
 import type { StateStore } from "./interface.ts";
 import { authorizeApproval, authorizePrincipalApproval, type RosterMember } from "./roster.ts";
+import { CapabilityEffectOutcomeUnknownError } from "../capabilities/contracts.ts";
 
 export type ActionResult =
   | { ok: true; evidence: unknown; approvedBy: string }
@@ -104,11 +105,17 @@ export async function executeApprovedAction(args: {
     });
     return { ok: true, evidence, approvedBy: `${auth.member!.name} (${auth.member!.role})` };
   } catch (error) {
-    const evidence = { error: error instanceof Error ? error.message : String(error) };
-    await store.markEffectFailed(idempotencyKey, evidence);
+    const unknown = error instanceof CapabilityEffectOutcomeUnknownError;
+    const evidence = unknown
+      ? { error: error.message, partial_evidence: error.evidence }
+      : { error: error instanceof Error ? error.message : String(error) };
+    if (unknown) await store.markEffectUnknown(idempotencyKey, evidence);
+    else await store.markEffectFailed(idempotencyKey, evidence);
     await store.appendEvent({
       runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
-      event: `${eventName}.failed`, status: "failed", idempotencyKey, evidence, payload,
+      event: unknown ? `${eventName}.unknown` : `${eventName}.failed`,
+      status: unknown ? "effect-unknown" : "failed",
+      idempotencyKey, evidence, payload,
     });
     throw error;
   }

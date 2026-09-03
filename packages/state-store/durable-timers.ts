@@ -18,7 +18,7 @@ export interface ClaimedDurableTimer extends DurableTimer {
 
 export interface DurableTimerStore {
   schedule(timer: DurableTimer): Promise<boolean>;
-  claimDue(args: { instanceId: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit: number }): Promise<ClaimedDurableTimer[]>;
+  claimDue(args: { instanceId: string; timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit: number }): Promise<ClaimedDurableTimer[]>;
   complete(args: { instanceId: string; timerId: string; leaseToken: string; evidence: JsonValue; completedAt: string }): Promise<boolean>;
   retry(args: { instanceId: string; timerId: string; leaseToken: string; dueAt: string; evidence: JsonValue }): Promise<boolean>;
   fail(args: { instanceId: string; timerId: string; leaseToken: string; evidence: JsonValue; failedAt: string }): Promise<boolean>;

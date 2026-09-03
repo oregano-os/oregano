@@ -3,6 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { CapabilityEffectOutcomeUnknownError } from "../../capabilities/contracts.ts";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import type { InstanceBuildConfiguration } from "../../companyos-builder/types.ts";
 import { ArtifactSandboxConnector, MarketingSandboxConnector } from "../../connectors/sandbox.ts";
@@ -330,13 +331,16 @@ test("the property campaign runs end to end through Tool SDK, resolved grants, C
   assert.equal(launched.output.max_spend, 100);
   assert.equal(launched.output.simulated, true);
 
-  await runtime.execute({
+  const conversionRequest = {
     runId: "run-reference",
     stepId: "conversion",
     agentId: "growth",
     grantId: "company:record-conversion",
     input: { campaign_key: "listing-42", asset: "creative-a", conversion_id: "conversion-1" },
-  });
+  };
+  const conversion = await runtime.execute(conversionRequest);
+  const conversionReplay = await runtime.execute(conversionRequest);
+  assert.deepEqual(conversionReplay, conversion, "a completed idempotent effect replays its stored evidence");
   const report: any = await runtime.execute({
     runId: "run-reference",
     stepId: "report",
@@ -444,4 +448,35 @@ test("an approved Connector failure is recorded as failed, never left dispatched
   }), /simulated connector failure/);
   const effect = [...state.effects.values()][0];
   assert.equal(effect?.status, "failed");
+});
+
+test("an approved provider effect with an unverifiable receipt is recorded as unknown", async () => {
+  const state = new InMemoryStateStore();
+  const runtime = new CompanyOSRuntime({
+    artifact: build(),
+    state,
+    connectors: [{
+      id: "oregano/artifact-sandbox",
+      version: "1.0.0",
+      capabilities: ["artifact.publish"],
+      async invoke() {
+        throw new CapabilityEffectOutcomeUnknownError("provider receipt incomplete", { provider_id: "possibly-created" });
+      },
+    }, new MarketingSandboxConnector()],
+  });
+  const input = { artifact_id: "unknown", content: "approved", content_type: "text/plain" };
+  await runtime.requestApproval({ runId: "run-unknown", stepId: "publish", agentId: "growth", grantId: "company:publish-asset", input });
+  await assert.rejects(() => runtime.execute({
+    runId: "run-unknown",
+    stepId: "publish",
+    agentId: "growth",
+    grantId: "company:publish-asset",
+    input,
+    approvingPrincipal: "test:solstice:avery",
+  }), /complete outcome could not be verified/);
+  const effect = [...state.effects.values()][0];
+  assert.equal(effect?.status, "unknown");
+  assert.deepEqual((effect?.evidence as any).partial_evidence, {
+    capability_effects: [{ provider_id: "possibly-created" }],
+  });
 });

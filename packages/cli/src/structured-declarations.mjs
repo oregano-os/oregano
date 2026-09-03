@@ -10,6 +10,7 @@ const schema = (name) => JSON.parse(readFileSync(new URL(`../../schema/${name}`,
 const RECORD_SOURCE_SCHEMA = schema("company-record-source-v1.schema.json");
 const RECORD_PROJECTION_SCHEMA = schema("company-record-projection-v1.schema.json");
 const SPRINT_CONFIGURATION_SCHEMA = schema("sprint-configuration-v1.schema.json");
+const SPRINT_SCHEDULE_SCHEMA = schema("sprint-schedule-v1.schema.json");
 
 const declarationFiles = (root, prefix) => walkFiles(root, {
   include: (path) => {
@@ -141,12 +142,36 @@ export function inspectStructuredDeclarations(root) {
     ]) {
       if (id && !projectionIds.has(id)) diagnostics.push(diagnostic("WS049", "error", `Sprint declaration ${field} references unknown record projection '${id}'.`, { file: sprint.path }));
     }
-    const { reminder_time: reminder, complete_by: complete, report_at: report } = sprint.value.close ?? {};
-    if (reminder && complete && report && !(reminder < complete && complete <= report)) {
-      diagnostics.push(diagnostic("WS050", "error", "Sprint close times must satisfy reminder_time < complete_by <= report_at.", { file: sprint.path }));
+    const { reminder_time: reminder, complete_by: complete, chase_time: chase = complete, report_at: report } = sprint.value.close ?? {};
+    if (reminder && complete && chase && report && !(reminder < complete && complete <= chase && chase <= report)) {
+      diagnostics.push(diagnostic("WS050", "error", "Sprint close times must satisfy reminder_time < complete_by <= chase_time <= report_at.", { file: sprint.path }));
     }
     if (sprint.value.rollover?.eligible === "selected-states" && !(sprint.value.rollover.states?.length > 0)) {
       diagnostics.push(diagnostic("WS051", "error", "Sprint rollover selected-states requires at least one state.", { file: sprint.path }));
+    }
+    const scheduleRef = sprint.value.calendar?.business_calendar_ref;
+    if (typeof scheduleRef === "string") {
+      const normalizedRef = normalize(scheduleRef).replaceAll("\\", "/");
+      const schedulePath = join(root, scheduleRef);
+      if (!scheduleRef.startsWith("schedules/") || normalizedRef !== scheduleRef || !existsSync(schedulePath)) {
+        diagnostics.push(diagnostic("WS056", "error", `Sprint business calendar must reference an existing safe file under schedules/: '${scheduleRef}'.`, { file: sprint.path }));
+      } else {
+        const schedule = readDeclaration(root, schedulePath, SPRINT_SCHEDULE_SCHEMA, diagnostics);
+        if (schedule && schedule.value.timezone !== sprint.value.calendar?.timezone) {
+          diagnostics.push(diagnostic("WS057", "error", "Sprint schedule timezone must match the Sprint declaration timezone.", { file: schedule.path }));
+        }
+        if (schedule && !(schedule.value.delivery_window?.opens_at < schedule.value.delivery_window?.closes_at)) {
+          diagnostics.push(diagnostic("WS058", "error", "Sprint delivery window must open before it closes.", { file: schedule.path }));
+        }
+        if (schedule && new Set((schedule.value.triggers ?? []).map((trigger) => trigger.id)).size !== (schedule.value.triggers ?? []).length) {
+          diagnostics.push(diagnostic("WS059", "error", "Sprint schedule trigger ids must be unique.", { file: schedule.path }));
+        }
+      }
+    }
+    for (const template of Object.values(sprint.value.rendering ?? {})) {
+      if (typeof template !== "string" || !safeWorkspaceTarget(template) || !existsSync(join(root, template))) {
+        diagnostics.push(diagnostic("WS060", "error", `Sprint rendering must reference an existing safe Workspace Markdown file: '${String(template)}'.`, { file: sprint.path }));
+      }
     }
   }
 

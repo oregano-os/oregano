@@ -226,6 +226,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
   mkdirSync(join(workspace, "records", "sources"), { recursive: true });
   mkdirSync(join(workspace, "records", "projections"), { recursive: true });
   mkdirSync(join(workspace, "workflows", "sprint"), { recursive: true });
+  mkdirSync(join(workspace, "schedules"), { recursive: true });
   writeFileSync(join(workspace, "records", "sources", "work-items.yaml"), YAML.stringify({
     schema_version: 1,
     id: "work-items",
@@ -266,13 +267,23 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
     work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready", closed_statuses: ["done"] },
-    calendar: { timezone: "Europe/Lisbon", business_calendar_ref: "company-calendar", holiday_shift: "previous-business-day" },
+    calendar: { timezone: "Europe/Lisbon", business_calendar_ref: "schedules/company-calendar.yaml", holiday_shift: "previous-business-day" },
     close: { weekday: "friday", reminder_time: "14:00", complete_by: "16:00", report_at: "17:00" },
     submission: { task_line_rule: "one-per-committed-task", after_report: "provider-only" },
     effort: "actual-hours",
     rollover: { eligible: "all-open" },
     delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
     model_task_profile: "sprint-conversation",
+  }));
+  writeFileSync(join(workspace, "schedules", "company-calendar.yaml"), YAML.stringify({
+    schema_version: 1,
+    id: "company-calendar",
+    activation: "blocked",
+    timezone: "Europe/Lisbon",
+    business_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    holiday_calendar: { missing_year_policy: "assume-no-holidays", years: {} },
+    delivery_window: { opens_at: "08:00", closes_at: "18:00" },
+    triggers: [{ id: "friday-close", weekdays: ["friday"], at: "17:00", holiday_shift: "previous-business-day" }],
   }));
 
   const result = validateWorkspace(workspace);

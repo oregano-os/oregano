@@ -22,7 +22,9 @@ The first versioned Company Records and Sprint declarations are:
 - `company-record-projection-v1.schema.json` for rebuildable, access-scoped
   projections; and
 - `sprint-configuration-v1.schema.json` for company policy consumed by the pure
-  Sprint Domain.
+  Sprint Domain; and
+- `sprint-schedule-v1.schema.json` for reviewed company cadence, business days,
+  holiday coverage, delivery windows, and immutable trigger compilation.
 
 These schemas intentionally contain logical binding names, not provider
 resource identifiers, credentials, grants, or deployment state. Exact

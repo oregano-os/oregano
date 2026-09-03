@@ -108,7 +108,10 @@ export function createPostgresSprintOrchestrationStore(): SprintOrchestrationSto
              intent_json, available_at, updated_at)
           select ${args.instanceId}, ${args.definitionId}, incoming.intent_json->>'intent_id',
             ${args.event.event_id}, incoming.intent_json->>'type', incoming.intent_json,
-            ${args.committedAt}, ${args.committedAt}
+            case when incoming.intent_json ? 'due_at'
+              then (incoming.intent_json->>'due_at')::timestamptz
+              else ${args.committedAt}::timestamptz end,
+            ${args.committedAt}
           from event_written cross join new_intents incoming
           on conflict (instance_id, definition_id, intent_id) do nothing
           returning intent_id

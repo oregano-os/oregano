@@ -1,0 +1,150 @@
+version: 2
+plan_id: sprint-runtime-hosting-2026-09-03
+status: approved
+author: codex-agent
+created: 2026-09-03
+title: Host the provider-neutral Sprint runtime in the maintained Runner
+objective: >-
+  Make the existing Sprint domain and orchestration contracts reachable from a
+  maintained production artifact through authenticated event, operator, timer,
+  and intent-worker entrypoints; compile reviewed schedules and generic intent
+  rendering declarations; route every effect through the existing Agent,
+  ToolSet, Capability, approval, and effect controls; and retain complete
+  System of Proof evidence without activating a Company Instance.
+non_goals:
+  - Deploy, promote, tag, release, migrate, synchronize, or activate a Company Instance.
+  - Send a visible Slack message, change a Monday object, open a real company Sprint, or enable a schedule.
+  - Put company people, channels, boards, mappings, text, cadence, calendar, model identifiers, credentials, or provider policy in Core.
+  - Add Monday board-change webhooks or Monday card chat to the initial Sprint rollout; reviewed polling and Slack are the initial paths.
+  - Replace CompanyOSRuntime, AgentResolver, ToolSet resolution, ModelRecipe resolution, Company Records, durable timers, confirmations, or effect claims with a Sprint-specific bypass.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - Security before autonomy
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-03-sprint-runtime-hosting.yaml
+  - docs/**
+  - packages/blueprints/**
+  - packages/capabilities/**
+  - packages/cli/**
+  - packages/companyos-builder/**
+  - packages/compiler/**
+  - packages/connectors/**
+  - packages/domains/**
+  - packages/runtime/**
+  - packages/runner-vercel/**
+  - packages/schema/**
+  - packages/state-store/**
+  - packages/state-postgres/**
+  - packages/testkit/**
+  - vercel.json
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-03
+    evidence: explicit-user-instruction-ok-dann-mach-weiter-hiermit-after-reviewing-the-hosting-gap-and-the-revised-seven-step-rollout-order
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic hosted Sprint lifecycle entrypoints, validation, bounded workers, schedule compilation, rendering contracts, orchestration assembly, and proof persistence.
+      - Keep every external effect behind CompanyOSRuntime with resolved Agent, ToolSet, Capability, confirmation, idempotency, and evidence controls.
+    packages:
+      - Keep reusable Sprint instructions, Workflow structure, Skills, and message-template assets declarative and free of company authority or provider resources.
+    workspace:
+      - Own participants, roles, Sprint policy, schedules, calendars, language, concrete text templates, model task profile names, approved audiences, Record Sources, projections, and logical connection references.
+    instance:
+      - Own exact model recipe, Agent, database, scheduler, destination, resource, Connector, secret, activation, cost, deployment, and rollback bindings plus live receipts.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: extend
+      reason: Hosted Slack submissions and dispatched communication intents must use deterministic compiled conversation assignments and exact Agent bindings rather than message-content routing.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: A hosted Sprint worker receives no authority of its own and may dispatch only Tools already present in the resolved Sprint Agent ToolSet.
+    - mechanism: model-recipe-resolver
+      decision: extend
+      reason: Core exposes the generic sprint.coordination task binding while the Company Instance selects the exact route and model; Core never hardcodes Sonnet or another provider model.
+    - mechanism: company-records
+      decision: extend
+      reason: Hosted Sprint assembly reads authorized projections and stores Sprint events, state, intents, timers, and receipts in the existing companyos_records boundary rather than creating another database or schema.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Operator and provider ingress are authenticated before orchestration, while conversational authorization remains the compiled roster and Agent-routing boundary.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: A compiled immutable schedule manifest creates and wakes existing durable timers; the hosting cron remains a wake-up adapter and contains no company cadence.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Confirmation records, stable event and intent identities, worker leases, read-after-write evidence, duplicate suppression, and prior outcomes remain the only path from a proposal to an effect.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Generic rendered intents resolve existing communication.message.publish and work-item Capabilities and maintained Connectors; hosted Sprint code imports no provider SDK.
+  new_core_mechanisms:
+    - Immutable compiled schedule manifest derived from a reviewed Workspace schedule declaration.
+    - Maintained Runner assembly and authenticated endpoints for Sprint operator actions, normalized events, due timers, and intent dispatch.
+    - Provider-neutral intent renderer contract that combines a generic intent with a reviewed Workspace template without embedding company text in Core.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every hosted entrypoint consumes only validated generic declarations and an
+    immutable Artifact. Different companies may choose other participants,
+    schedules, calendars, providers, templates, Agents, model recipes,
+    destinations, resources, and activation state without changing Core.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-03-sprint-runtime-hosting.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-03-sprint-runtime-hosting.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm validate:fixture
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm builder:check
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A built Artifact carries only validated, immutable Sprint and schedule declarations and fails closed on absent or stale bindings.
+  - An authenticated operator can open one synthetic Sprint once; an unauthenticated, unbound, duplicate, or conflicting request has no effect.
+  - Slack Friday input normalizes to a stable provider-neutral Sprint event after existing identity and Agent resolution and never treats message meaning as authority.
+  - A bot-authored shared-thread root is durably subscribed before its delivery receipt becomes eligible for participant submissions.
+  - The timer wake-up claims only due durable timers, processes bounded work, and persists the event outcome before completing each timer.
+  - The intent worker leases bounded work and renders only an allowlisted template from the Artifact before resolving the exact Agent Tool and destination or resource binding.
+  - A communication or work-item intent with no Agent grant, confirmation, destination, resource, version, or Capability binding records a no-effect outcome.
+  - Events, states, decisions, intents, timers, confirmations, effects, and provider receipts remain queryable as tenant-scoped System of Proof evidence.
+  - Hosted Stage-0 synthetic tests cover retry, duplicate, echo, refusal, controlled write, read-after-write, Slack channel and DM, and Agent handoff behavior without a production resource.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.system-of-proof
+    - specification.company-records-sprint-v0.1
+    - guide.prepare-instance
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Core adoption is backward-compatible and inactive by default. A later,
+  separately reviewed Company Instance promotion may apply an additive database
+  manifest, build a current Artifact, bind exact service and model routes, and
+  activate schedules. Existing Instances without hosted Sprint bindings retain
+  their current behavior.
+rollback: >-
+  Disable Sprint ingress and scheduler activation, stop leasing new intents,
+  let active leases expire, and revert the Runner deployment. Retain all
+  append-only events, states, intents, timers, confirmations, effects, and
+  receipts as dormant System of Proof evidence. No provider object or evidence
+  row is deleted by rollback.
+open_decisions:
+  - The exact company participants, schedules, calendar fallback, message text, Slack destinations, Monday resources, Agent grants, model recipe, activation switches, and retention remain Workspace or Instance changes reviewed at the company production gate.
+  - Monday board-change webhooks and Monday card chat remain deferred Controlled Extensions and are not required for the initial hosted rollout.

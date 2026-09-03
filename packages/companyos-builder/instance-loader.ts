@@ -5,6 +5,7 @@ import { scanCredentialIndicators } from "../security/credential-scanner.ts";
 import type { AgentBinding } from "../runtime/agent-resolver.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { BuilderInstanceConfiguration, RuntimeConnectorConfiguration } from "./types.ts";
+import type { SprintRuntimeInstanceConfiguration } from "./types.ts";
 
 export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfiguration {
   const raw = readFileSync(path, "utf8");
@@ -23,6 +24,7 @@ export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfi
   const connectors = parseConnectors(data.connectors, path);
   const agentBindings = parseAgentBindings(data.agent_bindings, path);
   const defaultAgentId = optionalIdentifier(data.default_agent, `${path}: default_agent`);
+  const sprintRuntimes = parseSprintRuntimes(data.sprint_runtimes, path);
   const builder = parseBuilder(data.builder, path);
   return {
     version: 1,
@@ -42,8 +44,67 @@ export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfi
     connectors,
     agentBindings,
     defaultAgentId,
+    sprintRuntimes,
     builder,
   };
+}
+
+function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanceConfiguration[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`${path}: sprint_runtimes must be a list.`);
+  const definitions = new Set<string>();
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error(`${path}: sprint_runtimes[${index}] must be an object.`);
+    }
+    const runtime = entry as Record<string, unknown>;
+    const allowed = ["definition", "agent", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item"];
+    const extra = Object.keys(runtime).find((key) => !allowed.includes(key));
+    if (extra) throw new Error(`${path}: sprint_runtimes[${index}] contains unsupported field '${extra}'.`);
+    const definitionId = requiredIdentifier(runtime.definition, `${path}: sprint_runtimes[${index}].definition`);
+    if (definitions.has(definitionId)) throw new Error(`${path}: duplicate Sprint runtime definition '${definitionId}'.`);
+    definitions.add(definitionId);
+    const directDestinations: Record<string, string> = {};
+    if (runtime.direct_destinations !== undefined) {
+      if (!runtime.direct_destinations || typeof runtime.direct_destinations !== "object" || Array.isArray(runtime.direct_destinations)) {
+        throw new Error(`${path}: sprint_runtimes[${index}].direct_destinations must be an object.`);
+      }
+      for (const [principal, binding] of Object.entries(runtime.direct_destinations)) {
+        if (!/^[a-z][a-z0-9._-]{0,31}:[A-Za-z0-9._-]{1,128}:[A-Za-z0-9._-]{1,128}$/.test(principal)) {
+          throw new Error(`${path}: sprint_runtimes[${index}] contains an invalid direct-message principal.`);
+        }
+        directDestinations[principal] = requiredIdentifier(binding, `${path}: sprint_runtimes[${index}].direct_destinations.${principal}`);
+      }
+    }
+    let workItem: SprintRuntimeInstanceConfiguration["workItem"];
+    if (runtime.work_item !== undefined) {
+      if (!runtime.work_item || typeof runtime.work_item !== "object" || Array.isArray(runtime.work_item)) {
+        throw new Error(`${path}: sprint_runtimes[${index}].work_item must be an object.`);
+      }
+      const candidate = runtime.work_item as Record<string, unknown>;
+      const extraWorkItem = Object.keys(candidate).find((key) => !["resource_binding", "rollover_field"].includes(key));
+      if (extraWorkItem) throw new Error(`${path}: sprint_runtimes[${index}].work_item contains unsupported field '${extraWorkItem}'.`);
+      workItem = {
+        resourceBinding: requiredIdentifier(candidate.resource_binding, `${path}: sprint_runtimes[${index}].work_item.resource_binding`),
+        rolloverField: requiredIdentifier(candidate.rollover_field, `${path}: sprint_runtimes[${index}].work_item.rollover_field`),
+      };
+    }
+    return {
+      definitionId,
+      agentId: requiredIdentifier(runtime.agent, `${path}: sprint_runtimes[${index}].agent`),
+      servicePrincipal: requiredPrincipal(runtime.service_principal, `${path}: sprint_runtimes[${index}].service_principal`),
+      participantIdentityPrefix: requiredPrincipalPrefix(runtime.participant_identity_prefix, `${path}: sprint_runtimes[${index}].participant_identity_prefix`),
+      directDestinations,
+      ...(workItem ? { workItem } : {}),
+    };
+  });
+}
+
+function requiredPrincipalPrefix(value: unknown, label: string): string {
+  if (typeof value !== "string" || !/^[a-z][a-z0-9._-]{0,31}:[A-Za-z0-9._-]{1,128}:$/.test(value)) {
+    throw new Error(`${label} must be a canonical surface:account: principal prefix.`);
+  }
+  return value;
 }
 
 function parseConnectors(value: unknown, path: string): RuntimeConnectorConfiguration[] {
@@ -177,6 +238,13 @@ function optionalIdentifier(value: unknown, label: string): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(value)) {
     throw new Error(`${label} must be a bounded identifier.`);
+  }
+  return value;
+}
+
+function requiredPrincipal(value: unknown, label: string): string {
+  if (typeof value !== "string" || !/^[a-z][a-z0-9._-]{0,31}:[A-Za-z0-9._-]{1,128}:[A-Za-z0-9._-]{1,128}$/.test(value)) {
+    throw new Error(`${label} must be a canonical surface:account:subject principal.`);
   }
   return value;
 }

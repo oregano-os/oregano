@@ -198,14 +198,17 @@ provider-accepted timestamp. A report is frozen at its configured instant;
 later submissions do not rewrite it. Actual effort and Rollover eligibility use
 the exact declared policy and never an inferred substitute.
 
-**CRS-024 — Intents, not effects.** Reminder, report, reconciliation, and
-Rollover outputs are stable intents with deterministic idempotency identities.
-An individual reminder freezes its destination principal and logical direct
-binding. A Rollover intent freezes the expected provider version of every work
-item it proposes to change.
+**CRS-024 — Intents, not effects.** Close-thread reminder, chase, report,
+retrospective, reconciliation, and Rollover outputs are stable intents with
+deterministic idempotency identities. Friday Close messages freeze the exact
+shared-channel binding; every reply also freezes the provider-returned root
+thread reference. A Rollover intent freezes the expected provider version of
+every work item it proposes to change.
 The runtime resolves and authorizes a Tool before an intent can become an
 effect. A failed, stale, ambiguous, or unbound intent remains an explicit
-no-effect result.
+no-effect result. A provider effect whose complete receipt cannot be verified
+MUST remain `unknown` with bounded partial evidence and MUST NOT be retried as
+though no effect occurred.
 
 **CRS-025 — Orchestration boundary.** Normalized provider events and due durable
 timers MUST enter the same validated event-processing path. Due timers complete
@@ -217,6 +220,21 @@ input, then execute through `CompanyOSRuntime`; it MUST NOT call a provider
 directly or treat persisted intent state as Tool authority. Missing policy,
 calendar, state identity, dispatcher, Agent, grant, destination, or resource
 binding fails before an effect.
+
+**CRS-026 — Maintained hosted profile.** Workbench MUST compile each hosted
+Sprint from an exact Workspace declaration and non-secret Instance bindings.
+The immutable Artifact MUST include the reviewed schedule and template
+digests, logical Agent, service principal, participant identity namespace, and
+destination/resource bindings. The maintained Runner MUST expose a separately
+authenticated operator action and bounded timer and intent wake-up routes.
+Opening MUST use fresh projections through the standard `records.query` Tool;
+Slack submissions MUST enter only after provider authentication, roster
+authorization, and deterministic Agent routing. Shadow mode MUST retain only
+non-effect dispatch evidence. Active mode MUST use `CompanyOSRuntime`; a
+Rollover without the ordinary frozen-proposal confirmation path MUST fail
+closed. The initial profile uses bounded polling for Monday-backed records and
+Slack for interaction. Monday board-change webhooks and Monday card chat are
+deferred extensions, not initial-rollout dependencies.
 
 ## 4. Tools and Connectors
 
@@ -341,12 +359,14 @@ atomic Sprint event/state/decision/intent persistence, optimistic replay,
 leased intent outcomes, due-timer consumption through the same event path,
 controlled-clock Sprint decisions, Tool resolution inputs, signed callback
 verification, replay and echo controls, Connector behavior with synthetic
-responses, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
+responses, hosted Artifact compilation, operator parsing and authentication,
+Slack Friday normalization after resolved identity and Agent routing, shadow
+rendering without effects, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
 discovery, credential-free qualification receipts, and read-only Blueprint
 inspection. They do not prove a real
 provider installation, exact account permission, provider cost, production
 message, production database migration, scheduled execution, or Company
 Workspace rollout. Those claims require separate Instance consent, non-
-production qualification, staged activation, and live evidence. The reusable
-orchestrator is a Core library; it is not a deployed ingress, scheduler, worker,
-or company-specific renderer by itself.
+production qualification, staged activation, and live evidence. The Runner
+implementation is inactive without a compiled Sprint binding, runtime mode,
+operator/scheduler secrets, database, and explicit schedule activation.

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
 import { ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
-import { Actions, Button, Card, CardText, Chat, type Author, type Thread } from "chat";
+import { Actions, Button, Card, CardText, Chat, type Author, type Message, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
 import { KnowledgeProviderConnector } from "../../../connectors/knowledge.ts";
@@ -41,6 +41,8 @@ import {
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "../../../runner/model-execution.ts";
 import { createConfiguredRuntimeConnectors } from "./runtime-connectors.ts";
+import { isFridaySprintUpdate } from "../../../runtime/sprint-slack-submission.ts";
+import type { BeforeSlackDirectPublish } from "../../../connectors/slack/communication.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const TOOL_EXECUTION_TIMEOUT_MS = 30_000;
@@ -183,7 +185,7 @@ function resolvedTools(
   return output;
 }
 
-async function handleMessage(thread: Thread, message: { id: string; text: string; author: Author }) {
+async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">) {
   const member = rosterMember(message.author);
   if (!member) {
     await thread.post("This Slack identity is not an active human in the Company Workspace roster. The message was blocked before model invocation.");
@@ -198,6 +200,29 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
     assignmentStore,
   });
   const agent = conversation.agent;
+  const sprintBindings = (artifact.sprints ?? []).filter((candidate) => candidate.agentId === agent.id);
+  if (sprintBindings.length > 1) throw new Error(`Agent '${agent.id}' has ambiguous Sprint runtime bindings.`);
+  if (sprintBindings.length === 1 && isFridaySprintUpdate(message.text)) {
+    try {
+      const { ingestFridaySprintUpdate } = await import("./sprint-runtime.ts");
+      const ingestion = await ingestFridaySprintUpdate({
+        agentId: agent.id,
+        messageId: message.id,
+        occurredAt: message.metadata.dateSent.toISOString(),
+        principal: requester,
+        threadReference: thread.id,
+        text: message.text,
+      });
+      if (!ingestion.accepted) {
+        await thread.post(`Your Friday Sprint update was not recorded (${ingestion.reason}).`);
+      }
+      return;
+    } catch (error) {
+      const reference = sha256(error instanceof Error ? error.message : String(error));
+      await thread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
+      return;
+    }
+  }
   const conversationKey = `conversation:${thread.id}:${agent.id}`;
   await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
     maxLength: 40,
@@ -230,7 +255,9 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
     text: message.text,
     tools: agent.toolSet.tools.map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
   });
-  const modelTask = knowledgeTurnModelTask(knowledgeRoute);
+  const modelTask = sprintBindings.length === 1
+    ? { profile: "reasoning" as const, task: sprintBindings[0].modelTask, configuration: "default" as const }
+    : knowledgeTurnModelTask(knowledgeRoute);
   const resolved = resolveModelExecution({
     profile: modelTask.profile,
     task: modelTask.task,
@@ -308,7 +335,7 @@ let botInstance: Chat | undefined;
 
 export function createCompanyOSRuntimeConnectors(
   selectedAgentId = process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent",
-  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat },
+  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish },
 ) {
   const baseline = createUnifiedKnowledgeProvider({
     handbook: createPostgresKnowledgeProvider(),
@@ -323,7 +350,7 @@ export function createCompanyOSRuntimeConnectors(
     new ArtifactPostgresConnector(),
     new KnowledgeProviderConnector(knowledge),
     ...(options?.artifact && options.chat
-      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat })
+      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat, beforeSlackDirectPublish: options.beforeSlackDirectPublish })
       : []),
   ];
 }
@@ -357,7 +384,11 @@ export function getBot(): Chat {
   runtime = new CompanyOSRuntime({
     artifact,
     state: createPostgresStateStore(),
-    connectors: createCompanyOSRuntimeConnectors(connectorAgentId, { artifact, chat: () => botInstance! }),
+    connectors: createCompanyOSRuntimeConnectors(connectorAgentId, {
+      artifact,
+      chat: () => botInstance!,
+      beforeSlackDirectPublish: createSprintDirectAssignmentHook({ artifact, service: handoffService }),
+    }),
     toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
   registerHandlers(botInstance);
@@ -367,4 +398,44 @@ export function getBot(): Chat {
 export function getCompanyOSRuntime(): CompanyOSRuntime {
   getBot();
   return runtime;
+}
+
+export function createSprintDirectAssignmentHook(args: {
+  artifact: CompanyOSArtifact;
+  service: AgentHandoffService;
+  now?: () => Date;
+}): BeforeSlackDirectPublish {
+  return async ({ binding, threadReference, context }) => {
+    const matches = (args.artifact.sprints ?? []).filter((candidate) => candidate.agentId === context.agentId);
+    if (matches.length === 0) return;
+    if (matches.length > 1) throw new Error(`Agent '${context.agentId}' has ambiguous Sprint runtime bindings.`);
+    const sprint = matches[0]!;
+    if (!context.idempotencyKey) throw new Error("Sprint direct-message assignment requires the claimed message effect identity.");
+    if (context.subject?.status !== "active" || context.subject.principalId !== sprint.servicePrincipal) {
+      throw new Error("Sprint direct-message assignment requires the exact active Sprint service principal.");
+    }
+    if (!binding.userId) throw new Error("Sprint direct-message assignment requires one exact Slack user binding.");
+    const principal = `slack:${binding.accountId}:${binding.userId}`;
+    if (sprint.directDestinations[principal] !== binding.id) {
+      throw new Error("Sprint direct-message assignment does not match the compiled participant destination.");
+    }
+    const policy = sprint.directAssignments[principal];
+    if (!policy) throw new Error("Sprint direct-message assignment policy is not compiled for this participant.");
+    const [surface, channelId] = threadReference.split(":");
+    if (surface !== "slack" || !channelId) throw new Error("Sprint direct-message thread identity is invalid.");
+    await args.service.assignFromWorkflow({
+      instanceId: args.artifact.instance.id,
+      surface,
+      accountId: binding.accountId,
+      channelId,
+      subjectPrincipal: principal,
+      activeAgentId: policy.fromAgentId,
+      targetAgentId: sprint.agentId,
+      purpose: policy.purpose,
+      transitionKey: `sprint-direct:${sha256([context.idempotencyKey, threadReference])}`,
+      artifactHash: args.artifact.artifactHash,
+      requestedAt: (args.now ?? (() => new Date()))().toISOString(),
+      initiatedByPrincipal: sprint.servicePrincipal,
+    });
+  };
 }

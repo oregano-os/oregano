@@ -6,6 +6,8 @@
 import YAML from "yaml";
 
 export interface RosterMember {
+  /** Workspace-owned stable identity; display names are never used as identifiers. */
+  id?: string;
   role: string;
   name: string;
   teamId?: string;
@@ -51,6 +53,9 @@ export function parseRoster(markdown: string): RosterMember[] {
     }
     if (teamId && userId) principals.add(slackPrincipal(teamId, userId));
     return [{
+      id: typeof member.id === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(member.id)
+        ? member.id
+        : undefined,
       role: member.role,
       name: member.name,
       teamId,

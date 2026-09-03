@@ -30,6 +30,10 @@ export interface AgentReturnRequest extends ConversationAssignmentKey {
   readonly reason?: string;
 }
 
+export interface WorkflowAgentAssignmentRequest extends AgentHandoffRequest {
+  readonly initiatedByPrincipal: string;
+}
+
 export interface AgentRevocationRequest extends ConversationAssignmentKey {
   readonly revokedByPrincipal: string;
   readonly transitionKey: string;
@@ -77,6 +81,25 @@ export class AgentHandoffService {
   }
 
   async handoff(request: AgentHandoffRequest): Promise<ConversationAssignmentTransitionResult> {
+    return await this.#assign(request, request.subjectPrincipal, "allowlisted-agent-handoff");
+  }
+
+  /**
+   * Creates the same governed assignment for an outbound deterministic
+   * Workflow. The service actor is authenticated separately from the human
+   * recipient and receives no conversational or Tool authority from this
+   * transition.
+   */
+  async assignFromWorkflow(request: WorkflowAgentAssignmentRequest): Promise<ConversationAssignmentTransitionResult> {
+    this.#authorizedWorkflowActor(request.initiatedByPrincipal);
+    return await this.#assign(request, request.initiatedByPrincipal, "allowlisted-workflow-initiated-handoff");
+  }
+
+  async #assign(
+    request: AgentHandoffRequest,
+    initiatedByPrincipal: string,
+    reason: "allowlisted-agent-handoff" | "allowlisted-workflow-initiated-handoff",
+  ): Promise<ConversationAssignmentTransitionResult> {
     this.#assertArtifact(request.artifactHash);
     const member = this.#authorizedMember(request.subjectPrincipal);
     this.#assertNoExactBinding(request);
@@ -119,13 +142,13 @@ export class AgentHandoffService {
       key: request,
       expectedAssignmentId: current?.assignmentId,
       nextAssignment: assignment,
-      initiatedByPrincipal: request.subjectPrincipal,
+      initiatedByPrincipal,
       occurredAt: request.requestedAt,
       evidence: {
         artifactHash: request.artifactHash,
         ruleId: rule.id,
         purpose: rule.purpose,
-        reason: "allowlisted-agent-handoff",
+        reason,
       },
     });
     if (result.outcome === "conflict") {
@@ -205,9 +228,21 @@ export class AgentHandoffService {
   #authorizedMember(principal: string): RosterMember {
     const member = findByCanonicalPrincipal([...this.#configuration.roster], principal);
     if (!member) throw new AgentHandoffError("unknown-principal", "The authenticated principal is not in the active roster.");
-    if (member.type === "agent") throw new AgentHandoffError("agent-identity", "Agent identities cannot accept conversational handoffs.");
+    if (member.type === "agent" || member.type === "service") throw new AgentHandoffError("agent-identity", "Agent and service identities cannot receive conversational handoffs.");
     if (!/^(active|aktiv)$/i.test(member.status)) {
       throw new AgentHandoffError("inactive-principal", "The authenticated principal is not active in the roster.");
+    }
+    return member;
+  }
+
+  #authorizedWorkflowActor(principal: string): RosterMember {
+    const member = findByCanonicalPrincipal([...this.#configuration.roster], principal);
+    if (!member) throw new AgentHandoffError("unknown-principal", "The Workflow service principal is not in the active roster.");
+    if (!/^(active|aktiv)$/i.test(member.status)) {
+      throw new AgentHandoffError("inactive-principal", "The Workflow service principal is not active in the roster.");
+    }
+    if (member.type !== "agent" && member.type !== "service") {
+      throw new AgentHandoffError("agent-identity", "A Workflow-initiated handoff requires an active agent or service identity.");
     }
     return member;
   }

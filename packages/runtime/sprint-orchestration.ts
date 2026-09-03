@@ -49,11 +49,27 @@ const errorEvidence = (error: unknown): { error_type: string; error_digest: stri
   };
 };
 
+class SprintTimerPrerequisitePendingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SprintTimerPrerequisitePendingError";
+  }
+}
+
+type SprintMessageIntent = Extract<SprintIntent, {
+  type: "message.close-reminder" | "message.close-chase" | "message.close-report" | "message.retro";
+}>;
+
+const isSprintMessageIntent = (intent: SprintIntent): intent is SprintMessageIntent =>
+  intent.type === "message.close-reminder" || intent.type === "message.close-chase"
+  || intent.type === "message.close-report" || intent.type === "message.retro";
+
 export interface SprintDispatchEvidence {
   dispatcherId: string;
   executionId: string;
   outcomeDigest: string;
   receiptIds?: string[];
+  events?: SprintEvent[];
 }
 
 function assertDispatchEvidence(evidence: SprintDispatchEvidence): void {
@@ -62,21 +78,23 @@ function assertDispatchEvidence(evidence: SprintDispatchEvidence): void {
   if (!/^[a-f0-9]{64}$/.test(evidence.outcomeDigest)) throw new Error("Sprint dispatch outcome digest is invalid");
   if ((evidence.receiptIds?.length ?? 0) > 100) throw new Error("Sprint dispatch receipt ids exceed the supported limit");
   for (const receiptId of evidence.receiptIds ?? []) text(receiptId, "Sprint dispatch receipt id", 255);
+  if ((evidence.events?.length ?? 0) > 10) throw new Error("Sprint dispatch events exceed the supported limit");
 }
 
 function assertPolicyAndCalendar(policy: SprintDomainDeclaration, calendar: BusinessCalendar): void {
   if (policy.schema_version !== 1 || !identifier.test(policy.id)) throw new Error("Sprint policy identity is invalid");
   if (calendar.id !== policy.calendar.business_calendar_ref) throw new Error("Sprint business calendar does not match the reviewed policy reference");
   new Intl.DateTimeFormat("en", { timeZone: policy.calendar.timezone }).format();
-  if (!(policy.close.reminder_time < policy.close.complete_by && policy.close.complete_by <= policy.close.report_at)) {
-    throw new Error("Sprint close times must satisfy reminder_time < complete_by <= report_at");
+  const chase = policy.close.chase_time ?? policy.close.complete_by;
+  if (!(policy.close.reminder_time < policy.close.complete_by && policy.close.complete_by <= chase && chase <= policy.close.report_at)) {
+    throw new Error("Sprint close times must satisfy reminder_time < complete_by <= chase_time <= report_at");
   }
   const uniqueHolidays = new Set(calendar.holidays);
   if (uniqueHolidays.size !== calendar.holidays.length || calendar.holidays.length > 2_000) throw new Error("Sprint holidays must be unique and bounded");
   for (const holiday of calendar.holidays) date(holiday, "Sprint holiday");
 }
 
-function assertEvent(event: SprintEvent, state: SprintState): void {
+function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomainDeclaration): void {
   text(event.event_id, "Sprint event id", 255);
   iso(event.occurred_at, "Sprint event occurred_at");
   if (state.last_event_at && event.occurred_at < state.last_event_at) throw new Error("Sprint event is older than the current durable state");
@@ -117,6 +135,36 @@ function assertEvent(event: SprintEvent, state: SprintState): void {
     }
   } else if (event.type === "clock.reached") {
     iso(event.instant, "Sprint clock instant");
+  } else if (event.type === "message.delivered") {
+    text(event.intent_id, "Sprint delivery intent id", 255);
+    text(event.destination_binding, "Sprint delivery destination binding", 127);
+    text(event.message_id, "Sprint delivery message id", 255);
+    text(event.thread_reference, "Sprint delivery thread reference", 1_000);
+    if (event.destination_binding !== policy.delivery.channel_binding) {
+      throw new Error("Sprint delivery does not match the reviewed shared-channel binding");
+    }
+    const deliveries = state.deliveries ?? {};
+    const existing = deliveries[event.intent_id];
+    if (existing && sha256(existing) !== sha256({
+      intent_id: event.intent_id,
+      purpose: event.purpose,
+      destination_binding: event.destination_binding,
+      message_id: event.message_id,
+      thread_reference: event.thread_reference,
+      delivered_at: event.occurred_at,
+    })) {
+      throw new Error(`Sprint delivery intent '${event.intent_id}' already has a different provider receipt`);
+    }
+    if (event.purpose === "close-reminder") {
+      if (state.close_thread_reference && state.close_thread_reference !== event.thread_reference) {
+        throw new Error("Sprint reminder delivery cannot replace the active shared Close thread");
+      }
+    } else if (!state.close_thread_reference || event.thread_reference !== state.close_thread_reference) {
+      throw new Error("Sprint delivery is not in the active shared Close thread");
+    }
+    if (event.purpose === "retro" && !Object.values(deliveries).some((delivery) => delivery.purpose === "close-report")) {
+      throw new Error("Sprint retro delivery requires a prior Close report delivery");
+    }
   } else if (event.sprint_id !== state.sprint_id) {
     throw new Error(`Sprint close identity '${event.sprint_id}' does not match active Sprint '${state.sprint_id}'`);
   }
@@ -131,6 +179,7 @@ export interface SprintIntentDispatcher {
   dispatch(args: {
     instanceId: string;
     definitionId: string;
+    dispatchedAt: string;
     state: SprintState;
     claimed: ClaimedSprintIntent;
   }): Promise<SprintDispatchEvidence>;
@@ -160,9 +209,11 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
   async dispatch(args: {
     instanceId: string;
     definitionId: string;
+    dispatchedAt: string;
     state: SprintState;
     claimed: ClaimedSprintIntent;
   }): Promise<SprintDispatchEvidence> {
+    iso(args.dispatchedAt, "Sprint dispatch time");
     if (!args.state.sprint_id) throw new Error("A claimed Sprint intent has no active Sprint identity");
     const request = await this.resolver.resolve({
       instanceId: args.instanceId,
@@ -178,10 +229,44 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
       runId,
       stepId,
     });
+    const delivery = isSprintMessageIntent(args.claimed.intent)
+      ? this.deliveryEvent(args.claimed.intent, outcome, args.dispatchedAt)
+      : undefined;
     return {
       dispatcherId: "companyos-runtime",
       executionId: `${runId}/${stepId}`,
       outcomeDigest: sha256(outcome),
+      ...(delivery ? { receiptIds: [delivery.message_id], events: [delivery] } : {}),
+    };
+  }
+
+  private deliveryEvent(intent: SprintMessageIntent, outcome: unknown, dispatchedAt: string): Extract<SprintEvent, { type: "message.delivered" }> {
+    if (!outcome || typeof outcome !== "object" || Array.isArray(outcome)) throw new Error("Sprint message Tool returned an invalid result");
+    const toolOutput = (outcome as Record<string, unknown>).output;
+    if (!toolOutput || typeof toolOutput !== "object" || Array.isArray(toolOutput)) throw new Error("Sprint message Tool returned no provider receipt");
+    const receipt = toolOutput as Record<string, unknown>;
+    const messageId = String(receipt.message_id ?? "");
+    const threadReference = String(receipt.thread_reference ?? "");
+    const destinationBinding = String(receipt.destination_binding ?? "");
+    const publishedAt = String(receipt.published_at ?? "");
+    text(messageId, "Sprint provider message id", 255);
+    text(threadReference, "Sprint provider thread reference", 1_000);
+    text(destinationBinding, "Sprint provider destination binding", 127);
+    iso(publishedAt, "Sprint provider published_at");
+    if (destinationBinding !== intent.channel_binding) throw new Error("Sprint provider receipt does not match the resolved destination binding");
+    if (intent.type !== "message.close-reminder" && threadReference !== intent.thread_reference) {
+      throw new Error("Sprint provider receipt does not match the resolved shared thread");
+    }
+    const purpose = intent.type.slice("message.".length) as Extract<SprintEvent, { type: "message.delivered" }>["purpose"];
+    return {
+      type: "message.delivered",
+      event_id: `delivery:${sha256([intent.intent_id, messageId])}`,
+      occurred_at: dispatchedAt,
+      intent_id: intent.intent_id,
+      purpose,
+      destination_binding: destinationBinding,
+      message_id: messageId,
+      thread_reference: threadReference,
     };
   }
 }
@@ -192,6 +277,7 @@ export class SprintOrchestrationService {
   readonly calendar: BusinessCalendar;
   readonly store: SprintOrchestrationStore;
   readonly timers?: DurableTimerService;
+  readonly scheduleVersion?: string;
 
   constructor(args: {
     instanceId: string;
@@ -199,15 +285,18 @@ export class SprintOrchestrationService {
     calendar: BusinessCalendar;
     store: SprintOrchestrationStore;
     timers?: DurableTimerService;
+    scheduleVersion?: string;
   }) {
     text(args.instanceId, "Company Instance id", 127);
     assertPolicyAndCalendar(args.policy, args.calendar);
     if (args.timers && args.timers.instanceId !== args.instanceId) throw new Error("Sprint timers and state must belong to the same Company Instance");
+    if (args.scheduleVersion !== undefined && !/^[a-f0-9]{64}$/.test(args.scheduleVersion)) throw new Error("Sprint schedule version must be a SHA-256 digest");
     this.instanceId = args.instanceId;
     this.policy = structuredClone(args.policy);
     this.calendar = structuredClone(args.calendar);
     this.store = args.store;
     this.timers = args.timers;
+    this.scheduleVersion = args.scheduleVersion;
   }
 
   private get key() {
@@ -223,7 +312,7 @@ export class SprintOrchestrationService {
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const stored = await this.store.getState(this.key);
       const state = stored?.state ?? initialSprintState();
-      assertEvent(event, state);
+      assertEvent(event, state, this.policy);
       const decision: SprintDecision = decideSprintEvent({
         state,
         event: structuredClone(event),
@@ -257,6 +346,7 @@ export class SprintOrchestrationService {
   async openSprint(args: {
     event: Extract<SprintEvent, { type: "sprint.opened" }>;
     nextSprintId?: string;
+    scheduleVersion?: string;
   }): Promise<SprintEventResult & { timers: { scheduled: number; existing: number } }> {
     if (!this.timers) throw new Error("Sprint opening requires a durable timer service");
     if (args.nextSprintId !== undefined) text(args.nextSprintId, "Next Sprint id", 255);
@@ -268,6 +358,7 @@ export class SprintOrchestrationService {
       sprintId: args.event.sprint_id,
       periodEnd: args.event.period_end,
       ...(args.nextSprintId ? { nextSprintId: args.nextSprintId } : {}),
+      ...(args.scheduleVersion ? { scheduleVersion: args.scheduleVersion } : {}),
     });
     return { ...result, timers };
   }
@@ -278,15 +369,19 @@ export class SprintOrchestrationService {
     leaseToken: string;
     leaseExpiresAt: string;
     limit?: number;
-  }): Promise<Array<{ timerId: string; status: "applied" | "duplicate" | "failed"; stateVersion?: number; errorDigest?: string }>> {
+  }): Promise<Array<{ timerId: string; status: "applied" | "duplicate" | "deferred" | "failed"; stateVersion?: number; errorDigest?: string }>> {
     if (!this.timers) throw new Error("Sprint timer processing requires a durable timer service");
     iso(args.now, "Sprint timer worker now");
     iso(args.leaseExpiresAt, "Sprint timer lease expiry");
     text(args.owner, "Sprint timer lease owner", 127);
     text(args.leaseToken, "Sprint timer lease token", 255);
     if (args.leaseExpiresAt <= args.now) throw new Error("Sprint timer lease must expire after now");
-    const claimed = await this.timers.claimDue({ ...args, limit: boundedLimit(args.limit, 50, 200, "Sprint timer claim limit") });
-    const results: Array<{ timerId: string; status: "applied" | "duplicate" | "failed"; stateVersion?: number; errorDigest?: string }> = [];
+    const claimed = await this.timers.claimDue({
+      ...args,
+      timerKind: `sprint.clock-reached:${this.policy.id}`,
+      limit: boundedLimit(args.limit, 50, 200, "Sprint timer claim limit"),
+    });
+    const results: Array<{ timerId: string; status: "applied" | "duplicate" | "deferred" | "failed"; stateVersion?: number; errorDigest?: string }> = [];
     for (const timer of claimed) {
       try {
         const event = await this.eventFromTimer(timer, args.now);
@@ -300,8 +395,14 @@ export class SprintOrchestrationService {
         results.push({ timerId: timer.timerId, status: result.status, stateVersion: result.outcome.stateVersion });
       } catch (error) {
         const failure = errorEvidence(error);
-        await this.timers.fail(timer, failure, args.now);
-        results.push({ timerId: timer.timerId, status: "failed", errorDigest: failure.error_digest });
+        if (error instanceof SprintTimerPrerequisitePendingError) {
+          const retried = await this.timers.retry(timer, timer.dueAt, failure);
+          if (!retried) throw new Error(`Sprint timer '${timer.timerId}' lost its lease before deferral`);
+          results.push({ timerId: timer.timerId, status: "deferred", errorDigest: failure.error_digest });
+        } else {
+          await this.timers.fail(timer, failure, args.now);
+          results.push({ timerId: timer.timerId, status: "failed", errorDigest: failure.error_digest });
+        }
       }
     }
     return results;
@@ -334,12 +435,16 @@ export class SprintOrchestrationService {
     const results: Array<{ intentId: string; status: "succeeded" | "failed"; errorDigest?: string }> = [];
     for (const item of claimed) {
       try {
+        const current = await this.store.getState(this.key);
+        if (!current) throw new Error("Sprint intent dispatch lost its durable Sprint state");
         const evidence = await args.dispatcher.dispatch({
           ...this.key,
-          state: structuredClone(stored.state),
+          dispatchedAt: args.now,
+          state: structuredClone(current.state),
           claimed: item,
         });
         assertDispatchEvidence(evidence);
+        for (const event of evidence.events ?? []) await this.processEvent(event);
         const completed = await this.store.completeIntent({
           ...this.key,
           intentId: item.intent.intent_id,
@@ -365,9 +470,12 @@ export class SprintOrchestrationService {
   }
 
   private async eventFromTimer(timer: ClaimedDurableTimer, observedAt: string): Promise<Extract<SprintEvent, { type: "clock.reached" }>> {
-    if (timer.timerKind !== "sprint.clock-reached") throw new Error(`Unsupported Sprint timer kind '${timer.timerKind}'`);
+    if (timer.timerKind !== `sprint.clock-reached:${this.policy.id}`) throw new Error(`Unsupported Sprint timer kind '${timer.timerKind}'`);
     if (!timer.payload || typeof timer.payload !== "object" || Array.isArray(timer.payload)) throw new Error("Sprint timer payload must be an object");
     const payload = timer.payload as Record<string, JsonValue>;
+    if (this.scheduleVersion && payload.schedule_version !== this.scheduleVersion) {
+      throw new Error("Sprint timer was compiled from a different schedule version");
+    }
     const instant = String(payload.instant ?? "");
     const sprintId = String(payload.sprint_id ?? "");
     iso(instant, "Sprint timer instant");
@@ -376,6 +484,10 @@ export class SprintOrchestrationService {
     if (!stored?.state.sprint_id || stored.state.sprint_id !== sprintId) throw new Error("Sprint timer does not match the active durable Sprint");
     const nextSprintId = payload.next_sprint_id === undefined ? undefined : String(payload.next_sprint_id);
     if (nextSprintId !== undefined) text(nextSprintId, "Next Sprint id", 255);
+    const moment = String(payload.moment ?? "");
+    if ((moment === "chase" || moment === "report") && !stored.state.close_thread_reference) {
+      throw new SprintTimerPrerequisitePendingError(`Sprint ${moment} is waiting for the delivered shared Close thread`);
+    }
     return {
       type: "clock.reached",
       event_id: `timer:${timer.timerId}`,
