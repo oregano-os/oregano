@@ -201,6 +201,10 @@ the Artifact contains the reviewed Sprint declaration, schedule, templates,
 Agent, service principal, exact participant identity namespace, destination
 bindings, and fresh Record projections. Use `shadow` before `active`; shadow
 persists digest evidence but sends no message and changes no work item.
+A schedule that remains `blocked` in the Workspace may be exercised only in
+`shadow` so Stage 0 can qualify the compiled timing without creating an effect.
+`active` workers continue to fail closed until that exact schedule declaration
+is explicitly active.
 
 The checked-in Vercel reference wakes the Sprint workers once per minute.
 Vercel currently supports that frequency only on plans with per-minute Cron;

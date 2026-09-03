@@ -298,7 +298,9 @@ export class HostedSprintRuntime {
 
   private assertScheduledWorkerEnabled(): void {
     if (this.mode === "disabled") throw new Error("Sprint runtime is disabled");
-    if (this.compiled.schedule.activation !== "active") throw new Error("Sprint schedule is blocked in the compiled Workspace manifest");
+    if (this.mode === "active" && this.compiled.schedule.activation !== "active") {
+      throw new Error("Sprint schedule is blocked in the compiled Workspace manifest");
+    }
   }
 }
 

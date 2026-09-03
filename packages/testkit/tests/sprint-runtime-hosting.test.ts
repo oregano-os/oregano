@@ -98,7 +98,7 @@ const workItems: SprintWorkItem[] = [
   { work_item_id: "item-2", title: "Test runtime", assignee_ids: ["blair"], group: "current", status: "working", url: "https://fixture.test/item-2", provider_version: "v2", fields: {} },
 ];
 
-function fixture(mode: "shadow" | "active" = "shadow") {
+function fixture(mode: "shadow" | "active" = "shadow", scheduleActivation: "blocked" | "active" = "active") {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();
   const timers = new DurableTimerService({ store: timerStore, instanceId: "fixture" });
@@ -109,9 +109,30 @@ function fixture(mode: "shadow" | "active" = "shadow") {
       return { dispatcherId: "fixture", executionId: args.claimed.intent.intent_id, outcomeDigest: "d".repeat(64) };
     },
   };
-  const host = new HostedSprintRuntime({ instanceId: "fixture", compiled, mode, store, timers, ...(mode === "active" ? { activeDispatcher } : {}) });
+  const hostedCompiled = { ...compiled, schedule: { ...compiled.schedule, activation: scheduleActivation } };
+  const host = new HostedSprintRuntime({ instanceId: "fixture", compiled: hostedCompiled, mode, store, timers, ...(mode === "active" ? { activeDispatcher } : {}) });
   return { host, store, timerStore, calls };
 }
+
+test("blocked Workspace schedules can be rehearsed in shadow but never dispatched active", async () => {
+  const snapshot = {
+    participants,
+    workItems,
+    observedAt: "2030-01-28T09:01:00.000Z",
+    participantSourceVersion: "participants-v1",
+    workItemSourceVersion: "items-v1",
+  };
+  const shadow = fixture("shadow", "blocked");
+  await shadow.host.open({ sprintId: "sprint-shadow", periodStart: "2030-01-28", periodEnd: "2030-02-01", openedAt: "2030-01-28T09:00:00.000Z", snapshot });
+  assert.equal((await shadow.host.processDueTimers({ now: "2030-02-01T14:00:00.000Z", owner: "shadow", leaseToken: "shadow-lease", leaseExpiresAt: "2030-02-01T14:04:00.000Z" })).length, 1);
+
+  const active = fixture("active", "blocked");
+  await active.host.open({ sprintId: "sprint-active", periodStart: "2030-01-28", periodEnd: "2030-02-01", openedAt: "2030-01-28T09:00:00.000Z", snapshot });
+  await assert.rejects(
+    () => active.host.processDueTimers({ now: "2030-02-01T14:00:00.000Z", owner: "active", leaseToken: "active-lease", leaseExpiresAt: "2030-02-01T14:04:00.000Z" }),
+    /schedule is blocked/,
+  );
+});
 
 test("hosted Sprint runtime opens from one frozen snapshot and is replay-safe", async () => {
   const { host, store } = fixture();
