@@ -113,6 +113,22 @@ resource, destination, or credential; a configured Connector instance does not
 add a Tool grant. Both the ToolSet and Instance binding must agree before a call
 can reach a provider.
 
+Slack presentation is an independent Instance concern. A Company Instance may
+set `COMPANYOS_SLACK_AGENT_VIEW=true` only after its existing Slack app has the
+Agent experience enabled and its installation has granted `assistant:write`.
+The maintained Runner then presents the same external Oregano identity through
+Slack Agent View and requests one best-effort native `Working` status after the
+sender has passed the roster check, the message has passed the duplicate guard,
+and the deterministic CompanyOS Agent has been resolved. The status clears when
+the response is posted. It is presentation only: it cannot select an Agent,
+grant a Tool, change an approval, or prove an effect. The setting defaults to
+disabled so another Company Instance is never migrated implicitly.
+
+Suggested prompts, active-view context, Slack MCP, generated session titles,
+stop handling, and rich work objects are not part of this minimal presentation
+mode. Those features require separate reviewed contracts rather than prompt or
+provider configuration being treated as authorization.
+
 For rollout qualification, the Runner may expose a bearer-protected Stage-0
 surface in a `preview` deployment. It binds one test Artifact and a separate
 compressed, non-secret qualification declaration. A Monday write is first
