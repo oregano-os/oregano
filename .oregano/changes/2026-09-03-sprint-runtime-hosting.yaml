@@ -126,6 +126,7 @@ tests:
   - A bot-authored shared-thread root is durably subscribed before its delivery receipt becomes eligible for participant submissions.
   - The timer wake-up claims only due durable timers, processes bounded work, and persists the event outcome before completing each timer.
   - The intent worker leases bounded work and renders only an allowlisted template from the Artifact before resolving the exact Agent Tool and destination or resource binding.
+  - An enabled intent worker with no opened Sprint returns a successful empty result and performs no dispatch, claim, or external effect.
   - A communication or work-item intent with no Agent grant, confirmation, destination, resource, version, or Capability binding records a no-effect outcome.
   - Events, states, decisions, intents, timers, confirmations, effects, and provider receipts remain queryable as tenant-scoped System of Proof evidence.
   - Hosted Stage-0 synthetic tests cover retry, duplicate, echo, refusal, controlled write, read-after-write, Slack channel and DM, and Agent handoff behavior without a production resource.

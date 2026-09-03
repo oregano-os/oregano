@@ -153,6 +153,31 @@ test("intent dispatch is disabled without an exact dispatcher and preserves leas
   assert.equal([...store.intents.values()].filter((row) => row.state === "failed").length, 1);
 });
 
+test("an enabled intent worker is a successful no-op before a Sprint is opened", async () => {
+  const { service, store } = fixture();
+  let dispatchCalls = 0;
+  const results = await service.dispatchIntents({
+    now: "2030-01-28T08:00:00.000Z",
+    owner: "idle-intent-worker",
+    leaseToken: "idle-intent-lease",
+    leaseExpiresAt: "2030-01-28T08:05:00.000Z",
+    dispatcher: {
+      async dispatch() {
+        dispatchCalls += 1;
+        return {
+          dispatcherId: "idle-fixture-dispatcher",
+          executionId: "unexpected-idle-dispatch",
+          outcomeDigest: "a".repeat(64),
+        };
+      },
+    },
+  });
+
+  assert.deepEqual(results, []);
+  assert.equal(dispatchCalls, 0);
+  assert.equal(store.intents.size, 0);
+});
+
 test("intent leases reject stale workers and preserve explicit retry and cancellation", async () => {
   const { service, store } = fixture();
   await prepare(service);

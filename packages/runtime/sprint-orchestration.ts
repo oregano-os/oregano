@@ -423,7 +423,7 @@ export class SprintOrchestrationService {
     text(args.leaseToken, "Sprint intent lease token", 255);
     if (args.leaseExpiresAt <= args.now) throw new Error("Sprint intent lease must expire after now");
     const stored = await this.store.getState(this.key);
-    if (!stored) throw new Error("Sprint intent dispatch requires durable Sprint state");
+    if (!stored) return [];
     const claimed = await this.store.claimIntents({
       ...this.key,
       now: args.now,
