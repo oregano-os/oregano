@@ -210,8 +210,10 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const sprintBindings = (artifact.sprints ?? []).filter((candidate) => candidate.agentId === agent.id);
   if (sprintBindings.length > 1) throw new Error(`Agent '${agent.id}' has ambiguous Sprint runtime bindings.`);
   if (sprintBindings.length === 1 && isFridaySprintUpdate(message.text)) {
+    let sprintMode: "disabled" | "shadow" | "active" = "disabled";
     try {
-      const { ingestFridaySprintUpdate } = await import("./sprint-runtime.ts");
+      const { currentSprintRuntimeMode, ingestFridaySprintUpdate } = await import("./sprint-runtime.ts");
+      sprintMode = currentSprintRuntimeMode();
       const ingestion = await ingestFridaySprintUpdate({
         agentId: agent.id,
         messageId: message.id,
@@ -220,13 +222,15 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
         threadReference: thread.id,
         text: message.text,
       });
-      if (!ingestion.accepted) {
+      if (!ingestion.accepted && sprintMode !== "shadow") {
         await thread.post(`Your Friday Sprint update was not recorded (${ingestion.reason}).`);
       }
       return;
     } catch (error) {
-      const reference = sha256(error instanceof Error ? error.message : String(error));
-      await thread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
+      if (sprintMode !== "shadow") {
+        const reference = sha256(error instanceof Error ? error.message : String(error));
+        await thread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
+      }
       return;
     }
   }

@@ -8,6 +8,7 @@ import { normalizeSlackFridaySubmission } from "./sprint-slack-submission.ts";
 import {
   CompanyOSSprintIntentDispatcher,
   SprintOrchestrationService,
+  sprintMessageLifecycleEvents,
   type SprintDispatchEvidence,
   type SprintIntentDispatcher,
   type SprintToolExecutionResolver,
@@ -85,7 +86,15 @@ export class ShadowSprintIntentDispatcher implements SprintIntentDispatcher {
           content_digest: rendered.contentDigest,
         } : {}),
       }),
-      ...(delivery ? { receiptIds: [delivery.message_id], events: [delivery] } : {}),
+      ...(delivery ? {
+        receiptIds: [delivery.message_id],
+        events: sprintMessageLifecycleEvents({
+          definitionId: args.definitionId,
+          sprintId: args.state.sprint_id!,
+          intent: intent as SprintMessageIntent,
+          delivery,
+        }),
+      } : {}),
     };
   }
 }

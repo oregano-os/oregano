@@ -59,6 +59,8 @@ export function reduceSprintEvent(current: SprintState, event: SprintEvent): Spr
     state.phase = "closed";
   }
   state.processed_event_ids.push(event.event_id);
-  state.last_event_at = event.occurred_at;
+  state.last_event_at = !state.last_event_at || event.occurred_at > state.last_event_at
+    ? event.occurred_at
+    : state.last_event_at;
   return state;
 }

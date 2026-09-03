@@ -38,7 +38,7 @@ approvals:
   - role: oregano-maintainer
     approver: workspace-steward
     approved_at: 2026-09-03
-    evidence: exact-stage-5e-confirmation-b9681cf1c819564bc45d11446ae5a2b426512b08e3e9100690a21f637cd0d3a9-and-explicit-2026-09-03-user-instruction-to-review-merge-and-publish-core-0.5.5-before-the-isleno-shadow-rollout
+    evidence: exact Stage 5E confirmation and explicit 2026-09-03 user instruction to review, merge, and publish Core 0.5.5 before the consumer shadow rollout
 architecture_assessment:
   responsibilities:
     core:
@@ -123,6 +123,10 @@ tests:
   - Slack Friday submissions enter Sprint state only after trusted Agent and participant resolution.
   - Timer and intent workers are bounded, replay-safe, and successful no-ops before a Sprint is opened.
   - Shadow mode renders and stores Friday Close evidence without Slack or Monday effects.
+  - Provider-timestamped Friday submissions through the report cutoff remain eligible when their callbacks are processed after the report timer but before dispatch; submissions after the cutoff are refused.
+  - Dispatch refreshes time-sensitive Close read models from durable state, and a delivered retro closes the Sprint so the next Sprint can open.
+  - Agent and service identities are structurally unable to approve even when a Workspace grants approval rights by mistake.
+  - Rejected Friday submissions in shadow mode do not create visible Slack replies.
   - Active dispatch fails closed without the exact Agent grant, destination or resource binding, confirmation, effect claim, and provider receipt.
   - Contributor documentation permits autonomous unchanged-scope preparation, batches unavoidable prompts, and preserves every human authority and runtime R0-R4 boundary.
   - Release guidance requires an exact hosted entrypoint and successful execution evidence before describing a runtime capability as runnable or production-ready.
@@ -131,13 +135,14 @@ tests:
 documentation_impact:
   required: true
   affected_documents:
-    - governance.agent-agreement
-    - onboarding.index
-    - onboarding.company-workspace
-    - specification.company-instance-release-promotion-v0.1
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.system-of-proof
+    - specification.company-records-sprint-v0.1
+    - command.records
+    - guide.connect-company-record-source
+    - guide.prepare-instance
     - status.current
-    - workbench.overview
-    - guide.version-release
   reason_if_none: ""
 migration: >-
   Existing v0.5.4 Workspaces and databases require no migration merely to remain

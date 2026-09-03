@@ -17,6 +17,7 @@ import { renderSprintMessageIntent } from "../../runtime/sprint-intent-renderer.
 import {
   authorizeSprintOperator,
   authorizeSprintScheduler,
+  currentSprintRuntimeMode,
   executeSprintOperator,
   parseSprintOperatorRequest,
   scheduledSprintRuntimeDefinitions,
@@ -183,6 +184,15 @@ test("the hosted scheduler selects blocked runtimes only in shadow", () => {
   assert.deepEqual(scheduledSprintRuntimeDefinitions(blockedArtifact, "active"), []);
 });
 
+test("the configured Sprint runtime mode is exact and fails closed", () => {
+  assert.equal(currentSprintRuntimeMode({ COMPANYOS_SPRINT_RUNTIME_MODE: "shadow" } as NodeJS.ProcessEnv), "shadow");
+  assert.equal(currentSprintRuntimeMode({} as NodeJS.ProcessEnv), "disabled");
+  assert.throws(
+    () => currentSprintRuntimeMode({ COMPANYOS_SPRINT_RUNTIME_MODE: "shdow" } as NodeJS.ProcessEnv),
+    /must be disabled, shadow, or active/,
+  );
+});
+
 test("hosted Sprint runtime opens from one frozen snapshot and is replay-safe", async () => {
   const { host, store } = fixture();
   const input = {
@@ -287,10 +297,18 @@ test("hosted shadow runtime proves the ordered shared-thread Friday Close withou
   assert.deepEqual((await host.dispatchIntents({ now: "2030-02-01T17:03:00.000Z", owner: "intent", leaseToken: "intent-5", leaseExpiresAt: "2030-02-01T17:07:00.000Z" })).map((entry) => entry.status), ["succeeded", "succeeded"]);
   const state = (await store.getState({ instanceId: "fixture", definitionId: "weekly-delivery" }))!.state;
   assert.equal(state.close_thread_reference, root);
+  assert.equal(state.phase, "closed");
   assert.deepEqual(Object.values(state.deliveries).map((entry) => entry.purpose).sort(), ["close-chase", "close-reminder", "close-report", "retro"]);
   assert.deepEqual([...store.intents.values()].map((row) => row.intent.type).sort(), [
     "message.close-chase", "message.close-reminder", "message.close-report", "message.retro", "work-item.rollover", "work-item.rollover",
   ]);
+  await assert.doesNotReject(() => host.open({
+    sprintId: "sprint-6",
+    periodStart: "2030-02-04",
+    periodEnd: "2030-02-08",
+    openedAt: "2030-02-04T09:00:00.000Z",
+    snapshot: { participants, workItems, observedAt: "2030-02-04T09:01:00.000Z", participantSourceVersion: "p2", workItemSourceVersion: "w2" },
+  }));
 });
 
 test("a late worker defers dependent timers and catches up in reviewed close order", async () => {

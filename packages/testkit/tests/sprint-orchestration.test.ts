@@ -288,6 +288,68 @@ test("close processing fails closed until the shared Friday thread has a provide
   assert.equal(store.intents.size, 0);
 });
 
+test("a provider-timestamped submission processed after the report timer is included before dispatch", async () => {
+  const { service, store } = fixture();
+  await prepare(service);
+  await service.processEvent({
+    type: "message.delivered",
+    event_id: "late-root-delivered",
+    occurred_at: "2030-02-01T14:00:01.000Z",
+    intent_id: "late-reminder",
+    purpose: "close-reminder",
+    destination_binding: "sprint-channel",
+    message_id: "late-root",
+    thread_reference: "chat:channel:late-root",
+  });
+  await service.processEvent({
+    type: "clock.reached",
+    event_id: "late-clock-report",
+    occurred_at: "2030-02-01T17:00:00.000Z",
+    instant: "2030-02-01T17:00:00.000Z",
+  });
+  await service.processEvent({
+    type: "submission.received",
+    event_id: "delayed-provider-callback",
+    occurred_at: "2030-02-01T16:59:59.000Z",
+    participant_id: "person-b",
+    submission_id: "delayed-provider-callback",
+    task_ids: ["item-b"],
+    complete: true,
+  });
+
+  let dispatched: unknown;
+  const result = await service.dispatchIntents({
+    now: "2030-02-01T17:00:01.000Z",
+    owner: "intent-worker",
+    leaseToken: "late-provider-lease",
+    leaseExpiresAt: "2030-02-01T17:05:00.000Z",
+    dispatcher: {
+      async dispatch({ claimed }) {
+        dispatched = claimed.intent;
+        return {
+          dispatcherId: "fixture-dispatcher",
+          executionId: `fixture:${claimed.intent.intent_id}`,
+          outcomeDigest: "a".repeat(64),
+        };
+      },
+    },
+  });
+  assert.deepEqual(result.map((entry) => entry.status), ["succeeded"]);
+  assert.equal((dispatched as any).type, "message.close-report");
+  assert.equal((dispatched as any).participant_states["person-b"], "complete");
+  assert.equal((await store.getState({ instanceId: "fixture-instance", definitionId: "weekly-delivery" }))?.state.last_event_at, "2030-02-01T17:00:00.000Z");
+
+  await assert.rejects(() => service.processEvent({
+    type: "submission.received",
+    event_id: "after-cutoff",
+    occurred_at: "2030-02-01T17:00:00.001Z",
+    participant_id: "person-a",
+    submission_id: "after-cutoff",
+    task_ids: ["item-a"],
+    complete: true,
+  }), /after the reviewed report cutoff/);
+});
+
 test("Sprint delivery events cannot widen the reviewed channel or bypass the shared-thread order", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const service = new SprintOrchestrationService({ instanceId: "fixture-instance", policy, calendar, store });

@@ -56,7 +56,7 @@ const stringArray = (value: unknown, label: string, maximum = 10_000): string[] 
   return [...new Set(value as string[])];
 };
 
-function runtimeMode(environment: NodeJS.ProcessEnv = process.env): SprintRuntimeMode {
+export function currentSprintRuntimeMode(environment: NodeJS.ProcessEnv = process.env): SprintRuntimeMode {
   const value = environment.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
   if (!(["disabled", "shadow", "active"] as const).includes(value as SprintRuntimeMode)) {
     throw new Error("COMPANYOS_SPRINT_RUNTIME_MODE must be disabled, shadow, or active");
@@ -78,7 +78,7 @@ function selectedSprintRuntime(artifact: CompanyOSArtifact, definitionId?: strin
 export function createHostedSprintRuntime(definitionId?: string): HostedSprintRuntime {
   const artifact = loadArtifact();
   const compiled = selectedSprintRuntime(artifact, definitionId ?? process.env.COMPANYOS_SPRINT_DEFINITION_ID);
-  const mode = runtimeMode();
+  const mode = currentSprintRuntimeMode();
   const store = createPostgresSprintOrchestrationStore();
   const timers = new DurableTimerService({ store: createPostgresDurableTimerStore(), instanceId: artifact.instance.id });
   const companyRuntime = mode === "active" ? getCompanyOSRuntime() : undefined;
@@ -289,7 +289,7 @@ export function scheduledSprintRuntimeDefinitions(
 function scheduledRuntimeDefinitions(): string[] {
   return scheduledSprintRuntimeDefinitions(
     loadArtifact(),
-    runtimeMode(),
+    currentSprintRuntimeMode(),
     process.env.COMPANYOS_SPRINT_DEFINITION_ID,
   );
 }

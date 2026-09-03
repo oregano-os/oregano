@@ -1,5 +1,6 @@
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { BusinessCalendar } from "../domains/sprint/business-time.ts";
+import { sprintCloseSchedule } from "../domains/sprint/business-time.ts";
 import type {
   SprintDecision,
   SprintDomainDeclaration,
@@ -8,6 +9,7 @@ import type {
   SprintState,
 } from "../domains/sprint/contracts.ts";
 import { decideSprintEvent } from "../domains/sprint/decisions.ts";
+import { buildSprintCloseReadModel } from "../domains/sprint/read-models.ts";
 import { initialSprintState } from "../domains/sprint/reducer.ts";
 import { scheduleSprintCloseTimers } from "../domains/sprint/timers.ts";
 import type { ClaimedDurableTimer } from "../state-store/durable-timers.ts";
@@ -56,13 +58,29 @@ class SprintTimerPrerequisitePendingError extends Error {
   }
 }
 
-type SprintMessageIntent = Extract<SprintIntent, {
+export type SprintMessageIntent = Extract<SprintIntent, {
   type: "message.close-reminder" | "message.close-chase" | "message.close-report" | "message.retro";
 }>;
 
 const isSprintMessageIntent = (intent: SprintIntent): intent is SprintMessageIntent =>
   intent.type === "message.close-reminder" || intent.type === "message.close-chase"
   || intent.type === "message.close-report" || intent.type === "message.retro";
+
+/** Complete the durable Sprint lifecycle only after the retro was delivered. */
+export function sprintMessageLifecycleEvents(args: {
+  definitionId: string;
+  sprintId: string;
+  intent: SprintMessageIntent;
+  delivery: Extract<SprintEvent, { type: "message.delivered" }>;
+}): SprintEvent[] {
+  if (args.intent.type !== "message.retro") return [args.delivery];
+  return [args.delivery, {
+    type: "sprint.closed",
+    event_id: `close:${sha256([args.definitionId, args.sprintId, args.intent.intent_id])}`,
+    occurred_at: args.delivery.occurred_at,
+    sprint_id: args.sprintId,
+  }];
+}
 
 export interface SprintDispatchEvidence {
   dispatcherId: string;
@@ -94,10 +112,15 @@ function assertPolicyAndCalendar(policy: SprintDomainDeclaration, calendar: Busi
   for (const holiday of calendar.holidays) date(holiday, "Sprint holiday");
 }
 
-function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomainDeclaration): void {
+function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomainDeclaration, calendar: BusinessCalendar): void {
   text(event.event_id, "Sprint event id", 255);
   iso(event.occurred_at, "Sprint event occurred_at");
-  if (state.last_event_at && event.occurred_at < state.last_event_at) throw new Error("Sprint event is older than the current durable state");
+  // Provider callbacks can be processed after a timer while still carrying an
+  // earlier, authoritative provider timestamp. Submission lists are ordered by
+  // that timestamp, so accepting this one event kind cannot regress snapshots.
+  if (state.last_event_at && event.occurred_at < state.last_event_at && event.type !== "submission.received") {
+    throw new Error("Sprint event is older than the current durable state");
+  }
   if (event.type === "sprint.opened") {
     text(event.sprint_id, "Sprint id", 255);
     date(event.period_start, "Sprint period_start");
@@ -129,6 +152,10 @@ function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomai
     }
   } else if (event.type === "submission.received") {
     text(event.submission_id, "Sprint submission id", 255);
+    if (state.phase === "closed") throw new Error("Sprint submission cannot change a closed Sprint");
+    if (!state.period_end) throw new Error("Sprint submission requires an exact Sprint period end");
+    const reportAt = sprintCloseSchedule({ policy, periodEnd: state.period_end, calendar }).report_at;
+    if (event.occurred_at > reportAt) throw new Error("Sprint submission was sent after the reviewed report cutoff");
     if (!state.participants[event.participant_id]) throw new Error(`Unknown Sprint participant '${event.participant_id}'`);
     if (event.task_ids.length > 10_000 || new Set(event.task_ids).size !== event.task_ids.length) {
       throw new Error("Sprint submission task ids must be unique and bounded");
@@ -236,7 +263,15 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
       dispatcherId: "companyos-runtime",
       executionId: `${runId}/${stepId}`,
       outcomeDigest: sha256(outcome),
-      ...(delivery ? { receiptIds: [delivery.message_id], events: [delivery] } : {}),
+      ...(delivery ? {
+        receiptIds: [delivery.message_id],
+        events: sprintMessageLifecycleEvents({
+          definitionId: args.definitionId,
+          sprintId: args.state.sprint_id,
+          intent: args.claimed.intent as SprintMessageIntent,
+          delivery,
+        }),
+      } : {}),
     };
   }
 
@@ -312,7 +347,7 @@ export class SprintOrchestrationService {
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const stored = await this.store.getState(this.key);
       const state = stored?.state ?? initialSprintState();
-      assertEvent(event, state, this.policy);
+      assertEvent(event, state, this.policy, this.calendar);
       const decision: SprintDecision = decideSprintEvent({
         state,
         event: structuredClone(event),
@@ -437,11 +472,12 @@ export class SprintOrchestrationService {
       try {
         const current = await this.store.getState(this.key);
         if (!current) throw new Error("Sprint intent dispatch lost its durable Sprint state");
+        const resolvedIntent = this.resolveIntentForDispatch(item.intent, current.state);
         const evidence = await args.dispatcher.dispatch({
           ...this.key,
           dispatchedAt: args.now,
           state: structuredClone(current.state),
-          claimed: item,
+          claimed: { ...item, intent: resolvedIntent },
         });
         assertDispatchEvidence(evidence);
         for (const event of evidence.events ?? []) await this.processEvent(event);
@@ -467,6 +503,40 @@ export class SprintOrchestrationService {
       }
     }
     return results;
+  }
+
+  /**
+   * Refresh time-sensitive derived facts immediately before dispatch. This
+   * lets a provider-timestamped submission processed after the report timer,
+   * but before dispatch, participate in the reviewed 17:00 read model.
+   */
+  private resolveIntentForDispatch(intent: SprintIntent, state: SprintState): SprintIntent {
+    if (intent.type === "message.close-reminder" || intent.type === "work-item.rollover" || intent.type === "records.reconcile") {
+      return structuredClone(intent);
+    }
+    if (!state.period_end) throw new Error("Sprint message dispatch requires an exact Sprint period end");
+    const reportAt = sprintCloseSchedule({ policy: this.policy, periodEnd: state.period_end, calendar: this.calendar }).report_at;
+    const close = buildSprintCloseReadModel({ state, policy: this.policy, reportAt });
+    const participantStates = Object.fromEntries(close.participants
+      .filter((participant) => participant.included)
+      .map((participant) => [participant.participant_id, participant.close_state]));
+    if (intent.type === "message.close-chase") {
+      return {
+        ...structuredClone(intent),
+        participant_states: Object.fromEntries(Object.entries(participantStates)
+          .filter(([, value]) => value !== "complete")
+          .map(([participantId, value]) => [participantId, value as "needs-reformat" | "missing"])),
+      };
+    }
+    if (intent.type === "message.close-report") {
+      return { ...structuredClone(intent), participant_states: participantStates };
+    }
+    return {
+      ...structuredClone(intent),
+      participant_states: participantStates,
+      open_work_item_ids: close.open_work_items.map((item) => item.work_item_id).sort(),
+      total_effort_hours: close.total_effort_hours,
+    };
   }
 
   private async eventFromTimer(timer: ClaimedDurableTimer, observedAt: string): Promise<Extract<SprintEvent, { type: "clock.reached" }>> {
