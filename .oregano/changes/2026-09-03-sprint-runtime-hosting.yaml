@@ -126,6 +126,7 @@ tests:
   - Events, states, decisions, intents, timers, confirmations, effects, and provider receipts remain queryable as tenant-scoped System of Proof evidence.
   - Hosted Stage-0 synthetic tests cover retry, duplicate, echo, refusal, controlled write, read-after-write, Slack channel and DM, and Agent handoff behavior without a production resource.
   - A blocked Workspace schedule may run only in shadow for Stage-0 evidence; active dispatch remains fail-closed until the exact schedule is explicitly active.
+  - The hosted scheduler selects a blocked compiled runtime in shadow but excludes it from active dispatch.
 documentation_impact:
   required: true
   affected_documents:

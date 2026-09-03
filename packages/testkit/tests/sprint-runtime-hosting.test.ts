@@ -19,6 +19,7 @@ import {
   authorizeSprintScheduler,
   executeSprintOperator,
   parseSprintOperatorRequest,
+  scheduledSprintRuntimeDefinitions,
   stabilizeSprintProjection,
 } from "../../runner-vercel/src/lib/sprint-runtime.ts";
 
@@ -169,6 +170,17 @@ test("blocked Workspace schedules can be rehearsed in shadow but never dispatche
     () => active.host.processDueTimers({ now: "2030-02-01T14:00:00.000Z", owner: "active", leaseToken: "active-lease", leaseExpiresAt: "2030-02-01T14:04:00.000Z" }),
     /schedule is blocked/,
   );
+});
+
+test("the hosted scheduler selects blocked runtimes only in shadow", () => {
+  const artifact = { sprints: [compiled] } as any;
+  assert.deepEqual(scheduledSprintRuntimeDefinitions(artifact, "disabled"), []);
+  assert.deepEqual(scheduledSprintRuntimeDefinitions(artifact, "shadow"), [compiled.definitionId]);
+  assert.deepEqual(scheduledSprintRuntimeDefinitions(artifact, "active"), [compiled.definitionId]);
+  const blocked = { ...compiled, schedule: { ...compiled.schedule, activation: "blocked" as const } };
+  const blockedArtifact = { sprints: [blocked] } as any;
+  assert.deepEqual(scheduledSprintRuntimeDefinitions(blockedArtifact, "shadow"), [compiled.definitionId]);
+  assert.deepEqual(scheduledSprintRuntimeDefinitions(blockedArtifact, "active"), []);
 });
 
 test("hosted Sprint runtime opens from one frozen snapshot and is replay-safe", async () => {

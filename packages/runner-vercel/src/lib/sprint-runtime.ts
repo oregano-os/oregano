@@ -274,13 +274,24 @@ const lease = (prefix: string, now: string) => ({
   leaseExpiresAt: new Date(new Date(now).getTime() + LEASE_MS).toISOString(),
 });
 
-function scheduledRuntimeDefinitions(): string[] {
-  if (runtimeMode() === "disabled") return [];
-  const artifact = loadArtifact();
-  const selected = process.env.COMPANYOS_SPRINT_DEFINITION_ID;
+export function scheduledSprintRuntimeDefinitions(
+  artifact: CompanyOSArtifact,
+  mode: SprintRuntimeMode,
+  selected?: string,
+): string[] {
+  if (mode === "disabled") return [];
   return (artifact.sprints ?? [])
-    .filter((runtime) => runtime.schedule.activation === "active" && (!selected || runtime.definitionId === selected))
+    .filter((runtime) => (mode === "shadow" || runtime.schedule.activation === "active")
+      && (!selected || runtime.definitionId === selected))
     .map((runtime) => runtime.definitionId);
+}
+
+function scheduledRuntimeDefinitions(): string[] {
+  return scheduledSprintRuntimeDefinitions(
+    loadArtifact(),
+    runtimeMode(),
+    process.env.COMPANYOS_SPRINT_DEFINITION_ID,
+  );
 }
 
 export async function runSprintTimerWorker(now = new Date().toISOString()) {
