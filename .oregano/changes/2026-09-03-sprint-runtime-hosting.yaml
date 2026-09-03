@@ -114,7 +114,8 @@ validation:
   - pnpm runner:build
   - git diff --check
 tests:
-  - Monday People columns normalize to stable provider-id lists for provider-neutral roster and assignee resolution while the raw provider payload remains available as evidence.
+  - Monday People columns, including empty cells, normalize to stable provider-id lists for provider-neutral roster and assignee resolution while the raw provider payload remains available as evidence.
+  - A fully mirrored work item with no provider status remains present with an empty canonical status and is not silently assigned a company meaning.
   - A protected Preview operator may inspect only declared identity fields and their provider display text without writing provider, database, Workspace, or production state.
   - The protected Preview migration prepares and qualifies the complete additive Company Instance database manifest before hosted Stage-0 synchronization.
   - A built Artifact carries only validated, immutable Sprint and schedule declarations and fails closed on absent or stale bindings.

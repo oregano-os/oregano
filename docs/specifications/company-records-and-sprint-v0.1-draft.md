@@ -314,6 +314,11 @@ complete-table mode does not query them and fails closed if a deeper subitem
 level is observed. Other providers require separately maintained and qualified
 adapters behind the same contract.
 
+A maintained adapter MUST normalize an empty typed identity cell to an empty
+identity list while retaining the raw provider value in evidence. A Sprint
+snapshot MAY preserve an absent or empty provider status as an empty canonical
+status; it MUST NOT invent a company status or omit the mirrored work item.
+
 **CRS-036 — Runtime Connector installation.** An immutable Artifact MAY carry
 bounded non-secret runtime Connector instance configuration from the exact
 Instance declaration. Each entry MUST pin an instance-local id, maintained

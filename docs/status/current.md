@@ -165,6 +165,11 @@ evidence, historical prototypes, and production gaps.
   `AgentResolver` for verified conversations. Synthetic Connector tests do not
   claim a real external Agent registration, account permission, cost, provider
   conformance, or production activation.
+- Monday Record Source inventory normalizes both populated and empty People
+  cells to stable provider-id lists while retaining the raw provider value as
+  evidence. Hosted Sprint snapshots preserve mirrored work items with an empty
+  provider status as an empty canonical status; they do not invent a status or
+  drop the item.
 - The maintained Vercel Runner now has an optional fail-closed Monday
   external-Agent ingress. It verifies the raw callback body, timestamp,
   signature, configured Agent identity, and digest-only durable replay claim

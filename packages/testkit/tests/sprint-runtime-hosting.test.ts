@@ -509,13 +509,17 @@ test("Sprint snapshots join provider subjects to stable roster ids without displ
     ],
     workItemRows: [
       { instance_id: "fixture", projection_id: "sprint-items", record_id: "work-1", record_type: "work-item", source_version_id: "wv1", projected_at: "2030-01-28T08:00:00.000Z", values: { work_item_id: "work-1", title: "Ship", assignee_ids: ["102"], group: "current", status: "working", provider_version: "wv1" } },
+      { instance_id: "fixture", projection_id: "sprint-items", record_id: "work-2", record_type: "work-item", source_version_id: "wv2", projected_at: "2030-01-28T08:00:00.000Z", values: { work_item_id: "work-2", title: "Unclassified", assignee_ids: [], group: "backlog", provider_version: "wv2" } },
     ],
     observedAt: "2030-01-28T08:00:00.000Z",
     participantSourceVersion: "roles-v1",
     workItemSourceVersion: "items-v1",
   });
   assert.deepEqual(snapshot.participants.map((participant) => [participant.participant_id, participant.roles]), [["alex", ["Delivery"]], ["blair", ["Delivery"]]]);
-  assert.deepEqual(snapshot.workItems[0].assignee_ids, ["blair"]);
+  assert.deepEqual(snapshot.workItems.map((item) => [item.work_item_id, item.assignee_ids, item.status]), [
+    ["work-1", ["blair"], "working"],
+    ["work-2", [], ""],
+  ]);
   assert.throws(() => normalizeSprintSnapshot({
     roster: [{ id: "alex", role: "contributor", name: "Blair", status: "active", mayApprove: [], principals: ["slack:T1:U1"], groups: ["sprint-participant"] }],
     compiled,

@@ -87,7 +87,7 @@ test("Monday resource discovery returns only exact board structure in requested 
   assert.equal(requests[0].headers.get("api-version"), "dev");
 });
 
-test("Monday record inventory normalizes People columns to stable ids and retains raw provider evidence", async () => {
+test("Monday record inventory normalizes populated and empty People columns while retaining raw provider evidence", async () => {
   const fetcher = async (): Promise<Response> => response({
     boards: [{
       id: "200002",
@@ -112,6 +112,16 @@ test("Monday record inventory normalizes People columns to stable ids and retain
             text: "Alex Example, Sam Example",
             value: JSON.stringify({ personsAndTeams: [{ id: 1001, kind: "person" }, { id: "1002", kind: "person" }, { id: 1001, kind: "person" }] }),
           }],
+        }, {
+          id: "item-2",
+          name: "Unassigned role",
+          updated_at: "2030-02-01T10:00:00.000Z",
+          created_at: "2030-01-01T10:00:00.000Z",
+          state: "active",
+          url: "https://example.test/item-2",
+          board: { id: "200002" },
+          group: { id: "hq" },
+          column_values: [{ id: "people", text: "", value: null }],
         }],
       },
     }],
@@ -121,6 +131,9 @@ test("Monday record inventory normalizes People columns to stable ids and retain
   assert.deepEqual(result.objects[0].columns.people, ["1001", "1002"]);
   assert.equal(result.objects[0].column_text.people, "Alex Example, Sam Example");
   assert.deepEqual((result.objects[0].provider_payload.columns as any).people.personsAndTeams[0], { id: 1001, kind: "person" });
+  assert.deepEqual(result.objects[1].columns.people, []);
+  assert.equal(result.objects[1].column_text.people, "");
+  assert.equal((result.objects[1].provider_payload.columns as any).people, "");
 });
 
 test("the Monday Connector refuses stale versions, unknown fields, read-only effects, and missing claims", async () => {

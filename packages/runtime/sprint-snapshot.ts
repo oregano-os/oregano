@@ -10,6 +10,12 @@ const text = (value: unknown, label: string, maximum = 255): string => {
   return value;
 };
 
+const optionalText = (value: unknown, label: string, maximum = 255): string => {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value !== "string" || value.length > maximum) throw new Error(`${label} is invalid`);
+  return value;
+};
+
 const stringArray = (value: unknown, label: string, maximum = 10_000): string[] => {
   if (!Array.isArray(value) || value.length > maximum || value.some((item) => typeof item !== "string" || !item)) {
     throw new Error(`${label} must be a bounded string list`);
@@ -101,7 +107,7 @@ function workItems(rows: RecordProjectionRow[], providerSubjects: Map<string, st
       title: text(values.title, `Sprint work item '${row.record_id}' title`, 2_000),
       assignee_ids: providerAssignees.map((id) => providerSubjects.get(id) ?? `provider:${id}`),
       group: text(values.group, `Sprint work item '${row.record_id}' group`),
-      status: text(values.status, `Sprint work item '${row.record_id}' status`),
+      status: optionalText(values.status, `Sprint work item '${row.record_id}' status`),
       ...(plannedEffort === undefined ? {} : { planned_effort: plannedEffort }),
       ...(actualHours === undefined ? {} : { actual_hours: actualHours }),
       ...(typeof values.url === "string" && values.url ? { url: values.url } : {}),

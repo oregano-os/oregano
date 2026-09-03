@@ -344,12 +344,14 @@ export class MondayClient {
         const personsAndTeams = type === "people" && parsed && typeof parsed === "object" && !Array.isArray(parsed)
           ? (parsed as Record<string, JsonValue>).personsAndTeams
           : undefined;
-        columns[id] = Array.isArray(personsAndTeams)
-          ? [...new Set(personsAndTeams.flatMap((entry) => {
-              if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
-              const providerId = (entry as Record<string, JsonValue>).id;
-              return typeof providerId === "string" || typeof providerId === "number" ? [String(providerId)] : [];
-            }))]
+        columns[id] = type === "people"
+          ? Array.isArray(personsAndTeams)
+            ? [...new Set(personsAndTeams.flatMap((entry) => {
+                if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+                const providerId = (entry as Record<string, JsonValue>).id;
+                return typeof providerId === "string" || typeof providerId === "number" ? [String(providerId)] : [];
+              }))]
+            : []
           : parsed;
       }
       return { columns, rawColumns, columnText };
