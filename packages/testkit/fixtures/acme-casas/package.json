@@ -6,6 +6,6 @@
     "companyos": "companyos"
   },
   "devDependencies": {
-    "@companyos/cli": "0.1.0-experimental.12"
+    "@companyos/cli": "0.1.0-experimental.13"
   }
 }

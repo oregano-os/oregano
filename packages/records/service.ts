@@ -64,9 +64,16 @@ export class CompanyRecordsService {
     const projected: string[] = [];
     for (const projection of registry.projectionsForRecordType(version.record_type)) {
       const row = projectRecord({ projection, version, projectedAt: now().toISOString() });
-      if (row) await store.upsertProjectionRow(row);
-      else await store.removeProjectionRow(instanceId, projection.id, projectionRecordId(projection.id, version.source_id, version.object_id));
-      projected.push(projection.id);
+      const applied = await store.applyProjectionMutationIfCurrent({
+        instanceId,
+        sourceId: version.source_id,
+        objectId: version.object_id,
+        expectedVersionId: version.version_id,
+        projectionId: projection.id,
+        recordId: projectionRecordId(projection.id, version.source_id, version.object_id),
+        ...(row ? { row } : {}),
+      });
+      if (applied) projected.push(projection.id);
     }
     if (event.cursor) await store.setWatermark(instanceId, source.id, event.cursor, event.observed_at);
     return { duplicate: false, version, projected };
