@@ -133,6 +133,10 @@ tests:
   - The authenticated Preview-only Stage-0 surface can run the maintained hosted timer and intent workers at one exact controlled timestamp, and the same timestamp rerun proves no duplicate processing without enabling a production schedule.
   - A blocked Workspace schedule may run only in shadow for Stage-0 evidence; active dispatch remains fail-closed until the exact schedule is explicitly active.
   - The hosted scheduler selects a blocked compiled runtime in shadow but excludes it from active dispatch.
+  - Provider-timestamped Friday submissions through the report cutoff remain eligible when their callbacks are processed after the report timer but before dispatch; submissions after the cutoff are refused.
+  - Dispatch refreshes time-sensitive Close read models from durable state, and a delivered retro closes the Sprint so the next Sprint can open.
+  - Agent and service identities are structurally unable to approve even when a Workspace grants approval rights by mistake.
+  - Rejected Friday submissions in shadow mode do not create visible Slack replies.
 documentation_impact:
   required: true
   affected_documents:

@@ -3,20 +3,16 @@ plan_id: release-v0.5.5-2026-09-03
 status: approved
 author: codex-agent
 created: 2026-09-03
-title: Prepare Oregano v0.5.5 records and hosted Sprint runtime release
+title: Prepare Oregano v0.5.5 reconciliation and contributor-workflow candidate
 objective: >-
   Prepare one exact Oregano Core patch candidate that bounds and safely resumes
-  complete Company Records reconciliation; hosts the already reviewed,
-  provider-neutral Sprint orchestration through authenticated operator, timer,
-  event, and intent-worker entrypoints; compiles reviewed schedules and message
-  templates into the immutable Artifact; and advances the Workbench version
-  because its maintained operator Guides change with the correction. Also
+  complete Company Records reconciliation, and advance the Workbench version
+  because its maintained Record Source Guide changes with the correction. Also
   document a company-neutral minimal-interruption rule for Agent Contributors
   without changing CompanyOS runtime approval enforcement.
 non_goals:
   - Tag, publish, merge, deploy, promote, or activate this candidate without a separate exact human review.
-  - Change any Company Workspace, provider resource, permission, credential, production data, company schedule, company template, or company Agent policy.
-  - Activate a Company Instance, send a Slack message, change a Monday object, synchronize a real source, or open a real Sprint as part of the Core release.
+  - Change any Company Workspace, provider resource, permission, credential, production data, schedule, or Agent behavior.
   - Remove, weaken, or bypass the CompanyOS R0-R4 runtime effect model or any Workbench-enforced confirmation.
   - Change the approved 0.5.x release line or introduce a consumer migration.
 placement: core
@@ -31,75 +27,68 @@ files_expected:
   - docs/**
   - package.json
   - packages/**
-  - vercel.json
 required_approvals:
   - oregano-maintainer
 approvals:
   - role: oregano-maintainer
     approver: workspace-steward
     approved_at: 2026-09-03
-    evidence: exact Stage 5E confirmation and explicit 2026-09-03 user instruction to review, merge, and publish Core 0.5.5 before the consumer shadow rollout
+    evidence: exact-stage-5e-confirmation-b9681cf1c819564bc45d11446ae5a2b426512b08e3e9100690a21f637cd0d3a9-and-explicit-instruction-to-continue-with-a-0.5.x-correction-candidate
 architecture_assessment:
   responsibilities:
     core:
-      - Own the corrected generic reconciliation implementation, atomic current-version projection mutation, provider-neutral hosted Sprint lifecycle, schedule and template compilation, authenticated worker entrypoints, contributor authorization guidance, exact Core version, candidate identity, release checks, and documentation.
+      - Own the corrected generic reconciliation implementation, atomic current-version projection mutation, contributor authorization guidance, exact Core version, candidate identity, release checks, and documentation.
     packages:
-      - Keep the Sprint Blueprint declarative and authority-free; advance the Workbench prerelease because its maintained Guides and validators compile the hosted runtime declarations.
+      - Keep the Sprint Blueprint unchanged; advance the Workbench prerelease only because its maintained Guide copy changes.
     workspace:
       - Require a separate reviewed compatibility update after an immutable Core release exists.
     instance:
       - Require a separately reviewed exact Artifact, deployment, scheduler qualification, promotion, and live verification.
   existing_mechanisms:
     - mechanism: agent-resolver
-      decision: extend
-      reason: Hosted Slack submissions and communication intents reuse deterministic bindings and governed handoffs instead of routing by message content.
+      decision: not-applicable
+      reason: The patch changes no conversational routing.
     - mechanism: toolset-resolver
-      decision: reuse
-      reason: Hosted Sprint workers receive no independent authority and can dispatch only Tools already granted to the resolved Sprint Agent.
+      decision: not-applicable
+      reason: The patch changes no Tool grant or resolution.
     - mechanism: model-recipe-resolver
-      decision: extend
-      reason: Core exposes the generic sprint.coordination task while each Company Instance selects its exact provider and model.
+      decision: not-applicable
+      reason: The patch invokes no model and changes no model route.
     - mechanism: company-records
       decision: extend
-      reason: The candidate hardens reconciliation and freezes Sprint snapshots only from authorized, fresh provider projections.
+      reason: The candidate contains only the existing Company Records reconciliation hardening.
     - mechanism: identity-and-authorization
       decision: reuse
       reason: Existing release, runtime, deployment, caller identity, and human authority checks remain unchanged; contributor guidance removes only redundant conversational pauses.
     - mechanism: timers-and-business-time
-      decision: extend
-      reason: Reviewed Workspace schedules compile into immutable manifests and wake the existing durable timer mechanism without embedding a company cadence in Core.
+      decision: reuse
+      reason: Existing schedule selection remains unchanged.
     - mechanism: approvals-effects-and-idempotency
       decision: extend
       reason: The candidate corrects interrupted reconciliation recovery, atomically guards projection mutations against concurrent newer events, preserves completion evidence, and explicitly retains all runtime approval gates while batching contributor-facing setup prompts.
     - mechanism: capability-contracts-and-connectors
       decision: reuse
-      reason: Rendered Sprint intents still require the existing communication and work-item Capabilities plus exact Connector bindings before any effect is possible.
-  new_core_mechanisms:
-    - Immutable compiled Sprint schedule and message-template declarations derived from a reviewed Workspace.
-    - Maintained Runner assembly and authenticated entrypoints for Sprint operator actions, events, due timers, and bounded intent dispatch.
-    - Provider-neutral intent rendering that records shadow evidence without performing provider effects.
+      reason: Connector and Capability contracts remain compatible and unchanged.
+  new_core_mechanisms: []
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
     public_fixtures: synthetic-only
   core_reusability: >-
-    The release contains provider-neutral records, orchestration, scheduling,
-    rendering, authorization, and evidence mechanisms covered by synthetic
-    fixtures. Every participant, role, calendar, cadence, template, board,
-    channel, model, provider binding, secret, activation, and cost limit remains
-    in a Company Workspace or Company Instance.
+    The release candidate contains only a provider-neutral execution and
+    recovery correction covered by synthetic fixtures. It adds no company or
+    Instance value to Core.
 release_classification:
   selected_increment: patch
   previous_version: 0.5.4
   target_version: 0.5.5
   rationale: >-
-    This is a backward-compatible implementation and hardening release behind
-    the existing experimental Company Records and Sprint contracts. Existing
-    Instances remain inactive unless they separately adopt a reviewed Workspace,
-    current database manifest, exact bindings, and activation. The approved
-    0.5.x line is retained. The Workbench advances from
-    0.1.0-experimental.12 to 0.1.0-experimental.13 because its bundled validators
-    and operator Guides compile and explain the hosted behavior.
+    This is a backward-compatible correction behind the existing experimental
+    Company Records contract plus company-neutral contributor guidance. It
+    requires no Workspace declaration, database migration, provider-permission,
+    runtime approval, or consumer behavior change. The Workbench advances from
+    0.1.0-experimental.12 to 0.1.0-experimental.13 because its bundled operator
+    Guide documents the corrected recovery behavior.
 validation:
   - pnpm companyos plan --check .oregano/changes/2026-09-03-release-v0.5.5.yaml
   - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-03-release-v0.5.5.yaml
@@ -119,15 +108,6 @@ tests:
   - Bounded reconciliation and exact interrupted-retry tests pass with no premature completion evidence.
   - Concurrent newer Source Events cannot be overwritten or removed by an older synchronization or reconciliation projection mutation.
   - Existing production scheduler, identity, authorization, and idempotency tests remain green.
-  - A hosted Sprint opens only from two matching fresh projection reads and records one immutable snapshot.
-  - Slack Friday submissions enter Sprint state only after trusted Agent and participant resolution.
-  - Timer and intent workers are bounded, replay-safe, and successful no-ops before a Sprint is opened.
-  - Shadow mode renders and stores Friday Close evidence without Slack or Monday effects.
-  - Provider-timestamped Friday submissions through the report cutoff remain eligible when their callbacks are processed after the report timer but before dispatch; submissions after the cutoff are refused.
-  - Dispatch refreshes time-sensitive Close read models from durable state, and a delivered retro closes the Sprint so the next Sprint can open.
-  - Agent and service identities are structurally unable to approve even when a Workspace grants approval rights by mistake.
-  - Rejected Friday submissions in shadow mode do not create visible Slack replies.
-  - Active dispatch fails closed without the exact Agent grant, destination or resource binding, confirmation, effect claim, and provider receipt.
   - Contributor documentation permits autonomous unchanged-scope preparation, batches unavoidable prompts, and preserves every human authority and runtime R0-R4 boundary.
   - Release guidance requires an exact hosted entrypoint and successful execution evidence before describing a runtime capability as runnable or production-ready.
   - Documentation, public boundaries, fixture validation, TypeScript, Builder, Runner, and full repository tests pass.
@@ -135,25 +115,22 @@ tests:
 documentation_impact:
   required: true
   affected_documents:
-    - architecture.oregano-core
-    - architecture.company-instance
-    - architecture.system-of-proof
-    - specification.company-records-sprint-v0.1
-    - command.records
-    - guide.connect-company-record-source
-    - guide.prepare-instance
+    - governance.agent-agreement
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
     - status.current
+    - workbench.overview
+    - guide.version-release
   reason_if_none: ""
 migration: >-
-  Existing v0.5.4 Workspaces and databases require no migration merely to remain
-  on v0.5.4 or to consume unchanged capabilities. Adoption of the hosted Sprint
-  runtime requires a separately reviewed exact Workspace compatibility pin,
-  the already defined additive Company Instance database manifest, exact
-  bindings, and a new deployment. Existing production records and evidence are
-  retained and safely reusable.
+  Existing v0.5.4 Workspaces and databases require no migration. Adoption
+  requires a separately reviewed exact Workspace compatibility pin and Company
+  Instance deployment; additive production data from an interrupted v0.5.4
+  reconciliation is retained and safely reusable.
 rollback: >-
   Before publication, close or revert the candidate and remain on exact
   v0.5.4. After publication, consumers may remain on v0.5.4; correct any defect
-  in a newer patch. Before any Instance rollback, disable the records and Sprint
-  schedulers, stop leasing new intents, and retain immutable production evidence.
+  in a newer patch. Disable the records scheduler before any Instance rollback
+  and retain immutable production evidence.
 open_decisions: []
