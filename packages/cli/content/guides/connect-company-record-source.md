@@ -222,7 +222,7 @@ instance_id: example-staging
 source_id: delivery-items
 resource_binding: delivery-board
 connector: oregano/monday-record-source
-connector_version: 0.3.0
+connector_version: 0.3.1
 secret_ref: env:MONDAY_API_TOKEN
 qualification:
   receipt_ref: ./monday-agent-qualification.json

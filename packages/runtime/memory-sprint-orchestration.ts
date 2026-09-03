@@ -80,7 +80,7 @@ export class InMemorySprintOrchestrationStore implements SprintOrchestrationStor
         definitionId: args.definitionId,
         intent: structuredClone(intent),
         state: "pending",
-        availableAt: args.committedAt,
+        availableAt: "due_at" in intent ? intent.due_at : args.committedAt,
         attempts: 0,
         updatedAt: args.committedAt,
       });

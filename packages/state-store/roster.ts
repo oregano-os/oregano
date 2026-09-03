@@ -6,6 +6,8 @@
 import YAML from "yaml";
 
 export interface RosterMember {
+  /** Workspace-owned stable identity; display names are never used as identifiers. */
+  id?: string;
   role: string;
   name: string;
   teamId?: string;
@@ -13,7 +15,7 @@ export interface RosterMember {
   mayApprove: string[];
   /** "aktiv"/"active" unless the roster says otherwise (identity spec §5). */
   status: string;
-  /** "agent" for bot identities — agents never approve (identity spec §2). */
+  /** Non-human identity kind. Agents and services never approve. */
   type?: string;
   /** Canonical identities across all configured surfaces. */
   principals?: string[];
@@ -51,6 +53,9 @@ export function parseRoster(markdown: string): RosterMember[] {
     }
     if (teamId && userId) principals.add(slackPrincipal(teamId, userId));
     return [{
+      id: typeof member.id === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(member.id)
+        ? member.id
+        : undefined,
       role: member.role,
       name: member.name,
       teamId,
@@ -89,8 +94,8 @@ export function authorizePrincipalApproval(
 ): AuthorizeResult {
   const member = findByCanonicalPrincipal(roster, principal);
   if (!member) return { ok: false, principal, reason: `${principal} is not in the roster (handbook/roster.md).` };
-  if (member.type === "agent") {
-    return { ok: false, member, principal, reason: `${member.name} is an agent identity — agents never approve.` };
+  if (member.type === "agent" || member.type === "service") {
+    return { ok: false, member, principal, reason: `${member.name} is a non-human identity — agents never approve and services never approve.` };
   }
   if (!/^(aktiv|active)$/i.test(member.status)) {
     return { ok: false, member, principal, reason: `${member.name} (${member.role}) is ${member.status} — inactive members cannot approve.` };

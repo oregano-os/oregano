@@ -11,6 +11,7 @@ import { STANDARD_COMMUNICATION_TOOLS } from "../standard-tools/communication.ts
 import type { CompanyOSArtifact, InstanceBuildConfiguration } from "./types.ts";
 import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 import { validateAgentRouting } from "../runtime/agent-resolver.ts";
+import { compileSprintRuntimes } from "./sprint-loader.ts";
 
 export function buildCompanyOSArtifact(args: {
   workspaceRoot: string;
@@ -66,6 +67,13 @@ export function buildCompanyOSArtifact(args: {
     defaultAgentId: args.instance.defaultAgentId,
   };
   validateAgentRouting(agentRouting, agents.map((agent) => agent.id));
+  const sprints = compileSprintRuntimes({
+    workspace,
+    instance: args.instance,
+    coreCommit: args.coreCommit,
+    workspaceCommit: args.workspaceCommit,
+    workbenchVersion,
+  });
   const withoutHash = {
     schemaVersion: 1 as const,
     company: workspace.company,
@@ -95,6 +103,7 @@ export function buildCompanyOSArtifact(args: {
     roster: workspace.roster,
     agents,
     agentRouting,
+    sprints,
     builder: args.instance.builder,
   };
   const hashInput = {

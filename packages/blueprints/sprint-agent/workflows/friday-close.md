@@ -23,7 +23,7 @@ required_capabilities:
 2. [sprint, R0] Freeze one versioned participant snapshot and each included participant's committed task set before the reminder.
 3. [sprint, R2] Create one shared Close thread at reminder time, referencing the current immutable template; do not republish the full template weekly.
 4. [sprint, R0] Validate each submission against the frozen committed tasks and template. Ask one focused correction question when structure or a human fact is missing.
-5. [sprint, R2] At the configured chase time, send at most one neutral thread reply for each unresolved included participant.
+5. [sprint, R2] At the configured chase time, send one neutral consolidated thread reply that mentions each unresolved included participant at most once.
 6. [sprint, R0] At report time, freeze exactly one completeness classification. Include accepted submissions up to that instant and exclude later submissions from Friday outputs.
 7. [sprint, R2] Publish the short factual completeness check before the retro, with each included participant exactly once and no excused participant listed.
 8. [sprint, R1] Prepare the factual retro from recorded actual hours, committed work, open work, human-supplied reasons, and coverage gaps.

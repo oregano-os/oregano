@@ -1,5 +1,6 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { gunzipSync } from "node:zlib";
+import type { JsonValue } from "../../../capabilities/contracts.ts";
 import { validateJsonSchemaValue } from "../../../capabilities/validation.ts";
 import {
   MONDAY_RECORD_SOURCE_CONNECTOR_ID,
@@ -24,7 +25,7 @@ import SOURCE_SCHEMA from "../../../schema/company-record-source-v1.schema.json"
 import BINDING_SCHEMA from "../../../schema/company-record-source-binding-v1.schema.json" with { type: "json" };
 import PROJECTION_SCHEMA from "../../../schema/company-record-projection-v1.schema.json" with { type: "json" };
 import { scanCredentialIndicators } from "../../../security/credential-scanner.ts";
-import { ensureCompanyRecordsSchema } from "../../../state-postgres/records-migrate.ts";
+import { prepareCompanyDatabase } from "../../../state-postgres/database-bootstrap.ts";
 import {
   createPostgresCompanyRecordsStore,
   inspectPostgresCompanyRecordProjectionStatus,
@@ -77,6 +78,7 @@ export type CompanyRecordsRehearsalRequest =
   | { readonly action: "plan-sync"; readonly source_id: string }
   | { readonly action: "apply-sync"; readonly source_id: string; readonly confirmation_hash: string }
   | { readonly action: "status"; readonly source_id: string }
+  | { readonly action: "inspect-identities"; readonly source_id: string }
   | {
       readonly action: "plan-monday-qualification";
       readonly agent_id: string;
@@ -261,7 +263,7 @@ export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyReco
   const input = object(value, "request");
   const action = string(input.action, "request.action");
   const migrationActions = new Set(["plan-migration", "apply-migration"]);
-  const sourceActions = new Set(["plan-sync", "apply-sync", "status"]);
+  const sourceActions = new Set(["plan-sync", "apply-sync", "status", "inspect-identities"]);
   const mondayQualificationActions = new Set(["plan-monday-qualification", "apply-monday-qualification"]);
   if (!migrationActions.has(action) && !sourceActions.has(action) && !mondayQualificationActions.has(action)) throw new CompanyRecordsRehearsalError("invalid-request", "Unsupported rehearsal action");
   const allowedKeys = action === "plan-migration"
@@ -302,6 +304,7 @@ export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyReco
   if (action === "apply-migration") return { action, confirmation_hash: confirmationHash! };
   if (action === "plan-sync") return { action, source_id: sourceId! };
   if (action === "apply-sync") return { action, source_id: sourceId!, confirmation_hash: confirmationHash! };
+  if (action === "inspect-identities") return { action, source_id: sourceId! };
   return { action: "status", source_id: sourceId! };
 }
 
@@ -319,7 +322,7 @@ export function planCompanyRecordsPreviewMigration(configuration: CompanyRecords
     configuration_digest: companyRecordsConfigurationDigest(configuration),
     source_confirmations: configuration.source_confirmations,
     database_secret_ref: "env:DATABASE_URL",
-    database_effect: "Create the additive companyos_records schema and its idempotent tables and indexes in the isolated preview database branch.",
+    database_effect: "Prepare and qualify the complete additive Company Instance database manifest, including companyos_records, in the isolated preview database branch.",
     provider_effects: [],
     production_effects: [],
   };
@@ -441,10 +444,11 @@ function assertPreviewIdentity(configuration: CompanyRecordsRehearsalConfigurati
 }
 
 interface RehearsalDependencies {
-  ensureSchema(): Promise<void>;
+  ensureSchema(): Promise<Record<string, unknown> | void>;
   planOperation(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): ReturnType<typeof planCompanyRecordsPreviewSync>;
   runOperation(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string, confirmationHash: string): Promise<Record<string, unknown>>;
   inspectStatus(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): Promise<Record<string, unknown>>;
+  inspectIdentities(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): Promise<Record<string, unknown>>;
   qualifyMonday(input: {
     readonly agentId: string;
     readonly boards: readonly MondayAgentBoardAccessExpectation[];
@@ -453,7 +457,9 @@ interface RehearsalDependencies {
 }
 
 const defaultDependencies: RehearsalDependencies = {
-  ensureSchema: ensureCompanyRecordsSchema,
+  async ensureSchema() {
+    return await prepareCompanyDatabase() as unknown as Record<string, unknown>;
+  },
   planOperation: planCompanyRecordsPreviewSync,
   async runOperation(configuration, sourceId, confirmationHash) {
     const planned = planCompanyRecordsPreviewSync(configuration, sourceId);
@@ -482,6 +488,49 @@ const defaultDependencies: RehearsalDependencies = {
       inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => projection.id)),
     ]);
     return { status, projections, binding: { instance_id: configuration.instance_id, connector: `${selected.binding.connector}@${selected.binding.connector_version}`, resource_binding: selected.binding.resource_binding } };
+  },
+  async inspectIdentities(configuration, sourceId) {
+    const selected = validatedCompanyRecordsSelection(configuration, sourceId);
+    const identityFields = selected.source.fields.filter((field) => field.value_type === "identity");
+    if (identityFields.length === 0) throw new CompanyRecordsRehearsalError("no-identity-fields", `Source '${sourceId}' has no declared identity fields`, 409);
+    const connector = selected.connectors.resolve(selected.binding);
+    const inventory = await connector.readCompleteInventory({ source: selected.source, binding: selected.binding, qualification: selected.qualification });
+    const readPath = (value: Record<string, JsonValue>, path: string): JsonValue | undefined => {
+      let current: JsonValue | undefined = value;
+      for (const segment of path.split(".")) {
+        if (current === null || Array.isArray(current) || typeof current !== "object") return undefined;
+        current = current[segment];
+      }
+      return current;
+    };
+    const candidates = inventory.objects.flatMap((raw) => {
+      const identities = identityFields.flatMap((field) => {
+        const value = readPath(raw, field.source);
+        const providerIds = Array.isArray(value)
+          ? value.filter((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0)
+          : typeof value === "string" && value ? [value] : [];
+        if (providerIds.length === 0) return [];
+        const [root, providerColumnId] = field.source.split(".");
+        const displayText = root === "columns" && providerColumnId
+          ? readPath(raw, `column_text.${providerColumnId}`)
+          : undefined;
+        return [{ target: field.target, provider_ids: providerIds, display_text: typeof displayText === "string" ? displayText : "" }];
+      });
+      if (identities.length === 0) return [];
+      return [{
+        source_object_id: typeof raw.provider_id === "string" ? raw.provider_id : String(raw.id ?? ""),
+        object_kind: typeof raw.object_kind === "string" ? raw.object_kind : "unknown",
+        object_name: typeof raw.name === "string" ? raw.name : "",
+        identities,
+      }];
+    });
+    return {
+      candidates,
+      provider_evidence: inventory.receipt,
+      credentials_retained: false,
+      provider_effects: [],
+      database_effects: [],
+    };
   },
   async qualifyMonday(input) {
     const client = new MondayClient({
@@ -530,8 +579,8 @@ export async function executeCompanyRecordsRehearsal(request: CompanyRecordsRehe
   if (request.action === "apply-migration") {
     const plan = planCompanyRecordsPreviewMigration(configuration);
     if (request.confirmation_hash !== plan.confirmation_hash) throw new CompanyRecordsRehearsalError("confirmation-mismatch", "Migration confirmation does not match the current exact plan", 409);
-    await dependencies.ensureSchema();
-    return { ok: true, applied: true, operation: "migrate", schema: "companyos_records", confirmation_hash: request.confirmation_hash, provider_effects: [], credentials_retained: false };
+    const receipt = await dependencies.ensureSchema();
+    return { ok: true, applied: true, operation: "migrate", schema_manifest: receipt ?? null, confirmation_hash: request.confirmation_hash, provider_effects: [], credentials_retained: false };
   }
   if (request.action === "plan-sync") return { ok: true, plan: dependencies.planOperation(configuration, request.source_id).plan };
   if (request.action === "apply-sync") {
@@ -539,6 +588,9 @@ export async function executeCompanyRecordsRehearsal(request: CompanyRecordsRehe
     if (request.confirmation_hash !== planned.plan.confirmation_hash) throw new CompanyRecordsRehearsalError("confirmation-mismatch", "Synchronization confirmation does not match the current exact plan", 409);
     const result = await dependencies.runOperation(configuration, request.source_id, request.confirmation_hash);
     return { ok: true, applied: true, operation: "sync", source_id: request.source_id, receipt: result.receipt, provider_evidence: result.provider_evidence, credentials_retained: false, provider_effects: [] };
+  }
+  if (request.action === "inspect-identities") {
+    return { ok: true, operation: "inspect-identities", source_id: request.source_id, ...await dependencies.inspectIdentities(configuration, request.source_id) };
   }
   return { ok: true, operation: "status", source_id: request.source_id, ...await dependencies.inspectStatus(configuration, request.source_id) };
 }

@@ -478,13 +478,41 @@ explicit exact-plan Instance effect; deploying Core alone does not apply it.
 Database qualification and `/api/health` then prove the exact records table and
 index set along with the control and knowledge schemas.
 
-The Sprint orchestration package is a reusable Core library, not a hosted
-surface. A Runner must bind the reviewed Sprint declaration and calendar,
-normalized ingress, durable timers, the Sprint store, the exact logical Agent,
-and an intent resolver. The maintained dispatcher then enters the ordinary
+The maintained Vercel Runner hosts the reusable Sprint orchestration library.
+An authenticated operator action may inspect or open one compiled Sprint from
+fresh authorized Company Records projections. Separate `CRON_SECRET`-protected
+timer and intent routes wake bounded durable workers; the hosting cron contains
+no company cadence. Authenticated Slack messages first pass roster
+authorization and deterministic `AgentResolver` routing, then an exact Friday
+template may normalize into a Sprint event. Message content identifies the
+action only; it grants no authority and does not select the Agent.
+
+Friday Close is one ordered shared-channel thread. The reminder publication
+creates the provider thread reference, and the Runner persists a Chat SDK
+subscription before treating that root publication as complete. Participant
+submissions are accepted only in that exact thread. The chase, completeness
+report, and retrospective are replies to the same reference, and each
+successful provider receipt is normalized back into the durable Sprint event
+stream before the next step may become eligible. Direct-message bindings
+remain available for separately declared one-to-one Sprint interactions; they
+are not the Friday reminder path.
+
+Workbench compiles the reviewed Sprint declaration, immutable schedule
+manifest, calendar, Workspace-owned templates, logical Agent, service
+principal, participant identity namespace, and exact destination/resource
+bindings into the Artifact. The maintained dispatcher then enters the ordinary
 `CompanyOSRuntime` Tool boundary; it does not bypass Agent, ToolSet,
-Capability, authorization, idempotency, effect, or evidence controls. Missing
-bindings fail before dispatch.
+Capability, authorization, idempotency, effect, or evidence controls. In
+`shadow` mode rendered content is represented only by digests and no provider
+effect occurs. In `active` mode messages may use an already authorized Tool;
+Rollover stays blocked until its separately confirmed proposal path exists.
+Missing or stale projections, schedule coverage, identity mappings, bindings,
+grants, or dispatchers fail before an effect.
+
+The initial hosted rollout refreshes Monday-backed projections by bounded
+polling and treats Slack as the interactive surface. Monday board-change
+webhooks and Monday card chat are not initial-rollout requirements and require
+later qualification before activation.
 
 A shared Runtime Kernel is considered only after a second independent module
 demonstrates repeated ingress and dispatch logic that cannot be kept coherent

@@ -58,6 +58,21 @@ export interface CapabilityResult {
   evidence: Record<string, unknown>;
 }
 
+/**
+ * A provider effect may already have happened even though its complete receipt
+ * could not be verified. Callers must retain the supplied partial evidence and
+ * must not classify or retry the effect as an ordinary failure.
+ */
+export class CapabilityEffectOutcomeUnknownError extends Error {
+  readonly evidence: unknown;
+
+  constructor(message: string, evidence: unknown) {
+    super(message);
+    this.name = "CapabilityEffectOutcomeUnknownError";
+    this.evidence = structuredClone(evidence);
+  }
+}
+
 export interface Connector {
   readonly id: string;
   readonly version: string;

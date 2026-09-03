@@ -39,6 +39,24 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
     delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
   };
   assert.deepEqual(validateJsonSchemaValue(schema("sprint-configuration-v1.schema.json"), sprint), []);
+
+  const schedule = {
+    schema_version: 1,
+    id: "weekly-delivery-schedule",
+    activation: "blocked",
+    timezone: "UTC",
+    business_days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+    holiday_calendar: { missing_year_policy: "assume-no-holidays", years: {} },
+    delivery_window: { opens_at: "08:00", closes_at: "18:00" },
+    triggers: [
+      { id: "friday-reminder", weekdays: ["friday"], at: "14:00", holiday_shift: "previous-business-day" },
+      { id: "friday-chase", weekdays: ["friday"], at: "16:15", holiday_shift: "previous-business-day" },
+      { id: "friday-report", weekdays: ["friday"], at: "17:00", holiday_shift: "previous-business-day" },
+    ],
+  };
+  assert.deepEqual(validateJsonSchemaValue(schema("sprint-schedule-v1.schema.json"), schedule), []);
+  const scheduleErrors = validateJsonSchemaValue(schema("sprint-schedule-v1.schema.json"), { ...schedule, token: "forbidden" });
+  assert.ok(scheduleErrors.some((error) => error.includes("token") && error.includes("not allowed")));
 });
 
 test("the Core catalog owns provider-neutral records, work-item, and communication contracts", () => {

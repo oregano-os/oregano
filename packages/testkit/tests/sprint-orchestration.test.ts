@@ -6,6 +6,7 @@ import type { SprintDomainDeclaration, SprintEvent, SprintParticipant, SprintWor
 import { DurableTimerService } from "../../runtime/durable-timers.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 import { InMemorySprintOrchestrationStore } from "../../runtime/memory-sprint-orchestration.ts";
+import { sha256 } from "../../runtime/canonical.ts";
 import {
   CompanyOSSprintIntentDispatcher,
   SprintOrchestrationService,
@@ -102,7 +103,7 @@ test("due timers become durable clock events and a replay completes without dupl
     leaseExpiresAt: "2030-02-01T14:05:00.000Z",
   });
   assert.deepEqual(reminder.map((result) => result.status), ["applied"]);
-  assert.equal(store.intents.size, 2);
+  assert.equal(store.intents.size, 1);
   assert.equal([...timerStore.rows.values()].filter((timer) => timer.state === "completed").length, 1);
   const replay = await service.processEvent({
     type: "clock.reached",
@@ -112,7 +113,7 @@ test("due timers become durable clock events and a replay completes without dupl
     next_sprint_id: "sprint-6",
   });
   assert.equal(replay.status, "duplicate");
-  assert.equal(store.intents.size, 2);
+  assert.equal(store.intents.size, 1);
 });
 
 test("intent dispatch is disabled without an exact dispatcher and preserves lease outcomes", async () => {
@@ -132,7 +133,7 @@ test("intent dispatch is disabled without an exact dispatcher and preserves leas
   }), /disabled/);
   const dispatcher: SprintIntentDispatcher = {
     async dispatch({ claimed }) {
-      if (claimed.intent.type === "message.reminder" && claimed.intent.participant_id === "person-b") throw new Error("synthetic delivery failure");
+      if (claimed.intent.type === "message.close-reminder") throw new Error("synthetic delivery failure");
       return {
         dispatcherId: "fixture-dispatcher",
         executionId: `fixture:${claimed.intent.intent_id}`,
@@ -147,9 +148,34 @@ test("intent dispatch is disabled without an exact dispatcher and preserves leas
     leaseExpiresAt: "2030-02-01T14:06:00.000Z",
     dispatcher,
   });
-  assert.deepEqual(results.map((result) => result.status).sort(), ["failed", "succeeded"]);
-  assert.equal([...store.intents.values()].filter((row) => row.state === "succeeded").length, 1);
+  assert.deepEqual(results.map((result) => result.status), ["failed"]);
+  assert.equal([...store.intents.values()].filter((row) => row.state === "succeeded").length, 0);
   assert.equal([...store.intents.values()].filter((row) => row.state === "failed").length, 1);
+});
+
+test("an enabled intent worker is a successful no-op before a Sprint is opened", async () => {
+  const { service, store } = fixture();
+  let dispatchCalls = 0;
+  const results = await service.dispatchIntents({
+    now: "2030-01-28T08:00:00.000Z",
+    owner: "idle-intent-worker",
+    leaseToken: "idle-intent-lease",
+    leaseExpiresAt: "2030-01-28T08:05:00.000Z",
+    dispatcher: {
+      async dispatch() {
+        dispatchCalls += 1;
+        return {
+          dispatcherId: "idle-fixture-dispatcher",
+          executionId: "unexpected-idle-dispatch",
+          outcomeDigest: "a".repeat(64),
+        };
+      },
+    },
+  });
+
+  assert.deepEqual(results, []);
+  assert.equal(dispatchCalls, 0);
+  assert.equal(store.intents.size, 0);
 });
 
 test("intent leases reject stale workers and preserve explicit retry and cancellation", async () => {
@@ -188,7 +214,7 @@ test("intent leases reject stale workers and preserve explicit retry and cancell
     evidence: { reason: "synthetic-transient" },
     retriedAt: "2030-02-01T14:02:00.000Z",
   }), true);
-  const pending = [...store.intents.values()].find((row) => row.state === "pending" && row.intent.intent_id !== claimed[0].intent.intent_id);
+  const pending = [...store.intents.values()].find((row) => row.state === "pending" && row.intent.intent_id === claimed[0].intent.intent_id);
   assert.ok(pending);
   assert.equal(await store.cancelIntent({
     instanceId: "fixture-instance",
@@ -203,22 +229,23 @@ test("intent leases reject stale workers and preserve explicit retry and cancell
 test("CompanyOS dispatcher resolves exact Agent and grant before invoking the normal runtime", async () => {
   const calls: unknown[] = [];
   const dispatcher = new CompanyOSSprintIntentDispatcher({
-    runtime: { async execute(request) { calls.push(request); return { ok: true }; } },
+    runtime: { async execute(request) { calls.push(request); return { output: { message_id: "message-1", destination_binding: "sprint-channel", thread_reference: "slack:C1:thread-1", published_at: "2030-02-01T14:00:01.000Z" }, capabilityEvidence: [] }; } },
     resolver: {
       async resolve({ intent }) {
-        assert.equal(intent.type, "message.reminder");
-        return { agentId: "sprint", grantId: "oregano:communications/publish", input: { destination_binding: "sprint-direct", content: "Synthetic reminder" } };
+        assert.equal(intent.type, "message.close-reminder");
+        return { agentId: "sprint", grantId: "oregano:communications/publish", input: { destination_binding: "sprint-channel", content: "Synthetic reminder" } };
       },
     },
   });
   const dispatchEvidence = await dispatcher.dispatch({
     instanceId: "fixture-instance",
     definitionId: "weekly-delivery",
-    state: { sprint_id: "sprint-5", period_start: "2030-01-28", period_end: "2030-02-01", phase: "open", participants: {}, work_items: {}, submissions: {}, processed_event_ids: [], last_event_at: null },
+    dispatchedAt: "2030-02-01T14:01:00.000Z",
+    state: { sprint_id: "sprint-5", period_start: "2030-01-28", period_end: "2030-02-01", phase: "open", participants: {}, work_items: {}, submissions: {}, deliveries: {}, close_thread_reference: null, next_sprint_id: null, processed_event_ids: [], last_event_at: null },
     claimed: {
       instanceId: "fixture-instance",
       definitionId: "weekly-delivery",
-      intent: { type: "message.reminder", intent_id: "intent-1", participant_id: "person-a", destination_principal: "chat:fixture:person-a", destination_binding: "sprint-direct", due_at: "2030-02-01T14:00:00.000Z", reason: "initial" },
+      intent: { type: "message.close-reminder", intent_id: "intent-1", channel_binding: "sprint-channel", due_at: "2030-02-01T14:00:00.000Z" },
       leaseOwner: "worker",
       leaseToken: "lease",
       leaseExpiresAt: "2030-02-01T14:05:00.000Z",
@@ -228,28 +255,145 @@ test("CompanyOS dispatcher resolves exact Agent and grant before invoking the no
   assert.deepEqual(calls, [{
     agentId: "sprint",
     grantId: "oregano:communications/publish",
-    input: { destination_binding: "sprint-direct", content: "Synthetic reminder" },
+    input: { destination_binding: "sprint-channel", content: "Synthetic reminder" },
     runId: "sprint:weekly-delivery:sprint-5",
     stepId: "intent:intent-1",
   }]);
   assert.deepEqual(dispatchEvidence, {
     dispatcherId: "companyos-runtime",
     executionId: "sprint:weekly-delivery:sprint-5/intent:intent-1",
-    outcomeDigest: "4062edaf750fb8074e7e83e0c9028c94e32468a8b6f1614774328ef045150f93",
+    outcomeDigest: dispatchEvidence.outcomeDigest,
+    receiptIds: ["message-1"],
+    events: [{
+      type: "message.delivered",
+      event_id: `delivery:${sha256(["intent-1", "message-1"])}`,
+      occurred_at: "2030-02-01T14:01:00.000Z",
+      intent_id: "intent-1",
+      purpose: "close-reminder",
+      destination_binding: "sprint-channel",
+      message_id: "message-1",
+      thread_reference: "slack:C1:thread-1",
+    }],
   });
 });
 
-test("reminder decisions fail closed when a direct-message identity or binding is absent", async () => {
-  const missingDirect = structuredClone(policy);
-  delete missingDirect.delivery.direct_binding;
+test("close processing fails closed until the shared Friday thread has a provider receipt", async () => {
   const store = new InMemorySprintOrchestrationStore();
-  const service = new SprintOrchestrationService({ instanceId: "fixture-instance", policy: missingDirect, calendar, store });
+  const service = new SprintOrchestrationService({ instanceId: "fixture-instance", policy, calendar, store });
   await service.processEvent(opened);
   await service.processEvent({ type: "participants.observed", event_id: "participants-1", occurred_at: "2030-01-28T09:01:00.000Z", participants });
   await service.processEvent({ type: "work-items.observed", event_id: "items-1", occurred_at: "2030-01-28T09:02:00.000Z", work_items: workItems });
-  await assert.rejects(() => service.processEvent({ type: "clock.reached", event_id: "clock-reminder", occurred_at: "2030-02-01T14:00:00.000Z", instant: "2030-02-01T14:00:00.000Z" }), /direct-message principal and binding/);
+  await assert.rejects(() => service.processEvent({ type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z" }), /delivered shared Close thread/);
   assert.equal(store.events.size, 3);
   assert.equal(store.intents.size, 0);
+});
+
+test("a provider-timestamped submission processed after the report timer is included before dispatch", async () => {
+  const { service, store } = fixture();
+  await prepare(service);
+  await service.processEvent({
+    type: "message.delivered",
+    event_id: "late-root-delivered",
+    occurred_at: "2030-02-01T14:00:01.000Z",
+    intent_id: "late-reminder",
+    purpose: "close-reminder",
+    destination_binding: "sprint-channel",
+    message_id: "late-root",
+    thread_reference: "chat:channel:late-root",
+  });
+  await service.processEvent({
+    type: "clock.reached",
+    event_id: "late-clock-report",
+    occurred_at: "2030-02-01T17:00:00.000Z",
+    instant: "2030-02-01T17:00:00.000Z",
+  });
+  await service.processEvent({
+    type: "submission.received",
+    event_id: "delayed-provider-callback",
+    occurred_at: "2030-02-01T16:59:59.000Z",
+    participant_id: "person-b",
+    submission_id: "delayed-provider-callback",
+    task_ids: ["item-b"],
+    complete: true,
+  });
+
+  let dispatched: unknown;
+  const result = await service.dispatchIntents({
+    now: "2030-02-01T17:00:01.000Z",
+    owner: "intent-worker",
+    leaseToken: "late-provider-lease",
+    leaseExpiresAt: "2030-02-01T17:05:00.000Z",
+    dispatcher: {
+      async dispatch({ claimed }) {
+        dispatched = claimed.intent;
+        return {
+          dispatcherId: "fixture-dispatcher",
+          executionId: `fixture:${claimed.intent.intent_id}`,
+          outcomeDigest: "a".repeat(64),
+        };
+      },
+    },
+  });
+  assert.deepEqual(result.map((entry) => entry.status), ["succeeded"]);
+  assert.equal((dispatched as any).type, "message.close-report");
+  assert.equal((dispatched as any).participant_states["person-b"], "complete");
+  assert.equal((await store.getState({ instanceId: "fixture-instance", definitionId: "weekly-delivery" }))?.state.last_event_at, "2030-02-01T17:00:00.000Z");
+
+  await assert.rejects(() => service.processEvent({
+    type: "submission.received",
+    event_id: "after-cutoff",
+    occurred_at: "2030-02-01T17:00:00.001Z",
+    participant_id: "person-a",
+    submission_id: "after-cutoff",
+    task_ids: ["item-a"],
+    complete: true,
+  }), /after the reviewed report cutoff/);
+});
+
+test("Sprint delivery events cannot widen the reviewed channel or bypass the shared-thread order", async () => {
+  const store = new InMemorySprintOrchestrationStore();
+  const service = new SprintOrchestrationService({ instanceId: "fixture-instance", policy, calendar, store });
+  await service.processEvent(opened);
+  await assert.rejects(() => service.processEvent({
+    type: "message.delivered",
+    event_id: "wrong-channel",
+    occurred_at: "2030-01-28T09:01:00.000Z",
+    intent_id: "reminder-1",
+    purpose: "close-reminder",
+    destination_binding: "other-channel",
+    message_id: "message-1",
+    thread_reference: "slack:C2:root-1",
+  }), /shared-channel binding/);
+  await service.processEvent({
+    type: "message.delivered",
+    event_id: "root-delivered",
+    occurred_at: "2030-01-28T09:01:00.000Z",
+    intent_id: "reminder-1",
+    purpose: "close-reminder",
+    destination_binding: "sprint-channel",
+    message_id: "message-1",
+    thread_reference: "slack:C1:root-1",
+  });
+  await assert.rejects(() => service.processEvent({
+    type: "message.delivered",
+    event_id: "wrong-thread",
+    occurred_at: "2030-01-28T09:02:00.000Z",
+    intent_id: "report-1",
+    purpose: "close-report",
+    destination_binding: "sprint-channel",
+    message_id: "message-2",
+    thread_reference: "slack:C1:other-root",
+  }), /active shared Close thread/);
+  await assert.rejects(() => service.processEvent({
+    type: "message.delivered",
+    event_id: "retro-before-report",
+    occurred_at: "2030-01-28T09:02:00.000Z",
+    intent_id: "retro-1",
+    purpose: "retro",
+    destination_binding: "sprint-channel",
+    message_id: "message-3",
+    thread_reference: "slack:C1:root-1",
+  }), /prior Close report delivery/);
 });
 
 test("Postgres Sprint orchestration uses one atomic event commit and leased bounded dispatch", () => {

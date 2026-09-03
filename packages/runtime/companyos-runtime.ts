@@ -1,5 +1,4 @@
-import type { Connector } from "../capabilities/contracts.ts";
-import { RISK_ORDER } from "../capabilities/contracts.ts";
+import { CapabilityEffectOutcomeUnknownError, RISK_ORDER, type Connector } from "../capabilities/contracts.ts";
 import { validateJsonSchemaValue } from "../capabilities/validation.ts";
 import type { CompanyOSArtifact, CompiledAgent, CompiledCompanyTool } from "../companyos-builder/types.ts";
 import { ConnectorRegistry } from "../connectors/registry.ts";
@@ -171,38 +170,54 @@ export class CompanyOSRuntime {
     const inputHash = sha256(request.input);
     const idempotencyKey = `${tool.contract.runtimeId}:${request.runId}:${inputHash}`;
     const capabilityEvidence: Record<string, unknown>[] = [];
+    const unknownCapabilityEffects: unknown[] = [];
     const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal);
     const invoke = async () => {
-      const output = await executeIsolatedCompanyTool({
-        compiledSource: tool.compiledSource,
-        file: `${tool.contract.runtimeId}/execute.js`,
-        input: request.input,
-        context: {
-          instanceId: this.#artifact.instance.id,
-          runId: request.runId,
-          stepId: request.stepId,
-          agentId: request.agentId,
-          toolId: tool.contract.runtimeId,
-        },
-        allowedCapabilities: tool.contract.capabilities,
-        ...(this.#toolExecutionTimeoutMs === undefined ? {} : { timeoutMs: this.#toolExecutionTimeoutMs }),
-        invokeCapability: async (capability, input) => {
-          const result = await this.#connectors.invoke(capability, input, {
+      try {
+        const output = await executeIsolatedCompanyTool({
+          compiledSource: tool.compiledSource,
+          file: `${tool.contract.runtimeId}/execute.js`,
+          input: request.input,
+          context: {
             instanceId: this.#artifact.instance.id,
             runId: request.runId,
             stepId: request.stepId,
             agentId: request.agentId,
             toolId: tool.contract.runtimeId,
-            idempotencyKey,
-            subject: accessSubject,
-          });
-          capabilityEvidence.push(result.evidence);
-          return result.output;
-        },
-      });
-      const outputErrors = validateJsonSchemaValue(tool.contract.outputSchema, output);
-      if (outputErrors.length > 0) throw new Error(`Invalid Tool output: ${outputErrors.join("; ")}`);
-      return { output, capabilityEvidence };
+          },
+          allowedCapabilities: tool.contract.capabilities,
+          ...(this.#toolExecutionTimeoutMs === undefined ? {} : { timeoutMs: this.#toolExecutionTimeoutMs }),
+          invokeCapability: async (capability, input) => {
+            try {
+              const result = await this.#connectors.invoke(capability, input, {
+                instanceId: this.#artifact.instance.id,
+                runId: request.runId,
+                stepId: request.stepId,
+                agentId: request.agentId,
+                toolId: tool.contract.runtimeId,
+                idempotencyKey,
+                subject: accessSubject,
+              });
+              capabilityEvidence.push(result.evidence);
+              return result.output;
+            } catch (error) {
+              if (error instanceof CapabilityEffectOutcomeUnknownError) unknownCapabilityEffects.push(error.evidence);
+              throw error;
+            }
+          },
+        });
+        const outputErrors = validateJsonSchemaValue(tool.contract.outputSchema, output);
+        if (outputErrors.length > 0) throw new Error(`Invalid Tool output: ${outputErrors.join("; ")}`);
+        return { output, capabilityEvidence };
+      } catch (error) {
+        if (unknownCapabilityEffects.length > 0) {
+          throw new CapabilityEffectOutcomeUnknownError(
+            "One or more provider effects may have happened, but their complete outcome could not be verified.",
+            { capability_effects: structuredClone(unknownCapabilityEffects) },
+          );
+        }
+        throw error;
+      }
     };
 
     if (RISK_ORDER[risk as keyof typeof RISK_ORDER] >= RISK_ORDER.R3) {
@@ -239,7 +254,17 @@ export class CompanyOSRuntime {
       return result;
     }
     const claimed = await this.#state.claimEffect({ idempotencyKey, runId: request.runId, stepId: request.stepId, inputHash });
-    if (!claimed) return { ok: false, duplicate: true, reason: "Effect idempotency key already exists." };
+    if (!claimed) {
+      const existing = await this.#state.getEffect(idempotencyKey);
+      const existingInputHash = existing?.input_hash ?? existing?.inputHash;
+      if (existingInputHash !== undefined && existingInputHash !== inputHash) {
+        throw new Error("Effect idempotency identity conflicts with a different input hash.");
+      }
+      if (existing?.status === "succeeded" && existing.evidence !== undefined && existing.evidence !== null) {
+        return structuredClone(existing.evidence);
+      }
+      return { ok: false, duplicate: true, status: existing?.status ?? "unknown", reason: "Effect idempotency key already exists." };
+    }
     await this.#state.markEffectDispatched(idempotencyKey);
     try {
       const result = await invoke();
@@ -256,14 +281,18 @@ export class CompanyOSRuntime {
       });
       return result;
     } catch (error) {
-      const evidence = { error: error instanceof Error ? error.message : String(error) };
-      await this.#state.markEffectFailed(idempotencyKey, evidence);
+      const unknown = error instanceof CapabilityEffectOutcomeUnknownError;
+      const evidence = unknown
+        ? { error: error.message, partial_evidence: error.evidence }
+        : { error: error instanceof Error ? error.message : String(error) };
+      if (unknown) await this.#state.markEffectUnknown(idempotencyKey, evidence);
+      else await this.#state.markEffectFailed(idempotencyKey, evidence);
       await this.#state.appendEvent({
         runId: request.runId,
         stepId: request.stepId,
         actor: "agent",
-        event: "tool.effect-failed",
-        status: "failed",
+        event: unknown ? "tool.effect-unknown" : "tool.effect-failed",
+        status: unknown ? "effect-unknown" : "failed",
         toolVersion: tool.contract.version,
         idempotencyKey,
         evidence,

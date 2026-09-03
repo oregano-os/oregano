@@ -14,7 +14,8 @@
       "required": ["projection", "absence_policy"],
       "properties": {
         "projection": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
-        "absence_policy": { "type": "string", "enum": ["exclude-approved", "include-all"] }
+        "absence_policy": { "type": "string", "enum": ["exclude-approved", "include-all"] },
+        "roster_group": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" }
       }
     },
     "work_items": {
@@ -46,6 +47,7 @@
         "weekday": { "type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] },
         "reminder_time": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
         "complete_by": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+        "chase_time": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
         "report_at": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }
       }
     },
@@ -78,6 +80,17 @@
         "direct_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" }
       }
     },
-    "model_task_profile": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" }
+    "model_task_profile": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" },
+    "rendering": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reminder", "chase", "close_report", "retro"],
+      "properties": {
+        "reminder": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "chase": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "close_report": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "retro": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" }
+      }
+    }
   }
 }

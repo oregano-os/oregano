@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -132,6 +132,18 @@ The queued or leased status of a Sprint intent is coordination state. The
 accepted Sprint event, resulting state version, deterministic intent content,
 and terminal dispatch outcome remain durable proof; expiring a lease never
 erases them.
+
+The hosted Sprint path does not add a fourth evidence schema. Operator-opened
+snapshots, Slack-normalized submissions, clock events, states, decisions,
+intents, timer outcomes, and dispatch outcomes stay in `companyos_records`.
+Any ordinary Tool authorization, confirmation, effect claim, and execution
+outcome stays in `companyos`; an external provider receipt or verified reread
+completes the chain. Shadow dispatch records a template digest and rendered
+content digest only and produces no provider receipt because no provider effect
+occurred. If a provider accepts an effect but a dependent receipt step cannot
+be verified, the effect remains `unknown` with its bounded partial receipt. It
+is never rewritten as an ordinary failure or retried automatically; an
+operator must reconcile the provider before deciding any recovery action.
 
 `retention: retain` means that CompanyOS does not schedule an automatic purge
 merely because evidence has reached an age or disappeared from its provider.

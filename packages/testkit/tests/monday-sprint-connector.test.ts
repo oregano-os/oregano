@@ -87,6 +87,55 @@ test("Monday resource discovery returns only exact board structure in requested 
   assert.equal(requests[0].headers.get("api-version"), "dev");
 });
 
+test("Monday record inventory normalizes populated and empty People columns while retaining raw provider evidence", async () => {
+  const fetcher = async (): Promise<Response> => response({
+    boards: [{
+      id: "200002",
+      name: "Roles",
+      board_kind: "private",
+      state: "active",
+      groups: [{ id: "hq", title: "Headquarters", archived: false, deleted: false }],
+      columns: [{ id: "people", title: "People", type: "people", archived: false, revision: "rev-2", settings: null }],
+      items_page: {
+        cursor: null,
+        items: [{
+          id: "item-1",
+          name: "Head of Operations",
+          updated_at: "2030-02-01T10:00:00.000Z",
+          created_at: "2030-01-01T10:00:00.000Z",
+          state: "active",
+          url: "https://example.test/item-1",
+          board: { id: "200002" },
+          group: { id: "hq" },
+          column_values: [{
+            id: "people",
+            text: "Alex Example, Sam Example",
+            value: JSON.stringify({ personsAndTeams: [{ id: 1001, kind: "person" }, { id: "1002", kind: "person" }, { id: 1001, kind: "person" }] }),
+          }],
+        }, {
+          id: "item-2",
+          name: "Unassigned role",
+          updated_at: "2030-02-01T10:00:00.000Z",
+          created_at: "2030-01-01T10:00:00.000Z",
+          state: "active",
+          url: "https://example.test/item-2",
+          board: { id: "200002" },
+          group: { id: "hq" },
+          column_values: [{ id: "people", text: "", value: null }],
+        }],
+      },
+    }],
+  });
+  const client = new MondayClient({ token: "fixture-memory-token", apiVersion: "dev", fetcher });
+  const result = await client.readCompleteRecordInventory({ boardId: "200002", columnIds: ["people"], groupIds: ["hq"] });
+  assert.deepEqual(result.objects[0].columns.people, ["1001", "1002"]);
+  assert.equal(result.objects[0].column_text.people, "Alex Example, Sam Example");
+  assert.deepEqual((result.objects[0].provider_payload.columns as any).people.personsAndTeams[0], { id: 1001, kind: "person" });
+  assert.deepEqual(result.objects[1].columns.people, []);
+  assert.equal(result.objects[1].column_text.people, "");
+  assert.equal((result.objects[1].provider_payload.columns as any).people, "");
+});
+
 test("the Monday Connector refuses stale versions, unknown fields, read-only effects, and missing claims", async () => {
   const fetcher = async (): Promise<Response> => response(item("v2", "Working"));
   const connector = new MondayWorkItemConnector({

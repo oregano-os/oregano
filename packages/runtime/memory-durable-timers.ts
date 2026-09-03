@@ -28,9 +28,9 @@ export class InMemoryDurableTimerStore implements DurableTimerStore {
     return true;
   }
 
-  async claimDue(args: { instanceId: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit: number }): Promise<ClaimedDurableTimer[]> {
+  async claimDue(args: { instanceId: string; timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit: number }): Promise<ClaimedDurableTimer[]> {
     const due = [...this.rows.values()]
-      .filter((row) => row.instanceId === args.instanceId && (row.state === "scheduled" || (row.state === "leased" && (row.leaseExpiresAt ?? "") <= args.now)) && row.dueAt <= args.now)
+      .filter((row) => row.instanceId === args.instanceId && (!args.timerKind || row.timerKind === args.timerKind) && (row.state === "scheduled" || (row.state === "leased" && (row.leaseExpiresAt ?? "") <= args.now)) && row.dueAt <= args.now)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt) || a.timerId.localeCompare(b.timerId))
       .slice(0, args.limit);
     return due.map((row) => {

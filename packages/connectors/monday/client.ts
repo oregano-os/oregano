@@ -320,21 +320,41 @@ export class MondayClient {
       tableBoards = [board, ...subitemBoardIds.map((id) => children.data.boards.find((candidate) => String(candidate.id) === id)!)];
     }
 
+    const columnTypesByBoard = new Map(tableBoards.map((candidate) => [
+      String(candidate.id),
+      new Map((candidate.columns ?? []).map((column) => [String(column.id), column.type])),
+    ]));
     const objects: MondayRecordObject[] = [];
     const seenObjects = new Set<string>();
-    const parseColumnValues = (values: ColumnValue[]) => {
+    const parseColumnValues = (values: ColumnValue[], itemBoardId: string) => {
       const columns: Record<string, JsonValue> = {};
+      const rawColumns: Record<string, JsonValue> = {};
       const columnText: Record<string, string> = {};
       for (const column of values) {
         const id = String(column.id);
         columnText[id] = column.text ?? "";
-        if (column.value === null) columns[id] = column.text ?? "";
+        let parsed: JsonValue;
+        if (column.value === null) parsed = column.text ?? "";
         else {
-          try { columns[id] = JSON.parse(column.value) as JsonValue; }
-          catch { columns[id] = column.text ?? ""; }
+          try { parsed = JSON.parse(column.value) as JsonValue; }
+          catch { parsed = column.text ?? ""; }
         }
+        rawColumns[id] = parsed;
+        const type = columnTypesByBoard.get(itemBoardId)?.get(id);
+        const personsAndTeams = type === "people" && parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, JsonValue>).personsAndTeams
+          : undefined;
+        columns[id] = type === "people"
+          ? Array.isArray(personsAndTeams)
+            ? [...new Set(personsAndTeams.flatMap((entry) => {
+                if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+                const providerId = (entry as Record<string, JsonValue>).id;
+                return typeof providerId === "string" || typeof providerId === "number" ? [String(providerId)] : [];
+              }))]
+            : []
+          : parsed;
       }
-      return { columns, columnText };
+      return { columns, rawColumns, columnText };
     };
     const remember = (object: MondayRecordObject) => {
       if (seenObjects.has(object.id)) throw new Error(`Monday record inventory returned duplicate object '${object.id}'`);
@@ -383,7 +403,7 @@ export class MondayClient {
       const providerId = String(item.id);
       const groupId = String(item.group.id);
       if (kind === "item" && groupIds.length > 0 && !groupIds.includes(groupId)) return;
-      const { columns, columnText } = parseColumnValues(item.column_values);
+      const { columns, rawColumns, columnText } = parseColumnValues(item.column_values, actualBoardId);
       const id = inventoryMode === "complete-table" ? `${kind}:${providerId}` : providerId;
       remember({
         id, object_kind: kind, provider_id: providerId, name: item.name, updated_at: item.updated_at ?? null,
@@ -395,7 +415,7 @@ export class MondayClient {
           name: item.name, updated_at: item.updated_at ?? null, created_at: item.created_at ?? null,
           state: item.state ?? null, url: item.url ?? null, board_id: actualBoardId, group_id: groupId,
           parent_item_id: parentItemId ?? (item.parent_item ? String(item.parent_item.id) : null),
-          columns, column_text: columnText,
+          columns: rawColumns, column_text: columnText,
         },
       });
     };

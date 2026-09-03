@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companyos.org/schema/sprint-schedule-v1.schema.json",
+  "title": "Sprint schedule declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "activation", "timezone", "business_days", "holiday_calendar", "delivery_window", "triggers"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+    "activation": { "type": "string", "enum": ["blocked", "active"] },
+    "timezone": { "type": "string", "minLength": 1, "maxLength": 127 },
+    "business_days": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] }
+    },
+    "holiday_calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["missing_year_policy", "years"],
+      "properties": {
+        "jurisdiction": { "type": "string", "minLength": 1, "maxLength": 127 },
+        "scope": { "type": "string", "minLength": 1, "maxLength": 127 },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["title", "url", "published"],
+          "properties": {
+            "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+            "url": { "type": "string", "minLength": 1, "maxLength": 2000 },
+            "published": { "type": "string", "format": "date" }
+          }
+        },
+        "missing_year_policy": { "type": "string", "enum": ["assume-no-holidays", "block"] },
+        "years": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[0-9]{4}$" },
+          "additionalProperties": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "format": "date" }
+          }
+        }
+      }
+    },
+    "delivery_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["opens_at", "closes_at"],
+      "properties": {
+        "opens_at": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+        "closes_at": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" }
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "weekdays", "at"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+          "weekdays": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] }
+          },
+          "at": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+          "holiday_shift": { "type": "string", "enum": ["previous-business-day", "next-business-day", "none"] }
+        }
+      }
+    },
+    "blocking_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    }
+  }
+}

@@ -121,3 +121,21 @@ members:
   assert.equal(result.ok, false);
   assert.match(result.reason, /agents never approve/);
 });
+
+test("service principals are refused structurally even when granted approval rights", () => {
+  const serviceRoster = parseRoster(`---
+members:
+  - role: automation
+    name: Sprint Service
+    type: service
+    identities:
+      companyos:
+        principal: "companyos:fixture:sprint"
+    may_approve: [R4]
+---
+# Roster
+`);
+  const result = authorizePrincipalApproval(serviceRoster, "companyos:fixture:sprint", "R4");
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /services never approve/);
+});

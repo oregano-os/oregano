@@ -41,10 +41,13 @@ export interface Stage0Configuration {
 
 export type Stage0Request =
   | { readonly action: "inspect" }
+  | { readonly action: "test-sprint-workers"; readonly test_id: string; readonly at: string }
   | { readonly action: "plan-monday-reversible"; readonly test_id: string; readonly work_item_id?: string }
   | { readonly action: "apply-monday-reversible"; readonly test_id: string; readonly work_item_id?: string; readonly confirmation_hash: string }
   | { readonly action: "plan-slack-delivery"; readonly test_id: string; readonly channel_content: string; readonly direct_content: string }
   | { readonly action: "apply-slack-delivery"; readonly test_id: string; readonly channel_content: string; readonly direct_content: string; readonly confirmation_hash: string }
+  | { readonly action: "plan-slack-direct"; readonly test_id: string; readonly direct_content: string }
+  | { readonly action: "apply-slack-direct"; readonly test_id: string; readonly direct_content: string; readonly confirmation_hash: string }
   | { readonly action: "test-callback-security"; readonly test_id: string };
 
 export class Stage0QualificationError extends Error {
@@ -122,17 +125,28 @@ export function decodeStage0Configuration(encoded = process.env[STAGE0_CONFIGURA
 
 export function parseStage0Request(value: unknown): Stage0Request {
   const input = object(value, "request", 400);
-  const action = string(input.action, "request.action", /^(?:inspect|plan-monday-reversible|apply-monday-reversible|plan-slack-delivery|apply-slack-delivery|test-callback-security)$/, 400) as Stage0Request["action"];
+  const action = string(input.action, "request.action", /^(?:inspect|test-sprint-workers|plan-monday-reversible|apply-monday-reversible|plan-slack-delivery|apply-slack-delivery|plan-slack-direct|apply-slack-direct|test-callback-security)$/, 400) as Stage0Request["action"];
   const allowed = action === "inspect"
     ? ["action"]
+    : action === "test-sprint-workers"
+      ? ["action", "test_id", "at"]
     : action === "test-callback-security"
       ? ["action", "test_id"]
       : action.includes("monday")
         ? ["action", "test_id", "work_item_id", ...(action.startsWith("apply-") ? ["confirmation_hash"] : [])]
-        : ["action", "test_id", "channel_content", "direct_content", ...(action.startsWith("apply-") ? ["confirmation_hash"] : [])];
+        : action.endsWith("slack-direct")
+          ? ["action", "test_id", "direct_content", ...(action.startsWith("apply-") ? ["confirmation_hash"] : [])]
+          : ["action", "test_id", "channel_content", "direct_content", ...(action.startsWith("apply-") ? ["confirmation_hash"] : [])];
   exactKeys(input, allowed, "request", 400);
   if (action === "inspect") return { action };
   const testId = string(input.test_id, "request.test_id", /^[a-z0-9][a-z0-9-]{7,62}$/, 400);
+  if (action === "test-sprint-workers") {
+    const at = string(input.at, "request.at", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, 400);
+    if (Number.isNaN(Date.parse(at)) || new Date(at).toISOString() !== at) {
+      throw new Stage0QualificationError("invalid-configuration", "request.at must be an exact ISO timestamp", 400);
+    }
+    return { action, test_id: testId, at };
+  }
   if (action === "test-callback-security") return { action, test_id: testId };
   const confirmationHash = action.startsWith("apply-")
     ? string(input.confirmation_hash, "request.confirmation_hash", /^[0-9a-f]{64}$/, 400)
@@ -146,8 +160,12 @@ export function parseStage0Request(value: unknown): Stage0Request {
       return { action, test_id: testId, ...(workItemId ? { work_item_id: workItemId } : {}), confirmation_hash: confirmationHash! };
     }
   }
-  const channelContent = string(input.channel_content, "request.channel_content", /^[\s\S]{1,2000}$/, 400);
   const directContent = string(input.direct_content, "request.direct_content", /^[\s\S]{1,2000}$/, 400);
+  if (action === "plan-slack-direct") return { action, test_id: testId, direct_content: directContent };
+  if (action === "apply-slack-direct") {
+    return { action, test_id: testId, direct_content: directContent, confirmation_hash: confirmationHash! };
+  }
+  const channelContent = string(input.channel_content, "request.channel_content", /^[\s\S]{1,2000}$/, 400);
   if (action === "plan-slack-delivery") {
     return { action, test_id: testId, channel_content: channelContent, direct_content: directContent };
   }
@@ -163,6 +181,8 @@ interface Stage0Dependencies {
   readonly chat: Chat;
   readonly environment?: NodeJS.ProcessEnv;
   readonly now?: () => Date;
+  readonly runSprintTimerWorker?: (now: string) => Promise<unknown>;
+  readonly runSprintIntentWorker?: (now: string) => Promise<unknown>;
 }
 
 function assertConfigured(config: Stage0Configuration, artifact: CompanyOSArtifact): void {
@@ -343,6 +363,57 @@ function slackPlan(
   return { ...plan, confirmation_hash: sha256(plan) };
 }
 
+function sprintServicePrincipal(configuration: Stage0Configuration, dependencies: Stage0Dependencies): string {
+  const matches = (dependencies.artifact.sprints ?? []).filter((candidate) => candidate.agentId === configuration.sprint_agent_id);
+  if (matches.length !== 1) {
+    throw new Stage0QualificationError("artifact-mismatch", "The exact Sprint service principal is not compiled", 409);
+  }
+  return matches[0]!.servicePrincipal;
+}
+
+function slackDirectPlan(
+  request: Extract<Stage0Request, { action: "plan-slack-direct" | "apply-slack-direct" }>,
+  configuration: Stage0Configuration,
+) {
+  const plan = {
+    operation: "stage0-slack-direct",
+    test_id: request.test_id,
+    environment: "preview",
+    instance_id: configuration.instance_id,
+    agent_id: configuration.sprint_agent_id,
+    account_id: configuration.slack.account_id,
+    direct_destination_binding: configuration.slack.direct_destination_binding,
+    direct_content: request.direct_content,
+    controls: ["exact-destination-binding", "sprint-service-principal", "effect-idempotency", "provider-receipt"],
+    provider_effects: ["one-approved-direct-message"],
+    forbidden_provider_effects: ["any-channel", "any-other-user", "production-destination"],
+  };
+  return { ...plan, confirmation_hash: sha256(plan) };
+}
+
+async function applySlackDirect(
+  request: Extract<Stage0Request, { action: "apply-slack-direct" }>,
+  configuration: Stage0Configuration,
+  dependencies: Stage0Dependencies,
+) {
+  const plan = slackDirectPlan({ ...request, action: "plan-slack-direct" }, configuration);
+  if (plan.confirmation_hash !== request.confirmation_hash) {
+    throw new Stage0QualificationError("confirmation-mismatch", "Slack direct-message test confirmation does not match the exact plan", 409);
+  }
+  const input = { destination_binding: plan.direct_destination_binding, content: plan.direct_content, format: "plain-text" };
+  const execution = {
+    runId: `stage0-slack-direct-${request.test_id}`,
+    stepId: "publish-direct",
+    agentId: configuration.sprint_agent_id,
+    grantId: "oregano:communications/publish",
+    input,
+    subjectPrincipal: sprintServicePrincipal(configuration, dependencies),
+  };
+  const direct = await dependencies.runtime.execute(execution);
+  const duplicate = await dependencies.runtime.execute(execution);
+  return { ok: true, plan, direct, duplicate, production_touched: false, credentials_retained: false };
+}
+
 async function applySlack(
   request: Extract<Stage0Request, { action: "apply-slack-delivery" }>,
   configuration: Stage0Configuration,
@@ -363,7 +434,7 @@ async function applySlack(
     runId: `stage0-slack-direct-${request.test_id}`, stepId: "publish-direct", agentId: configuration.sprint_agent_id,
     grantId: "oregano:communications/publish",
     input: { destination_binding: plan.direct_destination_binding, content: plan.direct_content, format: "plain-text" },
-    subjectPrincipal: configuration.requester_principal,
+    subjectPrincipal: sprintServicePrincipal(configuration, dependencies),
   });
   return { ok: true, plan, channel, duplicate, direct, production_touched: false, credentials_retained: false };
 }
@@ -435,9 +506,28 @@ export async function executeStage0(
       production_enabled: false,
     };
   }
+  if (request.action === "test-sprint-workers") {
+    if (!dependencies.runSprintTimerWorker || !dependencies.runSprintIntentWorker) {
+      throw new Stage0QualificationError("worker-unavailable", "The hosted Sprint workers are unavailable", 503);
+    }
+    const timers = await dependencies.runSprintTimerWorker(request.at);
+    const intents = await dependencies.runSprintIntentWorker(request.at);
+    return {
+      ok: true,
+      test_id: request.test_id,
+      controlled_time: request.at,
+      timers,
+      intents,
+      environment: "preview",
+      production_touched: false,
+      credentials_retained: false,
+    };
+  }
   if (request.action === "plan-monday-reversible") return { ok: true, plan: await mondayPlan(request, configuration, dependencies) };
   if (request.action === "apply-monday-reversible") return await applyMonday(request, configuration, dependencies);
   if (request.action === "plan-slack-delivery") return { ok: true, plan: slackPlan(request, configuration) };
   if (request.action === "apply-slack-delivery") return await applySlack(request, configuration, dependencies);
+  if (request.action === "plan-slack-direct") return { ok: true, plan: slackDirectPlan(request, configuration) };
+  if (request.action === "apply-slack-direct") return await applySlackDirect(request, configuration, dependencies);
   return await callbackSecurity(request, configuration, dependencies);
 }

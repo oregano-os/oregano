@@ -15,7 +15,7 @@ export class DurableTimerService {
     return this.store.schedule({ ...timer, instanceId: this.instanceId });
   }
 
-  async claimDue(args: { now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit?: number }): Promise<ClaimedDurableTimer[]> {
+  async claimDue(args: { timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit?: number }): Promise<ClaimedDurableTimer[]> {
     return this.store.claimDue({ ...args, instanceId: this.instanceId, limit: Math.min(Math.max(args.limit ?? 50, 1), 200) });
   }
 

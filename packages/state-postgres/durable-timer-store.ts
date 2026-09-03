@@ -49,6 +49,7 @@ export function createPostgresDurableTimerStore(): DurableTimerStore {
       const rows = await connection()`with due as (
           select instance_id, timer_id from companyos_records.durable_timers
           where instance_id = ${args.instanceId}
+            and (${args.timerKind ?? null}::text is null or timer_kind = ${args.timerKind ?? null})
             and due_at <= ${args.now}
             and (state = 'scheduled' or (state = 'leased' and lease_expires_at <= ${args.now}))
           order by due_at, timer_id limit ${args.limit}

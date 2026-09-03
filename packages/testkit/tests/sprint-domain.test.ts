@@ -106,22 +106,53 @@ test("unavailable or incomplete effort remains unavailable instead of becoming z
 test("clock decisions emit reminders, one close report, and all-open rollover intents", () => {
   let state = preparedState();
   const reminder = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-reminder", occurred_at: "2030-02-01T14:00:00.000Z", instant: "2030-02-01T14:00:00.000Z" } });
-  assert.deepEqual(reminder.intents.filter((intent) => intent.type === "message.reminder").map((intent) => intent.participant_id), ["person-b"]);
-  assert.equal(reminder.intents[0].type === "message.reminder" && reminder.intents[0].reason, "initial");
-  assert.equal(reminder.intents[0].type === "message.reminder" && reminder.intents[0].destination_principal, "chat:fixture:person-b");
-  state = reminder.state;
+  assert.deepEqual(reminder.intents.map((intent) => intent.type), ["message.close-reminder"]);
+  const reminderIntent = reminder.intents[0]!;
+  assert.equal(reminderIntent.type === "message.close-reminder" && reminderIntent.channel_binding, "sprint-channel");
+  const deliveredReminder = decideSprintEvent({
+    state: reminder.state,
+    policy,
+    calendar,
+    event: {
+      type: "message.delivered",
+      event_id: "delivered-reminder",
+      occurred_at: "2030-02-01T14:00:01.000Z",
+      intent_id: reminderIntent.intent_id,
+      purpose: "close-reminder",
+      destination_binding: "sprint-channel",
+      message_id: "message-root",
+      thread_reference: "chat:channel:thread-root",
+    },
+  });
+  state = deliveredReminder.state;
 
-  const deadline = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-deadline", occurred_at: "2030-02-01T16:00:00.000Z", instant: "2030-02-01T16:00:00.000Z" } });
-  assert.equal(deadline.intents[0].type === "message.reminder" && deadline.intents[0].reason, "deadline");
-  state = deadline.state;
+  const chase = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-chase", occurred_at: "2030-02-01T16:15:00.000Z", instant: "2030-02-01T16:15:00.000Z" } });
+  assert.equal(chase.intents[0]?.type, "message.close-chase");
+  assert.equal(chase.intents[0]?.type === "message.close-chase" && chase.intents[0].thread_reference, "chat:channel:thread-root");
+  assert.deepEqual(chase.intents[0]?.type === "message.close-chase" && chase.intents[0].participant_states, { "person-b": "needs-reformat" });
+  state = chase.state;
 
   const report = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z", next_sprint_id: "sprint-6" } });
-  assert.equal(report.intents.filter((intent) => intent.type === "message.close-report").length, 1);
-  assert.deepEqual(report.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.work_item_id).sort(), ["item-a", "item-c"]);
-  assert.deepEqual(report.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.expected_version).sort(), ["v1", "v1"]);
+  assert.deepEqual(report.intents.map((intent) => intent.type), ["message.close-report"]);
   assert.equal(report.state.phase, "reporting");
   const duplicate = decideSprintEvent({ state: report.state, policy, calendar, event: { type: "clock.reached", event_id: "clock-report", occurred_at: "2030-02-01T17:00:00.000Z", instant: "2030-02-01T17:00:00.000Z", next_sprint_id: "sprint-6" } });
   assert.deepEqual(duplicate.intents, []);
+
+  const reportIntent = report.intents[0]!;
+  const deliveredReport = decideSprintEvent({ state: report.state, policy, calendar, event: {
+    type: "message.delivered", event_id: "delivered-report", occurred_at: "2030-02-01T17:00:01.000Z",
+    intent_id: reportIntent.intent_id, purpose: "close-report", destination_binding: "sprint-channel",
+    message_id: "message-report", thread_reference: "chat:channel:thread-root",
+  } });
+  assert.deepEqual(deliveredReport.intents.map((intent) => intent.type), ["message.retro"]);
+  const retroIntent = deliveredReport.intents[0]!;
+  const deliveredRetro = decideSprintEvent({ state: deliveredReport.state, policy, calendar, event: {
+    type: "message.delivered", event_id: "delivered-retro", occurred_at: "2030-02-01T17:00:02.000Z",
+    intent_id: retroIntent.intent_id, purpose: "retro", destination_binding: "sprint-channel",
+    message_id: "message-retro", thread_reference: "chat:channel:thread-root",
+  } });
+  assert.deepEqual(deliveredRetro.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.work_item_id).sort(), ["item-a", "item-c"]);
+  assert.deepEqual(deliveredRetro.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.expected_version).sort(), ["v1", "v1"]);
 });
 
 test("a submission after report time does not change the close overview", () => {
@@ -139,7 +170,7 @@ test("Sprint cadence is persisted as idempotent durable timers and claimed witho
   assert.deepEqual(second, { scheduled: 0, existing: 3 });
   const claimed = await timers.claimDue({ now: "2030-02-01T16:00:00.000Z", owner: "worker-1", leaseToken: "lease-1", leaseExpiresAt: "2030-02-01T16:05:00.000Z" });
   assert.equal(claimed.length, 2);
-  assert.deepEqual(claimed.map((timer) => (timer.payload as Record<string, unknown>).moment), ["reminder", "complete-by"]);
+  assert.deepEqual(claimed.map((timer) => (timer.payload as Record<string, unknown>).moment), ["reminder", "chase"]);
   assert.equal(await timers.complete(claimed[0], { delivered: true }, "2030-02-01T16:00:01.000Z"), true);
   assert.equal(await timers.complete(claimed[0], { delivered: true }, "2030-02-01T16:00:02.000Z"), false);
   const reclaimed = await timers.claimDue({ now: "2030-02-01T16:06:00.000Z", owner: "worker-2", leaseToken: "lease-2", leaseExpiresAt: "2030-02-01T16:10:00.000Z" });

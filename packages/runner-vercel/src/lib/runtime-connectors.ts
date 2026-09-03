@@ -1,5 +1,5 @@
 import type { Chat } from "chat";
-import type { Connector, JsonValue } from "../../../capabilities/contracts.ts";
+import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } from "../../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
 import { CompanyRecordsConnector } from "../../../connectors/company-records.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
@@ -7,9 +7,12 @@ import { MondayWorkItemConnector } from "../../../connectors/monday/connector.ts
 import type { MondayResourceBinding } from "../../../connectors/monday/contracts.ts";
 import {
   SlackCommunicationConnector,
+  type BeforeSlackDirectPublish,
   type SlackDestinationBinding,
+  type SlackMessagePublisher,
 } from "../../../connectors/slack/communication.ts";
 import { CompanyRecordsService } from "../../../records/service.ts";
+import { sha256 } from "../../../runtime/canonical.ts";
 import { createPostgresCompanyRecordsStore } from "../../../state-postgres/records-store.ts";
 import { createPostgresMondayEchoStore } from "../../../state-postgres/monday-echo-store.ts";
 import {
@@ -116,9 +119,63 @@ function parseMondayConfiguration(
   });
 }
 
+type SlackChatClient = Pick<Chat, "channel" | "thread" | "openDM">;
+
+/**
+ * Adapts Chat SDK transport primitives to the provider-neutral Slack
+ * publisher. A newly opened channel thread is subscribed before its receipt
+ * is returned so ordinary participant replies reach onSubscribedMessage.
+ */
+export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackMessagePublisher {
+  return {
+    async publishChannel(channelId, content, threadReference) {
+      if (threadReference) {
+        const [surface, threadChannelId] = threadReference.split(":");
+        if (surface !== "slack" || threadChannelId !== channelId) {
+          throw new Error("Slack thread reference does not belong to the configured channel destination.");
+        }
+      }
+      const client = chat();
+      const destination = threadReference ? client.thread(threadReference) : client.channel(`slack:${channelId}`);
+      const message = await destination.post(content);
+      const receipt = { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
+      if (!threadReference) {
+        try {
+          await client.thread(message.threadId).subscribe();
+        } catch (error) {
+          throw new CapabilityEffectOutcomeUnknownError(
+            "Slack published the message, but the new thread subscription could not be verified.",
+            {
+              provider: "slack",
+              operation: "communication.message.publish",
+              outcome: "message-published-thread-subscription-unverified",
+              message_id: receipt.messageId,
+              thread_reference: receipt.threadReference,
+              published_at: receipt.publishedAt,
+              subscription_error_digest: sha256(error instanceof Error ? error.message : String(error)),
+            },
+          );
+        }
+      }
+      return receipt;
+    },
+    async openDirect(userId) {
+      const thread = await chat().openDM(userId);
+      return {
+        threadReference: thread.id,
+        async publish(content: string) {
+          const message = await thread.post(content);
+          return { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
+        },
+      };
+    },
+  };
+}
+
 function parseSlackConfiguration(
   entry: RuntimeConnectorConfiguration,
   chat: () => Chat,
+  beforeDirectPublish?: BeforeSlackDirectPublish,
 ): SlackCommunicationConnector {
   const configuration = entry.configuration;
   exactKeys(configuration, ["destinations"], `Connector instance '${entry.id}'`);
@@ -139,17 +196,8 @@ function parseSlackConfiguration(
   });
   return new SlackCommunicationConnector({
     bindings,
-    publisher: {
-      async publishChannel(channelId, content) {
-        const message = await chat().channel(`slack:${channelId}`).post(content);
-        return { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
-      },
-      async publishDirect(userId, content) {
-        const thread = await chat().openDM(userId);
-        const message = await thread.post(content);
-        return { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
-      },
-    },
+    beforeDirectPublish,
+    publisher: createSlackMessagePublisher(chat),
   });
 }
 
@@ -157,6 +205,7 @@ export function createConfiguredRuntimeConnectors(args: {
   artifact: CompanyOSArtifact;
   environment?: NodeJS.ProcessEnv;
   chat: () => Chat;
+  beforeSlackDirectPublish?: BeforeSlackDirectPublish;
 }): Connector[] {
   const environment = args.environment ?? process.env;
   const connectors: Connector[] = [];
@@ -173,7 +222,7 @@ export function createConfiguredRuntimeConnectors(args: {
       continue;
     }
     if (entry.connector === "oregano/slack-communication" && entry.connectorVersion === "0.1.0") {
-      connectors.push(parseSlackConfiguration(entry, args.chat));
+      connectors.push(parseSlackConfiguration(entry, args.chat, args.beforeSlackDirectPublish));
       continue;
     }
     throw new Error(`Unsupported runtime Connector '${entry.connector}@${entry.connectorVersion}' in instance '${entry.id}'.`);

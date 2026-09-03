@@ -31,6 +31,13 @@ const roster: RosterMember[] = [{
   mayApprove: [],
   principals: ["slack:T1:U1"],
   groups: ["sprint-participant"],
+}, {
+  name: "Sprint Service",
+  role: "automation",
+  status: "active",
+  type: "service",
+  mayApprove: [],
+  principals: ["companyos:instance-1:sprint"],
 }];
 const key = {
   instanceId: "instance-1",
@@ -71,6 +78,37 @@ test("governed handoff creates a sticky assignment without copying messages or T
   );
   const serialized = JSON.stringify({ assignment: result.assignment, receipt: store.receipts[0] });
   assert.doesNotMatch(serialized, /message|prompt|toolset|token/i);
+});
+
+test("a deterministic Workflow creates the same assignment before an outbound direct message", async () => {
+  const { service, store } = createService();
+  const result = await service.assignFromWorkflow({
+    ...key,
+    activeAgentId: "oregano",
+    targetAgentId: "sprint",
+    purpose: "sprint",
+    transitionKey: "workflow-message-1",
+    artifactHash,
+    requestedAt: at,
+    initiatedByPrincipal: "companyos:instance-1:sprint",
+  });
+  assert.equal(result.outcome, "applied");
+  assert.equal(result.assignment?.agentId, "sprint");
+  assert.equal(store.receipts[0]?.initiatedByPrincipal, "companyos:instance-1:sprint");
+  assert.equal(store.receipts[0]?.evidence.reason, "allowlisted-workflow-initiated-handoff");
+  await assert.rejects(
+    () => service.assignFromWorkflow({
+      ...key,
+      activeAgentId: "oregano",
+      targetAgentId: "sprint",
+      purpose: "sprint",
+      transitionKey: "workflow-message-2",
+      artifactHash,
+      requestedAt: at,
+      initiatedByPrincipal: key.subjectPrincipal,
+    }),
+    (error: unknown) => error instanceof AgentHandoffError && error.code === "agent-identity",
+  );
 });
 
 test("duplicate requests reuse prior assignment and return clears it exactly once", async () => {

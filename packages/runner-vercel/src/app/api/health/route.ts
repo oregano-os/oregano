@@ -17,6 +17,21 @@ export async function GET() {
       configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
     });
     const database = await qualifyCompanyDatabase();
+    const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
+    if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
+    const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {
+      const model = resolveModelExecution({ profile: "reasoning", task: sprint.modelTask, requiredCapability: "tools" });
+      return {
+        definitionId: sprint.definitionId,
+        agentId: sprint.agentId,
+        modelTask: sprint.modelTask,
+        modelRoute: model.selection.route,
+        modelProvider: model.selection.provider,
+        model: model.selection.model,
+        scheduleActivation: sprint.schedule.activation,
+        scheduleDigest: sprint.schedule.sourceDigest,
+      };
+    });
     return Response.json({
       ok: true,
       status: "ready",
@@ -53,6 +68,11 @@ export async function GET() {
         enabled: process.env.COMPANYOS_RECORDS_ENABLED === "true",
         schedulerEnabled: process.env.COMPANYOS_RECORDS_SCHEDULER_ENABLED === "true",
         schemaTableCount: database.schemas.companyosRecords.tableCount,
+      },
+      sprint: {
+        mode: sprintMode,
+        runtimeCount: sprintRuntimes.length,
+        runtimes: sprintRuntimes,
       },
       meta: "disabled-until-real-connector-binding",
     });

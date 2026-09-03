@@ -8,6 +8,7 @@ export interface SprintDomainDeclaration {
   participants: {
     projection: string;
     absence_policy: "exclude-approved" | "include-all";
+    roster_group?: string;
   };
   work_items: {
     projection: string;
@@ -24,6 +25,7 @@ export interface SprintDomainDeclaration {
     weekday: Weekday;
     reminder_time: string;
     complete_by: string;
+    chase_time?: string;
     report_at: string;
   };
   submission: {
@@ -41,6 +43,12 @@ export interface SprintDomainDeclaration {
     direct_binding?: string;
   };
   model_task_profile?: string;
+  rendering?: {
+    reminder: string;
+    chase: string;
+    close_report: string;
+    retro: string;
+  };
 }
 
 export interface SprintParticipant {
@@ -70,7 +78,17 @@ export type SprintEvent =
   | { type: "work-items.observed"; event_id: string; occurred_at: string; work_items: SprintWorkItem[] }
   | { type: "submission.received"; event_id: string; occurred_at: string; participant_id: string; submission_id: string; task_ids: string[]; complete: boolean }
   | { type: "clock.reached"; event_id: string; occurred_at: string; instant: string; next_sprint_id?: string }
+  | { type: "message.delivered"; event_id: string; occurred_at: string; intent_id: string; purpose: "close-reminder" | "close-chase" | "close-report" | "retro"; destination_binding: string; message_id: string; thread_reference: string }
   | { type: "sprint.closed"; event_id: string; occurred_at: string; sprint_id: string };
+
+export interface SprintMessageDelivery {
+  intent_id: string;
+  purpose: "close-reminder" | "close-chase" | "close-report" | "retro";
+  destination_binding: string;
+  message_id: string;
+  thread_reference: string;
+  delivered_at: string;
+}
 
 export interface SprintSubmissionState {
   submission_id: string;
@@ -88,13 +106,18 @@ export interface SprintState {
   participants: Record<string, SprintParticipant>;
   work_items: Record<string, SprintWorkItem>;
   submissions: Record<string, SprintSubmissionState[]>;
+  deliveries: Record<string, SprintMessageDelivery>;
+  close_thread_reference: string | null;
+  next_sprint_id: string | null;
   processed_event_ids: string[];
   last_event_at: string | null;
 }
 
 export type SprintIntent =
-  | { type: "message.reminder"; intent_id: string; participant_id: string; destination_principal: string; destination_binding: string; due_at: string; reason: "initial" | "deadline" }
-  | { type: "message.close-report"; intent_id: string; channel_binding: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing"> }
+  | { type: "message.close-reminder"; intent_id: string; channel_binding: string; due_at: string }
+  | { type: "message.close-chase"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; participant_states: Record<string, "needs-reformat" | "missing"> }
+  | { type: "message.close-report"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing"> }
+  | { type: "message.retro"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing">; open_work_item_ids: string[]; total_effort_hours: number | null }
   | { type: "work-item.rollover"; intent_id: string; work_item_id: string; target_sprint_id: string; expected_version: string }
   | { type: "records.reconcile"; intent_id: string; projection_id: string; due_at: string };
 

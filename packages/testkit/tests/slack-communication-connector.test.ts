@@ -18,14 +18,23 @@ test("Slack communication publishes only through an exact destination binding an
       { id: "sprint-test-channel", accountId: "T12345", kind: "channel", channelId: "C12345" },
       { id: "steward-test-dm", accountId: "T12345", kind: "direct-message", userId: "U12345" },
     ],
+    async beforeDirectPublish({ binding, threadReference, context }) {
+      calls.push({ kind: "before-direct-message", binding: binding.id, threadReference, agentId: context.agentId });
+    },
     publisher: {
-      async publishChannel(channelId, content) {
-        calls.push({ kind: "channel", channelId, content });
+      async publishChannel(channelId, content, threadReference) {
+        calls.push({ kind: "channel", channelId, content, threadReference });
         return { messageId: "m-channel", threadReference: "t-channel", publishedAt: "2030-01-01T10:00:00.000Z" };
       },
-      async publishDirect(userId, content) {
-        calls.push({ kind: "direct-message", userId, content });
-        return { messageId: "m-direct", threadReference: "t-direct", publishedAt: "2030-01-01T10:00:01.000Z" };
+      async openDirect(userId) {
+        calls.push({ kind: "direct-message-open", userId });
+        return {
+          threadReference: "slack:D12345",
+          async publish(content: string) {
+            calls.push({ kind: "direct-message", userId, content });
+            return { messageId: "m-direct", threadReference: "slack:D12345", publishedAt: "2030-01-01T10:00:01.000Z" };
+          },
+        };
       },
     },
   });
@@ -40,7 +49,9 @@ test("Slack communication publishes only through an exact destination binding an
   }, { ...context, idempotencyKey: "effect-2" });
 
   assert.deepEqual(calls, [
-    { kind: "channel", channelId: "C12345", content: "Stage-0 test" },
+    { kind: "channel", channelId: "C12345", content: "Stage-0 test", threadReference: undefined },
+    { kind: "direct-message-open", userId: "U12345" },
+    { kind: "before-direct-message", binding: "steward-test-dm", threadReference: "slack:D12345", agentId: "sprint" },
     { kind: "direct-message", userId: "U12345", content: "Stage-0 DM test" },
   ]);
   assert.equal((channel.output as any).message_id, "m-channel");
@@ -54,7 +65,7 @@ test("Slack communication publishes only through an exact destination binding an
 test("Slack communication refuses missing effect claims and malformed destination bindings", async () => {
   const publisher = {
     async publishChannel() { throw new Error("must not run"); },
-    async publishDirect() { throw new Error("must not run"); },
+    async openDirect() { throw new Error("must not run"); },
   };
   assert.throws(() => new SlackCommunicationConnector({
     bindings: [{ id: "invalid", accountId: "T12345", kind: "channel", channelId: "C12345", userId: "U12345" }],

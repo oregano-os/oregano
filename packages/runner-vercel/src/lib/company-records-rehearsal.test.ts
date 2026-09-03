@@ -71,6 +71,7 @@ test("rehearsal authorization is constant-shape and request parsing is strict", 
   assert.equal(authorizeCompanyRecordsRehearsal(new Request("https://example.test", { headers: { authorization: "Bearer fixture-secret" } }), "fixture-secret"), true);
   assert.equal(authorizeCompanyRecordsRehearsal(new Request("https://example.test", { headers: { authorization: "Bearer wrong" } }), "fixture-secret"), false);
   assert.deepEqual(parseCompanyRecordsRehearsalRequest({ action: "plan-sync", source_id: "fixture-items" }), { action: "plan-sync", source_id: "fixture-items" });
+  assert.deepEqual(parseCompanyRecordsRehearsalRequest({ action: "inspect-identities", source_id: "fixture-items" }), { action: "inspect-identities", source_id: "fixture-items" });
   assert.throws(() => parseCompanyRecordsRehearsalRequest({ action: "plan-sync", source_id: "fixture-items", token: "forbidden" }), CompanyRecordsRehearsalError);
   assert.throws(() => parseCompanyRecordsRehearsalRequest({ action: "apply-migration", source_id: "fixture-items", confirmation_hash: "0".repeat(64) }), CompanyRecordsRehearsalError);
 });
@@ -92,7 +93,10 @@ test("preview migration requires its exact independent confirmation", async () =
   const selected = configuration();
   let migrations = 0;
   const dependencies: any = {
-    ensureSchema: async () => { migrations += 1; },
+    ensureSchema: async () => {
+      migrations += 1;
+      return { operation: "upgrade", qualification: { manifestVersion: "1.9.0" } };
+    },
     planOperation: () => { throw new Error("not reached"); },
     runOperation: () => { throw new Error("not reached"); },
     inspectStatus: () => { throw new Error("not reached"); },
@@ -104,8 +108,10 @@ test("preview migration requires its exact independent confirmation", async () =
     /confirmation does not match/,
   );
   assert.equal(migrations, 0);
-  await executeCompanyRecordsRehearsal({ action: "apply-migration", confirmation_hash: planCompanyRecordsPreviewMigration(selected).confirmation_hash }, selected, environment, dependencies);
+  const applied: any = await executeCompanyRecordsRehearsal({ action: "apply-migration", confirmation_hash: planCompanyRecordsPreviewMigration(selected).confirmation_hash }, selected, environment, dependencies);
   assert.equal(migrations, 1);
+  assert.equal(applied.schema_manifest.operation, "upgrade");
+  assert.equal(applied.schema_manifest.qualification.manifestVersion, "1.9.0");
 });
 
 test("preview sync plans stably, blocks wrong confirmation, and returns payload-free evidence", async () => {
@@ -152,6 +158,31 @@ test("preview sync plans stably, blocks wrong confirmation, and returns payload-
   assert.equal(JSON.stringify(applied).includes("First"), false);
   const status: any = await executeCompanyRecordsRehearsal({ action: "status", source_id: "fixture-items" }, selected, environment, dependencies);
   assert.equal(status.status.current_objects, 2);
+});
+
+test("protected Preview identity inspection returns only bounded review candidates without effects", async () => {
+  const selected = configuration();
+  (selected.sources[0] as any).fields.push({ target: "person_ids", source: "columns.people", value_type: "identity" });
+  const dependencies: any = {
+    inspectIdentities: async () => ({
+      candidates: [{
+        source_object_id: "item-1",
+        object_kind: "item",
+        object_name: "Head of Operations",
+        identities: [{ target: "person_ids", provider_ids: ["member-1"], display_text: "Alex Example" }],
+      }],
+      provider_evidence: { connector: "fixture/record-source", complete: true, objects: 1 },
+      credentials_retained: false,
+      provider_effects: [],
+      database_effects: [],
+    }),
+  };
+  const result: any = await executeCompanyRecordsRehearsal({ action: "inspect-identities", source_id: "fixture-items" }, selected, environment, dependencies);
+  assert.equal(result.operation, "inspect-identities");
+  assert.deepEqual(result.candidates[0].identities[0].provider_ids, ["member-1"]);
+  assert.deepEqual(result.provider_effects, []);
+  assert.deepEqual(result.database_effects, []);
+  assert.equal(result.credentials_retained, false);
 });
 
 test("production and mismatched Core deployments fail before planning", async () => {

@@ -18,53 +18,86 @@ export function decideSprintEvent(args: {
   const state = reduceSprintEvent(args.state, args.event);
   const intents: SprintIntent[] = [];
   const evidence: SprintDecision["evidence"] = [{ rule: "event-idempotency", outcome: "accepted", facts: { event_id: args.event.event_id } }];
-  if (args.event.type !== "clock.reached" || !state.sprint_id || !state.period_end || state.phase === "closed") return { state, intents, evidence };
+  if (!state.sprint_id || !state.period_end || state.phase === "closed") return { state, intents, evidence };
 
   const schedule = sprintCloseSchedule({ policy: args.policy, periodEnd: state.period_end, calendar: args.calendar });
-  const instant = args.event.instant;
   const close = buildSprintCloseReadModel({ state, policy: args.policy, reportAt: schedule.report_at });
+  const participantStates = Object.fromEntries(close.participants
+    .filter((participant) => participant.included)
+    .map((participant) => [participant.participant_id, participant.close_state]));
+  if (args.event.type === "message.delivered" && args.event.purpose === "close-report") {
+    intents.push({
+      type: "message.retro",
+      intent_id: intentId("retro", state.sprint_id, schedule.report_at),
+      channel_binding: args.policy.delivery.channel_binding,
+      thread_reference: args.event.thread_reference,
+      due_at: schedule.report_at,
+      participant_states: participantStates,
+      open_work_item_ids: close.open_work_items.map((item) => item.work_item_id).sort(),
+      total_effort_hours: close.total_effort_hours,
+    });
+    evidence.push({ rule: "friday-close-order", outcome: "retro-after-process-check", facts: { close_report_intent_id: args.event.intent_id } });
+    return { state, intents, evidence };
+  }
+  if (args.event.type === "message.delivered" && args.event.purpose === "retro") {
+    if (state.next_sprint_id) {
+      for (const item of close.open_work_items) intents.push({
+        type: "work-item.rollover",
+        intent_id: intentId("rollover", state.sprint_id, state.next_sprint_id, item.work_item_id),
+        work_item_id: item.work_item_id,
+        target_sprint_id: state.next_sprint_id,
+        expected_version: item.provider_version,
+      });
+    }
+    evidence.push({ rule: "friday-close-order", outcome: "rollover-proposals-after-retro", facts: { retro_intent_id: args.event.intent_id, open_work_items: close.open_work_items.length } });
+    return { state, intents, evidence };
+  }
+  if (args.event.type !== "clock.reached") return { state, intents, evidence };
+
+  const instant = args.event.instant;
   if (instant >= schedule.report_at) {
+    if (!state.close_thread_reference) throw new Error("Sprint close report requires the delivered shared Close thread");
     state.phase = "reporting";
-    const participantStates = Object.fromEntries(close.participants.filter((participant) => participant.included).map((participant) => [participant.participant_id, participant.close_state]));
     intents.push({
       type: "message.close-report",
       intent_id: intentId("close-report", state.sprint_id, schedule.report_at),
       channel_binding: args.policy.delivery.channel_binding,
+      thread_reference: state.close_thread_reference,
       due_at: schedule.report_at,
       participant_states: participantStates,
     });
-    if (args.event.next_sprint_id) {
-      for (const item of close.open_work_items) intents.push({
-        type: "work-item.rollover",
-        intent_id: intentId("rollover", state.sprint_id, args.event.next_sprint_id, item.work_item_id),
-        work_item_id: item.work_item_id,
-        target_sprint_id: args.event.next_sprint_id,
-        expected_version: item.provider_version,
-      });
-    }
-    evidence.push({ rule: "friday-close-report", outcome: "report-and-rollover-intents", facts: { report_at: schedule.report_at, included_participants: close.participants.filter((participant) => participant.included).length, open_work_items: close.open_work_items.length } });
+    evidence.push({ rule: "friday-close-report", outcome: "process-check-intent", facts: { report_at: schedule.report_at, included_participants: close.participants.filter((participant) => participant.included).length, open_work_items: close.open_work_items.length } });
     return { state, intents, evidence };
   }
 
-  if (instant >= schedule.reminder_at) {
-    const deadline = instant >= schedule.complete_by;
+  if (instant >= schedule.chase_at) {
+    if (!state.close_thread_reference) throw new Error("Sprint close chase requires the delivered shared Close thread");
     state.phase = "reminding";
-    for (const participant of close.participants.filter((item) => item.included && item.close_state !== "complete")) {
-      const source = state.participants[participant.participant_id];
-      if (!source?.communication_principal || !args.policy.delivery.direct_binding) {
-        throw new Error(`Sprint reminder target '${participant.participant_id}' has no reviewed direct-message principal and binding`);
-      }
+    const incomplete = Object.fromEntries(Object.entries(participantStates)
+      .filter(([, value]) => value !== "complete")
+      .map(([participantId, value]) => [participantId, value as "needs-reformat" | "missing"]));
+    if (Object.keys(incomplete).length > 0) {
       intents.push({
-        type: "message.reminder",
-        intent_id: intentId("reminder", state.sprint_id, participant.participant_id, deadline ? schedule.complete_by : schedule.reminder_at),
-        participant_id: participant.participant_id,
-        destination_principal: source.communication_principal,
-        destination_binding: args.policy.delivery.direct_binding,
-        due_at: deadline ? schedule.complete_by : schedule.reminder_at,
-        reason: deadline ? "deadline" : "initial",
+        type: "message.close-chase",
+        intent_id: intentId("close-chase", state.sprint_id, schedule.chase_at),
+        channel_binding: args.policy.delivery.channel_binding,
+        thread_reference: state.close_thread_reference,
+        due_at: schedule.chase_at,
+        participant_states: incomplete,
       });
     }
-    evidence.push({ rule: deadline ? "completion-deadline" : "initial-reminder", outcome: "reminder-intents", facts: { recipient_count: intents.length } });
+    evidence.push({ rule: "completion-chase", outcome: "shared-thread-chase-intent", facts: { recipient_count: Object.keys(incomplete).length } });
+    return { state, intents, evidence };
+  }
+  if (instant >= schedule.reminder_at) {
+    state.phase = "reminding";
+    intents.push({
+      type: "message.close-reminder",
+      intent_id: intentId("close-reminder", state.sprint_id, schedule.reminder_at),
+      channel_binding: args.policy.delivery.channel_binding,
+      due_at: schedule.reminder_at,
+    });
+    evidence.push({ rule: "initial-reminder", outcome: "shared-thread-root-intent", facts: { participant_count: Object.keys(participantStates).length } });
   }
   return { state, intents, evidence };
 }

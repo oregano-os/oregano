@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -96,12 +96,27 @@ and Tool grant and calls the existing `CompanyOSRuntime`, so ToolSet,
 Capability, authorization, approval, effect, idempotency, and Connector
 controls are not duplicated.
 
+The maintained Vercel Runner hosts that service behind an authenticated
+operator route, separate timer and intent wake-up routes, and the existing
+authenticated Slack ingress. Workbench compiles the reviewed Sprint policy,
+schedule, templates, logical Agent, service principal, participant identity
+namespace, and destination/resource bindings into the immutable Artifact.
+Opening a Sprint reads only fresh authorized Company Records projections
+through the standard `records.query` Tool. `shadow` mode renders and records
+digests without provider effects; `active` mode still reaches a provider only
+through the standard Tool boundary. Each Sprint definition has a namespaced
+timer kind, so one worker cannot lease another definition's timers.
+
 Message text, participants, provider projections, calendar dates, schedules,
 language, and requested grants remain Company Workspace truth. Exact Agent,
 model, destination, work-item, database, secret, timer, and activation
 bindings remain Company Instance truth. Merely installing Core or preparing
 the additive database schema does not start a Sprint, lease an intent, send a
-message, or change a work item.
+message, or change a work item. The initial hosted profile uses reviewed
+Monday polling for projections and Slack for interactive submissions. Monday
+board-change webhooks and Monday card chat remain later extensions. Rollover
+intents remain fail-closed until the ordinary frozen-proposal confirmation path
+is bound; the generic intent worker never turns one directly into an effect.
 
 ## Native Company Knowledge
 
