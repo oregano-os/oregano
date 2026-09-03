@@ -96,12 +96,20 @@ function optionalNumber(value: JsonValue | undefined, label: string): number | u
   return value;
 }
 
-function workItems(rows: RecordProjectionRow[], providerSubjects: Map<string, string>): SprintWorkItem[] {
+function workItems(
+  rows: RecordProjectionRow[],
+  providerSubjects: Map<string, string>,
+  effortPolicy: CompiledSprintRuntime["policy"]["effort"],
+): SprintWorkItem[] {
   return rows.map((row) => {
     const values = row.values as Record<string, JsonValue>;
     const providerAssignees = stringArray(values.assignee_ids ?? [], `Sprint work item '${row.record_id}' assignee_ids`);
-    const plannedEffort = optionalNumber(values.planned_effort, `Sprint work item '${row.record_id}' planned_effort`);
-    const actualHours = optionalNumber(values.actual_hours, `Sprint work item '${row.record_id}' actual_hours`);
+    const plannedEffort = effortPolicy === "planned-effort"
+      ? optionalNumber(values.planned_effort, `Sprint work item '${row.record_id}' planned_effort`)
+      : undefined;
+    const actualHours = effortPolicy === "actual-hours"
+      ? optionalNumber(values.actual_hours, `Sprint work item '${row.record_id}' actual_hours`)
+      : undefined;
     return {
       work_item_id: text(values.work_item_id, `Sprint work item '${row.record_id}' work_item_id`),
       title: text(values.title, `Sprint work item '${row.record_id}' title`, 2_000),
@@ -134,7 +142,7 @@ export function normalizeSprintSnapshot(args: {
   const participantSnapshot = participants({ roster: args.roster, compiled: args.compiled, rows: args.participantRows });
   return {
     participants: participantSnapshot.participants,
-    workItems: workItems(args.workItemRows, participantSnapshot.providerSubjects),
+    workItems: workItems(args.workItemRows, participantSnapshot.providerSubjects, args.compiled.policy.effort),
     observedAt: args.observedAt,
     participantSourceVersion: args.participantSourceVersion,
     workItemSourceVersion: args.workItemSourceVersion,

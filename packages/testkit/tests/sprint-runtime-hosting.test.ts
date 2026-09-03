@@ -508,7 +508,7 @@ test("Sprint snapshots join provider subjects to stable roster ids without displ
       { instance_id: "fixture", projection_id: "participants", record_id: "role-1", record_type: "role", source_version_id: "pv1", projected_at: "2030-01-28T08:00:00.000Z", values: { person_ids: ["101", "102"], role: "Delivery" } },
     ],
     workItemRows: [
-      { instance_id: "fixture", projection_id: "sprint-items", record_id: "work-1", record_type: "work-item", source_version_id: "wv1", projected_at: "2030-01-28T08:00:00.000Z", values: { work_item_id: "work-1", title: "Ship", assignee_ids: ["102"], group: "current", status: "working", provider_version: "wv1" } },
+      { instance_id: "fixture", projection_id: "sprint-items", record_id: "work-1", record_type: "work-item", source_version_id: "wv1", projected_at: "2030-01-28T08:00:00.000Z", values: { work_item_id: "work-1", title: "Ship", assignee_ids: ["102"], group: "current", status: "working", planned_effort: "0 hours", actual_hours: "not available", provider_version: "wv1" } },
       { instance_id: "fixture", projection_id: "sprint-items", record_id: "work-2", record_type: "work-item", source_version_id: "wv2", projected_at: "2030-01-28T08:00:00.000Z", values: { work_item_id: "work-2", title: "Unclassified", assignee_ids: [], group: "backlog", provider_version: "wv2" } },
     ],
     observedAt: "2030-01-28T08:00:00.000Z",
@@ -520,6 +520,8 @@ test("Sprint snapshots join provider subjects to stable roster ids without displ
     ["work-1", ["blair"], "working"],
     ["work-2", [], ""],
   ]);
+  assert.equal(snapshot.workItems[0].planned_effort, undefined);
+  assert.equal(snapshot.workItems[0].actual_hours, undefined);
   assert.throws(() => normalizeSprintSnapshot({
     roster: [{ id: "alex", role: "contributor", name: "Blair", status: "active", mayApprove: [], principals: ["slack:T1:U1"], groups: ["sprint-participant"] }],
     compiled,
