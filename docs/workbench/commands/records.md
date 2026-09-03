@@ -167,6 +167,11 @@ confirmation hashes. Qualification reads only the authenticated external-Agent
 identity plus metadata and effective access for the exact selected boards; it
 does not read items or modify Monday.
 
+Preview migration prepares and qualifies the complete additive Company Instance
+database manifest before synchronization. This includes the control, knowledge,
+and records schemas required by the deployed Core; it preserves existing data
+and returns the database preparation receipt.
+
 The endpoint fails closed outside `VERCEL_ENV=preview`, when the deployed Git
 commit differs from the configured exact Core ref, or when its short-lived
 bearer secret is missing. Its compressed runtime configuration contains no

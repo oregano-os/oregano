@@ -24,7 +24,7 @@ import SOURCE_SCHEMA from "../../../schema/company-record-source-v1.schema.json"
 import BINDING_SCHEMA from "../../../schema/company-record-source-binding-v1.schema.json" with { type: "json" };
 import PROJECTION_SCHEMA from "../../../schema/company-record-projection-v1.schema.json" with { type: "json" };
 import { scanCredentialIndicators } from "../../../security/credential-scanner.ts";
-import { ensureCompanyRecordsSchema } from "../../../state-postgres/records-migrate.ts";
+import { prepareCompanyDatabase } from "../../../state-postgres/database-bootstrap.ts";
 import {
   createPostgresCompanyRecordsStore,
   inspectPostgresCompanyRecordProjectionStatus,
@@ -319,7 +319,7 @@ export function planCompanyRecordsPreviewMigration(configuration: CompanyRecords
     configuration_digest: companyRecordsConfigurationDigest(configuration),
     source_confirmations: configuration.source_confirmations,
     database_secret_ref: "env:DATABASE_URL",
-    database_effect: "Create the additive companyos_records schema and its idempotent tables and indexes in the isolated preview database branch.",
+    database_effect: "Prepare and qualify the complete additive Company Instance database manifest, including companyos_records, in the isolated preview database branch.",
     provider_effects: [],
     production_effects: [],
   };
@@ -441,7 +441,7 @@ function assertPreviewIdentity(configuration: CompanyRecordsRehearsalConfigurati
 }
 
 interface RehearsalDependencies {
-  ensureSchema(): Promise<void>;
+  ensureSchema(): Promise<Record<string, unknown> | void>;
   planOperation(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): ReturnType<typeof planCompanyRecordsPreviewSync>;
   runOperation(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string, confirmationHash: string): Promise<Record<string, unknown>>;
   inspectStatus(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string): Promise<Record<string, unknown>>;
@@ -453,7 +453,9 @@ interface RehearsalDependencies {
 }
 
 const defaultDependencies: RehearsalDependencies = {
-  ensureSchema: ensureCompanyRecordsSchema,
+  async ensureSchema() {
+    return await prepareCompanyDatabase() as unknown as Record<string, unknown>;
+  },
   planOperation: planCompanyRecordsPreviewSync,
   async runOperation(configuration, sourceId, confirmationHash) {
     const planned = planCompanyRecordsPreviewSync(configuration, sourceId);
@@ -530,8 +532,8 @@ export async function executeCompanyRecordsRehearsal(request: CompanyRecordsRehe
   if (request.action === "apply-migration") {
     const plan = planCompanyRecordsPreviewMigration(configuration);
     if (request.confirmation_hash !== plan.confirmation_hash) throw new CompanyRecordsRehearsalError("confirmation-mismatch", "Migration confirmation does not match the current exact plan", 409);
-    await dependencies.ensureSchema();
-    return { ok: true, applied: true, operation: "migrate", schema: "companyos_records", confirmation_hash: request.confirmation_hash, provider_effects: [], credentials_retained: false };
+    const receipt = await dependencies.ensureSchema();
+    return { ok: true, applied: true, operation: "migrate", schema_manifest: receipt ?? null, confirmation_hash: request.confirmation_hash, provider_effects: [], credentials_retained: false };
   }
   if (request.action === "plan-sync") return { ok: true, plan: dependencies.planOperation(configuration, request.source_id).plan };
   if (request.action === "apply-sync") {

@@ -114,6 +114,7 @@ validation:
   - pnpm runner:build
   - git diff --check
 tests:
+  - The protected Preview migration prepares and qualifies the complete additive Company Instance database manifest before hosted Stage-0 synchronization.
   - A built Artifact carries only validated, immutable Sprint and schedule declarations and fails closed on absent or stale bindings.
   - Workspace Markdown frontmatter is validated as governance metadata but excluded from rendered provider messages.
   - A company template line whose dynamic values are all empty is omitted so factual reports do not publish empty categories.
