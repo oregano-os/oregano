@@ -39,6 +39,11 @@ import {
   type KnowledgeTurnRoute,
 } from "./knowledge-turn-routing.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
+import {
+  resolveSlackAgentExperience,
+  showSlackAgentWorking,
+  type SlackAgentExperienceConfiguration,
+} from "./slack-agent-experience.ts";
 import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "../../../runner/model-execution.ts";
 import { createConfiguredRuntimeConnectors } from "./runtime-connectors.ts";
 
@@ -50,6 +55,7 @@ let runtime: CompanyOSRuntime;
 let builderChat: BuilderChatIntegration;
 let assignmentStore: ConversationAssignmentStore;
 let handoffService: AgentHandoffService;
+let slackAgentExperience: SlackAgentExperienceConfiguration;
 
 const requireEnv = (name: string): string => {
   const value = process.env[name];
@@ -198,6 +204,7 @@ async function handleMessage(thread: Thread, message: { id: string; text: string
     assignmentStore,
   });
   const agent = conversation.agent;
+  await showSlackAgentWorking(thread, slackAgentExperience);
   const conversationKey = `conversation:${thread.id}:${agent.id}`;
   await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
     maxLength: 40,
@@ -341,11 +348,13 @@ export function getBot(): Chat {
     store: assignmentStore,
   });
   builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal });
+  slackAgentExperience = resolveSlackAgentExperience();
   botInstance = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",
     adapters: {
       slack: createSlackAdapter({
         ...connectSlackAdapter(requireEnv("SLACK_CONNECTOR")),
+        agentView: slackAgentExperience.enabled,
       }),
     },
     state,

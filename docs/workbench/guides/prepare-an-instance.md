@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-03
 owners:
   - oregano-maintainers
 audience:
@@ -131,6 +131,7 @@ The maintained Runner requires these Instance values:
 | Value | Purpose |
 |---|---|
 | `SLACK_CONNECTOR` | Vercel Connect resource identifier for the environment-specific Slack installation |
+| `COMPANYOS_SLACK_AGENT_VIEW` | optional exact `true` opt-in for Slack Agent View; requires Agent experience plus `assistant:write` on the same installed Slack app and defaults to disabled |
 | `DATABASE_URL` | isolated Neon/Postgres connection used by the `companyos` schema |
 | `COMPANYOS_ARTIFACT_GZIP_BASE64` | gzip-compressed immutable Artifact built from clean exact checkouts |
 | `COMPANYOS_STAGE0_CONFIG_GZIP_BASE64` | optional Preview-only, gzip-compressed non-secret qualification scope for exact test resources and destinations |
@@ -174,6 +175,17 @@ Core commit, Workspace commit, Artifact hash, resolved ToolSet hash, model
 route, and model; an
 authorized roster member reaches the selected Agent; and an unknown identity
 is blocked before model invocation.
+
+Enabling `COMPANYOS_SLACK_AGENT_VIEW=true` does not create another Slack app or
+another CompanyOS Agent. The same `slack/oregano` installation remains the
+transport identity, and the existing AgentResolver still chooses the internal
+Agent only after canonical roster authorization. Before enabling the value,
+turn on Agent experience for that Slack app, record the required provider
+description, add `assistant:write` to the existing Connector, and reauthorize
+the existing installation. The initial mode displays only a native `Working`
+status; it does not require suggested prompts, context events, Slack MCP, or
+new Tool grants. Roll back by removing the value and redeploying before
+disabling the provider-side Agent experience.
 
 `POST /api/stage0/qualification` is an optional test-only route. It must exist
 only in a protected Preview deployment with a `preview` Artifact. Use `inspect`
