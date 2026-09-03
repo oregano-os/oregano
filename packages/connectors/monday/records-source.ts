@@ -9,7 +9,7 @@ import type {
 import { MondayClient, type MondayFetch } from "./client.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
-export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.0";
+export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.1";
 export const MONDAY_RECORD_SOURCE_API_VERSION = "dev";
 
 const object = (value: JsonValue | undefined, label: string): Record<string, JsonValue> => {
