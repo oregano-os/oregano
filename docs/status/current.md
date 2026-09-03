@@ -121,6 +121,10 @@ evidence, historical prototypes, and production gaps.
   retro, then Rollover preparation using provider-delivery events. Timer kinds
   are isolated per Sprint definition. Shadow mode stores digest evidence
   without effects; active messages still cross the standard Tool boundary.
+  The authenticated Stage-0 Preview surface can invoke those same hosted
+  workers at one exact controlled timestamp, allowing schedule, leasing, and
+  duplicate behavior to be qualified without waiting for wall-clock time; the
+  action is unavailable outside Vercel Preview.
   Rollover remains deliberately blocked until a
   separately confirmed frozen-proposal path is integrated. The initial profile
   uses Monday polling and Slack interaction; Monday board-change webhooks and

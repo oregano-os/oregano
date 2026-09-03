@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   authorizeStage0,
   decodeStage0Configuration,
+  executeStage0,
   parseStage0Request,
   Stage0QualificationError,
 } from "../../runner-vercel/src/lib/stage0-qualification.ts";
@@ -29,7 +30,7 @@ const configuration = {
     channel_destination_binding: "sprint-test-channel",
     direct_destination_binding: "steward-test-dm",
   },
-};
+} as const;
 
 test("Stage-0 configuration is Preview-only, compressed, exact, and carries no credential values", () => {
   const encoded = gzipSync(JSON.stringify(configuration)).toString("base64");
@@ -54,6 +55,15 @@ test("Stage-0 endpoint authorization uses the exact bearer secret", () => {
 
 test("Stage-0 effect requests require exact confirmation hashes and reject extra fields", () => {
   assert.deepEqual(parseStage0Request({
+    action: "test-sprint-workers",
+    test_id: "stage0-clock-1",
+    at: "2030-02-01T17:00:00.000Z",
+  }), {
+    action: "test-sprint-workers",
+    test_id: "stage0-clock-1",
+    at: "2030-02-01T17:00:00.000Z",
+  });
+  assert.deepEqual(parseStage0Request({
     action: "apply-monday-reversible",
     test_id: "stage0-test-1",
     work_item_id: "123456",
@@ -65,5 +75,34 @@ test("Stage-0 effect requests require exact confirmation hashes and reject extra
     confirmation_hash: "a".repeat(64),
   });
   assert.throws(() => parseStage0Request({ action: "inspect", production: true }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
+  assert.throws(() => parseStage0Request({ action: "test-sprint-workers", test_id: "stage0-clock-1", at: "not-a-time" }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
   assert.throws(() => parseStage0Request({ action: "apply-slack-delivery", test_id: "stage0-test-1", channel_content: "x", direct_content: "y" }), (error: unknown) => error instanceof Stage0QualificationError && error.status === 400);
+});
+
+test("Stage-0 can qualify hosted Sprint workers at a controlled Preview time", async () => {
+  const calls: string[] = [];
+  const result = await executeStage0({
+    action: "test-sprint-workers",
+    test_id: "stage0-clock-1",
+    at: "2030-02-01T17:00:00.000Z",
+  }, configuration, {
+    artifact: {
+      instance: { id: configuration.instance_id, environment: "preview" },
+      agents: [{ id: configuration.general_agent_id }, { id: configuration.sprint_agent_id }],
+    } as never,
+    runtime: {} as never,
+    chat: {} as never,
+    runSprintTimerWorker: async (now) => {
+      calls.push(`timers:${now}`);
+      return { ok: true, processed: 3 };
+    },
+    runSprintIntentWorker: async (now) => {
+      calls.push(`intents:${now}`);
+      return { ok: true, processed: 3 };
+    },
+  });
+  assert.deepEqual(calls, ["timers:2030-02-01T17:00:00.000Z", "intents:2030-02-01T17:00:00.000Z"]);
+  assert.equal(result.ok, true);
+  assert.equal(result.environment, "preview");
+  assert.equal(result.production_touched, false);
 });

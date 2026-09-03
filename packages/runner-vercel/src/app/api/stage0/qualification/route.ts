@@ -8,6 +8,7 @@ import {
   parseStage0Request,
   Stage0QualificationError,
 } from "../../../../lib/stage0-qualification.ts";
+import { runSprintIntentWorker, runSprintTimerWorker } from "../../../../lib/sprint-runtime.ts";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -28,6 +29,8 @@ export async function POST(request: Request) {
       artifact: loadArtifact(),
       runtime: getCompanyOSRuntime(),
       chat,
+      runSprintTimerWorker,
+      runSprintIntentWorker,
     });
     return Response.json(result, { status: result.ok === false ? 409 : 200 });
   } catch (error) {

@@ -41,6 +41,7 @@ export interface Stage0Configuration {
 
 export type Stage0Request =
   | { readonly action: "inspect" }
+  | { readonly action: "test-sprint-workers"; readonly test_id: string; readonly at: string }
   | { readonly action: "plan-monday-reversible"; readonly test_id: string; readonly work_item_id?: string }
   | { readonly action: "apply-monday-reversible"; readonly test_id: string; readonly work_item_id?: string; readonly confirmation_hash: string }
   | { readonly action: "plan-slack-delivery"; readonly test_id: string; readonly channel_content: string; readonly direct_content: string }
@@ -122,9 +123,11 @@ export function decodeStage0Configuration(encoded = process.env[STAGE0_CONFIGURA
 
 export function parseStage0Request(value: unknown): Stage0Request {
   const input = object(value, "request", 400);
-  const action = string(input.action, "request.action", /^(?:inspect|plan-monday-reversible|apply-monday-reversible|plan-slack-delivery|apply-slack-delivery|test-callback-security)$/, 400) as Stage0Request["action"];
+  const action = string(input.action, "request.action", /^(?:inspect|test-sprint-workers|plan-monday-reversible|apply-monday-reversible|plan-slack-delivery|apply-slack-delivery|test-callback-security)$/, 400) as Stage0Request["action"];
   const allowed = action === "inspect"
     ? ["action"]
+    : action === "test-sprint-workers"
+      ? ["action", "test_id", "at"]
     : action === "test-callback-security"
       ? ["action", "test_id"]
       : action.includes("monday")
@@ -133,6 +136,13 @@ export function parseStage0Request(value: unknown): Stage0Request {
   exactKeys(input, allowed, "request", 400);
   if (action === "inspect") return { action };
   const testId = string(input.test_id, "request.test_id", /^[a-z0-9][a-z0-9-]{7,62}$/, 400);
+  if (action === "test-sprint-workers") {
+    const at = string(input.at, "request.at", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, 400);
+    if (Number.isNaN(Date.parse(at)) || new Date(at).toISOString() !== at) {
+      throw new Stage0QualificationError("invalid-configuration", "request.at must be an exact ISO timestamp", 400);
+    }
+    return { action, test_id: testId, at };
+  }
   if (action === "test-callback-security") return { action, test_id: testId };
   const confirmationHash = action.startsWith("apply-")
     ? string(input.confirmation_hash, "request.confirmation_hash", /^[0-9a-f]{64}$/, 400)
@@ -163,6 +173,8 @@ interface Stage0Dependencies {
   readonly chat: Chat;
   readonly environment?: NodeJS.ProcessEnv;
   readonly now?: () => Date;
+  readonly runSprintTimerWorker?: (now: string) => Promise<unknown>;
+  readonly runSprintIntentWorker?: (now: string) => Promise<unknown>;
 }
 
 function assertConfigured(config: Stage0Configuration, artifact: CompanyOSArtifact): void {
@@ -433,6 +445,23 @@ export async function executeStage0(
       slack: { channel_id: configuration.slack.channel_id, channel_route: channelRoute, dm_route: dmRoute, channel_destination_binding: configuration.slack.channel_destination_binding, direct_destination_binding: configuration.slack.direct_destination_binding },
       credentials_retained: false,
       production_enabled: false,
+    };
+  }
+  if (request.action === "test-sprint-workers") {
+    if (!dependencies.runSprintTimerWorker || !dependencies.runSprintIntentWorker) {
+      throw new Stage0QualificationError("worker-unavailable", "The hosted Sprint workers are unavailable", 503);
+    }
+    const timers = await dependencies.runSprintTimerWorker(request.at);
+    const intents = await dependencies.runSprintIntentWorker(request.at);
+    return {
+      ok: true,
+      test_id: request.test_id,
+      controlled_time: request.at,
+      timers,
+      intents,
+      environment: "preview",
+      production_touched: false,
+      credentials_retained: false,
     };
   }
   if (request.action === "plan-monday-reversible") return { ok: true, plan: await mondayPlan(request, configuration, dependencies) };
