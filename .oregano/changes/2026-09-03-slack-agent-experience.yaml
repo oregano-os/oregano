@@ -1,0 +1,110 @@
+version: 2
+plan_id: slack-agent-experience-2026-09-03
+status: implemented
+author: codex-agent
+created: 2026-09-03
+title: Present the existing Slack transport through Slack Agent View
+objective: >-
+  Reuse the existing Oregano Slack app and CompanyOS routing while optionally
+  presenting it through Slack Agent View and showing one native Working status
+  for authenticated, accepted turns.
+non_goals:
+  - Create another Slack app or expose individual CompanyOS Agents as separate Slack identities.
+  - Add suggested prompts, active-view context events, Slack MCP, rich work objects, generated thread titles, or stop controls in this change.
+  - Change CompanyOS Agent selection, roster authorization, Tool grants, model routing, approval policy, or business effects.
+  - Enable the experience for every Company Instance by default.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Company truth is not Core product truth
+  - Authority remains in the Company Workspace
+  - Humans remain accountable
+  - No hidden magic
+files_expected:
+  - .oregano/changes/2026-09-03-slack-agent-experience.yaml
+  - docs/architecture/company-instance.md
+  - docs/_generated/document-registry.json
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/runner-vercel/src/lib/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-03
+    evidence: explicit-user-approval-of-the-simplified-slack-agent-plan
+architecture_assessment:
+  responsibilities:
+    core:
+      - Provide an opt-in Slack Agent View adapter mode and a best-effort native Working status around accepted turns.
+      - Preserve provider-neutral CompanyOS Agent resolution, identity checks, and Tool governance.
+    packages:
+      - The maintained Vercel Runner maps one external Slack Agent identity to the already-resolved internal CompanyOS Agent.
+    workspace:
+      - Continue to own company Agents, language, instructions, handoffs, scope, and Tool grants; no Workspace change is required for Agent View.
+    instance:
+      - Own whether Slack Agent View is enabled, the exact Slack app installation, provider consent, scopes, and production activation.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Slack continues to expose one Oregano identity while the existing deterministic resolver selects the internal Agent.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Agent View must not add, remove, or copy any Tool grant.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Presentation mode does not select or change a model.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: No source, projection, synchronization, or retention behavior changes.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The native Working state starts only after the existing roster check, duplicate guard, and deterministic Agent resolution succeed.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: No scheduled behavior changes.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Slack presentation does not change effect risk or approval semantics; existing message idempotency remains authoritative.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The existing Vercel Connect Slack adapter and connection are reused without creating a second Connector.
+  new_core_mechanisms:
+    - Optional Slack Agent View presentation configuration in the maintained Vercel Runner.
+    - Best-effort native Working status for accepted Slack turns.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The implementation contains no company-specific IDs, prompts, channels,
+    people, or provider credentials. Each Company Instance opts in independently after its
+    Slack app and installation have the required provider configuration.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-03-slack-agent-experience.yaml
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-03-slack-agent-experience.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm runner:typecheck
+  - node --experimental-strip-types --test packages/runner-vercel/src/lib/slack-agent-experience.test.ts packages/testkit/tests/agent-resolver.test.ts packages/testkit/tests/runner-identity.test.ts
+  - git diff --check
+tests:
+  - Slack Agent View is disabled by default and accepts only the exact documented opt-in value.
+  - The adapter receives agentView true only for an opted-in Company Instance.
+  - An accepted turn requests the native Working status once before model execution.
+  - Failure to render the optional provider status never blocks the CompanyOS response.
+  - Existing roster authorization and deterministic AgentResolver tests remain green.
+  - No suggested prompts, context-event handling, Slack MCP, new Slack identity, or Tool grant is introduced.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - guide.prepare-instance
+  reason_if_none: ""
+rollback: >-
+  Set COMPANYOS_SLACK_AGENT_VIEW to false or remove it, redeploy the prior
+  Runner, and disable Agent experience on the existing Slack app. No Workspace,
+  conversation assignment, Tool grant, or provider record migration is needed.
+open_decisions:
+  - Native Agent Session stop controls, richer lifecycle states, suggested prompts, context events, and work objects remain separate follow-up changes after the minimal canary.
