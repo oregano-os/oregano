@@ -109,6 +109,7 @@ tests:
   - Concurrent newer Source Events cannot be overwritten or removed by an older synchronization or reconciliation projection mutation.
   - Existing production scheduler, identity, authorization, and idempotency tests remain green.
   - Contributor documentation permits autonomous unchanged-scope preparation, batches unavoidable prompts, and preserves every human authority and runtime R0-R4 boundary.
+  - Release guidance requires an exact hosted entrypoint and successful execution evidence before describing a runtime capability as runnable or production-ready.
   - Documentation, public boundaries, fixture validation, TypeScript, Builder, Runner, and full repository tests pass.
   - Release assets remain impossible until a clean protected commit is merged and tagged exactly v0.5.5.
 documentation_impact:
@@ -120,6 +121,7 @@ documentation_impact:
     - specification.company-instance-release-promotion-v0.1
     - status.current
     - workbench.overview
+    - guide.version-release
   reason_if_none: ""
 migration: >-
   Existing v0.5.4 Workspaces and databases require no migration. Adoption
