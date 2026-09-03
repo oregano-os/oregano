@@ -12,10 +12,14 @@ export interface RenderedSprintMessage {
 const line = (values: string[]): string => values.length > 0 ? values.join(", ") : "";
 
 function render(template: CompiledSprintTemplate, values: Record<string, string>): RenderedSprintMessage {
-  const content = template.content.replace(/\{\{([a-z][a-z0-9_]*)\}\}/g, (_match, key: string) => {
-    if (!(key in values)) throw new Error(`Sprint template '${template.path}' uses unsupported placeholder '${key}'`);
-    return values[key]!;
-  });
+  const content = template.content.split(/\r?\n/).flatMap((sourceLine) => {
+    const keys = [...sourceLine.matchAll(/\{\{([a-z][a-z0-9_]*)\}\}/g)].map((match) => match[1]!);
+    for (const key of keys) {
+      if (!(key in values)) throw new Error(`Sprint template '${template.path}' uses unsupported placeholder '${key}'`);
+    }
+    if (keys.length > 0 && keys.every((key) => values[key] === "")) return [];
+    return [sourceLine.replace(/\{\{([a-z][a-z0-9_]*)\}\}/g, (_match, key: string) => values[key]!)];
+  }).join("\n");
   const unresolved = content.match(/\{\{[^}]+\}\}/)?.[0];
   if (unresolved) throw new Error(`Sprint template '${template.path}' contains unresolved placeholder '${unresolved}'`);
   const normalized = content.trim();

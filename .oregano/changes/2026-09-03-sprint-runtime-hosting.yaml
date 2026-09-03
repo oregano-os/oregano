@@ -115,6 +115,8 @@ validation:
   - git diff --check
 tests:
   - A built Artifact carries only validated, immutable Sprint and schedule declarations and fails closed on absent or stale bindings.
+  - Workspace Markdown frontmatter is validated as governance metadata but excluded from rendered provider messages.
+  - A company template line whose dynamic values are all empty is omitted so factual reports do not publish empty categories.
   - An authenticated operator can open one synthetic Sprint once; an unauthenticated, unbound, duplicate, or conflicting request has no effect.
   - Slack Friday input normalizes to a stable provider-neutral Sprint event after existing identity and Agent resolution and never treats message meaning as authority.
   - A bot-authored shared-thread root is durably subscribed before its delivery receipt becomes eligible for participant submissions.

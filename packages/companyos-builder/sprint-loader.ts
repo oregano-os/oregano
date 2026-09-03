@@ -133,6 +133,13 @@ function validateTemplate(path: string, content: string, allowed: Set<string>): 
   }
 }
 
+function markdownTemplateBody(path: string, source: string): string {
+  if (!source.startsWith("---")) return source;
+  const match = source.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/);
+  if (!match) throw new Error(`Sprint template '${path}' has invalid Markdown frontmatter.`);
+  return source.slice(match[0].length);
+}
+
 export function compileSprintRuntimes(args: {
   workspace: LoadedWorkspace;
   instance: InstanceBuildConfiguration;
@@ -240,10 +247,10 @@ export function compileSprintRuntimes(args: {
     const chasePath = safeWorkspacePath(policy.rendering!.chase);
     const closeReportPath = safeWorkspacePath(policy.rendering!.close_report);
     const retroPath = safeWorkspacePath(policy.rendering!.retro);
-    const reminderContent = file(args.workspace, reminderPath);
-    const chaseContent = file(args.workspace, chasePath);
-    const closeReportContent = file(args.workspace, closeReportPath);
-    const retroContent = file(args.workspace, retroPath);
+    const reminderContent = markdownTemplateBody(reminderPath, file(args.workspace, reminderPath));
+    const chaseContent = markdownTemplateBody(chasePath, file(args.workspace, chasePath));
+    const closeReportContent = markdownTemplateBody(closeReportPath, file(args.workspace, closeReportPath));
+    const retroContent = markdownTemplateBody(retroPath, file(args.workspace, retroPath));
     validateTemplate(reminderPath, reminderContent, new Set(["sprint_id", "period_start", "period_end", "due_at"]));
     validateTemplate(chasePath, chaseContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "needs_reformat_names", "missing_names"]));
     validateTemplate(closeReportPath, closeReportContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "complete_names", "needs_reformat_names", "missing_names"]));

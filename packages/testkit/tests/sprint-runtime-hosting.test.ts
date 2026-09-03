@@ -13,6 +13,7 @@ import {
   HostedSprintRuntime,
 } from "../../runtime/sprint-host.ts";
 import { normalizeSprintSnapshot } from "../../runtime/sprint-snapshot.ts";
+import { renderSprintMessageIntent } from "../../runtime/sprint-intent-renderer.ts";
 import {
   authorizeSprintOperator,
   authorizeSprintScheduler,
@@ -92,6 +93,42 @@ const participants: SprintParticipant[] = [
   { participant_id: "alex", display_name: "Alex", roles: ["owner"], communication_principal: "slack:T1:U1", approved_absence: false },
   { participant_id: "blair", display_name: "Blair", roles: ["contributor"], communication_principal: "slack:T1:U2", approved_absence: false },
 ];
+
+test("Sprint rendering omits company template lines whose list value is empty", () => {
+  const rendered = renderSprintMessageIntent({
+    intent: {
+      type: "message.close-report",
+      intent_id: "report-1",
+      channel_binding: "sprint-channel",
+      thread_reference: "thread-1",
+      due_at: "2030-02-01T17:00:00.000Z",
+      participant_states: { alex: "complete", blair: "missing" },
+    },
+    state: {
+      sprint_id: "sprint-5",
+      period_start: "2030-01-28",
+      period_end: "2030-02-01",
+      phase: "open",
+      participants: Object.fromEntries(participants.map((participant) => [participant.participant_id, participant])),
+      work_items: {},
+      submissions: {},
+      deliveries: {},
+      close_thread_reference: null,
+      next_sprint_id: null,
+      processed_event_ids: [],
+      last_event_at: null,
+    },
+    templates: {
+      ...compiled.templates,
+      closeReport: {
+        path: "workflows/sprint/close.md",
+        content: "Complete: {{complete_names}}\nReformat: {{needs_reformat_names}}\nMissing: {{missing_names}}",
+        digest: "f".repeat(64),
+      },
+    },
+  });
+  assert.equal(rendered.content, "Complete: Alex\nMissing: Blair");
+});
 
 const workItems: SprintWorkItem[] = [
   { work_item_id: "item-1", title: "Ship runtime", assignee_ids: ["alex"], group: "current", status: "working", url: "https://fixture.test/item-1", provider_version: "v1", fields: {} },
@@ -403,7 +440,7 @@ triggers:
 `,
       "records/projections/participants.yaml": "schema_version: 1\nid: participants\nfields:\n  - { name: person_ids, path: person_ids }\n  - { name: role, path: role }\n",
       "records/projections/sprint-items.yaml": "schema_version: 1\nid: sprint-items\nfields:\n  - { name: work_item_id, path: work_item_id }\n  - { name: title, path: title }\n  - { name: assignee_ids, path: assignee_ids }\n  - { name: group, path: group }\n  - { name: status, path: status }\n  - { name: provider_version, path: provider_version }\n",
-      "workflows/sprint/reminder.md": "Post in this thread for {{sprint_id}}",
+      "workflows/sprint/reminder.md": "---\ntype: concept\ndescription: Runtime reminder.\n---\nPost in this thread for {{sprint_id}}",
       "workflows/sprint/chase.md": "Missing: {{missing_names}}",
       "workflows/sprint/close.md": "Missing: {{missing_names}}",
       "workflows/sprint/retro.md": "Open: {{open_work_item_count}}",
