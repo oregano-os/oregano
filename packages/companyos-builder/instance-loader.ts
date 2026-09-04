@@ -82,11 +82,12 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
         throw new Error(`${path}: sprint_runtimes[${index}].work_item must be an object.`);
       }
       const candidate = runtime.work_item as Record<string, unknown>;
-      const extraWorkItem = Object.keys(candidate).find((key) => !["resource_binding", "rollover_field"].includes(key));
+      const extraWorkItem = Object.keys(candidate).find((key) => !["resource_binding", "rollover_field", "readiness_field"].includes(key));
       if (extraWorkItem) throw new Error(`${path}: sprint_runtimes[${index}].work_item contains unsupported field '${extraWorkItem}'.`);
       workItem = {
         resourceBinding: requiredIdentifier(candidate.resource_binding, `${path}: sprint_runtimes[${index}].work_item.resource_binding`),
         rolloverField: requiredIdentifier(candidate.rollover_field, `${path}: sprint_runtimes[${index}].work_item.rollover_field`),
+        ...(candidate.readiness_field === undefined ? {} : { readinessField: requiredIdentifier(candidate.readiness_field, `${path}: sprint_runtimes[${index}].work_item.readiness_field`) }),
       };
     }
     return {

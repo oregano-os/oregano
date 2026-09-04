@@ -85,6 +85,11 @@ interface PendingApproval extends ExecuteToolRequest {
   requestedBy: string;
 }
 
+interface PendingConfirmation extends ExecuteToolRequest {
+  toolLabel: string;
+  requestedBy: string;
+}
+
 function rosterMember(author: Author): RosterMember | undefined {
   return findActiveHumanRosterMember(artifact.roster, author);
 }
@@ -140,6 +145,25 @@ function resolvedTools(
           input,
           subjectPrincipal: requester,
         };
+        if (compiled.contract.confirmation === "subject") {
+          const token = randomUUID();
+          const pending: PendingConfirmation = { ...request, toolLabel: resolved.grantId, requestedBy: requester };
+          await state.set(`confirmation:${token}`, pending, DAY);
+          await thread.post(Card({
+            title: "Confirm reversible change",
+            children: [
+              CardText(`Action: ${resolved.grantId}`),
+              CardText(`Exact input hash: ${sha256(input)}`),
+              CardText(`Requested for: ${requester}`),
+              CardText(`Input preview: ${compact(input)}`),
+              Actions([
+                Button({ id: "companyos.confirm", label: "Confirm", style: "primary", value: token }),
+                Button({ id: "companyos.cancel-confirmation", label: "Cancel", style: "danger", value: token }),
+              ]),
+            ],
+          }));
+          return { ok: true, pendingConfirmation: true, inputHash: sha256(input) };
+        }
         if (RISK_ORDER[resolved.risk] < RISK_ORDER.R3) return await runtime.execute(request);
         const approval = await runtime.requestApproval(request);
         const token = randomUUID();
@@ -444,6 +468,36 @@ function registerHandlers(bot: Chat) {
   }
   await state.delete(`approval:${event.value}`);
   await event.thread.post(`Approved by ${member.name} (${member.role}). Effect evidence: ${compact(result)}`);
+  });
+  bot.onAction(["companyos.confirm", "companyos.cancel-confirmation"], async (event) => {
+    if (!event.thread || !event.value) return;
+    const pending = await state.get<PendingConfirmation>(`confirmation:${event.value}`);
+    if (!pending) {
+      await event.thread.post("This confirmation is expired or was already resolved.");
+      return;
+    }
+    const member = rosterMember(event.user);
+    if (!member) {
+      await event.thread.post("Confirmation refused: this Slack identity is not an active authorized human in the Company Workspace roster.");
+      return;
+    }
+    const confirmingPrincipal = principal(member);
+    if (confirmingPrincipal !== pending.requestedBy) {
+      await event.thread.post("Confirmation refused: only the exact human subject for this proposal may confirm it.");
+      return;
+    }
+    if (event.actionId === "companyos.cancel-confirmation") {
+      await state.delete(`confirmation:${event.value}`);
+      await event.thread.post(`Cancelled by ${member.name}. No effect occurred.`);
+      return;
+    }
+    try {
+      const result = await runtime.executeConfirmed(pending, confirmingPrincipal);
+      await state.delete(`confirmation:${event.value}`);
+      await event.thread.post(`Confirmed by ${member.name}. Effect evidence: ${compact(result)}`);
+    } catch (error) {
+      await event.thread.post(`Confirmation refused: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
   builderChat.registerHandlers(bot);
 }

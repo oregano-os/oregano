@@ -8,6 +8,7 @@ import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import type { InstanceBuildConfiguration } from "../../companyos-builder/types.ts";
 import { ArtifactSandboxConnector, MarketingSandboxConnector } from "../../connectors/sandbox.ts";
 import { CompanyOSRuntime } from "../../runtime/companyos-runtime.ts";
+import { STANDARD_WORK_ITEM_TOOLS } from "../../standard-tools/work-items.ts";
 import { InMemoryStateStore } from "../adapter/in-memory-state.ts";
 
 const FIXTURE = join(import.meta.dirname, "..", "fixtures", "reference-company");
@@ -409,6 +410,53 @@ test("the runtime refuses an installed but ungranted Tool", async () => {
     grantId: "company:not-granted",
     input: {},
   }), /not in agent 'growth' resolved ToolSet/);
+});
+
+test("a reversible Tool executes only after confirmation by its exact active human subject", async () => {
+  const artifact: any = structuredClone(build());
+  const confirmed = STANDARD_WORK_ITEM_TOOLS.find((tool) => tool.contract.grantId === "oregano:work-items/confirmed-update")!;
+  const agent = artifact.agents.find((candidate: any) => candidate.id === "growth")!;
+  agent.tools.push(confirmed);
+  agent.toolSet.tools.push({
+    grantId: confirmed.contract.grantId,
+    runtimeId: confirmed.contract.runtimeId,
+    version: confirmed.contract.version,
+    risk: "R2",
+    capabilities: [{ id: "work-item.update", version: "1.0.0", connector: "fixture/work-items", connectorVersion: "1.0.0" }],
+    contractDigest: "d".repeat(64),
+  });
+  artifact.bindings.push({ capability: "work-item.update", contractVersion: "1.0.0", connector: "fixture/work-items", connectorVersion: "1.0.0" });
+  let effects = 0;
+  const runtime = new CompanyOSRuntime({
+    artifact,
+    state: new InMemoryStateStore(),
+    connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector(), {
+      id: "fixture/work-items",
+      version: "1.0.0",
+      capabilities: ["work-item.update"],
+      async invoke() {
+        effects += 1;
+        return {
+          output: { work_item: {}, previous_version: "v1", provider_version: "v2", changed_fields: ["brief"] },
+          evidence: { resource_binding: "sprint-board", work_item_id: "item-1", previous_version: "v1", provider_version: "v2", changed_fields: ["brief"] },
+        };
+      },
+    }],
+  });
+  const request = {
+    runId: "run-confirmed",
+    stepId: "briefing",
+    agentId: "growth",
+    grantId: confirmed.contract.grantId,
+    subjectPrincipal: "test:solstice:avery",
+    input: { resource_binding: "sprint-board", work_item_id: "item-1", changes: { brief: "Reviewed" }, expected_version: "v1" },
+  };
+  await assert.rejects(() => runtime.execute(request), /requires executeConfirmed/);
+  await assert.rejects(() => runtime.executeConfirmed(request, "test:solstice:morgan"), /does not match/);
+  assert.equal(effects, 0);
+  const result: any = await runtime.executeConfirmed(request, "test:solstice:avery");
+  assert.equal(result.output.provider_version, "v2");
+  assert.equal(effects, 1);
 });
 
 test("the runtime accepts only an explicitly bounded Tool execution window", () => {

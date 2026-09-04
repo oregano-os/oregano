@@ -5,7 +5,7 @@ import type { SprintDomainDeclaration, SprintEvent, SprintParticipant, SprintSta
 import { decideSprintEvent } from "../../domains/sprint/decisions.ts";
 import { buildSprintCloseReadModel } from "../../domains/sprint/read-models.ts";
 import { initialSprintState, reduceSprintEvent } from "../../domains/sprint/reducer.ts";
-import { scheduleSprintCloseTimers } from "../../domains/sprint/timers.ts";
+import { scheduleSprintCloseTimers, scheduleSprintWeekTimers } from "../../domains/sprint/timers.ts";
 import { DurableTimerService } from "../../runtime/durable-timers.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 
@@ -103,7 +103,7 @@ test("unavailable or incomplete effort remains unavailable instead of becoming z
   assert.equal(planned.total_effort_hours, 5.5);
 });
 
-test("clock decisions emit reminders, one close report, and all-open rollover intents", () => {
+test("clock decisions emit reminders, one close report, and one frozen all-open rollover proposal", () => {
   let state = preparedState();
   const reminder = decideSprintEvent({ state, policy, calendar, event: { type: "clock.reached", event_id: "clock-reminder", occurred_at: "2030-02-01T14:00:00.000Z", instant: "2030-02-01T14:00:00.000Z" } });
   assert.deepEqual(reminder.intents.map((intent) => intent.type), ["message.close-reminder"]);
@@ -151,8 +151,12 @@ test("clock decisions emit reminders, one close report, and all-open rollover in
     intent_id: retroIntent.intent_id, purpose: "retro", destination_binding: "sprint-channel",
     message_id: "message-retro", thread_reference: "chat:channel:thread-root",
   } });
-  assert.deepEqual(deliveredRetro.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.work_item_id).sort(), ["item-a", "item-c"]);
-  assert.deepEqual(deliveredRetro.intents.filter((intent) => intent.type === "work-item.rollover").map((intent) => intent.expected_version).sort(), ["v1", "v1"]);
+  const rollover = deliveredRetro.intents.find((intent) => intent.type === "work-item.rollover-proposal");
+  assert.ok(rollover && rollover.type === "work-item.rollover-proposal");
+  assert.deepEqual(rollover.items, [
+    { work_item_id: "item-a", expected_version: "v1" },
+    { work_item_id: "item-c", expected_version: "v1" },
+  ]);
 });
 
 test("a submission after report time does not change the close overview", () => {
@@ -176,4 +180,92 @@ test("Sprint cadence is persisted as idempotent durable timers and claimed witho
   const reclaimed = await timers.claimDue({ now: "2030-02-01T16:06:00.000Z", owner: "worker-2", leaseToken: "lease-2", leaseExpiresAt: "2030-02-01T16:10:00.000Z" });
   assert.equal(reclaimed.length, 1);
   assert.equal(reclaimed[0].attempts, 2);
+});
+
+test("weekly Sprint triggers schedule the Monday handoff and every weekday digest exactly once", async () => {
+  const store = new InMemoryDurableTimerStore();
+  const timers = new DurableTimerService({ store, instanceId: "fixture-instance" });
+  const weeklyPolicy: SprintDomainDeclaration = {
+    ...policy,
+    weekly: { monday_handoff_trigger: "monday-handoff", weekday_digest_trigger: "weekday-digest", readiness_weekday: "wednesday" },
+  };
+  const triggers = [
+    { id: "monday-handoff", weekdays: ["monday" as const], at: "09:30", holidayShift: "previous-business-day" as const },
+    { id: "weekday-digest", weekdays: ["monday" as const, "tuesday" as const, "wednesday" as const, "thursday" as const, "friday" as const], at: "17:30", holidayShift: "previous-business-day" as const },
+  ];
+  const first = await scheduleSprintWeekTimers({ timers, policy: weeklyPolicy, calendar, sprintId: "sprint-5", periodStart: "2030-01-28", periodEnd: "2030-02-01", triggers, scheduleVersion: "schedule-v1" });
+  const replay = await scheduleSprintWeekTimers({ timers, policy: weeklyPolicy, calendar, sprintId: "sprint-5", periodStart: "2030-01-28", periodEnd: "2030-02-01", triggers, scheduleVersion: "schedule-v1" });
+  assert.deepEqual(first, { scheduled: 6, existing: 0 });
+  assert.deepEqual(replay, { scheduled: 0, existing: 6 });
+  assert.deepEqual([...store.rows.values()].map((timer) => (timer.payload as any).trigger_id).sort(), [
+    "monday-handoff", "weekday-digest", "weekday-digest", "weekday-digest", "weekday-digest", "weekday-digest",
+  ]);
+});
+
+test("weekly decisions reconcile Monday facts and ask at most one focused Wednesday question per participant", () => {
+  const weeklyPolicy: SprintDomainDeclaration = {
+    ...policy,
+    work_items: {
+      ...policy.work_items,
+      planning_group: "backlog",
+      planned_status: "working",
+      required_fields: ["brief"],
+    },
+    weekly: { monday_handoff_trigger: "monday-handoff", weekday_digest_trigger: "weekday-digest", readiness_weekday: "wednesday" },
+  };
+  let state = preparedState();
+  state.work_items["item-e"] = { work_item_id: "item-e", title: "Ready candidate", assignee_ids: ["person-b"], group: "backlog", status: "working", provider_version: "v1", fields: { brief: "Complete" } };
+  state.work_items["item-f"] = { work_item_id: "item-f", title: "Invalidated candidate", assignee_ids: ["person-a"], group: "backlog", status: "ready", provider_version: "v2", fields: {} };
+  state = apply(state, {
+    type: "carry-forward.observed",
+    event_id: "carry-forward",
+    occurred_at: "2030-01-28T09:03:00.000Z",
+    plans: { "person-a": { goal: "Ship", measurable_outcome: "One", tasks: [{ title: "Alpha", work_item_id: "item-a" }] } },
+  });
+  const monday = decideSprintEvent({
+    state,
+    policy: weeklyPolicy,
+    calendar,
+    event: { type: "clock.reached", event_id: "monday", occurred_at: "2030-01-28T09:30:00.000Z", instant: "2030-01-28T09:30:00.000Z", trigger_id: "monday-handoff" },
+  });
+  const handoff = monday.intents[0];
+  assert.ok(handoff?.type === "message.monday-handoff");
+  assert.deepEqual(handoff.committed_work_item_ids, ["item-a", "item-b", "item-c"]);
+  assert.deepEqual(handoff.disagreements, ["committed-not-proposed:item-b", "committed-not-proposed:item-c"]);
+
+  const wednesday = decideSprintEvent({
+    state: monday.state,
+    policy: weeklyPolicy,
+    calendar,
+    event: { type: "clock.reached", event_id: "wednesday", occurred_at: "2030-01-30T17:30:00.000Z", instant: "2030-01-30T17:30:00.000Z", trigger_id: "weekday-digest" },
+  });
+  assert.deepEqual(wednesday.intents.map((intent) => intent.type), [
+    "message.weekday-digest",
+    "message.direct-question",
+    "work-item.readiness-update",
+    "work-item.readiness-update",
+  ]);
+  const question = wednesday.intents.find((intent) => intent.type === "message.direct-question");
+  assert.ok(question?.type === "message.direct-question");
+  assert.equal(question.participant_id, "person-a");
+  assert.equal(question.work_item_id, "item-d");
+  assert.deepEqual(question.missing_fields, ["brief"]);
+  assert.deepEqual(wednesday.intents.filter((intent) => intent.type === "work-item.readiness-update"), [
+    {
+      type: "work-item.readiness-update",
+      intent_id: (wednesday.intents[2] as any).intent_id,
+      work_item_id: "item-e",
+      expected_version: "v1",
+      target_status: "ready",
+      reason: "ready",
+    },
+    {
+      type: "work-item.readiness-update",
+      intent_id: (wednesday.intents[3] as any).intent_id,
+      work_item_id: "item-f",
+      expected_version: "v2",
+      target_status: "working",
+      reason: "invalidated",
+    },
+  ]);
 });

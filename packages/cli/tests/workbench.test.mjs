@@ -821,6 +821,7 @@ test("the Sprint Agent Blueprint is inspectable, provider-neutral, and authority
     "records.query",
     "work-item.read",
     "work-item.update",
+    "work-item.batch-update",
     "work-item.comment",
     "communication.message.publish",
   ]);

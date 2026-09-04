@@ -182,6 +182,18 @@ export function compileSprintRuntimes(args: {
       throw new Error(`${schedulePath}: missing the reviewed Sprint close trigger at '${value}' with '${policy.calendar.holiday_shift}'.`);
     }
   }
+  if (policy.weekly) {
+    const ids = new Set(schedule.triggers.map((trigger) => trigger.id));
+    for (const id of [policy.weekly.monday_handoff_trigger, policy.weekly.weekday_digest_trigger]) {
+      if (!ids.has(id)) throw new Error(`${schedulePath}: missing reviewed weekly trigger '${id}'.`);
+    }
+    for (const key of ["monday_handoff", "weekday_digest", "direct_question"] as const) {
+      if (!policy.rendering?.[key]) throw new Error(`${configurationPath}: rendering.${key} is required when weekly Sprint coordination is configured.`);
+    }
+    if (!policy.work_items.planning_group || !policy.work_items.planned_status || (policy.work_items.required_fields?.length ?? 0) === 0) {
+      throw new Error(`${configurationPath}: weekly Sprint readiness requires work_items planning_group, planned_status, and required_fields.`);
+    }
+  }
   validateProjectionContract(args.workspace, policy.participants.projection, [["participant_id", "display_name", "roles"], ["person_ids", "role"]]);
   validateProjectionContract(args.workspace, policy.work_items.projection, [["work_item_id", "title", "assignee_ids", "group", "status", "provider_version"]]);
   const destinations = slackDestinations(args.instance);
@@ -193,7 +205,7 @@ export function compileSprintRuntimes(args: {
     if (!agent) {
       throw new Error(`Sprint runtime '${runtime.definitionId}' references absent Agent '${runtime.agentId}'.`);
     }
-    for (const grant of ["oregano:records/query", "oregano:communications/publish", ...(runtime.workItem ? ["oregano:work-items/read", "oregano:work-items/update"] : [])]) {
+    for (const grant of ["oregano:records/query", "oregano:communications/publish", ...(runtime.workItem ? ["oregano:work-items/read", "oregano:work-items/update", "oregano:work-items/confirmed-update", "oregano:work-items/batch-update"] : [])]) {
       if (!agent.grants.includes(grant)) throw new Error(`Sprint Agent '${runtime.agentId}' lacks required Tool grant '${grant}'.`);
     }
     const service = args.workspace.roster.find((member) => member.principals?.includes(runtime.servicePrincipal));
@@ -242,6 +254,12 @@ export function compileSprintRuntimes(args: {
       if (!resource.fields.has(runtime.workItem.rolloverField)) {
         throw new Error(`Sprint work-item binding '${runtime.workItem.resourceBinding}' does not allowlist rollover field '${runtime.workItem.rolloverField}'.`);
       }
+      if (runtime.workItem.readinessField && !resource.fields.has(runtime.workItem.readinessField)) {
+        throw new Error(`Sprint work-item binding '${runtime.workItem.resourceBinding}' does not allowlist readiness field '${runtime.workItem.readinessField}'.`);
+      }
+      if (policy.weekly && !runtime.workItem.readinessField) {
+        throw new Error(`Sprint work-item binding '${runtime.workItem.resourceBinding}' requires readiness_field for weekly readiness effects.`);
+      }
     }
     const reminderPath = safeWorkspacePath(policy.rendering!.reminder);
     const chasePath = safeWorkspacePath(policy.rendering!.chase);
@@ -255,6 +273,22 @@ export function compileSprintRuntimes(args: {
     validateTemplate(chasePath, chaseContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "needs_reformat_names", "missing_names"]));
     validateTemplate(closeReportPath, closeReportContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "complete_names", "needs_reformat_names", "missing_names"]));
     validateTemplate(retroPath, retroContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "complete_names", "needs_reformat_names", "missing_names", "open_work_item_ids", "open_work_item_count", "total_effort_hours"]));
+    const weeklyTemplates = policy.weekly ? (() => {
+      const mondayPath = safeWorkspacePath(policy.rendering!.monday_handoff!);
+      const digestPath = safeWorkspacePath(policy.rendering!.weekday_digest!);
+      const directPath = safeWorkspacePath(policy.rendering!.direct_question!);
+      const monday = markdownTemplateBody(mondayPath, file(args.workspace, mondayPath));
+      const digest = markdownTemplateBody(digestPath, file(args.workspace, digestPath));
+      const direct = markdownTemplateBody(directPath, file(args.workspace, directPath));
+      validateTemplate(mondayPath, monday, new Set(["sprint_id", "period_start", "period_end", "due_at", "committed_work_items", "carry_forward_names", "disagreements"]));
+      validateTemplate(digestPath, digest, new Set(["sprint_id", "period_start", "period_end", "due_at", "changed_work_items", "readiness_gaps"]));
+      validateTemplate(directPath, direct, new Set(["sprint_id", "period_start", "period_end", "due_at", "participant_name", "work_item_title", "missing_fields"]));
+      return {
+        mondayHandoff: { path: mondayPath, content: monday, digest: sha256(monday) },
+        weekdayDigest: { path: digestPath, content: digest, digest: sha256(digest) },
+        directQuestion: { path: directPath, content: direct, digest: sha256(direct) },
+      };
+    })() : {};
     return {
       definitionId: runtime.definitionId,
       agentId: runtime.agentId,
@@ -291,6 +325,7 @@ export function compileSprintRuntimes(args: {
         chase: { path: chasePath, content: chaseContent, digest: sha256(chaseContent) },
         closeReport: { path: closeReportPath, content: closeReportContent, digest: sha256(closeReportContent) },
         retro: { path: retroPath, content: retroContent, digest: sha256(retroContent) },
+        ...weeklyTemplates,
       },
       directDestinations: structuredClone(runtime.directDestinations),
       directAssignments,

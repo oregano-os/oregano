@@ -15,6 +15,9 @@ export interface SprintDomainDeclaration {
     master_group: string;
     ready_status: string;
     closed_statuses: string[];
+    planning_group?: string;
+    planned_status?: string;
+    required_fields?: string[];
   };
   calendar: {
     timezone: string;
@@ -42,13 +45,33 @@ export interface SprintDomainDeclaration {
     channel_binding: string;
     direct_binding?: string;
   };
+  weekly?: {
+    monday_handoff_trigger: string;
+    weekday_digest_trigger: string;
+    readiness_weekday: Weekday;
+  };
   model_task_profile?: string;
   rendering?: {
     reminder: string;
     chase: string;
     close_report: string;
     retro: string;
+    monday_handoff?: string;
+    weekday_digest?: string;
+    direct_question?: string;
   };
+}
+
+export interface SprintNextWeekTask {
+  title: string;
+  url?: string;
+  work_item_id?: string;
+}
+
+export interface SprintNextWeekPlan {
+  goal: string;
+  measurable_outcome: string;
+  tasks: SprintNextWeekTask[];
 }
 
 export interface SprintParticipant {
@@ -76,18 +99,20 @@ export type SprintEvent =
   | { type: "sprint.opened"; event_id: string; occurred_at: string; sprint_id: string; period_start: string; period_end: string }
   | { type: "participants.observed"; event_id: string; occurred_at: string; participants: SprintParticipant[] }
   | { type: "work-items.observed"; event_id: string; occurred_at: string; work_items: SprintWorkItem[] }
-  | { type: "submission.received"; event_id: string; occurred_at: string; participant_id: string; submission_id: string; task_ids: string[]; complete: boolean }
-  | { type: "clock.reached"; event_id: string; occurred_at: string; instant: string; next_sprint_id?: string }
-  | { type: "message.delivered"; event_id: string; occurred_at: string; intent_id: string; purpose: "close-reminder" | "close-chase" | "close-report" | "retro"; destination_binding: string; message_id: string; thread_reference: string }
+  | { type: "submission.received"; event_id: string; occurred_at: string; participant_id: string; submission_id: string; task_ids: string[]; complete: boolean; next_week?: SprintNextWeekPlan }
+  | { type: "carry-forward.observed"; event_id: string; occurred_at: string; plans: Record<string, SprintNextWeekPlan> }
+  | { type: "clock.reached"; event_id: string; occurred_at: string; instant: string; trigger_id?: string; next_sprint_id?: string }
+  | { type: "message.delivered"; event_id: string; occurred_at: string; intent_id: string; purpose: "monday-handoff" | "weekday-digest" | "direct-question" | "close-reminder" | "close-chase" | "close-report" | "retro"; destination_binding: string; message_id: string; thread_reference: string; participant_id?: string }
   | { type: "sprint.closed"; event_id: string; occurred_at: string; sprint_id: string };
 
 export interface SprintMessageDelivery {
   intent_id: string;
-  purpose: "close-reminder" | "close-chase" | "close-report" | "retro";
+  purpose: "monday-handoff" | "weekday-digest" | "direct-question" | "close-reminder" | "close-chase" | "close-report" | "retro";
   destination_binding: string;
   message_id: string;
   thread_reference: string;
   delivered_at: string;
+  participant_id?: string;
 }
 
 export interface SprintSubmissionState {
@@ -96,6 +121,15 @@ export interface SprintSubmissionState {
   received_at: string;
   task_ids: string[];
   complete: boolean;
+  next_week?: SprintNextWeekPlan;
+}
+
+export interface SprintWorkItemChange {
+  work_item_id: string;
+  title: string;
+  previous_version?: string;
+  provider_version: string;
+  changed_fields: string[];
 }
 
 export interface SprintState {
@@ -106,6 +140,8 @@ export interface SprintState {
   participants: Record<string, SprintParticipant>;
   work_items: Record<string, SprintWorkItem>;
   submissions: Record<string, SprintSubmissionState[]>;
+  carry_forward?: Record<string, SprintNextWeekPlan>;
+  work_item_changes?: SprintWorkItemChange[];
   deliveries: Record<string, SprintMessageDelivery>;
   close_thread_reference: string | null;
   next_sprint_id: string | null;
@@ -114,11 +150,16 @@ export interface SprintState {
 }
 
 export type SprintIntent =
-  | { type: "message.close-reminder"; intent_id: string; channel_binding: string; due_at: string }
-  | { type: "message.close-chase"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; participant_states: Record<string, "needs-reformat" | "missing"> }
+  | { type: "message.monday-handoff"; intent_id: string; channel_binding: string; due_at: string; committed_work_item_ids: string[]; carry_forward_participant_ids: string[]; disagreements: string[] }
+  | { type: "message.weekday-digest"; intent_id: string; channel_binding: string; due_at: string; changed_work_item_ids: string[]; readiness?: Record<string, string[]> }
+  | { type: "message.direct-question"; intent_id: string; participant_id: string; due_at: string; work_item_id: string; missing_fields: string[] }
+  | { type: "message.close-reminder"; intent_id: string; channel_binding: string; due_at: string; deadline_at?: string }
+  | { type: "message.close-chase"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; deadline_at?: string; participant_states: Record<string, "needs-reformat" | "missing"> }
   | { type: "message.close-report"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing"> }
   | { type: "message.retro"; intent_id: string; channel_binding: string; thread_reference: string; due_at: string; participant_states: Record<string, "complete" | "needs-reformat" | "missing">; open_work_item_ids: string[]; total_effort_hours: number | null }
+  | { type: "work-item.readiness-update"; intent_id: string; work_item_id: string; expected_version: string; target_status: string; reason: "ready" | "invalidated" }
   | { type: "work-item.rollover"; intent_id: string; work_item_id: string; target_sprint_id: string; expected_version: string }
+  | { type: "work-item.rollover-proposal"; intent_id: string; target_sprint_id: string; items: Array<{ work_item_id: string; expected_version: string }> }
   | { type: "records.reconcile"; intent_id: string; projection_id: string; due_at: string };
 
 export interface SprintDecision {

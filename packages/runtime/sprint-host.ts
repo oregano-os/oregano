@@ -15,11 +15,12 @@ import {
 } from "./sprint-orchestration.ts";
 
 type SprintMessageIntent = Extract<SprintIntent, {
-  type: "message.close-reminder" | "message.close-chase" | "message.close-report" | "message.retro";
+  type: "message.monday-handoff" | "message.weekday-digest" | "message.direct-question" | "message.close-reminder" | "message.close-chase" | "message.close-report" | "message.retro";
 }>;
 
 const isSprintMessageIntent = (intent: SprintIntent): intent is SprintMessageIntent =>
-  intent.type === "message.close-reminder" || intent.type === "message.close-chase"
+  intent.type === "message.monday-handoff" || intent.type === "message.weekday-digest" || intent.type === "message.direct-question"
+  || intent.type === "message.close-reminder" || intent.type === "message.close-chase"
   || intent.type === "message.close-report" || intent.type === "message.retro";
 
 export type SprintRuntimeMode = "disabled" | "shadow" | "active";
@@ -58,6 +59,9 @@ export class ShadowSprintIntentDispatcher implements SprintIntentDispatcher {
 
   async dispatch(args: Parameters<SprintIntentDispatcher["dispatch"]>[0]): Promise<SprintDispatchEvidence> {
     const intent = args.claimed.intent;
+    const directDestination = intent.type === "message.direct-question"
+      ? this.directDestination(args.state, intent.participant_id)
+      : undefined;
     const rendered = isSprintMessageIntent(intent)
       ? renderSprintMessageIntent({ intent, state: args.state, templates: this.runtime.templates })
       : undefined;
@@ -66,12 +70,13 @@ export class ShadowSprintIntentDispatcher implements SprintIntentDispatcher {
       event_id: `shadow-delivery:${intent.intent_id}`,
       occurred_at: args.dispatchedAt,
       intent_id: intent.intent_id,
-      purpose: intent.type.slice("message.".length) as "close-reminder" | "close-chase" | "close-report" | "retro",
-      destination_binding: intent.channel_binding,
+      purpose: intent.type.slice("message.".length) as Extract<SprintEvent, { type: "message.delivered" }>["purpose"],
+      destination_binding: directDestination ?? ("channel_binding" in intent ? intent.channel_binding : ""),
       message_id: `shadow:${sha256(intent.intent_id).slice(0, 24)}`,
       thread_reference: intent.type === "message.close-reminder"
         ? `shadow-thread:${sha256([args.definitionId, args.state.sprint_id]).slice(0, 24)}`
-        : intent.thread_reference,
+        : "thread_reference" in intent ? intent.thread_reference : `shadow-thread:${sha256(intent.intent_id).slice(0, 24)}`,
+      ...(intent.type === "message.direct-question" ? { participant_id: intent.participant_id } : {}),
     } : undefined;
     return {
       dispatcherId: "sprint-shadow",
@@ -97,6 +102,14 @@ export class ShadowSprintIntentDispatcher implements SprintIntentDispatcher {
       } : {}),
     };
   }
+
+  private directDestination(state: SprintState, participantId: string): string {
+    const principal = state.participants[participantId]?.communication_principal;
+    if (!principal) throw new Error(`Sprint participant '${participantId}' lacks a canonical communication principal`);
+    const binding = this.runtime.directDestinations[principal];
+    if (!binding) throw new Error(`Sprint participant '${participantId}' lacks an exact compiled direct-message destination`);
+    return binding;
+  }
 }
 
 /** Provider-neutral binding from Sprint intents into the normal CompanyOS Tool boundary. */
@@ -109,9 +122,11 @@ export class CompiledSprintToolExecutionResolver implements SprintToolExecutionR
 
   async resolve(args: Parameters<SprintToolExecutionResolver["resolve"]>[0]) {
     const intent = args.intent;
-    if (intent.type === "message.close-reminder" || intent.type === "message.close-chase"
-      || intent.type === "message.close-report" || intent.type === "message.retro") {
-      if (intent.channel_binding !== this.runtime.policy.delivery.channel_binding) {
+    if (isSprintMessageIntent(intent)) {
+      const channelBinding = intent.type === "message.direct-question"
+        ? this.directBinding(args.state, intent.participant_id)
+        : intent.channel_binding;
+      if (intent.type !== "message.direct-question" && channelBinding !== this.runtime.policy.delivery.channel_binding) {
         throw new Error("Sprint message attempted to widen its reviewed shared-channel binding");
       }
       const rendered = renderSprintMessageIntent({ intent, state: args.state, templates: this.runtime.templates });
@@ -120,20 +135,66 @@ export class CompiledSprintToolExecutionResolver implements SprintToolExecutionR
         grantId: "oregano:communications/publish",
         subjectPrincipal: this.runtime.servicePrincipal,
         input: {
-          destination_binding: intent.channel_binding,
+          destination_binding: channelBinding,
           content: rendered.content,
           format: "provider-markdown",
-          ...(intent.type === "message.close-reminder" ? {} : { thread_reference: intent.thread_reference }),
+          ...(["message.close-chase", "message.close-report", "message.retro"].includes(intent.type) ? { thread_reference: (intent as Extract<SprintIntent, { type: "message.close-chase" | "message.close-report" | "message.retro" }>).thread_reference } : {}),
         },
       };
     }
-    if (intent.type === "work-item.rollover") {
+    if (intent.type === "work-item.readiness-update") {
+      if (!this.runtime.workItem?.readinessField) {
+        throw new Error("Sprint readiness update has no exact compiled work-item field binding");
+      }
+      return {
+        agentId: this.runtime.agentId,
+        grantId: "oregano:work-items/update",
+        subjectPrincipal: this.runtime.servicePrincipal,
+        input: {
+          resource_binding: this.runtime.workItem.resourceBinding,
+          work_item_id: intent.work_item_id,
+          expected_version: intent.expected_version,
+          changes: { [this.runtime.workItem.readinessField]: intent.target_status },
+        },
+      };
+    }
+    if (intent.type === "work-item.rollover" || intent.type === "work-item.rollover-proposal") {
       // A rollover is a frozen reversible proposal. The ordinary intent worker
       // must never turn it into an effect before a human confirmation is consumed.
       throw new Error("Sprint work-item rollover requires the separate confirmation path");
     }
     throw new Error(`Sprint intent '${intent.type}' has no hosted execution binding`);
   }
+
+  private directBinding(state: SprintState, participantId: string): string {
+    const principal = state.participants[participantId]?.communication_principal;
+    if (!principal) throw new Error(`Sprint participant '${participantId}' lacks a canonical communication principal`);
+    const binding = this.runtime.directDestinations[principal];
+    if (!binding) throw new Error(`Sprint participant '${participantId}' lacks an exact compiled direct-message destination`);
+    return binding;
+  }
+}
+
+/** Freeze one R3 batch Tool input from a durable proposal without performing an effect. */
+export function sprintRolloverToolRequest(args: {
+  compiled: CompiledSprintRuntime;
+  intent: Extract<SprintIntent, { type: "work-item.rollover-proposal" }>;
+}) {
+  if (!args.compiled.workItem) throw new Error("Sprint Rollover has no exact compiled work-item binding");
+  if (args.intent.items.length < 1) throw new Error("Sprint Rollover proposal contains no eligible work items");
+  return {
+    agentId: args.compiled.agentId,
+    grantId: "oregano:work-items/batch-update",
+    subjectPrincipal: args.compiled.servicePrincipal,
+    input: {
+      resource_binding: args.compiled.workItem.resourceBinding,
+      updates: args.intent.items.map((item) => ({
+        work_item_id: item.work_item_id,
+        expected_version: item.expected_version,
+        changes: { [args.compiled.workItem!.rolloverField]: args.intent.target_sprint_id },
+      })),
+    },
+  };
 }
 
 export interface HostedSprintRuntimeInspection {
@@ -180,6 +241,7 @@ export class HostedSprintRuntime {
       store: args.store,
       timers: args.timers,
       scheduleVersion: this.compiled.schedule.sourceDigest,
+      weeklyTriggers: this.compiled.schedule.triggers,
     });
     if (this.mode === "active" && !this.activeDispatcher) {
       throw new Error("Active Sprint runtime requires an exact intent dispatcher");
@@ -244,6 +306,12 @@ export class HostedSprintRuntime {
       ...structuredClone(participant),
       approved_absence: participant.approved_absence || excluded.has(participant.participant_id),
     }));
+    const prior = await this.store.getState({ instanceId: this.service.instanceId, definitionId: this.compiled.definitionId });
+    const carryForward = prior?.state.phase === "closed" ? Object.fromEntries(Object.entries(prior.state.submissions).flatMap(([participantId, submissions]) => {
+      const latest = submissions.filter((submission) => submission.complete && submission.next_week)
+        .sort((left, right) => left.received_at.localeCompare(right.received_at)).at(-1);
+      return latest?.next_week ? [[participantId, structuredClone(latest.next_week)]] : [];
+    })) : {};
     const opened = await this.service.openSprint({
       event: {
         type: "sprint.opened",
@@ -262,6 +330,14 @@ export class HostedSprintRuntime {
       occurred_at: snapshotEventAt,
       participants,
     });
+    if (Object.keys(carryForward).length > 0) {
+      await this.service.processEvent({
+        type: "carry-forward.observed",
+        event_id: `carry-forward:${sha256([this.compiled.definitionId, args.sprintId, carryForward])}`,
+        occurred_at: snapshotEventAt,
+        plans: carryForward,
+      });
+    }
     const workItemEvent = await this.service.processEvent({
       type: "work-items.observed",
       event_id: `snapshot:work-items:${sha256([this.compiled.definitionId, args.sprintId, args.snapshot.workItemSourceVersion])}`,
@@ -294,6 +370,26 @@ export class HostedSprintRuntime {
     return { accepted: true as const, status: result.status, stateVersion: result.outcome.stateVersion };
   }
 
+  /**
+   * Refresh mutable work facts from a newly stabilized projection while
+   * retaining the participant scope frozen when the Sprint was opened.
+   */
+  async refreshWorkItems(args: { snapshot: SprintSnapshot; refreshedAt: string }) {
+    if (this.mode === "disabled") throw new Error("Sprint runtime is disabled");
+    exactIso(args.refreshedAt, "Sprint refresh time");
+    exactIso(args.snapshot.observedAt, "Sprint refresh snapshot observedAt");
+    if (args.snapshot.observedAt > args.refreshedAt) throw new Error("Sprint refresh snapshot must not come from the future");
+    const stored = await this.store.getState({ instanceId: this.service.instanceId, definitionId: this.compiled.definitionId });
+    if (!stored?.state.sprint_id) return { refreshed: false as const, reason: "no-open-sprint" as const };
+    const result = await this.service.processEvent({
+      type: "work-items.observed",
+      event_id: `refresh:work-items:${sha256([this.compiled.definitionId, stored.state.sprint_id, args.snapshot.workItemSourceVersion])}`,
+      occurred_at: args.snapshot.observedAt,
+      work_items: structuredClone(args.snapshot.workItems),
+    });
+    return { refreshed: true as const, status: result.status, stateVersion: result.outcome.stateVersion };
+  }
+
   async processDueTimers(args: { now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit?: number }) {
     this.assertScheduledWorkerEnabled();
     return this.service.processDueTimers(args);
@@ -301,7 +397,24 @@ export class HostedSprintRuntime {
 
   async dispatchIntents(args: { now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit?: number }) {
     this.assertScheduledWorkerEnabled();
-    const dispatcher = this.mode === "shadow" ? new ShadowSprintIntentDispatcher(this.compiled) : this.activeDispatcher;
+    const providerDispatcher = this.mode === "shadow" ? new ShadowSprintIntentDispatcher(this.compiled) : this.activeDispatcher!;
+    const dispatcher: SprintIntentDispatcher = {
+      dispatch: async (dispatchArgs) => {
+        const intent = dispatchArgs.claimed.intent;
+        if (intent.type === "work-item.rollover-proposal" || intent.type === "work-item.rollover") {
+          return {
+            dispatcherId: "sprint-proposal",
+            executionId: `proposal:${dispatchArgs.definitionId}:${intent.intent_id}`,
+            outcomeDigest: sha256({
+              mode: "proposal-only",
+              definition_id: dispatchArgs.definitionId,
+              intent,
+            }),
+          };
+        }
+        return providerDispatcher.dispatch(dispatchArgs);
+      },
+    };
     return this.service.dispatchIntents({ ...args, dispatcher });
   }
 

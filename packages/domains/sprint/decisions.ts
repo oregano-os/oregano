@@ -1,10 +1,13 @@
 import { recordDigest } from "../../records/identity.ts";
 import type { SprintDecision, SprintDomainDeclaration, SprintEvent, SprintIntent, SprintState } from "./contracts.ts";
 import { sprintCloseSchedule, type BusinessCalendar } from "./business-time.ts";
-import { buildSprintCloseReadModel } from "./read-models.ts";
+import { buildSprintCloseReadModel, buildSprintMondayHandoffReadModel, buildSprintWeekdayDigestReadModel } from "./read-models.ts";
 import { reduceSprintEvent } from "./reducer.ts";
 
 const intentId = (kind: string, ...parts: string[]): string => recordDigest([kind, ...parts]);
+
+const localWeekday = (instant: string, timeZone: string): SprintDomainDeclaration["close"]["weekday"] =>
+  new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(new Date(instant)).toLocaleLowerCase("en-US") as SprintDomainDeclaration["close"]["weekday"];
 
 export function decideSprintEvent(args: {
   state: SprintState;
@@ -18,7 +21,76 @@ export function decideSprintEvent(args: {
   const state = reduceSprintEvent(args.state, args.event);
   const intents: SprintIntent[] = [];
   const evidence: SprintDecision["evidence"] = [{ rule: "event-idempotency", outcome: "accepted", facts: { event_id: args.event.event_id } }];
-  if (!state.sprint_id || !state.period_end || state.phase === "closed") return { state, intents, evidence };
+  if (!state.sprint_id || !state.period_end) return { state, intents, evidence };
+
+  if (args.event.type === "clock.reached" && args.policy.weekly && args.event.trigger_id) {
+    if (args.event.trigger_id === args.policy.weekly.monday_handoff_trigger) {
+      const handoff = buildSprintMondayHandoffReadModel({ state, policy: args.policy });
+      intents.push({
+        type: "message.monday-handoff",
+        intent_id: intentId("monday-handoff", state.sprint_id, args.event.instant),
+        channel_binding: args.policy.delivery.channel_binding,
+        due_at: args.event.instant,
+        committed_work_item_ids: handoff.committed_work_item_ids,
+        carry_forward_participant_ids: handoff.carry_forward_participant_ids,
+        disagreements: handoff.disagreements,
+      });
+      evidence.push({ rule: "weekly-monday-handoff", outcome: "shared-channel-intent", facts: { committed_count: handoff.committed_work_item_ids.length, disagreement_count: handoff.disagreements.length } });
+      return { state, intents, evidence };
+    }
+    if (args.event.trigger_id === args.policy.weekly.weekday_digest_trigger) {
+      const includeReadiness = localWeekday(args.event.instant, args.policy.calendar.timezone) === args.policy.weekly.readiness_weekday;
+      const digest = buildSprintWeekdayDigestReadModel({ state, policy: args.policy, includeReadiness });
+      intents.push({
+        type: "message.weekday-digest",
+        intent_id: intentId("weekday-digest", state.sprint_id, args.event.instant),
+        channel_binding: args.policy.delivery.channel_binding,
+        due_at: args.event.instant,
+        changed_work_item_ids: digest.changed_work_item_ids,
+        ...(digest.readiness ? { readiness: digest.readiness.missing_fields } : {}),
+      });
+      if (digest.readiness && args.policy.delivery.direct_binding) {
+        const asked = new Set<string>();
+        for (const [workItemId, missingFields] of Object.entries(digest.readiness.missing_fields).sort(([left], [right]) => left.localeCompare(right))) {
+          const item = state.work_items[workItemId];
+          const participantId = item?.assignee_ids.length === 1 ? item.assignee_ids[0] : undefined;
+          if (!participantId || asked.has(participantId) || !state.participants[participantId]?.communication_principal) continue;
+          asked.add(participantId);
+          intents.push({
+            type: "message.direct-question",
+            intent_id: intentId("direct-question", state.sprint_id, args.event.instant, participantId, workItemId),
+            participant_id: participantId,
+            due_at: args.event.instant,
+            work_item_id: workItemId,
+            missing_fields: missingFields,
+          });
+        }
+      }
+      if (digest.readiness) {
+        const ready = new Set(digest.readiness.ready_work_item_ids);
+        for (const item of Object.values(state.work_items).sort((left, right) => left.work_item_id.localeCompare(right.work_item_id))) {
+          const shouldMarkReady = ready.has(item.work_item_id) && item.status !== args.policy.work_items.ready_status;
+          const shouldInvalidate = Object.hasOwn(digest.readiness.missing_fields, item.work_item_id)
+            && item.status === args.policy.work_items.ready_status
+            && Boolean(args.policy.work_items.planned_status);
+          if (!shouldMarkReady && !shouldInvalidate) continue;
+          const targetStatus = shouldMarkReady ? args.policy.work_items.ready_status : args.policy.work_items.planned_status!;
+          intents.push({
+            type: "work-item.readiness-update",
+            intent_id: intentId("readiness-update", state.sprint_id, args.event.instant, item.work_item_id, item.provider_version, targetStatus),
+            work_item_id: item.work_item_id,
+            expected_version: item.provider_version,
+            target_status: targetStatus,
+            reason: shouldMarkReady ? "ready" : "invalidated",
+          });
+        }
+      }
+      evidence.push({ rule: "weekly-digest", outcome: includeReadiness ? "digest-and-focused-readiness-questions" : "digest", facts: { changed_count: digest.changed_work_item_ids.length, question_count: intents.filter((intent) => intent.type === "message.direct-question").length } });
+      return { state, intents, evidence };
+    }
+  }
+
+  if (state.phase === "closed") return { state, intents, evidence };
 
   const schedule = sprintCloseSchedule({ policy: args.policy, periodEnd: state.period_end, calendar: args.calendar });
   const close = buildSprintCloseReadModel({ state, policy: args.policy, reportAt: schedule.report_at });
@@ -41,12 +113,12 @@ export function decideSprintEvent(args: {
   }
   if (args.event.type === "message.delivered" && args.event.purpose === "retro") {
     if (state.next_sprint_id) {
-      for (const item of close.open_work_items) intents.push({
-        type: "work-item.rollover",
-        intent_id: intentId("rollover", state.sprint_id, state.next_sprint_id, item.work_item_id),
-        work_item_id: item.work_item_id,
+      intents.push({
+        type: "work-item.rollover-proposal",
+        intent_id: intentId("rollover-proposal", state.sprint_id, state.next_sprint_id, ...close.open_work_items.map((item) => `${item.work_item_id}@${item.provider_version}`).sort()),
         target_sprint_id: state.next_sprint_id,
-        expected_version: item.provider_version,
+        items: close.open_work_items.map((item) => ({ work_item_id: item.work_item_id, expected_version: item.provider_version }))
+          .sort((left, right) => left.work_item_id.localeCompare(right.work_item_id)),
       });
     }
     evidence.push({ rule: "friday-close-order", outcome: "rollover-proposals-after-retro", facts: { retro_intent_id: args.event.intent_id, open_work_items: close.open_work_items.length } });
@@ -83,6 +155,7 @@ export function decideSprintEvent(args: {
         channel_binding: args.policy.delivery.channel_binding,
         thread_reference: state.close_thread_reference,
         due_at: schedule.chase_at,
+        deadline_at: schedule.complete_by,
         participant_states: incomplete,
       });
     }
@@ -96,6 +169,7 @@ export function decideSprintEvent(args: {
       intent_id: intentId("close-reminder", state.sprint_id, schedule.reminder_at),
       channel_binding: args.policy.delivery.channel_binding,
       due_at: schedule.reminder_at,
+      deadline_at: schedule.complete_by,
     });
     evidence.push({ rule: "initial-reminder", outcome: "shared-thread-root-intent", facts: { participant_count: Object.keys(participantStates).length } });
   }

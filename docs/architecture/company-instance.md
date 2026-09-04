@@ -518,6 +518,17 @@ stream before the next step may become eligible. Direct-message bindings
 remain available for separately declared one-to-one Sprint interactions; they
 are not the Friday reminder path.
 
+Monday handoff, weekday movement digest, and configured readiness checkpoints
+are additional compiled weekly triggers. Immediately before processing due
+weekly timers, the Runner resolves a twice-stabilized current work-item
+projection and appends its exact source version to the Sprint event stream.
+The Sprint's participant scope stays frozen; only work facts refresh. An
+unchanged source version is replay-safe and creates neither duplicate decisions
+nor duplicate effects.
+At the readiness checkpoint, the runtime may set or invalidate only the exact
+Instance-bound secondary readiness field with the observed provider version;
+it never changes the authoritative provider group.
+
 Workbench compiles the reviewed Sprint declaration, immutable schedule
 manifest, calendar, Workspace-owned templates, logical Agent, service
 principal, participant identity namespace, and exact destination/resource
@@ -525,8 +536,13 @@ bindings into the Artifact. The maintained dispatcher then enters the ordinary
 `CompanyOSRuntime` Tool boundary; it does not bypass Agent, ToolSet,
 Capability, authorization, idempotency, effect, or evidence controls. In
 `shadow` mode rendered content is represented only by digests and no provider
-effect occurs. In `active` mode messages may use an already authorized Tool;
-Rollover stays blocked until its separately confirmed proposal path exists.
+effect occurs. In `active` mode messages may use an already authorized Tool. A
+briefing update may use the narrow subject-confirmation path only when the
+confirming active human is the exact proposal owner and the Tool risk is below
+R3. Rollover is a separate frozen R3 batch: automatic processing records only
+the proposal, ordinary approval authorizes the exact set, all items are
+preflighted before the first write, and partial dispatch is recorded as an
+unknown outcome rather than retried.
 Missing or stale projections, schedule coverage, identity mappings, bindings,
 grants, or dispatchers fail before an effect.
 

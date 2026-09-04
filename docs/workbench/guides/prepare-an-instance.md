@@ -121,11 +121,21 @@ sprint_runtimes:
     work_item:
       resource_binding: sprint-test-board
       rollover_field: sprint
+      readiness_field: status
 ```
 
 The declaration must never contain a token, signing secret, database URL, or
 other resolved credential. A Capability binding and Agent grant are still
 required independently; Connector configuration alone grants no authority.
+An active Sprint Agent that performs briefings needs both the normal
+`oregano:work-items/update` Tool and the
+`oregano:work-items/confirmed-update` Tool. The latter accepts only the exact
+active human subject of the frozen reversible proposal. Rollover additionally
+needs `oregano:work-items/batch-update`, the `work-item.batch-update`
+Capability, an exact read-write resource binding, and ordinary R3 approval.
+Omit `work_item` and those write grants from a read-only Shadow Instance; Shadow
+weekly and Friday processing still produces digest evidence and no provider
+effect.
 
 The maintained Vercel Runner also verifies the Artifact environment against
 Vercel's trusted deployment identity. A `production` deployment accepts only a
@@ -206,6 +216,14 @@ A schedule that remains `blocked` in the Workspace may be exercised only in
 `shadow` so Stage 0 can qualify the compiled timing without creating an effect.
 `active` workers continue to fail closed until that exact schedule declaration
 is explicitly active.
+
+The reviewed Sprint configuration may bind `weekly.monday_handoff_trigger`,
+`weekly.weekday_digest_trigger`, and `weekly.readiness_weekday` to immutable
+schedule entries and may bind Workspace-owned `monday_handoff`,
+`weekday_digest`, and `direct_question` templates. Before any due weekly timer,
+the Runner refreshes the twice-stabilized work-item projection while retaining
+the Sprint's frozen participant scope. Bind every participant identity to one
+exact direct-message destination before enabling readiness questions.
 
 The checked-in Vercel reference wakes the Sprint workers once per minute.
 Vercel currently supports that frequency only on plans with per-minute Cron;

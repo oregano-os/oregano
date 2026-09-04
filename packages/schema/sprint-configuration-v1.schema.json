@@ -26,7 +26,10 @@
         "projection": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
         "master_group": { "type": "string", "minLength": 1, "maxLength": 127 },
         "ready_status": { "type": "string", "minLength": 1, "maxLength": 127 },
-        "closed_statuses": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 127 }, "uniqueItems": true }
+        "closed_statuses": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 127 }, "uniqueItems": true },
+        "planning_group": { "type": "string", "minLength": 1, "maxLength": 127 },
+        "planned_status": { "type": "string", "minLength": 1, "maxLength": 127 },
+        "required_fields": { "type": "array", "maxItems": 100, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{1,126}$" } }
       }
     },
     "calendar": {
@@ -80,6 +83,16 @@
         "direct_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" }
       }
     },
+    "weekly": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["monday_handoff_trigger", "weekday_digest_trigger", "readiness_weekday"],
+      "properties": {
+        "monday_handoff_trigger": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+        "weekday_digest_trigger": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
+        "readiness_weekday": { "type": "string", "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] }
+      }
+    },
     "model_task_profile": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" },
     "rendering": {
       "type": "object",
@@ -89,7 +102,10 @@
         "reminder": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "chase": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "close_report": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
-        "retro": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" }
+        "retro": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "monday_handoff": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "weekday_digest": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "direct_question": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" }
       }
     }
   }

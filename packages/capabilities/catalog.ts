@@ -259,6 +259,30 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
     evidence: ["resource_binding", "work_item_id", "comment_id", "provider_version", "created_at", "connector"],
   },
   {
+    id: "work-item.batch-update",
+    version: "1.0.0",
+    description: "Apply one human-approved frozen set of provider-neutral work-item updates with complete preflight and per-item read-after-write evidence.",
+    mode: "effect",
+    minimumRisk: "R3",
+    inputSchema: object(["resource_binding", "updates"], {
+      resource_binding: { type: "string", minLength: 1, maxLength: 63 },
+      updates: {
+        type: "array", minItems: 1, maxItems: 1_000,
+        items: object(["work_item_id", "changes", "expected_version"], {
+          work_item_id: { type: "string", minLength: 1, maxLength: 255 },
+          changes: { type: "object" },
+          expected_version: { type: "string", minLength: 1, maxLength: 255 },
+        }),
+      },
+    }),
+    outputSchema: object(["results", "complete"], {
+      results: { type: "array", maxItems: 1_000, items: { type: "object" } },
+      complete: { type: "boolean" },
+    }),
+    idempotency: "required",
+    evidence: ["resource_binding", "work_item_ids", "previous_versions", "provider_versions", "changed_fields", "connector"],
+  },
+  {
     id: "communication.message.publish",
     version: "1.0.0",
     description: "Publish one bounded internal message through an exact Instance destination binding.",

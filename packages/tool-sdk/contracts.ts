@@ -15,6 +15,8 @@ export interface CompanyToolContract {
   outputSchema: JsonSchema;
   evidence: string[];
   failure: string;
+  /** Require the active human subject to confirm this otherwise reversible effect in its conversation. */
+  confirmation?: "subject";
 }
 
 export interface ToolCapabilityClient {
