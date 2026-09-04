@@ -119,6 +119,8 @@ sprint_runtimes:
     participant_identity_prefix: monday:account:
     direct_destinations:
       slack:T00001:U00001: sprint-direct-alex
+    replay:
+      message_projection: sprint-messages
     work_item:
       resource_binding: sprint-test-board
       rollover_field: sprint
@@ -143,6 +145,18 @@ grants no Tool authority. The Runner accepts such an Artifact only in
 before constructing a provider dispatcher. Use `execution: active-capable`
 (the backward-compatible default) only when the Agent has the reviewed
 communication and optional work-item grants and the Instance binds them.
+
+`replay.message_projection` is optional. When present, Workbench requires the
+exact projection to have record type `communication-message` and to expose
+`message_id`, `team_id`, `author_id`, `thread_id`, `text`, and `occurred_at`.
+The authenticated Sprint operator may then replay an explicit historical date
+range with a controlled clock. Provider authors still resolve only through
+tenant-scoped canonical roster principals; message content cannot choose an
+Agent or grant authority. The maintained hosted replay is proof-only: it
+stores deterministic Sprint events, states, intents, outcomes, and source
+version lineage in `companyos_records`, while refusing every compiled live
+Slack or work-item binding. Publishing a reviewed result to a test destination
+is a separate Capability-controlled operation and is never implied by replay.
 
 The maintained Vercel Runner also verifies the Artifact environment against
 Vercel's trusted deployment identity. A `production` deployment accepts only a

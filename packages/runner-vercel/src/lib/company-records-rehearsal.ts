@@ -7,6 +7,11 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../../connectors/monday/records-source.ts";
+import { SlackRecordSourceConnector } from "../../../connectors/slack/records-source.ts";
+import {
+  qualifySlackRecordSource,
+  type SlackRecordSourceQualification,
+} from "../../../connectors/slack/record-source-qualification.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
 import {
   createMondayExternalAgentQualificationEvidence,
@@ -91,7 +96,9 @@ export type CompanyRecordsRehearsalRequest =
       readonly boards: readonly MondayAgentBoardAccessExpectation[];
       readonly qualification_plan_hash: string;
       readonly confirmation_hash: string;
-    };
+    }
+  | { readonly action: "plan-slack-qualification"; readonly source_id: string }
+  | { readonly action: "apply-slack-qualification"; readonly source_id: string; readonly confirmation_hash: string };
 
 export class CompanyRecordsRehearsalError extends Error {
   readonly code: string;
@@ -265,21 +272,26 @@ export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyReco
   const migrationActions = new Set(["plan-migration", "apply-migration"]);
   const sourceActions = new Set(["plan-sync", "apply-sync", "status", "inspect-identities"]);
   const mondayQualificationActions = new Set(["plan-monday-qualification", "apply-monday-qualification"]);
-  if (!migrationActions.has(action) && !sourceActions.has(action) && !mondayQualificationActions.has(action)) throw new CompanyRecordsRehearsalError("invalid-request", "Unsupported rehearsal action");
+  const slackQualificationActions = new Set(["plan-slack-qualification", "apply-slack-qualification"]);
+  if (!migrationActions.has(action) && !sourceActions.has(action) && !mondayQualificationActions.has(action) && !slackQualificationActions.has(action)) throw new CompanyRecordsRehearsalError("invalid-request", "Unsupported rehearsal action");
   const allowedKeys = action === "plan-migration"
     ? ["action"]
     : action === "apply-migration"
       ? ["action", "confirmation_hash"]
       : action === "plan-monday-qualification"
         ? ["action", "agent_id", "boards", "qualification_plan_hash"]
-        : action === "apply-monday-qualification"
+      : action === "apply-monday-qualification"
           ? ["action", "agent_id", "boards", "qualification_plan_hash", "confirmation_hash"]
+      : action === "apply-slack-qualification"
+        ? ["action", "source_id", "confirmation_hash"]
       : action === "apply-sync"
         ? ["action", "source_id", "confirmation_hash"]
         : ["action", "source_id"];
   exactKeys(input, allowedKeys, "request");
   const confirmationHash = action.startsWith("apply-") ? string(input.confirmation_hash, "request.confirmation_hash", /^[0-9a-f]{64}$/) : undefined;
-  const sourceId = sourceActions.has(action) ? string(input.source_id, "request.source_id", /^[a-z][a-z0-9-]{1,62}$/) : undefined;
+  const sourceId = sourceActions.has(action) || slackQualificationActions.has(action)
+    ? string(input.source_id, "request.source_id", /^[a-z][a-z0-9-]{1,62}$/)
+    : undefined;
   if (mondayQualificationActions.has(action)) {
     const agentId = string(input.agent_id, "request.agent_id", /^\d{1,20}$/);
     const qualificationPlanHash = string(input.qualification_plan_hash, "request.qualification_plan_hash", /^[0-9a-f]{64}$/);
@@ -302,6 +314,8 @@ export function parseCompanyRecordsRehearsalRequest(value: unknown): CompanyReco
   }
   if (action === "plan-migration") return { action };
   if (action === "apply-migration") return { action, confirmation_hash: confirmationHash! };
+  if (action === "plan-slack-qualification") return { action, source_id: sourceId! };
+  if (action === "apply-slack-qualification") return { action, source_id: sourceId!, confirmation_hash: confirmationHash! };
   if (action === "plan-sync") return { action, source_id: sourceId! };
   if (action === "apply-sync") return { action, source_id: sourceId!, confirmation_hash: confirmationHash! };
   if (action === "inspect-identities") return { action, source_id: sourceId! };
@@ -357,6 +371,66 @@ export function planCompanyRecordsPreviewMondayQualification(
   return { ...plan, confirmation_hash: sha256(JSON.stringify(plan)) };
 }
 
+function selectedSlackQualificationBinding(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string) {
+  const sourceValue = configuration.sources.find((candidate) => candidate.id === sourceId);
+  const bindingEntry = configuration.bindings.find((candidate) => candidate.source_id === sourceId);
+  if (!sourceValue || !bindingEntry || !configuration.source_confirmations[sourceId]) {
+    throw new CompanyRecordsRehearsalError("unknown-source", `Unknown confirmed source '${sourceId}'`, 404);
+  }
+  const messages = [
+    ...schemaErrors(SOURCE_SCHEMA, sourceValue, `source '${sourceId}'`),
+    ...schemaErrors(BINDING_SCHEMA, bindingEntry.binding, `binding '${sourceId}'`),
+  ];
+  if (messages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", messages[0]!, 503);
+  const source = sourceValue as unknown as CompanyRecordSourceDeclaration;
+  const binding = bindingEntry.binding as unknown as CompanyRecordSourceBinding;
+  if (source.record_type !== "communication-message") throw new CompanyRecordsRehearsalError("invalid-declaration", `Slack source '${sourceId}' must use record_type 'communication-message'`, 503);
+  if (binding.instance_id !== configuration.instance_id || binding.source_id !== source.id || binding.resource_binding !== source.resource_binding) {
+    throw new CompanyRecordsRehearsalError("binding-mismatch", `Binding for source '${sourceId}' does not match the rehearsal Instance and declaration`, 503);
+  }
+  if (binding.connector !== "oregano/slack-record-source" || binding.connector_version !== "0.1.0") {
+    throw new CompanyRecordsRehearsalError("invalid-declaration", `Source '${sourceId}' does not select the maintained Slack Record Source Connector`, 503);
+  }
+  const provider = object(binding.configuration, `binding '${sourceId}'.configuration`);
+  exactKeys(provider, ["team_id", "channel_id", "conversation_kind", "oldest_at", "latest_at", "include_threads", "page_size", "max_pages", "max_thread_pages", "max_messages"], `binding '${sourceId}'.configuration`);
+  const teamId = string(provider.team_id, `binding '${sourceId}'.configuration.team_id`, /^[A-Z][A-Z0-9]{4,31}$/);
+  const channelId = string(provider.channel_id, `binding '${sourceId}'.configuration.channel_id`, /^[CG][A-Z0-9]{4,31}$/);
+  const conversationKind = string(provider.conversation_kind, `binding '${sourceId}'.configuration.conversation_kind`);
+  if (conversationKind !== "public-channel" && conversationKind !== "private-channel") {
+    throw new CompanyRecordsRehearsalError("invalid-declaration", `binding '${sourceId}'.configuration.conversation_kind is invalid`, 503);
+  }
+  return { source, binding, teamId, channelId, conversationKind };
+}
+
+export function planCompanyRecordsPreviewSlackQualification(configuration: CompanyRecordsRehearsalConfiguration, sourceId: string) {
+  const selected = selectedSlackQualificationBinding(configuration, sourceId);
+  const plan = {
+    schema_version: 1,
+    kind: "company-records-preview-slack-source-qualification",
+    environment: "preview",
+    instance_id: configuration.instance_id,
+    core: configuration.core,
+    workspace: companyRecordsWorkspaceIdentity(configuration),
+    source_id: sourceId,
+    resource_binding: selected.binding.resource_binding,
+    connector: `${selected.binding.connector}@${selected.binding.connector_version}`,
+    provider_secret_ref: selected.binding.secret_ref,
+    team_id: selected.teamId,
+    channel_id: selected.channelId,
+    conversation_kind: selected.conversationKind,
+    provider_access: "authenticated-bot-identity-and-selected-conversation-metadata-only",
+    provider_effects: [],
+    database_effects: [],
+    production_effects: [],
+    external_changes: [
+      "Read the authenticated Slack bot and team identity.",
+      "Read metadata and membership for only the exact selected conversation.",
+      "Do not read message history or modify Slack, permissions, Workspace files, databases, deployments, schedules, or production state.",
+    ],
+  };
+  return { ...plan, confirmation_hash: sha256(JSON.stringify(plan)) };
+}
+
 const schemaErrors = (schema: object, value: unknown, label: string): string[] => validateJsonSchemaValue(schema as never, value).map((message) => `${label}: ${message}`);
 const projectionPaths = (projection: CompanyRecordProjectionDeclaration): string[] => [...Object.keys(projection.selection ?? {}), ...projection.fields.map((field) => field.path)];
 
@@ -400,7 +474,10 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
     if (candidateMessages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", candidateMessages[0]!, 503);
     registry.registerProjection(candidate as unknown as CompanyRecordProjectionDeclaration);
   }
-  const connectors = new RecordSourceConnectorRegistry([new MondayRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef })]);
+  const connectors = new RecordSourceConnectorRegistry([
+    new MondayRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
+    new SlackRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
+  ]);
   connectors.validate(source, binding, bindingEntry.qualification);
   return { source, binding, qualification: bindingEntry.qualification, projections, registry, connectors };
 }
@@ -454,6 +531,7 @@ interface RehearsalDependencies {
     readonly boards: readonly MondayAgentBoardAccessExpectation[];
     readonly qualificationPlanHash: string;
   }): Promise<ReturnType<typeof createMondayExternalAgentQualificationEvidence>>;
+  qualifySlack(input: { sourceId: string; binding: CompanyRecordSourceBinding; teamId: string; channelId: string }): Promise<SlackRecordSourceQualification>;
 }
 
 const defaultDependencies: RehearsalDependencies = {
@@ -550,6 +628,13 @@ const defaultDependencies: RehearsalDependencies = {
       observedAt: new Date().toISOString(),
     });
   },
+  async qualifySlack(input) {
+    return await qualifySlackRecordSource({
+      token: resolveEnvironmentSecretRef(input.binding.secret_ref),
+      teamId: input.teamId,
+      channelId: input.channelId,
+    });
+  },
 };
 
 export async function executeCompanyRecordsRehearsal(request: CompanyRecordsRehearsalRequest, configuration: CompanyRecordsRehearsalConfiguration, environment: RehearsalEnvironment = process.env, dependencies: RehearsalDependencies = defaultDependencies) {
@@ -573,6 +658,31 @@ export async function executeCompanyRecordsRehearsal(request: CompanyRecordsRehe
       confirmation_hash: request.confirmation_hash,
       credentials_retained: false,
       provider_effects: [],
+    };
+  }
+  if (request.action === "plan-slack-qualification") {
+    return { ok: true, plan: planCompanyRecordsPreviewSlackQualification(configuration, request.source_id) };
+  }
+  if (request.action === "apply-slack-qualification") {
+    const selected = selectedSlackQualificationBinding(configuration, request.source_id);
+    const plan = planCompanyRecordsPreviewSlackQualification(configuration, request.source_id);
+    if (request.confirmation_hash !== plan.confirmation_hash) throw new CompanyRecordsRehearsalError("confirmation-mismatch", "Slack qualification confirmation does not match the current exact provider-metadata-read plan", 409);
+    const evidence = await dependencies.qualifySlack({
+      sourceId: request.source_id,
+      binding: selected.binding,
+      teamId: selected.teamId,
+      channelId: selected.channelId,
+    });
+    return {
+      ok: true,
+      applied: true,
+      operation: "slack-source-qualification-read",
+      source_id: request.source_id,
+      evidence,
+      confirmation_hash: request.confirmation_hash,
+      credentials_retained: false,
+      provider_effects: [],
+      database_effects: [],
     };
   }
   if (request.action === "plan-migration") return { ok: true, plan: planCompanyRecordsPreviewMigration(configuration) };

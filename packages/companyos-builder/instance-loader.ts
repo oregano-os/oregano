@@ -58,7 +58,7 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
       throw new Error(`${path}: sprint_runtimes[${index}] must be an object.`);
     }
     const runtime = entry as Record<string, unknown>;
-    const allowed = ["definition", "agent", "execution", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item"];
+    const allowed = ["definition", "agent", "execution", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item", "replay"];
     const extra = Object.keys(runtime).find((key) => !allowed.includes(key));
     if (extra) throw new Error(`${path}: sprint_runtimes[${index}] contains unsupported field '${extra}'.`);
     const definitionId = requiredIdentifier(runtime.definition, `${path}: sprint_runtimes[${index}].definition`);
@@ -90,6 +90,18 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
         ...(candidate.readiness_field === undefined ? {} : { readinessField: requiredIdentifier(candidate.readiness_field, `${path}: sprint_runtimes[${index}].work_item.readiness_field`) }),
       };
     }
+    let replay: SprintRuntimeInstanceConfiguration["replay"];
+    if (runtime.replay !== undefined) {
+      if (!runtime.replay || typeof runtime.replay !== "object" || Array.isArray(runtime.replay)) {
+        throw new Error(`${path}: sprint_runtimes[${index}].replay must be an object.`);
+      }
+      const candidate = runtime.replay as Record<string, unknown>;
+      const extraReplay = Object.keys(candidate).find((key) => !["message_projection"].includes(key));
+      if (extraReplay) throw new Error(`${path}: sprint_runtimes[${index}].replay contains unsupported field '${extraReplay}'.`);
+      replay = {
+        messageProjection: requiredIdentifier(candidate.message_projection, `${path}: sprint_runtimes[${index}].replay.message_projection`),
+      };
+    }
     return {
       definitionId,
       agentId: requiredIdentifier(runtime.agent, `${path}: sprint_runtimes[${index}].agent`),
@@ -98,6 +110,7 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
       participantIdentityPrefix: requiredPrincipalPrefix(runtime.participant_identity_prefix, `${path}: sprint_runtimes[${index}].participant_identity_prefix`),
       directDestinations,
       ...(workItem ? { workItem } : {}),
+      ...(replay ? { replay } : {}),
     };
   });
 }

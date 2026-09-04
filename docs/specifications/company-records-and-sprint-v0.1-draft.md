@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-03
+updated: 2026-09-04
 owners:
   - oregano-maintainers
 audience:
@@ -236,6 +236,19 @@ closed. The initial profile uses bounded polling for Monday-backed records and
 Slack for interaction. Monday board-change webhooks and Monday card chat are
 deferred extensions, not initial-rollout dependencies.
 
+**CRS-027 — Historical Sprint replay.** An Instance MAY compile one exact
+`communication-message` projection for historical replay. That projection MUST
+expose stable message, team, author, thread, text, and occurrence fields.
+Replay MUST use an isolated definition, explicit date range, immutable input
+versions, and controlled clock. It MUST resolve a provider author only through
+one tenant-scoped canonical roster principal; message content and display names
+MUST NOT select an Agent, establish identity, approve an action, or grant an
+effect. The Sprint Domain MAY derive a typed submission and exact work-item
+references from authorized projection rows. Its accepted event MUST retain the
+source projection, record, and version identities. The maintained hosted mode
+is proof-only and MUST refuse every compiled live communication and work-item
+binding. A test publication is a separate Capability-controlled operation.
+
 ## 4. Tools and Connectors
 
 **CRS-030 — Provider-neutral Capabilities.** Core maintains the contracts
@@ -343,6 +356,19 @@ qualification MUST prove valid delivery, invalid-signature denial, and replay
 denial. No result may contain a credential, and qualification MUST NOT imply
 production activation.
 
+**CRS-038 — Slack Record Source.** The maintained Slack adapter MUST select one
+exact qualified team and allowlisted conversation, prove bot membership and
+the public/private history and read scopes, and retain no credential. A
+complete inventory MUST use bounded cursor pagination over history and each
+declared thread, preserve the immutable raw provider payload, and normalize a
+provider-neutral `communication-message` value. Limited history, incomplete
+thread replies, missing cursors, conflicting versions, bounds, scope drift,
+membership drift, or rate limiting MUST fail without a completeness claim or
+watermark. Qualification reads only authenticated bot identity and exact
+conversation metadata; message history is read only during a separately
+planned synchronization or reconciliation. Neither path writes to Slack or
+grants an Agent Capability.
+
 ## 5. Blueprint and materialization
 
 **CRS-040 — Sprint Blueprint.** `packages/blueprints/sprint-agent/` is one
@@ -365,7 +391,8 @@ leased intent outcomes, due-timer consumption through the same event path,
 controlled-clock Sprint decisions, Tool resolution inputs, signed callback
 verification, replay and echo controls, Connector behavior with synthetic
 responses, hosted Artifact compilation, operator parsing and authentication,
-Slack Friday normalization after resolved identity and Agent routing, shadow
+Slack qualification and bounded threaded-history normalization, historical
+proof-only replay, Slack Friday normalization after resolved identity and Agent routing, shadow
 rendering without effects, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
 discovery, credential-free qualification receipts, and read-only Blueprint
 inspection. They do not prove a real

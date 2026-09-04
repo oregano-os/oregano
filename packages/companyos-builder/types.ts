@@ -48,6 +48,9 @@ export interface SprintRuntimeInstanceConfiguration {
     rolloverField: string;
     readinessField?: string;
   };
+  replay?: {
+    messageProjection: string;
+  };
 }
 
 export interface InstanceBuildConfiguration {
@@ -120,6 +123,9 @@ export interface CompiledSprintRuntime {
     resourceBinding: string;
     rolloverField: string;
     readinessField?: string;
+  };
+  replay?: {
+    messageProjection: string;
   };
   modelTask: string;
 }

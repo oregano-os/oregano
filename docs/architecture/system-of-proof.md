@@ -136,6 +136,16 @@ erases them.
 The hosted Sprint path does not add a fourth evidence schema. Operator-opened
 snapshots, Slack-normalized submissions, clock events, states, decisions,
 intents, timer outcomes, and dispatch outcomes stay in `companyos_records`.
+An allowlisted Slack conversation first enters that schema as immutable
+generic `communication-message` object versions and access-scoped projection
+rows. A Domain-owned derived-record envelope may interpret one projected
+version, but does not create another database authority: the accepted Sprint
+event stores the exact projection id, record id, and source-version id, while
+typed references bind recognized card links to already authorized work-item
+records. Provider message content never supplies identity, Agent selection,
+approval, or effect authority. Historical Sprint replay uses an isolated
+definition and controlled clock and stores only proof outcomes; the maintained
+host refuses its compiled live communication and work-item bindings.
 Any ordinary Tool authorization, confirmation, effect claim, and execution
 outcome stays in `companyos`; an external provider receipt or verified reread
 completes the chain. Shadow dispatch records a template digest and rendered

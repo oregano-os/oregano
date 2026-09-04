@@ -74,6 +74,12 @@ export interface SprintNextWeekPlan {
   tasks: SprintNextWeekTask[];
 }
 
+export interface SprintSubmissionSourceReference {
+  projection_id: string;
+  record_id: string;
+  source_version_id: string;
+}
+
 export interface SprintParticipant {
   participant_id: string;
   display_name: string;
@@ -99,7 +105,7 @@ export type SprintEvent =
   | { type: "sprint.opened"; event_id: string; occurred_at: string; sprint_id: string; period_start: string; period_end: string }
   | { type: "participants.observed"; event_id: string; occurred_at: string; participants: SprintParticipant[] }
   | { type: "work-items.observed"; event_id: string; occurred_at: string; work_items: SprintWorkItem[] }
-  | { type: "submission.received"; event_id: string; occurred_at: string; participant_id: string; submission_id: string; task_ids: string[]; complete: boolean; next_week?: SprintNextWeekPlan }
+  | { type: "submission.received"; event_id: string; occurred_at: string; participant_id: string; submission_id: string; task_ids: string[]; complete: boolean; next_week?: SprintNextWeekPlan; source_record?: SprintSubmissionSourceReference }
   | { type: "carry-forward.observed"; event_id: string; occurred_at: string; plans: Record<string, SprintNextWeekPlan> }
   | { type: "clock.reached"; event_id: string; occurred_at: string; instant: string; trigger_id?: string; next_sprint_id?: string }
   | { type: "message.delivered"; event_id: string; occurred_at: string; intent_id: string; purpose: "monday-handoff" | "weekday-digest" | "direct-question" | "close-reminder" | "close-chase" | "close-report" | "retro"; destination_binding: string; message_id: string; thread_reference: string; participant_id?: string }

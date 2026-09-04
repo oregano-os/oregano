@@ -28,6 +28,16 @@ evidence, historical prototypes, and production gaps.
   isolated `companyos_records` schema also contains durable timers, Connector
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
+- The generic Record Source registry now also has a maintained read-only Slack
+  adapter for explicitly allowlisted public or private conversations. It
+  verifies one exact team, channel, membership, kind, and required read scopes;
+  reads bounded complete history plus thread replies; normalizes provider
+  messages to `communication-message`; retains immutable raw versions; and
+  fails closed on limited history, incomplete threads, pagination bounds,
+  qualification drift, or rate limiting. Protected Preview qualification reads
+  only bot identity and selected-channel metadata and returns a content-free
+  receipt without retaining the token. No real Slack history read, database
+  write, schedule, or production activation is claimed by this Core change.
 - Projection writes and removals now compare the expected immutable object
   version and mutate the projection atomically in the StateStore. A concurrent
   webhook, synchronization, or reconciliation pass therefore cannot let an
@@ -153,6 +163,15 @@ evidence, historical prototypes, and production gaps.
   qualification with exact test bindings, and each Company must then complete
   Shadow, Pilot, and Team-rhythm gates over the periods declared by its rollout
   policy before production completion may be claimed.
+- The hosted Sprint operator can now run a proof-only historical replay when
+  an Instance compiles one exact `communication-message` projection. The
+  Sprint Domain recognizes template-shaped Friday submissions, resolves the
+  author only through a tenant-scoped roster principal, links exact card URLs
+  only to already authorized work-item records, and stores source-version
+  lineage on durable Sprint events. The replay uses an isolated definition and
+  controlled clock, reports current-snapshot limitations, and refuses every
+  compiled live Slack and work-item binding. It does not publish a test result
+  or provider effect; that remains a separate reviewed Capability operation.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts

@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-01
+updated: 2026-09-04
 owners:
   - oregano-maintainers
 audience:
@@ -45,8 +45,9 @@ database call.
 
 ## Qualification
 
-The first maintained Record Source Connector is Monday. It uses the same
-external Agent identity as the maintained Monday callback ingress:
+The maintained Record Source Connectors are Monday for board objects and Slack
+for allowlisted conversations. Monday uses the same external Agent identity as
+the maintained Monday callback ingress:
 
 ```bash
 companyos records source qualify \
@@ -161,11 +162,21 @@ The maintained Vercel Runner exposes an optional authenticated
 `POST /api/records/rehearsal` operator endpoint for an isolated Preview when a
 local process cannot resolve the Instance secrets. Supported request actions
 are `plan-monday-qualification`, `apply-monday-qualification`,
+`plan-slack-qualification`, `apply-slack-qualification`,
 `plan-migration`, `apply-migration`, `plan-sync`, `apply-sync`, and `status`.
 Monday qualification, migration, and synchronization have independent
-confirmation hashes. Qualification reads only the authenticated external-Agent
+confirmation hashes. Monday qualification reads only the authenticated external-Agent
 identity plus metadata and effective access for the exact selected boards; it
 does not read items or modify Monday.
+
+Slack qualification selects one confirmed `communication-message` source and
+its Instance binding. Planning performs no provider call. Apply resolves only
+the binding's SecretRef and calls Slack identity and conversation-metadata
+methods to prove the exact team, channel, public/private kind, membership, and
+read scopes. It does not read message history, write to Slack, or retain the
+credential. Put the returned content-free receipt outside the Workspace, pin
+its digest in the binding, and then use the same generic sync, reconcile, and
+status operations as every other Record Source.
 
 Preview migration prepares and qualifies the complete additive Company Instance
 database manifest before synchronization. This includes the control, knowledge,

@@ -36,6 +36,7 @@ type RawSchedule = {
 
 type ProjectionDeclaration = {
   id?: unknown;
+  record_type?: unknown;
   fields?: Array<{ name?: unknown }>;
 };
 
@@ -89,6 +90,18 @@ function validateProjectionContract(workspace: LoadedWorkspace, projectionId: st
   const matched = requiredAlternatives.some((required) => required.every((name) => fields.has(name)));
   if (!matched) {
     throw new Error(`${path}: Sprint projection lacks a supported canonical field set.`);
+  }
+}
+
+function validateCommunicationReplayProjection(workspace: LoadedWorkspace, projectionId: string): void {
+  const path = `records/projections/${projectionId}.yaml`;
+  const declaration = parse(file(workspace, path), path) as ProjectionDeclaration;
+  if (declaration?.id !== projectionId || declaration.record_type !== "communication-message" || !Array.isArray(declaration.fields)) {
+    throw new Error(`${path}: Sprint replay requires one communication-message projection with its exact id.`);
+  }
+  const fields = new Set(declaration.fields.flatMap((entry) => typeof entry?.name === "string" ? [entry.name] : []));
+  for (const required of ["message_id", "team_id", "author_id", "thread_id", "text", "occurred_at"]) {
+    if (!fields.has(required)) throw new Error(`${path}: Sprint replay projection lacks canonical field '${required}'.`);
   }
 }
 
@@ -201,6 +214,7 @@ export function compileSprintRuntimes(args: {
   const calendar = compileCalendar(schedulePath, schedule);
   return args.instance.sprintRuntimes!.map((runtime) => {
     if (runtime.definitionId !== policy.id) throw new Error(`Sprint runtime '${runtime.definitionId}' has no matching Workspace declaration.`);
+    if (runtime.replay) validateCommunicationReplayProjection(args.workspace, runtime.replay.messageProjection);
     const agent = args.workspace.agents.find((agent) => agent.id === runtime.agentId);
     if (!agent) {
       throw new Error(`Sprint runtime '${runtime.definitionId}' references absent Agent '${runtime.agentId}'.`);
@@ -337,6 +351,7 @@ export function compileSprintRuntimes(args: {
       directDestinations: structuredClone(runtime.directDestinations),
       directAssignments,
       ...(runtime.workItem ? { workItem: structuredClone(runtime.workItem) } : {}),
+      ...(runtime.replay ? { replay: structuredClone(runtime.replay) } : {}),
       modelTask: policy.model_task_profile ?? "sprint.coordination",
     };
   }).sort((left, right) => left.definitionId.localeCompare(right.definitionId));

@@ -1,0 +1,147 @@
+version: 2
+plan_id: slack-records-and-sprint-replay-2026-09-04
+status: approved
+author: codex-agent
+created: 2026-09-04
+title: Mirror governed conversations and replay Sprint history safely
+objective: >-
+  Add a maintained, provider-neutral communication-record boundary backed first
+  by Slack; materialize typed derived records without making Sprint semantics a
+  general record concern; and provide a controlled-clock Sprint replay that may
+  read approved production records while dispatching only to exact test
+  destinations. Preserve source evidence, references, decisions, and replay
+  outcomes in the existing System of Proof.
+non_goals:
+  - Activate, deploy, promote, merge, tag, release, or change a Company Instance in this change.
+  - Post to a production conversation or modify a production work-management board.
+  - Put company people, resource ids, templates, dates, credentials, or retention policy in Core.
+  - Treat message content, links, or model output as identity, authorization, approval, or routing authority.
+  - Invent one universal business-submission schema or one database schema per Workflow.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Human authority is explicit
+  - Evidence beats claims
+  - The runtime is replaceable
+  - Files are the review surface
+  - Security before autonomy
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-04-slack-records-and-sprint-replay.yaml
+  - docs/**
+  - packages/cli/**
+  - packages/companyos-builder/**
+  - packages/connectors/slack/**
+  - packages/domains/sprint/**
+  - packages/records/**
+  - packages/runner-vercel/**
+  - packages/runtime/**
+  - packages/schema/**
+  - packages/testkit/**
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-04
+    evidence: explicit-user-instruction-ok-dann-mach-das-so-followed-by-ok-dann-mach-weiter-after-reviewing-the-three-layer-design
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own generic provider-neutral communication records, source evidence, typed derived-record envelopes, reference contracts, and controlled replay mechanics.
+      - Maintain the Slack Record Source Connector as one provider adapter without embedding company channels, purposes, or retention choices.
+      - Keep Friday-update recognition and interpretation inside the reusable Sprint domain rather than the generic records layer.
+      - Route any replay output through existing Capability, binding, approval, idempotency, and System-of-Proof controls.
+    packages:
+      - Supply reusable Sprint Workflow and Skill assets while leaving concrete company language, dates, people, and resources declarative.
+    workspace:
+      - Declare which logical conversations become Record Sources, which fields are projected, which Sprint template and policy apply, and which records are eligible for replay.
+    instance:
+      - Bind exact Slack teams and channels, credential SecretRefs, retention, activation, historical bounds, and exact test-only Slack and Monday destinations.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Live conversations retain deterministic Agent assignment; historical record ingestion and operator replay never infer an Agent from message content.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Replay output receives no direct authority and must resolve an existing Agent ToolSet before any test effect.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Deterministic source normalization and Sprint template parsing require no model; any later ambiguous interpretation uses a Workspace task profile through the existing resolver.
+    - mechanism: company-records
+      decision: extend
+      reason: Communication versions, projections, typed derived records, references, watermarks, receipts, and replay evidence belong in the existing companyos_records boundary.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Slack provider identities are evidence only and map to active roster principals before Sprint participation or communication is allowed.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Historical simulation advances the existing Sprint state machine with an explicit controlled clock and cannot change the production clock.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Production records may be read, but replay effects require exact test bindings and the same claims, receipts, and duplicate protection as other effects.
+    - mechanism: capability-contracts-and-connectors
+      decision: extend
+      reason: Slack gains a maintained read-only Record Source adapter; replay publishing reuses communication and work-item Capabilities rather than provider SDK calls.
+  new_core_mechanisms:
+    - A provider-neutral communication-record value contract represented through the existing Record Source and projection contracts.
+    - A generic typed derived-record envelope with source lineage and typed references, stored through existing projection rows and proof tables.
+    - A Sprint-specific historical submission projector and controlled-clock replay report that do not weaken live Sprint validation.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Any company may mirror allowlisted conversations from Slack or a later
+    communication provider into the same provider-neutral shape. Domain modules
+    may derive Sales, Support, Recruiting, Finance, or Sprint records using one
+    typed envelope without changing source storage or adding a schema per use
+    case. Exact resources and effects remain Instance bindings.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-04-slack-records-and-sprint-replay.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-04-slack-records-and-sprint-replay.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A Slack source reads only its exact qualified conversation, includes thread replies, paginates within explicit bounds, and never exposes its credential.
+  - A complete Slack inventory has stable object ids, immutable source versions, a content-free receipt, and a watermark independent of provider response ordering.
+  - Rate limits, hidden history, truncation, missing membership, wrong team, wrong channel, stale qualification, or insufficient scope fail closed without a completeness claim.
+  - Provider messages normalize to one generic communication shape without Sprint fields or company-specific meaning.
+  - Typed derived records preserve source lineage, schema version, subject, occurrence time, and typed references while keeping domain payload validation separate.
+  - Only the Sprint projector recognizes a valid Friday update and links exact work-item URLs to already authorized Company Records.
+  - Historical parsing never changes the rules used by live Friday submission ingress and never grants identity, Agent, or effect authority.
+  - A replay uses an isolated id, explicit date range, immutable input versions, and a controlled clock; repeated execution produces the same digest and no duplicate effect.
+  - Production sources may be read for a replay, while every output outside System-of-Proof evidence is refused unless its exact destination is marked test-only.
+  - A production source conversation and production work-management board cannot be selected as replay output destinations.
+  - Synthetic public fixtures contain no company messages, people, provider ids, credentials, or business content.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.system-of-proof
+    - specification.company-records-sprint-v0.1
+    - guide.connect-company-record-source
+    - status.current
+  reason_if_none: ""
+migration: >-
+  The Core change is additive and inactive by default. Existing Record Sources,
+  projections, and Sprint runtimes keep their behavior. A later, separately
+  reviewed Instance plan qualifies Slack read access, applies any additive
+  manifest change, binds exact source and test destinations, performs the first
+  bounded synchronization, and enables replay.
+rollback: >-
+  Disable the Slack Record Source and replay operator action, stop scheduling
+  new reads, and revert the Runner. Retain all append-only source versions,
+  projection rows, references, replay inputs, decisions, and receipts as dormant
+  evidence. Rollback sends no compensating provider message and deletes no
+  provider or proof data.
+open_decisions:
+  - Exact company source dates, provider qualification, conversation retention, initial replay periods, and test-output resource bindings are reviewed in a later Company Instance activation plan.
+  - Additional conversations are added as independent Workspace source declarations and exact Instance bindings after the first conversation is proven.

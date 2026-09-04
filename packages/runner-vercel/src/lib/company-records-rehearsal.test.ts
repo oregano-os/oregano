@@ -9,6 +9,7 @@ import {
   parseCompanyRecordsRehearsalRequest,
   planCompanyRecordsPreviewMigration,
   planCompanyRecordsPreviewMondayQualification,
+  planCompanyRecordsPreviewSlackQualification,
   type CompanyRecordsRehearsalConfiguration,
 } from "./company-records-rehearsal.ts";
 import { createMondayExternalAgentQualificationEvidence } from "../../../connectors/monday/external-agent-qualification.ts";
@@ -66,6 +67,77 @@ const configuration = (): CompanyRecordsRehearsalConfiguration => ({
 });
 
 const environment = { VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_SHA: "a".repeat(40) };
+
+const slackConfiguration = (): CompanyRecordsRehearsalConfiguration => {
+  const base = configuration();
+  const sources = [{
+    schema_version: 1,
+    id: "fixture-conversation",
+    record_type: "communication-message",
+    connection: "connections/slack.md",
+    resource_binding: "fixture-channel",
+    delivery: "poll",
+    identity: { source_field: "id" },
+    fields: [
+      { target: "message_id", source: "message_id", value_type: "string", required: true },
+      { target: "team_id", source: "team_id", value_type: "string", required: true },
+      { target: "author_id", source: "author_id", value_type: "identity", required: true },
+      { target: "thread_id", source: "thread_id", value_type: "string", required: true },
+      { target: "text", source: "text", value_type: "string" },
+      { target: "occurred_at", source: "occurred_at", value_type: "timestamp", required: true },
+    ],
+    access: { read_groups: ["fixture"], write_roles: [] },
+  }];
+  const projections = [{
+    schema_version: 1,
+    id: "fixture-conversation-messages",
+    record_type: "communication-message",
+    selection: { source_id: "fixture-conversation" },
+    fields: [
+      { name: "message_id", path: "message_id" },
+      { name: "team_id", path: "team_id" },
+      { name: "author_id", path: "author_id" },
+      { name: "thread_id", path: "thread_id" },
+      { name: "text", path: "text" },
+      { name: "occurred_at", path: "occurred_at" },
+    ],
+    freshness: { max_age_minutes: 60 },
+    access: { read_groups: ["fixture"] },
+    materialization: { mode: "database-view" },
+  }];
+  const bindings = [{
+    source_id: "fixture-conversation",
+    binding: {
+      schema_version: 1,
+      instance_id: "fixture-records-rehearsal",
+      source_id: "fixture-conversation",
+      resource_binding: "fixture-channel",
+      connector: "oregano/slack-record-source",
+      connector_version: "0.1.0",
+      secret_ref: "env:SLACK_BOT_TOKEN",
+      qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
+      configuration: {
+        team_id: "T12345",
+        channel_id: "C12345",
+        conversation_kind: "public-channel",
+        oldest_at: "2030-01-01T00:00:00.000Z",
+        include_threads: true,
+        page_size: 100,
+        max_pages: 10,
+        max_thread_pages: 10,
+        max_messages: 1000,
+      },
+    },
+    qualification: { schema_version: 1, kind: "pending-slack-qualification" },
+  }];
+  return {
+    ...base,
+    source_confirmations: { "fixture-conversation": "c".repeat(64) },
+    sources,
+    projections,
+    bindings,
+  };
+};
 
 test("rehearsal authorization is constant-shape and request parsing is strict", () => {
   assert.equal(authorizeCompanyRecordsRehearsal(new Request("https://example.test", { headers: { authorization: "Bearer fixture-secret" } }), "fixture-secret"), true);
@@ -251,4 +323,52 @@ test("protected Preview Monday qualification requires an exact metadata-read con
   assert.equal(applied.credentials_retained, false);
   assert.equal(applied.evidence.discovery.configured_agent_id, "700001");
   assert.deepEqual(applied.provider_effects, []);
+});
+
+test("protected Preview Slack qualification proves one exact conversation without reading messages", async () => {
+  const selected = slackConfiguration();
+  const request = parseCompanyRecordsRehearsalRequest({ action: "plan-slack-qualification", source_id: "fixture-conversation" });
+  if (request.action !== "plan-slack-qualification") throw new Error("fixture request did not parse as Slack qualification");
+  let providerReads = 0;
+  const dependencies: any = {
+    qualifySlack: async () => {
+      providerReads += 1;
+      return {
+        kind: "slack-record-source-qualification",
+        phase: "complete",
+        evidence: {
+          discovery: {
+            discovery_hash: "e".repeat(64),
+            observed_at: "2030-01-01T00:00:00.000Z",
+            authentication_mode: "bot-token",
+            credentials_retained: false,
+            team_id: "T12345",
+            bot_user_id: "U99999",
+            channel: { id: "C12345", kind: "public-channel", is_member: true },
+            scopes: ["channels:history", "channels:read"],
+            request_ids: ["request-auth", "request-info"],
+          },
+        },
+      };
+    },
+  };
+  const planned: any = await executeCompanyRecordsRehearsal(request, selected, environment, dependencies);
+  assert.equal(planned.plan.kind, "company-records-preview-slack-source-qualification");
+  assert.equal(planned.plan.provider_secret_ref, "env:SLACK_BOT_TOKEN");
+  assert.equal(planned.plan.channel_id, "C12345");
+  assert.deepEqual(planned.plan.provider_effects, []);
+  assert.equal(providerReads, 0);
+  await assert.rejects(
+    executeCompanyRecordsRehearsal({ action: "apply-slack-qualification", source_id: "fixture-conversation", confirmation_hash: "0".repeat(64) }, selected, environment, dependencies),
+    /confirmation does not match/,
+  );
+  assert.equal(providerReads, 0);
+  const confirmationHash = planCompanyRecordsPreviewSlackQualification(selected, "fixture-conversation").confirmation_hash;
+  const applied: any = await executeCompanyRecordsRehearsal({ action: "apply-slack-qualification", source_id: "fixture-conversation", confirmation_hash: confirmationHash }, selected, environment, dependencies);
+  assert.equal(providerReads, 1);
+  assert.equal(applied.operation, "slack-source-qualification-read");
+  assert.equal(applied.evidence.evidence.discovery.channel.id, "C12345");
+  assert.equal(JSON.stringify(applied).includes("message"), false);
+  assert.deepEqual(applied.provider_effects, []);
+  assert.deepEqual(applied.database_effects, []);
 });

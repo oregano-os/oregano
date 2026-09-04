@@ -90,6 +90,25 @@ connectors:
   assert.throws(() => loadInstanceBuildConfiguration(path), /duplicate Connector instance/);
 }));
 
+test("Instance build declarations parse a bounded Sprint replay projection binding", () => withFile(`
+version: 1
+instance_id: fixture-test
+environment: test
+bindings: []
+sprint_runtimes:
+  - definition: weekly-delivery
+    agent: sprint
+    execution: shadow-only
+    service_principal: companyos:fixture:sprint
+    participant_identity_prefix: "monday:A1:"
+    direct_destinations: {}
+    replay:
+      message_projection: sprint-messages
+`, (path) => {
+  const configuration = loadInstanceBuildConfiguration(path);
+  assert.deepEqual(configuration.sprintRuntimes?.[0]?.replay, { messageProjection: "sprint-messages" });
+}));
+
 test("Instance build declarations keep Agent, execution, coding, and repository bindings separate", () => withFile(`
 version: 1
 instance_id: fixture-production
