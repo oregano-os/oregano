@@ -136,10 +136,7 @@ while the model is generating it. For Company business-Tool-bearing,
 required-grounding, Builder, approval, and effect-bearing turns, the Runner
 keeps provisional model prose private, presents Tool execution as live native
 task progress without Tool inputs or outputs, and streams the exact validated
-final CompanyOS presentation afterwards in short, paced native chunks so Slack
-clients visibly render progress instead of batching all append calls into one
-final update. Chunk sizing caps the added presentation time for long answers.
-An explicit pending approval or
+final CompanyOS presentation afterwards. An explicit pending approval or
 Builder confirmation leaves the Agent Session suspended; an ordinary completed
 turn returns it to active. Setup verification remains one exact, buffered proof
 response. This is
