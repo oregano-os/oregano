@@ -1,6 +1,6 @@
 schema_version: 1
 id: oregano/sprint-agent
-version: 0.1.0
+version: 0.2.0
 kind: blueprint
 name: Sprint Agent
 description: Provider-neutral supervised weekly Sprint coordination Components.
@@ -26,12 +26,15 @@ requires:
     - oregano:records/query
     - oregano:work-items/read
     - oregano:work-items/update
+    - oregano:work-items/confirmed-update
+    - oregano:work-items/batch-update
     - oregano:work-items/comment
     - oregano:communications/publish
   capabilities:
     - records.query
     - work-item.read
     - work-item.update
+    - work-item.batch-update
     - work-item.comment
     - communication.message.publish
 permissions:

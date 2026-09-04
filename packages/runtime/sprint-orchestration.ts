@@ -11,7 +11,7 @@ import type {
 import { decideSprintEvent } from "../domains/sprint/decisions.ts";
 import { buildSprintCloseReadModel } from "../domains/sprint/read-models.ts";
 import { initialSprintState } from "../domains/sprint/reducer.ts";
-import { scheduleSprintCloseTimers } from "../domains/sprint/timers.ts";
+import { scheduleSprintCloseTimers, scheduleSprintWeekTimers, type SprintWeeklyTrigger } from "../domains/sprint/timers.ts";
 import type { ClaimedDurableTimer } from "../state-store/durable-timers.ts";
 import type {
   ClaimedSprintIntent,
@@ -59,11 +59,12 @@ class SprintTimerPrerequisitePendingError extends Error {
 }
 
 export type SprintMessageIntent = Extract<SprintIntent, {
-  type: "message.close-reminder" | "message.close-chase" | "message.close-report" | "message.retro";
+  type: "message.monday-handoff" | "message.weekday-digest" | "message.direct-question" | "message.close-reminder" | "message.close-chase" | "message.close-report" | "message.retro";
 }>;
 
 const isSprintMessageIntent = (intent: SprintIntent): intent is SprintMessageIntent =>
-  intent.type === "message.close-reminder" || intent.type === "message.close-chase"
+  intent.type === "message.monday-handoff" || intent.type === "message.weekday-digest" || intent.type === "message.direct-question"
+  || intent.type === "message.close-reminder" || intent.type === "message.close-chase"
   || intent.type === "message.close-report" || intent.type === "message.retro";
 
 /** Complete the durable Sprint lifecycle only after the retro was delivered. */
@@ -152,13 +153,28 @@ function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomai
     }
   } else if (event.type === "submission.received") {
     text(event.submission_id, "Sprint submission id", 255);
-    if (state.phase === "closed") throw new Error("Sprint submission cannot change a closed Sprint");
     if (!state.period_end) throw new Error("Sprint submission requires an exact Sprint period end");
     const reportAt = sprintCloseSchedule({ policy, periodEnd: state.period_end, calendar }).report_at;
-    if (event.occurred_at > reportAt) throw new Error("Sprint submission was sent after the reviewed report cutoff");
+    if (event.occurred_at > reportAt && policy.submission.after_report === "reject") throw new Error("Sprint submission was sent after the reviewed report cutoff");
+    if (state.phase === "closed" && policy.submission.after_report === "reject") throw new Error("Sprint submission cannot change a closed Sprint");
     if (!state.participants[event.participant_id]) throw new Error(`Unknown Sprint participant '${event.participant_id}'`);
     if (event.task_ids.length > 10_000 || new Set(event.task_ids).size !== event.task_ids.length) {
       throw new Error("Sprint submission task ids must be unique and bounded");
+    }
+    if (event.next_week) {
+      text(event.next_week.goal, "Sprint NEXT WEEK goal", 2_000);
+      text(event.next_week.measurable_outcome, "Sprint NEXT WEEK measurable outcome", 2_000);
+      if (event.next_week.tasks.length < 1 || event.next_week.tasks.length > 1_000) throw new Error("Sprint NEXT WEEK tasks must be a bounded non-empty list");
+      for (const task of event.next_week.tasks) {
+        text(task.title, "Sprint NEXT WEEK task title", 2_000);
+        if (task.url !== undefined) text(task.url, "Sprint NEXT WEEK task URL", 2_000);
+        if (task.work_item_id !== undefined && !state.work_items[task.work_item_id]) throw new Error(`Sprint NEXT WEEK task references unknown work item '${task.work_item_id}'`);
+      }
+    }
+  } else if (event.type === "carry-forward.observed") {
+    if (Object.keys(event.plans).length > 2_000) throw new Error("Sprint carry-forward participant set exceeds the supported limit");
+    for (const participantId of Object.keys(event.plans)) {
+      if (!state.participants[participantId]) throw new Error(`Sprint carry-forward references unknown participant '${participantId}'`);
     }
   } else if (event.type === "clock.reached") {
     iso(event.instant, "Sprint clock instant");
@@ -167,9 +183,9 @@ function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomai
     text(event.destination_binding, "Sprint delivery destination binding", 127);
     text(event.message_id, "Sprint delivery message id", 255);
     text(event.thread_reference, "Sprint delivery thread reference", 1_000);
-    if (event.destination_binding !== policy.delivery.channel_binding) {
-      throw new Error("Sprint delivery does not match the reviewed shared-channel binding");
-    }
+    const direct = event.purpose === "direct-question";
+    if (!direct && event.destination_binding !== policy.delivery.channel_binding) throw new Error("Sprint delivery does not match the reviewed shared-channel binding");
+    if (direct && (!event.participant_id || !state.participants[event.participant_id]?.communication_principal)) throw new Error("Sprint direct delivery lacks one exact included participant");
     const deliveries = state.deliveries ?? {};
     const existing = deliveries[event.intent_id];
     if (existing && sha256(existing) !== sha256({
@@ -179,6 +195,7 @@ function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomai
       message_id: event.message_id,
       thread_reference: event.thread_reference,
       delivered_at: event.occurred_at,
+      ...(event.participant_id ? { participant_id: event.participant_id } : {}),
     })) {
       throw new Error(`Sprint delivery intent '${event.intent_id}' already has a different provider receipt`);
     }
@@ -186,7 +203,7 @@ function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomai
       if (state.close_thread_reference && state.close_thread_reference !== event.thread_reference) {
         throw new Error("Sprint reminder delivery cannot replace the active shared Close thread");
       }
-    } else if (!state.close_thread_reference || event.thread_reference !== state.close_thread_reference) {
+    } else if (["close-chase", "close-report", "retro"].includes(event.purpose) && (!state.close_thread_reference || event.thread_reference !== state.close_thread_reference)) {
       throw new Error("Sprint delivery is not in the active shared Close thread");
     }
     if (event.purpose === "retro" && !Object.values(deliveries).some((delivery) => delivery.purpose === "close-report")) {
@@ -257,7 +274,7 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
       stepId,
     });
     const delivery = isSprintMessageIntent(args.claimed.intent)
-      ? this.deliveryEvent(args.claimed.intent, outcome, args.dispatchedAt)
+      ? this.deliveryEvent(args.claimed.intent, outcome, args.dispatchedAt, String((request.input as Record<string, unknown>).destination_binding ?? ""))
       : undefined;
     return {
       dispatcherId: "companyos-runtime",
@@ -275,7 +292,7 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
     };
   }
 
-  private deliveryEvent(intent: SprintMessageIntent, outcome: unknown, dispatchedAt: string): Extract<SprintEvent, { type: "message.delivered" }> {
+  private deliveryEvent(intent: SprintMessageIntent, outcome: unknown, dispatchedAt: string, expectedDestination: string): Extract<SprintEvent, { type: "message.delivered" }> {
     if (!outcome || typeof outcome !== "object" || Array.isArray(outcome)) throw new Error("Sprint message Tool returned an invalid result");
     const toolOutput = (outcome as Record<string, unknown>).output;
     if (!toolOutput || typeof toolOutput !== "object" || Array.isArray(toolOutput)) throw new Error("Sprint message Tool returned no provider receipt");
@@ -288,8 +305,9 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
     text(threadReference, "Sprint provider thread reference", 1_000);
     text(destinationBinding, "Sprint provider destination binding", 127);
     iso(publishedAt, "Sprint provider published_at");
-    if (destinationBinding !== intent.channel_binding) throw new Error("Sprint provider receipt does not match the resolved destination binding");
-    if (intent.type !== "message.close-reminder" && threadReference !== intent.thread_reference) {
+    if (!expectedDestination || destinationBinding !== expectedDestination) throw new Error("Sprint provider receipt does not match the resolved destination binding");
+    if (["message.close-chase", "message.close-report", "message.retro"].includes(intent.type)
+      && threadReference !== (intent as Extract<SprintIntent, { type: "message.close-chase" | "message.close-report" | "message.retro" }>).thread_reference) {
       throw new Error("Sprint provider receipt does not match the resolved shared thread");
     }
     const purpose = intent.type.slice("message.".length) as Extract<SprintEvent, { type: "message.delivered" }>["purpose"];
@@ -302,6 +320,7 @@ export class CompanyOSSprintIntentDispatcher implements SprintIntentDispatcher {
       destination_binding: destinationBinding,
       message_id: messageId,
       thread_reference: threadReference,
+      ...(intent.type === "message.direct-question" ? { participant_id: intent.participant_id } : {}),
     };
   }
 }
@@ -313,6 +332,7 @@ export class SprintOrchestrationService {
   readonly store: SprintOrchestrationStore;
   readonly timers?: DurableTimerService;
   readonly scheduleVersion?: string;
+  readonly weeklyTriggers: SprintWeeklyTrigger[];
 
   constructor(args: {
     instanceId: string;
@@ -321,6 +341,7 @@ export class SprintOrchestrationService {
     store: SprintOrchestrationStore;
     timers?: DurableTimerService;
     scheduleVersion?: string;
+    weeklyTriggers?: SprintWeeklyTrigger[];
   }) {
     text(args.instanceId, "Company Instance id", 127);
     assertPolicyAndCalendar(args.policy, args.calendar);
@@ -332,6 +353,7 @@ export class SprintOrchestrationService {
     this.store = args.store;
     this.timers = args.timers;
     this.scheduleVersion = args.scheduleVersion;
+    this.weeklyTriggers = structuredClone(args.weeklyTriggers ?? []);
   }
 
   private get key() {
@@ -395,7 +417,17 @@ export class SprintOrchestrationService {
       ...(args.nextSprintId ? { nextSprintId: args.nextSprintId } : {}),
       ...(args.scheduleVersion ? { scheduleVersion: args.scheduleVersion } : {}),
     });
-    return { ...result, timers };
+    const weekly = await scheduleSprintWeekTimers({
+      timers: this.timers,
+      policy: this.policy,
+      calendar: this.calendar,
+      sprintId: args.event.sprint_id,
+      periodStart: args.event.period_start,
+      periodEnd: args.event.period_end,
+      triggers: this.weeklyTriggers,
+      ...(args.scheduleVersion ? { scheduleVersion: args.scheduleVersion } : {}),
+    });
+    return { ...result, timers: { scheduled: timers.scheduled + weekly.scheduled, existing: timers.existing + weekly.existing } };
   }
 
   async processDueTimers(args: {
@@ -511,7 +543,9 @@ export class SprintOrchestrationService {
    * but before dispatch, participate in the reviewed 17:00 read model.
    */
   private resolveIntentForDispatch(intent: SprintIntent, state: SprintState): SprintIntent {
-    if (intent.type === "message.close-reminder" || intent.type === "work-item.rollover" || intent.type === "records.reconcile") {
+    if (intent.type === "message.close-reminder" || intent.type === "message.monday-handoff" || intent.type === "message.weekday-digest"
+      || intent.type === "message.direct-question" || intent.type === "work-item.readiness-update"
+      || intent.type === "work-item.rollover" || intent.type === "work-item.rollover-proposal" || intent.type === "records.reconcile") {
       return structuredClone(intent);
     }
     if (!state.period_end) throw new Error("Sprint message dispatch requires an exact Sprint period end");
@@ -563,6 +597,7 @@ export class SprintOrchestrationService {
       event_id: `timer:${timer.timerId}`,
       occurred_at: observedAt,
       instant,
+      ...(payload.trigger_id ? { trigger_id: String(payload.trigger_id) } : {}),
       ...(nextSprintId ? { next_sprint_id: nextSprintId } : {}),
     };
   }

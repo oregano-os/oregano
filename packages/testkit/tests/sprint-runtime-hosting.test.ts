@@ -11,6 +11,7 @@ import { InMemorySprintOrchestrationStore } from "../../runtime/memory-sprint-or
 import {
   CompiledSprintToolExecutionResolver,
   HostedSprintRuntime,
+  sprintRolloverToolRequest,
 } from "../../runtime/sprint-host.ts";
 import { normalizeSprintSnapshot } from "../../runtime/sprint-snapshot.ts";
 import { renderSprintMessageIntent } from "../../runtime/sprint-intent-renderer.ts";
@@ -137,6 +138,39 @@ const workItems: SprintWorkItem[] = [
   { work_item_id: "item-2", title: "Test runtime", assignee_ids: ["blair"], group: "current", status: "working", url: "https://fixture.test/item-2", provider_version: "v2", fields: {} },
 ];
 
+const weeklyCompiled: CompiledSprintRuntime = {
+  ...compiled,
+  policy: {
+    ...compiled.policy,
+    work_items: {
+      ...compiled.policy.work_items,
+      planning_group: "planning",
+      planned_status: "planned",
+      required_fields: ["brief", "outcome"],
+    },
+    weekly: { monday_handoff_trigger: "monday-handoff", weekday_digest_trigger: "weekday-digest", readiness_weekday: "wednesday" },
+    rendering: {
+      ...compiled.policy.rendering!,
+      monday_handoff: "workflows/sprint/monday.md",
+      weekday_digest: "workflows/sprint/digest.md",
+      direct_question: "workflows/sprint/question.md",
+    },
+  },
+  schedule: {
+    ...compiled.schedule,
+    triggers: [
+      { id: "monday-handoff", weekdays: ["monday"], at: "09:30", holidayShift: "previous-business-day" },
+      { id: "weekday-digest", weekdays: ["monday", "tuesday", "wednesday", "thursday", "friday"], at: "17:30", holidayShift: "previous-business-day" },
+    ],
+  },
+  templates: {
+    ...compiled.templates,
+    mondayHandoff: { path: "workflows/sprint/monday.md", content: "Committed: {{committed_work_items}}\nDifferences: {{disagreements}}", digest: "1".repeat(64) },
+    weekdayDigest: { path: "workflows/sprint/digest.md", content: "Daily Sprint digest\nChanged: {{changed_work_items}}\nReadiness: {{readiness_gaps}}", digest: "2".repeat(64) },
+    directQuestion: { path: "workflows/sprint/question.md", content: "Hi {{participant_name}}, {{work_item_title}} needs {{missing_fields}}.", digest: "3".repeat(64) },
+  },
+};
+
 function fixture(mode: "shadow" | "active" = "shadow", scheduleActivation: "blocked" | "active" = "active") {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();
@@ -216,6 +250,63 @@ test("hosted Sprint runtime opens from one frozen snapshot and is replay-safe", 
   assert.equal((await host.inspect()).workItemCount, 2);
 });
 
+test("a stabilized refresh updates only mutable work facts and remains replay-safe", async () => {
+  const { host, store } = fixture();
+  await host.open({
+    sprintId: "sprint-refresh",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    openedAt: "2030-01-28T09:00:00.000Z",
+    snapshot: { participants, workItems, observedAt: "2030-01-28T09:01:00.000Z", participantSourceVersion: "p1", workItemSourceVersion: "w1" },
+  });
+  const changedItems = workItems.map((item) => item.work_item_id === "item-1" ? { ...item, status: "done", provider_version: "v3" } : item);
+  const snapshot = { participants: [], workItems: changedItems, observedAt: "2030-01-29T17:29:00.000Z", participantSourceVersion: "ignored", workItemSourceVersion: "w2" };
+  const first = await host.refreshWorkItems({ snapshot, refreshedAt: "2030-01-29T17:30:00.000Z" });
+  const replay = await host.refreshWorkItems({ snapshot, refreshedAt: "2030-01-29T17:30:00.000Z" });
+  assert.equal(first.status, "applied");
+  assert.equal(replay.status, "duplicate");
+  const state = (await store.getState({ instanceId: "fixture", definitionId: "weekly-delivery" }))!.state;
+  assert.deepEqual(Object.keys(state.participants).sort(), ["alex", "blair"]);
+  assert.equal(state.work_items["item-1"]?.status, "done");
+  assert.deepEqual(state.work_item_changes, [{
+    work_item_id: "item-1", title: "Ship runtime", previous_version: "v1", provider_version: "v3", changed_fields: ["status"],
+  }]);
+});
+
+test("the hosted weekly runtime executes Monday, weekday, and one focused Wednesday DM in shadow", async () => {
+  const store = new InMemorySprintOrchestrationStore();
+  const timerStore = new InMemoryDurableTimerStore();
+  const timers = new DurableTimerService({ store: timerStore, instanceId: "fixture" });
+  const host = new HostedSprintRuntime({ instanceId: "fixture", compiled: weeklyCompiled, mode: "shadow", store, timers });
+  const weeklyItems: SprintWorkItem[] = [
+    ...workItems,
+    { work_item_id: "item-3", title: "Prepare brief", assignee_ids: ["alex"], group: "planning", status: "planned", provider_version: "v3", fields: { brief: "", outcome: "one approved brief" } },
+    { work_item_id: "item-4", title: "Ready brief", assignee_ids: ["blair"], group: "planning", status: "planned", provider_version: "v4", fields: { brief: "approved", outcome: "one approved result" } },
+  ];
+  const opened = await host.open({
+    sprintId: "sprint-week",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    openedAt: "2030-01-28T09:00:00.000Z",
+    snapshot: { participants, workItems: weeklyItems, observedAt: "2030-01-28T09:01:00.000Z", participantSourceVersion: "p1", workItemSourceVersion: "w1" },
+  });
+  assert.deepEqual(opened.timers, { scheduled: 9, existing: 0 });
+  await host.processDueTimers({ now: "2030-01-28T09:30:00.000Z", owner: "timer", leaseToken: "monday", leaseExpiresAt: "2030-01-28T09:35:00.000Z" });
+  assert.deepEqual((await host.dispatchIntents({ now: "2030-01-28T09:31:00.000Z", owner: "intent", leaseToken: "monday-intent", leaseExpiresAt: "2030-01-28T09:36:00.000Z" })).map((entry) => entry.status), ["succeeded"]);
+  for (const [day, lease] of [["2030-01-28", "d1"], ["2030-01-29", "d2"]] as const) {
+    await host.processDueTimers({ now: `${day}T17:30:00.000Z`, owner: "timer", leaseToken: lease, leaseExpiresAt: `${day}T17:35:00.000Z` });
+    assert.deepEqual((await host.dispatchIntents({ now: `${day}T17:31:00.000Z`, owner: "intent", leaseToken: `${lease}-intent`, leaseExpiresAt: `${day}T17:36:00.000Z` })).map((entry) => entry.status), ["succeeded"]);
+  }
+  await host.processDueTimers({ now: "2030-01-30T17:30:00.000Z", owner: "timer", leaseToken: "wednesday", leaseExpiresAt: "2030-01-30T17:35:00.000Z" });
+  assert.deepEqual((await host.dispatchIntents({ now: "2030-01-30T17:31:00.000Z", owner: "intent", leaseToken: "wednesday-intent", leaseExpiresAt: "2030-01-30T17:36:00.000Z" })).map((entry) => entry.status), ["succeeded", "succeeded", "succeeded"]);
+  const state = (await store.getState({ instanceId: "fixture", definitionId: "weekly-delivery" }))!.state;
+  const direct = Object.values(state.deliveries).find((delivery) => delivery.purpose === "direct-question");
+  assert.equal(direct?.participant_id, "alex");
+  assert.equal(direct?.destination_binding, "direct-alex");
+  assert.equal(([...store.intents.values()].find((row) => row.intent.type === "message.direct-question")?.evidence as any)?.dispatcherId, "sprint-shadow");
+  assert.equal(([...store.intents.values()].find((row) => row.intent.type === "work-item.readiness-update")?.evidence as any)?.dispatcherId, "sprint-shadow");
+});
+
 test("Slack Friday updates enter the durable Sprint state only after a routed participant match", async () => {
   const { host, store } = fixture();
   await host.open({
@@ -244,6 +335,12 @@ test("Slack Friday updates enter the durable Sprint state only after a routed pa
     text: "MY FRIDAY SPRINT UPDATE — Alex, week of 2030-01-28\n\nTHIS WEEK\n:white_check_mark: Ship runtime — done. https://fixture.test/item-1\n\n:thought_balloon: Biggest blocker / learning: none\n\nNEXT WEEK\n:dart: Sprint goal: Next\n:bar_chart: Measurable outcome: one\nTasks:\n• Next — https://fixture.test/next",
   });
   assert.equal(duplicate.status, "duplicate");
+  const storedSubmission = (await store.getState({ instanceId: "fixture", definitionId: "weekly-delivery" }))!.state.submissions.alex?.at(-1);
+  assert.deepEqual(storedSubmission?.next_week, {
+    goal: "Next",
+    measurable_outcome: "one",
+    tasks: [{ title: "Next", url: "https://fixture.test/next" }],
+  });
   await assert.rejects(() => host.ingestSlackSubmission({ messageId: "message-2", occurredAt: "2030-02-01T16:31:00.000Z", principal: "slack:T1:UNKNOWN", threadReference, text: "MY FRIDAY SPRINT UPDATE\nTHIS WEEK\nNEXT WEEK" }), /not an included Sprint participant/);
   await assert.rejects(() => host.ingestSlackSubmission({ messageId: "message-3", occurredAt: "2030-02-01T16:32:00.000Z", principal: "slack:T1:U1", threadReference: "slack:C1:wrong-thread", text: "MY FRIDAY SPRINT UPDATE\nTHIS WEEK\nNEXT WEEK" }), /not in the active shared Close thread/);
 });
@@ -294,14 +391,15 @@ test("hosted shadow runtime proves the ordered shared-thread Friday Close withou
   await host.processDueTimers({ now: "2030-02-01T17:00:00.000Z", owner: "timer", leaseToken: "timer-3", leaseExpiresAt: "2030-02-01T17:04:00.000Z" });
   assert.deepEqual((await host.dispatchIntents({ now: "2030-02-01T17:01:00.000Z", owner: "intent", leaseToken: "intent-3", leaseExpiresAt: "2030-02-01T17:05:00.000Z" })).map((entry) => entry.status), ["succeeded"]);
   assert.deepEqual((await host.dispatchIntents({ now: "2030-02-01T17:02:00.000Z", owner: "intent", leaseToken: "intent-4", leaseExpiresAt: "2030-02-01T17:06:00.000Z" })).map((entry) => entry.status), ["succeeded"]);
-  assert.deepEqual((await host.dispatchIntents({ now: "2030-02-01T17:03:00.000Z", owner: "intent", leaseToken: "intent-5", leaseExpiresAt: "2030-02-01T17:07:00.000Z" })).map((entry) => entry.status), ["succeeded", "succeeded"]);
+  assert.deepEqual((await host.dispatchIntents({ now: "2030-02-01T17:03:00.000Z", owner: "intent", leaseToken: "intent-5", leaseExpiresAt: "2030-02-01T17:07:00.000Z" })).map((entry) => entry.status), ["succeeded"]);
   const state = (await store.getState({ instanceId: "fixture", definitionId: "weekly-delivery" }))!.state;
   assert.equal(state.close_thread_reference, root);
   assert.equal(state.phase, "closed");
   assert.deepEqual(Object.values(state.deliveries).map((entry) => entry.purpose).sort(), ["close-chase", "close-reminder", "close-report", "retro"]);
   assert.deepEqual([...store.intents.values()].map((row) => row.intent.type).sort(), [
-    "message.close-chase", "message.close-reminder", "message.close-report", "message.retro", "work-item.rollover", "work-item.rollover",
+    "message.close-chase", "message.close-reminder", "message.close-report", "message.retro", "work-item.rollover-proposal",
   ]);
+  assert.equal(([...store.intents.values()].find((row) => row.intent.type === "work-item.rollover-proposal")?.evidence as any)?.dispatcherId, "sprint-proposal");
   await assert.doesNotReject(() => host.open({
     sprintId: "sprint-6",
     periodStart: "2030-02-04",
@@ -411,7 +509,11 @@ test("hosted Sprint timers refuse a stale compiled schedule version", async () =
 });
 
 test("compiled resolver binds messages exactly and refuses unconfirmed work-item effects", async () => {
-  const resolver = new CompiledSprintToolExecutionResolver(compiled);
+  const compiledWithWrites: CompiledSprintRuntime = {
+    ...compiled,
+    workItem: { resourceBinding: "sprint-board", rolloverField: "sprint", readinessField: "status" },
+  };
+  const resolver = new CompiledSprintToolExecutionResolver(compiledWithWrites);
   const state = {
     sprint_id: "sprint-5",
     period_start: "2030-01-28",
@@ -427,6 +529,22 @@ test("compiled resolver binds messages exactly and refuses unconfirmed work-item
   assert.equal((message.input as any).destination_binding, "sprint-channel");
   await assert.rejects(() => resolver.resolve({ instanceId: "fixture", definitionId: "weekly-delivery", state, intent: { type: "message.close-reminder", intent_id: "wrong-binding", channel_binding: "some-other-channel", due_at: "2030-02-01T14:00:00.000Z" } }), /widen its reviewed shared-channel binding/);
   await assert.rejects(() => resolver.resolve({ instanceId: "fixture", definitionId: "weekly-delivery", state, intent: { type: "work-item.rollover", intent_id: "i2", work_item_id: "item-1", target_sprint_id: "sprint-6", expected_version: "v1" } }), /separate confirmation path/);
+  const readiness = await resolver.resolve({ instanceId: "fixture", definitionId: "weekly-delivery", state, intent: { type: "work-item.readiness-update", intent_id: "i3", work_item_id: "item-1", expected_version: "v1", target_status: "ready", reason: "ready" } });
+  assert.deepEqual(readiness, {
+    agentId: "sprint",
+    grantId: "oregano:work-items/update",
+    subjectPrincipal: "companyos:fixture:sprint",
+    input: { resource_binding: "sprint-board", work_item_id: "item-1", expected_version: "v1", changes: { status: "ready" } },
+  });
+  assert.deepEqual(sprintRolloverToolRequest({
+    compiled: compiledWithWrites,
+    intent: { type: "work-item.rollover-proposal", intent_id: "i4", target_sprint_id: "sprint-6", items: [{ work_item_id: "item-1", expected_version: "v1" }] },
+  }), {
+    agentId: "sprint",
+    grantId: "oregano:work-items/batch-update",
+    subjectPrincipal: "companyos:fixture:sprint",
+    input: { resource_binding: "sprint-board", updates: [{ work_item_id: "item-1", expected_version: "v1", changes: { sprint: "sprint-6" } }] },
+  });
 });
 
 test("Workbench compiles one immutable hosted schedule only from exact Workspace and Instance bindings", () => {

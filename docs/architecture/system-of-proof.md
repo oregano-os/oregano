@@ -144,6 +144,11 @@ occurred. If a provider accepts an effect but a dependent receipt step cannot
 be verified, the effect remains `unknown` with its bounded partial receipt. It
 is never rewritten as an ordinary failure or retried automatically; an
 operator must reconcile the provider before deciding any recovery action.
+An exact-human subject confirmation for a reversible briefing is retained in
+the same control chain as ordinary authorization. A Rollover batch uses the
+ordinary R3 approval chain instead; its frozen item versions remain in Sprint
+intent evidence, while the approved Tool request, complete preflight, provider
+receipts, rereads, and any partial unknown outcome remain execution proof.
 
 `retention: retain` means that CompanyOS does not schedule an automatic purge
 merely because evidence has reached an age or disappeared from its provider.

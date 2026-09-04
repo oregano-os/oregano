@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { test } from "node:test";
 import { CORE_CAPABILITY_CATALOG } from "../../capabilities/catalog.ts";
+import { CapabilityEffectOutcomeUnknownError } from "../../capabilities/contracts.ts";
 import { CompanyRecordsConnector } from "../../connectors/company-records.ts";
 import { MondayClient } from "../../connectors/monday/client.ts";
 import { MondayWorkItemConnector } from "../../connectors/monday/connector.ts";
@@ -23,6 +24,14 @@ const response = (data: unknown, apiVersion = "dev"): Response => new Response(J
 const item = (version: string, status: string) => ({
   items: [{
     id: "item-1", name: "Prepare launch", updated_at: version,
+    board: { id: "board-1" }, group: { id: "current" },
+    column_values: [{ id: "status_col", text: status, value: JSON.stringify({ label: status }) }],
+  }],
+});
+
+const identifiedItem = (id: string, version: string, status = "Working") => ({
+  items: [{
+    id, name: `Item ${id}`, updated_at: version,
     board: { id: "board-1" }, group: { id: "current" },
     column_values: [{ id: "status_col", text: status, value: JSON.stringify({ label: status }) }],
   }],
@@ -151,6 +160,107 @@ test("the Monday Connector refuses stale versions, unknown fields, read-only eff
     { instanceId: "fixture-instance", runId: "run", stepId: "step", agentId: "agent", toolId: "tool" }), /idempotency key/);
 });
 
+test("the Monday Connector preflights and verifies one frozen batch before reporting success", async () => {
+  const queue = [
+    response(identifiedItem("item-1", "v1")), response(identifiedItem("item-2", "v1")),
+    response({ change_multiple_column_values: { id: "item-1" } }), response(identifiedItem("item-1", "v2", "Planned")),
+    response({ change_multiple_column_values: { id: "item-2" } }), response(identifiedItem("item-2", "v2", "Planned")),
+  ];
+  const requests: any[] = [];
+  const connector = new MondayWorkItemConnector({
+    client: new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)));
+      const next = queue.shift();
+      if (!next) throw new Error("unexpected request");
+      return next;
+    } }),
+    bindings: [{ id: "sprint-board", boardId: "board-1", permission: "read-write", fields: { status: "status_col" } }],
+    actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
+  });
+  const result = await connector.invoke("work-item.batch-update", {
+    resource_binding: "sprint-board",
+    updates: [
+      { work_item_id: "item-1", expected_version: "v1", changes: { status: { label: "Planned" } } },
+      { work_item_id: "item-2", expected_version: "v1", changes: { status: { label: "Planned" } } },
+    ],
+  }, { instanceId: "fixture-instance", runId: "run-batch", stepId: "rollover", agentId: "sprint", toolId: "batch", idempotencyKey: "batch-1" });
+  assert.equal((result.output as any).complete, true);
+  assert.deepEqual((result.output as any).results.map((entry: any) => entry.provider_version), ["v2", "v2"]);
+  assert.equal(requests.filter((request) => String(request.query).includes("change_multiple_column_values")).length, 2);
+});
+
+test("the Monday Connector performs zero batch writes when any preflight version is stale", async () => {
+  const queue = [response(identifiedItem("item-1", "v1")), response(identifiedItem("item-2", "v2"))];
+  const requests: any[] = [];
+  const connector = new MondayWorkItemConnector({
+    client: new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)));
+      return queue.shift()!;
+    } }),
+    bindings: [{ id: "sprint-board", boardId: "board-1", permission: "read-write", fields: { status: "status_col" } }],
+    actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
+  });
+  await assert.rejects(() => connector.invoke("work-item.batch-update", {
+    resource_binding: "sprint-board",
+    updates: [
+      { work_item_id: "item-1", expected_version: "v1", changes: { status: "Planned" } },
+      { work_item_id: "item-2", expected_version: "v1", changes: { status: "Planned" } },
+    ],
+  }, { instanceId: "fixture-instance", runId: "run-stale", stepId: "rollover", agentId: "sprint", toolId: "batch", idempotencyKey: "batch-stale" }), /item-2.*changed since expected version/);
+  assert.equal(requests.filter((request) => String(request.query).includes("change_multiple_column_values")).length, 0);
+});
+
+test("the Monday Connector rejects a non-homogeneous batch before any write", async () => {
+  const queue = [response(identifiedItem("item-1", "v1")), response(identifiedItem("item-2", "v1"))];
+  const requests: any[] = [];
+  const connector = new MondayWorkItemConnector({
+    client: new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body)));
+      return queue.shift()!;
+    } }),
+    bindings: [{ id: "sprint-board", boardId: "board-1", permission: "read-write", fields: { status: "status_col" } }],
+    actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
+  });
+  await assert.rejects(() => connector.invoke("work-item.batch-update", {
+    resource_binding: "sprint-board",
+    updates: [
+      { work_item_id: "item-1", expected_version: "v1", changes: { status: "Planned" } },
+      { work_item_id: "item-2", expected_version: "v1", changes: { status: "Ready" } },
+    ],
+  }, { instanceId: "fixture-instance", runId: "run-mixed", stepId: "rollover", agentId: "sprint", toolId: "batch", idempotencyKey: "batch-mixed" }), /homogeneous frozen change set/);
+  assert.equal(requests.filter((request) => String(request.query).includes("change_multiple_column_values")).length, 0);
+});
+
+test("the Monday Connector records outcome-unknown evidence after a partial batch effect", async () => {
+  const queue: Array<Response | Error> = [
+    response(identifiedItem("item-1", "v1")), response(identifiedItem("item-2", "v1")),
+    response({ change_multiple_column_values: { id: "item-1" } }), response(identifiedItem("item-1", "v2", "Planned")),
+    new Error("provider unavailable"),
+  ];
+  const connector = new MondayWorkItemConnector({
+    client: new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async () => {
+      const next = queue.shift();
+      if (next instanceof Error) throw next;
+      return next!;
+    } }),
+    bindings: [{ id: "sprint-board", boardId: "board-1", permission: "read-write", fields: { status: "status_col" } }],
+    actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
+  });
+  await assert.rejects(() => connector.invoke("work-item.batch-update", {
+    resource_binding: "sprint-board",
+    updates: [
+      { work_item_id: "item-1", expected_version: "v1", changes: { status: "Planned" } },
+      { work_item_id: "item-2", expected_version: "v1", changes: { status: "Planned" } },
+    ],
+  }, { instanceId: "fixture-instance", runId: "run-partial", stepId: "rollover", agentId: "sprint", toolId: "batch", idempotencyKey: "batch-partial" }), (error: unknown) => {
+    assert.ok(error instanceof CapabilityEffectOutcomeUnknownError);
+    assert.deepEqual(((error as CapabilityEffectOutcomeUnknownError).evidence as any).completed, [{
+      work_item_id: "item-1", previous_version: "v1", provider_version: "v2", changed_fields: ["status"],
+    }]);
+    return true;
+  });
+});
+
 test("signed Monday agent callbacks reject tampering and replay before AgentResolver routing", async () => {
   const now = 1_782_326_623_754;
   const rawBody = JSON.stringify({ event: "agent_triggered", triggerType: "mention", payload: { boardId: "board-1", itemId: "item-1", text: "status?" } });
@@ -192,7 +302,13 @@ test("self-authored Monday events are suppressed once by durable echo evidence",
 
 test("Company Records and work-item standard Tools expose only provider-neutral Capability calls", async () => {
   assert.deepEqual(STANDARD_RECORDS_TOOLS.map((tool) => tool.contract.grantId), ["oregano:records/query"]);
-  assert.deepEqual(STANDARD_WORK_ITEM_TOOLS.map((tool) => tool.contract.grantId), ["oregano:work-items/read", "oregano:work-items/update", "oregano:work-items/comment"]);
+  assert.deepEqual(STANDARD_WORK_ITEM_TOOLS.map((tool) => tool.contract.grantId), [
+    "oregano:work-items/read",
+    "oregano:work-items/update",
+    "oregano:work-items/confirmed-update",
+    "oregano:work-items/comment",
+    "oregano:work-items/batch-update",
+  ]);
   for (const tool of [...STANDARD_RECORDS_TOOLS, ...STANDARD_WORK_ITEM_TOOLS]) {
     assert.match(tool.compiledSource, /context\.capabilities\.call/);
     assert.doesNotMatch(tool.compiledSource, /monday|fetch|process\.env/i);

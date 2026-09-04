@@ -20,6 +20,23 @@ const occurrences = (text: string, value: string): number => {
   return count;
 };
 
+const labelledValue = (text: string, label: RegExp): string => {
+  const match = text.split(/\r?\n/).map((line) => line.trim()).find((line) => label.test(line));
+  return match ? match.replace(label, "").trim() : "";
+};
+
+const taskLines = (text: string, state: SprintState) => text.split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter((line) => /^(?:[•*-]|\d+[.)])\s+/.test(line))
+  .map((line) => line.replace(/^(?:[•*-]|\d+[.)])\s+/, "").trim())
+  .map((line) => {
+    const url = line.match(/https?:\/\/\S+/)?.[0]?.replace(/[)>.,;]+$/, "");
+    const title = line.replace(/https?:\/\/\S+/, "").replace(/(?:—|-)?\s*:link:\s*$/i, "").replace(/\s+(?:—|-)\s*$/, "").trim();
+    const workItem = url ? Object.values(state.work_items).find((candidate) => candidate.url === url) : undefined;
+    return { title: title || workItem?.title || "Referenced work item", ...(url ? { url } : {}), ...(workItem ? { work_item_id: workItem.work_item_id } : {}) };
+  })
+  .slice(0, 1_000);
+
 export function isFridaySprintUpdate(text: string): boolean {
   return /^\s*MY FRIDAY SPRINT UPDATE\b/im.test(text);
 }
@@ -62,6 +79,12 @@ export function normalizeSlackFridaySubmission(args: {
     && /(?:\:bar_chart\:|Measurable outcome)/i.test(nextWeek)
     && committed.every((item) => Boolean(item.url) && occurrences(thisWeek, item.url!) === 1),
   );
+  const goal = labelledValue(nextWeek, /^(?:\:dart\:\s*)?Sprint goal\s*(?:\([^)]*\))?\s*:\s*/i);
+  const measurableOutcome = labelledValue(nextWeek, /^(?:\:bar_chart\:\s*)?Measurable outcome\s*(?:\([^)]*\))?\s*:\s*/i);
+  const tasks = taskLines(section(nextWeek, /^\s*Tasks\s*(?:\([^)]*\))?\s*:\s*$/im), args.state);
+  const nextWeekPlan = goal && measurableOutcome && tasks.length > 0
+    ? { goal, measurable_outcome: measurableOutcome, tasks }
+    : undefined;
   return {
     type: "submission.received",
     event_id: `slack:${args.messageId}`,
@@ -70,5 +93,6 @@ export function normalizeSlackFridaySubmission(args: {
     submission_id: args.messageId,
     task_ids: taskIds,
     complete: structurallyComplete,
+    ...(nextWeekPlan ? { next_week: nextWeekPlan } : {}),
   };
 }

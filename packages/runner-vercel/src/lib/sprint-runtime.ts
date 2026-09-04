@@ -298,6 +298,11 @@ export async function runSprintTimerWorker(now = new Date().toISOString()) {
   const results = [];
   for (const definitionId of scheduledRuntimeDefinitions()) {
     const hosted = createHostedSprintRuntime(definitionId);
+    const inspection = await hosted.inspect();
+    if (inspection.sprintId) {
+      const snapshot = await resolveSprintSnapshot(hosted.compiled, now);
+      await hosted.refreshWorkItems({ snapshot, refreshedAt: now });
+    }
     for (const result of await hosted.processDueTimers({ ...lease(`sprint-timer:${definitionId}`, now), limit: 100 })) {
       results.push({ definitionId, ...result });
     }

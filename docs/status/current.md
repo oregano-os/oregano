@@ -125,22 +125,31 @@ evidence, historical prototypes, and production gaps.
   workers at one exact controlled timestamp, allowing schedule, leasing, and
   duplicate behavior to be qualified without waiting for wall-clock time; the
   action is unavailable outside Vercel Preview.
-  Rollover remains deliberately blocked until a
-  separately confirmed frozen-proposal path is integrated. The initial profile
+  Weekly Monday handoff, weekday movement digest, configured readiness
+  questions, derived reversible readiness-field maintenance, and structured
+  `NEXT WEEK` carry-forward use the same hosted
+  timer and intent path. Before each due weekly timer, the Runner resolves one
+  twice-stabilized current work-item projection while retaining the Sprint's
+  frozen participant scope. Replaying the same source version is a no-op.
+  Briefing updates use an exact active-human subject confirmation and the
+  dedicated confirmed-update Tool. Rollover remains proposal-only until one
+  frozen batch passes the ordinary R3 approval path; the maintained batch Tool
+  preflights every item before the first write and treats a partial provider
+  dispatch as an unknown outcome rather than retrying it. The initial profile
   uses Monday polling and Slack interaction; Monday board-change webhooks and
   card chat remain deferred. No real Company Instance runtime, schedule,
   message, work-item effect, or production activation is claimed. Public
   fixtures are synthetic and contain no company people, resources, policy, or
   credentials.
-- The hosted Sprint surface currently makes the ordered shared-thread Friday
-  Close subset executable. It does not yet prove the complete weekly Sprint
-  product: Monday planning, weekday digest and readiness checkpoints,
-  structured `NEXT WEEK` carry-forward, confirmed Rollover effects, and the
-  person-facing Sprint DM workflows that consume the compiled assignment
-  mechanism must each have an executable path and Stage-0 evidence before a
-  final Sprint Agent release or Company rollout may be claimed.
+- The hosted Sprint surface now makes the reviewed weekly and Friday Close
+  paths executable in controlled tests. This is implementation evidence, not
+  Company rollout evidence: the final candidate still requires full Stage-0
+  qualification with exact test bindings, and each Company must then complete
+  Shadow, Pilot, and Team-rhythm gates over the periods declared by its rollout
+  policy before production completion may be claimed.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
-  `work-item.comment`, and `communication.message.publish` Capability contracts
+  `work-item.batch-update`, `work-item.comment`, and
+  `communication.message.publish` Capability contracts
   plus standard Tools. Artifact building makes those Tools available for
   normal ToolSet resolution; a Workspace grant still fails unless its Instance
   binds a compatible Connector.

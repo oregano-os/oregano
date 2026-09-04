@@ -64,6 +64,8 @@ test("the Core catalog owns provider-neutral records, work-item, and communicati
   assert.equal(byId.get("records.query")?.mode, "read");
   assert.equal(byId.get("work-item.read")?.minimumRisk, "R0");
   assert.equal(byId.get("work-item.update")?.idempotency, "required");
+  assert.equal(byId.get("work-item.batch-update")?.minimumRisk, "R3");
+  assert.equal(byId.get("work-item.batch-update")?.idempotency, "required");
   assert.equal(byId.get("work-item.comment")?.idempotency, "required");
   assert.equal(byId.get("communication.message.publish")?.minimumRisk, "R2");
   assert.equal(byId.get("communication.message.publish")?.idempotency, "required");
@@ -85,7 +87,9 @@ test("the reusable Sprint standard Tools are available for Artifact ToolSet reso
   assert.deepEqual(STANDARD_WORK_ITEM_TOOLS.map((tool) => tool.contract.runtimeId), [
     "oregano:work-items/read",
     "oregano:work-items/update",
+    "oregano:work-items/confirmed-update",
     "oregano:work-items/comment",
+    "oregano:work-items/batch-update",
   ]);
   assert.deepEqual(STANDARD_COMMUNICATION_TOOLS.map((tool) => tool.contract.runtimeId), ["oregano:communications/publish"]);
 });

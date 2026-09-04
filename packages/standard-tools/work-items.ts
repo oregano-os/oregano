@@ -28,6 +28,14 @@ export const STANDARD_WORK_ITEM_TOOLS: readonly CompiledCompanyTool[] = [
     failure: "Refuse stale versions, unallowlisted fields, read-only resources, missing idempotency claims, or unknown effects.",
   }, call("work-item.update")),
   create({
+    grantId: "oregano:work-items/confirmed-update", runtimeId: "oregano:work-items/confirmed-update", agentId: "*", toolId: "work-item-confirmed-update", version: "1.0.0",
+    description: "Prepare one reversible version-bound work-item update and execute it only after the active human subject confirms it.", risk: "R2", dataClass: "business", idempotency: "input-hash",
+    capabilities: ["work-item.update"], confirmation: "subject",
+    inputSchema: { type: "object", required: ["resource_binding", "work_item_id", "changes", "expected_version"], additionalProperties: false, properties: { resource_binding: { type: "string", minLength: 1, maxLength: 63 }, work_item_id: { type: "string", minLength: 1, maxLength: 255 }, changes: { type: "object" }, expected_version: { type: "string", minLength: 1, maxLength: 255 } } },
+    outputSchema: { type: "object" }, evidence: ["resource_binding", "work_item_id", "previous_version", "provider_version", "changed_fields", "subject_confirmation"],
+    failure: "Refuse an absent, expired, inactive, mismatched, or replayed subject confirmation and preserve the normal version and read-after-write controls.",
+  }, call("work-item.update")),
+  create({
     grantId: "oregano:work-items/comment", runtimeId: "oregano:work-items/comment", agentId: "*", toolId: "work-item-comment", version: "1.0.0",
     description: "Append one bounded attributed work-item comment after normal effect control.", risk: "R2", dataClass: "business", idempotency: "input-hash",
     capabilities: ["work-item.comment"],
@@ -35,4 +43,12 @@ export const STANDARD_WORK_ITEM_TOOLS: readonly CompiledCompanyTool[] = [
     outputSchema: { type: "object" }, evidence: ["resource_binding", "work_item_id", "comment_id", "provider_version", "created_at"],
     failure: "Refuse unbound or read-only resources and never retry without the same claimed idempotency key.",
   }, call("work-item.comment")),
+  create({
+    grantId: "oregano:work-items/batch-update", runtimeId: "oregano:work-items/batch-update", agentId: "*", toolId: "work-item-batch-update", version: "1.0.0",
+    description: "Apply one frozen homogeneous work-item update set only after an R3 human approval.", risk: "R3", dataClass: "business", idempotency: "input-hash",
+    capabilities: ["work-item.batch-update"],
+    inputSchema: { type: "object", required: ["resource_binding", "updates"], additionalProperties: false, properties: { resource_binding: { type: "string", minLength: 1, maxLength: 63 }, updates: { type: "array", minItems: 1, maxItems: 1_000, items: { type: "object", required: ["work_item_id", "changes", "expected_version"], additionalProperties: false, properties: { work_item_id: { type: "string", minLength: 1, maxLength: 255 }, changes: { type: "object" }, expected_version: { type: "string", minLength: 1, maxLength: 255 } } } } } },
+    outputSchema: { type: "object" }, evidence: ["resource_binding", "work_item_ids", "previous_versions", "provider_versions", "changed_fields"],
+    failure: "Fail before the first write on any stale item; after dispatch, retain explicit unknown partial evidence and never retry as though no effect occurred.",
+  }, call("work-item.batch-update")),
 ] as const;

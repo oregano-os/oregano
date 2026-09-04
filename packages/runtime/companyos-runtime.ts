@@ -30,6 +30,7 @@ export class CompanyOSRuntime {
   readonly #roster: RosterMember[];
   readonly #connectors: ConnectorRegistry;
   readonly #toolExecutionTimeoutMs?: number;
+  readonly #confirmedRequests = new WeakSet<object>();
 
   constructor(args: {
     artifact: CompanyOSArtifact;
@@ -162,8 +163,41 @@ export class CompanyOSRuntime {
     return { ok: true, denied: true, deniedBy: `${auth.member!.name} (${auth.member!.role})` };
   }
 
+  async executeConfirmed(request: ExecuteToolRequest, confirmingPrincipal: string): Promise<unknown> {
+    const { tool, risk } = this.#resolve(request.agentId, request.grantId);
+    if (tool.contract.confirmation !== "subject" || RISK_ORDER[risk as keyof typeof RISK_ORDER] >= RISK_ORDER.R3) {
+      throw new Error(`Tool '${request.grantId}' does not use reversible subject confirmation.`);
+    }
+    if (!request.subjectPrincipal || request.subjectPrincipal !== confirmingPrincipal) {
+      throw new Error("Tool confirmation does not match the exact requesting subject.");
+    }
+    const member = findByCanonicalPrincipal(this.#roster, confirmingPrincipal);
+    if (!member || !/^(?:active|aktiv)$/i.test(member.status) || member.type === "agent" || member.type === "service") {
+      throw new Error("Tool confirmation requires the exact active human subject.");
+    }
+    await this.#ensureRun(request);
+    await this.#state.appendEvent({
+      runId: request.runId,
+      stepId: request.stepId,
+      actor: `human:${member.role}`,
+      subjectPrincipal: confirmingPrincipal,
+      event: "tool.subject-confirmed",
+      status: "succeeded",
+      payload: { tool: tool.contract.runtimeId, input_hash: sha256(request.input) },
+    });
+    this.#confirmedRequests.add(request);
+    try {
+      return await this.execute(request);
+    } finally {
+      this.#confirmedRequests.delete(request);
+    }
+  }
+
   async execute(request: ExecuteToolRequest): Promise<unknown> {
     const { tool, risk } = this.#resolve(request.agentId, request.grantId);
+    if (tool.contract.confirmation === "subject" && !this.#confirmedRequests.has(request)) {
+      throw new Error(`Tool '${request.grantId}' requires executeConfirmed with the exact active human subject.`);
+    }
     const inputErrors = validateJsonSchemaValue(tool.contract.inputSchema, request.input);
     if (inputErrors.length > 0) throw new Error(`Invalid Tool input: ${inputErrors.join("; ")}`);
     await this.#ensureRun(request);

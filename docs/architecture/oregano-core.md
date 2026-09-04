@@ -107,6 +107,17 @@ digests without provider effects; `active` mode still reaches a provider only
 through the standard Tool boundary. Each Sprint definition has a namespaced
 timer kind, so one worker cannot lease another definition's timers.
 
+The weekly worker refreshes current work-item facts from a twice-stabilized
+projection before processing due Monday, weekday, readiness, or Friday timers.
+This does not replace the Sprint participant snapshot: the participant scope is
+frozen for the Sprint while provider work facts advance only through versioned
+`work-items.observed` events. Structured `NEXT WEEK` submissions feed the next
+Monday comparison; scheduled readiness emits at most one focused direct
+question per affected participant and one version-bound reversible status
+intent for each actual readiness transition. The status intent can change only
+the exact Instance-bound secondary field and never the authoritative provider
+group.
+
 Message text, participants, provider projections, calendar dates, schedules,
 language, and requested grants remain Company Workspace truth. Exact Agent,
 model, destination, work-item, database, secret, timer, and activation
@@ -114,9 +125,14 @@ bindings remain Company Instance truth. Merely installing Core or preparing
 the additive database schema does not start a Sprint, lease an intent, send a
 message, or change a work item. The initial hosted profile uses reviewed
 Monday polling for projections and Slack for interactive submissions. Monday
-board-change webhooks and Monday card chat remain later extensions. Rollover
-intents remain fail-closed until the ordinary frozen-proposal confirmation path
-is bound; the generic intent worker never turns one directly into an effect.
+board-change webhooks and Monday card chat remain later extensions. A
+single-item reversible briefing proposal may be confirmed only by its exact
+active human subject through a dedicated R2 Tool. Rollover uses a separate R3
+batch Capability: automatic orchestration freezes and records only the
+proposal; an ordinary approval must authorize the exact batch, the Connector
+preflights every item before the first write, and a partial dispatch becomes an
+unknown effect outcome. The generic intent worker never turns a proposal
+directly into an effect.
 
 ## Native Company Knowledge
 

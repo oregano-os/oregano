@@ -15,6 +15,7 @@ required_capabilities:
   - records.query
   - work-item.read
   - work-item.update
+  - work-item.batch-update
   - communication.message.publish
 ---
 # Friday Close
@@ -28,8 +29,9 @@ required_capabilities:
 7. [sprint, R2] Publish the short factual completeness check before the retro, with each included participant exactly once and no excused participant listed.
 8. [sprint, R1] Prepare the factual retro from recorded actual hours, committed work, open work, human-supplied reasons, and coverage gaps.
 9. [sprint, R0] Retain a structurally valid post-report submission only for the next Monday handoff when Workspace policy permits it.
-10. [human:sprint-owner] Review the frozen set of eligible open work and the exact target Sprint before authorizing Rollover.
-11. [sprint, R2] Apply an authorized Rollover once per work item with version checks and read-after-write evidence; report conflicts without substituting a move.
+10. [sprint, R0] Freeze one exact batch proposal containing every eligible open work item, its provider version, the allowlisted target field, and the exact target Sprint.
+11. [human:sprint-owner] Approve, correct, or reject the complete frozen batch through the ordinary R3 approval path.
+12. [sprint, R3] Complete preflight for the entire approved batch before the first write, apply it once, and reread every item. Report conflicts before dispatch and any partial provider outcome as unknown; never substitute or automatically retry a move.
 
 Use the exact reusable assets owned by the `sprint-sop` Skill. The receiving
 Workspace may change those assets only through its normal governed review.

@@ -45,6 +45,7 @@ export interface SprintRuntimeInstanceConfiguration {
   workItem?: {
     resourceBinding: string;
     rolloverField: string;
+    readinessField?: string;
   };
 }
 
@@ -104,6 +105,9 @@ export interface CompiledSprintRuntime {
     chase: CompiledSprintTemplate;
     closeReport: CompiledSprintTemplate;
     retro: CompiledSprintTemplate;
+    mondayHandoff?: CompiledSprintTemplate;
+    weekdayDigest?: CompiledSprintTemplate;
+    directQuestion?: CompiledSprintTemplate;
   };
   directDestinations: Record<string, string>;
   directAssignments: Record<string, {
@@ -113,6 +117,7 @@ export interface CompiledSprintRuntime {
   workItem?: {
     resourceBinding: string;
     rolloverField: string;
+    readinessField?: string;
   };
   modelTask: string;
 }

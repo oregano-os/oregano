@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type { BusinessCalendar } from "../../domains/sprint/business-time.ts";
 import type { SprintDomainDeclaration, SprintEvent, SprintParticipant, SprintWorkItem } from "../../domains/sprint/contracts.ts";
+import { buildSprintCloseReadModel } from "../../domains/sprint/read-models.ts";
 import { DurableTimerService } from "../../runtime/durable-timers.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 import { InMemorySprintOrchestrationStore } from "../../runtime/memory-sprint-orchestration.ts";
@@ -339,7 +340,7 @@ test("a provider-timestamped submission processed after the report timer is incl
   assert.equal((dispatched as any).participant_states["person-b"], "complete");
   assert.equal((await store.getState({ instanceId: "fixture-instance", definitionId: "weekly-delivery" }))?.state.last_event_at, "2030-02-01T17:00:00.000Z");
 
-  await assert.rejects(() => service.processEvent({
+  const afterCutoff = await service.processEvent({
     type: "submission.received",
     event_id: "after-cutoff",
     occurred_at: "2030-02-01T17:00:00.001Z",
@@ -347,7 +348,13 @@ test("a provider-timestamped submission processed after the report timer is incl
     submission_id: "after-cutoff",
     task_ids: ["item-a"],
     complete: true,
-  }), /after the reviewed report cutoff/);
+    next_week: { goal: "Next", measurable_outcome: "One", tasks: [{ title: "Alpha", work_item_id: "item-a" }] },
+  });
+  assert.equal(afterCutoff.status, "applied");
+  const afterCutoffState = (await store.getState({ instanceId: "fixture-instance", definitionId: "weekly-delivery" }))!.state;
+  const frozen = buildSprintCloseReadModel({ state: afterCutoffState, policy, reportAt: "2030-02-01T17:00:00.000Z" });
+  assert.equal(frozen.participants.find((participant) => participant.participant_id === "person-a")?.close_state, "missing");
+  assert.equal(afterCutoffState.submissions["person-a"]?.at(-1)?.next_week?.goal, "Next");
 });
 
 test("Sprint delivery events cannot widen the reviewed channel or bypass the shared-thread order", async () => {

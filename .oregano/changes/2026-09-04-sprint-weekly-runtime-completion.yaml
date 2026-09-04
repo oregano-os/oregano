@@ -1,0 +1,144 @@
+version: 2
+plan_id: sprint-weekly-runtime-completion-2026-09-04
+status: approved
+author: codex-agent
+created: 2026-09-04
+title: Complete the hosted provider-neutral Sprint week runtime
+objective: >-
+  Complete the hosted Sprint runtime beyond Friday Close by compiling and
+  executing the reviewed Monday handoff, weekday digest, Wednesday readiness
+  inventory and reversible secondary readiness status, structured NEXT WEEK carry-forward, focused Sprint direct
+  conversations, frozen reversible briefing proposals, and separately
+  approved frozen-list Rollover through the standard CompanyOS Tool,
+  authorization, idempotency, evidence, and provider receipt boundaries.
+non_goals:
+  - Add any company person, provider resource id, status label, schedule time, message copy, model name, or credential to Core.
+  - Enable production schedules, provider writes, Slack messages, or a Company rollout.
+  - Add Monday card chat, board-change webhooks, automatic Issue creation, priority decisions, people scoring, or autonomous work execution.
+  - Archive full Slack or Monday transcripts.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Company truth is not Core product truth
+  - Authority remains in the Company Workspace
+  - Humans remain accountable
+  - No hidden magic
+files_expected:
+  - .oregano/changes/2026-09-04-sprint-weekly-runtime-completion.yaml
+  - docs/architecture/company-instance.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/system-of-proof.md
+  - docs/status/current.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/blueprints/sprint-agent/**
+  - packages/capabilities/catalog.ts
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/tests/workbench.test.mjs
+  - packages/companyos-builder/**
+  - packages/connectors/monday/connector.ts
+  - packages/domains/sprint/**
+  - packages/runner-vercel/src/app/api/sprint/**
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/runtime/sprint-*.ts
+  - packages/schema/sprint-*.schema.json
+  - packages/standard-tools/work-items.ts
+  - packages/testkit/tests/sprint-*.test.ts
+  - packages/testkit/tests/company-records-sprint-contracts.test.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/tool-sdk/contracts.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-04
+    evidence: explicit-user-request-to-complete-the-approved-sprint-plan
+architecture_assessment:
+  responsibilities:
+    core:
+      - Provide provider-neutral events, state, read models, schedules, intents, proposal controls, dispatch, evidence, and hosted entrypoints for one governed Sprint week.
+      - Require exact compiled bindings, fresh record projections, immutable versions, deterministic identities, human confirmation where specified, and read-after-write receipts.
+      - Keep Shadow mode effect-free while exercising the same hosted decisions and rendering.
+    packages:
+      - The Sprint Blueprint owns reusable Agent instructions, Workflows, Skills, template contracts, and synthetic fixtures without runtime authority.
+    workspace:
+      - Own participants, roles, process states, required fields, schedules, calendars, language, concrete templates, model task profile, grants, and rollout policy.
+    instance:
+      - Own exact provider resources, credentials, Connector bindings, destinations, runtime mode, durable state, and production activation.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Direct Sprint conversations must be pre-assigned to the compiled Sprint Agent and replies remain deterministically routed.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Weekly and proposal effects use only the Sprint Agent's compiled grants.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The Workspace selects a model task profile; Core never pins a provider model.
+    - mechanism: company-records
+      decision: reuse
+      reason: Monday remains authoritative and the runtime reads fresh, scoped projections before decisions.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Direct recipients and human confirmations resolve only from canonical roster principals and compiled assignments.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: Existing durable Friday timers are generalized to every reviewed weekly trigger while preserving timezone, holiday, leasing, and idempotency controls.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Briefing uses exact single-use reversible confirmation and Rollover uses a separate R3 frozen-list approval through the normal effect boundary.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Slack communication and work-item effects continue through exact Connector resource and destination bindings.
+  new_core_mechanisms:
+    - Structured NEXT WEEK submission facts and Monday handoff read model.
+    - Provider-neutral Monday summary, weekday digest, focused Wednesday readiness question, and version-bound secondary readiness-field intents.
+    - Deterministic direct-message intent with pre-created Sprint conversation assignment metadata.
+    - Frozen work-item content proposal and confirmation lifecycle for allowlisted reversible writes.
+    - Frozen homogeneous Rollover proposal using a dedicated R3 Tool contract.
+    - Hosted operator actions and Stage-0 tests for the complete weekly lifecycle.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    All Core behavior consumes compiled Workspace declarations and exact
+    Instance bindings. No company name, board, channel, user, role label,
+    schedule time, template text, or model id is embedded in the mechanism.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-04-sprint-weekly-runtime-completion.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-04-sprint-weekly-runtime-completion.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - The compiled Workspace manifest binds every weekly trigger, template, projection, direct recipient, work-item field, and model task without company defaults in Core.
+  - A hosted Sprint schedules and processes Monday, weekday, Wednesday readiness, and Friday Close moments with deterministic replay behavior.
+  - NEXT WEEK facts are normalized as structured evidence and late provider-timestamped submissions affect Monday only.
+  - Shadow mode renders and records every weekly intent while producing no Slack or work-item effect.
+  - Active delivery cannot widen a shared channel or direct recipient and creates the exact Sprint conversation assignment before a DM.
+  - A briefing proposal is version-bound, field-bound, expiring, single-use, owner-confirmed, and followed by read-after-write evidence.
+  - Derived readiness changes only the exact secondary status field, invalidates when facts become incomplete, and never changes the provider group.
+  - Rollover freezes every eligible open item and exact target, requires R3 human approval, and rejects changed versions, partial sets, duplicates, services, and unauthorized principals.
+  - Duplicate, replay, stale projection, stale provider version, self-echo, unconfigured board, and missing binding cases fail closed.
+  - No full transcript, secret, provider payload, company identity, or untrusted instruction enters Core fixtures.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.oregano-core
+    - architecture.system-of-proof
+    - guide.prepare-instance
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Keep the Company Instance Sprint runtime disabled or in Shadow mode, restore
+  the prior Core release and Workspace compatibility pin, and retain durable
+  events as historical evidence. The change adds no production activation or
+  destructive migration and does not require deleting provider data.
+open_decisions: []
