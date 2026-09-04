@@ -115,19 +115,40 @@ can reach a provider.
 
 Slack presentation is an independent Instance concern. A Company Instance may
 set `COMPANYOS_SLACK_AGENT_VIEW=true` only after its existing Slack app has the
-Agent experience enabled and its installation has granted `assistant:write`.
-The maintained Runner then presents the same external Oregano identity through
-Slack Agent View and requests one best-effort native `Working` status after the
-sender has passed the roster check, the message has passed the duplicate guard,
-and the deterministic CompanyOS Agent has been resolved. The status clears when
-the response is posted. It is presentation only: it cannot select an Agent,
-grant a Tool, change an approval, or prove an effect. The setting defaults to
-disabled so another Company Instance is never migrated implicitly.
+Agent experience enabled and its installation has granted `chat:write`. The
+maintained Runner then presents the same external Oregano identity through
+Slack Agent View and uses Slack Agent Sessions to request one best-effort native
+`Working` status after the sender has passed the roster check, the message has
+passed the duplicate guard, and the deterministic CompanyOS Agent has been
+resolved. For a DM subscribed before Agent View was enabled, the Agent Session
+status and reply target the accepted inbound root message; durable conversation
+and Agent assignment identities remain unchanged. The status clears when the
+response is posted. If the app subscribes to Slack's
+`agent_session_stopped` event, the native stop control aborts the active model
+turn. A short-lived, exact session-to-conversation mapping preserves that
+behavior for pre-Agent-View DMs across serverless invocations. Stopping a turn
+does not undo a Tool effect that already completed. New sessions receive a
+deterministic title from the first line of the accepted root message; no model
+call or additional data access is involved, and users remain free to rename,
+pin, or archive the session in Slack. Ordinary conversational answers without
+granted Company business Tools use Slack's native streaming API so text appears
+while the model is generating it. For Company business-Tool-bearing,
+required-grounding, Builder, approval, and effect-bearing turns, the Runner
+keeps provisional model prose private, presents Tool execution as live native
+task progress without Tool inputs or outputs, and streams the exact validated
+final CompanyOS presentation afterwards. An explicit pending approval or
+Builder confirmation leaves the Agent Session suspended; an ordinary completed
+turn returns it to active. Setup verification remains one exact, buffered proof
+response. This is
+presentation only: it cannot select an Agent, grant a Tool, change an approval,
+or prove an effect. The setting defaults to disabled so another Company
+Instance is never migrated implicitly.
 
-Suggested prompts, active-view context, Slack MCP, generated session titles,
-stop handling, and rich work objects are not part of this minimal presentation
-mode. Those features require separate reviewed contracts rather than prompt or
-provider configuration being treated as authorization.
+Suggested prompts, active-view context, Slack MCP, feedback controls,
+model-generated session titles, and rich work objects are not part of this
+minimal presentation mode. Those
+features require separate reviewed contracts rather than prompt or provider
+configuration being treated as authorization.
 
 For rollout qualification, the Runner may expose a bearer-protected Stage-0
 surface in a `preview` deployment. It binds one test Artifact and a separate

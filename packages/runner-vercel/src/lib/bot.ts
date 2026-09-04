@@ -40,8 +40,16 @@ import {
 } from "./knowledge-turn-routing.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import {
+  abortRememberedSlackAgentSessionConversation,
+  createSlackToolProgressReporter,
+  rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
+  resolveSlackAgentSessionThreadId,
+  resolveSlackTurnAbortSignal,
+  shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
+  toolResultNeedsHumanInput,
+  validatedSlackResponsePlan,
   type SlackAgentExperienceConfiguration,
 } from "./slack-agent-experience.ts";
 import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "../../../runner/model-execution.ts";
@@ -206,7 +214,15 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     assignmentStore,
   });
   const agent = conversation.agent;
-  await showSlackAgentWorking(thread, slackAgentExperience);
+  const sessionThreadId = resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
+  const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
+  await rememberSlackAgentSessionConversation(
+    state,
+    sessionThreadId,
+    thread.id,
+    slackAgentExperience,
+  );
+  await showSlackAgentWorking(deliveryThread, slackAgentExperience);
   const sprintBindings = (artifact.sprints ?? []).filter((candidate) => candidate.agentId === agent.id);
   if (sprintBindings.length > 1) throw new Error(`Agent '${agent.id}' has ambiguous Sprint runtime bindings.`);
   if (sprintBindings.length === 1 && isFridaySprintUpdate(message.text)) {
@@ -223,13 +239,13 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
         text: message.text,
       });
       if (!ingestion.accepted && sprintMode !== "shadow") {
-        await thread.post(`Your Friday Sprint update was not recorded (${ingestion.reason}).`);
+        await deliveryThread.post(`Your Friday Sprint update was not recorded (${ingestion.reason}).`);
       }
       return;
     } catch (error) {
       if (sprintMode !== "shadow") {
         const reference = sha256(error instanceof Error ? error.message : String(error));
-        await thread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
+        await deliveryThread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
       }
       return;
     }
@@ -248,20 +264,21 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       temperature: 0,
       maxOutputTokens: 48,
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
-      ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
+      abortSignal: resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs),
     });
+    thread.signal.throwIfAborted();
     const generated = probe.text.trim();
     if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
     await state.appendToList(conversationKey, { role: "assistant", content: generated, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
-    await thread.post(generated);
+    await deliveryThread.post(generated);
     return;
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
-  const tools = resolvedTools(agent, thread, requester, runId, message.id, conversation);
+  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation);
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
     tools: agent.toolSet.tools.map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
@@ -287,10 +304,76 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
-  const result = await modelAgent.generate({
-    messages,
-    ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
-  });
+  const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
+  if (shouldStreamSlackAgentResponse({
+    configuration: slackAgentExperience,
+    agentId: agent.id,
+    knowledgeRouteKind: knowledgeRoute.kind,
+    businessToolCount: agent.toolSet.tools.length,
+  })) {
+    const result = await modelAgent.stream({ messages, abortSignal });
+    await deliveryThread.post(result.fullStream);
+    thread.signal.throwIfAborted();
+    const [modelText, toolResults, content, responseMetadata, usage] = await Promise.all([
+      result.text,
+      result.toolResults,
+      result.content,
+      result.response,
+      result.usage,
+    ]);
+    const response = renderKnowledgeTurnResponse({
+      route: knowledgeRoute,
+      modelText,
+      toolResults,
+      toolFailures: content
+        .filter((part) => part.type === "tool-error")
+        .map((part) => ({ toolName: part.toolName, error: part.error })),
+    });
+    if (response !== modelText.trim()) {
+      throw new Error("A streamed Slack response did not satisfy the final CompanyOS presentation contract.");
+    }
+    await state.appendToList(conversationKey, {
+      role: "assistant",
+      content: response,
+      model_execution: modelExecutionEvidence(resolved.selection, { response: responseMetadata, usage }),
+    } satisfies ConversationEntry, {
+      maxLength: 40,
+      ttlMs: 30 * DAY,
+    });
+    return;
+  }
+  const toolProgress = createSlackToolProgressReporter(deliveryThread, slackAgentExperience);
+  let waitingForHuman = false;
+  let result: Awaited<ReturnType<typeof modelAgent.generate>>;
+  try {
+    result = await modelAgent.generate({
+      messages,
+      abortSignal,
+      onToolExecutionStart: async ({ toolCall }) => {
+        await toolProgress.start({ id: toolCall.toolCallId, toolName: toolCall.toolName });
+      },
+      onToolExecutionEnd: async ({ toolCall, toolOutput }) => {
+        const succeeded = toolOutput.type === "tool-result";
+        const toolWaitingForHuman = succeeded && toolResultNeedsHumanInput(toolOutput.output);
+        waitingForHuman ||= toolWaitingForHuman;
+        await toolProgress.finish({
+          id: toolCall.toolCallId,
+          succeeded,
+          ...(toolWaitingForHuman ? { waitingForHuman: true } : {}),
+        });
+      },
+    });
+  } catch (error) {
+    await toolProgress.fail();
+    if (waitingForHuman && slackAgentExperience.streamingEnabled) {
+      await deliveryThread.post(validatedSlackResponsePlan(
+        "Waiting for your confirmation in the card above. The response could not be completed.",
+        { suspended: true },
+      ));
+    }
+    throw error;
+  }
+  thread.signal.throwIfAborted();
   const response = renderKnowledgeTurnResponse({
     route: knowledgeRoute,
     modelText: result.text,
@@ -302,16 +385,39 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const presentation = agent.id === "builder"
     ? builderChat.presentTurn(response, result.toolResults)
     : { historyResponse: response, visibleResponse: response };
+  waitingForHuman ||= result.toolResults.some((entry) => toolResultNeedsHumanInput(entry.output));
+  await toolProgress.complete({ waitingForHuman });
   await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
-  if (presentation.visibleResponse) await thread.post(presentation.visibleResponse);
+  if (presentation.visibleResponse) {
+    await deliveryThread.post(slackAgentExperience.streamingEnabled
+      ? validatedSlackResponsePlan(presentation.visibleResponse, { suspended: waitingForHuman })
+      : presentation.visibleResponse);
+  } else if (waitingForHuman && slackAgentExperience.streamingEnabled) {
+    await deliveryThread.post(validatedSlackResponsePlan(
+      "Waiting for your confirmation in the card above.",
+      { suspended: true },
+    ));
+  }
 }
 
 function registerHandlers(bot: Chat) {
   bot.onNewMention(handleMessage);
   bot.onSubscribedMessage(handleMessage);
+  bot.onAgentSessionStopped(async (event) => {
+    const bridgedLegacyConversation = await abortRememberedSlackAgentSessionConversation(
+      bot,
+      state,
+      event.threadId,
+      slackAgentExperience,
+    );
+    console.info(JSON.stringify({
+      event: "slack.agent-session.stopped",
+      bridgedLegacyConversation,
+    }));
+  });
   bot.onAction(["companyos.approve", "companyos.reject"], async (event) => {
   if (!event.thread || !event.value) return;
   const pending = await state.get<PendingApproval>(`approval:${event.value}`);
@@ -386,6 +492,8 @@ export function getBot(): Chat {
       slack: createSlackAdapter({
         ...connectSlackAdapter(requireEnv("SLACK_CONNECTOR")),
         agentView: slackAgentExperience.enabled,
+        nativeStreaming: slackAgentExperience.streamingEnabled,
+        sessionTitle: slackAgentExperience.enabled,
       }),
     },
     state,
