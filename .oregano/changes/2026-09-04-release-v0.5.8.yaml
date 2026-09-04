@@ -1,0 +1,117 @@
+version: 2
+plan_id: release-v0.5.8-2026-09-04
+status: approved
+author: codex-agent
+created: 2026-09-04
+title: Prepare Oregano v0.5.8 Sprint refresh chronology patch
+objective: >-
+  Prepare one exact stable Oregano Core patch release containing the reviewed
+  provider-neutral Sprint refresh chronology correction from Core PR 26,
+  reproducible release evidence, and no Company Instance activation.
+non_goals:
+  - Deploy, promote, migrate, or activate a Company Workspace or Company Instance.
+  - Send Slack messages, read or write Monday production data, or enable a production schedule.
+  - Change Sprint policy, schedules, participants, templates, provider mappings, or model selection.
+  - Change the Workbench contract or claim completion of a company rollout gate.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-04-release-v0.5.8.yaml
+  - docs/status/current.md
+  - package.json
+  - packages/cli/tests/**
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/tests/reference-runtime.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-04
+    evidence: explicit-user-approval-to-squash-merge-core-pr-26-and-publish-patch-release-v0.5.8
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the exact Core patch identity and release evidence for the reviewed generic chronology correction.
+    packages:
+      - No Package or Blueprint contract changes.
+    workspace:
+      - Adopt the immutable release later through a separately reviewed exact compatibility pin.
+    instance:
+      - Deploy and resume Shadow validation later through a separate production change plan.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Agent selection and conversation assignment are unchanged.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Sprint refresh continues through the existing records.query Tool.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: No model task or provider selection changes.
+    - mechanism: company-records
+      decision: reuse
+      reason: The stabilized projection and immutable source-version digest remain the evidence input.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Subjects, rights, approvals, and provider authorization are unchanged.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: The merged correction records reconciliation at the hosted refresh time without changing any schedule.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Exact source-version replay remains duplicate-safe and Shadow remains structurally effect-free.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Capability and Connector contracts are unchanged.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Versioning identifies one company-neutral runtime correction. Every company
+    identity, provider resource, schedule, model, credential, and destination
+    remains outside this repository.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.7
+  target_version: 0.5.8
+  rationale: >-
+    This backward-compatible correction fixes hosted refresh chronology without
+    changing any public Workspace or Workbench contract. The Workbench therefore
+    remains 0.1.0-experimental.15.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-04-release-v0.5.8.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-04-release-v0.5.8.yaml
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas --format json
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core reports 0.5.8 while Workbench remains 0.1.0-experimental.15.
+  - A stabilized snapshot observed before Sprint open refreshes at the hosted runtime clock.
+  - Exact source-version replay remains a duplicate and durable Sprint chronology never regresses.
+  - Existing Company Workspaces and Instances remain unchanged until they adopt the exact release.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Existing Workspaces and databases require no migration merely because this
+  release exists. Adoption requires an exact Workspace compatibility pin and a
+  separately controlled Instance deployment.
+rollback: >-
+  Before publication, close or revert the candidate and remain on exact v0.5.7.
+  After publication, consumers may remain on v0.5.7; correct defects only in a
+  newer patch. Keep an affected Sprint disabled or in Shadow mode during rollback.
+open_decisions: []
