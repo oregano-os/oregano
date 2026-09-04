@@ -30,7 +30,7 @@ same boundary, the agent presents them together instead of asking one by one.
 This workflow convenience does not change the runtime R0-R4 effect model or
 allow a required confirmation to be bypassed.
 
-The current repository release candidate is `0.1.0-experimental.13`. Verify the
+The current repository release candidate is `0.1.0-experimental.14`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
 contract version; it does not claim that a public package has been published.
 

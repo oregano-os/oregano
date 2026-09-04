@@ -33,8 +33,8 @@ const validPlan = () => {
     coreIdentity: {
       repository: "https://github.com/example/oregano",
       ref: "a".repeat(40),
-      core_version: "0.5.5",
-      workbench_version: "0.1.0-experimental.13",
+      core_version: "0.5.6",
+      workbench_version: "0.1.0-experimental.14",
     },
   });
   return { ...fixture, result };
@@ -50,8 +50,8 @@ const validRemotePlan = () => {
     coreIdentity: {
       repository: "https://github.com/example/oregano",
       ref: "a".repeat(40),
-      core_version: "0.5.5",
-      workbench_version: "0.1.0-experimental.13",
+      core_version: "0.5.6",
+      workbench_version: "0.1.0-experimental.14",
     },
     runtimeProfile: "vercel-neon",
     endpoint: "https://fixture-preview.vercel.app/api/records/rehearsal",
