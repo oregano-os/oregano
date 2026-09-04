@@ -257,7 +257,9 @@ export class SprintReplayService {
       { at: closeSchedule.reminder_at, kind: "timer" as const },
       { at: closeSchedule.chase_at, kind: "timer" as const },
       { at: closeSchedule.report_at, kind: "timer" as const },
-    ].sort((left, right) => left.at.localeCompare(right.at) || (left.kind === "timer" ? -1 : 1));
+    // A submission at the exact reviewed cutoff belongs to that report. Apply
+    // provider events before timer events when both have the same timestamp.
+    ].sort((left, right) => left.at.localeCompare(right.at) || (left.kind === "submission" ? -1 : 1));
     const dispatcher = replayDispatcher(input.replayId, input.output);
     for (const entry of timeline) {
       if (entry.kind === "submission") {

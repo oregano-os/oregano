@@ -112,7 +112,7 @@ validation:
 tests:
   - A Slack source reads only its exact qualified conversation, includes thread replies, paginates within explicit bounds, and never exposes its credential.
   - A complete Slack inventory has stable object ids, immutable source versions, a content-free receipt, and a watermark independent of provider response ordering.
-  - Rate limits, hidden history, truncation, missing membership, wrong team, wrong channel, stale qualification, or insufficient scope fail closed without a completeness claim.
+  - Rate limits, hidden history, truncation, incomplete unbounded threads, missing membership, wrong team, wrong channel, stale qualification, or insufficient scope fail closed without a completeness claim; a historical upper bound excludes later live replies from its completeness comparison.
   - Provider messages normalize to one generic communication shape without Sprint fields or company-specific meaning.
   - Typed derived records preserve source lineage, schema version, subject, occurrence time, and typed references while keeping domain payload validation separate.
   - Only the Sprint projector recognizes a valid Friday update and links exact work-item URLs to already authorized Company Records.

@@ -134,3 +134,20 @@ test("Sprint replay is idempotent against the same durable stores", async () => 
   assert.equal(store.events.size, eventCount);
   assert.equal(store.intents.size, intentCount);
 });
+
+test("Sprint replay includes a submission at the exact report cutoff in the report intent", async () => {
+  const store = new InMemorySprintOrchestrationStore();
+  const service = new SprintReplayService({
+    instanceId: "fixture-instance",
+    store,
+    timers: new DurableTimerService({ instanceId: "fixture-instance", store: new InMemoryDurableTimerStore() }),
+  });
+  const exactCutoff = input();
+  exactCutoff.messages = [
+    row({ id: "message-at-cutoff", at: "2030-01-04T17:00:00.000Z", author: "U11111", text: complete }),
+  ];
+  await service.run(exactCutoff);
+  const report = [...store.intents.values()].find((candidate) => candidate.intent.type === "message.close-report");
+  assert.ok(report && report.intent.type === "message.close-report");
+  assert.equal(report.intent.participant_states["person-a"], "complete");
+});

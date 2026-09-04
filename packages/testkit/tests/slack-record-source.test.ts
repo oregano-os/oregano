@@ -168,9 +168,27 @@ test("Slack Record Source refuses an incomplete thread inventory", async () => {
   const { fetcher } = fixture(false, true);
   const qualification = await qualified(fetcher as typeof fetch);
   const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher: fetcher as typeof fetch });
+  const unbounded = binding(qualification.evidence.discovery.discovery_hash);
+  delete unbounded.configuration.latest_at;
   await assert.rejects(() => connector.readCompleteInventory({
+    source,
+    binding: unbounded,
+    qualification: qualification as unknown as Record<string, unknown>,
+  }), /0 of 1 declared replies/);
+});
+
+test("Slack Record Source does not count replies beyond a bounded latest timestamp as missing", async () => {
+  const { fetcher } = fixture(false, true);
+  const qualification = await qualified(fetcher as typeof fetch);
+  const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher: fetcher as typeof fetch });
+  const inventory = await connector.readCompleteInventory({
     source,
     binding: binding(qualification.evidence.discovery.discovery_hash),
     qualification: qualification as unknown as Record<string, unknown>,
-  }), /0 of 1 declared replies/);
+  });
+  assert.equal(inventory.complete, true);
+  assert.deepEqual(inventory.objects.map((message) => message.message_id), [
+    "1893456000.000100",
+    "1893456001.000100",
+  ]);
 });

@@ -230,7 +230,10 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
           if (result.data.has_more && !next) throw new Error(`Slack thread '${rootTs}' reported more messages without a continuation cursor`);
           threadCursor = next;
         } while (threadCursor);
-        if (observedReplies.size < expectedReplies) {
+        // `reply_count` describes the complete live thread, not the selected
+        // historical window. It is therefore a valid completeness check only
+        // when the inventory has no upper time bound.
+        if (!config.latestAt && observedReplies.size < expectedReplies) {
           throw new Error(`Slack thread '${rootTs}' returned ${observedReplies.size} of ${expectedReplies} declared replies and cannot support a complete inventory claim`);
         }
       }

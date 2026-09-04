@@ -33,8 +33,9 @@ evidence, historical prototypes, and production gaps.
   verifies one exact team, channel, membership, kind, and required read scopes;
   reads bounded complete history plus thread replies; normalizes provider
   messages to `communication-message`; retains immutable raw versions; and
-  fails closed on limited history, incomplete threads, pagination bounds,
-  qualification drift, or rate limiting. Protected Preview qualification reads
+  fails closed on limited history, incomplete unbounded threads, pagination
+  bounds, qualification drift, or rate limiting. A historical upper bound does
+  not treat later live replies as missing. Protected Preview qualification reads
   only bot identity and selected-channel metadata and returns a content-free
   receipt without retaining the token. No real Slack history read, database
   write, schedule, or production activation is claimed by this Core change.

@@ -328,13 +328,14 @@ configuration:
 
 `oldest_at` and optional `latest_at` are explicit collection boundaries.
 Every pass reads one bounded complete inventory, including thread replies,
-and fails closed on provider-limited history, incomplete thread replies,
-pagination overflow, scope or membership drift, or rate limiting. The generic
+and fails closed on provider-limited history, pagination overflow, scope or
+membership drift, rate limiting, or an incomplete unbounded thread inventory.
+When `latest_at` selects a historical window, later live replies are outside
+that inventory and do not make the selected window incomplete. The generic
 source stores immutable normalized message versions and the raw provider
 payload. A Domain may later derive a typed business record with exact source
 lineage; this does not create a provider write or grant the derived record new
 authority.
-```
 
 The default mode is `selected-items`. Use complete-table only after reviewing
 the broader personal and business data scope, provider API quota, database

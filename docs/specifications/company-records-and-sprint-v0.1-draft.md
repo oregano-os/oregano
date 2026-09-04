@@ -362,9 +362,11 @@ the public/private history and read scopes, and retain no credential. A
 complete inventory MUST use bounded cursor pagination over history and each
 declared thread, preserve the immutable raw provider payload, and normalize a
 provider-neutral `communication-message` value. Limited history, incomplete
-thread replies, missing cursors, conflicting versions, bounds, scope drift,
-membership drift, or rate limiting MUST fail without a completeness claim or
-watermark. Qualification reads only authenticated bot identity and exact
+unbounded thread replies, missing cursors, conflicting versions, bounds, scope
+drift, membership drift, or rate limiting MUST fail without a completeness
+claim or watermark. A historical upper bound MUST exclude later live replies
+from the selected inventory's completeness comparison. Qualification reads
+only authenticated bot identity and exact
 conversation metadata; message history is read only during a separately
 planned synchronization or reconciliation. Neither path writes to Slack or
 grants an Agent Capability.
