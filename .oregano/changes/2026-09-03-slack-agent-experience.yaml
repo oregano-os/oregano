@@ -6,8 +6,9 @@ created: 2026-09-03
 title: Present the existing Slack transport through Slack Agent View
 objective: >-
   Reuse the existing Oregano Slack app and CompanyOS routing while optionally
-  presenting it through Slack Agent View and showing one native Working status
-  for authenticated, accepted turns.
+  presenting it through Slack Agent View and showing one native Agent Session
+  Working status for authenticated, accepted turns, including conversations
+  subscribed before Agent View was enabled.
 non_goals:
   - Create another Slack app or expose individual CompanyOS Agents as separate Slack identities.
   - Add suggested prompts, active-view context events, Slack MCP, rich work objects, generated thread titles, or stop controls in this change.
@@ -26,7 +27,9 @@ files_expected:
   - docs/_generated/document-registry.json
   - docs/workbench/guides/prepare-an-instance.md
   - packages/cli/content/guides/prepare-an-instance.md
+  - packages/runner-vercel/package.json
   - packages/runner-vercel/src/lib/**
+  - pnpm-lock.yaml
 required_approvals:
   - oregano-maintainer
 approvals:
@@ -37,7 +40,8 @@ approvals:
 architecture_assessment:
   responsibilities:
     core:
-      - Provide an opt-in Slack Agent View adapter mode and a best-effort native Working status around accepted turns.
+      - Provide an opt-in Slack Agent View adapter mode and a best-effort native Agent Session Working status around accepted turns.
+      - Preserve legacy DM conversation identity while targeting the accepted inbound root message for Agent Session presentation and reply.
       - Preserve provider-neutral CompanyOS Agent resolution, identity checks, and Tool governance.
     packages:
       - The maintained Vercel Runner maps one external Slack Agent identity to the already-resolved internal CompanyOS Agent.
@@ -72,7 +76,8 @@ architecture_assessment:
       reason: The existing Vercel Connect Slack adapter and connection are reused without creating a second Connector.
   new_core_mechanisms:
     - Optional Slack Agent View presentation configuration in the maintained Vercel Runner.
-    - Best-effort native Working status for accepted Slack turns.
+    - Best-effort native Agent Session Working status for accepted Slack turns.
+    - A presentation-only legacy-DM bridge that does not change durable conversation identity.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
@@ -93,7 +98,9 @@ tests:
   - Slack Agent View is disabled by default and accepts only the exact documented opt-in value.
   - The adapter receives agentView true only for an opted-in Company Instance.
   - An accepted turn requests the native Working status once before model execution.
+  - A legacy channel-wide Slack DM subscription targets the accepted inbound root message for Agent Session status and reply without changing durable conversation identity.
   - Failure to render the optional provider status never blocks the CompanyOS response.
+  - Agent View uses Slack Agent Sessions while automatic provider-generated session titles remain disabled.
   - Existing roster authorization and deterministic AgentResolver tests remain green.
   - No suggested prompts, context-event handling, Slack MCP, new Slack identity, or Tool grant is introduced.
 documentation_impact:
