@@ -13,6 +13,7 @@ import {
   type CompanyRecordsProductionConfiguration,
   type CompanyRecordsProductionDependencies,
 } from "./company-records-production.ts";
+import { MONDAY_RECORD_SOURCE_CONNECTOR_VERSION } from "../../../connectors/monday/records-source.ts";
 
 const coreRef = "a".repeat(40);
 const workspaceRef = "b".repeat(40);
@@ -64,7 +65,7 @@ const configuration = (): CompanyRecordsProductionConfiguration => ({
       source_id: "fixture-items",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.3.0",
+      connector_version: MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: qualificationDigest },
       configuration: {

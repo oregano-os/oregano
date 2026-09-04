@@ -101,6 +101,7 @@ tests:
   - A stabilized snapshot observed before Sprint open refreshes at the hosted runtime clock.
   - Exact source-version replay remains a duplicate and durable Sprint chronology never regresses.
   - A refresh rejects a colliding durable event whose stored type is not a work-item observation.
+  - Company Records production and rehearsal runner tests are part of the regular Core test gate.
   - Existing Company Workspaces and Instances remain unchanged until they adopt the exact release.
 documentation_impact:
   required: true
