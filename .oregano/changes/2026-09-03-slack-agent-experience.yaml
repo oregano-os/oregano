@@ -8,10 +8,12 @@ objective: >-
   Reuse the existing Oregano Slack app and CompanyOS routing while optionally
   presenting it through Slack Agent View and showing one native Agent Session
   Working status for authenticated, accepted turns, including conversations
-  subscribed before Agent View was enabled.
+  subscribed before Agent View was enabled, and allowing the user to stop the
+  active model turn through Slack's native Agent Session control, while using
+  deterministic first-line titles for new sessions.
 non_goals:
   - Create another Slack app or expose individual CompanyOS Agents as separate Slack identities.
-  - Add suggested prompts, active-view context events, Slack MCP, rich work objects, generated thread titles, or stop controls in this change.
+  - Add suggested prompts, active-view context events, Slack MCP, rich work objects, or model-generated thread titles in this change.
   - Change CompanyOS Agent selection, roster authorization, Tool grants, model routing, approval policy, or business effects.
   - Enable the experience for every Company Instance by default.
 placement: core
@@ -42,13 +44,15 @@ architecture_assessment:
     core:
       - Provide an opt-in Slack Agent View adapter mode and a best-effort native Agent Session Working status around accepted turns.
       - Preserve legacy DM conversation identity while targeting the accepted inbound root message for Agent Session presentation and reply.
+      - Propagate a verified native stop event to the active model turn without undoing any effect that already completed.
+      - Give new sessions one deterministic title derived locally from the accepted root message.
       - Preserve provider-neutral CompanyOS Agent resolution, identity checks, and Tool governance.
     packages:
       - The maintained Vercel Runner maps one external Slack Agent identity to the already-resolved internal CompanyOS Agent.
     workspace:
       - Continue to own company Agents, language, instructions, handoffs, scope, and Tool grants; no Workspace change is required for Agent View.
     instance:
-      - Own whether Slack Agent View is enabled, the exact Slack app installation, provider consent, scopes, and production activation.
+      - Own whether Slack Agent View is enabled, the exact Slack app installation, provider consent, scopes, `agent_session_stopped` subscription, and production activation.
   existing_mechanisms:
     - mechanism: agent-resolver
       decision: reuse
@@ -78,6 +82,8 @@ architecture_assessment:
     - Optional Slack Agent View presentation configuration in the maintained Vercel Runner.
     - Best-effort native Agent Session Working status for accepted Slack turns.
     - A presentation-only legacy-DM bridge that does not change durable conversation identity.
+    - A short-lived legacy-DM stop bridge plus propagation of the Chat SDK turn signal to model execution.
+    - Deterministic first-line session titles with no model call or new data access.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
@@ -99,10 +105,13 @@ tests:
   - The adapter receives agentView true only for an opted-in Company Instance.
   - An accepted turn requests the native Working status once before model execution.
   - A legacy channel-wide Slack DM subscription targets the accepted inbound root message for Agent Session status and reply without changing durable conversation identity.
+  - The native Slack stop event cancels the exact active model turn for both native per-message sessions and remembered legacy-DM conversations.
+  - Model timeout and native stop signals are composed; neither boundary weakens the other.
+  - Agent View enables deterministic first-line session titles and leaves user-managed pinning, renaming, and archiving to Slack.
   - Failure to render the optional provider status never blocks the CompanyOS response.
   - Agent View uses Slack Agent Sessions while automatic provider-generated session titles remain disabled.
   - Existing roster authorization and deterministic AgentResolver tests remain green.
-  - No suggested prompts, context-event handling, Slack MCP, new Slack identity, or Tool grant is introduced.
+  - No suggested prompts, active-view context handling, Slack MCP, new Slack identity, or Tool grant is introduced.
 documentation_impact:
   required: true
   affected_documents:
@@ -114,4 +123,4 @@ rollback: >-
   Runner, and disable Agent experience on the existing Slack app. No Workspace,
   conversation assignment, Tool grant, or provider record migration is needed.
 open_decisions:
-  - Native Agent Session stop controls, richer lifecycle states, suggested prompts, context events, and work objects remain separate follow-up changes after the minimal canary.
+  - Richer lifecycle states, suggested prompts, context events, and work objects remain separate follow-up changes after the minimal canary.

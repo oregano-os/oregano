@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  abortRememberedSlackAgentSessionConversation,
+  rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
+  resolveSlackTurnAbortSignal,
   showSlackAgentWorking,
 } from "./slack-agent-experience.ts";
 
@@ -48,6 +51,57 @@ test("accepted Agent View turns show one native Working status", async () => {
     { enabled: true, workingStatus: "Working" },
   );
   assert.deepEqual(statuses, ["Working"]);
+});
+
+test("legacy Agent Session stop events abort only the remembered CompanyOS conversation", async () => {
+  const values = new Map<string, unknown>();
+  const state = {
+    set: async (key: string, value: unknown) => { values.set(key, value); },
+    get: async <T>(key: string) => (values.get(key) as T | undefined) ?? null,
+    delete: async (key: string) => { values.delete(key); },
+  };
+  const aborted: string[] = [];
+  const chat = { abortTurn: async (threadId: string) => { aborted.push(threadId); } };
+  const enabled = { enabled: true, workingStatus: "Working" } as const;
+
+  await rememberSlackAgentSessionConversation(
+    state,
+    "slack:D012345:1788494042.306000",
+    "slack:D012345:",
+    enabled,
+  );
+  assert.equal(await abortRememberedSlackAgentSessionConversation(
+    chat,
+    state,
+    "slack:D012345:1788494042.306000",
+    enabled,
+  ), true);
+  assert.deepEqual(aborted, ["slack:D012345:"]);
+  assert.equal(await abortRememberedSlackAgentSessionConversation(
+    chat,
+    state,
+    "slack:D012345:1788494042.306000",
+    enabled,
+  ), false);
+});
+
+test("native per-message sessions need no legacy stop bridge", async () => {
+  let writes = 0;
+  await rememberSlackAgentSessionConversation(
+    { set: async () => { writes += 1; } },
+    "slack:D012345:1788494042.306000",
+    "slack:D012345:1788494042.306000",
+    { enabled: true, workingStatus: "Working" },
+  );
+  assert.equal(writes, 0);
+});
+
+test("Slack stop aborts the model signal while preserving the timeout boundary", () => {
+  const controller = new AbortController();
+  const signal = resolveSlackTurnAbortSignal(controller.signal, 60_000);
+  assert.equal(signal.aborted, false);
+  controller.abort();
+  assert.equal(signal.aborted, true);
 });
 
 test("disabled presentation and provider status failures do not block a turn", async () => {

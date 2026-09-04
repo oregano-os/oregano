@@ -123,16 +123,22 @@ passed the duplicate guard, and the deterministic CompanyOS Agent has been
 resolved. For a DM subscribed before Agent View was enabled, the Agent Session
 status and reply target the accepted inbound root message; durable conversation
 and Agent assignment identities remain unchanged. The status clears when the
-response is posted. Automatic provider-generated session titles remain
-disabled. This is
+response is posted. If the app subscribes to Slack's
+`agent_session_stopped` event, the native stop control aborts the active model
+turn. A short-lived, exact session-to-conversation mapping preserves that
+behavior for pre-Agent-View DMs across serverless invocations. Stopping a turn
+does not undo a Tool effect that already completed. New sessions receive a
+deterministic title from the first line of the accepted root message; no model
+call or additional data access is involved, and users remain free to rename,
+pin, or archive the session in Slack. This is
 presentation only: it cannot select an Agent, grant a Tool, change an approval,
 or prove an effect. The setting defaults to disabled so another Company
 Instance is never migrated implicitly.
 
-Suggested prompts, active-view context, Slack MCP, generated session titles,
-stop handling, and rich work objects are not part of this minimal presentation
-mode. Those features require separate reviewed contracts rather than prompt or
-provider configuration being treated as authorization.
+Suggested prompts, active-view context, Slack MCP, model-generated session titles,
+and rich work objects are not part of this minimal presentation mode. Those
+features require separate reviewed contracts rather than prompt or provider
+configuration being treated as authorization.
 
 For rollout qualification, the Runner may expose a bearer-protected Stage-0
 surface in a `preview` deployment. It binds one test Artifact and a separate

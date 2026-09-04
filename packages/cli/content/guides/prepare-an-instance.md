@@ -232,13 +232,19 @@ transport identity, and the existing AgentResolver still chooses the internal
 Agent only after canonical roster authorization. Before enabling the value,
 turn on Agent experience for that Slack app and retain the existing
 `chat:write` grant. The maintained Runner uses Slack Agent Sessions for the
-native `Working` lifecycle status. A DM subscribed under the earlier Assistant
-View remains one durable CompanyOS conversation, while Agent Session status and
-reply use the accepted inbound root message required by Slack. Automatic
-session titles are disabled. The initial mode does not require
-`assistant:write`, suggested
-prompts, context events, Slack MCP, or new Tool grants. Roll back by removing
-the value and redeploying before disabling the provider-side Agent experience.
+native `Working` lifecycle status. Also subscribe the existing Slack connector
+to `agent_session_stopped`; this adds no content scope, but lets Slack deliver a
+user's native stop request. The Runner passes the resulting cancellation signal
+to model execution. A DM subscribed under the earlier Assistant View remains
+one durable CompanyOS conversation, while Agent Session status, reply, and a
+short-lived exact stop bridge use the accepted inbound root message required by
+Slack. A stop cancels unfinished generation; it does not undo a Tool effect that
+already completed. New sessions use the first line of the accepted root
+message as a deterministic title; Slack users can rename, pin, and archive them.
+This does not invoke a model or widen data access. The initial mode does not
+require suggested prompts, context events, Slack MCP, or new Tool grants. Roll
+back by removing the value and redeploying before disabling the provider-side
+Agent experience and stop-event subscription.
 
 `POST /api/stage0/qualification` is an optional test-only route. It must exist
 only in a protected Preview deployment with a `preview` Artifact. Use `inspect`

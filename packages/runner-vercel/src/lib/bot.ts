@@ -40,8 +40,11 @@ import {
 } from "./knowledge-turn-routing.ts";
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import {
+  abortRememberedSlackAgentSessionConversation,
+  rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
+  resolveSlackTurnAbortSignal,
   showSlackAgentWorking,
   type SlackAgentExperienceConfiguration,
 } from "./slack-agent-experience.ts";
@@ -209,6 +212,12 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const agent = conversation.agent;
   const sessionThreadId = resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
   const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
+  await rememberSlackAgentSessionConversation(
+    state,
+    sessionThreadId,
+    thread.id,
+    slackAgentExperience,
+  );
   await showSlackAgentWorking(deliveryThread, slackAgentExperience);
   const sprintBindings = (artifact.sprints ?? []).filter((candidate) => candidate.agentId === agent.id);
   if (sprintBindings.length > 1) throw new Error(`Agent '${agent.id}' has ambiguous Sprint runtime bindings.`);
@@ -251,8 +260,9 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       temperature: 0,
       maxOutputTokens: 48,
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
-      ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
+      abortSignal: resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs),
     });
+    thread.signal.throwIfAborted();
     const generated = probe.text.trim();
     if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
     await state.appendToList(conversationKey, { role: "assistant", content: generated, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
@@ -292,8 +302,9 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
   const result = await modelAgent.generate({
     messages,
-    ...(resolved.selection.timeoutMs === undefined ? {} : { abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs) }),
+    abortSignal: resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs),
   });
+  thread.signal.throwIfAborted();
   const response = renderKnowledgeTurnResponse({
     route: knowledgeRoute,
     modelText: result.text,
@@ -315,6 +326,18 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 function registerHandlers(bot: Chat) {
   bot.onNewMention(handleMessage);
   bot.onSubscribedMessage(handleMessage);
+  bot.onAgentSessionStopped(async (event) => {
+    const bridgedLegacyConversation = await abortRememberedSlackAgentSessionConversation(
+      bot,
+      state,
+      event.threadId,
+      slackAgentExperience,
+    );
+    console.info(JSON.stringify({
+      event: "slack.agent-session.stopped",
+      bridgedLegacyConversation,
+    }));
+  });
   bot.onAction(["companyos.approve", "companyos.reject"], async (event) => {
   if (!event.thread || !event.value) return;
   const pending = await state.get<PendingApproval>(`approval:${event.value}`);
@@ -389,7 +412,7 @@ export function getBot(): Chat {
       slack: createSlackAdapter({
         ...connectSlackAdapter(requireEnv("SLACK_CONNECTOR")),
         agentView: slackAgentExperience.enabled,
-        sessionTitle: false,
+        sessionTitle: slackAgentExperience.enabled,
       }),
     },
     state,
