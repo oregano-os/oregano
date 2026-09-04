@@ -25,8 +25,8 @@ const configuration = (): CompanyRecordsProductionConfiguration => ({
   core: {
     repository: "example/oregano",
     ref: coreRef,
-    core_version: "0.5.6",
-    workbench_version: "0.1.0-experimental.14",
+    core_version: "0.5.7",
+    workbench_version: "0.1.0-experimental.15",
     clean: true,
   },
   workspace: { repository: "example/company-workspace", ref: workspaceRef },

@@ -1,0 +1,123 @@
+version: 2
+plan_id: shadow-only-sprint-runtime-2026-09-04
+status: approved
+author: codex-agent
+created: 2026-09-04
+title: Make hosted Sprint Shadow structurally effect-free
+objective: >-
+  Add one explicit shadow-only Sprint Instance mode that compiles exact
+  destinations and the hosted Sprint schedule without granting the Agent a
+  provider-effect Tool, and fail closed if that Artifact is started in active
+  mode.
+non_goals:
+  - Change Sprint decisions, schedules, templates, company policy, or provider behavior.
+  - Activate, deploy, or modify a Company Instance as part of this Core change.
+  - Add a no-op provider Connector or silently discard active effects.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Human authority is explicit
+  - Evidence beats claims
+  - A company-independent Core
+files_expected:
+  - .oregano/changes/2026-09-04-shadow-only-sprint-runtime.yaml
+  - docs/architecture/company-instance.md
+  - docs/status/current.md
+  - docs/workbench/overview.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - package.json
+  - packages/cli/package.json
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/tests/**
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/sprint-loader.ts
+  - packages/companyos-builder/types.ts
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runner-vercel/src/lib/company-records-*.test.ts
+  - packages/testkit/fixtures/acme-casas/**
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/sprint-runtime-hosting.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-04
+    evidence: explicit-user-instruction-to-complete-the-production-shadow-rollout-without-visible-provider-effects
+architecture_assessment:
+  responsibilities:
+    core:
+      - Compile an explicit portable shadow-only runtime and enforce its effect boundary at hosted startup.
+    packages:
+      - No Blueprint, Skill, Tool, Capability, or Connector package changes.
+    workspace:
+      - Continue to own Agent grants, Sprint policy, templates, schedule, and company values.
+    instance:
+      - Select shadow-only explicitly and provide destination metadata without provider-effect Capability bindings.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Agent selection and conversation assignment do not change.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Missing provider-effect grants remain unavailable to the Agent instead of being replaced by an implicit no-op Tool.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Model task resolution is unchanged and independent of provider-effect availability.
+    - mechanism: company-records
+      decision: reuse
+      reason: Shadow continues to read only exact synchronized projections through records.query.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Service and participant identities remain exact compiled principals.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Existing durable timers and compiled business calendars remain unchanged.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Existing Shadow dispatch produces only replay-safe digest evidence and no provider effect.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Destination metadata remains explicit while no provider-effect Capability binding or Tool is resolved.
+  new_core_mechanisms:
+    - An explicit shadow-only compiled Sprint execution class enforced at hosted startup.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The mode is provider-neutral and contains no company identity, resource,
+    schedule, model, destination, credential, or message text.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.6
+  target_version: 0.5.7
+  rationale: >-
+    This opt-in execution class tightens Shadow isolation without changing an
+    existing active-capable Instance. The Workbench advances from
+    0.1.0-experimental.14 to 0.1.0-experimental.15 because its Instance parser
+    and compiled Sprint contract change.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-04-shadow-only-sprint-runtime.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-04-shadow-only-sprint-runtime.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A shadow-only Sprint compiles with records.query but without communication or work-item Tool grants.
+  - Exact channel and direct-message destination metadata remains compiled for deterministic Shadow evidence.
+  - The hosted Runner accepts the Artifact in shadow mode and rejects active mode before constructing an active dispatcher.
+  - Active-capable Sprint definitions retain all existing Tool-grant requirements.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - guide.prepare-instance
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Keep existing active-capable Instance declarations or remain on Core v0.5.6.
+  The new field is opt-in and requires no database migration or provider effect.
+open_decisions: []

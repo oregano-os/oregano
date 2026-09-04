@@ -75,10 +75,17 @@ function selectedSprintRuntime(artifact: CompanyOSArtifact, definitionId?: strin
   return selected;
 }
 
+export function assertSprintRuntimeModeCompatible(compiled: CompiledSprintRuntime, mode: SprintRuntimeMode): void {
+  if (mode === "active" && compiled.execution === "shadow-only") {
+    throw new Error(`Compiled Sprint runtime '${compiled.definitionId}' is shadow-only and cannot start in active mode`);
+  }
+}
+
 export function createHostedSprintRuntime(definitionId?: string): HostedSprintRuntime {
   const artifact = loadArtifact();
   const compiled = selectedSprintRuntime(artifact, definitionId ?? process.env.COMPANYOS_SPRINT_DEFINITION_ID);
   const mode = currentSprintRuntimeMode();
+  assertSprintRuntimeModeCompatible(compiled, mode);
   const store = createPostgresSprintOrchestrationStore();
   const timers = new DurableTimerService({ store: createPostgresDurableTimerStore(), instanceId: artifact.instance.id });
   const companyRuntime = mode === "active" ? getCompanyOSRuntime() : undefined;

@@ -205,8 +205,14 @@ export function compileSprintRuntimes(args: {
     if (!agent) {
       throw new Error(`Sprint runtime '${runtime.definitionId}' references absent Agent '${runtime.agentId}'.`);
     }
-    for (const grant of ["oregano:records/query", "oregano:communications/publish", ...(runtime.workItem ? ["oregano:work-items/read", "oregano:work-items/update", "oregano:work-items/confirmed-update", "oregano:work-items/batch-update"] : [])]) {
+    const effectGrants = runtime.execution === "shadow-only"
+      ? []
+      : ["oregano:communications/publish", ...(runtime.workItem ? ["oregano:work-items/read", "oregano:work-items/update", "oregano:work-items/confirmed-update", "oregano:work-items/batch-update"] : [])];
+    for (const grant of ["oregano:records/query", ...effectGrants]) {
       if (!agent.grants.includes(grant)) throw new Error(`Sprint Agent '${runtime.agentId}' lacks required Tool grant '${grant}'.`);
+    }
+    if (runtime.execution === "shadow-only" && runtime.workItem) {
+      throw new Error(`Sprint runtime '${runtime.definitionId}' cannot bind a work-item resource when execution is shadow-only.`);
     }
     const service = args.workspace.roster.find((member) => member.principals?.includes(runtime.servicePrincipal));
     if (!service || !/^(?:active|aktiv)$/i.test(service.status) || !["agent", "service"].includes(service.type ?? "")) {
@@ -292,6 +298,7 @@ export function compileSprintRuntimes(args: {
     return {
       definitionId: runtime.definitionId,
       agentId: runtime.agentId,
+      execution: runtime.execution,
       servicePrincipal: runtime.servicePrincipal,
       participantIdentityPrefix: runtime.participantIdentityPrefix,
       policy: structuredClone(policy),
