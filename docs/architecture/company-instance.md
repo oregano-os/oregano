@@ -115,14 +115,19 @@ can reach a provider.
 
 Slack presentation is an independent Instance concern. A Company Instance may
 set `COMPANYOS_SLACK_AGENT_VIEW=true` only after its existing Slack app has the
-Agent experience enabled and its installation has granted `assistant:write`.
-The maintained Runner then presents the same external Oregano identity through
-Slack Agent View and requests one best-effort native `Working` status after the
-sender has passed the roster check, the message has passed the duplicate guard,
-and the deterministic CompanyOS Agent has been resolved. The status clears when
-the response is posted. It is presentation only: it cannot select an Agent,
-grant a Tool, change an approval, or prove an effect. The setting defaults to
-disabled so another Company Instance is never migrated implicitly.
+Agent experience enabled and its installation has granted `chat:write`. The
+maintained Runner then presents the same external Oregano identity through
+Slack Agent View and uses Slack Agent Sessions to request one best-effort native
+`Working` status after the sender has passed the roster check, the message has
+passed the duplicate guard, and the deterministic CompanyOS Agent has been
+resolved. For a DM subscribed before Agent View was enabled, the Agent Session
+status and reply target the accepted inbound root message; durable conversation
+and Agent assignment identities remain unchanged. The status clears when the
+response is posted. Automatic provider-generated session titles remain
+disabled. This is
+presentation only: it cannot select an Agent, grant a Tool, change an approval,
+or prove an effect. The setting defaults to disabled so another Company
+Instance is never migrated implicitly.
 
 Suggested prompts, active-view context, Slack MCP, generated session titles,
 stop handling, and rich work objects are not part of this minimal presentation

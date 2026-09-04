@@ -145,7 +145,7 @@ The maintained Runner requires these Instance values:
 | Value | Purpose |
 |---|---|
 | `SLACK_CONNECTOR` | Vercel Connect resource identifier for the environment-specific Slack installation |
-| `COMPANYOS_SLACK_AGENT_VIEW` | optional exact `true` opt-in for Slack Agent View; requires Agent experience plus `assistant:write` on the same installed Slack app and defaults to disabled |
+| `COMPANYOS_SLACK_AGENT_VIEW` | optional exact `true` opt-in for Slack Agent View; requires Agent experience plus `chat:write` on the same installed Slack app and defaults to disabled |
 | `DATABASE_URL` | isolated Neon/Postgres connection used by the `companyos` schema |
 | `COMPANYOS_ARTIFACT_GZIP_BASE64` | gzip-compressed immutable Artifact built from clean exact checkouts |
 | `COMPANYOS_STAGE0_CONFIG_GZIP_BASE64` | optional Preview-only, gzip-compressed non-secret qualification scope for exact test resources and destinations |
@@ -230,12 +230,15 @@ Enabling `COMPANYOS_SLACK_AGENT_VIEW=true` does not create another Slack app or
 another CompanyOS Agent. The same `slack/oregano` installation remains the
 transport identity, and the existing AgentResolver still chooses the internal
 Agent only after canonical roster authorization. Before enabling the value,
-turn on Agent experience for that Slack app, record the required provider
-description, add `assistant:write` to the existing Connector, and reauthorize
-the existing installation. The initial mode displays only a native `Working`
-status; it does not require suggested prompts, context events, Slack MCP, or
-new Tool grants. Roll back by removing the value and redeploying before
-disabling the provider-side Agent experience.
+turn on Agent experience for that Slack app and retain the existing
+`chat:write` grant. The maintained Runner uses Slack Agent Sessions for the
+native `Working` lifecycle status. A DM subscribed under the earlier Assistant
+View remains one durable CompanyOS conversation, while Agent Session status and
+reply use the accepted inbound root message required by Slack. Automatic
+session titles are disabled. The initial mode does not require
+`assistant:write`, suggested
+prompts, context events, Slack MCP, or new Tool grants. Roll back by removing
+the value and redeploying before disabling the provider-side Agent experience.
 
 `POST /api/stage0/qualification` is an optional test-only route. It must exist
 only in a protected Preview deployment with a `preview` Artifact. Use `inspect`

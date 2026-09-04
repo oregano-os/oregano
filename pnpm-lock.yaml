@@ -108,14 +108,14 @@ importers:
         specifier: ^3.0.37
         version: 3.0.37(zod@4.4.3)
       '@chat-adapter/slack':
-        specifier: 4.38.1
-        version: 4.38.1(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3)
+        specifier: 4.39.0
+        version: 4.39.0(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3)
       '@neondatabase/serverless':
         specifier: 1.1.0
         version: 1.1.0
       '@vercel/connect':
         specifier: 0.8.0
-        version: 0.8.0(@chat-adapter/slack@4.38.1(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3))(ai@7.0.66(zod@4.4.3))
+        version: 0.8.0(@chat-adapter/slack@4.39.0(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3))(ai@7.0.66(zod@4.4.3))
       '@vercel/sandbox':
         specifier: 3.1.0
         version: 3.1.0
@@ -123,8 +123,8 @@ importers:
         specifier: 7.0.66
         version: 7.0.66(zod@4.4.3)
       chat:
-        specifier: 4.38.1
-        version: 4.38.1(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
+        specifier: 4.39.0
+        version: 4.39.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
       next:
         specifier: 16.3.1
         version: 16.3.1(@types/node@25.9.5)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -293,12 +293,12 @@ packages:
   '@bytecodealliance/preview2-shim@0.17.6':
     resolution: {integrity: sha512-n3cM88gTen5980UOBAD6xDcNNL3ocTK8keab21bpx1ONdA+ARj7uD1qoFxOWCyKlkpSi195FH+GeAut7Oc6zZw==}
 
-  '@chat-adapter/shared@4.38.1':
-    resolution: {integrity: sha512-zJiMl43fiS3a2RjLFdCyTUTqcDY2xss1Acbzc9yfsw8YAkS0LZRdrNmp9/RjLhZB0+FzLarNAayvdKqF2GwnQg==}
+  '@chat-adapter/shared@4.39.0':
+    resolution: {integrity: sha512-zc5mB5rYqbp4ts+Z3tG/YwkCypPYphriYpG95ZMRNGiEYx3cYZJZFmAFFM4YLfdz3VIQ99Fd0HFDYVNyAMV7cg==}
     engines: {node: '>=20'}
 
-  '@chat-adapter/slack@4.38.1':
-    resolution: {integrity: sha512-xMZ43YUQKzqOAiePR5mEFjhJPI6/jsEHCMq9Y+Rrm+N4+DotBddQDpbGMzb5oiogZD6iyMVCMvWSPLST7ZX0sg==}
+  '@chat-adapter/slack@4.39.0':
+    resolution: {integrity: sha512-nDBYFEmD9MUobUH+HJbOYwKYcaeoCFJDXVvd41flh5sslpixSUG2SFcz7F3py62jJ9c0YYNEdwprIExO20IyZQ==}
     engines: {node: '>=20'}
 
   '@edge-runtime/format@2.2.1':
@@ -1610,8 +1610,8 @@ packages:
   character-entities@2.0.2:
     resolution: {integrity: sha512-shx7oQ0Awen/BRIdkjkvz54PnEEI/EjwXDSIZp86/KKdbafHh1Df/RYGBhn4hbe2+uKC9FnT5UCEdyPz3ai9hQ==}
 
-  chat@4.38.1:
-    resolution: {integrity: sha512-FD6vNLT8clXHKhN3I1m+3Bn2nz0rsB6/bmNPsJeh6Cr7kwWLg0MYl2uor9YaKBp38F77sBRVKdYKVA6ihUby3w==}
+  chat@4.39.0:
+    resolution: {integrity: sha512-o7D+oAbQAYFVoc9+OH8wya11609ybRThNTF3s/5C1LAABGGi6IrxoQQEN/aIe+4h5pmKYzUjXeqTcuOZcpIAZA==}
     engines: {node: '>=20'}
     peerDependencies:
       ai: ^6.0.182 || ^7.0.0
@@ -3136,21 +3136,21 @@ snapshots:
 
   '@bytecodealliance/preview2-shim@0.17.6': {}
 
-  '@chat-adapter/shared@4.38.1(ai@7.0.66(zod@4.4.3))(zod@4.4.3)':
+  '@chat-adapter/shared@4.39.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3)':
     dependencies:
-      chat: 4.38.1(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
+      chat: 4.39.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - ai
       - supports-color
       - workflow
       - zod
 
-  '@chat-adapter/slack@4.38.1(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3)':
+  '@chat-adapter/slack@4.39.0(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3)':
     dependencies:
-      '@chat-adapter/shared': 4.38.1(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
+      '@chat-adapter/shared': 4.39.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
       '@slack/socket-mode': 2.0.7(debug@4.4.3)
       '@slack/web-api': 7.19.0(debug@4.4.3)
-      chat: 4.38.1(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
+      chat: 4.39.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - ai
       - bufferutil
@@ -3891,11 +3891,11 @@ snapshots:
     dependencies:
       execa: 5.1.1
 
-  '@vercel/connect@0.8.0(@chat-adapter/slack@4.38.1(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3))(ai@7.0.66(zod@4.4.3))':
+  '@vercel/connect@0.8.0(@chat-adapter/slack@4.39.0(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3))(ai@7.0.66(zod@4.4.3))':
     dependencies:
       '@vercel/oidc': 3.8.4
     optionalDependencies:
-      '@chat-adapter/slack': 4.38.1(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3)
+      '@chat-adapter/slack': 4.39.0(ai@7.0.66(zod@4.4.3))(debug@4.4.3)(zod@4.4.3)
       ai: 7.0.66(zod@4.4.3)
 
   '@vercel/container@0.0.5': {}
@@ -4332,7 +4332,7 @@ snapshots:
 
   character-entities@2.0.2: {}
 
-  chat@4.38.1(ai@7.0.66(zod@4.4.3))(zod@4.4.3):
+  chat@4.39.0(ai@7.0.66(zod@4.4.3))(zod@4.4.3):
     dependencies:
       '@workflow/serde': 4.1.0-beta.2
       mdast-util-to-string: 4.0.0

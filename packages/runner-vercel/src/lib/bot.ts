@@ -41,6 +41,7 @@ import {
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import {
   resolveSlackAgentExperience,
+  resolveSlackAgentSessionThreadId,
   showSlackAgentWorking,
   type SlackAgentExperienceConfiguration,
 } from "./slack-agent-experience.ts";
@@ -206,7 +207,9 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     assignmentStore,
   });
   const agent = conversation.agent;
-  await showSlackAgentWorking(thread, slackAgentExperience);
+  const sessionThreadId = resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
+  const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
+  await showSlackAgentWorking(deliveryThread, slackAgentExperience);
   const sprintBindings = (artifact.sprints ?? []).filter((candidate) => candidate.agentId === agent.id);
   if (sprintBindings.length > 1) throw new Error(`Agent '${agent.id}' has ambiguous Sprint runtime bindings.`);
   if (sprintBindings.length === 1 && isFridaySprintUpdate(message.text)) {
@@ -223,13 +226,13 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
         text: message.text,
       });
       if (!ingestion.accepted && sprintMode !== "shadow") {
-        await thread.post(`Your Friday Sprint update was not recorded (${ingestion.reason}).`);
+        await deliveryThread.post(`Your Friday Sprint update was not recorded (${ingestion.reason}).`);
       }
       return;
     } catch (error) {
       if (sprintMode !== "shadow") {
         const reference = sha256(error instanceof Error ? error.message : String(error));
-        await thread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
+        await deliveryThread.post(`Your Friday Sprint update could not be recorded. Evidence reference: ${reference}`);
       }
       return;
     }
@@ -256,12 +259,12 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
-    await thread.post(generated);
+    await deliveryThread.post(generated);
     return;
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
-  const tools = resolvedTools(agent, thread, requester, runId, message.id, conversation);
+  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation);
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
     tools: agent.toolSet.tools.map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
@@ -306,7 +309,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
-  if (presentation.visibleResponse) await thread.post(presentation.visibleResponse);
+  if (presentation.visibleResponse) await deliveryThread.post(presentation.visibleResponse);
 }
 
 function registerHandlers(bot: Chat) {
@@ -386,6 +389,7 @@ export function getBot(): Chat {
       slack: createSlackAdapter({
         ...connectSlackAdapter(requireEnv("SLACK_CONNECTOR")),
         agentView: slackAgentExperience.enabled,
+        sessionTitle: false,
       }),
     },
     state,
