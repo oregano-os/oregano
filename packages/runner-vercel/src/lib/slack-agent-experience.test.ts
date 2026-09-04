@@ -63,7 +63,7 @@ test("native streaming is limited to ordinary replies without Company business T
 });
 
 test("validated responses stream in exact native chunks and suspend only for human input", async () => {
-  const response = `${"x".repeat(319)}\n${"y".repeat(322)}`;
+  const response = `${"x".repeat(159)}\n${"y".repeat(162)}`;
   const active = validatedSlackResponsePlan(response);
   const activeData = active.getPostData();
   const activeText: string[] = [];
@@ -76,6 +76,19 @@ test("validated responses stream in exact native chunks and suspend only for hum
   assert.equal(activeText.length, 3);
   assert.equal(activeData.options.sessionStatus, "active");
   assert.equal(validatedSlackResponsePlan("waiting", { suspended: true }).options.sessionStatus, "suspended");
+});
+
+test("validated response pacing caps the number of provider append events", async () => {
+  const response = "z".repeat(16_001);
+  const activeData = validatedSlackResponsePlan(response).getPostData();
+  const activeText: string[] = [];
+  for await (const chunk of activeData.stream) {
+    if (typeof chunk === "object" && "type" in chunk && chunk.type === "markdown_text" && "text" in chunk) {
+      activeText.push(chunk.text);
+    }
+  }
+  assert.equal(activeText.join(""), response);
+  assert.ok(activeText.length <= 16);
 });
 
 test("only explicit approval and confirmation Tool outputs require suspended Agent state", () => {

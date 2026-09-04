@@ -6,29 +6,42 @@ export interface SlackAgentExperienceConfiguration {
   workingStatus: "Working";
 }
 
-const VALIDATED_RESPONSE_CHUNK_SIZE = 320;
+const VALIDATED_RESPONSE_MIN_CHUNK_SIZE = 160;
+const VALIDATED_RESPONSE_MAX_CHUNKS = 16;
+const VALIDATED_RESPONSE_CHUNK_INTERVAL_MS = 160;
 
 function validatedResponseChunks(response: string): string[] {
-  if (response.length <= VALIDATED_RESPONSE_CHUNK_SIZE) return [response];
+  const chunkSize = Math.max(
+    VALIDATED_RESPONSE_MIN_CHUNK_SIZE,
+    Math.ceil(response.length / VALIDATED_RESPONSE_MAX_CHUNKS),
+  );
+  if (response.length <= chunkSize) return [response];
   const chunks: string[] = [];
-  for (let offset = 0; offset < response.length; offset += VALIDATED_RESPONSE_CHUNK_SIZE) {
-    chunks.push(response.slice(offset, offset + VALIDATED_RESPONSE_CHUNK_SIZE));
+  for (let offset = 0; offset < response.length; offset += chunkSize) {
+    chunks.push(response.slice(offset, offset + chunkSize));
   }
   return chunks;
 }
 
 /**
  * Streams only an already-validated presentation. Fixed-size slicing preserves
- * the exact response bytes while giving Slack several native append events for
- * longer answers. Chat SDK heals incomplete Markdown in intermediate renders.
+ * the exact response bytes while giving Slack several paced native append
+ * events for longer answers. The short interval prevents Slack clients from
+ * visually batching every append into one final update. The dynamic size caps
+ * the added presentation time for unusually long answers. Chat SDK heals
+ * incomplete Markdown in intermediate renders.
  */
 export function validatedSlackResponsePlan(
   response: string,
   options?: { readonly suspended?: boolean },
 ): StreamingPlan {
   const stream = (async function* (): AsyncGenerator<StreamChunk> {
-    for (const text of validatedResponseChunks(response)) {
+    const chunks = validatedResponseChunks(response);
+    for (const [index, text] of chunks.entries()) {
       yield { type: "markdown_text", text };
+      if (index < chunks.length - 1) {
+        await new Promise<void>((resolve) => setTimeout(resolve, VALIDATED_RESPONSE_CHUNK_INTERVAL_MS));
+      }
     }
   })();
   return new StreamingPlan(stream, {

@@ -237,7 +237,8 @@ without granted Company business Tools through Slack's native streaming API.
 For Company business-Tool-bearing, required-grounding, Builder, approval, and
 effect-bearing turns, provisional model prose remains buffered while Slack
 shows output-free Tool progress; the exact validated final presentation then
-streams in native chunks. Explicit pending approval or Builder-confirmation
+streams in short, paced native chunks so Slack clients visibly render several
+updates rather than batching immediate append calls. Explicit pending approval or Builder-confirmation
 results leave the Agent Session suspended. Setup verification remains one exact
 buffered proof response. Also subscribe the
 existing Slack connector
