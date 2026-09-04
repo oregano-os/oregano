@@ -72,10 +72,10 @@ test("the Artifact freezes non-secret runtime Connector installation configurati
         },
       }],
     },
-    coreVersion: "0.5.6",
+    coreVersion: "0.5.7",
     coreCommit: CORE_COMMIT,
     workspaceCommit: WORKSPACE_COMMIT,
-    workbenchVersion: "0.1.0-experimental.14",
+    workbenchVersion: "0.1.0-experimental.15",
     builtAt: "2026-09-02T12:00:00.000Z",
   });
   assert.deepEqual(artifact.connectors, [{
@@ -246,10 +246,10 @@ scope:
     const artifact = buildCompanyOSArtifact({
       workspaceRoot: root,
       instance: { ...instance, defaultAgentId: "growth" },
-      coreVersion: "0.5.6",
+      coreVersion: "0.5.7",
       coreCommit: CORE_COMMIT,
       workspaceCommit: WORKSPACE_COMMIT,
-      workbenchVersion: "0.1.0-experimental.14",
+      workbenchVersion: "0.1.0-experimental.15",
       builtAt: "2026-09-02T12:00:00.000Z",
     });
     assert.deepEqual(artifact.agentRouting.handoffs, [{

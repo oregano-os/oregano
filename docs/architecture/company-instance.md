@@ -399,6 +399,13 @@ outbound Sprint message similarly resolves the provider-neutral
 `communication.message.publish` Capability to an exact destination binding;
 the Sprint Blueprint does not know a channel ID.
 
+A Sprint Instance may instead declare its compiled execution as `shadow-only`.
+That mode retains exact destination metadata for deterministic rendering and
+proof but requires no provider-effect Tool grant or Capability binding. The
+hosted Runner rejects an `active` environment for that Artifact before it can
+construct an active dispatcher. This is stronger than relying only on a runtime
+branch after an effect-capable ToolSet has already been granted.
+
 The first maintained external-Agent runtime ingress implements Monday's exact
 signed synchronous callback and SSE/JSON acknowledgement formats. It binds an
 Instance-injected account id, external Agent id, and signing secret, retains

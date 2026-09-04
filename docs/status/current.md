@@ -120,7 +120,10 @@ evidence, historical prototypes, and production gaps.
   accepts submissions only in that exact thread, and orders chase, report,
   retro, then Rollover preparation using provider-delivery events. Timer kinds
   are isolated per Sprint definition. Shadow mode stores digest evidence
-  without effects; active messages still cross the standard Tool boundary.
+  without effects; active messages still cross the standard Tool boundary. An
+  explicit `shadow-only` Instance runtime can compile exact destination
+  metadata without granting provider-effect Tools, and the hosted Runner
+  rejects active startup for that Artifact.
   The authenticated Stage-0 Preview surface can invoke those same hosted
   workers at one exact controlled timestamp, allowing schedule, leasing, and
   duplicate behavior to be qualified without waiting for wall-clock time; the
@@ -630,14 +633,14 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.6` as the prepared patch candidate
+- Oregano Core source is versioned `0.5.7` as the prepared patch candidate
   for the experimental Sprint and Company Records lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
   external-Agent ingress, resumable source connection, and separately guarded
   production records operator and scheduler runtime. The latest published
-  release is `v0.5.5`; `v0.5.6` becomes authority only after its exact
+  release is `v0.5.6`; `v0.5.7` becomes authority only after its exact
   immutable tag and protected release commit pass the release workflow.
-  Existing consumers may remain on `v0.5.5` until they adopt the new exact Core
+  Existing consumers may remain on `v0.5.6` until they adopt the new exact Core
   authority, and publishing the Core does not activate a Company Workspace or
   Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
@@ -710,7 +713,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.14`; no
+  builds. Its repository release candidate is `0.1.0-experimental.15`; no
   public package release is claimed.
 - Newly generated Change Plans use version 2 and fail closed unless they record
   the Core, Package or Blueprint, Workspace, and Instance responsibility split;

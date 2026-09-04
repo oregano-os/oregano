@@ -16,6 +16,7 @@ import {
 import { normalizeSprintSnapshot } from "../../runtime/sprint-snapshot.ts";
 import { renderSprintMessageIntent } from "../../runtime/sprint-intent-renderer.ts";
 import {
+  assertSprintRuntimeModeCompatible,
   authorizeSprintOperator,
   authorizeSprintScheduler,
   currentSprintRuntimeMode,
@@ -28,6 +29,7 @@ import {
 const compiled: CompiledSprintRuntime = {
   definitionId: "weekly-delivery",
   agentId: "sprint",
+  execution: "active-capable",
   servicePrincipal: "companyos:fixture:sprint",
   participantIdentityPrefix: "monday:A1:",
   policy: {
@@ -57,7 +59,7 @@ const compiled: CompiledSprintRuntime = {
     deliveryWindow: { opensAt: "08:00", closesAt: "19:00" },
     triggers: [{ id: "friday-close", weekdays: ["friday"], at: "17:00", holidayShift: "previous-business-day" }],
     sourceDigest: "a".repeat(64),
-    provenance: { instanceId: "fixture", coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" },
+    provenance: { instanceId: "fixture", coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" },
   },
   templates: {
     reminder: {
@@ -225,6 +227,13 @@ test("the configured Sprint runtime mode is exact and fails closed", () => {
     () => currentSprintRuntimeMode({ COMPANYOS_SPRINT_RUNTIME_MODE: "shdow" } as NodeJS.ProcessEnv),
     /must be disabled, shadow, or active/,
   );
+});
+
+test("a compiled shadow-only Sprint can never start in active mode", () => {
+  const shadowOnly: CompiledSprintRuntime = { ...compiled, execution: "shadow-only" };
+  assert.doesNotThrow(() => assertSprintRuntimeModeCompatible(shadowOnly, "shadow"));
+  assert.doesNotThrow(() => assertSprintRuntimeModeCompatible(shadowOnly, "disabled"));
+  assert.throws(() => assertSprintRuntimeModeCompatible(shadowOnly, "active"), /shadow-only and cannot start in active mode/);
 });
 
 test("hosted Sprint runtime opens from one frozen snapshot and is replay-safe", async () => {
@@ -610,11 +619,12 @@ triggers:
         { id: "direct-alex", account_id: "T1", kind: "direct-message", user_id: "U1" },
       ] },
     }],
-    sprintRuntimes: [{ definitionId: "weekly-delivery", agentId: "sprint", servicePrincipal: "companyos:fixture:sprint", participantIdentityPrefix: "monday:A1:", directDestinations: { "slack:T1:U1": "direct-alex" } }],
+    sprintRuntimes: [{ definitionId: "weekly-delivery", agentId: "sprint", execution: "active-capable", servicePrincipal: "companyos:fixture:sprint", participantIdentityPrefix: "monday:A1:", directDestinations: { "slack:T1:U1": "direct-alex" } }],
   };
-  const runtimes = compileSprintRuntimes({ workspace, instance, coreCommit: "core-commit", workspaceCommit: "workspace-commit", workbenchVersion: "0.1.0-experimental.14" });
+  const runtimes = compileSprintRuntimes({ workspace, instance, coreCommit: "core-commit", workspaceCommit: "workspace-commit", workbenchVersion: "0.1.0-experimental.15" });
   assert.equal(runtimes.length, 1);
   assert.equal(runtimes[0].modelTask, "sprint.coordination");
+  assert.equal(runtimes[0].execution, "active-capable");
   assert.equal(runtimes[0].schedule.provenance.instanceId, "fixture");
   assert.deepEqual(runtimes[0].schedule.triggers.map((trigger) => trigger.holidayShift), [
     "previous-business-day",
@@ -624,13 +634,26 @@ triggers:
   assert.equal(runtimes[0].templates.reminder.content, "Post in this thread for {{sprint_id}}");
   const missingDestination = structuredClone(instance);
   missingDestination.connectors![0].configuration.destinations = [];
-  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingDestination, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" }), /channel binding/);
+  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingDestination, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /channel binding/);
   const missingParticipantDm = structuredClone(instance);
   missingParticipantDm.sprintRuntimes![0].directDestinations = {};
-  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingParticipantDm, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" }), /lacks an exact direct-message destination binding/);
+  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingParticipantDm, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /lacks an exact direct-message destination binding/);
   const unknownPlaceholder = structuredClone(workspace);
   unknownPlaceholder.allFiles["workflows/sprint/reminder.md"] = "Hi {{company_secret}}";
-  assert.throws(() => compileSprintRuntimes({ workspace: unknownPlaceholder, instance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" }), /unsupported placeholder/);
+  assert.throws(() => compileSprintRuntimes({ workspace: unknownPlaceholder, instance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /unsupported placeholder/);
+
+  const shadowWorkspace = structuredClone(workspace);
+  shadowWorkspace.agents[1]!.grants = ["oregano:records/query"];
+  shadowWorkspace.allowedCapabilities = ["records.query"];
+  const shadowInstance = structuredClone(instance);
+  shadowInstance.sprintRuntimes![0]!.execution = "shadow-only";
+  const shadowRuntimes = compileSprintRuntimes({ workspace: shadowWorkspace, instance: shadowInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" });
+  assert.equal(shadowRuntimes[0]!.execution, "shadow-only");
+  assert.deepEqual(shadowWorkspace.agents[1]!.grants, ["oregano:records/query"]);
+
+  const shadowWithWorkItem = structuredClone(shadowInstance);
+  shadowWithWorkItem.sprintRuntimes![0]!.workItem = { resourceBinding: "sprint-board", rolloverField: "sprint" };
+  assert.throws(() => compileSprintRuntimes({ workspace: shadowWorkspace, instance: shadowWithWorkItem, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /cannot bind a work-item resource/);
 });
 
 test("Sprint snapshots join provider subjects to stable roster ids without display-name matching", () => {

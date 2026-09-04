@@ -39,6 +39,7 @@ export interface RuntimeConnectorConfiguration {
 export interface SprintRuntimeInstanceConfiguration {
   definitionId: string;
   agentId: string;
+  execution: "active-capable" | "shadow-only";
   servicePrincipal: string;
   participantIdentityPrefix: string;
   directDestinations: Record<string, string>;
@@ -95,6 +96,7 @@ export interface CompiledSprintScheduleManifest {
 export interface CompiledSprintRuntime {
   definitionId: string;
   agentId: string;
+  execution: "active-capable" | "shadow-only";
   servicePrincipal: string;
   participantIdentityPrefix: string;
   policy: SprintDomainDeclaration;

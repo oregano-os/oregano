@@ -58,7 +58,7 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
       throw new Error(`${path}: sprint_runtimes[${index}] must be an object.`);
     }
     const runtime = entry as Record<string, unknown>;
-    const allowed = ["definition", "agent", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item"];
+    const allowed = ["definition", "agent", "execution", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item"];
     const extra = Object.keys(runtime).find((key) => !allowed.includes(key));
     if (extra) throw new Error(`${path}: sprint_runtimes[${index}] contains unsupported field '${extra}'.`);
     const definitionId = requiredIdentifier(runtime.definition, `${path}: sprint_runtimes[${index}].definition`);
@@ -93,12 +93,20 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
     return {
       definitionId,
       agentId: requiredIdentifier(runtime.agent, `${path}: sprint_runtimes[${index}].agent`),
+      execution: runtime.execution === undefined ? "active-capable" : requiredSprintExecution(runtime.execution, `${path}: sprint_runtimes[${index}].execution`),
       servicePrincipal: requiredPrincipal(runtime.service_principal, `${path}: sprint_runtimes[${index}].service_principal`),
       participantIdentityPrefix: requiredPrincipalPrefix(runtime.participant_identity_prefix, `${path}: sprint_runtimes[${index}].participant_identity_prefix`),
       directDestinations,
       ...(workItem ? { workItem } : {}),
     };
   });
+}
+
+function requiredSprintExecution(value: unknown, label: string): "active-capable" | "shadow-only" {
+  if (value !== "active-capable" && value !== "shadow-only") {
+    throw new Error(`${label} must be active-capable or shadow-only.`);
+  }
+  return value;
 }
 
 function requiredPrincipalPrefix(value: unknown, label: string): string {

@@ -114,6 +114,7 @@ connectors:
 sprint_runtimes:
   - definition: weekly-delivery
     agent: sprint
+    execution: active-capable
     service_principal: companyos:instance:sprint
     participant_identity_prefix: monday:account:
     direct_destinations:
@@ -133,9 +134,15 @@ An active Sprint Agent that performs briefings needs both the normal
 active human subject of the frozen reversible proposal. Rollover additionally
 needs `oregano:work-items/batch-update`, the `work-item.batch-update`
 Capability, an exact read-write resource binding, and ordinary R3 approval.
-Omit `work_item` and those write grants from a read-only Shadow Instance; Shadow
-weekly and Friday processing still produces digest evidence and no provider
-effect.
+Set `execution: shadow-only`, omit every provider-effect Tool grant and
+Capability binding, and omit `work_item` for a structurally effect-free Shadow
+Instance. Keep the Slack Connector's exact destination metadata so compilation
+can freeze the reviewed channel and recipients; Connector configuration alone
+grants no Tool authority. The Runner accepts such an Artifact only in
+`COMPANYOS_SPRINT_RUNTIME_MODE=shadow` or `disabled` and rejects `active`
+before constructing a provider dispatcher. Use `execution: active-capable`
+(the backward-compatible default) only when the Agent has the reviewed
+communication and optional work-item grants and the Instance binds them.
 
 The maintained Vercel Runner also verifies the Artifact environment against
 Vercel's trusted deployment identity. A `production` deployment accepts only a
