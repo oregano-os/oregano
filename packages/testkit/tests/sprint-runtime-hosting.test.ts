@@ -57,7 +57,7 @@ const compiled: CompiledSprintRuntime = {
     deliveryWindow: { opensAt: "08:00", closesAt: "19:00" },
     triggers: [{ id: "friday-close", weekdays: ["friday"], at: "17:00", holidayShift: "previous-business-day" }],
     sourceDigest: "a".repeat(64),
-    provenance: { instanceId: "fixture", coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.5.5" },
+    provenance: { instanceId: "fixture", coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" },
   },
   templates: {
     reminder: {
@@ -612,7 +612,7 @@ triggers:
     }],
     sprintRuntimes: [{ definitionId: "weekly-delivery", agentId: "sprint", servicePrincipal: "companyos:fixture:sprint", participantIdentityPrefix: "monday:A1:", directDestinations: { "slack:T1:U1": "direct-alex" } }],
   };
-  const runtimes = compileSprintRuntimes({ workspace, instance, coreCommit: "core-commit", workspaceCommit: "workspace-commit", workbenchVersion: "0.5.5" });
+  const runtimes = compileSprintRuntimes({ workspace, instance, coreCommit: "core-commit", workspaceCommit: "workspace-commit", workbenchVersion: "0.1.0-experimental.14" });
   assert.equal(runtimes.length, 1);
   assert.equal(runtimes[0].modelTask, "sprint.coordination");
   assert.equal(runtimes[0].schedule.provenance.instanceId, "fixture");
@@ -624,13 +624,13 @@ triggers:
   assert.equal(runtimes[0].templates.reminder.content, "Post in this thread for {{sprint_id}}");
   const missingDestination = structuredClone(instance);
   missingDestination.connectors![0].configuration.destinations = [];
-  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingDestination, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.5.5" }), /channel binding/);
+  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingDestination, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" }), /channel binding/);
   const missingParticipantDm = structuredClone(instance);
   missingParticipantDm.sprintRuntimes![0].directDestinations = {};
-  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingParticipantDm, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.5.5" }), /lacks an exact direct-message destination binding/);
+  assert.throws(() => compileSprintRuntimes({ workspace, instance: missingParticipantDm, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" }), /lacks an exact direct-message destination binding/);
   const unknownPlaceholder = structuredClone(workspace);
   unknownPlaceholder.allFiles["workflows/sprint/reminder.md"] = "Hi {{company_secret}}";
-  assert.throws(() => compileSprintRuntimes({ workspace: unknownPlaceholder, instance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.5.5" }), /unsupported placeholder/);
+  assert.throws(() => compileSprintRuntimes({ workspace: unknownPlaceholder, instance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.14" }), /unsupported placeholder/);
 });
 
 test("Sprint snapshots join provider subjects to stable roster ids without display-name matching", () => {

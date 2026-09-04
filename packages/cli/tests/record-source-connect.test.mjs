@@ -17,8 +17,8 @@ import { createVercelNeonRecordSourceProfile } from "../src/records/profiles/ver
 const core = {
   repository: "example/oregano",
   ref: "a".repeat(40),
-  core_version: "0.5.5",
-  workbench_version: "0.1.0-experimental.13",
+  core_version: "0.5.6",
+  workbench_version: "0.1.0-experimental.14",
   clean: true,
 };
 const sha256 = (value) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value)).digest("hex");

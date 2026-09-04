@@ -1,0 +1,127 @@
+version: 2
+plan_id: release-v0.5.6-2026-09-04
+status: approved
+author: codex-agent
+created: 2026-09-04
+title: Prepare Oregano v0.5.6 hosted Sprint runtime candidate
+objective: >-
+  Prepare one exact stable Oregano Core patch release containing the reviewed
+  provider-neutral hosted Sprint week runtime, its declarative Sprint Blueprint,
+  exact Workbench compilation contract, security controls, documentation, and
+  reproducible release evidence without activating any Company Instance.
+non_goals:
+  - Deploy, promote, migrate, or activate a Company Workspace or Company Instance.
+  - Send Slack messages, read or write Monday production data, or enable a production schedule.
+  - Add company identities, provider resources, credentials, schedules, copy, or model ids to Core.
+  - Claim completion of any company's Shadow, Pilot, or Team-rhythm rollout gates.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-04-release-v0.5.6.yaml
+  - docs/status/current.md
+  - docs/workbench/overview.md
+  - package.json
+  - packages/cli/package.json
+  - packages/cli/tests/**
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/testkit/fixtures/acme-casas/package.json
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/sprint-runtime-hosting.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-04
+    evidence: explicit-user-selection-of-option-a-and-instruction-to-complete-core-release-preparation
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the exact Core and Workbench candidate versions and reproducible release checks for the already reviewed generic implementation.
+    packages:
+      - Ship the declarative Sprint Blueprint and compiler contract already accepted through Core PR 23.
+    workspace:
+      - Adopt the immutable release later through a separately reviewed exact compatibility pin.
+    instance:
+      - Deploy and activate the adopted Artifact later through a separate production change plan.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The release contains the reviewed resolver integration without changing its authority or routing precedence.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: The release exposes only explicitly compiled Sprint Tool grants.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Company model selection remains an external Workspace and Instance decision.
+    - mechanism: company-records
+      decision: reuse
+      reason: The hosted runtime consumes fresh scoped projections through the existing Records boundary.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Active-human confirmations, R3 approval, and service-principal restrictions are already implemented and tested.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: The release packages the reviewed durable weekly timer extension.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: The release packages the reviewed single-use confirmation, batch preflight, effect, and evidence controls.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The release packages the reviewed provider-neutral contracts and maintained Monday adapter without company bindings.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Versioning changes only identify the already reviewed company-neutral Core
+    tree. Every company value and provider binding remains outside this repository.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.5
+  target_version: 0.5.6
+  rationale: >-
+    The hosted Sprint surface remains experimental and backward compatible:
+    existing Company Workspaces and Instances do not activate it without new
+    explicit declarations and bindings. No database migration or permission
+    widening occurs merely by adopting the release. The Workbench advances from
+    0.1.0-experimental.13 to 0.1.0-experimental.14 because its Sprint compiler
+    contract and bundled Guide changed.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-04-release-v0.5.6.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-04-release-v0.5.6.yaml
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas --format json
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core reports 0.5.6 and Workbench reports 0.1.0-experimental.14 from the exact candidate tree.
+  - Existing Company Workspaces remain unchanged and the hosted Sprint runtime remains opt-in.
+  - The full Core, Workbench, Builder, Runner, Blueprint, documentation, and boundary suites pass.
+  - Release assets remain impossible until the exact candidate is merged to main and tagged v0.5.6.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - workbench.overview
+  reason_if_none: ""
+migration: >-
+  Existing v0.5.5 Workspaces and databases require no migration merely because
+  this release exists. Sprint adoption requires a separately reviewed exact
+  Workspace compatibility pin, compiled Artifact, Instance deployment, and
+  rollout gates. Any company database migration remains an Instance effect.
+rollback: >-
+  Before publication, close or revert the candidate and remain on exact v0.5.5.
+  After publication, consumers may remain on v0.5.5; correct defects only in a
+  newer patch. Disable an adopted Sprint runtime before any Instance rollback
+  and retain immutable evidence.
+open_decisions: []
