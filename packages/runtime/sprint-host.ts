@@ -381,10 +381,17 @@ export class HostedSprintRuntime {
     if (args.snapshot.observedAt > args.refreshedAt) throw new Error("Sprint refresh snapshot must not come from the future");
     const stored = await this.store.getState({ instanceId: this.service.instanceId, definitionId: this.compiled.definitionId });
     if (!stored?.state.sprint_id) return { refreshed: false as const, reason: "no-open-sprint" as const };
+    const eventId = `refresh:work-items:${sha256([this.compiled.definitionId, stored.state.sprint_id, args.snapshot.workItemSourceVersion])}`;
+    const prior = await this.store.getEvent({ instanceId: this.service.instanceId, definitionId: this.compiled.definitionId }, eventId);
+    if (prior && prior.event.type !== "work-items.observed") throw new Error(`Sprint refresh event '${eventId}' has an invalid durable type`);
     const result = await this.service.processEvent({
       type: "work-items.observed",
-      event_id: `refresh:work-items:${sha256([this.compiled.definitionId, stored.state.sprint_id, args.snapshot.workItemSourceVersion])}`,
-      occurred_at: args.snapshot.observedAt,
+      event_id: eventId,
+      // The source version retains when the provider data was observed. This
+      // event records when the hosted runtime reconciled that stabilized
+      // snapshot, so its first durable occurrence uses the refresh clock.
+      // Exact source-version replays reuse that immutable occurrence time.
+      occurred_at: prior?.event.occurred_at ?? args.refreshedAt,
       work_items: structuredClone(args.snapshot.workItems),
     });
     return { refreshed: true as const, status: result.status, stateVersion: result.outcome.stateVersion };

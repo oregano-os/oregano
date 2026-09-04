@@ -1,0 +1,98 @@
+version: 2
+plan_id: sprint-refresh-chronology-2026-09-04
+status: approved
+author: codex-agent
+created: 2026-09-04
+title: Preserve Sprint chronology when refreshing older provider snapshots
+objective: >-
+  Correct the hosted Sprint refresh boundary so a fresh, stabilized Company
+  Records snapshot observed before the Sprint opened can be reconciled at the
+  actual refresh time without regressing durable event chronology.
+non_goals:
+  - Change Sprint policy, schedules, templates, participants, work-item selection, or provider mappings.
+  - Weaken stale-projection checks or permit arbitrary out-of-order domain events.
+  - Deploy, promote, activate, or modify a Company Instance.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-04-sprint-refresh-chronology.yaml
+  - docs/status/current.md
+  - packages/runtime/sprint-host.ts
+  - packages/testkit/tests/sprint-runtime-hosting.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-04
+    evidence: explicit-user-authorized-production-rollout-and-in-scope-generic-blocker-remediation
+architecture_assessment:
+  responsibilities:
+    core:
+      - Define provider-neutral hosted Sprint refresh chronology and retain the stabilized source version in the deterministic event identity.
+    packages:
+      - No Package or Blueprint change.
+    workspace:
+      - Continue to own company selection, schedule, policy, and projection declarations without a workaround.
+    instance:
+      - Continue to supply exact synchronized projection state and durable Sprint storage.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Agent selection is unchanged.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Refresh continues through the existing records.query Tool.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: No model invocation or model selection changes.
+    - mechanism: company-records
+      decision: reuse
+      reason: The twice-stabilized projection and its immutable source-version digest remain the evidence input.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Subject and projection authorization are unchanged.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: The hosted timer pre-refresh must record the runtime observation at refresh time without treating the source observation time as a new domain event time.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: The source-version event identity still makes exact refresh replay idempotent and creates no provider effect.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Provider and Records Connector contracts are unchanged.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The correction applies to every hosted Sprint using a versioned Company
+    Records projection and contains no company, provider, resource, schedule,
+    model, identity, or credential value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-04-sprint-refresh-chronology.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-04-sprint-refresh-chronology.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A Sprint opened after its stabilized source observation accepts the next refresh at the actual refresh time.
+  - The immutable source-version digest still deduplicates an exact refresh replay.
+  - Durable Sprint event time never regresses and unrelated out-of-order events remain rejected.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Keep the affected Sprint runtime disabled or in Shadow mode and revert this
+  Core patch. No schema, provider data, Workspace declaration, Tool grant, or
+  external effect is changed.
+open_decisions: []

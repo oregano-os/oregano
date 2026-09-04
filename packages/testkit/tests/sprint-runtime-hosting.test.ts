@@ -282,6 +282,33 @@ test("a stabilized refresh updates only mutable work facts and remains replay-sa
   }]);
 });
 
+test("a stabilized snapshot observed before Sprint open refreshes at the runtime clock", async () => {
+  const { host, store } = fixture();
+  const snapshot = {
+    participants,
+    workItems,
+    observedAt: "2030-01-28T08:59:00.000Z",
+    participantSourceVersion: "participants-before-open",
+    workItemSourceVersion: "items-before-open",
+  };
+  await host.open({
+    sprintId: "sprint-refresh-chronology",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    openedAt: "2030-01-28T09:00:00.000Z",
+    snapshot,
+  });
+
+  const first = await host.refreshWorkItems({ snapshot, refreshedAt: "2030-01-28T09:01:00.000Z" });
+  const replay = await host.refreshWorkItems({ snapshot, refreshedAt: "2030-01-28T09:02:00.000Z" });
+
+  assert.equal(first.status, "applied");
+  assert.equal(replay.status, "duplicate");
+  const state = (await store.getState({ instanceId: "fixture", definitionId: "weekly-delivery" }))!.state;
+  assert.equal(state.last_event_at, "2030-01-28T09:01:00.000Z");
+  assert.equal(store.events.size, 4);
+});
+
 test("the hosted weekly runtime executes Monday, weekday, and one focused Wednesday DM in shadow", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();
