@@ -20,7 +20,7 @@ const configuration = (): CompanyRecordsRehearsalConfiguration => ({
   core: {
     repository: "example/oregano",
     ref: "a".repeat(40),
-    core_version: "0.5.7",
+    core_version: "0.5.8",
     workbench_version: "0.1.0-experimental.15",
     clean: true,
   },

@@ -1,7 +1,7 @@
 {
   "name": "oregano",
   "private": true,
-  "version": "0.5.7",
+  "version": "0.5.8",
   "packageManager": "pnpm@11.16.0+sha512.b767e9a98fc87aec0f42daefcd0e84941c2cdb45d73c4e1e68860fb2bdfdbe032ab592105479e5e05c237f740c8a5ffdbbb52385797ddc2296745a1bbb883e8d",
   "license": "Apache-2.0",
   "type": "module",
@@ -17,7 +17,7 @@
     "typecheck": "tsc",
     "runner:typecheck": "pnpm --dir packages/runner-vercel typecheck",
     "runner:build": "pnpm --dir packages/runner-vercel build",
-    "test": "node --experimental-strip-types --test packages/testkit/tests/*.test.ts packages/cli/tests/*.test.mjs packages/runner-vercel/src/lib/agent-handoff-tools.test.ts packages/runner-vercel/src/lib/slack-agent-experience.test.ts packages/runner-vercel/src/lib/builder/*.test.ts",
+    "test": "node --experimental-strip-types --test packages/testkit/tests/*.test.ts packages/cli/tests/*.test.mjs packages/runner-vercel/src/lib/agent-handoff-tools.test.ts packages/runner-vercel/src/lib/slack-agent-experience.test.ts packages/runner-vercel/src/lib/company-records-*.test.ts packages/runner-vercel/src/lib/builder/*.test.ts",
     "builder:check": "pnpm --dir packages/builder-worker typecheck && node --experimental-strip-types --test packages/testkit/tests/agent-resolver.test.ts packages/testkit/tests/builder-*.test.ts packages/testkit/tests/repository-adapters.test.ts",
     "check": "pnpm public:check && pnpm validate && pnpm typecheck && pnpm runner:typecheck && pnpm builder:check && pnpm test"
   },

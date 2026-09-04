@@ -309,6 +309,39 @@ test("a stabilized snapshot observed before Sprint open refreshes at the runtime
   assert.equal(store.events.size, 4);
 });
 
+test("a Sprint refresh rejects an existing durable event with the wrong type", async () => {
+  const { host, store } = fixture();
+  await host.open({
+    sprintId: "sprint-refresh-type-guard",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    openedAt: "2030-01-28T09:00:00.000Z",
+    snapshot: {
+      participants,
+      workItems,
+      observedAt: "2030-01-28T09:01:00.000Z",
+      participantSourceVersion: "participants-v1",
+      workItemSourceVersion: "items-v1",
+    },
+  });
+  const snapshot = {
+    participants,
+    workItems,
+    observedAt: "2030-01-28T09:02:00.000Z",
+    participantSourceVersion: "participants-v1",
+    workItemSourceVersion: "items-v2",
+  };
+  await host.refreshWorkItems({ snapshot, refreshedAt: "2030-01-28T09:03:00.000Z" });
+  const refresh = [...store.events.entries()].find(([eventKey]) => eventKey.includes("refresh:work-items:"));
+  assert.ok(refresh);
+  (refresh[1].event as any).type = "sprint.opened";
+
+  await assert.rejects(
+    () => host.refreshWorkItems({ snapshot, refreshedAt: "2030-01-28T09:04:00.000Z" }),
+    /has an invalid durable type/,
+  );
+});
+
 test("the hosted weekly runtime executes Monday, weekday, and one focused Wednesday DM in shadow", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();

@@ -72,7 +72,7 @@ test("the Artifact freezes non-secret runtime Connector installation configurati
         },
       }],
     },
-    coreVersion: "0.5.7",
+    coreVersion: "0.5.8",
     coreCommit: CORE_COMMIT,
     workspaceCommit: WORKSPACE_COMMIT,
     workbenchVersion: "0.1.0-experimental.15",
@@ -246,7 +246,7 @@ scope:
     const artifact = buildCompanyOSArtifact({
       workspaceRoot: root,
       instance: { ...instance, defaultAgentId: "growth" },
-      coreVersion: "0.5.7",
+      coreVersion: "0.5.8",
       coreCommit: CORE_COMMIT,
       workspaceCommit: WORKSPACE_COMMIT,
       workbenchVersion: "0.1.0-experimental.15",
