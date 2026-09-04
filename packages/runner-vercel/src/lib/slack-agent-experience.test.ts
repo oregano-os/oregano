@@ -6,18 +6,61 @@ import {
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
+  shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
 } from "./slack-agent-experience.ts";
 
 test("Slack Agent View is opt-in and requires the exact true value", () => {
-  assert.deepEqual(resolveSlackAgentExperience({}), { enabled: false, workingStatus: "Working" });
+  assert.deepEqual(resolveSlackAgentExperience({}), {
+    enabled: false,
+    streamingEnabled: false,
+    workingStatus: "Working",
+  });
   assert.equal(resolveSlackAgentExperience({ COMPANYOS_SLACK_AGENT_VIEW: "false" }).enabled, false);
   assert.equal(resolveSlackAgentExperience({ COMPANYOS_SLACK_AGENT_VIEW: "1" }).enabled, false);
-  assert.equal(resolveSlackAgentExperience({ COMPANYOS_SLACK_AGENT_VIEW: "true" }).enabled, true);
+  assert.deepEqual(resolveSlackAgentExperience({ COMPANYOS_SLACK_AGENT_VIEW: "true" }), {
+    enabled: true,
+    streamingEnabled: true,
+    workingStatus: "Working",
+  });
+});
+
+test("native streaming is limited to ordinary replies without Company business Tools", () => {
+  const configuration = resolveSlackAgentExperience({ COMPANYOS_SLACK_AGENT_VIEW: "true" });
+  assert.equal(shouldStreamSlackAgentResponse({
+    configuration,
+    agentId: "oregano",
+    knowledgeRouteKind: "auto",
+    businessToolCount: 0,
+  }), true);
+  assert.equal(shouldStreamSlackAgentResponse({
+    configuration,
+    agentId: "sprint",
+    knowledgeRouteKind: "auto",
+    businessToolCount: 1,
+  }), false);
+  assert.equal(shouldStreamSlackAgentResponse({
+    configuration,
+    agentId: "oregano",
+    knowledgeRouteKind: "required-search",
+    businessToolCount: 0,
+  }), false);
+  assert.equal(shouldStreamSlackAgentResponse({
+    configuration,
+    agentId: "builder",
+    knowledgeRouteKind: "auto",
+    businessToolCount: 0,
+  }), false);
+  assert.equal(shouldStreamSlackAgentResponse({
+    configuration: resolveSlackAgentExperience({}),
+    agentId: "oregano",
+    knowledgeRouteKind: "auto",
+    businessToolCount: 0,
+  }), false);
 });
 
 test("legacy subscribed Slack DMs use the accepted message root for Agent Session presentation", () => {
-  const enabled = { enabled: true, workingStatus: "Working" } as const;
+  const enabled = { enabled: true, streamingEnabled: true, workingStatus: "Working" } as const;
   assert.equal(
     resolveSlackAgentSessionThreadId("slack:D012345:", "1788494042.306000", enabled),
     "slack:D012345:1788494042.306000",
@@ -38,7 +81,7 @@ test("legacy subscribed Slack DMs use the accepted message root for Agent Sessio
     resolveSlackAgentSessionThreadId(
       "slack:D012345:",
       "1788494042.306000",
-      { enabled: false, workingStatus: "Working" },
+      { enabled: false, streamingEnabled: false, workingStatus: "Working" },
     ),
     "slack:D012345:",
   );
@@ -48,7 +91,7 @@ test("accepted Agent View turns show one native Working status", async () => {
   const statuses: Array<string | undefined> = [];
   await showSlackAgentWorking(
     { startTyping: async (status?: string) => { statuses.push(status); } },
-    { enabled: true, workingStatus: "Working" },
+    { enabled: true, streamingEnabled: true, workingStatus: "Working" },
   );
   assert.deepEqual(statuses, ["Working"]);
 });
@@ -62,7 +105,7 @@ test("legacy Agent Session stop events abort only the remembered CompanyOS conve
   };
   const aborted: string[] = [];
   const chat = { abortTurn: async (threadId: string) => { aborted.push(threadId); } };
-  const enabled = { enabled: true, workingStatus: "Working" } as const;
+  const enabled = { enabled: true, streamingEnabled: true, workingStatus: "Working" } as const;
 
   await rememberSlackAgentSessionConversation(
     state,
@@ -91,7 +134,7 @@ test("native per-message sessions need no legacy stop bridge", async () => {
     { set: async () => { writes += 1; } },
     "slack:D012345:1788494042.306000",
     "slack:D012345:1788494042.306000",
-    { enabled: true, workingStatus: "Working" },
+    { enabled: true, streamingEnabled: true, workingStatus: "Working" },
   );
   assert.equal(writes, 0);
 });
@@ -112,8 +155,8 @@ test("disabled presentation and provider status failures do not block a turn", a
       throw new Error("provider status unavailable");
     },
   };
-  await showSlackAgentWorking(thread, { enabled: false, workingStatus: "Working" });
+  await showSlackAgentWorking(thread, { enabled: false, streamingEnabled: false, workingStatus: "Working" });
   assert.equal(calls, 0);
-  await assert.doesNotReject(showSlackAgentWorking(thread, { enabled: true, workingStatus: "Working" }));
+  await assert.doesNotReject(showSlackAgentWorking(thread, { enabled: true, streamingEnabled: true, workingStatus: "Working" }));
   assert.equal(calls, 1);
 });

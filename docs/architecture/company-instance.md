@@ -130,13 +130,19 @@ behavior for pre-Agent-View DMs across serverless invocations. Stopping a turn
 does not undo a Tool effect that already completed. New sessions receive a
 deterministic title from the first line of the accepted root message; no model
 call or additional data access is involved, and users remain free to rename,
-pin, or archive the session in Slack. This is
+pin, or archive the session in Slack. Ordinary conversational answers without
+granted Company business Tools use Slack's native streaming API so text appears
+while the model is generating it. Company business-Tool-bearing, required-grounding,
+setup-verification, Builder,
+approval, and effect-bearing turns stay buffered until their final CompanyOS
+presentation has been validated. This is
 presentation only: it cannot select an Agent, grant a Tool, change an approval,
 or prove an effect. The setting defaults to disabled so another Company
 Instance is never migrated implicitly.
 
-Suggested prompts, active-view context, Slack MCP, model-generated session titles,
-and rich work objects are not part of this minimal presentation mode. Those
+Suggested prompts, active-view context, Slack MCP, feedback controls,
+model-generated session titles, and rich work objects are not part of this
+minimal presentation mode. Those
 features require separate reviewed contracts rather than prompt or provider
 configuration being treated as authorization.
 

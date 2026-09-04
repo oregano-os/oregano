@@ -45,6 +45,7 @@ import {
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
+  shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
   type SlackAgentExperienceConfiguration,
 } from "./slack-agent-experience.ts";
@@ -300,10 +301,45 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
-  const result = await modelAgent.generate({
-    messages,
-    abortSignal: resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs),
-  });
+  const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
+  if (shouldStreamSlackAgentResponse({
+    configuration: slackAgentExperience,
+    agentId: agent.id,
+    knowledgeRouteKind: knowledgeRoute.kind,
+    businessToolCount: agent.toolSet.tools.length,
+  })) {
+    const result = await modelAgent.stream({ messages, abortSignal });
+    await deliveryThread.post(result.fullStream);
+    thread.signal.throwIfAborted();
+    const [modelText, toolResults, content, responseMetadata, usage] = await Promise.all([
+      result.text,
+      result.toolResults,
+      result.content,
+      result.response,
+      result.usage,
+    ]);
+    const response = renderKnowledgeTurnResponse({
+      route: knowledgeRoute,
+      modelText,
+      toolResults,
+      toolFailures: content
+        .filter((part) => part.type === "tool-error")
+        .map((part) => ({ toolName: part.toolName, error: part.error })),
+    });
+    if (response !== modelText.trim()) {
+      throw new Error("A streamed Slack response did not satisfy the final CompanyOS presentation contract.");
+    }
+    await state.appendToList(conversationKey, {
+      role: "assistant",
+      content: response,
+      model_execution: modelExecutionEvidence(resolved.selection, { response: responseMetadata, usage }),
+    } satisfies ConversationEntry, {
+      maxLength: 40,
+      ttlMs: 30 * DAY,
+    });
+    return;
+  }
+  const result = await modelAgent.generate({ messages, abortSignal });
   thread.signal.throwIfAborted();
   const response = renderKnowledgeTurnResponse({
     route: knowledgeRoute,
@@ -412,6 +448,7 @@ export function getBot(): Chat {
       slack: createSlackAdapter({
         ...connectSlackAdapter(requireEnv("SLACK_CONNECTOR")),
         agentView: slackAgentExperience.enabled,
+        nativeStreaming: slackAgentExperience.streamingEnabled,
         sessionTitle: slackAgentExperience.enabled,
       }),
     },

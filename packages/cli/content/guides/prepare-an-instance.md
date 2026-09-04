@@ -232,7 +232,12 @@ transport identity, and the existing AgentResolver still chooses the internal
 Agent only after canonical roster authorization. Before enabling the value,
 turn on Agent experience for that Slack app and retain the existing
 `chat:write` grant. The maintained Runner uses Slack Agent Sessions for the
-native `Working` lifecycle status. Also subscribe the existing Slack connector
+native `Working` lifecycle status and streams ordinary conversational answers
+without granted Company business Tools through Slack's native streaming API.
+Company business-Tool-bearing, required-grounding,
+setup-verification, Builder, approval, and effect-bearing turns remain buffered
+until their final CompanyOS presentation is validated. Also subscribe the
+existing Slack connector
 to `agent_session_stopped`; this adds no content scope, but lets Slack deliver a
 user's native stop request. The Runner passes the resulting cancellation signal
 to model execution. A DM subscribed under the earlier Assistant View remains
@@ -242,7 +247,8 @@ Slack. A stop cancels unfinished generation; it does not undo a Tool effect that
 already completed. New sessions use the first line of the accepted root
 message as a deterministic title; Slack users can rename, pin, and archive them.
 This does not invoke a model or widen data access. The initial mode does not
-require suggested prompts, context events, Slack MCP, or new Tool grants. Roll
+require suggested prompts, context events, Slack MCP, feedback controls, or new
+Tool grants. Roll
 back by removing the value and redeploying before disabling the provider-side
 Agent experience and stop-event subscription.
 
