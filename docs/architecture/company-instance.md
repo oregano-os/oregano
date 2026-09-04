@@ -132,10 +132,14 @@ deterministic title from the first line of the accepted root message; no model
 call or additional data access is involved, and users remain free to rename,
 pin, or archive the session in Slack. Ordinary conversational answers without
 granted Company business Tools use Slack's native streaming API so text appears
-while the model is generating it. Company business-Tool-bearing, required-grounding,
-setup-verification, Builder,
-approval, and effect-bearing turns stay buffered until their final CompanyOS
-presentation has been validated. This is
+while the model is generating it. For Company business-Tool-bearing,
+required-grounding, Builder, approval, and effect-bearing turns, the Runner
+keeps provisional model prose private, presents Tool execution as live native
+task progress without Tool inputs or outputs, and streams the exact validated
+final CompanyOS presentation afterwards. An explicit pending approval or
+Builder confirmation leaves the Agent Session suspended; an ordinary completed
+turn returns it to active. Setup verification remains one exact, buffered proof
+response. This is
 presentation only: it cannot select an Agent, grant a Tool, change an approval,
 or prove an effect. The setting defaults to disabled so another Company
 Instance is never migrated implicitly.

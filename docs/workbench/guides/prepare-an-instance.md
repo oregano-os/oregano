@@ -234,9 +234,12 @@ turn on Agent experience for that Slack app and retain the existing
 `chat:write` grant. The maintained Runner uses Slack Agent Sessions for the
 native `Working` lifecycle status and streams ordinary conversational answers
 without granted Company business Tools through Slack's native streaming API.
-Company business-Tool-bearing, required-grounding,
-setup-verification, Builder, approval, and effect-bearing turns remain buffered
-until their final CompanyOS presentation is validated. Also subscribe the
+For Company business-Tool-bearing, required-grounding, Builder, approval, and
+effect-bearing turns, provisional model prose remains buffered while Slack
+shows output-free Tool progress; the exact validated final presentation then
+streams in native chunks. Explicit pending approval or Builder-confirmation
+results leave the Agent Session suspended. Setup verification remains one exact
+buffered proof response. Also subscribe the
 existing Slack connector
 to `agent_session_stopped`; this adds no content scope, but lets Slack deliver a
 user's native stop request. The Runner passes the resulting cancellation signal

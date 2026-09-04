@@ -10,12 +10,14 @@ objective: >-
   Working status for authenticated, accepted turns, including conversations
   subscribed before Agent View was enabled, and allowing the user to stop the
   active model turn through Slack's native Agent Session control, streaming
-  ordinary business-Tool-free conversational answers as they are generated, while using
+  ordinary business-Tool-free conversational answers as they are generated,
+  showing live Tool progress without provisional model prose, and streaming
+  already-validated final presentations for governed turns, while using
   deterministic first-line titles for new sessions.
 non_goals:
   - Create another Slack app or expose individual CompanyOS Agents as separate Slack identities.
   - Add suggested prompts, active-view context events, Slack MCP, rich work objects, feedback controls, or model-generated thread titles in this change.
-  - Stream Company business-Tool-bearing, required-grounding, setup-verification, Builder, approval, or effect-bearing turns before their final CompanyOS presentation is validated.
+  - Expose provisional model prose, Tool inputs, Tool outputs, or unvalidated effect claims from Company business-Tool-bearing, required-grounding, Builder, approval, or effect-bearing turns.
   - Change CompanyOS Agent selection, roster authorization, Tool grants, model routing, approval policy, or business effects.
   - Enable the experience for every Company Instance by default.
 placement: core
@@ -50,6 +52,8 @@ architecture_assessment:
       - Propagate a verified native stop event to the active model turn without undoing any effect that already completed.
       - Give new sessions one deterministic title derived locally from the accepted root message.
       - Stream only ordinary business-Tool-free conversational text whose provider-visible form cannot be replaced by a later CompanyOS trust check.
+      - Present Tool execution as provider-native, output-free progress tasks and stream the exact validated final presentation afterwards.
+      - End an approval or Builder-confirmation turn with the native Agent Session suspended until the human acts.
       - Preserve provider-neutral CompanyOS Agent resolution, identity checks, and Tool governance.
     packages:
       - The maintained Vercel Runner maps one external Slack Agent identity to the already-resolved internal CompanyOS Agent.
@@ -89,6 +93,8 @@ architecture_assessment:
     - A short-lived legacy-DM stop bridge plus propagation of the Chat SDK turn signal to model execution.
     - Deterministic first-line session titles with no model call or new data access.
     - A trust-aware native streaming gate that keeps validated and effect-bearing turns buffered.
+    - Best-effort Tool progress cards plus exact chunked streaming of the validated final presentation.
+    - Native suspended session state only when a completed Tool result explicitly reports a pending human approval or confirmation.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
@@ -114,7 +120,10 @@ tests:
   - Model timeout and native stop signals are composed; neither boundary weakens the other.
   - Agent View enables deterministic first-line session titles and leaves user-managed pinning, renaming, and archiving to Slack.
   - Agent View uses Slack native streaming for ordinary business-Tool-free conversation and records the final model response and usage after completion.
-  - Company business-Tool-bearing, required-grounding, setup-verification, Builder, approval, and effect-bearing turns remain buffered.
+  - Company business-Tool-bearing, required-grounding, Builder, approval, and effect-bearing turns never expose provisional model prose; Tool progress is live and the exact validated final presentation is streamed in chunks.
+  - Tool progress never exposes Tool inputs or outputs and a provider presentation failure cannot fail Tool execution.
+  - Explicit pending approval and Builder-confirmation results leave the Slack Agent Session suspended; ordinary completed turns return it to active.
+  - Setup-verification remains a single exact proof response rather than a streamed approximation.
   - Failure to render the optional provider status never blocks the CompanyOS response.
   - Agent View uses Slack Agent Sessions while automatic provider-generated session titles remain disabled.
   - Existing roster authorization and deterministic AgentResolver tests remain green.

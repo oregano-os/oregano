@@ -41,12 +41,15 @@ import {
 import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
 import {
   abortRememberedSlackAgentSessionConversation,
+  createSlackToolProgressReporter,
   rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
   shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
+  toolResultNeedsHumanInput,
+  validatedSlackResponsePlan,
   type SlackAgentExperienceConfiguration,
 } from "./slack-agent-experience.ts";
 import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "../../../runner/model-execution.ts";
@@ -339,7 +342,37 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     });
     return;
   }
-  const result = await modelAgent.generate({ messages, abortSignal });
+  const toolProgress = createSlackToolProgressReporter(deliveryThread, slackAgentExperience);
+  let waitingForHuman = false;
+  let result: Awaited<ReturnType<typeof modelAgent.generate>>;
+  try {
+    result = await modelAgent.generate({
+      messages,
+      abortSignal,
+      onToolExecutionStart: async ({ toolCall }) => {
+        await toolProgress.start({ id: toolCall.toolCallId, toolName: toolCall.toolName });
+      },
+      onToolExecutionEnd: async ({ toolCall, toolOutput }) => {
+        const succeeded = toolOutput.type === "tool-result";
+        const toolWaitingForHuman = succeeded && toolResultNeedsHumanInput(toolOutput.output);
+        waitingForHuman ||= toolWaitingForHuman;
+        await toolProgress.finish({
+          id: toolCall.toolCallId,
+          succeeded,
+          ...(toolWaitingForHuman ? { waitingForHuman: true } : {}),
+        });
+      },
+    });
+  } catch (error) {
+    await toolProgress.fail();
+    if (waitingForHuman && slackAgentExperience.streamingEnabled) {
+      await deliveryThread.post(validatedSlackResponsePlan(
+        "Waiting for your confirmation in the card above. The response could not be completed.",
+        { suspended: true },
+      ));
+    }
+    throw error;
+  }
   thread.signal.throwIfAborted();
   const response = renderKnowledgeTurnResponse({
     route: knowledgeRoute,
@@ -352,11 +385,22 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const presentation = agent.id === "builder"
     ? builderChat.presentTurn(response, result.toolResults)
     : { historyResponse: response, visibleResponse: response };
+  waitingForHuman ||= result.toolResults.some((entry) => toolResultNeedsHumanInput(entry.output));
+  await toolProgress.complete({ waitingForHuman });
   await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
-  if (presentation.visibleResponse) await deliveryThread.post(presentation.visibleResponse);
+  if (presentation.visibleResponse) {
+    await deliveryThread.post(slackAgentExperience.streamingEnabled
+      ? validatedSlackResponsePlan(presentation.visibleResponse, { suspended: waitingForHuman })
+      : presentation.visibleResponse);
+  } else if (waitingForHuman && slackAgentExperience.streamingEnabled) {
+    await deliveryThread.post(validatedSlackResponsePlan(
+      "Waiting for your confirmation in the card above.",
+      { suspended: true },
+    ));
+  }
 }
 
 function registerHandlers(bot: Chat) {

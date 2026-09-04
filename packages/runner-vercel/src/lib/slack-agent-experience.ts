@@ -1,9 +1,149 @@
-import type { StateAdapter, Thread } from "chat";
+import { Plan, StreamingPlan, type StateAdapter, type StreamChunk, type Thread } from "chat";
 
 export interface SlackAgentExperienceConfiguration {
   enabled: boolean;
   streamingEnabled: boolean;
   workingStatus: "Working";
+}
+
+const VALIDATED_RESPONSE_CHUNK_SIZE = 320;
+
+function validatedResponseChunks(response: string): string[] {
+  if (response.length <= VALIDATED_RESPONSE_CHUNK_SIZE) return [response];
+  const chunks: string[] = [];
+  for (let offset = 0; offset < response.length; offset += VALIDATED_RESPONSE_CHUNK_SIZE) {
+    chunks.push(response.slice(offset, offset + VALIDATED_RESPONSE_CHUNK_SIZE));
+  }
+  return chunks;
+}
+
+/**
+ * Streams only an already-validated presentation. Fixed-size slicing preserves
+ * the exact response bytes while giving Slack several native append events for
+ * longer answers. Chat SDK heals incomplete Markdown in intermediate renders.
+ */
+export function validatedSlackResponsePlan(
+  response: string,
+  options?: { readonly suspended?: boolean },
+): StreamingPlan {
+  const stream = (async function* (): AsyncGenerator<StreamChunk> {
+    for (const text of validatedResponseChunks(response)) {
+      yield { type: "markdown_text", text };
+    }
+  })();
+  return new StreamingPlan(stream, {
+    sessionStatus: options?.suspended ? "suspended" : "active",
+  });
+}
+
+function toolProgressTitle(toolName: string): string {
+  const words = toolName
+    .replace(/^oregano_/u, "")
+    .replace(/^companyos_/u, "")
+    .split(/_+/u)
+    .filter(Boolean)
+    .join(" ");
+  return words ? `Run ${words}` : "Run CompanyOS tool";
+}
+
+/** Returns true only for a completed Tool result that explicitly waits on a human. */
+export function toolResultNeedsHumanInput(output: unknown): boolean {
+  if (typeof output !== "object" || output === null || Array.isArray(output)) return false;
+  const value = output as Record<string, unknown>;
+  return value.pendingApproval === true || value.pendingConfirmation === true;
+}
+
+export interface SlackToolProgressReporter {
+  start(input: { readonly id: string; readonly toolName: string }): Promise<void>;
+  finish(input: {
+    readonly id: string;
+    readonly succeeded: boolean;
+    readonly waitingForHuman?: boolean;
+  }): Promise<void>;
+  complete(input?: { readonly waitingForHuman?: boolean }): Promise<void>;
+  fail(): Promise<void>;
+}
+
+/**
+ * Shows provider-native task progress without exposing Tool inputs, outputs, or
+ * provisional model prose. Presentation failures remain best effort and never
+ * change CompanyOS execution semantics.
+ */
+export function createSlackToolProgressReporter(
+  thread: Pick<Thread, "post">,
+  configuration: SlackAgentExperienceConfiguration,
+): SlackToolProgressReporter {
+  let planPromise: Promise<Plan> | undefined;
+  let disabled = !configuration.streamingEnabled;
+  const taskIds = new Map<string, string>();
+
+  const safely = async (operation: () => Promise<void>): Promise<void> => {
+    if (disabled) return;
+    try {
+      await operation();
+    } catch {
+      disabled = true;
+    }
+  };
+
+  return {
+    async start({ id, toolName }) {
+      await safely(async () => {
+        const title = toolProgressTitle(toolName);
+        const createsPlan = !planPromise;
+        planPromise ??= (async () => {
+          const plan = new Plan({ initialMessage: title });
+          await thread.post(plan);
+          return plan;
+        })();
+        const plan = await planPromise;
+        if (createsPlan) {
+          const task = plan.currentTask;
+          if (task) taskIds.set(id, task.id);
+          return;
+        }
+        const task = await plan.addTask({
+          title,
+          autoCompletePrevious: false,
+        });
+        if (task) taskIds.set(id, task.id);
+      });
+    },
+    async finish({ id, succeeded, waitingForHuman }) {
+      await safely(async () => {
+        if (!planPromise) return;
+        const plan = await planPromise;
+        const taskId = taskIds.get(id);
+        await plan.updateTask({
+          ...(taskId ? { id: taskId } : {}),
+          status: succeeded ? "complete" : "error",
+          output: waitingForHuman
+            ? "Waiting for human approval"
+            : succeeded ? "Completed" : "Failed",
+        });
+      });
+    },
+    async complete({ waitingForHuman } = {}) {
+      if (!planPromise) return;
+      await safely(async () => {
+        const plan = await planPromise!;
+        await plan.complete({
+          completeMessage: waitingForHuman ? "Waiting for human approval" : "CompanyOS tools complete",
+        });
+      });
+    },
+    async fail() {
+      if (!planPromise) return;
+      await safely(async () => {
+        const plan = await planPromise!;
+        for (const task of plan.tasks) {
+          if (task.status === "in_progress") {
+            await plan.updateTask({ id: task.id, status: "error", output: "Failed" });
+          }
+        }
+      });
+    },
+  };
 }
 
 const SLACK_ROOT_MESSAGE_ID = /^\d{10,}\.\d+$/u;

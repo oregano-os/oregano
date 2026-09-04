@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   abortRememberedSlackAgentSessionConversation,
+  createSlackToolProgressReporter,
   rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
   shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
+  toolResultNeedsHumanInput,
+  validatedSlackResponsePlan,
 } from "./slack-agent-experience.ts";
 
 test("Slack Agent View is opt-in and requires the exact true value", () => {
@@ -57,6 +60,51 @@ test("native streaming is limited to ordinary replies without Company business T
     knowledgeRouteKind: "auto",
     businessToolCount: 0,
   }), false);
+});
+
+test("validated responses stream in exact native chunks and suspend only for human input", async () => {
+  const response = `${"x".repeat(319)}\n${"y".repeat(322)}`;
+  const active = validatedSlackResponsePlan(response);
+  const activeData = active.getPostData();
+  const activeText: string[] = [];
+  for await (const chunk of activeData.stream) {
+    if (typeof chunk === "object" && "type" in chunk && chunk.type === "markdown_text" && "text" in chunk) {
+      activeText.push(chunk.text);
+    }
+  }
+  assert.equal(activeText.join(""), response);
+  assert.equal(activeText.length, 3);
+  assert.equal(activeData.options.sessionStatus, "active");
+  assert.equal(validatedSlackResponsePlan("waiting", { suspended: true }).options.sessionStatus, "suspended");
+});
+
+test("only explicit approval and confirmation Tool outputs require suspended Agent state", () => {
+  assert.equal(toolResultNeedsHumanInput({ pendingApproval: true }), true);
+  assert.equal(toolResultNeedsHumanInput({ pendingConfirmation: true }), true);
+  assert.equal(toolResultNeedsHumanInput({ pendingApproval: false }), false);
+  assert.equal(toolResultNeedsHumanInput({ ok: true }), false);
+  assert.equal(toolResultNeedsHumanInput(null), false);
+});
+
+test("Tool progress is presentation-only and provider failures remain best effort", async () => {
+  let posts = 0;
+  const reporter = createSlackToolProgressReporter({
+    post: async () => {
+      posts += 1;
+      throw new Error("provider progress unavailable");
+    },
+  }, resolveSlackAgentExperience({ COMPANYOS_SLACK_AGENT_VIEW: "true" }));
+  await assert.doesNotReject(reporter.start({ id: "call-1", toolName: "oregano_records_query" }));
+  await assert.doesNotReject(reporter.finish({ id: "call-1", succeeded: true }));
+  await assert.doesNotReject(reporter.complete());
+  assert.equal(posts, 1);
+
+  let disabledPosts = 0;
+  const disabled = createSlackToolProgressReporter({
+    post: async () => { disabledPosts += 1; return undefined as never; },
+  }, resolveSlackAgentExperience({}));
+  await disabled.start({ id: "call-2", toolName: "oregano_records_query" });
+  assert.equal(disabledPosts, 0);
 });
 
 test("legacy subscribed Slack DMs use the accepted message root for Agent Session presentation", () => {
