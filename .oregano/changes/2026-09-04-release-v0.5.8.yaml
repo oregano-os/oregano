@@ -27,7 +27,7 @@ files_expected:
   - packages/runner-vercel/src/lib/company-records-production.test.ts
   - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
   - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
-  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/**
 required_approvals:
   - oregano-maintainer
 approvals:
@@ -100,6 +100,7 @@ tests:
   - Core reports 0.5.8 while Workbench remains 0.1.0-experimental.15.
   - A stabilized snapshot observed before Sprint open refreshes at the hosted runtime clock.
   - Exact source-version replay remains a duplicate and durable Sprint chronology never regresses.
+  - A refresh rejects a colliding durable event whose stored type is not a work-item observation.
   - Existing Company Workspaces and Instances remain unchanged until they adopt the exact release.
 documentation_impact:
   required: true
