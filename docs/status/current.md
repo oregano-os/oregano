@@ -133,7 +133,10 @@ evidence, historical prototypes, and production gaps.
   `NEXT WEEK` carry-forward use the same hosted
   timer and intent path. Before each due weekly timer, the Runner resolves one
   twice-stabilized current work-item projection while retaining the Sprint's
-  frozen participant scope. Replaying the same source version is a no-op.
+  frozen participant scope. The immutable source version identifies an exact
+  replay, while the resulting refresh event uses the hosted refresh clock so
+  a valid source observation from before Sprint opening cannot regress durable
+  event chronology. Replaying the same source version is a no-op.
   Briefing updates use an exact active-human subject confirmation and the
   dedicated confirmed-update Tool. Rollover remains proposal-only until one
   frozen batch passes the ordinary R3 approval path; the maintained batch Tool
