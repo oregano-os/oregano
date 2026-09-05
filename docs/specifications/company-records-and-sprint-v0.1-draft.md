@@ -240,7 +240,10 @@ deferred extensions, not initial-rollout dependencies.
 `communication-message` projection for historical replay. That projection MUST
 expose stable message, team, author, thread, text, and occurrence fields.
 Replay MUST use an isolated definition, explicit date range, immutable input
-versions, and controlled clock. It MUST resolve a provider author only through
+versions, and controlled clock. Its durable timers MUST use a deterministic
+replay-specific schedule namespace: an exact replay retry reuses the same timer
+identities, while an independent replay of the same Sprint period cannot
+conflict with them. It MUST resolve a provider author only through
 one tenant-scoped canonical roster principal; message content and display names
 MUST NOT select an Agent, establish identity, approve an action, or grant an
 effect. The Sprint Domain MAY derive a typed submission and exact work-item

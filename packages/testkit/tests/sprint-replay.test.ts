@@ -234,6 +234,26 @@ test("Sprint replay is idempotent against the same durable stores", async () => 
   assert.equal(store.intents.size, intentCount);
 });
 
+test("independent replays of one Sprint period isolate their durable timer identities", async () => {
+  const store = new InMemorySprintOrchestrationStore();
+  const timerStore = new InMemoryDurableTimerStore();
+  const service = new SprintReplayService({
+    instanceId: "fixture-instance",
+    store,
+    timers: new DurableTimerService({ instanceId: "fixture-instance", store: timerStore }),
+  });
+  const first = await service.run(input());
+  const independent = { ...input(), replayId: "historical-week-1-independent-review" };
+  const second = await service.run(independent);
+  const timerCount = timerStore.rows.size;
+  const retry = await service.run(independent);
+
+  assert.notEqual(second.definition_id, first.definition_id);
+  assert.equal(second.final_phase, "closed");
+  assert.equal(retry.output_digest, second.output_digest);
+  assert.equal(timerStore.rows.size, timerCount);
+});
+
 test("Sprint replay includes a submission at the exact report cutoff in the report intent", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const service = new SprintReplayService({
