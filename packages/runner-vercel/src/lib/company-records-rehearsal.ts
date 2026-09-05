@@ -36,6 +36,7 @@ import {
   inspectPostgresCompanyRecordProjectionStatus,
   inspectPostgresCompanyRecordSourceStatus,
 } from "../../../state-postgres/records-store.ts";
+import { resolveRecordSourceCredential } from "./record-source-credential.ts";
 
 export const COMPANY_RECORDS_REHEARSAL_CONFIG_ENV = "COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64";
 export const COMPANY_RECORDS_REHEARSAL_SECRET_ENV = "COMPANYOS_RECORDS_REHEARSAL_SECRET";
@@ -392,12 +393,17 @@ function selectedSlackQualificationBinding(configuration: CompanyRecordsRehearsa
     throw new CompanyRecordsRehearsalError("invalid-declaration", `Source '${sourceId}' does not select the maintained Slack Record Source Connector`, 503);
   }
   const provider = object(binding.configuration, `binding '${sourceId}'.configuration`);
-  exactKeys(provider, ["team_id", "channel_id", "conversation_kind", "oldest_at", "latest_at", "include_threads", "page_size", "max_pages", "max_thread_pages", "max_messages"], `binding '${sourceId}'.configuration`);
+  exactKeys(provider, ["team_id", "channel_id", "conversation_kind", "oldest_at", "latest_at", "include_threads", "page_size", "max_pages", "max_thread_pages", "max_messages", "credential_provider"], `binding '${sourceId}'.configuration`);
   const teamId = string(provider.team_id, `binding '${sourceId}'.configuration.team_id`, /^[A-Z][A-Z0-9]{4,31}$/);
   const channelId = string(provider.channel_id, `binding '${sourceId}'.configuration.channel_id`, /^[CG][A-Z0-9]{4,31}$/);
   const conversationKind = string(provider.conversation_kind, `binding '${sourceId}'.configuration.conversation_kind`);
   if (conversationKind !== "public-channel" && conversationKind !== "private-channel") {
     throw new CompanyRecordsRehearsalError("invalid-declaration", `binding '${sourceId}'.configuration.conversation_kind is invalid`, 503);
+  }
+  if (provider.credential_provider !== undefined
+    && provider.credential_provider !== "direct-env"
+    && provider.credential_provider !== "vercel-connect-app") {
+    throw new CompanyRecordsRehearsalError("invalid-declaration", `binding '${sourceId}'.configuration.credential_provider is invalid`, 503);
   }
   return { source, binding, teamId, channelId, conversationKind };
 }
@@ -476,7 +482,7 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
   }
   const connectors = new RecordSourceConnectorRegistry([
     new MondayRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
-    new SlackRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
+    new SlackRecordSourceConnector({ resolveSecret: async () => await resolveRecordSourceCredential(binding) }),
   ]);
   connectors.validate(source, binding, bindingEntry.qualification);
   return { source, binding, qualification: bindingEntry.qualification, projections, registry, connectors };
@@ -630,7 +636,7 @@ const defaultDependencies: RehearsalDependencies = {
   },
   async qualifySlack(input) {
     return await qualifySlackRecordSource({
-      token: resolveEnvironmentSecretRef(input.binding.secret_ref),
+      token: await resolveRecordSourceCredential(input.binding),
       teamId: input.teamId,
       channelId: input.channelId,
     });
