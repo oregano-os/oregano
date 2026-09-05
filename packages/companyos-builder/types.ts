@@ -48,6 +48,18 @@ export interface SprintRuntimeInstanceConfiguration {
     rolloverField: string;
     readinessField?: string;
   };
+  replay?: {
+    messageProjection: string;
+    testPublication?: {
+      testOnly: true;
+      publisherAgentId: string;
+      communicationBinding: string;
+      workItemBinding: string;
+      workItemId: string;
+      forbiddenChannelIds: string[];
+      forbiddenBoardIds: string[];
+    };
+  };
 }
 
 export interface InstanceBuildConfiguration {
@@ -107,6 +119,7 @@ export interface CompiledSprintRuntime {
     chase: CompiledSprintTemplate;
     closeReport: CompiledSprintTemplate;
     retro: CompiledSprintTemplate;
+    replayReport?: CompiledSprintTemplate;
     mondayHandoff?: CompiledSprintTemplate;
     weekdayDigest?: CompiledSprintTemplate;
     directQuestion?: CompiledSprintTemplate;
@@ -120,6 +133,16 @@ export interface CompiledSprintRuntime {
     resourceBinding: string;
     rolloverField: string;
     readinessField?: string;
+  };
+  replay?: {
+    messageProjection: string;
+    testPublication?: {
+      testOnly: true;
+      publisherAgentId: string;
+      communicationBinding: string;
+      workItemBinding: string;
+      workItemId: string;
+    };
   };
   modelTask: string;
 }

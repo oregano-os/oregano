@@ -8,6 +8,7 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../connectors/monday/records-source.ts";
+import { SlackRecordSourceConnector } from "../../connectors/slack/records-source.ts";
 import { reconcileRecordSnapshot } from "../../records/reconciliation.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
 import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
@@ -231,6 +232,7 @@ export const resolveEnvironmentSecretRef = (secretRef) => {
 export function createMaintainedRecordSourceConnectorRegistry({ resolveSecret = resolveEnvironmentSecretRef, fetcher, now } = {}) {
   return new RecordSourceConnectorRegistry([
     new MondayRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
+    new SlackRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
   ]);
 }
 

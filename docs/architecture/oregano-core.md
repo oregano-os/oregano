@@ -107,6 +107,17 @@ digests without provider effects; `active` mode still reaches a provider only
 through the standard Tool boundary. Each Sprint definition has a namespaced
 timer kind, so one worker cannot lease another definition's timers.
 
+An optional compiled replay binding selects one generic
+`communication-message` projection. The authenticated operator may replay an
+explicit historical period with an isolated Sprint definition and controlled
+clock. Canonical roster principals, not text or display names, resolve message
+authors; the Sprint Domain alone recognizes and derives typed Friday
+submissions. Exact communication and work-item source-version lineage is
+retained with the durable Sprint event. The maintained hosted replay is
+proof-only and structurally refuses every live output binding. A later test
+publication remains an ordinary Capability-controlled effect rather than a
+privilege of the replay engine.
+
 The weekly worker refreshes current work-item facts from a twice-stabilized
 projection before processing due Monday, weekday, readiness, or Friday timers.
 This does not replace the Sprint participant snapshot: the participant scope is

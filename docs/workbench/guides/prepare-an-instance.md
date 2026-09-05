@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-05
 owners:
   - oregano-maintainers
 audience:
@@ -98,6 +98,10 @@ connectors:
           permission: read-write
           fields:
             status: status
+        - id: sprint-replay-output-board
+          board_id: "10000000002"
+          permission: read-write
+          fields: {}
   - id: communication
     connector: oregano/slack-communication
     connector_version: 0.1.0
@@ -107,6 +111,10 @@ connectors:
           account_id: T00001
           kind: channel
           channel_id: C00001
+        - id: sprint-replay-output-channel
+          account_id: T00001
+          kind: channel
+          channel_id: C00002
         - id: sprint-direct-alex
           account_id: T00001
           kind: direct-message
@@ -119,6 +127,16 @@ sprint_runtimes:
     participant_identity_prefix: monday:account:
     direct_destinations:
       slack:T00001:U00001: sprint-direct-alex
+    replay:
+      message_projection: sprint-messages
+      test_publication:
+        test_only: true
+        publisher_agent: sprint-replay-publisher
+        communication_binding: sprint-replay-output-channel
+        work_item_binding: sprint-replay-output-board
+        work_item_id: "10000000003"
+        forbidden_channel_ids: [C00001]
+        forbidden_board_ids: ["10000000001"]
     work_item:
       resource_binding: sprint-test-board
       rollover_field: sprint
@@ -143,6 +161,32 @@ grants no Tool authority. The Runner accepts such an Artifact only in
 before constructing a provider dispatcher. Use `execution: active-capable`
 (the backward-compatible default) only when the Agent has the reviewed
 communication and optional work-item grants and the Instance binds them.
+
+`replay.message_projection` is optional. When present, Workbench requires the
+exact projection to have record type `communication-message` and to expose
+`message_id`, `team_id`, `author_id`, `thread_id`, `text`, and `occurred_at`.
+The authenticated Sprint operator may then replay an explicit historical date
+range with a controlled clock. Provider authors still resolve only through
+tenant-scoped canonical roster principals; message content cannot choose an
+Agent or grant authority. The maintained hosted replay is proof-only: it
+stores deterministic Sprint events, states, intents, outcomes, and source
+version lineage in `companyos_records`, while refusing every compiled live
+Slack or work-item binding. Publishing a reviewed result to a test destination
+is a separate Capability-controlled operation and is never implied by replay.
+When `test_publication` is present, `publisher_agent` must be a dedicated Agent
+with only the reviewed `oregano:communications/publish` and
+`oregano:work-items/comment` grants. It must not be the default Agent or appear
+in `agent_bindings`, and no Agent handoff may target it. Dynamic participant
+and work-item values are escaped as provider data before the report crosses a
+provider-markdown boundary. The communication binding must resolve to one exact test
+channel; the work-item binding must resolve to one exact read-write test board;
+and `work_item_id` identifies the single test-board item that receives report
+comments. `forbidden_channel_ids` and `forbidden_board_ids` name protected live
+provider resources. Workbench rejects test/live equality by logical binding and
+physical provider id. The operator first runs `replay`, reviews its
+`output_digest`, then calls `publish-replay` with that exact digest. The Runner
+recomputes the report and performs no effect if any input has changed. Repeating
+the same accepted digest reuses the same effect claims and provider receipts.
 
 The maintained Vercel Runner also verifies the Artifact environment against
 Vercel's trusted deployment identity. A `production` deployment accepts only a

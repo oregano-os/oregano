@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-04
 owners:
   - oregano-maintainers
 audience:
@@ -30,7 +30,7 @@ provider-neutral projections.
 
 Company Records and Company Knowledge are different. Company Records mirrors
 structured objects such as work items, roles, people assignments, statuses,
-dates, and effort. Company Knowledge ingests documents and evidence for cited
+dates, effort, and governed conversation messages. Company Knowledge ingests documents and evidence for cited
 retrieval and review. Neither database projection becomes Handbook authority,
 provider authority, or an authorization roster.
 
@@ -47,9 +47,10 @@ Workspace intent
   -> separately confirmed production activation
 ```
 
-The maintained provider in this release is Monday. A future Notion, ClickUp,
-or other adapter must preserve this lifecycle behind the same Record Source
-Connector contract; it does not get a parallel synchronization command.
+The maintained providers in this release are Monday for operational board
+objects and Slack for allowlisted conversations. A future Notion, ClickUp,
+Teams, or other adapter must preserve this lifecycle behind the same Record
+Source Connector contract; it does not get a parallel synchronization command.
 
 ## 1. Interview the company values
 
@@ -212,6 +213,46 @@ selects one record type, exposed canonical fields, a freshness bound, read
 groups, and database-view or Workspace-proposal materialization. It never
 grants provider access.
 
+For Slack, declare each governed conversation as an independent generic
+`communication-message` source. Conversation text is ordinary provider data,
+not identity, authorization, approval, Agent selection, or routing authority.
+This fictional source intentionally uses no Sprint field:
+
+```yaml
+schema_version: 1
+id: coordination-conversation
+record_type: communication-message
+connection: connections/slack.md
+resource_binding: coordination-conversation
+delivery: poll
+reconcile_schedule: schedules/daily-records.md
+identity:
+  source_field: id
+fields:
+  - { target: source_id, source: source_id, value_type: string, required: true }
+  - { target: message_id, source: message_id, value_type: string, required: true }
+  - { target: team_id, source: team_id, value_type: string, required: true }
+  - { target: conversation_id, source: conversation_id, value_type: string, required: true }
+  - { target: thread_id, source: thread_id, value_type: string, required: true }
+  - { target: author_id, source: author_id, value_type: identity, required: true }
+  - { target: author_kind, source: author_kind, value_type: string, required: true }
+  - { target: text, source: text, value_type: string }
+  - { target: occurred_at, source: occurred_at, value_type: timestamp, required: true }
+  - { target: provider_payload, source: provider_payload, value_type: json, required: true }
+access:
+  read_groups: [coordination]
+  write_roles: []
+```
+
+Before the first history read, the protected Preview rehearsal supports
+`plan-slack-qualification` followed by `apply-slack-qualification` for the
+exact source id. The first action performs no external call. The second reads
+only `auth.test` and `conversations.info`: it verifies the bot's exact team,
+conversation membership, public/private kind, and required history/read
+scopes. It does not read messages, and the returned receipt retains no token
+or message content. Put that receipt outside the Workspace and pin its digest
+in the non-secret Instance binding before synchronization.
+
 ## 4. Create the non-secret Instance binding
 
 Keep this file outside the Company Workspace and Git:
@@ -259,6 +300,42 @@ For a complete-table binding, omit `group_ids` and add:
 ```yaml
   inventory_mode: complete-table
 ```
+
+A Slack conversation binding uses the same Instance-only contract:
+
+```yaml
+schema_version: 1
+instance_id: example-staging
+source_id: coordination-conversation
+resource_binding: coordination-conversation
+connector: oregano/slack-record-source
+connector_version: 0.1.0
+secret_ref: env:SLACK_BOT_TOKEN
+qualification:
+  receipt_ref: ./slack-source-qualification.json
+  digest: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+configuration:
+  team_id: T00001
+  channel_id: C00001
+  conversation_kind: public-channel
+  oldest_at: 2030-01-01T00:00:00.000Z
+  include_threads: true
+  page_size: 100
+  max_pages: 100
+  max_thread_pages: 20
+  max_messages: 50000
+```
+
+`oldest_at` and optional `latest_at` are explicit collection boundaries.
+Every pass reads one bounded complete inventory, including thread replies,
+and fails closed on provider-limited history, pagination overflow, scope or
+membership drift, rate limiting, or an incomplete unbounded thread inventory.
+When `latest_at` selects a historical window, later live replies are outside
+that inventory and do not make the selected window incomplete. The generic
+source stores immutable normalized message versions and the raw provider
+payload. A Domain may later derive a typed business record with exact source
+lineage; this does not create a provider write or grant the derived record new
+authority.
 
 The default mode is `selected-items`. Use complete-table only after reviewing
 the broader personal and business data scope, provider API quota, database

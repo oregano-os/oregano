@@ -36,6 +36,7 @@ type RawSchedule = {
 
 type ProjectionDeclaration = {
   id?: unknown;
+  record_type?: unknown;
   fields?: Array<{ name?: unknown }>;
 };
 
@@ -92,35 +93,61 @@ function validateProjectionContract(workspace: LoadedWorkspace, projectionId: st
   }
 }
 
-function slackDestinations(instance: InstanceBuildConfiguration): Map<string, "channel" | "direct-message"> {
-  const output = new Map<string, "channel" | "direct-message">();
+function validateCommunicationReplayProjection(workspace: LoadedWorkspace, projectionId: string): void {
+  const path = `records/projections/${projectionId}.yaml`;
+  const declaration = parse(file(workspace, path), path) as ProjectionDeclaration;
+  if (declaration?.id !== projectionId || declaration.record_type !== "communication-message" || !Array.isArray(declaration.fields)) {
+    throw new Error(`${path}: Sprint replay requires one communication-message projection with its exact id.`);
+  }
+  const fields = new Set(declaration.fields.flatMap((entry) => typeof entry?.name === "string" ? [entry.name] : []));
+  for (const required of ["message_id", "team_id", "author_id", "thread_id", "text", "occurred_at"]) {
+    if (!fields.has(required)) throw new Error(`${path}: Sprint replay projection lacks canonical field '${required}'.`);
+  }
+}
+
+type SlackDestination = {
+  kind: "channel" | "direct-message";
+  accountId: string;
+  channelId?: string;
+  userId?: string;
+};
+
+function slackDestinations(instance: InstanceBuildConfiguration): Map<string, SlackDestination> {
+  const output = new Map<string, SlackDestination>();
   for (const connector of instance.connectors ?? []) {
     if (connector.connector !== "oregano/slack-communication" || !Array.isArray(connector.configuration.destinations)) continue;
     for (const raw of connector.configuration.destinations) {
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
       const value = raw as Record<string, unknown>;
-      if (typeof value.id === "string" && (value.kind === "channel" || value.kind === "direct-message")) {
+      if (typeof value.id === "string" && typeof value.account_id === "string"
+        && (value.kind === "channel" || value.kind === "direct-message")) {
         if (output.has(value.id)) throw new Error(`Sprint destination binding '${value.id}' is duplicated.`);
-        output.set(value.id, value.kind);
+        output.set(value.id, {
+          kind: value.kind,
+          accountId: value.account_id,
+          ...(typeof value.channel_id === "string" ? { channelId: value.channel_id } : {}),
+          ...(typeof value.user_id === "string" ? { userId: value.user_id } : {}),
+        });
       }
     }
   }
   return output;
 }
 
-function mondayWorkItemResources(instance: InstanceBuildConfiguration): Map<string, { permission: "read" | "read-write"; fields: Set<string> }> {
-  const output = new Map<string, { permission: "read" | "read-write"; fields: Set<string> }>();
+function mondayWorkItemResources(instance: InstanceBuildConfiguration): Map<string, { boardId: string; permission: "read" | "read-write"; fields: Set<string> }> {
+  const output = new Map<string, { boardId: string; permission: "read" | "read-write"; fields: Set<string> }>();
   for (const connector of instance.connectors ?? []) {
     if (connector.connector !== "oregano/monday-work-items" || !Array.isArray(connector.configuration.resources)) continue;
     for (const raw of connector.configuration.resources) {
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
       const value = raw as Record<string, unknown>;
-      if (typeof value.id !== "string" || (value.permission !== "read" && value.permission !== "read-write")) continue;
+      if (typeof value.id !== "string" || typeof value.board_id !== "string"
+        || (value.permission !== "read" && value.permission !== "read-write")) continue;
       if (output.has(value.id)) throw new Error(`Sprint work-item resource binding '${value.id}' is duplicated.`);
       const fields = value.fields && typeof value.fields === "object" && !Array.isArray(value.fields)
         ? new Set(Object.keys(value.fields))
         : new Set<string>();
-      output.set(value.id, { permission: value.permission, fields });
+      output.set(value.id, { boardId: value.board_id, permission: value.permission, fields });
     }
   }
   return output;
@@ -201,6 +228,7 @@ export function compileSprintRuntimes(args: {
   const calendar = compileCalendar(schedulePath, schedule);
   return args.instance.sprintRuntimes!.map((runtime) => {
     if (runtime.definitionId !== policy.id) throw new Error(`Sprint runtime '${runtime.definitionId}' has no matching Workspace declaration.`);
+    if (runtime.replay) validateCommunicationReplayProjection(args.workspace, runtime.replay.messageProjection);
     const agent = args.workspace.agents.find((agent) => agent.id === runtime.agentId);
     if (!agent) {
       throw new Error(`Sprint runtime '${runtime.definitionId}' references absent Agent '${runtime.agentId}'.`);
@@ -218,11 +246,11 @@ export function compileSprintRuntimes(args: {
     if (!service || !/^(?:active|aktiv)$/i.test(service.status) || !["agent", "service"].includes(service.type ?? "")) {
       throw new Error(`Sprint service principal '${runtime.servicePrincipal}' must identify one active Workspace agent or service.`);
     }
-    if (destinations.get(policy.delivery.channel_binding) !== "channel") {
+    if (destinations.get(policy.delivery.channel_binding)?.kind !== "channel") {
       throw new Error(`Sprint channel binding '${policy.delivery.channel_binding}' is not an exact channel destination.`);
     }
     for (const [principal, destination] of Object.entries(runtime.directDestinations)) {
-      if (destinations.get(destination) !== "direct-message") {
+      if (destinations.get(destination)?.kind !== "direct-message") {
         throw new Error(`Sprint principal '${principal}' is not bound to an exact direct-message destination.`);
       }
     }
@@ -267,6 +295,51 @@ export function compileSprintRuntimes(args: {
         throw new Error(`Sprint work-item binding '${runtime.workItem.resourceBinding}' requires readiness_field for weekly readiness effects.`);
       }
     }
+    let testPublication: NonNullable<CompiledSprintRuntime["replay"]>["testPublication"];
+    if (runtime.replay?.testPublication) {
+      const publication = runtime.replay.testPublication;
+      const publisher = args.workspace.agents.find((candidate) => candidate.id === publication.publisherAgentId);
+      if (!publisher) throw new Error(`Sprint Replay publisher Agent '${publication.publisherAgentId}' is absent.`);
+      if (args.instance.defaultAgentId === publisher.id || args.instance.agentBindings.some((binding) => binding.agentId === publisher.id)) {
+        throw new Error(`Sprint Replay publisher Agent '${publisher.id}' must not be reachable from a conversational Agent binding.`);
+      }
+      if (args.workspace.agents.some((candidate) => candidate.handoffs.some((handoff) => handoff.toAgentId === publisher.id))) {
+        throw new Error(`Sprint Replay publisher Agent '${publisher.id}' must not be reachable through an Agent handoff.`);
+      }
+      const requiredPublisherGrants = ["oregano:communications/publish", "oregano:work-items/comment"].sort();
+      const actualPublisherGrants = [...new Set(publisher.grants)].sort();
+      if (actualPublisherGrants.length !== requiredPublisherGrants.length
+        || actualPublisherGrants.some((grant, index) => grant !== requiredPublisherGrants[index])) {
+        throw new Error(`Sprint Replay publisher Agent '${publisher.id}' must have exactly the two test-publication Tool grants.`);
+      }
+      const testDestination = destinations.get(publication.communicationBinding);
+      const liveDestination = destinations.get(policy.delivery.channel_binding);
+      if (!testDestination || testDestination.kind !== "channel" || !testDestination.channelId) {
+        throw new Error(`Sprint Replay test destination '${publication.communicationBinding}' must resolve to one exact Slack channel.`);
+      }
+      if (publication.communicationBinding === policy.delivery.channel_binding
+        || (liveDestination?.accountId === testDestination.accountId && liveDestination.channelId === testDestination.channelId)
+        || publication.forbiddenChannelIds.includes(testDestination.channelId)) {
+        throw new Error("Sprint Replay test publication selects a protected Slack channel.");
+      }
+      const testResource = workItemResources.get(publication.workItemBinding);
+      if (!testResource || testResource.permission !== "read-write") {
+        throw new Error(`Sprint Replay test resource '${publication.workItemBinding}' must resolve to one read-write Monday board.`);
+      }
+      const liveResource = runtime.workItem ? workItemResources.get(runtime.workItem.resourceBinding) : undefined;
+      if (runtime.workItem?.resourceBinding === publication.workItemBinding
+        || liveResource?.boardId === testResource.boardId
+        || publication.forbiddenBoardIds.includes(testResource.boardId)) {
+        throw new Error("Sprint Replay test publication selects a protected Monday board.");
+      }
+      testPublication = {
+        testOnly: true,
+        publisherAgentId: publication.publisherAgentId,
+        communicationBinding: publication.communicationBinding,
+        workItemBinding: publication.workItemBinding,
+        workItemId: publication.workItemId,
+      };
+    }
     const reminderPath = safeWorkspacePath(policy.rendering!.reminder);
     const chasePath = safeWorkspacePath(policy.rendering!.chase);
     const closeReportPath = safeWorkspacePath(policy.rendering!.close_report);
@@ -279,6 +352,18 @@ export function compileSprintRuntimes(args: {
     validateTemplate(chasePath, chaseContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "needs_reformat_names", "missing_names"]));
     validateTemplate(closeReportPath, closeReportContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "complete_names", "needs_reformat_names", "missing_names"]));
     validateTemplate(retroPath, retroContent, new Set(["sprint_id", "period_start", "period_end", "due_at", "complete_names", "needs_reformat_names", "missing_names", "open_work_item_ids", "open_work_item_count", "total_effort_hours"]));
+    const replayReport = testPublication ? (() => {
+      const rawPath = (policy.rendering as Record<string, unknown>).replay_report;
+      if (typeof rawPath !== "string") throw new Error(`${configurationPath}: rendering.replay_report is required for test publication.`);
+      const path = safeWorkspacePath(rawPath);
+      const content = markdownTemplateBody(path, file(args.workspace, path));
+      validateTemplate(path, content, new Set([
+        "replay_id", "sprint_id", "period_start", "period_end", "complete_names", "needs_reformat_names", "missing_names",
+        "open_work_item_ids", "open_work_item_count", "total_effort_hours", "accepted_submission_count",
+        "ignored_message_count", "limitations", "output_digest",
+      ]));
+      return { path, content, digest: sha256(content) };
+    })() : undefined;
     const weeklyTemplates = policy.weekly ? (() => {
       const mondayPath = safeWorkspacePath(policy.rendering!.monday_handoff!);
       const digestPath = safeWorkspacePath(policy.rendering!.weekday_digest!);
@@ -332,11 +417,16 @@ export function compileSprintRuntimes(args: {
         chase: { path: chasePath, content: chaseContent, digest: sha256(chaseContent) },
         closeReport: { path: closeReportPath, content: closeReportContent, digest: sha256(closeReportContent) },
         retro: { path: retroPath, content: retroContent, digest: sha256(retroContent) },
+        ...(replayReport ? { replayReport } : {}),
         ...weeklyTemplates,
       },
       directDestinations: structuredClone(runtime.directDestinations),
       directAssignments,
       ...(runtime.workItem ? { workItem: structuredClone(runtime.workItem) } : {}),
+      ...(runtime.replay ? { replay: {
+        messageProjection: runtime.replay.messageProjection,
+        ...(testPublication ? { testPublication } : {}),
+      } } : {}),
       modelTask: policy.model_task_profile ?? "sprint.coordination",
     };
   }).sort((left, right) => left.definitionId.localeCompare(right.definitionId));

@@ -153,6 +153,11 @@ function assertEvent(event: SprintEvent, state: SprintState, policy: SprintDomai
     }
   } else if (event.type === "submission.received") {
     text(event.submission_id, "Sprint submission id", 255);
+    if (event.source_record) {
+      text(event.source_record.projection_id, "Sprint submission source projection id", 127);
+      text(event.source_record.record_id, "Sprint submission source record id", 255);
+      text(event.source_record.source_version_id, "Sprint submission source version id", 255);
+    }
     if (!state.period_end) throw new Error("Sprint submission requires an exact Sprint period end");
     const reportAt = sprintCloseSchedule({ policy, periodEnd: state.period_end, calendar }).report_at;
     if (event.occurred_at > reportAt && policy.submission.after_report === "reject") throw new Error("Sprint submission was sent after the reviewed report cutoff");

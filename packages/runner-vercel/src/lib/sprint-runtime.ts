@@ -12,6 +12,8 @@ import {
 import { createPostgresDurableTimerStore } from "../../../state-postgres/durable-timer-store.ts";
 import { createPostgresSprintOrchestrationStore } from "../../../state-postgres/sprint-orchestration-store.ts";
 import { normalizeSprintSnapshot } from "../../../runtime/sprint-snapshot.ts";
+import { SprintReplayService } from "../../../runtime/sprint-replay.ts";
+import { assertSprintReplayPublicationDigest, publishSprintReplayReport } from "../../../runtime/sprint-replay-publication.ts";
 import { loadArtifact } from "./artifact.ts";
 import { getCompanyOSRuntime } from "./bot.ts";
 
@@ -122,6 +124,25 @@ export function authorizeSprintScheduler(request: Request, environment: NodeJS.P
 export type SprintOperatorRequest =
   | { action: "inspect"; definitionId?: string }
   | {
+    action: "replay";
+    definitionId?: string;
+    replayId: string;
+    sprintId: string;
+    periodStart: string;
+    periodEnd: string;
+    excludedParticipantIds: string[];
+  }
+  | {
+    action: "publish-replay";
+    definitionId?: string;
+    replayId: string;
+    sprintId: string;
+    periodStart: string;
+    periodEnd: string;
+    excludedParticipantIds: string[];
+    expectedOutputDigest: string;
+  }
+  | {
     action: "open";
     definitionId?: string;
     sprintId: string;
@@ -157,7 +178,32 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
         : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
     };
   }
-  throw new Error("Sprint operator action must be inspect or open");
+  if (value.action === "replay" || value.action === "publish-replay") {
+    exactKeys(value, ["action", "definition_id", "replay_id", "sprint_id", "period_start", "period_end", "excluded_participant_ids", "expected_output_digest"], "Sprint replay request");
+    const expectedOutputDigest = value.action === "publish-replay"
+      ? text(value.expected_output_digest, "expected_output_digest", 64)
+      : undefined;
+    if (expectedOutputDigest && !/^[a-f0-9]{64}$/.test(expectedOutputDigest)) {
+      throw new Error("expected_output_digest must be one exact SHA-256 digest");
+    }
+    if (value.action === "replay" && value.expected_output_digest !== undefined) {
+      throw new Error("Sprint replay request cannot contain expected_output_digest");
+    }
+    const parsed = {
+      ...(value.definition_id === undefined ? {} : { definitionId: text(value.definition_id, "definition_id", 63) }),
+      replayId: text(value.replay_id, "replay_id", 127),
+      sprintId: text(value.sprint_id, "sprint_id"),
+      periodStart: exactDate(value.period_start, "period_start"),
+      periodEnd: exactDate(value.period_end, "period_end"),
+      excludedParticipantIds: value.excluded_participant_ids === undefined
+        ? []
+        : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
+    };
+    return value.action === "publish-replay"
+      ? { action: "publish-replay", ...parsed, expectedOutputDigest: expectedOutputDigest! }
+      : { action: "replay", ...parsed };
+  }
+  throw new Error("Sprint operator action must be inspect, open, replay, or publish-replay");
 }
 
 function toolResult(value: unknown, projectionId: string): RecordQueryResult {
@@ -256,11 +302,95 @@ export async function resolveSprintSnapshot(compiled: CompiledSprintRuntime, now
   });
 }
 
+async function executeHistoricalSprintReplay(args: {
+  hosted: HostedSprintRuntime;
+  input: Extract<SprintOperatorRequest, { action: "replay" | "publish-replay" }>;
+  now: string;
+}) {
+    const { hosted, input, now } = args;
+    if (!hosted.compiled.replay) throw new Error(`Compiled Sprint runtime '${hosted.compiled.definitionId}' has no historical replay binding`);
+    const snapshot = await resolveSprintSnapshot(hosted.compiled, now);
+    const artifact = loadArtifact();
+    const runId = `sprint-replay-input:${hosted.compiled.definitionId}:${sha256([input.replayId, now]).slice(0, 24)}`;
+    const messages = await stabilizeSprintProjection(hosted.compiled.replay.messageProjection, (pass) => readProjection({
+      compiled: hosted.compiled,
+      projectionId: hosted.compiled.replay!.messageProjection,
+      runId,
+      now,
+      pass,
+    }));
+    const principalByProviderAuthor: Record<string, string> = {};
+    for (const member of artifact.roster) {
+      for (const principal of member.principals ?? []) {
+        const match = /^slack:([^:]+):([^:]+)$/.exec(principal);
+        if (!match) continue;
+        const key = `${match[1]}:${match[2]}`;
+        if (principalByProviderAuthor[key] && principalByProviderAuthor[key] !== principal) {
+          throw new Error(`Slack provider author '${key}' resolves to more than one canonical principal`);
+        }
+        principalByProviderAuthor[key] = principal;
+      }
+    }
+    const excluded = new Set(input.excludedParticipantIds);
+    const replaySnapshot: SprintSnapshot = {
+      ...snapshot,
+      participants: snapshot.participants.map((participant) => ({
+        ...participant,
+        approved_absence: participant.approved_absence || excluded.has(participant.participant_id),
+      })),
+    };
+    const unknownExcluded = [...excluded].find((participantId) => !snapshot.participants.some((participant) => participant.participant_id === participantId));
+    if (unknownExcluded) throw new Error(`Excluded Sprint participant '${unknownExcluded}' is not present in the reviewed snapshot`);
+    const timers = new DurableTimerService({ store: createPostgresDurableTimerStore(), instanceId: artifact.instance.id });
+    const report = await new SprintReplayService({ instanceId: artifact.instance.id, store: hosted.store, timers }).run({
+      replayId: input.replayId,
+      sprintId: input.sprintId,
+      periodStart: input.periodStart,
+      periodEnd: input.periodEnd,
+      messageProjectionId: hosted.compiled.replay.messageProjection,
+      messages: messages.rows,
+      principalByProviderAuthor,
+      snapshot: replaySnapshot,
+      policy: hosted.compiled.policy,
+      calendar: hosted.compiled.calendar,
+      output: {
+        mode: "proof-only",
+        communication_binding: `proof-only-${hosted.compiled.definitionId}`,
+        test_only: true,
+        forbidden_bindings: [
+          hosted.compiled.policy.delivery.channel_binding,
+          ...Object.values(hosted.compiled.directDestinations),
+          ...(hosted.compiled.workItem ? [hosted.compiled.workItem.resourceBinding] : []),
+        ],
+      },
+    });
+    return {
+      report,
+      evidence: {
+        message_projection_version: messages.version,
+        message_projection_observed_at: messages.observedAt,
+        participant_source_version: snapshot.participantSourceVersion,
+        work_item_source_version: snapshot.workItemSourceVersion,
+      },
+    };
+}
+
 export async function executeSprintOperator(input: SprintOperatorRequest, now = new Date().toISOString()) {
   exactIso(now, "Sprint operator server time");
   if (input.action === "open" && input.openedAt > now) throw new Error("Sprint opened_at must not be in the future");
   const hosted = createHostedSprintRuntime(input.definitionId);
   if (input.action === "inspect") return { ok: true, runtime: await hosted.inspect() };
+  if (input.action === "replay" || input.action === "publish-replay") {
+    const result = await executeHistoricalSprintReplay({ hosted, input, now });
+    if (input.action === "replay") return { ok: true, ...result };
+    assertSprintReplayPublicationDigest(result.report, input.expectedOutputDigest);
+    const publication = await publishSprintReplayReport({
+      compiled: hosted.compiled,
+      report: result.report,
+      runtime: getCompanyOSRuntime(),
+    });
+    return { ok: true, ...result, publication };
+  }
   const snapshot = await resolveSprintSnapshot(hosted.compiled, now);
   const result = await hosted.open({
     sprintId: input.sprintId,

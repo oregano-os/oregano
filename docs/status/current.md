@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-05
 owners:
   - oregano-maintainers
 audience:
@@ -28,6 +28,17 @@ evidence, historical prototypes, and production gaps.
   isolated `companyos_records` schema also contains durable timers, Connector
   echo receipts, and digest-only callback replay claims. No real Company
   Instance database has been migrated by this Core change.
+- The generic Record Source registry now also has a maintained read-only Slack
+  adapter for explicitly allowlisted public or private conversations. It
+  verifies one exact team, channel, membership, kind, and required read scopes;
+  reads bounded complete history plus thread replies; normalizes provider
+  messages to `communication-message`; retains immutable raw versions; and
+  fails closed on limited history, incomplete unbounded threads, pagination
+  bounds, qualification drift, or rate limiting. A historical upper bound does
+  not treat later live replies as missing. Protected Preview qualification reads
+  only bot identity and selected-channel metadata and returns a content-free
+  receipt without retaining the token. No real Slack history read, database
+  write, schedule, or production activation is claimed by this Core change.
 - Projection writes and removals now compare the expected immutable object
   version and mutate the projection atomically in the StateStore. A concurrent
   webhook, synchronization, or reconciliation pass therefore cannot let an
@@ -153,6 +164,20 @@ evidence, historical prototypes, and production gaps.
   qualification with exact test bindings, and each Company must then complete
   Shadow, Pilot, and Team-rhythm gates over the periods declared by its rollout
   policy before production completion may be claimed.
+- The hosted Sprint operator can now run a proof-only historical replay when
+  an Instance compiles one exact `communication-message` projection. The
+  Sprint Domain recognizes template-shaped Friday submissions, resolves the
+  author only through a tenant-scoped roster principal, links exact card URLs
+  only to already authorized work-item records, and stores source-version
+  lineage on durable Sprint events. The replay uses an isolated definition and
+  controlled clock, reports current-snapshot limitations, and refuses every
+  compiled live Slack and work-item binding. A separately authenticated,
+  digest-bound `publish-replay` action can render one Workspace-owned report
+  and deliver it through an exact test Slack channel plus an exact test-board
+  report item. Workbench rejects a conversational publisher Agent and rejects
+  any logical or physical test/live target equality. Both effects use the
+  ordinary CompanyOS Capability, idempotency, receipt, and System-of-Proof
+  boundaries; a changed digest fails before the first provider effect.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts

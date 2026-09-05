@@ -90,6 +90,60 @@ connectors:
   assert.throws(() => loadInstanceBuildConfiguration(path), /duplicate Connector instance/);
 }));
 
+test("Instance build declarations parse a bounded Sprint replay projection binding", () => withFile(`
+version: 1
+instance_id: fixture-test
+environment: test
+bindings: []
+sprint_runtimes:
+  - definition: weekly-delivery
+    agent: sprint
+    execution: shadow-only
+    service_principal: companyos:fixture:sprint
+    participant_identity_prefix: "monday:A1:"
+    direct_destinations: {}
+    replay:
+      message_projection: sprint-messages
+`, (path) => {
+  const configuration = loadInstanceBuildConfiguration(path);
+  assert.deepEqual(configuration.sprintRuntimes?.[0]?.replay, { messageProjection: "sprint-messages" });
+}));
+
+test("Instance build declarations parse exact test-only Sprint Replay publication bindings", () => withFile(`
+version: 1
+instance_id: fixture-test
+environment: test
+bindings: []
+sprint_runtimes:
+  - definition: weekly-delivery
+    agent: sprint
+    execution: shadow-only
+    service_principal: companyos:fixture:sprint
+    participant_identity_prefix: "monday:A1:"
+    direct_destinations: {}
+    replay:
+      message_projection: sprint-messages
+      test_publication:
+        test_only: true
+        publisher_agent: sprint-replay-publisher
+        communication_binding: sprint-replay-test-channel
+        work_item_binding: sprint-replay-test-board
+        work_item_id: "987654321"
+        forbidden_channel_ids: [C11111]
+        forbidden_board_ids: ["123456789"]
+`, (path) => {
+  const publication = loadInstanceBuildConfiguration(path).sprintRuntimes?.[0]?.replay?.testPublication;
+  assert.deepEqual(publication, {
+    testOnly: true,
+    publisherAgentId: "sprint-replay-publisher",
+    communicationBinding: "sprint-replay-test-channel",
+    workItemBinding: "sprint-replay-test-board",
+    workItemId: "987654321",
+    forbiddenChannelIds: ["C11111"],
+    forbiddenBoardIds: ["123456789"],
+  });
+}));
+
 test("Instance build declarations keep Agent, execution, coding, and repository bindings separate", () => withFile(`
 version: 1
 instance_id: fixture-production

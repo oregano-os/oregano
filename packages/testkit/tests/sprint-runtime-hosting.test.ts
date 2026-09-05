@@ -657,6 +657,7 @@ triggers:
 `,
       "records/projections/participants.yaml": "schema_version: 1\nid: participants\nfields:\n  - { name: person_ids, path: person_ids }\n  - { name: role, path: role }\n",
       "records/projections/sprint-items.yaml": "schema_version: 1\nid: sprint-items\nfields:\n  - { name: work_item_id, path: work_item_id }\n  - { name: title, path: title }\n  - { name: assignee_ids, path: assignee_ids }\n  - { name: group, path: group }\n  - { name: status, path: status }\n  - { name: provider_version, path: provider_version }\n",
+      "records/projections/sprint-messages.yaml": "schema_version: 1\nid: sprint-messages\nrecord_type: communication-message\nfields:\n  - { name: message_id, path: message_id }\n  - { name: team_id, path: team_id }\n  - { name: author_id, path: author_id }\n  - { name: thread_id, path: thread_id }\n  - { name: text, path: text }\n  - { name: occurred_at, path: occurred_at }\n",
       "workflows/sprint/reminder.md": "---\ntype: concept\ndescription: Runtime reminder.\n---\nPost in this thread for {{sprint_id}}",
       "workflows/sprint/chase.md": "Missing: {{missing_names}}",
       "workflows/sprint/close.md": "Missing: {{missing_names}}",
@@ -679,12 +680,13 @@ triggers:
         { id: "direct-alex", account_id: "T1", kind: "direct-message", user_id: "U1" },
       ] },
     }],
-    sprintRuntimes: [{ definitionId: "weekly-delivery", agentId: "sprint", execution: "active-capable", servicePrincipal: "companyos:fixture:sprint", participantIdentityPrefix: "monday:A1:", directDestinations: { "slack:T1:U1": "direct-alex" } }],
+    sprintRuntimes: [{ definitionId: "weekly-delivery", agentId: "sprint", execution: "active-capable", servicePrincipal: "companyos:fixture:sprint", participantIdentityPrefix: "monday:A1:", directDestinations: { "slack:T1:U1": "direct-alex" }, replay: { messageProjection: "sprint-messages" } }],
   };
   const runtimes = compileSprintRuntimes({ workspace, instance, coreCommit: "core-commit", workspaceCommit: "workspace-commit", workbenchVersion: "0.1.0-experimental.15" });
   assert.equal(runtimes.length, 1);
   assert.equal(runtimes[0].modelTask, "sprint.coordination");
   assert.equal(runtimes[0].execution, "active-capable");
+  assert.deepEqual(runtimes[0].replay, { messageProjection: "sprint-messages" });
   assert.equal(runtimes[0].schedule.provenance.instanceId, "fixture");
   assert.deepEqual(runtimes[0].schedule.triggers.map((trigger) => trigger.holidayShift), [
     "previous-business-day",
@@ -701,6 +703,9 @@ triggers:
   const unknownPlaceholder = structuredClone(workspace);
   unknownPlaceholder.allFiles["workflows/sprint/reminder.md"] = "Hi {{company_secret}}";
   assert.throws(() => compileSprintRuntimes({ workspace: unknownPlaceholder, instance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /unsupported placeholder/);
+  const invalidReplay = structuredClone(workspace);
+  invalidReplay.allFiles["records/projections/sprint-messages.yaml"] = invalidReplay.allFiles["records/projections/sprint-messages.yaml"]!.replace("  - { name: team_id, path: team_id }\n", "");
+  assert.throws(() => compileSprintRuntimes({ workspace: invalidReplay, instance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /canonical field 'team_id'/);
 
   const shadowWorkspace = structuredClone(workspace);
   shadowWorkspace.agents[1]!.grants = ["oregano:records/query"];
@@ -714,6 +719,72 @@ triggers:
   const shadowWithWorkItem = structuredClone(shadowInstance);
   shadowWithWorkItem.sprintRuntimes![0]!.workItem = { resourceBinding: "sprint-board", rolloverField: "sprint" };
   assert.throws(() => compileSprintRuntimes({ workspace: shadowWorkspace, instance: shadowWithWorkItem, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /cannot bind a work-item resource/);
+
+  const publicationWorkspace = structuredClone(workspace);
+  publicationWorkspace.agents.push({
+    id: "sprint-replay-publisher",
+    instructions: "Publish reviewed replay reports only.",
+    grants: ["oregano:communications/publish", "oregano:work-items/comment"],
+    scopeRead: [],
+    handoffs: [],
+    tools: [],
+  });
+  publicationWorkspace.allowedCapabilities.push("work-item.comment");
+  publicationWorkspace.allFiles["workflows/sprint/config.yaml"] = publicationWorkspace.allFiles["workflows/sprint/config.yaml"]!
+    .replace("retro: workflows/sprint/retro.md", "retro: workflows/sprint/retro.md, replay_report: workflows/sprint/replay.md");
+  publicationWorkspace.allFiles["workflows/sprint/replay.md"] = "Replay {{replay_id}} complete: {{complete_names}} digest {{output_digest}}";
+  const publicationInstance = structuredClone(instance);
+  publicationInstance.connectors![0]!.configuration.destinations = [
+    ...(publicationInstance.connectors![0]!.configuration.destinations as any[]),
+    { id: "sprint-test-channel", account_id: "T1", kind: "channel", channel_id: "CTEST" },
+  ];
+  publicationInstance.connectors!.push({
+    id: "monday",
+    connector: "oregano/monday-work-items",
+    connectorVersion: "0.1.0",
+    configuration: { resources: [{ id: "sprint-test-board", board_id: "200", permission: "read-write", fields: {} }] },
+  });
+  publicationInstance.sprintRuntimes![0]!.replay!.testPublication = {
+    testOnly: true,
+    publisherAgentId: "sprint-replay-publisher",
+    communicationBinding: "sprint-test-channel",
+    workItemBinding: "sprint-test-board",
+    workItemId: "201",
+    forbiddenChannelIds: ["C1"],
+    forbiddenBoardIds: ["100"],
+  };
+  const publicationRuntime = compileSprintRuntimes({ workspace: publicationWorkspace, instance: publicationInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" })[0]!;
+  assert.equal(publicationRuntime.replay?.testPublication?.publisherAgentId, "sprint-replay-publisher");
+  assert.equal(publicationRuntime.templates.replayReport?.path, "workflows/sprint/replay.md");
+
+  const routedPublisher = structuredClone(publicationInstance);
+  routedPublisher.agentBindings.push({ id: "publisher-chat", agentId: "sprint-replay-publisher", surface: "slack", accountId: "T1", channelId: "CTEST" });
+  assert.throws(() => compileSprintRuntimes({ workspace: publicationWorkspace, instance: routedPublisher, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /must not be reachable/);
+
+  const overprivilegedPublisher = structuredClone(publicationWorkspace);
+  overprivilegedPublisher.agents.find((candidate) => candidate.id === "sprint-replay-publisher")!.grants.push("oregano:records/query");
+  assert.throws(() => compileSprintRuntimes({ workspace: overprivilegedPublisher, instance: publicationInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /exactly the two test-publication Tool grants/);
+
+  const handoffPublisher = structuredClone(publicationWorkspace);
+  handoffPublisher.agents.find((candidate) => candidate.id === "sprint")!.handoffs.push({
+    id: "unsafe-publisher-handoff",
+    fromAgentId: "sprint",
+    toAgentId: "sprint-replay-publisher",
+    purpose: "unsafe",
+    surfaces: ["slack"],
+    eligibleRoles: ["contributor"],
+    eligibleGroups: [],
+    ttlSeconds: 60,
+  });
+  assert.throws(() => compileSprintRuntimes({ workspace: handoffPublisher, instance: publicationInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /must not be reachable through an Agent handoff/);
+
+  const protectedChannel = structuredClone(publicationInstance);
+  (protectedChannel.connectors![0]!.configuration.destinations as any[])[2]!.channel_id = "C1";
+  assert.throws(() => compileSprintRuntimes({ workspace: publicationWorkspace, instance: protectedChannel, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /protected Slack channel/);
+
+  const protectedBoard = structuredClone(publicationInstance);
+  (protectedBoard.connectors![1]!.configuration.resources as any[])[0]!.board_id = "100";
+  assert.throws(() => compileSprintRuntimes({ workspace: publicationWorkspace, instance: protectedBoard, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /protected Monday board/);
 });
 
 test("Sprint snapshots join provider subjects to stable roster ids without display-name matching", () => {
@@ -787,4 +858,48 @@ test("hosted Sprint operator and scheduler surfaces require separate exact secre
     excludedParticipantIds: ["blair"],
   });
   assert.throws(() => parseSprintOperatorRequest('{"action":"open","sprint_id":"x","period_start":"2030-01-28","period_end":"2030-02-01","opened_at":"2030-01-28T09:00:00.000Z","extra":true}'), /unsupported field/);
+  assert.deepEqual(parseSprintOperatorRequest(JSON.stringify({
+    action: "replay",
+    definition_id: "weekly-delivery",
+    replay_id: "historical-week-1",
+    sprint_id: "sprint-1",
+    period_start: "2030-01-28",
+    period_end: "2030-02-01",
+    excluded_participant_ids: ["blair"],
+  })), {
+    action: "replay",
+    definitionId: "weekly-delivery",
+    replayId: "historical-week-1",
+    sprintId: "sprint-1",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    excludedParticipantIds: ["blair"],
+  });
+  assert.deepEqual(parseSprintOperatorRequest(JSON.stringify({
+    action: "publish-replay",
+    definition_id: "weekly-delivery",
+    replay_id: "historical-week-1",
+    sprint_id: "sprint-1",
+    period_start: "2030-01-28",
+    period_end: "2030-02-01",
+    excluded_participant_ids: [],
+    expected_output_digest: "a".repeat(64),
+  })), {
+    action: "publish-replay",
+    definitionId: "weekly-delivery",
+    replayId: "historical-week-1",
+    sprintId: "sprint-1",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    excludedParticipantIds: [],
+    expectedOutputDigest: "a".repeat(64),
+  });
+  assert.throws(() => parseSprintOperatorRequest(JSON.stringify({
+    action: "publish-replay",
+    replay_id: "historical-week-1",
+    sprint_id: "sprint-1",
+    period_start: "2030-01-28",
+    period_end: "2030-02-01",
+    expected_output_digest: "not-a-digest",
+  })), /exact SHA-256 digest|expected_output_digest is invalid/);
 });

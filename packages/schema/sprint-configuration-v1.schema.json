@@ -103,6 +103,7 @@
         "chase": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "close_report": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "retro": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
+        "replay_report": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "monday_handoff": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "weekday_digest": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" },
         "direct_question": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}\\.md$" }
