@@ -125,29 +125,20 @@ test("canonical documentation passes metadata, relation, link, and generated-out
 
 test("the locked installer toolchain excludes the reviewed transitive advisory versions", () => {
   const workspaceConfig = YAML.parse(readFileSync(join(REPO, "pnpm-workspace.yaml"), "utf8"));
-  assert.deepEqual(workspaceConfig.overrides, {
-    "@vercel/backends@0.8.25>path-to-regexp": "8.4.0",
-    "@vercel/blob@2.4.0>undici": "6.28.0",
-    "@vercel/express@0.1.116>path-to-regexp": "8.4.0",
-    "@vercel/fun@1.3.0>@tootallnate/once": "2.0.1",
-    "@vercel/fun@1.3.0>path-to-regexp": "8.4.0",
-    "@vercel/fun@1.3.0>tar": "7.5.22",
-    "@vercel/hono@0.2.105>path-to-regexp": "8.4.0",
-    "@vercel/node@5.8.26>path-to-regexp": "6.3.0",
-    "@vercel/node@5.8.26>undici": "6.28.0",
-    "@vercel/python-analysis@0.11.1>js-yaml": "4.3.1",
-    "@vercel/python-analysis@0.11.1>minimatch": "10.2.6",
-    "@vercel/python-analysis@0.11.1>smol-toml": "1.6.1",
-    "@vercel/remix-builder@5.9.1>path-to-regexp": "6.3.0",
-    "@vercel/rust@1.4.0>smol-toml": "1.6.1",
-    "@vercel/static-config@3.4.0>ajv": "8.18.0",
-    "vercel@56.3.2>smol-toml": "1.6.1",
-    "vercel@56.3.2>undici": "6.28.0",
-  });
-  for (const parentSelector of Object.keys(workspaceConfig.overrides)) {
-    assert.match(parentSelector, /^(?:@vercel\/|vercel@)/, `${parentSelector} must be Vercel-scoped`);
-  }
   const lockfile = YAML.parse(readFileSync(join(REPO, "pnpm-lock.yaml"), "utf8"));
+  for (const [selector, version] of Object.entries(workspaceConfig.overrides)) {
+    const parts = selector.split(">");
+    assert.equal(parts.length, 2, `${selector} must target one exact parent dependency`);
+    const [parent, dependency] = parts;
+    assert.match(parent, /@\d+\.\d+\.\d+$/, `${selector} must pin its parent version`);
+    assert.match(version, /^\d+\.\d+\.\d+$/, `${selector} must select an exact patch`);
+    const snapshots = Object.entries(lockfile.snapshots).filter(([key]) => key === parent || key.startsWith(`${parent}(`));
+    assert.ok(snapshots.length, `${selector} must affect a resolved parent`);
+    for (const [, snapshot] of snapshots) {
+      const resolved = snapshot.dependencies?.[dependency];
+      assert.ok(resolved === version || resolved?.startsWith(`${version}(`), `${selector} must actually resolve the reviewed version`);
+    }
+  }
   const resolvedPackages = new Set([
     ...Object.keys(lockfile.packages ?? {}),
     ...Object.keys(lockfile.snapshots ?? {}),
@@ -155,6 +146,8 @@ test("the locked installer toolchain excludes the reviewed transitive advisory v
   for (const vulnerable of [
     "@tootallnate/once@2.0.0",
     "ajv@8.6.3",
+    "fast-uri@3.1.5",
+    "qs@6.15.3",
     "js-yaml@4.1.1",
     "minimatch@10.1.1",
     "path-to-regexp@6.1.0",
