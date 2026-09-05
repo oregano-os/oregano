@@ -169,8 +169,11 @@ evidence, historical prototypes, and production gaps.
   Sprint Domain recognizes template-shaped Friday submissions, resolves the
   author only through a tenant-scoped roster principal, links exact card URLs
   only to already authorized work-item records, and stores source-version
-  lineage on durable Sprint events. The replay uses an isolated definition and
-  controlled clock, reports current-snapshot limitations, and refuses every
+  lineage on durable Sprint events. The replay uses an isolated definition,
+  controlled clock, and deterministic replay-specific timer namespace, so an
+  exact retry is idempotent and independent replays of one historical period
+  cannot conflict in a shared Instance timer store. It reports
+  current-snapshot limitations and refuses every
   compiled live Slack and work-item binding. A separately authenticated,
   digest-bound `publish-replay` action can render one Workspace-owned report
   and deliver it through an exact test Slack channel plus an exact test-board

@@ -1,0 +1,104 @@
+version: 2
+plan_id: sprint-replay-timer-namespace-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Isolate durable timers for independent Sprint replays
+objective: >-
+  Give each immutable historical Sprint replay its own deterministic schedule
+  namespace so multiple replay definitions for the same Sprint period can use
+  one Company Instance timer store without conflicting, while exact retries
+  remain idempotent.
+non_goals:
+  - Change live Sprint timer identities, schedules, policy, templates, provider mappings, or effect authority.
+  - Change historical replay input, output, publication, or retention contracts.
+  - Deploy, promote, activate, or modify a Company Instance in this Core change.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-05-sprint-replay-timer-namespace.yaml
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - packages/runtime/sprint-replay.ts
+  - packages/testkit/tests/sprint-replay.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-user-authorized-production-rollout-and-in-scope-generic-blocker-remediation
+architecture_assessment:
+  responsibilities:
+    core:
+      - Derive a deterministic replay-specific schedule version and pass it through the existing Sprint orchestration timer boundary.
+    packages:
+      - No Package or Blueprint change.
+    workspace:
+      - Continue to own company Sprint policy, schedule, sources, projections, templates, and test destinations without a workaround.
+    instance:
+      - Continue to own the shared durable timer store and exact replay invocation evidence.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Historical replay does not perform conversational Agent selection.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Test publication authority and Tool resolution are unchanged.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Historical replay remains deterministic and invokes no model.
+    - mechanism: company-records
+      decision: reuse
+      reason: Replay state and timers remain in the existing Company Records persistence boundary.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Provider-author resolution and roster authorization are unchanged.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: The existing schedule-version namespace is applied to replay timers using a digest of the immutable replay identity and input.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Exact replay retries keep the same timer identities while independent replay definitions receive distinct identities.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: No Connector, Capability, grant, binding, or provider effect changes.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The correction applies to every Company Instance that runs multiple
+    historical Sprint replays against one durable timer store and contains no
+    company, provider, resource, identity, credential, or schedule value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-sprint-replay-timer-namespace.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-sprint-replay-timer-namespace.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Two independent replays of the same Sprint period can share one durable timer store without identity conflicts.
+  - Repeating either exact replay retains the same output digest and does not duplicate events, intents, or timers.
+  - Live hosted Sprint timer identity and schedule-version validation remain unchanged.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Keep historical replay disabled and revert this patch. Live Sprint timer
+  identities, schemas, provider data, Workspace declarations, grants, and
+  effects are unchanged.
+open_decisions: []

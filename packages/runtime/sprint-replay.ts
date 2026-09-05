@@ -175,6 +175,7 @@ export class SprintReplayService {
       output: input.output,
     });
     const definitionId = `replay-${sha256([input.replayId, inputDigest]).slice(0, 40)}`;
+    const replayScheduleVersion = sha256(["sprint-replay", input.replayId, inputDigest]);
     if (!identifier.test(definitionId)) throw new Error("Sprint Replay definition identity is invalid");
     const policy: SprintDomainDeclaration = {
       ...structuredClone(input.policy),
@@ -189,6 +190,7 @@ export class SprintReplayService {
       calendar: input.calendar,
       store: this.store,
       timers: this.timers,
+      scheduleVersion: replayScheduleVersion,
     });
     const openedAt = zonedLocalDateTimeToIso(input.periodStart, "00:00", policy.calendar.timezone);
     await service.openSprint({
@@ -200,6 +202,7 @@ export class SprintReplayService {
         period_start: input.periodStart,
         period_end: input.periodEnd,
       },
+      scheduleVersion: replayScheduleVersion,
     });
     const snapshotAt = new Date(Date.parse(openedAt) + 1).toISOString();
     await service.processEvent({
