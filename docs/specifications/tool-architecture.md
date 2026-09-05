@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-25
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -222,3 +222,20 @@ path without fuzzy widening; traversal follows only validated bundle links and
 enforces hard depth/node limits. The Knowledge Connector fails closed when the
 trusted subject is absent or inactive, and the Provider filters protected
 candidates before rank, hydration, traversal, citation, or model output.
+
+## 10. Workflow Tool authority
+
+A compiled workflow uses the same CompanyOSRuntime, Tool isolation, Capability
+registry and approval/effect store as any other Tool execution. Its additional
+[workflow guard](workflow-execution-v1-draft.md#implemented-runtime-guard)
+intersects the resolved ToolSet with a trusted current step and exact resolved
+inputs. A model cannot omit an assignment to recover reserved effect authority.
+Constructor-injected host context carries assignment and current authorization;
+Tool input carries business data only. The durable host adapter remains pending.
+
+The Runtime derives stable workflow effect identities independently of input
+hashes. Changed input cannot create a new send for the same run/step/item.
+Schema-invalid effect receipts retain an unknown outcome with partial provider
+evidence. Successful receipts remain completed even if a workflow-required
+output field or later audit append fails. Recovery reads the retained effect;
+it does not ask a Connector to implement the Runtime's deduplication guarantee.

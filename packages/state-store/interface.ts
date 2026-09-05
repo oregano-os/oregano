@@ -7,7 +7,7 @@
 export interface RunMeta {
   runId: string;
   workflow: string;
-  workflowVersion: string; // CORE git SHA (real, no placeholder)
+  workflowVersion: string; // Compiled workflow version, or exact Core SHA for a standalone Tool invocation.
   companyCommit?: string; // COMPANY repo git SHA (§10a provenance pair)
   companySnapshotHash: string;
   agentDefinitionHash: string;

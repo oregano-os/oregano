@@ -5,15 +5,15 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners: [oregano-maintainers]
 audience: [human, agent]
 ---
 
 # Workflow Execution v1
 
-This is the implementation target for the generic workflow engine. Authoring validation and Artifact compilation are implemented; the runtime
-guard, durable engine and hosted acceptance are pending.
+This is the implementation target for the generic workflow engine. Authoring validation, Artifact compilation and the Runtime Tool guard are implemented.
+Durable engine integration and hosted acceptance are pending.
 Existing prose workflows and legacy execution continue to operate until their
 replacement passes the migration gates. This document is not execution proof.
 
@@ -113,7 +113,8 @@ them before dependent steps can advance. For example, the generic
 message contract permits a receipt without `thread_reference`; a workflow
 that consumes it may advance only after the actual receipt supplies it.
 This does not upgrade the general Capability contract or invent a thread.
-The manifest records these obligations. Runtime enforcement is still pending.
+The Runtime enforces these obligations on scalar Tool receipts. The durable
+engine must validate aggregate foreach outputs before advancing.
 
 Control flow follows document order. Explicit targets may only name a later
 step or `end`; backward jumps, unreachable steps and references to a producer
@@ -175,7 +176,7 @@ R3/R4 steps must consume an explicitly bound decision payload. The manifest
 records its exact input path independently of the resource binding. Effects
 are identified by maintained Capability mode, including low-risk effects.
 The manifest reserves their Tool identities and gives waiting conversation
-steps an empty allowlist by default. Runtime enforcement follows separately.
+steps an empty allowlist by default. The Runtime guard enforces these limits.
 
 The full generated Friday manifest is checked against a reviewed fictional
 expectation under `compiler-expectations/`. Tests also cover changed sources,
@@ -196,8 +197,8 @@ expiry. Expired drafts never expose an older request as current. Historical
 requests without expiry remain retained but cannot authorize new effects.
 
 These store checks are covered by real Postgres tests, including rejection
-before any signature is consumed. They complement the pending workflow guard,
-role routing and request attribution; they do not replace them.
+before any signature is consumed. They complement the workflow guard and pending durable role routing; they do
+not replace authenticated human decision delivery.
 
 
 The generic R4 boundary now records the original requester on the exact
@@ -205,5 +206,45 @@ approval request and requires a different active human with a distinct stable
 roster ID at execution. Request evidence is durable in the existing Core event
 store, without a separate database schema. Workflow decisions must reuse this
 request path and carry the actual initiating human for R4; an Agent cannot
-substitute a human identifier in Tool input. The workflow guard and assignment
-integration remain pending.
+substitute a human identifier in Tool input. Durable workflow assignment integration remains pending.
+
+## Implemented Runtime guard
+
+Artifacts containing workflows require a constructor-injected trusted context
+reader. The host supplies a persisted dispatch lease or authenticated waiting
+conversation assignment; Tool arguments cannot select or replace this reader.
+Absent assignments cannot call reserved workflow effects. A running assignment
+must match the exact Artifact, manifest, run, Agent, step and subject. The guard
+checks allowed Tool, resolved contract digest/version, risk ceiling and the
+complete resolved input, including destination and resource bindings.
+
+References preserve JSON types and never reinterpret provider-returned strings
+as another reference. Message bodies use frozen templates and scalar variables.
+Instance `workflow_bindings.direct_recipients` entries map `binding`, `member_id`
+and `destination_binding`; mappings are included in Artifact identity. Missing,
+ambiguous or currently inactive human recipients fail. Every foreach item key,
+input and destination is checked before even the first item can dispatch.
+Provider qualification must still prove each physical destination belongs to
+that member before activation; the mapping alone is not provider proof.
+
+Effect identity binds Instance, workflow, run, step and typed item key. Input
+is a separately compared canonical JSON digest: changing content conflicts
+with the existing claim instead of creating another send. Records distinguish
+string and numeric item keys, and object key ordering cannot change identity.
+Runtime events and receipts include workflow version, manifest and Artifact
+hashes, Workspace commit and exact run/step/item provenance.
+
+New R3/R4 dispatch checks recorded human decisions, the exact bound payload,
+finite deadline and current human role/permissions. Model-supplied approvers
+cannot replace these decisions. R3/R4 foreach is rejected: v1 requires one
+bound approval and one complete batch effect. Already completed effects recover
+their receipt before an expired approval can cause another execution attempt.
+A refused dispatch claim never invokes a provider. Invalid effect receipts are
+unknown outcomes with partial evidence; they cannot be retried automatically.
+A successful send missing a downstream-required field stays successful while
+the workflow stops. An audit append failure cannot overwrite a completed effect.
+
+Tests exercise the compiled fictional Workspace through the actual Runtime,
+sandbox and effect store with a Connector that has no deduplication of its own.
+They prove the Tool boundary, not durable scheduling, authenticated transport
+assignment or real human approval. Those remain subsequent integration gates.

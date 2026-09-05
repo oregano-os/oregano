@@ -1,3 +1,4 @@
+import { CapabilityEffectOutcomeUnknownError } from "../capabilities/contracts.ts";
 import type {
   CapabilityBinding,
   CapabilityCallContext,
@@ -42,7 +43,11 @@ export class ConnectorRegistry {
     if (!connector.capabilities.includes(capability)) throw new Error(`Connector '${connector.id}' does not implement '${capability}'.`);
     const result = await connector.invoke(capability, input, context);
     const outputErrors = validateJsonSchemaValue(contract.outputSchema, result.output);
-    if (outputErrors.length > 0) throw new Error(`Connector '${connector.id}' returned invalid '${capability}' output: ${outputErrors.join("; ")}`);
+    if (outputErrors.length > 0) {
+      const message = `Connector '${connector.id}' returned invalid '${capability}' output: ${outputErrors.join("; ")}`;
+      if (contract.mode === "effect") throw new CapabilityEffectOutcomeUnknownError(message, { output: result.output, provider_evidence: result.evidence });
+      throw new Error(message);
+    }
     return {
       output: result.output,
       evidence: {

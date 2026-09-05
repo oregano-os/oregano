@@ -383,6 +383,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       const itemSchema = s.for_each ? (() => { const over = resolveReference(String(s.for_each.over ?? ""), s.id); return over?.items ? deref(over, over.items) : (err(f, `${s.id}: for_each.over must reference an array output`), undefined); })() : undefined;
       if (s.for_each && itemSchema && s.for_each.key && !schemaAt(itemSchema, itemSchema, [s.for_each.key])) err(f, `${s.id}: for_each.key '${s.for_each.key}' is not a field of the item`);
 
+      if (s.for_each && schemas && Number(schemas.risk.slice(1)) >= 3) err(f, `${s.id}: approval-bound effects require one batch, not for_each`);
       if (schemas && !grants.has(s.tool)) err(f, `${s.id}: Tool is not granted to the owning Agent`);
       // risk vs marker
       validateStepOptions(s, outputOf, f, err, s.tool === "route" ? resolveReference(String(s.on), s.id) : undefined);

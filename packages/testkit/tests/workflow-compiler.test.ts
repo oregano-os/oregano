@@ -149,3 +149,13 @@ test("full Artifact pins Company Tool source and exact Instance bindings", () =>
     assert.notEqual(build(root, configuration).artifactHash, build(root).artifactHash);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+
+test("one approval cannot be reused across R3 foreach item effects", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  editWorkflow(files, (data) => {
+    const effect = data.steps.find((step: any) => step["apply-rollover"]);
+    effect.for_each = { over: "$steps.prepare-rollover.updates", key: "work_item_id" };
+  });
+  assert.throws(() => compile(files), /R3|R4|approval|batch/);
+});

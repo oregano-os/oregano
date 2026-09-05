@@ -23,6 +23,8 @@ export async function executeApprovedAction(args: {
   /** Backward-compatible Slack surface input; new callers pass principal. */
   clicker?: { teamId: string; userId: string };
   inputHash: string;
+  /** Trusted caller may provide the stable workflow run/step/item identity. */
+  idempotencyKey?: string;
   eventName: string; // e.g. 'lp.published'
   payload?: unknown;
   /** Runs exactly once after the atomic claim; returns the evidence. */
@@ -113,7 +115,7 @@ export async function executeApprovedAction(args: {
     payload: { action, level, approval_id: approvalId, request_id: request.requestId, input_hash: inputHash },
   });
 
-  const idempotencyKey = `${action}:${runId}:${inputHash}`;
+  const idempotencyKey = args.idempotencyKey ?? `${action}:${runId}:${inputHash}`;
   const claimed = await store.consumeApprovalAndClaimEffect({
     approvalId, idempotencyKey, runId, stepId, inputHash,
   });
@@ -133,15 +135,10 @@ export async function executeApprovedAction(args: {
     return { ok: false, duplicate: true, reason: "This action was already executed (idempotency key held)." };
   }
 
-  await store.markEffectDispatched(idempotencyKey);
+  if (!await store.markEffectDispatched(idempotencyKey)) throw new Error("Effect dispatch claim is no longer eligible.");
+  let evidence: unknown;
   try {
-    const evidence = await effect({ approvalId, idempotencyKey, principal: auth.principal });
-    await store.completeEffect(idempotencyKey, evidence);
-    await store.appendEvent({
-      runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
-      event: eventName, status: "succeeded", idempotencyKey, evidence, payload,
-    });
-    return { ok: true, evidence, approvedBy: `${auth.member!.name} (${auth.member!.role})` };
+    evidence = await effect({ approvalId, idempotencyKey, principal: auth.principal });
   } catch (error) {
     const unknown = error instanceof CapabilityEffectOutcomeUnknownError;
     const evidence = unknown
@@ -157,4 +154,11 @@ export async function executeApprovedAction(args: {
     });
     throw error;
   }
+  await store.completeEffect(idempotencyKey, evidence);
+  await store.appendEvent({
+    runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+    event: eventName, status: "succeeded", idempotencyKey, evidence, payload,
+  });
+  return { ok: true, evidence, approvedBy: `${auth.member!.name} (${auth.member!.role})` };
+
 }
