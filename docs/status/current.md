@@ -20,6 +20,16 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Exact parent-scoped overrides pin transitive `fast-uri` to `3.1.6`, correcting the vulnerable
+  `3.1.5` URI normalization used through AJV. This addresses the published
+  [malformed IPv6](https://github.com/advisories/GHSA-f65p-4m7j-42xc) and
+  [encoded scheme](https://github.com/advisories/GHSA-jqff-g426-hqxp) advisories
+  and the related hostname-normalization alerts. The Builder SDK HTTP
+  dependencies also use `qs 6.16.0` for the audit-reported denial-of-service
+  corrections. Lockfile tests verify actual parent resolutions and absence of
+  reviewed vulnerable versions; schema and runtime regression suites remain
+  the compatibility gate. No exploit is claimed.
+
 - [Typed Record normalization](../specifications/company-record-normalization-v1.md)
   checks declared scalar, array and nested values and executes bounded
   Workspace-declared sectioned-text parsing on the maintained ingestion path.
