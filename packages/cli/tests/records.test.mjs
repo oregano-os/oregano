@@ -190,7 +190,7 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
       },
     };
     const connectorRegistry = new RecordSourceConnectorRegistry([connector]);
-    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.12", workbench_version: "0.1.0-experimental.15", clean: true };
+    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.13", workbench_version: "0.1.0-experimental.15", clean: true };
     const syncPlan = planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "sync", coreIdentity, connectorRegistry });
     assert.deepEqual(syncPlan.diagnostics, []);
     assert.doesNotMatch(JSON.stringify(syncPlan.plan), /fixture-provider-value|DATABASE_URL=/);

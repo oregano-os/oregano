@@ -685,12 +685,12 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.12` as the prepared `0.5.x` patch
-  candidate that canonically compares PostgreSQL JSONB durable-timer payloads,
-  so exact hosted Sprint replay retries do not fail on database key-order
-  normalization while changed values remain blocked. `v0.5.11` is the latest
-  published release; `v0.5.12` becomes authority only after its exact immutable
-  tag and protected release commit pass the release workflow. The
+- Oregano Core source is versioned `0.5.13` as the prepared `0.5.x` patch
+  candidate that adds an isolated Sprint scenario runner and digest-bound
+  publication of the compiled Monday hand-off to an exact Slack test binding.
+  `v0.5.12` is the latest published release; `v0.5.13` becomes authority only
+  after its exact immutable tag and protected release commit pass the release
+  workflow. The
   current release line covers the experimental Sprint and Company Records
   lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
@@ -698,8 +698,9 @@ evidence, historical prototypes, and production gaps.
   production records operator and scheduler runtime, including reuse of an
   existing app-scoped Slack Vercel Connect installation for a governed Slack
   Record Source, plus isolated durable timer identities for independent
-  historical Sprint replays.
-  Existing consumers may remain on `v0.5.11` until they adopt the new exact Core
+  historical Sprint replays, plus proof-only full-week Sprint simulation using
+  the compiled Agent, templates, schedules, records, and durable evidence.
+  Existing consumers may remain on `v0.5.12` until they adopt the new exact Core
   authority, and publishing the Core does not activate a Company Workspace or
   Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,

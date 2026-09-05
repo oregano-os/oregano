@@ -1,0 +1,114 @@
+version: 2
+plan_id: release-v0.5.13-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Prepare Oregano v0.5.13 governed Sprint scenario patch
+objective: >-
+  Prepare one exact stable Oregano Core patch release containing the reviewed
+  company-neutral Sprint scenario runner and digest-bound Slack test
+  publication path, without activating or changing any Company Instance.
+non_goals:
+  - Deploy, promote, migrate, synchronize, replay, or activate a Company Instance.
+  - Publish any Slack message or change any Monday item as part of the Core release.
+  - Add company people, resources, credentials, dates, channels, boards, or retention choices to Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-05-release-v0.5.13.yaml
+  - docs/status/current.md
+  - package.json
+  - packages/cli/tests/**
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-user-authorization-to-land-release-deploy-and-run-the-first-monday-handoff-test
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the reusable proof-only Sprint scenario runner, digest gate, and operator publication mechanism.
+    packages:
+      - Preserve generic Sprint Blueprint contracts without Company values.
+    workspace:
+      - Supply Agent instructions, Skill material, message templates, policy, and logical bindings.
+    instance:
+      - Bind exact Company records, Slack destinations, secrets, execution mode, and activation separately.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The compiled Sprint Agent is selected from the immutable Instance artifact.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Publication executes only the compiled communications grant through the existing runtime.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Scenario execution and message rendering are deterministic and invoke no model.
+    - mechanism: company-records
+      decision: reuse
+      reason: Participants, work items, events, intents, timers, and receipts use existing records boundaries.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The operator endpoint retains its existing secret-based authorization boundary.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: The scenario runner drives the same durable timer and business-time contracts as production.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Exact report and content digests bind review to one idempotent test publication.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The actual Slack Connector executes only the compiled test destination binding.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every Company Instance can use the same scenario and publication mechanism
+    while keeping its Agent, Skill, schedule, records, channels, and policies in
+    its own Workspace and Instance configuration.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.12
+  target_version: 0.5.13
+  rationale: >-
+    The release adds backward-compatible optional runtime and Instance fields.
+    Existing Workspaces compile unchanged, no database migration is required,
+    and the Workbench remains 0.1.0-experimental.15.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-release-v0.5.13.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-release-v0.5.13.yaml
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas --format json
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core reports 0.5.13 while Workbench remains 0.1.0-experimental.15.
+  - Existing Workspaces, databases, hosted Sprint runtimes, and records remain compatible.
+  - Test publication remains bound to Shadow mode, a reviewed output digest, and an exact non-live channel.
+  - Release assets remain impossible until the protected commit is merged and tagged v0.5.13.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Existing v0.5.12 Workspaces and databases require no migration merely because
+  this release exists. Adoption requires an exact Workspace compatibility pin
+  and separately controlled Instance deployment.
+rollback: >-
+  Before publication, close or revert the candidate and remain on exact
+  v0.5.12. After publication, consumers may remain on v0.5.12; disable the
+  scenario test-publication binding before an Instance rollback while retaining
+  immutable evidence.
+open_decisions: []
