@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-04
+updated: 2026-09-05
 owners:
   - oregano-maintainers
 audience:
@@ -33,6 +33,15 @@ structured objects such as work items, roles, people assignments, statuses,
 dates, effort, and governed conversation messages. Company Knowledge ingests documents and evidence for cited
 retrieval and review. Neither database projection becomes Handbook authority,
 provider authority, or an authorization roster.
+
+For typed arrays and reviewed message forms, follow the
+[Record normalization contract](../../specifications/company-record-normalization-v1.md).
+Declare literal parser structure in the source, map its actual `parsed.*`
+outputs, and keep authenticated sender and provider time in separate fields.
+A message template path alone does not define an executable parser. Preserve
+malformed answers for workflow evaluation; do not silently discard extra links
+or infer identity from a name inside the answer. Provider qualification,
+source synchronization and activation still follow the lifecycle below.
 
 The lifecycle is always:
 

@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- [Typed Record normalization](../specifications/company-record-normalization-v1.md)
+  checks declared scalar, array and nested values and executes bounded
+  Workspace-declared sectioned-text parsing on the maintained ingestion path.
+  Malformed answers and extra references remain evidence. Parser output cannot
+  replace provider identity or time, and invalid input does not consume an
+  event identity. Cross-provider roster mapping, qualified provider cutoff
+  coverage and full workflow execution remain pending integrations.
+
 - The [Records workflow query contract](../specifications/company-records-query-v1.md)
   adds declared generic filters, bounded immutable reads, typed standard Tool
   outputs and explicit complete-source evidence. Required Postgres tests cover

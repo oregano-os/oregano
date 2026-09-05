@@ -1,0 +1,10 @@
+DELIVERY UPDATE — Example Contributor
+
+CURRENT WORK
+Done — Prepare design — <https://boards.example.test/boards/101/items/201|Design card>
+Obstacle: None
+
+PLANNED WORK
+Goal: Deliver the reviewed prototype
+Outcome: Two approved screens
+- Review prototype — https://boards.example.test/boards/101/items/301

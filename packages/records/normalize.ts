@@ -1,15 +1,8 @@
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordSourceDeclaration, RecordObjectVersion } from "./contracts.ts";
 import { recordDigest, recordVersionId } from "./identity.ts";
-
-const readPath = (value: Record<string, JsonValue>, path: string): JsonValue | undefined => {
-  let current: JsonValue | undefined = value;
-  for (const segment of path.split(".")) {
-    if (current === null || Array.isArray(current) || typeof current !== "object") return undefined;
-    current = current[segment];
-  }
-  return current;
-};
+import { readRecordPath, validateRecordFieldValue, validateRecordSource } from "./source-validation.ts";
+import { parseRecordText } from "./text-parser.ts";
 
 export function normalizeRecordObject(args: {
   instanceId: string;
@@ -20,16 +13,20 @@ export function normalizeRecordObject(args: {
   receipt?: Record<string, JsonValue>;
 }): RecordObjectVersion {
   const { instanceId, source, raw, observedAt } = args;
-  const objectId = readPath(raw, source.identity.source_field);
+  validateRecordSource(source);
+  const objectId = readRecordPath(raw, source.identity.source_field);
   if (typeof objectId !== "string" && typeof objectId !== "number") throw new Error(`Record source '${source.id}' did not yield a scalar object identity`);
+  if (objectId === "" || (typeof objectId === "number" && !Number.isFinite(objectId))) throw new Error(`Record source '${source.id}' yielded an invalid object identity`);
+  const input = source.parser ? { ...raw, parsed: parseRecordText(source.parser, readRecordPath(raw, source.parser.source)) } : raw;
   const values: Record<string, JsonValue> = {};
   for (const field of source.fields) {
-    const value = readPath(raw, field.source);
+    const value = readRecordPath(input, field.source);
     if (value === undefined || value === null) {
       if (field.required) throw new Error(`Record source '${source.id}' is missing required field '${field.target}'`);
       continue;
     }
-    values[field.target] = value;
+    validateRecordFieldValue(field, value);
+    values[field.target] = structuredClone(value);
   }
   const digest = recordDigest({ deleted: args.deleted ?? false, values });
   return {

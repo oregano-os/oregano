@@ -5,6 +5,7 @@ import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { diagnostic } from "./diagnostics.mjs";
 import { relativePath, walkFiles } from "./files.mjs";
 import { validateRecordFilters } from "../../records/query.ts";
+import { validateRecordSource } from "../../records/source-validation.ts";
 
 const schema = (name) => JSON.parse(readFileSync(new URL(`../../schema/${name}`, import.meta.url), "utf8"));
 
@@ -81,6 +82,11 @@ export function inspectStructuredDeclarations(root) {
   }
 
   for (const source of sources) {
+    try {
+      validateRecordSource(source.value);
+    } catch (error) {
+      diagnostics.push(diagnostic("WS062", "error", `Invalid Record source normalization: ${error.message}`, { file: source.path }));
+    }
     for (const referenced of [source.value.connection, source.value.reconcile_schedule].filter(Boolean)) {
       if (!existsSync(join(root, referenced))) diagnostics.push(diagnostic("WS046", "error", `Record source references missing Workspace file '${referenced}'.`, { file: source.path }));
     }

@@ -656,7 +656,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-04",
+    "updated": "2026-09-05",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -1035,6 +1035,27 @@
         "specification.companyos-core-v0.7",
         "specification.tool-architecture",
         "architecture.boundaries"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.company-record-normalization-v1",
+    "title": "Company Record Normalization v1",
+    "path": "docs/specifications/company-record-normalization-v1.md",
+    "kind": "specification",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-05",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.company-records-sprint-v0.1"
+      ],
+      "related": [
+        "specification.company-records-query-v1",
+        "guide.connect-company-record-source"
       ]
     }
   },

@@ -1,13 +1,35 @@
-import type { JsonValue } from "../capabilities/contracts.ts";
+import type { JsonSchema, JsonValue } from "../capabilities/contracts.ts";
 
 export type RecordDeliveryMode = "poll" | "webhook" | "hybrid";
-export type RecordValueType = "string" | "number" | "boolean" | "timestamp" | "status" | "identity" | "url" | "json";
+export type RecordValueType = "string" | "number" | "boolean" | "timestamp" | "status" | "identity" | "url" | "json" | "string_list" | "identity_list" | "json_list";
 
 export interface RecordFieldMapping {
   target: string;
   source: string;
   value_type: RecordValueType;
   required?: boolean;
+  /** Required for json_list; other list types already have a fixed item type. */
+  item_schema?: JsonSchema;
+}
+
+/** Literal form structure. Text never supplies identity, time or authority. */
+export interface RecordTextParserDeclaration {
+  kind: "sectioned-text";
+  version: 1;
+  source: string;
+  starts_with: string;
+  sections: Array<{
+    id: string;
+    heading: string;
+    required: boolean;
+    fields?: Array<{ id: string; prefixes: string[]; required: boolean }>;
+    links?: {
+      hosts: string[];
+      path: string;
+      id_field: string;
+      required: boolean;
+    };
+  }>;
 }
 
 export interface RecordAccessPolicy {
@@ -25,6 +47,7 @@ export interface CompanyRecordSourceDeclaration {
   delivery: RecordDeliveryMode;
   reconcile_schedule?: string;
   identity: { source_field: string };
+  parser?: RecordTextParserDeclaration;
   fields: RecordFieldMapping[];
   access: RecordAccessPolicy;
 }
