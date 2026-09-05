@@ -15,7 +15,11 @@ import { normalizeSprintSnapshot } from "../../../runtime/sprint-snapshot.ts";
 import { SprintReplayService } from "../../../runtime/sprint-replay.ts";
 import { assertSprintReplayPublicationDigest, publishSprintReplayReport } from "../../../runtime/sprint-replay-publication.ts";
 import { SprintScenarioRunner, type SprintScenarioSubmissionOutcome } from "../../../runtime/sprint-scenario-runner.ts";
-import { assertSprintScenarioPublicationDigest, publishSprintScenarioMessage } from "../../../runtime/sprint-scenario-publication.ts";
+import {
+  assertSprintScenarioPublicationDigest,
+  publishSprintScenarioFridayClose,
+  publishSprintScenarioMessage,
+} from "../../../runtime/sprint-scenario-publication.ts";
 import { loadArtifact } from "./artifact.ts";
 import { getCompanyOSRuntime } from "./bot.ts";
 
@@ -150,6 +154,18 @@ export type SprintOperatorRequest =
     expectedOutputDigest: string;
   }
   | {
+    action: "publish-friday-close-simulation";
+    definitionId?: string;
+    scenarioRunId: string;
+    sprintId: string;
+    periodStart: string;
+    periodEnd: string;
+    nextSprintId?: string;
+    excludedParticipantIds: string[];
+    submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome>;
+    expectedOutputDigest: string;
+  }
+  | {
     action: "replay";
     definitionId?: string;
     replayId: string;
@@ -204,10 +220,13 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
         : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
     };
   }
-  if (value.action === "simulate" || value.action === "publish-simulation") {
+  if (value.action === "simulate" || value.action === "publish-simulation" || value.action === "publish-friday-close-simulation") {
     exactKeys(value, ["action", "definition_id", "scenario_run_id", "sprint_id", "period_start", "period_end", "next_sprint_id", "excluded_participant_ids", "submission_outcomes", "intent_id", "expected_output_digest"], "Sprint simulate request");
     if (value.action === "simulate" && (value.intent_id !== undefined || value.expected_output_digest !== undefined)) {
       throw new Error("Sprint simulate request cannot contain publication evidence");
+    }
+    if (value.action === "publish-friday-close-simulation" && value.intent_id !== undefined) {
+      throw new Error("Friday Close publication selects its fixed intent set and cannot contain intent_id");
     }
     const submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome> = {};
     if (value.submission_outcomes !== undefined) {
@@ -238,6 +257,11 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
     if (!/^[a-f0-9]{64}$/.test(expectedOutputDigest)) {
       throw new Error("expected_output_digest must be one exact SHA-256 digest");
     }
+    if (value.action === "publish-friday-close-simulation") return {
+      action: "publish-friday-close-simulation",
+      ...parsed,
+      expectedOutputDigest,
+    };
     return {
       action: "publish-simulation",
       ...parsed,
@@ -270,7 +294,7 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
       ? { action: "publish-replay", ...parsed, expectedOutputDigest: expectedOutputDigest! }
       : { action: "replay", ...parsed };
   }
-  throw new Error("Sprint operator action must be inspect, simulate, publish-simulation, open, replay, or publish-replay");
+  throw new Error("Sprint operator action must be inspect, simulate, publish-simulation, publish-friday-close-simulation, open, replay, or publish-replay");
 }
 
 function toolResult(value: unknown, projectionId: string): RecordQueryResult {
@@ -442,17 +466,21 @@ async function executeHistoricalSprintReplay(args: {
     };
 }
 
-type SprintSimulationRequest = Extract<SprintOperatorRequest, { action: "simulate" | "publish-simulation" }>;
+type SprintSimulationRequest = Extract<SprintOperatorRequest, {
+  action: "simulate" | "publish-simulation" | "publish-friday-close-simulation";
+}>;
 
 async function executeSprintSimulation(input: SprintSimulationRequest, now: string) {
   const artifact = loadArtifact();
   const compiled = selectedSprintRuntime(artifact, input.definitionId ?? process.env.COMPANYOS_SPRINT_DEFINITION_ID);
   const agent = artifact.agents.find((candidate) => candidate.id === compiled.agentId);
   if (!agent) throw new Error(`Compiled Sprint Agent '${compiled.agentId}' is unavailable`);
-  if (input.action === "publish-simulation") {
-    const templatePath = compiled.templates.mondayHandoff?.path;
-    if (!templatePath || agent.materials[templatePath] === undefined) {
-      throw new Error("The compiled Monday hand-off template is not in the Sprint Agent's Workspace materials");
+  if (input.action === "publish-simulation" || input.action === "publish-friday-close-simulation") {
+    const templatePaths = input.action === "publish-simulation"
+      ? [compiled.templates.mondayHandoff?.path]
+      : [compiled.templates.reminder.path, compiled.templates.chase.path, compiled.templates.closeReport.path];
+    if (templatePaths.some((templatePath) => !templatePath || agent.materials[templatePath] === undefined)) {
+      throw new Error(`The compiled ${input.action === "publish-simulation" ? "Monday hand-off" : "Friday Close"} templates are not in the Sprint Agent's Workspace materials`);
     }
   }
   const snapshot = await resolveSprintSnapshot(compiled, now);
@@ -485,19 +513,28 @@ async function executeSprintSimulation(input: SprintSimulationRequest, now: stri
 export async function executeSprintOperator(input: SprintOperatorRequest, now = new Date().toISOString()) {
   exactIso(now, "Sprint operator server time");
   if (input.action === "open" && input.openedAt > now) throw new Error("Sprint opened_at must not be in the future");
-  if (input.action === "simulate" || input.action === "publish-simulation") {
+  if (input.action === "simulate" || input.action === "publish-simulation" || input.action === "publish-friday-close-simulation") {
     const simulation = await executeSprintSimulation(input, now);
     if (input.action === "simulate") return { ok: true, report: simulation.report };
     assertSprintScenarioPublicationDigest(simulation.report, input.expectedOutputDigest);
-    const publication = await publishSprintScenarioMessage({
-      instanceId: simulation.artifact.instance.id,
-      compiled: simulation.compiled,
-      report: simulation.report,
-      expectedOutputDigest: input.expectedOutputDigest,
-      intentId: input.intentId,
-      store: simulation.store,
-      runtime: getCompanyOSRuntime(),
-    });
+    const publication = input.action === "publish-simulation"
+      ? await publishSprintScenarioMessage({
+        instanceId: simulation.artifact.instance.id,
+        compiled: simulation.compiled,
+        report: simulation.report,
+        expectedOutputDigest: input.expectedOutputDigest,
+        intentId: input.intentId,
+        store: simulation.store,
+        runtime: getCompanyOSRuntime(),
+      })
+      : await publishSprintScenarioFridayClose({
+        instanceId: simulation.artifact.instance.id,
+        compiled: simulation.compiled,
+        report: simulation.report,
+        expectedOutputDigest: input.expectedOutputDigest,
+        store: simulation.store,
+        runtime: getCompanyOSRuntime(),
+      });
     return { ok: true, report: simulation.report, publication };
   }
   const hosted = createHostedSprintRuntime(input.definitionId);
