@@ -237,3 +237,13 @@ send. A valid completed effect retains its receipt even when a downstream
 workflow output requirement or audit append fails. Unknown provider outcomes
 retain partial evidence and require reconciliation. The guard's synthetic
 Runtime tests are not durable engine or hosted human-acceptance evidence.
+
+Generic workflow execution state and complete historical Artifacts now reside
+in the `companyos` control schema. Every optimistic state commit records its
+revision and state digest alongside Artifact/manifest identity in the existing
+run event chain. Completed outputs, item receipts and decided bindings cannot
+be overwritten through the store. Conversation binding conflicts roll back
+state and event together. Cancellation keeps historical assignments and all
+effects; active lookup refuses a terminal run. A dispatch that began before
+cancellation retains its outcome instead of being erased. This persistence
+foundation does not claim a completed step engine or live approval delivery.

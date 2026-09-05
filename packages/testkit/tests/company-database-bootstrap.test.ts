@@ -24,6 +24,8 @@ import {
   COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST,
   COMPANY_DATABASE_MANIFEST_PHASE_EIGHT,
   COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST,
+  COMPANY_DATABASE_MANIFEST_PHASE_NINE,
+  COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST,
   COMPANY_DATABASE_MANIFEST_V1,
   COMPANY_DATABASE_MANIFEST_V1_DIGEST,
   qualifyCompanyDatabase,
@@ -50,8 +52,8 @@ const qualification = (vector = false) => ({
 test("the Company Instance database manifest is deterministic and credential-free", () => {
   assert.equal(COMPANY_DATABASE_MANIFEST.schemaVersion, 1);
   assert.equal(COMPANY_DATABASE_MANIFEST.id, "companyos-postgres");
-  assert.equal(COMPANY_DATABASE_MANIFEST.version, "1.9.0");
-  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version);
+  assert.equal(COMPANY_DATABASE_MANIFEST.version, "2.0.0");
+  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_NINE.version);
   assert.equal(COMPANY_DATABASE_MANIFEST.migrationMode, "additive");
   assert.equal(COMPANY_DATABASE_MANIFEST_V1.version, "1.0.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_ONE.version, "1.1.0");
@@ -72,6 +74,7 @@ test("the Company Instance database manifest is deterministic and credential-fre
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST, "b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1");
   assert.match(COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST, /^[0-9a-f]{64}$/);
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST, "af8998dfd03df7e0c68296b22a74783fbb2439186d1337d00f0413b67832872d");
+  assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST, "a41c86014840dc9ecec0e7fb71095605e3760b7940b2e346c08e0708cfeece9c");
   assert.notEqual(COMPANY_DATABASE_MANIFEST_DIGEST, COMPANY_DATABASE_MANIFEST_PHASE_ONE_DIGEST);
   assert.match(COMPANY_DATABASE_MANIFEST_DIGEST, /^[0-9a-f]{64}$/);
   assert.equal(COMPANY_DATABASE_MANIFEST.corePageTypes.length, 19);
@@ -147,8 +150,9 @@ test("database preparation rejects unknown or conflicting manifest history befor
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST },
+    { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_NINE.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: COMPANY_DATABASE_MANIFEST_DIGEST },
-  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0", "1.9.0"]);
+  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0", "1.9.0", "2.0.0"]);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: "9.0.0", manifest_digest: "0".repeat(64) }]), /unsupported manifest version/i);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: "0".repeat(64) }]), /conflicting content/i);
 });

@@ -308,7 +308,7 @@ export class CompanyOSRuntime {
         principal: approvingPrincipal,
         inputHash,
         eventName: "tool.effect-succeeded",
-        ...(guard ? { idempotencyKey } : {}),
+        ...(guard ? { idempotencyKey, dispatchFence: guard.context.dispatchFence } : {}),
         payload: { tool: tool.contract.runtimeId, ...(guard ? { workflow: guard.evidence } : {}) },
         effect: invoke,
       });
@@ -344,7 +344,7 @@ export class CompanyOSRuntime {
       }
       return { ok: false, duplicate: true, status: existing?.status ?? "unknown", reason: "Effect idempotency key already exists." };
     }
-    if (!await this.#state.markEffectDispatched(idempotencyKey)) throw new Error("Effect dispatch claim is no longer eligible.");
+    if (!await this.#state.markEffectDispatched(idempotencyKey, guard?.context.dispatchFence)) throw new Error("Effect dispatch claim is no longer eligible.");
     let result: unknown;
     try {
       result = await invoke();

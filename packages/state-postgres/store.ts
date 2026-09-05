@@ -15,6 +15,7 @@ import type {
   RunMeta,
   StateStore,
 } from "../state-store/interface.js";
+import { ensureWorkflowExecutionSchema } from "./workflow-migrate.ts";
 import { ensureCompanyOSSchema } from "./migrate.ts";
 
 function sql() {
@@ -170,7 +171,21 @@ export function createPostgresStateStore(): StateStore {
       return rows.length === 1;
     },
 
-    async markEffectDispatched(idempotencyKey) {
+    async markEffectDispatched(idempotencyKey, fence) {
+      if (fence) {
+        await ensureWorkflowExecutionSchema();
+        const rows = await sql()`with eligible as (
+          select run_id, lease_expires_at from companyos.workflow_executions
+          where run_id = ${fence.runId} and instance_id = ${fence.instanceId}
+            and lease_token = ${fence.leaseToken} and lease_expires_at > ${fence.now}
+            and state_json->>'status' = 'running' and state_json->>'cursor' = ${fence.stepId}
+            and not (state_json ? 'blocked') for update
+        ) update companyos.effects effects set status = 'dispatched', updated_at = ${fence.now}
+          from eligible where effects.run_id = eligible.run_id and effects.idempotency_key = ${idempotencyKey}
+            and effects.status = 'claimed'
+            and eligible.lease_expires_at > greatest(${fence.now}::timestamptz, clock_timestamp()) returning effects.idempotency_key`;
+        return rows.length === 1;
+      }
       const rows = await sql()`
         update companyos.effects set status = 'dispatched', updated_at = now()
         where idempotency_key = ${idempotencyKey} and status = 'claimed'
