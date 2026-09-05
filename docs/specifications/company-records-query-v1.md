@@ -114,3 +114,17 @@ freshness, empty and failed scans, stable JSON identity, paging and bounds.
 exercises the real SQL read, JSONB, restart, source isolation and failed scans.
 These are Records contract tests; they do not prove workflow execution or
 actual provider synchronization.
+
+## Exact timestamp comparisons
+
+Timestamp filters, source completeness gates and latest-proof selection accept
+valid ISO calendar instants with timezone and up to nine fractional digits.
+Comparison preserves all supplied digits, including across timezone offsets;
+invalid calendar dates and excess precision fail rather than being normalized
+or rounded. The `after` operator remains inclusive. Proof output is canonical
+UTC with at least three and at most nine fractional digits.
+
+Memory and Postgres choose the same latest completeness receipt even within
+one microsecond. Postgres orders the integral second and original fractional
+text separately, retaining the proof in JSONB. This correction does not give
+a provider an unqualified completeness watermark.

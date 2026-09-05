@@ -1004,3 +1004,7 @@ evidence, historical prototypes, and production gaps.
 
 Historical detail remains in archived sources as migration evidence; it does
 not override this page or the canonical architecture and specifications.
+
+Record cutoff filters and completeness proofs preserve up to nine fractional
+digits across timezone offsets and memory/Postgres stores. Invalid calendar
+dates fail. Provider-qualified time coverage remains a separate pending gate.

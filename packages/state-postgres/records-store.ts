@@ -286,6 +286,8 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
       await ensureCompanyRecordsSchema();
       // One SQL statement gives rows and completion receipts the same MVCC snapshot.
       // No connection or mutable read cursor survives beyond this request.
+      // Sort integral seconds and fractional text separately: timestamptz rounds
+      // beyond microseconds and would choose the wrong proof within one microsecond.
       const result = await connection()`select
         coalesce((select jsonb_agg(to_jsonb(r) order by r.record_id) from (
           select * from companyos_records.projection_rows
@@ -297,7 +299,10 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
           where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
             and summary->>'synced_through' is not null and watermark is not null
             and summary->>'errors' = '0'
-          order by source_id, (summary->>'synced_through')::timestamptz desc, run_id desc
+          order by source_id,
+            regexp_replace(summary->>'synced_through', '[.][0-9]+', '')::timestamptz desc,
+            rpad(coalesce(substring(summary->>'synced_through' from '[.]([0-9]+)'), ''), 9, '0') desc,
+            run_id desc
         ) s), '[]'::jsonb) as receipts`;
       return {
         rows: (json(result[0]?.rows) as Array<Record<string, any>>).map(projectionRow),
