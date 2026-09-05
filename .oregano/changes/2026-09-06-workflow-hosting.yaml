@@ -1,0 +1,79 @@
+version: 3
+plan_id: workflow-hosting-2026-09-06
+created: "2026-09-06"
+title: Host generic workflow workers and authenticated conversation routing
+objective: >-
+  Connect the durable interpreter to bounded hosted workers, explicit Instance
+  activation, authenticated operator controls and exact transport assignments.
+  Reuse existing database, timer, Connector and Slack transport mechanisms.
+non_goals:
+  - Activate production or treat synthetic tests as human/provider acceptance.
+  - Remove the old Sprint oracle before complete parity and test-Instance acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-hosting.yaml
+  - packages/runtime/workflow-engine/**
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/runner-vercel/src/lib/workflow-*.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/app/api/workflows/**
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/vercel.json
+  - vercel.json
+  - packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/architecture/company-instance.md
+  - docs/status/current.md
+  - docs/operations/workflow-engine.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/src/onboarding.mjs
+  - docs/onboarding/README.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - docs/README.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - architecture.company-instance
+    - status.current
+    - operations.workflow-engine
+    - onboarding.index
+    - guide.prepare-instance
+architecture:
+  placement:
+    core: Generic hosted worker bounds, authenticated context, activation and retained progress.
+    packages: Reuse existing communication, directory, Records and Company Tool contracts.
+    workspace: Owns every process, calendar, template, role and business input rule.
+    instance: Supplies exact credentials, execution enablement, current roster and qualified provider bindings.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Give exact persisted workflow assignments precedence within authenticated conversations.
+    - mechanism: timers-and-business-time
+      reason: Persist bounded worker scan continuations using existing durable timers.
+    - mechanism: identity-and-authorization
+      reason: Authenticate operator credentials and human responses without accepting request-supplied authority.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Route scheduled and interactive activity through the existing durable interpreter and Runtime guards.
+    - mechanism: capability-contracts-and-connectors
+      reason: Use configured Connectors and provider-qualified receipts for conversation identity.
+  new_core_mechanisms:
+    - Generic hosted workflow worker configuration and HTTP entrypoints.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: No business field, weekday meaning, Sprint state or company identity is inferred by hosted workers.
+rollback: Disable workflow execution and new schedule openings, retain all state and receipts, and keep the previously accepted operating deployment until real acceptance passes.

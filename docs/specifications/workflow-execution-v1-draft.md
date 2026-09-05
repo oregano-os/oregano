@@ -285,7 +285,7 @@ decision bindings, append an event, and bind delivered conversations atomically.
 A conflicting conversation assignment rolls back the entire transition. Exact
 account/channel/thread identity is required; private assignments additionally
 require the bound subject. Expired or terminal-run assignments do not authorize
-conversation context. The host still has to wire authenticated transport reads.
+conversation context. The maintained host binds provider reads as described below.
 
 Cancellation and the transition to provider dispatch lock the same execution
 row. A cancelled run, stale lease, changed step or blocked state cannot start a
@@ -359,6 +359,35 @@ including Company Tools, routes, waits, keyed messages and decisions. Mandatory
 Postgres acceptance executes the same Runtime/store boundaries with retained
 Artifacts, JSONB redelivery, competing responses, crash recovery, business-day
 waits and cancellation before dispatch. Provider replies and test humans in
-these suites are synthetic. Hosted endpoints, qualified provider completeness,
-provider recipient resolution, real test-Instance acceptance and legacy removal
-remain separate required implementation and activation gates.
+these suites are synthetic. Hosted adapters below add synthetic integration coverage. Qualified provider
+completeness, real test-Instance acceptance and legacy removal remain separate
+required implementation and activation gates.
+
+
+## Maintained hosted adapter
+
+The Vercel host exposes generic timer, step and operator endpoints, with strict
+Artifact/Instance/environment activation and distinct scheduler/human operator
+credentials. Business periods remain explicit operator inputs; automatic
+opening accepts only workflows whose referenced fields are supplied by trigger
+identity and run date. Durable timer jobs retain scan continuations and bounded
+schedule windows. Timer repair scans active runs, and each tick bounds new work.
+See [host operations](../operations/workflow-engine.md) for the exact configuration
+and request contract.
+
+The Slack adapter qualifies all destinations before preparing a message
+collection and requalifies each publication within its actual token scope.
+Direct roots bind the returned provider timestamp. Exact provider reply reads
+prove account, human author, original content and root before `decide`; the
+operator API can request a reread but cannot supply an approving principal or
+response text. Workflow assignments select the retained starting Artifact ahead
+of ordinary routing, with current roster checks and the waiting step's Tool
+allowlist. No shared mutable Runtime is switched between concurrent conversations.
+
+Hosted Records Connectors require a non-secret `configuration_snapshot` in the
+starting Artifact. It uses the existing Records configuration validation and
+exact provenance checks. Changing current environment configuration cannot
+replace a historical run's sources or bindings. Qualified synchronization and
+cutoff completeness remain separate source contracts; recipient qualification
+or a successful worker tick cannot prove them. Test provider objects and human
+responses remain explicitly synthetic until real installation acceptance.

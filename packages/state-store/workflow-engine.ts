@@ -89,7 +89,7 @@ export interface WorkflowExecutionStore {
   create(args: { identity: WorkflowRunIdentity; state: WorkflowMutableState; meta: RunMeta }): Promise<WorkflowRun>;
   read(instanceId: string, runId: string): Promise<WorkflowRun | undefined>;
   findOrigin(instanceId: string, workflowId: string, originKey: string): Promise<WorkflowRun | undefined>;
-  list(args: { instanceId: string; limit: number; status?: WorkflowMutableState["status"]; afterRunId?: string }): Promise<WorkflowRun[]>;
+  list(args: { instanceId: string; limit: number; status?: WorkflowMutableState["status"]; afterRunId?: string; activeOnly?: boolean }): Promise<WorkflowRun[]>;
   claim(args: { instanceId: string; runId: string; owner: string; token: string; now: string; expiresAt: string }): Promise<WorkflowRun | undefined>;
   release(args: { instanceId: string; runId: string; leaseToken: string }): Promise<boolean>;
   /** Atomically advances state, records its event and binds delivered conversations; stale leases cannot commit. */

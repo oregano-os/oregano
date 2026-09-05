@@ -395,3 +395,21 @@ test("protected Preview Slack qualification proves one exact conversation withou
   assert.deepEqual(applied.provider_effects, []);
   assert.deepEqual(applied.database_effects, []);
 });
+
+test("workflow Records snapshots retain their old exact provenance across redeploy and never retain credentials", async () => {
+  const { resolveCompanyRecordsConfiguration } = await import("./runtime-connectors.ts");
+  const { engineArtifact } = await import("../../../testkit/workflow-engine-fixture.ts");
+  const value = configuration(), artifact = engineArtifact(value.instance_id);
+  artifact.instance.environment = "preview";
+  artifact.provenance.coreCommit = value.core.ref; artifact.provenance.workspaceCommit = value.workspace.ref;
+  const entry: import("../../../companyos-builder/types.ts").RuntimeConnectorConfiguration = {
+    id: "records", connector: "oregano/company-records", connectorVersion: "0.1.0", configuration: { configuration_snapshot: JSON.parse(JSON.stringify(value)) },
+  };
+  const updated = { ...value, workspace: { ...value.workspace, ref: "e".repeat(40) } };
+  const env = { NODE_ENV: "test" as const, COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64: gzipSync(JSON.stringify(updated)).toString("base64") };
+  assert.deepEqual(resolveCompanyRecordsConfiguration(entry, artifact, env), value);
+  assert.throws(() => resolveCompanyRecordsConfiguration({ ...entry, configuration: { configuration_ref: "env:COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64" } }, artifact, env), /immutable Artifact/);
+  assert.throws(() => resolveCompanyRecordsConfiguration({ ...entry, configuration: { ...entry.configuration, configuration_ref: "env:COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64" } }, artifact, env), /exactly one/);
+  const secret = JSON.parse(JSON.stringify(value)); secret.bindings[0].binding.configuration.token = "synthetic-credential";
+  assert.throws(() => resolveCompanyRecordsConfiguration({ ...entry, configuration: { configuration_snapshot: secret } }, artifact, env), /never resolved credentials/);
+});

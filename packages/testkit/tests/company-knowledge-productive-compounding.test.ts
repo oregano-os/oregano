@@ -499,7 +499,7 @@ test("the additive schema persists compounding state and proposals without destr
   assert.match(store, /with eligible_reservation as/);
 });
 
-test("the maintained Vercel adapters preserve Knowledge order and add the fail-closed Builder worker", () => {
+test("the maintained Vercel adapters preserve Knowledge order and declare guarded workers", () => {
   const expected = [
     { path: "/api/knowledge/sources/granola/reconcile", schedule: "0 */6 * * *" },
     { path: "/api/knowledge/sources/granola/extract", schedule: "15 */6 * * *" },
@@ -508,6 +508,8 @@ test("the maintained Vercel adapters preserve Knowledge order and add the fail-c
     { path: "/api/records/reconcile", schedule: "*/15 * * * *" },
     { path: "/api/sprint/timers", schedule: "* * * * *" },
     { path: "/api/sprint/intents", schedule: "* * * * *" },
+    { path: "/api/workflows/timers", schedule: "* * * * *" },
+    { path: "/api/workflows/steps", schedule: "* * * * *" },
   ];
   const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };

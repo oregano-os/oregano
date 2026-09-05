@@ -1,0 +1,167 @@
+---
+document_id: operations.workflow-engine
+title: Hosted Workflow Engine Operations
+kind: guide
+status: approved
+authority: canonical
+language: en
+updated: 2026-09-06
+owners:
+  - oregano-maintainers
+audience:
+  - human
+  - agent
+availability: experimental
+---
+
+# Hosted Workflow Engine Operations
+
+The Vercel host runs compiled Workspace workflows through the generic durable
+engine. Configuration, calendar activation, operator authentication, human
+decisions and provider effects remain separate controls. These endpoints do not
+establish provider data completeness or authorize production activation.
+
+## Prepare an exact Instance
+
+1. Compile the reviewed Workspace and its non-secret Instance bindings. Include
+   exact logical message destinations and stable-member direct recipient
+   mappings. An existing Slack app may serve an isolated test Instance; use its
+   approved test channel and recipients. Do not repoint production webhook
+   ingress or share the production database for test execution.
+2. Prepare and qualify the Company database through the maintained bootstrap,
+   including manifest `2.0.0`. Workers qualify before use; they do not apply an
+   unapproved migration. One deployment uses one `DATABASE_URL`; never switch
+   databases inside a running function.
+3. For each `oregano/company-records` Connector, put the complete non-secret
+   Records runtime configuration in `configuration.configuration_snapshot`.
+   It replaces `configuration_ref` for hosted workflows. Existing validation
+   checks declarations, bindings, qualification and exact Core/Workspace refs.
+   Raw credentials are rejected; SecretRefs remain references. Retain matching
+   source projections and evidence for open runs. New source declarations cannot
+   silently satisfy old source digests. Synchronization and qualified cutoff
+   coverage remain separate requirements; a snapshot manufactures neither.
+4. Configure `SLACK_CONNECTOR` with the existing Vercel Connect installation
+   reference. Its app credential must support `auth.test`, `users.info`,
+   `conversations.info`, exact `conversations.replies` reads, message publishing
+   and required history scopes. Qualify these against the actual installation.
+   Missing history access and ambiguous identities fail closed. Cross-workspace
+   Slack Connect humans are not supported by the current identity check.
+5. Set `COMPANYOS_WORKFLOW_CONFIG_GZIP_BASE64` to gzip-compressed, base64-encoded
+   JSON matching the configuration below. Use a separate secret for each human
+   operator and `CRON_SECRET`, each at least 32 characters. Never put their values
+   in an Artifact or repository.
+6. Set `COMPANYOS_WORKFLOW_ENABLED=true` only for the approved Instance; the
+   default is `false`. `/api/health` reports enablement without exposing operator
+   credentials. The cron configuration invokes both workers every minute.
+   Preview tests must invoke these same protected endpoints through their
+   approved driver when the host does not schedule Preview cron invocations.
+
+Example shape; replace all illustrative IDs and the hash:
+
+```json
+{
+  "version": 1,
+  "instanceId": "example-preview",
+  "artifactHash": "<exact Artifact hash>",
+  "environment": "preview",
+  "enabledWorkflowIds": ["daily-summary", "period-close"],
+  "autoOpenWorkflowIds": ["daily-summary"],
+  "schedulePrincipal": "slack:TEXAMPLE:UEXAMPLE",
+  "activatedAt": "2030-01-01T00:00:00.000Z",
+  "maxLatenessMinutes": 60,
+  "operators": [
+    { "principal": "slack:TEXAMPLE:UEXAMPLE", "secretRef": "env:WORKFLOW_OPERATOR_SECRET" }
+  ]
+}
+```
+
+Configuration pins the exact Artifact, Instance and deployment environment.
+Operators resolve to current active humans. The schedule principal identifies
+an accountable configured operator. Automatic opening allows only workflows
+whose required fields are supplied by trigger identity and run date. Otherwise
+prepare exact future occurrences using `schedule` and explicit Workspace-defined
+fields. The engine persists a start wait; Core does not invent business periods.
+
+## Worker and operator calls
+
+| Endpoint | Authentication | Operation |
+|---|---|---|
+| `GET /api/workflows/timers` | Scheduler bearer credential | Open automatic occurrences, repair waits and wake claimed timers. |
+| `GET /api/workflows/steps` | Scheduler bearer credential | Advance bounded pages of enabled running workflows. |
+| `POST /api/workflows/operator` | Configured human bearer credential | Open, prepare, inspect, cancel or resume runs; reread a provider reply. |
+
+Operator bodies are strict JSON, at most 32 KiB. Each example is a separate
+request. Callers cannot supply a principal, approval decision, arbitrary schedule
+parameters or replacement Artifact:
+
+```json
+{"action":"open","workflowId":"period-close","requestId":"independent-request-1","fields":{"period_id":"period-1"}}
+{"action":"schedule","workflowId":"period-close","instant":"2030-01-04T16:00:00.000Z","fields":{"period_id":"period-1"}}
+{"action":"read","runId":"workflow:<64 hexadecimal characters>"}
+{"action":"list"}
+{"action":"cancel","runId":"workflow:<64 hexadecimal characters>"}
+{"action":"resume","runId":"workflow:<64 hexadecimal characters>"}
+{"action":"receive-reply","threadId":"slack:DEXAMPLE:100.000001","messageId":"100.000002"}
+```
+
+`open` uses a stable caller-generated request ID. Repeating it is a redelivery;
+a different ID creates an independent run. Changed fields under the same ID
+fail. `schedule` requires an exact active calendar occurrence. `list` returns
+at most 200 summaries and an `afterRunId` continuation. Summaries expose state,
+blocked-error digest, pinned hashes and deadlines. Full events and effect
+receipts remain in the database. Refused requests return an evidence digest
+correlated with host logs. Unknown or failed effects cannot be blindly resumed:
+review retained provider evidence and resolve the incident before authorizing
+any new effect. There is no automatic unknown-effect reconciliation action.
+
+## Human decisions and conversations
+
+Each notice contains the complete bound JSON, expiry and exact request ID.
+Humans reply in that notice's thread with `APPROVE <request ID>` or
+`REJECT <request ID>`. A DM root uses Slack's returned message timestamp, never
+the whole DM conversation ID. Delivery subscribes the exact root before
+returning its receipt. An unverified subscription retains partial publication
+proof and blocks automatic retries.
+
+The host checks the actual app account and current human identity, then rereads
+the exact provider reply and verifies its root, author, original unedited text
+and complete response. Decisions are processed before model invocation.
+`receive-reply` performs the same read so a test Instance can use an existing app
+without moving production ingress. Its caller cannot substitute text or an
+approver. An edited decision needs a new original human reply. Missing provider
+access is a failed qualification, never a simulated human decision.
+
+Exact workflow assignments take precedence over ordinary routing. Agent,
+materials, bindings and Tool definitions come from the opening Artifact; human
+eligibility comes from the current deployed roster. Only the waiting step's
+conversational Tool allowlist is visible and authorized; it is empty by default.
+Ordinary model requests outside an assignment cannot call workflow-reserved
+effects. Terminal or expired assignments retain proof but grant no conversation
+authority. Concurrent conversations do not switch a shared Runtime's Artifact.
+
+All message destinations, including all foreach members, are qualified before
+preparing the collection. Each publication repeats qualification within the
+same resolved credential scope used to send. Changed accounts or recipients
+block dispatch. These reads do not promise provider-side atomicity between a
+metadata check and publication.
+
+## Recovery and rollout evidence
+
+Step and repair scans retain run-ID continuations in durable timers. Schedule
+scans retain their window, configuration digest and occurrence cursor. Bounded
+lateness prevents unlimited catch-up; expired scans are reported. Superseded
+configurations cannot open old automatic schedules. Claims have five-minute
+leases; workers stop starting transitions after their time budget. Interrupted
+runs recover completed effect receipts without republishing.
+
+Disable `COMPANYOS_WORKFLOW_ENABLED` to stop new hosted work. The per-workflow
+enabled list controls step dispatch; calendar activation separately controls
+new scheduled openings. Cancel specific runs before retiring their definitions.
+Retain Artifacts, state, receipts and database history through rollback. Do not
+erase evidence to make a retry appear fresh.
+
+Synthetic host tests exercise real engine execution, historical routing, one
+bound response, exactly one subsequent write and identity refusals. They are not
+installation qualification, real human acceptance or pilot evidence. Qualified
+Slack/Monday source cutoff coverage, real test-Instance acceptance, complete
+legacy parity/removal and production rollout gates remain mandatory.

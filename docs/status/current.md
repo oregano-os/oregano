@@ -20,13 +20,23 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Generic hosted workers now expose `/api/workflows/timers`, `steps` and
+  `operator`, with explicit Artifact/Instance activation, separate operator and
+  scheduler credentials, durable pagination and no inferred business periods.
+  Slack routing rereads exact provider replies, uses individual DM roots,
+  checks current human/account identities and retains historical Artifacts and
+  Records configuration. Synthetic host tests exercise a full Friday decision
+  and one batch; actual installation qualification, source cutoff coverage and
+  real test-Instance acceptance remain pending. See the
+  [workflow operations guide](../operations/workflow-engine.md).
+
 - The generic durable interpreter now runs the four fictional Workspace graphs
   through actual Company Tools and CompanyOSRuntime. It persists scalar/keyed
   progress, restores waits, freezes exact decision notices, authenticates bound
   responses and recovers completed effects. Memory and mandatory Postgres
   acceptance cover restart, cancellation and unknown-outcome refusal. Provider
-  responses and human decisions in those tests are synthetic. Hosted endpoints,
-  qualified source/recipient bindings, real acceptance and legacy removal remain
+  responses and human decisions in those tests are synthetic. Hosted endpoints and recipient checks have synthetic coverage;
+  qualified source coverage, actual provider acceptance and legacy removal remain
   pending; no production activation or technical release is implied.
 
 - Generic workflow persistence retains historical Artifacts, immutable openings,
@@ -34,8 +44,8 @@ evidence, historical prototypes, and production gaps.
   schema. Optimistic commits, events and assignments are atomic. Dispatch and
   cancellation share an execution lock, with current lease/time checks.
   Additive database manifest `2.0.0` preserves the old `1.9.0` identity.
-  Memory and required Postgres tests cover these boundaries. Hosted
-  assignment/decision delivery and real acceptance remain pending. No production database has been migrated by this development work.
+  Memory and required Postgres tests cover these boundaries. Hosted assignment/decision delivery now has synthetic integration coverage;
+  actual provider and human acceptance remain pending. No production database has been migrated by this development work.
 
 - Generic workflow calendars evaluate holiday-shifted triggers, opaque variant
   parameters, business-day approval/wait deadlines and delivery windows.
@@ -1069,8 +1079,8 @@ Approval expiry and consumption are now enforced at the atomic store boundary.
 New requests receive a finite deadline; retained unbounded requests cannot
 create effects. Expired or superseded requests, mismatched run/step/input and
 rejected decisions produce no partial claim. Real Postgres counterexamples
-cover these refusals and ambiguous creation timestamps. Workflow business-day
-deadline integration remains under implementation.
+cover these refusals and ambiguous creation timestamps. Workflow business-day deadlines are integrated with the durable interpreter;
+real hosted acceptance remains pending.
 
 
 Generic R4 approval now requires a recorded active human requester and a
@@ -1078,5 +1088,5 @@ different active human approver with distinct stable roster IDs. The Runtime
 writes request evidence before exposing the request; the approval path reads
 that exact evidence and rejects missing, remapped or self-requested approval,
 including alternate principals for the same person. Ambiguous principal
-mappings and unknown identity kinds cannot approve. Workflow assignment and
-role-specific decision integration remain separate pending work.
+mappings and unknown identity kinds cannot approve. Workflow assignment and role-specific decision integration now have synthetic
+host coverage; real human acceptance remains pending.

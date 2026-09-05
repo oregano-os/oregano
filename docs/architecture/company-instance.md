@@ -617,3 +617,25 @@ events, deletion requests, legal holds, and activation receipts are durable
 Instance evidence. Rollback explicitly reactivates a prior verified snapshot.
 `pgvector` creation is optional and its absence keeps lexical retrieval active
 with a recorded degradation.
+
+
+## Generic workflow hosting
+
+The maintained Vercel adapter runs generic compiled workflows through bounded
+timer/step workers and authenticated operator controls. Instance configuration
+pins the exact Artifact, environment, explicit enablement, accountable schedule
+operator and distinct human credentials. Workspace files own calendars, business
+fields, templates and process steps. Automatic opening never invents business
+period values. Workflow control stays in the existing Company database.
+
+Running workflows retain their starting Artifact and non-secret Records
+configuration snapshot. The host uses the current deployed roster for human
+eligibility and provider-qualified account/recipient facts for Slack delivery.
+It rereads exact human replies before recording decisions; an operator can
+request this reread without acquiring business approval authority. Individual
+DM roots and exact persisted assignments route conversations to their historical
+agent and waiting-step Tool allowlist. Recipient proof and worker health are
+separate from source completeness, real human acceptance and production readiness.
+
+See [Hosted Workflow Engine Operations](../operations/workflow-engine.md) for
+configuration, recovery, existing-app test ingress and rollout limitations.

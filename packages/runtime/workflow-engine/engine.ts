@@ -13,7 +13,7 @@ import { localDateAt } from "../local-time.ts";
 import { workflowBusinessDeadline, workflowDeliveryInstant, workflowNextTrigger, workflowPreviousTrigger } from "./calendar.ts";
 import { authorizeWorkflowDecisionPrincipal, workflowDecisionId, workflowDecisionMemberAllowed } from "./decision-notice.ts";
 import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, workflowToolInput } from "./guard.ts";
-import { assertWorkflowOutput, resolveWorkflowValue, workflowItems } from "./references.ts";
+import { assertWorkflowOutput, resolveWorkflowValue, workflowItems, workflowOpeningFields } from "./references.ts";
 import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader } from "./readers.ts";
 import { workflowAssignmentKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
 
@@ -27,6 +27,8 @@ export interface WorkflowEngineOptions {
   operatorPrincipals: readonly string[];
   currentRoster: () => Promise<RosterMember[]>;
   connectors: (artifact: CompanyOSArtifact) => Promise<Connector[]>;
+  /** Qualify every destination before the first message in a prepared collection. */
+  qualifyMessageDestinations: (artifact: CompanyOSArtifact, inputs: readonly JsonValue[]) => Promise<JsonValue>;
   /** Qualified Connector/Instance resolution; Core does not parse provider-specific thread strings. */
   conversationForReceipt: (args: { artifact: CompanyOSArtifact; destinationBinding: string; output: JsonValue }) => Promise<WorkflowConversation>;
   clock?: () => string;
@@ -121,6 +123,8 @@ export class WorkflowEngine {
     const calendar = this.#calendar(workflow);
     if (Object.hasOwn(args.fields, "trigger_id") || Object.hasOwn(args.fields, "run_date")) throw new Error("Opening fields cannot override trusted trigger identity");
     const fields = { trigger_id: workflow.trigger.kind === "schedule" ? workflow.trigger.id : "operator", run_date: localDateAt(instant, calendar?.timezone ?? "UTC"), ...structuredClone(args.fields) };
+    const missing = workflowOpeningFields(workflow).filter((field) => !fields[field as keyof typeof fields]);
+    if (missing.length) throw new Error(`Workflow opening requires reviewed fields: ${missing.join(", ")}`);
     const trigger = { id: fields.trigger_id, instant, params: structuredClone(args.params ?? {}) } as WorkflowRunIdentity["trigger"];
     if (args.previousInstant) { workflowInstant(args.previousInstant); trigger.previous_instant = args.previousInstant; }
     else if (JSON.stringify(workflow.steps).includes('"$trigger.previous_instant"')) {
@@ -191,7 +195,9 @@ export class WorkflowEngine {
       const items = step.forEach ? workflowItems(step, workflow, ctx) : undefined;
       const inputDigest = jsonDigest(items ?? workflowToolInput(artifact, workflow, step, ctx));
       if (!state.steps[step.id]?.inputDigest) {
-        state.steps[step.id] = { status: "running", startedAt: now, inputDigest, ...(items ? { items: {} } : {}) };
+        const qualification = step.message ? await this.#options.qualifyMessageDestinations(artifact,
+          items ? items.map((item) => workflowToolInput(artifact, workflow, step, { ...ctx, item: item.value })) : [workflowToolInput(artifact, workflow, step, ctx)]) : undefined;
+        state.steps[step.id] = { status: "running", startedAt: now, inputDigest, ...(items ? { items: {} } : {}), ...(qualification === undefined ? {} : { evidence: { destination_qualification: qualification } }) };
         return await this.#save(run, state, "workflow.step-prepared", { input_digest: inputDigest });
       }
       if (state.steps[step.id]!.inputDigest !== inputDigest) throw new Error("Prepared workflow input changed before dispatch");
@@ -261,7 +267,8 @@ export class WorkflowEngine {
       state.steps[step.id] = { status: "running", startedAt: now, inputDigest: decision.boundDigest };
       // Preflight every recipient before the first notice can send.
       const prepared = { ...run, state };
-      for (const recipient of recipients) workflowToolInput(artifact, workflow, step, { ...workflowContext(prepared, roster), itemKey: recipient } as any);
+      const inputs = recipients.map((recipient) => workflowToolInput(artifact, workflow, step, { ...workflowContext(prepared, roster), itemKey: recipient } as any));
+      state.steps[step.id]!.evidence = { destination_qualification: await this.#options.qualifyMessageDestinations(artifact, inputs) };
       return await this.#save(run, state, "workflow.decision-prepared", { bound_digest: decision.boundDigest, expires_at: decision.expiresAt });
     }
     if (decision.status !== "pending") throw new Error("Workflow decision was already resolved");
@@ -375,24 +382,40 @@ export class WorkflowEngine {
 
   /** Return a continuation so hosted workers can finish a bounded repair scan across invocations. */
   async repairTimers(afterRunId?: string): Promise<{ scanned: number; afterRunId?: string }> {
-    const runs = await this.#options.store.list({ instanceId: this.#artifact.instance.id, limit: 200, ...(afterRunId ? { afterRunId } : {}) });
-    for (const run of runs) await this.#ensureTimers(run);
-    return { scanned: runs.length, ...(runs.length === 200 ? { afterRunId: runs.at(-1)!.runId } : {}) };
+    const runs = await this.#options.store.list({ instanceId: this.#artifact.instance.id, limit: 200, activeOnly: true, ...(afterRunId ? { afterRunId } : {}) });
+    const deadline = Date.now() + 45_000;
+    let scanned = 0;
+    for (const run of runs) {
+      await this.#ensureTimers(run); scanned++;
+      if (Date.now() >= deadline) break;
+    }
+    return { scanned, ...(scanned > 0 && (scanned < runs.length || runs.length === 200) ? { afterRunId: runs[scanned - 1]!.runId } : {}) };
   }
 
-  async timers(args: { repairAfterRunId?: string } = {}): Promise<{ completed: number; repairAfterRunId?: string }> {
-    const now = this.#now(), repair = await this.repairTimers(args.repairAfterRunId);
-    const timers = await this.#options.timers.claimDue({ timerKind: "workflow", now, owner: "workflow-timers", leaseToken: randomUUID(), leaseExpiresAt: new Date(Date.parse(now) + 300_000).toISOString(), limit: 100 });
-    let completed = 0;
-    for (const timer of timers) {
-      try { if (await this.wake(timer)) completed++; }
-      catch (error) {
-        // Keep the original due instant/identity. An interrupted timer may redeliver;
-        // the persisted run cursor makes its already committed transition a no-op.
-        await this.#options.timers.retry(timer, timer.dueAt, { outcome: "worker-error", error_digest: sha256(error instanceof Error ? error.message : String(error)) });
+  async timers(args: { repairAfterRunId?: string } = {}): Promise<{ completed: number; repairAfterRunId?: string; errors: Array<{ timerId: string; errorDigest: string }> }> {
+    const repair = await this.repairTimers(args.repairAfterRunId), deadline = Date.now() + 45_000;
+    const errors: Array<{ timerId: string; errorDigest: string }> = [];
+    let completed = 0, attempted = 0, delayed = false;
+    while (attempted < 100 && Date.now() < deadline && !delayed) {
+      const now = this.#now();
+      const timers = await this.#options.timers.claimDue({ timerKind: "workflow", now, owner: "workflow-timers", leaseToken: randomUUID(), leaseExpiresAt: new Date(Date.parse(now) + 300_000).toISOString(), limit: Math.min(10, 100 - attempted) });
+      if (!timers.length) break;
+      for (const timer of timers) {
+        if (Date.now() >= deadline) {
+          await this.#options.timers.retry(timer, timer.dueAt, { outcome: "worker-budget" }); delayed = true; continue;
+        }
+        attempted++;
+        try { if (await this.wake(timer)) completed++; else delayed = true; }
+        catch (error) {
+          // Keep original identity and time. Finish other claims in this small
+          // batch, but never spin on a failing/busy timer in the same tick.
+          const errorDigest = sha256(error instanceof Error ? error.message : String(error));
+          await this.#options.timers.retry(timer, timer.dueAt, { outcome: "worker-error", error_digest: errorDigest });
+          errors.push({ timerId: timer.timerId, errorDigest }); delayed = true;
+        }
       }
     }
-    return { completed, ...(repair.afterRunId ? { repairAfterRunId: repair.afterRunId } : {}) };
+    return { completed, errors, ...(repair.afterRunId ? { repairAfterRunId: repair.afterRunId } : {}) };
   }
 
   async cancel(runId: string, principal: string): Promise<boolean> {

@@ -88,6 +88,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
       const rows = await connection()`select * from companyos.workflow_executions
         where instance_id = ${args.instanceId} and (${args.status ?? null}::text is null or state_json->>'status' = ${args.status ?? null})
         and (${args.afterRunId ?? null}::text is null or run_id > ${args.afterRunId ?? null})
+        and (${args.activeOnly ?? false} = false or state_json->>'status' in ('running','waiting'))
         order by run_id limit ${args.limit}`;
       return rows.map(runRow);
     },

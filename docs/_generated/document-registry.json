@@ -760,7 +760,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-05",
+    "updated": "2026-09-06",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -871,7 +871,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-03",
+    "updated": "2026-09-06",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -881,6 +881,19 @@
         "workbench.overview"
       ]
     }
+  },
+  {
+    "document_id": "operations.workflow-engine",
+    "title": "Hosted Workflow Engine Operations",
+    "path": "docs/operations/workflow-engine.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-06",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
   },
   {
     "document_id": "plan.builder-acp-mvp-implementation",
