@@ -1031,3 +1031,11 @@ complete base diff, including local worker commits, deletions and renames.
 The actual Workbench validator is covered by negative fixtures. This protects
 proposal acceptance; it does not change database permissions or activate an
 updated hosted Builder profile.
+
+
+Approval expiry and consumption are now enforced at the atomic store boundary.
+New requests receive a finite deadline; retained unbounded requests cannot
+create effects. Expired or superseded requests, mismatched run/step/input and
+rejected decisions produce no partial claim. Real Postgres counterexamples
+cover these refusals and ambiguous creation timestamps. Workflow business-day
+deadline integration and R4 requester separation remain under implementation.

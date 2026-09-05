@@ -259,6 +259,19 @@ approval. Approval consumption and effect claiming MUST be atomic for every
 unattended effect and for any supervised effect whose failure could duplicate a
 material external action.
 
+New Core approval requests always receive finite expiry. A caller without a
+workflow deadline uses the Core safety default of 24 hours; workflow decisions
+supply the exact deadline derived from their declared business-day timeout.
+Historical requests without expiry remain in the audit record but cannot
+authorize a new effect. Expiry never silently renews an old approval.
+
+The atomic approval/effect claim verifies the granted, unconsumed decision;
+its exact run, step and payload hash; a finite future expiry; and that the
+request is still the latest for the action. It creates neither a claimed
+effect nor a consumed signature on refusal. A newer expired draft cannot
+reactivate an older request. Equally timestamped competing drafts fail closed
+as ambiguous. The caller must request a fresh approval.
+
 ## 7. Tool and Capability architecture
 
 A **Tool** is an agent-callable operation with a stable ID, contract, risk

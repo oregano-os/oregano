@@ -182,3 +182,19 @@ expectation under `compiler-expectations/`. Tests also cover changed sources,
 config, templates, calendars and Tool versions, stale snapshots, forged risk,
 root/reply references and canonical identities. These are compilation tests,
 not proof that the engine has executed the workflow.
+
+
+## Approval validity foundation
+
+The generic StateStore now supplies finite expiry (24 hours for callers
+without a workflow deadline). CompanyOSRuntime accepts an explicit trusted
+request deadline. The workflow engine must supply the deadline computed from
+the decision's compiled business-day timeout; this scheduling integration is
+still pending. The atomic Postgres claim and memory adapter verify current
+request, exact run/step/input, approved decision, unconsumed signature and
+expiry. Expired drafts never expose an older request as current. Historical
+requests without expiry remain retained but cannot authorize new effects.
+
+These store checks are covered by real Postgres tests, including rejection
+before any signature is consumed. They complement the pending workflow guard,
+role routing and R4 requester/approver separation; they do not replace them.

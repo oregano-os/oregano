@@ -1,3 +1,4 @@
+import { approvalExpiry, approvalIsUnexpired } from "../../state-store/approval-validity.ts";
 import type {
   ApprovalRequestInput,
   ApprovalRequestRow,
@@ -32,7 +33,7 @@ export class InMemoryStateStore implements StateStore {
   async listEvents(runId: string) { return this.events.filter((event) => event.runId === runId); }
   async createApprovalRequest(request: ApprovalRequestInput): Promise<string> {
     const requestId = this.#id("request");
-    this.requests.push({ requestId, ...request, createdAt: new Date(this.#sequence) });
+    this.requests.push({ requestId, ...request, expiresAt: approvalExpiry(request.expiresAt), createdAt: new Date(this.#sequence) });
     return requestId;
   }
   async approvalRequestExists(runId: string, stepId: string, action: string, inputHash: string): Promise<boolean> {
@@ -49,6 +50,10 @@ export class InMemoryStateStore implements StateStore {
   async consumeApprovalAndClaimEffect(args: { approvalId: string; idempotencyKey: string; runId: string; stepId: string; inputHash: string }): Promise<boolean> {
     const approval = this.approvals.get(args.approvalId);
     if (!approval || approval.consumed || approval.decision !== "approved" || this.effects.has(args.idempotencyKey)) return false;
+    const request = this.requests.find((request) => request.requestId === approval.requestId);
+    if (!request || request.runId !== args.runId || request.stepId !== args.stepId || request.inputHash !== args.inputHash || !approvalIsUnexpired(request)) return false;
+    const latest = [...this.requests].reverse().find((candidate) => candidate.runId === request.runId && candidate.stepId === request.stepId && candidate.action === request.action);
+    if (latest?.requestId !== request.requestId) return false;
     approval.consumed = true;
     this.effects.set(args.idempotencyKey, { ...args, status: "claimed" });
     return true;

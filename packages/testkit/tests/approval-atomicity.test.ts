@@ -175,3 +175,52 @@ test("events are append-only and carry the deciding principal", { skip }, async 
   assert.equal(events[0].event, "approval.granted");
   assert.equal(events[0].actor, "human:founder");
 });
+
+for (const mismatch of ["runId", "stepId", "inputHash"] as const) {
+  test(`unconsumed Postgres approval rejects different ${mismatch} without a partial claim`, { skip }, async () => {
+    const s = await stage(`unconsumed_${mismatch}`);
+    const claim = { approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash };
+    assert.equal(await store!.consumeApprovalAndClaimEffect({ ...claim, [mismatch]: "different" }), false);
+    assert.equal(await store!.getEffect(s.key), undefined);
+    assert.equal(await store!.consumeApprovalAndClaimEffect(claim), true);
+  });
+}
+
+test("Postgres refuses rejected decisions before claiming any effect", { skip }, async () => {
+  const s = await stage("rejected_decision");
+  const approvalId = await store!.recordDecision({ requestId: s.requestId, subjectPrincipal: principal, role: "founder", decision: "rejected" });
+  assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+  assert.equal(await store!.getEffect(s.key), undefined);
+});
+
+for (const expiry of ["expired", "missing"] as const) {
+  test(`Postgres refuses ${expiry} expiry at atomic consumption`, { skip }, async () => {
+    const s = await stage(`expiry_${expiry}`);
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(url!);
+    // Preserve a historical request, then exercise the actual atomic boundary.
+    await sql`update companyos.approval_requests set expires_at = ${expiry === "expired" ? new Date(0) : null} where request_id = ${s.requestId}`;
+    assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+    assert.equal(await store!.getEffect(s.key), undefined);
+    const rows = await sql`select consumed_at from companyos.approvals where approval_id = ${s.approvalId}`;
+    assert.equal(rows[0]!.consumed_at, null);
+  });
+}
+
+test("Postgres latest expired draft cannot reactivate an older unexpired request", { skip }, async () => {
+  const s = await stage("latest_expired");
+  const latest = await store!.createApprovalRequest({ runId: s.runId, stepId: "step-1", action: "fixture_send", inputHash: "new-hash", expiresAt: new Date(0) });
+  assert.equal((await store!.getLatestApprovalRequest(s.runId, "step-1", "fixture_send"))!.requestId, latest);
+  assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+  assert.equal(await store!.getEffect(s.key), undefined);
+});
+
+test("equally timestamped Postgres drafts are ambiguous and cannot authorize effects", { skip }, async () => {
+  const s = await stage("equal_creation_time");
+  const second = await store!.createApprovalRequest({ runId: s.runId, stepId: "step-1", action: "fixture_send", inputHash: "different" });
+  const { neon } = await import("@neondatabase/serverless");
+  const sql = neon(url!);
+  await sql`update companyos.approval_requests set created_at = (select created_at from companyos.approval_requests where request_id = ${s.requestId}) where request_id = ${second}`;
+  assert.equal(await store!.getLatestApprovalRequest(s.runId, "step-1", "fixture_send"), undefined);
+  assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+});
