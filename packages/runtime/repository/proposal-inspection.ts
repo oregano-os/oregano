@@ -7,6 +7,7 @@ const execFileAsync = promisify(execFile);
 
 const FORBIDDEN_PATHS = [
   /^\.git(?:\/|$)/,
+  /^state(?:\/|$)/i,
   /^\.env(?:\.|$)/,
   /^\.vercel(?:\/|$)/,
   /^\.companyos\/repository-protection\.yaml$/,
@@ -30,7 +31,11 @@ export async function inspectProposalWorkspace(
   const resolved = (await git(workspacePath, ["rev-parse", "--verify", `${baseCommit}^{commit}`])).trim();
   if (resolved !== baseCommit) throw new Error("Proposal workspace does not contain the exact requested base commit.");
   const status = await git(workspacePath, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-  const changedPaths = parsePorcelainPaths(status).sort();
+  // A coding worker may have committed some changes already. Status alone
+  // omits those paths even though the final base-to-worktree patch includes them.
+  // Disabling rename detection exposes both the removed and added path.
+  const tracked = await git(workspacePath, ["diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", baseCommit, "--"]);
+  const changedPaths = [...new Set([...parsePorcelainPaths(status), ...tracked.split("\u0000").filter(Boolean)])].sort();
   if (changedPaths.length === 0) throw new Error("Builder proposal contains no independently observed changes.");
   for (const path of changedPaths) {
     if (path.startsWith("/") || path.split("/").includes("..") || path.includes("\u0000")) {

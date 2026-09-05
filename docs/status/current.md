@@ -1024,3 +1024,10 @@ validation and Agent Tool loading. Tests prove immutable source/contract
 binding and canonical manifest identities, including changed Tool source and
 Instance bindings. No generic workflow activation or provider execution is
 claimed by this compiler gate.
+
+
+Builder proposal inspection now rejects root `state/` changes across the
+complete base diff, including local worker commits, deletions and renames.
+The actual Workbench validator is covered by negative fixtures. This protects
+proposal acceptance; it does not change database permissions or activate an
+updated hosted Builder profile.
