@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -498,3 +498,12 @@ the exact R3 request passes Core authorization and approval consumption. The
 route applies a restrictive content-security policy. Paid-provider effects are
 not inferred from a successful Runner deployment; each requires an exact real
 Connector binding.
+
+
+For generic executable workflows, follow
+[Hosted Workflow Engine Operations](../../operations/workflow-engine.md).
+The Instance Administrator verifies exact activation, non-secret historical
+Records snapshots, provider account/recipient checks, source cutoff coverage and
+real human decision evidence. `companyos onboard` keeps these as external
+Instance verification; passing local validation or the Tool-free starter check
+cannot establish workflow execution readiness.

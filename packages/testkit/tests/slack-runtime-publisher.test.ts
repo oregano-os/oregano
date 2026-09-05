@@ -85,3 +85,29 @@ test("Slack runtime publisher preserves a partial receipt when root subscription
     },
   );
 });
+
+test("each new direct publication binds its returned message timestamp and subscribes that exact reply thread", async () => {
+  let count = 0; const subscriptions: string[] = [];
+  const publisher = createSlackMessagePublisher(() => ({
+    channel() { throw new Error("not used"); },
+    thread(id: string) { return { async subscribe() { subscriptions.push(id); } } as any; },
+    async openDM() { return { id: "slack:D12345:", async post() { return sent(`1893492000.00000${++count}`, "slack:D12345:"); } } as any; },
+  }));
+  const first = await (await publisher.openDirect("U12345")).publish("First approval");
+  const second = await (await publisher.openDirect("U12345")).publish("Second approval");
+  assert.equal(first.threadReference, "slack:D12345:1893492000.000001");
+  assert.equal(second.threadReference, "slack:D12345:1893492000.000002");
+  assert.deepEqual(subscriptions, [first.threadReference, second.threadReference]);
+});
+
+test("a direct-message subscription failure preserves the already published root receipt", async () => {
+  const publisher = createSlackMessagePublisher(() => ({
+    channel() { throw new Error("not used"); },
+    thread() { return { async subscribe() { throw new Error("state unavailable"); } } as any; },
+    async openDM() { return { id: "slack:D12345:", async post() { return sent("1893492000.000001", "slack:D12345:"); } } as any; },
+  }));
+  await assert.rejects((await publisher.openDirect("U12345")).publish("Approval"), (error: unknown) => {
+    assert.ok(error instanceof CapabilityEffectOutcomeUnknownError);
+    assert.equal((error.evidence as any).thread_reference, "slack:D12345:1893492000.000001"); return true;
+  });
+});

@@ -56,6 +56,9 @@ Authority is defined by concern, not by a global “one file beats all” rule. 
 new decision is incomplete until every affected canonical document is updated
 in the same change.
 
+See [Hosted Workflow Engine Operations](operations/workflow-engine.md) for the
+maintained generic worker and authenticated decision interfaces.
+
 ## Language
 
 English is mandatory for canonical engineering artifacts: specifications,

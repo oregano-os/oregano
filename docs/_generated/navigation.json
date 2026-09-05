@@ -440,6 +440,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.workflow-engine",
+    "title": "Hosted Workflow Engine Operations",
+    "path": "docs/operations/workflow-engine.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
     "document_id": "plan.builder-acp-mvp-implementation",
     "title": "Builder ACP MVP Architecture and Delivery Plan",
     "path": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",

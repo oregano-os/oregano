@@ -32,6 +32,14 @@
     {
       "path": "/api/sprint/intents",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/workflows/timers",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/workflows/steps",
+      "schedule": "* * * * *"
     }
   ]
 }

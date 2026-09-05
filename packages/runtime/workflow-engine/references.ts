@@ -54,3 +54,16 @@ export function workflowItems(step: CompiledWorkflowStep, workflow: CompiledWork
     return { key: key as string | number, value };
   });
 }
+
+/** Business opening fields must come from a reviewed input; only trigger/date are automatic. */
+export function workflowOpeningFields(workflow: CompiledWorkflow): string[] {
+  const fields = new Set(workflow.instance.key);
+  const visit = (value: unknown): void => {
+    if (value === "$instance") for (const field of workflow.instance.fields) fields.add(field);
+    else if (typeof value === "string" && /^\$instance\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/.test(value)) fields.add(value.split(".")[1]!);
+    else if (Array.isArray(value)) value.forEach(visit);
+    else if (value && typeof value === "object") Object.values(value).forEach(visit);
+  };
+  for (const step of workflow.steps) [step.input, step.message, step.route?.on, step.decision?.binds, step.decision?.via, step.forEach?.over].forEach(visit);
+  return [...fields].sort();
+}

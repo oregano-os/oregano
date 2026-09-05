@@ -61,7 +61,7 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
   }
   async list(args: Parameters<WorkflowExecutionStore["list"]>[0]): Promise<WorkflowRun[]> {
     if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 200) throw new Error("Workflow listing limit must be from 1 to 200");
-    return [...this.#runs.values()].filter((run) => run.instanceId === args.instanceId && (!args.status || run.state.status === args.status) && (!args.afterRunId || run.runId > args.afterRunId))
+    return [...this.#runs.values()].filter((run) => run.instanceId === args.instanceId && (!args.status || run.state.status === args.status) && (!args.afterRunId || run.runId > args.afterRunId) && (!args.activeOnly || active(run)))
       .sort((a, b) => a.runId.localeCompare(b.runId)).slice(0, args.limit).map((run) => structuredClone(run));
   }
   async claim(args: Parameters<WorkflowExecutionStore["claim"]>[0]): Promise<WorkflowRun | undefined> {
