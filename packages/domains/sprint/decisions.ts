@@ -39,7 +39,8 @@ export function decideSprintEvent(args: {
       return { state, intents, evidence };
     }
     if (args.event.trigger_id === args.policy.weekly.weekday_digest_trigger) {
-      const includeReadiness = localWeekday(args.event.instant, args.policy.calendar.timezone) === args.policy.weekly.readiness_weekday;
+      const includeReadiness = Boolean(args.policy.weekly.readiness_weekday)
+        && localWeekday(args.event.instant, args.policy.calendar.timezone) === args.policy.weekly.readiness_weekday;
       const digest = buildSprintWeekdayDigestReadModel({ state, policy: args.policy, includeReadiness });
       intents.push({
         type: "message.weekday-digest",

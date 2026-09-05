@@ -211,13 +211,23 @@ export function compileSprintRuntimes(args: {
   }
   if (policy.weekly) {
     const ids = new Set(schedule.triggers.map((trigger) => trigger.id));
-    for (const id of [policy.weekly.monday_handoff_trigger, policy.weekly.weekday_digest_trigger]) {
+    for (const id of [policy.weekly.monday_handoff_trigger, policy.weekly.weekday_digest_trigger].filter((value): value is string => Boolean(value))) {
       if (!ids.has(id)) throw new Error(`${schedulePath}: missing reviewed weekly trigger '${id}'.`);
     }
-    for (const key of ["monday_handoff", "weekday_digest", "direct_question"] as const) {
-      if (!policy.rendering?.[key]) throw new Error(`${configurationPath}: rendering.${key} is required when weekly Sprint coordination is configured.`);
+    if (policy.weekly.monday_handoff_trigger && !policy.rendering.monday_handoff) {
+      throw new Error(`${configurationPath}: rendering.monday_handoff is required when Monday hand-off is configured.`);
     }
-    if (!policy.work_items.planning_group || !policy.work_items.planned_status || (policy.work_items.required_fields?.length ?? 0) === 0) {
+    if (policy.weekly.weekday_digest_trigger && !policy.rendering.weekday_digest) {
+      throw new Error(`${configurationPath}: rendering.weekday_digest is required when the weekday digest is configured.`);
+    }
+    if (policy.weekly.readiness_weekday && !policy.weekly.weekday_digest_trigger) {
+      throw new Error(`${configurationPath}: weekly Sprint readiness requires weekday_digest_trigger.`);
+    }
+    if (policy.weekly.readiness_weekday && !policy.rendering.direct_question) {
+      throw new Error(`${configurationPath}: rendering.direct_question is required when weekly Sprint readiness is configured.`);
+    }
+    if (policy.weekly.readiness_weekday
+      && (!policy.work_items.planning_group || !policy.work_items.planned_status || (policy.work_items.required_fields?.length ?? 0) === 0)) {
       throw new Error(`${configurationPath}: weekly Sprint readiness requires work_items planning_group, planned_status, and required_fields.`);
     }
   }
@@ -291,9 +301,39 @@ export function compileSprintRuntimes(args: {
       if (runtime.workItem.readinessField && !resource.fields.has(runtime.workItem.readinessField)) {
         throw new Error(`Sprint work-item binding '${runtime.workItem.resourceBinding}' does not allowlist readiness field '${runtime.workItem.readinessField}'.`);
       }
-      if (policy.weekly && !runtime.workItem.readinessField) {
+      if (policy.weekly?.readiness_weekday && !runtime.workItem.readinessField) {
         throw new Error(`Sprint work-item binding '${runtime.workItem.resourceBinding}' requires readiness_field for weekly readiness effects.`);
       }
+    }
+    let scenarioTestPublication: CompiledSprintRuntime["testPublication"];
+    if (runtime.testPublication) {
+      if (runtime.execution !== "shadow-only") {
+        throw new Error(`Sprint test publication for '${runtime.definitionId}' requires a shadow-only runtime.`);
+      }
+      if (!agent.grants.includes("oregano:communications/publish")) {
+        throw new Error(`Sprint Agent '${runtime.agentId}' lacks test-publication Tool grant 'oregano:communications/publish'.`);
+      }
+      const publication = runtime.testPublication;
+      const testDestination = destinations.get(publication.communicationBinding);
+      const liveDestination = destinations.get(policy.delivery.channel_binding);
+      if (!testDestination || testDestination.kind !== "channel" || !testDestination.channelId) {
+        throw new Error(`Sprint test destination '${publication.communicationBinding}' must resolve to one exact Slack channel.`);
+      }
+      if (!liveDestination || liveDestination.kind !== "channel" || !liveDestination.channelId) {
+        throw new Error(`Sprint live destination '${policy.delivery.channel_binding}' must resolve to one exact Slack channel.`);
+      }
+      if (publication.communicationBinding === policy.delivery.channel_binding
+        || (liveDestination.accountId === testDestination.accountId && liveDestination.channelId === testDestination.channelId)
+        || publication.forbiddenChannelIds.includes(testDestination.channelId)) {
+        throw new Error("Sprint test publication selects a protected Slack channel.");
+      }
+      if (!publication.forbiddenChannelIds.includes(liveDestination.channelId)) {
+        throw new Error(`Sprint test publication must explicitly forbid live channel '${liveDestination.channelId}'.`);
+      }
+      scenarioTestPublication = {
+        testOnly: true,
+        communicationBinding: publication.communicationBinding,
+      };
     }
     let testPublication: NonNullable<CompiledSprintRuntime["replay"]>["testPublication"];
     if (runtime.replay?.testPublication) {
@@ -364,22 +404,25 @@ export function compileSprintRuntimes(args: {
       ]));
       return { path, content, digest: sha256(content) };
     })() : undefined;
-    const weeklyTemplates = policy.weekly ? (() => {
-      const mondayPath = safeWorkspacePath(policy.rendering!.monday_handoff!);
-      const digestPath = safeWorkspacePath(policy.rendering!.weekday_digest!);
-      const directPath = safeWorkspacePath(policy.rendering!.direct_question!);
-      const monday = markdownTemplateBody(mondayPath, file(args.workspace, mondayPath));
-      const digest = markdownTemplateBody(digestPath, file(args.workspace, digestPath));
-      const direct = markdownTemplateBody(directPath, file(args.workspace, directPath));
-      validateTemplate(mondayPath, monday, new Set(["sprint_id", "period_start", "period_end", "due_at", "committed_work_items", "carry_forward_names", "disagreements"]));
-      validateTemplate(digestPath, digest, new Set(["sprint_id", "period_start", "period_end", "due_at", "changed_work_items", "readiness_gaps"]));
-      validateTemplate(directPath, direct, new Set(["sprint_id", "period_start", "period_end", "due_at", "participant_name", "work_item_title", "missing_fields"]));
-      return {
-        mondayHandoff: { path: mondayPath, content: monday, digest: sha256(monday) },
-        weekdayDigest: { path: digestPath, content: digest, digest: sha256(digest) },
-        directQuestion: { path: directPath, content: direct, digest: sha256(direct) },
-      };
-    })() : {};
+    const weeklyTemplates: Pick<CompiledSprintRuntime["templates"], "mondayHandoff" | "weekdayDigest" | "directQuestion"> = {};
+    if (policy.weekly?.monday_handoff_trigger) {
+      const path = safeWorkspacePath(policy.rendering!.monday_handoff!);
+      const content = markdownTemplateBody(path, file(args.workspace, path));
+      validateTemplate(path, content, new Set(["sprint_id", "period_start", "period_end", "due_at", "committed_work_items", "carry_forward_names", "disagreements"]));
+      weeklyTemplates.mondayHandoff = { path, content, digest: sha256(content) };
+    }
+    if (policy.weekly?.weekday_digest_trigger) {
+      const path = safeWorkspacePath(policy.rendering!.weekday_digest!);
+      const content = markdownTemplateBody(path, file(args.workspace, path));
+      validateTemplate(path, content, new Set(["sprint_id", "period_start", "period_end", "due_at", "changed_work_items", "readiness_gaps"]));
+      weeklyTemplates.weekdayDigest = { path, content, digest: sha256(content) };
+    }
+    if (policy.weekly?.readiness_weekday) {
+      const path = safeWorkspacePath(policy.rendering!.direct_question!);
+      const content = markdownTemplateBody(path, file(args.workspace, path));
+      validateTemplate(path, content, new Set(["sprint_id", "period_start", "period_end", "due_at", "participant_name", "work_item_title", "missing_fields"]));
+      weeklyTemplates.directQuestion = { path, content, digest: sha256(content) };
+    }
     return {
       definitionId: runtime.definitionId,
       agentId: runtime.agentId,
@@ -422,6 +465,7 @@ export function compileSprintRuntimes(args: {
       },
       directDestinations: structuredClone(runtime.directDestinations),
       directAssignments,
+      ...(scenarioTestPublication ? { testPublication: scenarioTestPublication } : {}),
       ...(runtime.workItem ? { workItem: structuredClone(runtime.workItem) } : {}),
       ...(runtime.replay ? { replay: {
         messageProjection: runtime.replay.messageProjection,

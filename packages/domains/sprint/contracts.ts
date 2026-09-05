@@ -46,9 +46,9 @@ export interface SprintDomainDeclaration {
     direct_binding?: string;
   };
   weekly?: {
-    monday_handoff_trigger: string;
-    weekday_digest_trigger: string;
-    readiness_weekday: Weekday;
+    monday_handoff_trigger?: string;
+    weekday_digest_trigger?: string;
+    readiness_weekday?: Weekday;
   };
   model_task_profile?: string;
   rendering?: {

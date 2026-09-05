@@ -1,0 +1,148 @@
+version: 2
+plan_id: sprint-scenario-runner-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Add an isolated hosted Sprint scenario runner
+objective: >-
+  Add a provider-neutral, operator-authenticated Sprint scenario runner that
+  executes the real compiled Sprint domain and orchestration code against an
+  isolated durable namespace, uses controlled time and current stabilized
+  Company Records projections, records System of Proof evidence, and can
+  publish one reviewed Monday hand-off only through a compiled test binding
+  without gaining authority over live Slack or work-item targets.
+non_goals:
+  - Add company names, provider ids, channel ids, board ids, people, schedules, templates, credentials, or model ids to Core.
+  - Implement conversational Triage, Briefing, inactivity nudging, or blocker follow-up before their durable workflow runtime exists.
+  - Publish scenario output to Monday, perform work-item writes, activate production schedules, deploy, merge, or release.
+  - Accept arbitrary events, intents, destinations, Tool grants, template text, or provider payloads from an operator request.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Company truth is not Core product truth
+  - Authority remains in the Company Workspace
+  - Humans remain accountable
+  - No hidden magic
+files_expected:
+  - .oregano/changes/2026-09-05-sprint-scenario-runner.yaml
+  - docs/architecture/oregano-core.md
+  - docs/architecture/system-of-proof.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/sprint-loader.ts
+  - packages/companyos-builder/types.ts
+  - packages/domains/sprint/contracts.ts
+  - packages/domains/sprint/decisions.ts
+  - packages/domains/sprint/timers.ts
+  - packages/runtime/sprint-scenario-publication.ts
+  - packages/runtime/durable-timers.ts
+  - packages/runtime/memory-durable-timers.ts
+  - packages/runtime/memory-sprint-orchestration.ts
+  - packages/runtime/sprint-scenario-runner.ts
+  - packages/state-postgres/durable-timer-store.ts
+  - packages/state-postgres/sprint-orchestration-store.ts
+  - packages/state-store/durable-timers.ts
+  - packages/state-store/sprint-orchestration.ts
+  - packages/schema/sprint-configuration-v1.schema.json
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/testkit/tests/sprint-runtime-hosting.test.ts
+  - packages/testkit/tests/sprint-scenario-runner.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-user-request-to-build-the-proposed-sprint-scenario-runner
+architecture_assessment:
+  responsibilities:
+    core:
+      - Provide the bounded scenario catalog, controlled-clock orchestration, isolated proof namespace, idempotency, summaries, and hosted operator action.
+      - Execute only real Sprint events, timers, decisions, rendering, and shadow dispatch paths already present in Core.
+      - Publish a reviewed scenario intent only through the compiled Sprint Agent and one exact test-only destination.
+    packages:
+      - Continue to own reusable Sprint instructions, Workflows, Skills, templates, and synthetic fixtures without runtime authority.
+    workspace:
+      - Continue to own participants, process states, projections, schedules, calendars, message templates, language, model task, and grants.
+    instance:
+      - Continue to own exact provider resources, credentials, bindings, test destinations, runtime mode, and production activation.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: reuse
+      reason: The hosted action freezes the same stabilized participant and work-item projections as a real Sprint open.
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The runner records the exact compiled Sprint Agent but creates no new conversational route or handoff.
+    - mechanism: toolset-resolver
+      decision: extend
+      reason: Active-binding readiness is resolved against the Sprint Agent's compiled grants, while a shadow test-publication grant remains available to the operator runtime but is removed from the model-visible conversational ToolSet.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: The report records the compiled model task while deterministic simulation performs no model call.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The existing operator secret protects the action and participant identities come only from the authorized stabilized snapshot.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: Controlled full-week simulation uses the real compiled calendar and durable timers in a digest-isolated namespace and adds read-only proof listing.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Simulation is forced to Shadow, and publication requires the reviewed report digest and stored intent id before the existing idempotent Tool path may target one compiled test destination.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The runner dry-resolves active bindings but never invokes a Connector or expands a Capability.
+  new_core_mechanisms:
+    - A bounded catalog that distinguishes executable deterministic scenarios from planned scenarios whose real runtime is not yet available.
+    - An isolated scenario definition namespace derived from the immutable input digest.
+    - One proof-only operator action that selects only catalogued scenarios and accepts no destination or Tool authority.
+    - One digest-bound test-publication action that initially accepts only a stored Monday hand-off message intent and derives its Agent, Tool, template, content, and destination from the compiled Artifact.
+    - Independent compilation of optional weekly scenarios so one Company may enable Monday hand-off without inventing unrelated readiness policy.
+    - A bounded, content-free scenario report containing event and intent types, decision evidence, full proof counts and digests, source versions, state, and a stable output digest.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The runner consumes one compiled Company Workspace and Company Instance
+    artifact. Its scenario identifiers are generic Sprint concepts, and all
+    company values continue to come from the artifact and record projections.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-sprint-scenario-runner.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-sprint-scenario-runner.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Repeating the same scenario run produces the same definition identity and output digest without duplicate events, intents, or timers.
+  - A scenario run never uses the active dispatcher and cannot publish a message or modify a work item.
+  - Monday handoff, weekday digest, Wednesday readiness, Friday Close, Retro, and Rollover proposal run through the real hosted state machine.
+  - Current participant and work-item snapshots are frozen with exact source versions and no future or stale projection is accepted.
+  - Operator parsing accepts only fixed proof-only and digest-bound publication actions and rejects message text, destinations, Agent ids, grants, and extra fields.
+  - Monday hand-off publication uses the compiled Sprint Agent, the exact Workspace template, and the exact test binding and returns one provider receipt.
+  - Publication rejects changed output digests, non-Monday intents, live-channel aliases, missing grants, and non-shadow runtimes before an effect.
+  - A shadow-only test-publication grant is unavailable to the conversational model and remains callable only through the authenticated operator path.
+  - Unsupported planned Triage, Briefing, inactivity nudge, and blocker follow-up scenarios are visible but cannot be reported as executed.
+  - Scenario reports contain no rendered message body, provider payload, credential, or full transcript.
+  - The original compiled Sprint definition, durable state, timers, live bindings, and production runtime mode remain untouched.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.system-of-proof
+    - specification.company-records-sprint-v0.1
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Remove the simulate and publish-simulation operator actions, the scenario
+  runner, and the test-only Instance binding while retaining already-written
+  proof and provider receipts as historical evidence. No database deletion is
+  required, and the live Sprint channel was never an eligible target.
+open_decisions: []

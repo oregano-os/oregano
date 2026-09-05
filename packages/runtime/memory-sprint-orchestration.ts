@@ -4,12 +4,14 @@ import type {
   SprintOrchestrationKey,
   SprintOrchestrationStore,
   StoredSprintEvent,
+  StoredSprintIntent,
   StoredSprintState,
 } from "../state-store/sprint-orchestration.ts";
 import type { SprintIntent } from "../domains/sprint/contracts.ts";
 
 type IntentRow = SprintOrchestrationKey & {
   intent: SprintIntent;
+  createdByEventId: string;
   state: "pending" | "leased" | "succeeded" | "failed" | "cancelled";
   availableAt: string;
   attempts: number;
@@ -38,6 +40,32 @@ export class InMemorySprintOrchestrationStore implements SprintOrchestrationStor
   async getEvent(value: SprintOrchestrationKey, eventId: string): Promise<StoredSprintEvent | undefined> {
     const row = this.events.get(eventKey(value, eventId));
     return row ? structuredClone(row) : undefined;
+  }
+
+  async listEvents(value: SprintOrchestrationKey): Promise<StoredSprintEvent[]> {
+    return [...this.events.values()]
+      .filter((row) => row.instanceId === value.instanceId && row.definitionId === value.definitionId)
+      .sort((left, right) => left.stateVersion - right.stateVersion)
+      .map((row) => structuredClone(row));
+  }
+
+  async listIntents(value: SprintOrchestrationKey): Promise<StoredSprintIntent[]> {
+    return [...this.intents.values()]
+      .filter((row) => row.instanceId === value.instanceId && row.definitionId === value.definitionId)
+      .sort((left, right) => left.availableAt.localeCompare(right.availableAt)
+        || left.intent.intent_id.localeCompare(right.intent.intent_id))
+      .map((row) => ({
+        instanceId: row.instanceId,
+        definitionId: row.definitionId,
+        intent: structuredClone(row.intent),
+        state: row.state,
+        createdByEventId: row.createdByEventId,
+        availableAt: row.availableAt,
+        attempts: row.attempts,
+        ...(row.evidence === undefined ? {} : { evidence: structuredClone(row.evidence) }),
+        ...(row.completedAt ? { completedAt: row.completedAt } : {}),
+        updatedAt: row.updatedAt,
+      }));
   }
 
   async commitEvent(args: SprintOrchestrationKey & {
@@ -79,6 +107,7 @@ export class InMemorySprintOrchestrationStore implements SprintOrchestrationStor
         instanceId: args.instanceId,
         definitionId: args.definitionId,
         intent: structuredClone(intent),
+        createdByEventId: args.event.event_id,
         state: "pending",
         availableAt: "due_at" in intent ? intent.due_at : args.committedAt,
         attempts: 0,

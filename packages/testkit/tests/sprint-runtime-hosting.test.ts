@@ -716,6 +716,36 @@ triggers:
   assert.equal(shadowRuntimes[0]!.execution, "shadow-only");
   assert.deepEqual(shadowWorkspace.agents[1]!.grants, ["oregano:records/query"]);
 
+  const handoffWorkspace = structuredClone(workspace);
+  handoffWorkspace.allFiles["workflows/sprint/config.yaml"] = handoffWorkspace.allFiles["workflows/sprint/config.yaml"]!
+    .replace("model_task_profile: sprint.coordination", "weekly: { monday_handoff_trigger: monday-handoff }\nmodel_task_profile: sprint.coordination")
+    .replace("retro: workflows/sprint/retro.md", "retro: workflows/sprint/retro.md, monday_handoff: workflows/sprint/monday.md");
+  handoffWorkspace.allFiles["workflows/sprint/monday.md"] = "Committed: {{committed_work_items}}\nDifferences: {{disagreements}}";
+  handoffWorkspace.allFiles["schedules/sprint.yaml"] += "  - { id: monday-handoff, weekdays: [monday], at: \"09:00\", holiday_shift: previous-business-day }\n";
+  const handoffInstance = structuredClone(instance);
+  handoffInstance.sprintRuntimes![0]!.execution = "shadow-only";
+  (handoffInstance.connectors![0]!.configuration.destinations as any[]).push(
+    { id: "sprint-test-channel", account_id: "T1", kind: "channel", channel_id: "CTEST" },
+  );
+  handoffInstance.sprintRuntimes![0]!.testPublication = {
+    testOnly: true,
+    communicationBinding: "sprint-test-channel",
+    forbiddenChannelIds: ["C1"],
+  };
+  const handoffRuntime = compileSprintRuntimes({ workspace: handoffWorkspace, instance: handoffInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" })[0]!;
+  assert.equal(handoffRuntime.execution, "shadow-only");
+  assert.deepEqual(handoffRuntime.policy.weekly, { monday_handoff_trigger: "monday-handoff" });
+  assert.equal(handoffRuntime.templates.mondayHandoff?.path, "workflows/sprint/monday.md");
+  assert.deepEqual(handoffRuntime.testPublication, { testOnly: true, communicationBinding: "sprint-test-channel" });
+
+  const unsafeHandoff = structuredClone(handoffInstance);
+  unsafeHandoff.sprintRuntimes![0]!.testPublication!.forbiddenChannelIds = ["COTHER"];
+  assert.throws(() => compileSprintRuntimes({ workspace: handoffWorkspace, instance: unsafeHandoff, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /must explicitly forbid live channel/);
+
+  const activeHandoff = structuredClone(handoffInstance);
+  activeHandoff.sprintRuntimes![0]!.execution = "active-capable";
+  assert.throws(() => compileSprintRuntimes({ workspace: handoffWorkspace, instance: activeHandoff, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /requires a shadow-only runtime/);
+
   const shadowWithWorkItem = structuredClone(shadowInstance);
   shadowWithWorkItem.sprintRuntimes![0]!.workItem = { resourceBinding: "sprint-board", rolloverField: "sprint" };
   assert.throws(() => compileSprintRuntimes({ workspace: shadowWorkspace, instance: shadowWithWorkItem, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /cannot bind a work-item resource/);

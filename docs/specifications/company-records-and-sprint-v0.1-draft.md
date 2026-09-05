@@ -268,6 +268,45 @@ Publication MUST cross the ordinary `communication.message.publish` and
 identity per output digest, and retain both provider receipts in System of
 Proof. A retry MUST reuse prior successful effects rather than duplicate them.
 
+**CRS-028 — Hosted Sprint scenario runner.** The authenticated Sprint operator
+MAY execute one bounded full-week scenario using an exact compiled Sprint and
+twice-stabilized current participant and work-item projections. The runner MUST
+derive an isolated definition and schedule namespace from the immutable input,
+force the hosted runtime to proof-only Shadow mode, and exercise the maintained
+timer, event, decision, renderer, dispatch, and persistence paths without a
+provider call. Operator input MUST NOT supply an event, intent, template,
+destination, Tool, grant, provider payload, or execution mode. Synthetic Friday
+outcomes MAY select only `complete`, `needs-reformat`, or `missing` for a known
+frozen participant and MUST be identified as a limitation rather than a parsed
+Slack submission. The durable report MUST omit rendered message bodies and
+include exact source versions, event and intent types, timer and terminal
+states, active-binding readiness, unsupported planned scenarios, full evidence
+counts and digests, and one stable output digest. Returned evidence rows MUST
+be bounded while complete proof remains durable. The maintained catalog MUST
+NOT call Triage, Briefing,
+inactivity nudging, or blocker follow-up executable until those conversational
+workflows have a real durable hosted runtime. An exact retry MUST reuse its
+events, intents, timers, state, and output digest and MUST NOT touch the source
+Sprint definition.
+
+**CRS-029 — Digest-bound scenario publication.** An Instance MAY compile one
+test-only communication destination for a `shadow-only` Sprint runtime. The
+live Sprint destination's exact provider channel id MUST appear in the
+Instance's forbidden set, and Workbench MUST reject logical or physical
+test/live equality. A separate authenticated operator action MUST rerun the
+same scenario and match an exact reviewed output digest before any effect. It
+MUST select an existing durable intent by id and, in the first maintained
+slice, MUST accept only `message.monday-handoff`. Agent id, service principal,
+Tool grant, template, rendered content, and destination MUST come exclusively
+from the immutable Artifact and durable intent; none may be supplied by the
+operator. The effect MUST cross the ordinary
+`communication.message.publish` Capability boundary with a deterministic
+identity and retain the provider receipt in System of Proof. While the runtime
+is `shadow-only`, this publication grant MUST NOT be exposed in a
+conversational model ToolSet. Optional weekly
+features MUST compile independently; enabling Monday hand-off MUST NOT require
+a Company to invent weekday digest or readiness policy.
+
 ## 4. Tools and Connectors
 
 **CRS-030 — Provider-neutral Capabilities.** Core maintains the contracts
@@ -413,7 +452,7 @@ controlled-clock Sprint decisions, Tool resolution inputs, signed callback
 verification, replay and echo controls, Connector behavior with synthetic
 responses, hosted Artifact compilation, operator parsing and authentication,
 Slack qualification and bounded threaded-history normalization, historical
-proof-only replay, Slack Friday normalization after resolved identity and Agent routing, shadow
+proof-only replay, isolated full-week Sprint scenario execution, Slack Friday normalization after resolved identity and Agent routing, shadow
 rendering without effects, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
 discovery, credential-free qualification receipts, and read-only Blueprint
 inspection. They do not prove a real

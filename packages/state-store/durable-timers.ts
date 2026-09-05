@@ -16,8 +16,16 @@ export interface ClaimedDurableTimer extends DurableTimer {
   attempts: number;
 }
 
+export interface StoredDurableTimer extends DurableTimer {
+  state: "scheduled" | "leased" | "completed" | "failed" | "cancelled";
+  attempts: number;
+  evidence?: JsonValue;
+  completedAt?: string;
+}
+
 export interface DurableTimerStore {
   schedule(timer: DurableTimer): Promise<boolean>;
+  list(args: { instanceId: string; timerKind?: string }): Promise<StoredDurableTimer[]>;
   claimDue(args: { instanceId: string; timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit: number }): Promise<ClaimedDurableTimer[]>;
   complete(args: { instanceId: string; timerId: string; leaseToken: string; evidence: JsonValue; completedAt: string }): Promise<boolean>;
   retry(args: { instanceId: string; timerId: string; leaseToken: string; dueAt: string; evidence: JsonValue }): Promise<boolean>;

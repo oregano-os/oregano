@@ -109,6 +109,30 @@ sprint_runtimes:
   assert.deepEqual(configuration.sprintRuntimes?.[0]?.replay, { messageProjection: "sprint-messages" });
 }));
 
+test("Instance build declarations parse one exact test-only Sprint scenario destination", () => withFile(`
+version: 1
+instance_id: fixture-test
+environment: test
+bindings: []
+sprint_runtimes:
+  - definition: weekly-delivery
+    agent: sprint
+    execution: shadow-only
+    service_principal: companyos:fixture:sprint
+    participant_identity_prefix: "monday:A1:"
+    direct_destinations: {}
+    test_publication:
+      test_only: true
+      communication_binding: sprint-test-channel
+      forbidden_channel_ids: [C11111]
+`, (path) => {
+  assert.deepEqual(loadInstanceBuildConfiguration(path).sprintRuntimes?.[0]?.testPublication, {
+    testOnly: true,
+    communicationBinding: "sprint-test-channel",
+    forbiddenChannelIds: ["C11111"],
+  });
+}));
+
 test("Instance build declarations parse exact test-only Sprint Replay publication bindings", () => withFile(`
 version: 1
 instance_id: fixture-test

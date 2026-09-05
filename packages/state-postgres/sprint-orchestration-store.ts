@@ -6,6 +6,7 @@ import type {
   SprintOrchestrationKey,
   SprintOrchestrationStore,
   StoredSprintEvent,
+  StoredSprintIntent,
   StoredSprintState,
 } from "../state-store/sprint-orchestration.ts";
 import { ensureCompanyRecordsSchema } from "./records-migrate.ts";
@@ -38,6 +39,19 @@ const claimedIntent = (row: Record<string, any>): ClaimedSprintIntent => ({
   attempts: Number(row.attempts),
 });
 
+const storedIntent = (row: Record<string, any>): StoredSprintIntent => ({
+  instanceId: String(row.instance_id),
+  definitionId: String(row.definition_id),
+  intent: json<SprintIntent>(row.intent_json),
+  state: row.state as StoredSprintIntent["state"],
+  createdByEventId: String(row.created_by_event_id),
+  availableAt: postgresTimestampToIso(row.available_at),
+  attempts: Number(row.attempts),
+  ...(row.evidence === null || row.evidence === undefined ? {} : { evidence: json(row.evidence) }),
+  ...(row.completed_at ? { completedAt: postgresTimestampToIso(row.completed_at) } : {}),
+  updatedAt: postgresTimestampToIso(row.updated_at),
+});
+
 export function createPostgresSprintOrchestrationStore(): SprintOrchestrationStore {
   return {
     async getState(key: SprintOrchestrationKey): Promise<StoredSprintState | undefined> {
@@ -60,6 +74,22 @@ export function createPostgresSprintOrchestrationStore(): SprintOrchestrationSto
         where instance_id = ${key.instanceId} and definition_id = ${key.definitionId}
           and event_id = ${eventId} limit 1`;
       return rows[0] ? storedEvent(rows[0]) : undefined;
+    },
+
+    async listEvents(key: SprintOrchestrationKey): Promise<StoredSprintEvent[]> {
+      await ensureCompanyRecordsSchema();
+      const rows = await connection()`select * from companyos_records.sprint_events
+        where instance_id = ${key.instanceId} and definition_id = ${key.definitionId}
+        order by state_version`;
+      return rows.map(storedEvent);
+    },
+
+    async listIntents(key: SprintOrchestrationKey): Promise<StoredSprintIntent[]> {
+      await ensureCompanyRecordsSchema();
+      const rows = await connection()`select * from companyos_records.sprint_intents
+        where instance_id = ${key.instanceId} and definition_id = ${key.definitionId}
+        order by available_at, intent_id`;
+      return rows.map(storedIntent);
     },
 
     async commitEvent(args): Promise<SprintCommitResult> {

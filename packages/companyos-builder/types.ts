@@ -48,6 +48,11 @@ export interface SprintRuntimeInstanceConfiguration {
     rolloverField: string;
     readinessField?: string;
   };
+  testPublication?: {
+    testOnly: true;
+    communicationBinding: string;
+    forbiddenChannelIds: string[];
+  };
   replay?: {
     messageProjection: string;
     testPublication?: {
@@ -133,6 +138,10 @@ export interface CompiledSprintRuntime {
     resourceBinding: string;
     rolloverField: string;
     readinessField?: string;
+  };
+  testPublication?: {
+    testOnly: true;
+    communicationBinding: string;
   };
   replay?: {
     messageProjection: string;

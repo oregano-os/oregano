@@ -18,6 +18,17 @@ export interface StoredSprintEvent extends SprintOrchestrationKey {
   committedAt: string;
 }
 
+export interface StoredSprintIntent extends SprintOrchestrationKey {
+  intent: SprintIntent;
+  state: "pending" | "leased" | "succeeded" | "failed" | "cancelled";
+  createdByEventId: string;
+  availableAt: string;
+  attempts: number;
+  evidence?: unknown;
+  completedAt?: string;
+  updatedAt: string;
+}
+
 export type SprintCommitResult =
   | { status: "applied"; outcome: StoredSprintEvent }
   | { status: "duplicate"; outcome: StoredSprintEvent }
@@ -42,6 +53,8 @@ export interface ClaimedSprintIntent extends SprintOrchestrationKey {
 export interface SprintOrchestrationStore {
   getState(key: SprintOrchestrationKey): Promise<StoredSprintState | undefined>;
   getEvent(key: SprintOrchestrationKey, eventId: string): Promise<StoredSprintEvent | undefined>;
+  listEvents(key: SprintOrchestrationKey): Promise<StoredSprintEvent[]>;
+  listIntents(key: SprintOrchestrationKey): Promise<StoredSprintIntent[]>;
   commitEvent(args: SprintOrchestrationKey & {
     expectedStateVersion: number;
     event: SprintEvent;
