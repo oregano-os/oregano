@@ -181,6 +181,17 @@ evidence, historical prototypes, and production gaps.
   any logical or physical test/live target equality. Both effects use the
   ordinary CompanyOS Capability, idempotency, receipt, and System-of-Proof
   boundaries; a changed digest fails before the first provider effect.
+- The authenticated Sprint operator also has a proof-only `simulate` action.
+  It freezes the same current Company Records projections, derives an isolated
+  definition and timer namespace, and runs the real hosted weekly and Friday
+  lifecycle with a controlled clock while forcibly remaining in Shadow mode.
+  Its content-free report covers Monday handoff, weekday digest, readiness,
+  Friday Close, Retro, and an optional Rollover proposal, including durable
+  event, intent, timer, binding-readiness, and source-version evidence. The
+  catalog explicitly marks Triage, Briefing, inactivity nudging, and blocker
+  follow-up unavailable until their durable conversational runtime exists.
+  Simulation cannot accept a destination, Tool, grant, template, arbitrary
+  event, or provider payload and cannot call Slack or a work-item provider.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts

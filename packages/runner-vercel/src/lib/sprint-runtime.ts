@@ -14,6 +14,7 @@ import { createPostgresSprintOrchestrationStore } from "../../../state-postgres/
 import { normalizeSprintSnapshot } from "../../../runtime/sprint-snapshot.ts";
 import { SprintReplayService } from "../../../runtime/sprint-replay.ts";
 import { assertSprintReplayPublicationDigest, publishSprintReplayReport } from "../../../runtime/sprint-replay-publication.ts";
+import { SprintScenarioRunner, type SprintScenarioSubmissionOutcome } from "../../../runtime/sprint-scenario-runner.ts";
 import { loadArtifact } from "./artifact.ts";
 import { getCompanyOSRuntime } from "./bot.ts";
 
@@ -124,6 +125,17 @@ export function authorizeSprintScheduler(request: Request, environment: NodeJS.P
 export type SprintOperatorRequest =
   | { action: "inspect"; definitionId?: string }
   | {
+    action: "simulate";
+    definitionId?: string;
+    scenarioRunId: string;
+    sprintId: string;
+    periodStart: string;
+    periodEnd: string;
+    nextSprintId?: string;
+    excludedParticipantIds: string[];
+    submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome>;
+  }
+  | {
     action: "replay";
     definitionId?: string;
     replayId: string;
@@ -178,6 +190,34 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
         : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
     };
   }
+  if (value.action === "simulate") {
+    exactKeys(value, ["action", "definition_id", "scenario_run_id", "sprint_id", "period_start", "period_end", "next_sprint_id", "excluded_participant_ids", "submission_outcomes"], "Sprint simulate request");
+    const submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome> = {};
+    if (value.submission_outcomes !== undefined) {
+      const outcomes = object(value.submission_outcomes, "submission_outcomes");
+      if (Object.keys(outcomes).length > 2_000) throw new Error("submission_outcomes exceeds the supported participant count");
+      for (const [participantId, outcome] of Object.entries(outcomes)) {
+        text(participantId, "submission_outcomes participant id", 255);
+        if (outcome !== "complete" && outcome !== "needs-reformat" && outcome !== "missing") {
+          throw new Error(`submission_outcomes for '${participantId}' is invalid`);
+        }
+        submissionOutcomes[participantId] = outcome;
+      }
+    }
+    return {
+      action: "simulate",
+      ...(value.definition_id === undefined ? {} : { definitionId: text(value.definition_id, "definition_id", 63) }),
+      scenarioRunId: text(value.scenario_run_id, "scenario_run_id", 127),
+      sprintId: text(value.sprint_id, "sprint_id"),
+      periodStart: exactDate(value.period_start, "period_start"),
+      periodEnd: exactDate(value.period_end, "period_end"),
+      ...(value.next_sprint_id === undefined ? {} : { nextSprintId: text(value.next_sprint_id, "next_sprint_id") }),
+      excludedParticipantIds: value.excluded_participant_ids === undefined
+        ? []
+        : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
+      submissionOutcomes,
+    };
+  }
   if (value.action === "replay" || value.action === "publish-replay") {
     exactKeys(value, ["action", "definition_id", "replay_id", "sprint_id", "period_start", "period_end", "excluded_participant_ids", "expected_output_digest"], "Sprint replay request");
     const expectedOutputDigest = value.action === "publish-replay"
@@ -203,7 +243,7 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
       ? { action: "publish-replay", ...parsed, expectedOutputDigest: expectedOutputDigest! }
       : { action: "replay", ...parsed };
   }
-  throw new Error("Sprint operator action must be inspect, open, replay, or publish-replay");
+  throw new Error("Sprint operator action must be inspect, simulate, open, replay, or publish-replay");
 }
 
 function toolResult(value: unknown, projectionId: string): RecordQueryResult {
@@ -378,6 +418,27 @@ async function executeHistoricalSprintReplay(args: {
 export async function executeSprintOperator(input: SprintOperatorRequest, now = new Date().toISOString()) {
   exactIso(now, "Sprint operator server time");
   if (input.action === "open" && input.openedAt > now) throw new Error("Sprint opened_at must not be in the future");
+  if (input.action === "simulate") {
+    const artifact = loadArtifact();
+    const compiled = selectedSprintRuntime(artifact, input.definitionId ?? process.env.COMPANYOS_SPRINT_DEFINITION_ID);
+    const snapshot = await resolveSprintSnapshot(compiled, now);
+    const report = await new SprintScenarioRunner({
+      instanceId: artifact.instance.id,
+      compiled,
+      store: createPostgresSprintOrchestrationStore(),
+      timerStore: createPostgresDurableTimerStore(),
+    }).run({
+      scenarioRunId: input.scenarioRunId,
+      sprintId: input.sprintId,
+      periodStart: input.periodStart,
+      periodEnd: input.periodEnd,
+      snapshot,
+      excludedParticipantIds: input.excludedParticipantIds,
+      submissionOutcomes: input.submissionOutcomes,
+      ...(input.nextSprintId ? { nextSprintId: input.nextSprintId } : {}),
+    });
+    return { ok: true, report };
+  }
   const hosted = createHostedSprintRuntime(input.definitionId);
   if (input.action === "inspect") return { ok: true, runtime: await hosted.inspect() };
   if (input.action === "replay" || input.action === "publish-replay") {

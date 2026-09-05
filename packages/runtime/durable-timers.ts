@@ -1,5 +1,5 @@
 import type { JsonValue } from "../capabilities/contracts.ts";
-import type { ClaimedDurableTimer, DurableTimer, DurableTimerStore } from "../state-store/durable-timers.ts";
+import type { ClaimedDurableTimer, DurableTimer, DurableTimerStore, StoredDurableTimer } from "../state-store/durable-timers.ts";
 
 /** Scheduler facade: it persists timers and claims due work; it never sleeps in-process. */
 export class DurableTimerService {
@@ -13,6 +13,10 @@ export class DurableTimerService {
 
   async schedule(timer: Omit<DurableTimer, "instanceId">): Promise<boolean> {
     return this.store.schedule({ ...timer, instanceId: this.instanceId });
+  }
+
+  async list(timerKind?: string): Promise<StoredDurableTimer[]> {
+    return this.store.list({ instanceId: this.instanceId, ...(timerKind ? { timerKind } : {}) });
   }
 
   async claimDue(args: { timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit?: number }): Promise<ClaimedDurableTimer[]> {

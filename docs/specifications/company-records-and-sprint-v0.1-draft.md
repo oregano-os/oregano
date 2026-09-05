@@ -268,6 +268,27 @@ Publication MUST cross the ordinary `communication.message.publish` and
 identity per output digest, and retain both provider receipts in System of
 Proof. A retry MUST reuse prior successful effects rather than duplicate them.
 
+**CRS-028 — Hosted Sprint scenario runner.** The authenticated Sprint operator
+MAY execute one bounded full-week scenario using an exact compiled Sprint and
+twice-stabilized current participant and work-item projections. The runner MUST
+derive an isolated definition and schedule namespace from the immutable input,
+force the hosted runtime to proof-only Shadow mode, and exercise the maintained
+timer, event, decision, renderer, dispatch, and persistence paths without a
+provider call. Operator input MUST NOT supply an event, intent, template,
+destination, Tool, grant, provider payload, or execution mode. Synthetic Friday
+outcomes MAY select only `complete`, `needs-reformat`, or `missing` for a known
+frozen participant and MUST be identified as a limitation rather than a parsed
+Slack submission. The durable report MUST omit rendered message bodies and
+include exact source versions, event and intent types, timer and terminal
+states, active-binding readiness, unsupported planned scenarios, full evidence
+counts and digests, and one stable output digest. Returned evidence rows MUST
+be bounded while complete proof remains durable. The maintained catalog MUST
+NOT call Triage, Briefing,
+inactivity nudging, or blocker follow-up executable until those conversational
+workflows have a real durable hosted runtime. An exact retry MUST reuse its
+events, intents, timers, state, and output digest and MUST NOT touch the source
+Sprint definition.
+
 ## 4. Tools and Connectors
 
 **CRS-030 — Provider-neutral Capabilities.** Core maintains the contracts
@@ -413,7 +434,7 @@ controlled-clock Sprint decisions, Tool resolution inputs, signed callback
 verification, replay and echo controls, Connector behavior with synthetic
 responses, hosted Artifact compilation, operator parsing and authentication,
 Slack qualification and bounded threaded-history normalization, historical
-proof-only replay, Slack Friday normalization after resolved identity and Agent routing, shadow
+proof-only replay, isolated full-week Sprint scenario execution, Slack Friday normalization after resolved identity and Agent routing, shadow
 rendering without effects, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
 discovery, credential-free qualification receipts, and read-only Blueprint
 inspection. They do not prove a real

@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import type { ClaimedDurableTimer, DurableTimerStore } from "../state-store/durable-timers.ts";
+import type { ClaimedDurableTimer, DurableTimerStore, StoredDurableTimer } from "../state-store/durable-timers.ts";
 import { canonicalJson } from "../runtime/canonical.ts";
 import { postgresTimestampToIso } from "./postgres-values.ts";
 import { ensureCompanyRecordsSchema } from "./records-migrate.ts";
@@ -28,6 +28,19 @@ const claimedTimer = (row: Record<string, any>): ClaimedDurableTimer => ({
   attempts: Number(row.attempts),
 });
 
+const storedTimer = (row: Record<string, any>): StoredDurableTimer => ({
+  instanceId: String(row.instance_id),
+  timerId: String(row.timer_id),
+  timerKind: String(row.timer_kind),
+  dueAt: postgresTimestampToIso(row.due_at),
+  idempotencyKey: String(row.idempotency_key),
+  payload: payload(row.payload),
+  state: row.state as StoredDurableTimer["state"],
+  attempts: Number(row.attempts),
+  ...(row.evidence === null || row.evidence === undefined ? {} : { evidence: payload(row.evidence) }),
+  ...(row.completed_at ? { completedAt: postgresTimestampToIso(row.completed_at) } : {}),
+});
+
 export function createPostgresDurableTimerStore(): DurableTimerStore {
   return {
     async schedule(timer) {
@@ -47,6 +60,15 @@ export function createPostgresDurableTimerStore(): DurableTimerStore {
         throw new Error(`Durable timer '${timer.timerId}' conflicts with its existing identity`);
       }
       return false;
+    },
+
+    async list(args) {
+      await ensureCompanyRecordsSchema();
+      const rows = await connection()`select * from companyos_records.durable_timers
+        where instance_id = ${args.instanceId}
+          and (${args.timerKind ?? null}::text is null or timer_kind = ${args.timerKind ?? null})
+        order by due_at, timer_id`;
+      return rows.map(storedTimer);
     },
 
     async claimDue(args) {

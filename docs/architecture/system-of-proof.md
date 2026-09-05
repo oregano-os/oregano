@@ -146,6 +146,15 @@ records. Provider message content never supplies identity, Agent selection,
 approval, or effect authority. Historical Sprint replay uses an isolated
 definition and controlled clock and stores only proof outcomes; the maintained
 host refuses its compiled live communication and work-item bindings.
+Hosted Sprint scenario runs use the same evidence schema and a separate
+digest-derived definition and timer namespace. They execute the real compiled
+host in proof-only Shadow mode and retain a bounded, content-free report over
+durable event types, decision outcomes, intent states, timer states, source
+versions, and active-binding readiness. The report includes full evidence
+counts and digests while returning only a fixed maximum of individual rows; the
+complete proof remains durable. It contains no rendered message body and does
+not make a provider receipt claim. Repeating the same immutable input returns
+the same proof digest without creating duplicate coordination rows.
 Any ordinary Tool authorization, confirmation, effect claim, and execution
 outcome stays in `companyos`; an external provider receipt or verified reread
 completes the chain. Shadow dispatch records a template digest and rendered

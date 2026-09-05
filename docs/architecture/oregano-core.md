@@ -123,6 +123,17 @@ proof-only and structurally refuses every live output binding. A later test
 publication remains an ordinary Capability-controlled effect rather than a
 privilege of the replay engine.
 
+The same authenticated operator surface can execute one bounded full-week
+scenario against current stabilized participant and work-item projections.
+The scenario runner derives a separate definition and schedule namespace from
+the immutable input, forces the hosted runtime to `shadow`, advances only the
+real compiled timers and Sprint decisions with a controlled clock, and records
+events, intents, terminal dispatch evidence, and timer outcomes without calling
+a provider. Its catalog distinguishes deterministic runtime paths from planned
+conversational paths; an unhosted Triage, Briefing, inactivity, or blocker
+workflow cannot be reported as executed. Operator input cannot supply events,
+templates, destinations, Tools, grants, or provider payloads.
+
 The weekly worker refreshes current work-item facts from a twice-stabilized
 projection before processing due Monday, weekday, readiness, or Friday timers.
 This does not replace the Sprint participant snapshot: the participant scope is
