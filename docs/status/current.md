@@ -192,6 +192,16 @@ evidence, historical prototypes, and production gaps.
   follow-up unavailable until their durable conversational runtime exists.
   Simulation cannot accept a destination, Tool, grant, template, arbitrary
   event, or provider payload and cannot call Slack or a work-item provider.
+  A separate digest-bound `publish-simulation` action may publish one stored
+  Monday hand-off intent through the actual compiled Sprint Agent and exact
+  test-only Slack binding. It reruns the scenario, rejects changed output,
+  derives the Workspace template and content from durable state, and records
+  the ordinary provider receipt. Workbench rejects a live-channel alias and
+  requires the runtime itself to remain `shadow-only`. The Slack adapter hides
+  that operator-only publication grant from conversational model turns.
+- Weekly Sprint declarations now compile independently. Monday hand-off can be
+  enabled without also enabling daily digest and readiness; readiness retains
+  its stricter planning, template, Tool, and direct-destination prerequisites.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts

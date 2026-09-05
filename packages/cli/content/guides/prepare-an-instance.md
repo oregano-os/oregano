@@ -255,7 +255,8 @@ authorized roster member reaches the selected Agent; and an unknown identity
 is blocked before model invocation.
 
 The hosted Sprint operator path is `POST /api/sprint/operator`; it supports
-only `inspect` and `open` and requires `COMPANYOS_SPRINT_OPERATOR_SECRET`.
+`inspect`, `open`, proof-only `simulate`, and separately controlled replay and
+test-publication actions, and requires `COMPANYOS_SPRINT_OPERATOR_SECRET`.
 `GET /api/sprint/timers` and `GET /api/sprint/intents` are bounded wake-up
 routes protected by `CRON_SECRET`. The immutable Workspace schedule, not the
 hosting cron, decides whether work is due. Leave the runtime `disabled` until
@@ -268,13 +269,26 @@ A schedule that remains `blocked` in the Workspace may be exercised only in
 `active` workers continue to fail closed until that exact schedule declaration
 is explicitly active.
 
-The reviewed Sprint configuration may bind `weekly.monday_handoff_trigger`,
-`weekly.weekday_digest_trigger`, and `weekly.readiness_weekday` to immutable
-schedule entries and may bind Workspace-owned `monday_handoff`,
-`weekday_digest`, and `direct_question` templates. Before any due weekly timer,
+The reviewed Sprint configuration may independently bind
+`weekly.monday_handoff_trigger` and `weekly.weekday_digest_trigger` to immutable
+schedule entries and their Workspace-owned `monday_handoff` or
+`weekday_digest` templates. `weekly.readiness_weekday` additionally requires
+the weekday digest, planning states, required fields, and the Workspace-owned
+`direct_question` template. Before any due weekly timer,
 the Runner refreshes the twice-stabilized work-item projection while retaining
 the Sprint's frozen participant scope. Bind every participant identity to one
 exact direct-message destination before enabling readiness questions.
+
+For an operator-reviewed Monday hand-off test, keep the runtime
+`execution: shadow-only` and add `test_publication` with `test_only: true`, one
+exact communication binding, and a non-empty `forbidden_channel_ids` list that
+contains the live Sprint channel id. The Sprint Agent must resolve
+`oregano:communications/publish`, but ordinary Shadow workers still execute no
+provider effect and the conversational model cannot see the operator-only
+grant. First call `simulate`; then pass only its exact output digest
+and stored Monday hand-off intent id to `publish-simulation`. The host derives
+the Agent, Tool, template, message content, and test destination from the
+compiled Artifact and rejects any changed digest or live-channel alias.
 
 The checked-in Vercel reference wakes the Sprint workers once per minute.
 Vercel currently supports that frequency only on plans with per-minute Cron;

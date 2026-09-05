@@ -86,7 +86,7 @@
     "weekly": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["monday_handoff_trigger", "weekday_digest_trigger", "readiness_weekday"],
+      "minProperties": 1,
       "properties": {
         "monday_handoff_trigger": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
         "weekday_digest_trigger": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },

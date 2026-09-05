@@ -58,7 +58,7 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
       throw new Error(`${path}: sprint_runtimes[${index}] must be an object.`);
     }
     const runtime = entry as Record<string, unknown>;
-    const allowed = ["definition", "agent", "execution", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item", "replay"];
+    const allowed = ["definition", "agent", "execution", "service_principal", "participant_identity_prefix", "direct_destinations", "work_item", "test_publication", "replay"];
     const extra = Object.keys(runtime).find((key) => !allowed.includes(key));
     if (extra) throw new Error(`${path}: sprint_runtimes[${index}] contains unsupported field '${extra}'.`);
     const definitionId = requiredIdentifier(runtime.definition, `${path}: sprint_runtimes[${index}].definition`);
@@ -88,6 +88,23 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
         resourceBinding: requiredIdentifier(candidate.resource_binding, `${path}: sprint_runtimes[${index}].work_item.resource_binding`),
         rolloverField: requiredIdentifier(candidate.rollover_field, `${path}: sprint_runtimes[${index}].work_item.rollover_field`),
         ...(candidate.readiness_field === undefined ? {} : { readinessField: requiredIdentifier(candidate.readiness_field, `${path}: sprint_runtimes[${index}].work_item.readiness_field`) }),
+      };
+    }
+    let testPublication: SprintRuntimeInstanceConfiguration["testPublication"];
+    if (runtime.test_publication !== undefined) {
+      if (!runtime.test_publication || typeof runtime.test_publication !== "object" || Array.isArray(runtime.test_publication)) {
+        throw new Error(`${path}: sprint_runtimes[${index}].test_publication must be an object.`);
+      }
+      const publication = runtime.test_publication as Record<string, unknown>;
+      const extraPublication = Object.keys(publication).find((key) => ![
+        "test_only", "communication_binding", "forbidden_channel_ids",
+      ].includes(key));
+      if (extraPublication) throw new Error(`${path}: sprint_runtimes[${index}].test_publication contains unsupported field '${extraPublication}'.`);
+      if (publication.test_only !== true) throw new Error(`${path}: sprint_runtimes[${index}].test_publication.test_only must be true.`);
+      testPublication = {
+        testOnly: true,
+        communicationBinding: requiredIdentifier(publication.communication_binding, `${path}: sprint_runtimes[${index}].test_publication.communication_binding`),
+        forbiddenChannelIds: requiredStringList(publication.forbidden_channel_ids, `${path}: sprint_runtimes[${index}].test_publication.forbidden_channel_ids`, /^[A-Z0-9]{5,32}$/),
       };
     }
     let replay: SprintRuntimeInstanceConfiguration["replay"];
@@ -133,6 +150,7 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
       participantIdentityPrefix: requiredPrincipalPrefix(runtime.participant_identity_prefix, `${path}: sprint_runtimes[${index}].participant_identity_prefix`),
       directDestinations,
       ...(workItem ? { workItem } : {}),
+      ...(testPublication ? { testPublication } : {}),
       ...(replay ? { replay } : {}),
     };
   });

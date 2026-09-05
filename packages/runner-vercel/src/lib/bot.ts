@@ -18,7 +18,7 @@ import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import { createPostgresConversationAssignmentStore } from "../../../state-postgres/conversation-assignment-store.ts";
 import type { ConversationAssignmentStore } from "../../../state-store/conversation-assignments.ts";
 import type { RosterMember } from "../../../state-store/roster.ts";
-import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
+import type { CompanyOSArtifact, CompiledAgent, CompiledSprintRuntime } from "../../../companyos-builder/types.ts";
 import type { StateAdapter } from "chat";
 import { loadArtifact, resolvedAgentForConversation } from "./artifact.ts";
 import type { ResolvedConversationAgent } from "./artifact.ts";
@@ -105,6 +105,19 @@ function toolName(grantId: string): string {
   return grantId.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
+/** Keep operator-only scenario publication authority out of model-visible chat. */
+export function modelVisibleToolGrantIds(
+  agent: CompiledAgent,
+  sprintRuntime?: CompiledSprintRuntime,
+): string[] {
+  const operatorOnly = sprintRuntime?.execution === "shadow-only" && sprintRuntime.testPublication?.testOnly
+    ? new Set(["oregano:communications/publish"])
+    : new Set<string>();
+  return agent.toolSet.tools
+    .map((entry) => entry.grantId)
+    .filter((grantId) => !operatorOnly.has(grantId));
+}
+
 function systemInstructions(agent: CompiledAgent, knowledgeRoute: KnowledgeTurnRoute, tools: ToolSet): string {
   const materials = Object.entries(agent.materials)
     .map(([path, content]) => `\n<material path="${path}">\n${content}\n</material>`)
@@ -126,9 +139,11 @@ function resolvedTools(
   runId: string,
   messageId: string,
   conversation: ResolvedConversationAgent,
+  visibleGrantIds: ReadonlySet<string>,
 ): ToolSet {
   const output: ToolSet = {};
   for (const resolved of agent.toolSet.tools) {
+    if (!visibleGrantIds.has(resolved.grantId)) continue;
     const compiled = agent.tools.find((candidate) => candidate.contract.runtimeId === resolved.runtimeId);
     if (!compiled) throw new Error(`Resolved Tool '${resolved.runtimeId}' has no compiled implementation.`);
     const name = toolName(resolved.grantId);
@@ -302,10 +317,13 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
-  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation);
+  const visibleGrantIds = new Set(modelVisibleToolGrantIds(agent, sprintBindings[0]));
+  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds);
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
-    tools: agent.toolSet.tools.map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
+    tools: agent.toolSet.tools
+      .filter((entry) => visibleGrantIds.has(entry.grantId))
+      .map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
   });
   const modelTask = sprintBindings.length === 1
     ? { profile: "reasoning" as const, task: sprintBindings[0].modelTask, configuration: "default" as const }
@@ -333,7 +351,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     configuration: slackAgentExperience,
     agentId: agent.id,
     knowledgeRouteKind: knowledgeRoute.kind,
-    businessToolCount: agent.toolSet.tools.length,
+    businessToolCount: visibleGrantIds.size,
   })) {
     const result = await modelAgent.stream({ messages, abortSignal });
     await deliveryThread.post(result.fullStream);

@@ -12,6 +12,8 @@ import {
   toolResultNeedsHumanInput,
   validatedSlackResponsePlan,
 } from "./slack-agent-experience.ts";
+import { modelVisibleToolGrantIds } from "./bot.ts";
+import type { CompiledAgent, CompiledSprintRuntime } from "../../../companyos-builder/types.ts";
 
 test("Slack Agent View is opt-in and requires the exact true value", () => {
   assert.deepEqual(resolveSlackAgentExperience({}), {
@@ -60,6 +62,25 @@ test("native streaming is limited to ordinary replies without Company business T
     knowledgeRouteKind: "auto",
     businessToolCount: 0,
   }), false);
+});
+
+test("shadow scenario publication authority is never model-visible", () => {
+  const agent = {
+    toolSet: {
+      tools: [
+        { grantId: "oregano:records/query" },
+        { grantId: "oregano:communications/publish" },
+      ],
+    },
+  } as CompiledAgent;
+  assert.deepEqual(modelVisibleToolGrantIds(agent, {
+    execution: "shadow-only",
+    testPublication: { testOnly: true, communicationBinding: "test-channel" },
+  } as CompiledSprintRuntime), ["oregano:records/query"]);
+  assert.deepEqual(modelVisibleToolGrantIds(agent, {
+    execution: "active-capable",
+    testPublication: { testOnly: true, communicationBinding: "test-channel" },
+  } as CompiledSprintRuntime), ["oregano:records/query", "oregano:communications/publish"]);
 });
 
 test("validated responses stream in exact native chunks and suspend only for human input", async () => {

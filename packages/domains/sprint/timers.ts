@@ -62,7 +62,7 @@ export async function scheduleSprintWeekTimers(args: {
   const selectedIds = new Set([
     args.policy.weekly.monday_handoff_trigger,
     args.policy.weekly.weekday_digest_trigger,
-  ]);
+  ].filter((id): id is string => Boolean(id)));
   const selected = args.triggers.filter((trigger) => selectedIds.has(trigger.id));
   if (selected.length !== selectedIds.size) throw new Error("Sprint weekly policy references an absent schedule trigger");
   const moments: Array<{ triggerId: string; dueAt: string }> = [];

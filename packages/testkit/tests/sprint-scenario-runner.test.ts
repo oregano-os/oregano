@@ -4,6 +4,8 @@ import type { CompiledSprintRuntime } from "../../companyos-builder/types.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 import { InMemorySprintOrchestrationStore } from "../../runtime/memory-sprint-orchestration.ts";
 import { SprintScenarioRunner, type SprintScenarioInput } from "../../runtime/sprint-scenario-runner.ts";
+import { assertSprintScenarioPublicationDigest, publishSprintScenarioMessage } from "../../runtime/sprint-scenario-publication.ts";
+import type { ExecuteToolRequest } from "../../runtime/companyos-runtime.ts";
 import { parseSprintOperatorRequest } from "../../runner-vercel/src/lib/sprint-runtime.ts";
 
 const compiled: CompiledSprintRuntime = {
@@ -82,6 +84,13 @@ const compiled: CompiledSprintRuntime = {
   modelTask: "sprint.coordination",
 };
 
+const agentEvidence = {
+  instructionsDigest: "8".repeat(64),
+  skillMaterialDigests: [
+    { path: "agents/sprint/skills/sprint-sop/SKILL.md", digest: "9".repeat(64) },
+  ],
+};
+
 const input = (): SprintScenarioInput => ({
   scenarioRunId: "full-week-2030-05",
   sprintId: "sprint-2030-05",
@@ -108,7 +117,7 @@ const input = (): SprintScenarioInput => ({
 test("a full-week scenario executes the real hosted lifecycle without provider effects", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();
-  const runner = new SprintScenarioRunner({ instanceId: "fixture", compiled, store, timerStore });
+  const runner = new SprintScenarioRunner({ instanceId: "fixture", compiled, store, timerStore, agentEvidence });
   const report = await runner.run(input());
 
   assert.deepEqual(report.executed_scenarios, [
@@ -120,6 +129,8 @@ test("a full-week scenario executes the real hosted lifecycle without provider e
     "rollover-proposal",
   ]);
   assert.equal(report.mode, "proof-only");
+  assert.equal(report.compiled_context.agent_instructions_digest, agentEvidence.instructionsDigest);
+  assert.deepEqual(report.compiled_context.skill_material_digests, agentEvidence.skillMaterialDigests);
   assert.equal(report.final_state.phase, "closed");
   assert.equal(report.final_state.submission_count, 2);
   assert.equal(report.proof_summary.event_count, report.events.length);
@@ -139,7 +150,7 @@ test("a full-week scenario executes the real hosted lifecycle without provider e
 test("the same scenario identity is replay-safe and returns stable durable proof", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();
-  const runner = new SprintScenarioRunner({ instanceId: "fixture", compiled, store, timerStore });
+  const runner = new SprintScenarioRunner({ instanceId: "fixture", compiled, store, timerStore, agentEvidence });
   const first = await runner.run(input());
   const eventCount = store.events.size;
   const intentCount = store.intents.size;
@@ -151,6 +162,60 @@ test("the same scenario identity is replay-safe and returns stable durable proof
   assert.equal(store.events.size, eventCount);
   assert.equal(store.intents.size, intentCount);
   assert.equal(timerStore.rows.size, timerCount);
+});
+
+test("one reviewed Monday hand-off publishes through the compiled Sprint Agent and exact test binding", async () => {
+  const store = new InMemorySprintOrchestrationStore();
+  const timerStore = new InMemoryDurableTimerStore();
+  const publicationCompiled: CompiledSprintRuntime = {
+    ...compiled,
+    execution: "shadow-only",
+    testPublication: { testOnly: true, communicationBinding: "sprint-test-channel" },
+  };
+  const report = await new SprintScenarioRunner({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    store,
+    timerStore,
+    agentEvidence,
+  }).run(input());
+  const monday = report.intents.find((intent) => intent.intent_type === "message.monday-handoff");
+  assert.ok(monday);
+  const calls: ExecuteToolRequest[] = [];
+  const publication = await publishSprintScenarioMessage({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    report,
+    expectedOutputDigest: report.output_digest,
+    intentId: monday.intent_id,
+    store,
+    runtime: {
+      async execute(request) {
+        calls.push(request);
+        return {
+          output: {
+            destination_binding: "sprint-test-channel",
+            message_id: "1700000000.000001",
+            thread_reference: "1700000000.000001",
+            published_at: "2030-02-01T18:00:00.000Z",
+          },
+        };
+      },
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.agentId, "sprint");
+  assert.equal(calls[0]?.grantId, "oregano:communications/publish");
+  assert.deepEqual((calls[0]?.input as Record<string, unknown>).destination_binding, "sprint-test-channel");
+  assert.equal(publication.intent_type, "message.monday-handoff");
+  assert.equal(publication.agent_id, "sprint");
+  assert.equal(publication.template_digest, compiled.templates.mondayHandoff?.digest);
+  assert.equal(publication.slack.destination_binding, "sprint-test-channel");
+  assert.throws(
+    () => assertSprintScenarioPublicationDigest(report, "f".repeat(64)),
+    /output changed after review/,
+  );
 });
 
 test("the operator parser exposes one bounded proof-only simulation action", () => {
@@ -191,6 +256,29 @@ test("the operator parser exposes one bounded proof-only simulation action", () 
     period_end: "2030-02-01",
     submission_outcomes: { alex: "almost" },
   })), /submission_outcomes for 'alex' is invalid/);
+  assert.deepEqual(parseSprintOperatorRequest(JSON.stringify({
+    action: "publish-simulation",
+    definition_id: "weekly-sprint",
+    scenario_run_id: "review-1",
+    sprint_id: "sprint-1",
+    period_start: "2030-01-28",
+    period_end: "2030-02-01",
+    excluded_participant_ids: [],
+    submission_outcomes: {},
+    intent_id: "message:monday",
+    expected_output_digest: "a".repeat(64),
+  })), {
+    action: "publish-simulation",
+    definitionId: "weekly-sprint",
+    scenarioRunId: "review-1",
+    sprintId: "sprint-1",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    excludedParticipantIds: [],
+    submissionOutcomes: {},
+    intentId: "message:monday",
+    expectedOutputDigest: "a".repeat(64),
+  });
 });
 
 test("the catalog does not claim missing compiled readiness behavior", async () => {
@@ -200,7 +288,7 @@ test("the catalog does not claim missing compiled readiness behavior", async () 
     ...compiled,
     workItem: { resourceBinding: "live-sprint-board", rolloverField: "group" },
   };
-  const report = await new SprintScenarioRunner({ instanceId: "fixture", compiled: withoutReadiness, store, timerStore }).run({
+  const report = await new SprintScenarioRunner({ instanceId: "fixture", compiled: withoutReadiness, store, timerStore, agentEvidence }).run({
     ...input(),
     scenarioRunId: "without-readiness",
   });
@@ -216,7 +304,7 @@ test("the catalog does not claim missing compiled readiness behavior", async () 
 test("scenario input is fully validated before durable proof is written", async () => {
   const store = new InMemorySprintOrchestrationStore();
   const timerStore = new InMemoryDurableTimerStore();
-  const runner = new SprintScenarioRunner({ instanceId: "fixture", compiled, store, timerStore });
+  const runner = new SprintScenarioRunner({ instanceId: "fixture", compiled, store, timerStore, agentEvidence });
   await assert.rejects(() => runner.run({
     ...input(),
     scenarioRunId: "unknown-participant",

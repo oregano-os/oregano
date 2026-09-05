@@ -289,6 +289,24 @@ workflows have a real durable hosted runtime. An exact retry MUST reuse its
 events, intents, timers, state, and output digest and MUST NOT touch the source
 Sprint definition.
 
+**CRS-029 — Digest-bound scenario publication.** An Instance MAY compile one
+test-only communication destination for a `shadow-only` Sprint runtime. The
+live Sprint destination's exact provider channel id MUST appear in the
+Instance's forbidden set, and Workbench MUST reject logical or physical
+test/live equality. A separate authenticated operator action MUST rerun the
+same scenario and match an exact reviewed output digest before any effect. It
+MUST select an existing durable intent by id and, in the first maintained
+slice, MUST accept only `message.monday-handoff`. Agent id, service principal,
+Tool grant, template, rendered content, and destination MUST come exclusively
+from the immutable Artifact and durable intent; none may be supplied by the
+operator. The effect MUST cross the ordinary
+`communication.message.publish` Capability boundary with a deterministic
+identity and retain the provider receipt in System of Proof. While the runtime
+is `shadow-only`, this publication grant MUST NOT be exposed in a
+conversational model ToolSet. Optional weekly
+features MUST compile independently; enabling Monday hand-off MUST NOT require
+a Company to invent weekday digest or readiness policy.
+
 ## 4. Tools and Connectors
 
 **CRS-030 — Provider-neutral Capabilities.** Core maintains the contracts

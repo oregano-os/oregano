@@ -15,6 +15,7 @@ import { normalizeSprintSnapshot } from "../../../runtime/sprint-snapshot.ts";
 import { SprintReplayService } from "../../../runtime/sprint-replay.ts";
 import { assertSprintReplayPublicationDigest, publishSprintReplayReport } from "../../../runtime/sprint-replay-publication.ts";
 import { SprintScenarioRunner, type SprintScenarioSubmissionOutcome } from "../../../runtime/sprint-scenario-runner.ts";
+import { assertSprintScenarioPublicationDigest, publishSprintScenarioMessage } from "../../../runtime/sprint-scenario-publication.ts";
 import { loadArtifact } from "./artifact.ts";
 import { getCompanyOSRuntime } from "./bot.ts";
 
@@ -136,6 +137,19 @@ export type SprintOperatorRequest =
     submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome>;
   }
   | {
+    action: "publish-simulation";
+    definitionId?: string;
+    scenarioRunId: string;
+    sprintId: string;
+    periodStart: string;
+    periodEnd: string;
+    nextSprintId?: string;
+    excludedParticipantIds: string[];
+    submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome>;
+    intentId: string;
+    expectedOutputDigest: string;
+  }
+  | {
     action: "replay";
     definitionId?: string;
     replayId: string;
@@ -190,8 +204,11 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
         : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
     };
   }
-  if (value.action === "simulate") {
-    exactKeys(value, ["action", "definition_id", "scenario_run_id", "sprint_id", "period_start", "period_end", "next_sprint_id", "excluded_participant_ids", "submission_outcomes"], "Sprint simulate request");
+  if (value.action === "simulate" || value.action === "publish-simulation") {
+    exactKeys(value, ["action", "definition_id", "scenario_run_id", "sprint_id", "period_start", "period_end", "next_sprint_id", "excluded_participant_ids", "submission_outcomes", "intent_id", "expected_output_digest"], "Sprint simulate request");
+    if (value.action === "simulate" && (value.intent_id !== undefined || value.expected_output_digest !== undefined)) {
+      throw new Error("Sprint simulate request cannot contain publication evidence");
+    }
     const submissionOutcomes: Record<string, SprintScenarioSubmissionOutcome> = {};
     if (value.submission_outcomes !== undefined) {
       const outcomes = object(value.submission_outcomes, "submission_outcomes");
@@ -204,8 +221,7 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
         submissionOutcomes[participantId] = outcome;
       }
     }
-    return {
-      action: "simulate",
+    const parsed = {
       ...(value.definition_id === undefined ? {} : { definitionId: text(value.definition_id, "definition_id", 63) }),
       scenarioRunId: text(value.scenario_run_id, "scenario_run_id", 127),
       sprintId: text(value.sprint_id, "sprint_id"),
@@ -216,6 +232,17 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
         ? []
         : stringArray(value.excluded_participant_ids, "excluded_participant_ids", 2_000),
       submissionOutcomes,
+    };
+    if (value.action === "simulate") return { action: "simulate", ...parsed };
+    const expectedOutputDigest = text(value.expected_output_digest, "expected_output_digest", 64);
+    if (!/^[a-f0-9]{64}$/.test(expectedOutputDigest)) {
+      throw new Error("expected_output_digest must be one exact SHA-256 digest");
+    }
+    return {
+      action: "publish-simulation",
+      ...parsed,
+      intentId: text(value.intent_id, "intent_id", 255),
+      expectedOutputDigest,
     };
   }
   if (value.action === "replay" || value.action === "publish-replay") {
@@ -243,7 +270,7 @@ export function parseSprintOperatorRequest(raw: string): SprintOperatorRequest {
       ? { action: "publish-replay", ...parsed, expectedOutputDigest: expectedOutputDigest! }
       : { action: "replay", ...parsed };
   }
-  throw new Error("Sprint operator action must be inspect, simulate, open, replay, or publish-replay");
+  throw new Error("Sprint operator action must be inspect, simulate, publish-simulation, open, replay, or publish-replay");
 }
 
 function toolResult(value: unknown, projectionId: string): RecordQueryResult {
@@ -415,29 +442,63 @@ async function executeHistoricalSprintReplay(args: {
     };
 }
 
+type SprintSimulationRequest = Extract<SprintOperatorRequest, { action: "simulate" | "publish-simulation" }>;
+
+async function executeSprintSimulation(input: SprintSimulationRequest, now: string) {
+  const artifact = loadArtifact();
+  const compiled = selectedSprintRuntime(artifact, input.definitionId ?? process.env.COMPANYOS_SPRINT_DEFINITION_ID);
+  const agent = artifact.agents.find((candidate) => candidate.id === compiled.agentId);
+  if (!agent) throw new Error(`Compiled Sprint Agent '${compiled.agentId}' is unavailable`);
+  if (input.action === "publish-simulation") {
+    const templatePath = compiled.templates.mondayHandoff?.path;
+    if (!templatePath || agent.materials[templatePath] === undefined) {
+      throw new Error("The compiled Monday hand-off template is not in the Sprint Agent's Workspace materials");
+    }
+  }
+  const snapshot = await resolveSprintSnapshot(compiled, now);
+  const store = createPostgresSprintOrchestrationStore();
+  const report = await new SprintScenarioRunner({
+    instanceId: artifact.instance.id,
+    compiled,
+    store,
+    timerStore: createPostgresDurableTimerStore(),
+    agentEvidence: {
+      instructionsDigest: sha256(agent.instructions),
+      skillMaterialDigests: Object.entries(agent.materials)
+        .filter(([path]) => path.startsWith(`agents/${compiled.agentId}/skills/`))
+        .map(([path, content]) => ({ path, digest: sha256(content) }))
+        .sort((left, right) => left.path.localeCompare(right.path)),
+    },
+  }).run({
+    scenarioRunId: input.scenarioRunId,
+    sprintId: input.sprintId,
+    periodStart: input.periodStart,
+    periodEnd: input.periodEnd,
+    snapshot,
+    excludedParticipantIds: input.excludedParticipantIds,
+    submissionOutcomes: input.submissionOutcomes,
+    ...(input.nextSprintId ? { nextSprintId: input.nextSprintId } : {}),
+  });
+  return { artifact, compiled, store, report };
+}
+
 export async function executeSprintOperator(input: SprintOperatorRequest, now = new Date().toISOString()) {
   exactIso(now, "Sprint operator server time");
   if (input.action === "open" && input.openedAt > now) throw new Error("Sprint opened_at must not be in the future");
-  if (input.action === "simulate") {
-    const artifact = loadArtifact();
-    const compiled = selectedSprintRuntime(artifact, input.definitionId ?? process.env.COMPANYOS_SPRINT_DEFINITION_ID);
-    const snapshot = await resolveSprintSnapshot(compiled, now);
-    const report = await new SprintScenarioRunner({
-      instanceId: artifact.instance.id,
-      compiled,
-      store: createPostgresSprintOrchestrationStore(),
-      timerStore: createPostgresDurableTimerStore(),
-    }).run({
-      scenarioRunId: input.scenarioRunId,
-      sprintId: input.sprintId,
-      periodStart: input.periodStart,
-      periodEnd: input.periodEnd,
-      snapshot,
-      excludedParticipantIds: input.excludedParticipantIds,
-      submissionOutcomes: input.submissionOutcomes,
-      ...(input.nextSprintId ? { nextSprintId: input.nextSprintId } : {}),
+  if (input.action === "simulate" || input.action === "publish-simulation") {
+    const simulation = await executeSprintSimulation(input, now);
+    if (input.action === "simulate") return { ok: true, report: simulation.report };
+    assertSprintScenarioPublicationDigest(simulation.report, input.expectedOutputDigest);
+    const publication = await publishSprintScenarioMessage({
+      instanceId: simulation.artifact.instance.id,
+      compiled: simulation.compiled,
+      report: simulation.report,
+      expectedOutputDigest: input.expectedOutputDigest,
+      intentId: input.intentId,
+      store: simulation.store,
+      runtime: getCompanyOSRuntime(),
     });
-    return { ok: true, report };
+    return { ok: true, report: simulation.report, publication };
   }
   const hosted = createHostedSprintRuntime(input.definitionId);
   if (input.action === "inspect") return { ok: true, runtime: await hosted.inspect() };

@@ -63,6 +63,8 @@ export interface SprintScenarioReport {
   };
   compiled_context: {
     agent_id: string;
+    agent_instructions_digest: string;
+    skill_material_digests: Array<{ path: string; digest: string }>;
     model_task: string;
     schedule_digest: string;
     template_digests: string[];
@@ -136,9 +138,9 @@ const scenarioDefinition = (inputDigest: string): string => `scenario-${inputDig
 
 function scenarioCatalog(compiled: CompiledSprintRuntime, nextSprintId?: string): SprintScenarioCatalogEntry[] {
   const weekly = Boolean(compiled.policy.weekly);
-  const monday = weekly && Boolean(compiled.templates.mondayHandoff);
-  const digest = weekly && Boolean(compiled.templates.weekdayDigest);
-  const readiness = digest && Boolean(compiled.policy.work_items.required_fields?.length)
+  const monday = weekly && Boolean(compiled.policy.weekly?.monday_handoff_trigger) && Boolean(compiled.templates.mondayHandoff);
+  const digest = weekly && Boolean(compiled.policy.weekly?.weekday_digest_trigger) && Boolean(compiled.templates.weekdayDigest);
+  const readiness = digest && Boolean(compiled.policy.weekly?.readiness_weekday) && Boolean(compiled.policy.work_items.required_fields?.length)
     && Boolean(compiled.templates.directQuestion) && Boolean(compiled.workItem?.readinessField);
   return [
     { id: "monday-handoff", execution: "deterministic-runtime", available: monday, ...(monday ? {} : { reason: "compiled-weekly-handoff-is-unavailable" }) },
@@ -159,7 +161,7 @@ function weeklyMoments(compiled: CompiledSprintRuntime, periodStart: string, per
   const selected = new Set([
     compiled.policy.weekly.monday_handoff_trigger,
     compiled.policy.weekly.weekday_digest_trigger,
-  ]);
+  ].filter((id): id is string => Boolean(id)));
   const triggers = compiled.schedule.triggers.filter((trigger) => selected.has(trigger.id));
   if (new Set(triggers.map((trigger) => trigger.id)).size !== selected.size) {
     throw new Error("Sprint scenario references an absent compiled weekly trigger");
@@ -238,18 +240,40 @@ export class SprintScenarioRunner {
   readonly compiled: CompiledSprintRuntime;
   readonly store: SprintOrchestrationStore;
   readonly timerStore: DurableTimerStore;
+  readonly agentEvidence: {
+    instructionsDigest: string;
+    skillMaterialDigests: Array<{ path: string; digest: string }>;
+  };
 
   constructor(args: {
     instanceId: string;
     compiled: CompiledSprintRuntime;
     store: SprintOrchestrationStore;
     timerStore: DurableTimerStore;
+    agentEvidence: {
+      instructionsDigest: string;
+      skillMaterialDigests: Array<{ path: string; digest: string }>;
+    };
   }) {
     text(args.instanceId, "Sprint scenario Instance id", 127);
+    if (!/^[a-f0-9]{64}$/.test(args.agentEvidence.instructionsDigest)) {
+      throw new Error("Sprint scenario Agent instructions digest must be one exact SHA-256 digest");
+    }
+    for (const material of args.agentEvidence.skillMaterialDigests) {
+      text(material.path, "Sprint scenario Skill material path", 512);
+      if (!/^[a-f0-9]{64}$/.test(material.digest)) {
+        throw new Error("Sprint scenario Skill material digest must be one exact SHA-256 digest");
+      }
+    }
     this.instanceId = args.instanceId;
     this.compiled = structuredClone(args.compiled);
     this.store = args.store;
     this.timerStore = args.timerStore;
+    this.agentEvidence = {
+      instructionsDigest: args.agentEvidence.instructionsDigest,
+      skillMaterialDigests: structuredClone(args.agentEvidence.skillMaterialDigests)
+        .sort((left, right) => left.path.localeCompare(right.path)),
+    };
   }
 
   async run(input: SprintScenarioInput): Promise<SprintScenarioReport> {
@@ -281,6 +305,8 @@ export class SprintScenarioRunner {
       compiled_definition_id: this.compiled.definitionId,
       compiled_schedule_digest: this.compiled.schedule.sourceDigest,
       compiled_template_digests: Object.values(this.compiled.templates).map((template) => template.digest).sort(),
+      agent_instructions_digest: this.agentEvidence.instructionsDigest,
+      skill_material_digests: this.agentEvidence.skillMaterialDigests,
     });
     const definitionId = scenarioDefinition(inputDigest);
     const scheduleDigest = sha256(["sprint-scenario", this.compiled.schedule.sourceDigest, inputDigest]);
@@ -451,6 +477,8 @@ export class SprintScenarioRunner {
       },
       compiled_context: {
         agent_id: this.compiled.agentId,
+        agent_instructions_digest: this.agentEvidence.instructionsDigest,
+        skill_material_digests: structuredClone(this.agentEvidence.skillMaterialDigests),
         model_task: this.compiled.modelTask,
         schedule_digest: this.compiled.schedule.sourceDigest,
         template_digests: Object.values(this.compiled.templates).map((template) => template.digest).sort(),

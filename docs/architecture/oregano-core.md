@@ -134,7 +134,22 @@ conversational paths; an unhosted Triage, Briefing, inactivity, or blocker
 workflow cannot be reported as executed. Operator input cannot supply events,
 templates, destinations, Tools, grants, or provider payloads.
 
-The weekly worker refreshes current work-item facts from a twice-stabilized
+An Instance may additionally compile one test-only scenario destination for a
+`shadow-only` Sprint runtime. A separate `publish-simulation` action reruns the
+same scenario, requires its exact reviewed output digest and one stored intent
+id, and currently accepts only a Monday hand-off intent. The actual compiled
+Sprint Agent, Workspace template, standard communication Tool, and Instance
+destination produce the effect and provider receipt; the operator cannot
+supply any of them. Workbench requires the live channel id in the explicit
+forbidden set and rejects logical or physical test/live equality. Although the
+compiled Agent owns the grant for proof attribution, the Slack conversational
+adapter removes that operator-only grant from the model-visible ToolSet while
+the runtime remains `shadow-only`.
+
+Weekly features compile independently: a Workspace may enable only Monday
+hand-off without inventing weekday-readiness policy. Readiness still requires
+its weekday digest trigger, planning states, required fields, direct-question
+template, and exact direct destinations. The weekly worker refreshes current work-item facts from a twice-stabilized
 projection before processing due Monday, weekday, readiness, or Friday timers.
 This does not replace the Sprint participant snapshot: the participant scope is
 frozen for the Sprint while provider work facts advance only through versioned
