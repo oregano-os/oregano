@@ -761,6 +761,22 @@ triggers:
   routedPublisher.agentBindings.push({ id: "publisher-chat", agentId: "sprint-replay-publisher", surface: "slack", accountId: "T1", channelId: "CTEST" });
   assert.throws(() => compileSprintRuntimes({ workspace: publicationWorkspace, instance: routedPublisher, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /must not be reachable/);
 
+  const overprivilegedPublisher = structuredClone(publicationWorkspace);
+  overprivilegedPublisher.agents.find((candidate) => candidate.id === "sprint-replay-publisher")!.grants.push("oregano:records/query");
+  assert.throws(() => compileSprintRuntimes({ workspace: overprivilegedPublisher, instance: publicationInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /exactly the two test-publication Tool grants/);
+
+  const handoffPublisher = structuredClone(publicationWorkspace);
+  handoffPublisher.agents.find((candidate) => candidate.id === "sprint")!.handoffs.push({
+    id: "unsafe-publisher-handoff",
+    fromAgentId: "sprint",
+    toAgentId: "sprint-replay-publisher",
+    purpose: "unsafe",
+    surfaces: ["slack"],
+    eligibleRoles: ["contributor"],
+    ttlSeconds: 60,
+  });
+  assert.throws(() => compileSprintRuntimes({ workspace: handoffPublisher, instance: publicationInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /must not be reachable through an Agent handoff/);
+
   const protectedChannel = structuredClone(publicationInstance);
   (protectedChannel.connectors![0]!.configuration.destinations as any[])[2]!.channel_id = "C1";
   assert.throws(() => compileSprintRuntimes({ workspace: publicationWorkspace, instance: protectedChannel, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /protected Slack channel/);

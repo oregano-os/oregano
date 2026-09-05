@@ -250,8 +250,10 @@ is proof-only and MUST refuse every compiled live communication and work-item
 binding. A test publication MUST be a separate authenticated operator action.
 It MUST recompute the proof-only replay, match one exact previously reviewed
 output digest before the first effect, and render only a Workspace-owned
-template. Its publisher Agent MUST NOT be a default Agent or appear in any
-conversational Agent binding. The Instance MUST bind one exact test channel,
+template. Dynamic provider and roster values MUST be escaped as data before
+provider-markdown rendering. Its publisher Agent MUST have exactly the two
+publication grants and MUST NOT be a default Agent, appear in any
+conversational Agent binding, or be reachable through an Agent handoff. The Instance MUST bind one exact test channel,
 one exact read-write test work-item resource, and one exact report item while
 also declaring protected live provider resource ids. Workbench MUST reject
 logical or physical equality between any test and protected live target.

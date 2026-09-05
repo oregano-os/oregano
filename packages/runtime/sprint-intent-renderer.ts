@@ -12,10 +12,20 @@ export interface RenderedSprintMessage {
 
 const line = (values: string[]): string => values.length > 0 ? values.join(", ") : "";
 
+// Dynamic Workspace and provider values are data, not Slack markup. Escaping
+// Slack control characters prevents a card title or display name from turning
+// into an unintended mention or formatting directive in a published report.
+const providerText = (value: string): string => value
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;");
+
 const boundedWorkItemLine = (items: SprintReplayReport["open_work_items"], maximum = 6_000): string => {
   const rendered: string[] = [];
   for (const [index, item] of items.entries()) {
-    const value = item.url ? `${item.title} (${item.url})` : `${item.title} (${item.work_item_id})`;
+    const value = item.url
+      ? `${providerText(item.title)} (${providerText(item.url)})`
+      : `${providerText(item.title)} (${providerText(item.work_item_id)})`;
     const suffix = index < items.length - 1 ? `, … and ${items.length - index} more` : "";
     if (line([...rendered, value]).length + suffix.length > maximum) {
       return `${rendered.length > 0 ? `${line(rendered)}, ` : ""}… and ${items.length - index} more`;
@@ -54,14 +64,14 @@ export function renderSprintReplayReport(args: {
   const names = (state: SprintReplayReport["participant_results"][number]["state"]): string => line(
     args.report.participant_results
       .filter((participant) => participant.state === state)
-      .map((participant) => participant.display_name)
+      .map((participant) => providerText(participant.display_name))
       .sort((left, right) => left.localeCompare(right)),
   );
   return render(args.template, {
-    replay_id: args.report.replay_id,
-    sprint_id: args.report.sprint_id,
-    period_start: args.report.period_start,
-    period_end: args.report.period_end,
+    replay_id: providerText(args.report.replay_id),
+    sprint_id: providerText(args.report.sprint_id),
+    period_start: providerText(args.report.period_start),
+    period_end: providerText(args.report.period_end),
     complete_names: names("complete"),
     needs_reformat_names: names("needs-reformat"),
     missing_names: names("missing"),
@@ -70,7 +80,7 @@ export function renderSprintReplayReport(args: {
     total_effort_hours: args.report.total_effort_hours === null ? "not available" : String(args.report.total_effort_hours),
     accepted_submission_count: String(args.report.accepted_submission_count),
     ignored_message_count: String(args.report.ignored_messages.length),
-    limitations: line(args.report.limitations),
+    limitations: line(args.report.limitations.map(providerText)),
     output_digest: args.report.output_digest,
   });
 }

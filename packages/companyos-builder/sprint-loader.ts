@@ -303,8 +303,14 @@ export function compileSprintRuntimes(args: {
       if (args.instance.defaultAgentId === publisher.id || args.instance.agentBindings.some((binding) => binding.agentId === publisher.id)) {
         throw new Error(`Sprint Replay publisher Agent '${publisher.id}' must not be reachable from a conversational Agent binding.`);
       }
-      for (const grant of ["oregano:communications/publish", "oregano:work-items/comment"]) {
-        if (!publisher.grants.includes(grant)) throw new Error(`Sprint Replay publisher Agent '${publisher.id}' lacks required Tool grant '${grant}'.`);
+      if (args.workspace.agents.some((candidate) => candidate.handoffs.some((handoff) => handoff.toAgentId === publisher.id))) {
+        throw new Error(`Sprint Replay publisher Agent '${publisher.id}' must not be reachable through an Agent handoff.`);
+      }
+      const requiredPublisherGrants = ["oregano:communications/publish", "oregano:work-items/comment"].sort();
+      const actualPublisherGrants = [...new Set(publisher.grants)].sort();
+      if (actualPublisherGrants.length !== requiredPublisherGrants.length
+        || actualPublisherGrants.some((grant, index) => grant !== requiredPublisherGrants[index])) {
+        throw new Error(`Sprint Replay publisher Agent '${publisher.id}' must have exactly the two test-publication Tool grants.`);
       }
       const testDestination = destinations.get(publication.communicationBinding);
       const liveDestination = destinations.get(policy.delivery.channel_binding);

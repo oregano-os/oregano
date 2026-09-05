@@ -123,7 +123,8 @@ tests:
   - Production sources may be read for a replay, while every output outside System-of-Proof evidence is refused unless its exact destination is marked test-only.
   - A production source conversation and production work-management board cannot be selected as replay output destinations.
   - Test publication recomputes the proof-only replay and refuses every effect when its output digest differs from the reviewed digest.
-  - A test publisher Agent is not a default or conversationally bound Agent and can publish only through the two exact compiled test bindings.
+  - A test publisher Agent is not a default, conversationally bound, or handoff-reachable Agent; has exactly the two publication grants; and can publish only through the two exact compiled test bindings.
+  - Dynamic participant and work-item values are escaped as provider data and cannot create Slack mentions or markup instructions.
   - Repeating the same reviewed publication reuses the same Slack and Monday effect identities and receipts.
   - Synthetic public fixtures contain no company messages, people, provider ids, credentials, or business content.
 documentation_impact:

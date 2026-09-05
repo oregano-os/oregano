@@ -174,6 +174,43 @@ test("Sprint replay publication renders once and calls only exact compiled test 
   assert.equal(receipt.monday.comment_id, "c1");
 });
 
+test("Sprint replay publication treats participant and work-item values as data rather than Slack markup", async () => {
+  const report = await runSprintReplayInMemory("fixture-instance", {
+    ...input(),
+    snapshot: {
+      ...input().snapshot,
+      participants: [
+        { participant_id: "person-a", display_name: "<@U99999>", roles: ["contributor"], communication_principal: "chat:fixture:person-a", approved_absence: false },
+      ],
+      workItems: [
+        { work_item_id: "item-a", title: "<!channel> & review", assignee_ids: ["person-a"], group: "current", status: "working", actual_hours: 1, url: "https://work.example/items/a", provider_version: "item-version-a", fields: {} },
+      ],
+    },
+  });
+  const calls: any[] = [];
+  await publishSprintReplayReport({
+    compiled: {
+      definitionId: "weekly-delivery",
+      servicePrincipal: "companyos:fixture:sprint",
+      templates: { replayReport: { path: "replay.md", content: "Complete: {{complete_names}}\nOpen: {{open_work_item_ids}}", digest: "a".repeat(64) } },
+      replay: { messageProjection: "conversation-messages", testPublication: { testOnly: true, publisherAgentId: "publisher", communicationBinding: "test-channel", workItemBinding: "test-board", workItemId: "report" } },
+    } as CompiledSprintRuntime,
+    report,
+    runtime: {
+      async execute(request) {
+        calls.push(request);
+        return request.grantId === "oregano:communications/publish"
+          ? { output: { destination_binding: "test-channel", message_id: "m1", thread_reference: "t1", published_at: "2030-02-01T17:01:00.000Z" } }
+          : { output: { work_item_id: "report", comment_id: "c1", provider_version: "v1", created_at: "2030-02-01T17:02:00.000Z" } };
+      },
+    },
+  });
+  const content = calls[0].input.content as string;
+  assert.match(content, /&lt;@U99999&gt;/);
+  assert.match(content, /&lt;!channel&gt; &amp; review/);
+  assert.doesNotMatch(content, /<!channel>|<@U99999>/);
+});
+
 test("Sprint replay refuses a production output binding before processing records", async () => {
   const unsafe = input();
   unsafe.output.communication_binding = "live-sprint-channel";

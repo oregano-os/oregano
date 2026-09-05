@@ -176,7 +176,9 @@ is a separate Capability-controlled operation and is never implied by replay.
 When `test_publication` is present, `publisher_agent` must be a dedicated Agent
 with only the reviewed `oregano:communications/publish` and
 `oregano:work-items/comment` grants. It must not be the default Agent or appear
-in `agent_bindings`. The communication binding must resolve to one exact test
+in `agent_bindings`, and no Agent handoff may target it. Dynamic participant
+and work-item values are escaped as provider data before the report crosses a
+provider-markdown boundary. The communication binding must resolve to one exact test
 channel; the work-item binding must resolve to one exact read-write test board;
 and `work_item_id` identifies the single test-board item that receives report
 comments. `forbidden_channel_ids` and `forbidden_board_ids` name protected live
