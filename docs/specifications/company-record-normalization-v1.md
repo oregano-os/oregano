@@ -52,6 +52,40 @@ Object identity is a nonempty provider string or finite number, never a
 parser result. An ingestion event must name the same object. Invalid input
 does not consume the event's deduplication identity.
 
+## Roster identity resolution
+
+An `identity` or `identity_list` mapping may set `resolve_identity: true`.
+Its input must contain complete provider principals such as
+`chat:account-1:user-1`; names and bare provider user IDs are rejected. The
+normalizer resolves exact principals against a frozen `RecordIdentityDirectory`
+built from the reviewed Workspace roster. Two provider principals explicitly
+assigned to one roster member resolve to that member's stable ID.
+
+Duplicate roster IDs and ambiguous principal ownership fail before execution.
+Unknown principals, members without stable IDs and non-human principals remain
+explicit `unresolved:<principal>` values. These cannot collide with roster IDs,
+which cannot contain colons. Inactive human identities can still identify
+historical evidence; this lookup does not authorize their present activity.
+Roster participation, current status, groups and approval rights remain the
+responsibility of their existing authorization controls. Parsed text cannot
+request identity resolution.
+
+The directory is copied, bounded to 1,000 members and digested independently of
+member, principal and group order. Normalized versions include that digest in
+their source receipt. For sources using resolution, synchronization proof's
+`source_digest` binds both the source and directory. Changing the roster
+therefore requires new synchronization evidence for a completeness query.
+Sources without resolution retain their original declaration-only digest.
+Missing directory configuration fails even for an empty source inventory.
+
+The CLI freezes `handbook/roster.md` when planning a source operation and
+includes the directory digest in its confirmation. Execution uses those frozen
+bytes and rejects a changed directory. Hosted Records configuration can carry
+bounded `roster_markdown` from the exact configured Workspace commit; it is
+covered by the existing configuration/confirmation digest. The subsequent
+workflow Artifact integration must supply the same reviewed content. No
+external roster, name matching or Records-derived authorization is introduced.
+
 ## Reviewed sectioned text
 
 A source may declare one `parser` using `kind: sectioned-text`, `version: 1`,
@@ -128,8 +162,9 @@ kind, channel, thread and provider time must be mapped separately. The
 parser does not resolve a person, select a run, grant access, approve an effect
 or prove that a source has synchronized through a cutoff. A workflow still
 needs trusted source identity, exact thread assignment and complete-source
-evidence. Roster identity resolution and the generic workflow engine are
-separate integration work.
+evidence. Optional exact principal resolution is implemented as described
+above; provider principal emission, role-board aggregation and the generic
+workflow engine remain integration work.
 
 ## Compatibility and evidence
 

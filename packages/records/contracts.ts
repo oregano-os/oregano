@@ -10,6 +10,8 @@ export interface RecordFieldMapping {
   required?: boolean;
   /** Required for json_list; other list types already have a fixed item type. */
   item_schema?: JsonSchema;
+  /** Resolve a qualified provider principal against the frozen reviewed roster. */
+  resolve_identity?: boolean;
 }
 
 /** Literal form structure. Text never supplies identity, time or authority. */

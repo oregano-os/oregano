@@ -23,6 +23,8 @@ import type {
   CompanyRecordSourceDeclaration,
 } from "../../../records/contracts.ts";
 import { CompanyRecordsRegistry } from "../../../records/registry.ts";
+import { RecordIdentityDirectory } from "../../../records/identity-directory.ts";
+import { parseRoster } from "../../../state-store/roster.ts";
 import type { CompanyRecordSourceBinding } from "../../../records/source-connector.ts";
 import { RecordSourceConnectorRegistry } from "../../../records/source-connector.ts";
 import { synchronizeRecordSnapshot } from "../../../records/synchronization.ts";
@@ -68,6 +70,8 @@ export interface CompanyRecordsRuntimeConfiguration<Environment extends CompanyR
   readonly source_confirmations: Readonly<Record<string, string>>;
   readonly sources: readonly JsonObject[];
   readonly projections: readonly JsonObject[];
+  /** Reviewed content from the exact Workspace, frozen with this configuration. */
+  readonly roster_markdown?: string;
   readonly bindings: readonly {
     readonly source_id: string;
     readonly binding: JsonObject;
@@ -164,7 +168,11 @@ export function decodeCompanyRecordsRuntimeConfiguration<Environment extends Com
   if (credentialPath || scanCredentialIndicators(JSON.stringify(value)).length > 0) {
     throw new CompanyRecordsRehearsalError("credential-in-configuration", "Company Records runtime configuration must contain SecretRefs, never resolved credentials", 503);
   }
-  exactKeys(value, ["version", "environment", "instance_id", "core", "workspace", "source_confirmations", "sources", "projections", "bindings", "reconciliation"], "Company Records runtime configuration");
+  exactKeys(value, ["version", "environment", "instance_id", "core", "workspace", "source_confirmations", "sources", "projections", "bindings", "reconciliation", "roster_markdown"], "Company Records runtime configuration");
+  if (value.roster_markdown !== undefined) {
+    if (typeof value.roster_markdown !== "string" || !value.roster_markdown || value.roster_markdown.length > 262_144) throw new CompanyRecordsRehearsalError("invalid-configuration", "roster_markdown must be bounded reviewed Workspace content", 503);
+    new RecordIdentityDirectory(parseRoster(value.roster_markdown));
+  }
   if (value.version !== 1 || value.environment !== expectedEnvironment) throw new CompanyRecordsRehearsalError("invalid-configuration", `Company Records runtime configuration must select version 1 and ${expectedEnvironment}`, 503);
   const instanceId = string(value.instance_id, "instance_id", /^[a-z][a-z0-9-]{1,62}$/);
   const core = object(value.core, "core");
@@ -259,6 +267,7 @@ export function decodeCompanyRecordsRuntimeConfiguration<Environment extends Com
     sources,
     projections,
     bindings,
+    ...(typeof value.roster_markdown === "string" ? { roster_markdown: value.roster_markdown } : {}),
     ...(reconciliation ? { reconciliation } : {}),
   };
 }
@@ -452,7 +461,9 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
   const sourceValue = configuration.sources.find((candidate) => candidate.id === sourceId);
   const bindingEntry = configuration.bindings.find((candidate) => candidate.source_id === sourceId);
   if (!sourceValue || !bindingEntry || !configuration.source_confirmations[sourceId]) throw new CompanyRecordsRehearsalError("unknown-source", `Unknown confirmed source '${sourceId}'`, 404);
-  const projectionValues = configuration.projections.filter((candidate) => candidate.record_type === sourceValue.record_type && (candidate.selection as JsonObject | undefined)?.source_id === sourceId);
+  const projectionValues = configuration.projections.filter((candidate) => candidate.record_type === sourceValue.record_type
+    && (Array.isArray(candidate.source_ids) ? candidate.source_ids.includes(sourceId)
+      : !(candidate.selection as JsonObject | undefined)?.source_id || (candidate.selection as JsonObject).source_id === sourceId));
   const messages = [
     ...schemaErrors(SOURCE_SCHEMA, sourceValue, `source '${sourceId}'`),
     ...schemaErrors(BINDING_SCHEMA, bindingEntry.binding, `binding '${sourceId}'`),
@@ -469,12 +480,13 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
       if (!targets.has(path.split(".")[0]!)) throw new CompanyRecordsRehearsalError("invalid-declaration", `Projection '${projection.id}' path '${path}' is not materialized by source '${source.id}'`, 503);
     }
   }
-  const registry = new CompanyRecordsRegistry();
+  const registry = new CompanyRecordsRegistry(configuration.roster_markdown === undefined ? {} : { identities: new RecordIdentityDirectory(parseRoster(configuration.roster_markdown)) });
   for (const candidate of configuration.sources) {
     const candidateMessages = schemaErrors(SOURCE_SCHEMA, candidate, `source '${String(candidate.id)}'`);
     if (candidateMessages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", candidateMessages[0]!, 503);
     registry.registerSource(candidate as unknown as CompanyRecordSourceDeclaration);
   }
+  registry.sourceDigest(source.id);
   for (const candidate of configuration.projections) {
     const candidateMessages = schemaErrors(PROJECTION_SCHEMA, candidate, `projection '${String(candidate.id)}'`);
     if (candidateMessages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", candidateMessages[0]!, 503);

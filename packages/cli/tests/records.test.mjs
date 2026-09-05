@@ -251,6 +251,34 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
+test("source operation confirmation freezes the exact roster used for identity resolution", async () => {
+  const fixture = temporaryWorkspace();
+  try {
+    fixture.source.fields.push({ target: "person", source: "principal", value_type: "identity", resolve_identity: true, required: true });
+    writeFileSync(join(fixture.workspace, "records", "sources", "items.yaml"), YAML.stringify(fixture.source));
+    const { path: bindingPath } = writeBinding(fixture.root);
+    const roster = (id) => `---\nmembers:\n  - id: ${id}\n    name: Example Person\n    role: contributor\n    identities:\n      board:\n        principal: board:account-1:user-1\n---\n`;
+    const connectorRegistry = new RecordSourceConnectorRegistry([{
+      id: "fixture/record-source", version: "1.0.0", validateBinding() {},
+      async readCompleteInventory() { return { complete: true, observed_at: "2030-02-01T10:00:00.000Z", objects: [{ id: "item-1", name: "First", principal: "board:account-1:user-1" }], watermark: "fixture", receipt: {} }; },
+    }]);
+    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.14", workbench_version: "0.1.0-experimental.15", clean: true };
+    const plan = () => planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "sync", coreIdentity, connectorRegistry });
+    assert.ok(plan().diagnostics.some((entry) => entry.code === "REC026"));
+    mkdirSync(join(fixture.workspace, "handbook"));
+    const path = join(fixture.workspace, "handbook", "roster.md");
+    writeFileSync(path, roster("member-1"));
+    const first = plan();
+    assert.deepEqual(first.diagnostics, []);
+    writeFileSync(path, roster("member-2"));
+    assert.notEqual(plan().plan.confirmation_hash, first.plan.confirmation_hash);
+    const store = new InMemoryCompanyRecordsStore();
+    await runRecordSourceOperation({ planResult: first, confirmationHash: first.plan.confirmation_hash, connectorRegistry, store });
+    assert.equal((await store.getCurrentObjectVersion("fixture-production", fixture.source.id, "item-1")).values.person, "member-1");
+    await assert.rejects(runRecordSourceOperation({ planResult: { ...first, rosterMarkdown: roster("member-2") }, confirmationHash: first.plan.confirmation_hash, connectorRegistry, store }), /differs from its confirmed/);
+  } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
 test("the maintained Monday source adapter uses bounded complete pagination and emits payload-free evidence", async () => {
   const requests = [];
   const response = (data, requestId) => new Response(JSON.stringify({ data }), {

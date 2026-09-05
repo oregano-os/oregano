@@ -67,6 +67,7 @@ export function validateRecordSource(source: CompanyRecordSourceDeclaration): vo
     validateRecordPath(field.target);
     if (field.target.includes(".") || names.has(field.target)) throw new Error("Record source target fields must be distinct top-level names");
     names.add(field.target);
+    if (field.resolve_identity && (!["identity", "identity_list"].includes(field.value_type) || field.source === "parsed" || field.source.startsWith("parsed."))) throw new Error("Record identity resolution requires a provider identity field, never parsed text");
     if (field.item_schema && field.value_type !== "json_list") throw new Error("Record item_schema is only valid for json_list");
     if (field.item_schema) inspectItemSchema(field.item_schema);
     const fieldSchema = recordFieldSchema(field);

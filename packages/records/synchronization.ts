@@ -2,7 +2,6 @@ import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordsStore } from "../state-store/records.ts";
 import type { CompanyRecordSourceDeclaration } from "./contracts.ts";
 import { projectionRecordId } from "./identity.ts";
-import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import type { CompanyRecordsRegistry } from "./registry.ts";
 import { CompanyRecordsService } from "./service.ts";
@@ -55,6 +54,7 @@ export async function synchronizeRecordSnapshot(args: {
   const { instanceId, source, inventory, registry, store, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
   if (inventory.complete !== true) throw new Error("A partial inventory cannot be synchronized as complete");
   if (sha256(source) !== sha256(registry.source(source.id))) throw new Error("Synchronization source differs from its registered declaration");
+  const sourceDigest = registry.sourceDigest(source.id);
   const observedAt = recordQueryInstant(inventory.observed_at, "Inventory observation");
   if (inventory.synced_through !== undefined && recordQueryInstant(inventory.synced_through, "Source completeness") > observedAt) {
     throw new Error("Source completeness must be an instant no later than the inventory observation");
@@ -73,7 +73,7 @@ export async function synchronizeRecordSnapshot(args: {
   try {
     const outcomes = await mapRecordSnapshotWithBoundedConcurrency(inventory.objects, concurrency, async (raw) => {
       const receipt: Record<string, JsonValue> = { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest ?? "unavailable" };
-      const normalized = normalizeRecordObject({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
+      const normalized = registry.normalize({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
       const current = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
       const ingested = await service.ingest({
         event: {
@@ -115,7 +115,7 @@ export async function synchronizeRecordSnapshot(args: {
       completed_at: inventory.observed_at,
       watermark: inventory.watermark,
       ...(inventory.synced_through ? { synced_through: inventory.synced_through } : {}),
-      source_digest: sha256(source),
+      source_digest: sourceDigest,
       observed: inventory.objects.length,
       inserted,
       unchanged,

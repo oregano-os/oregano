@@ -1,10 +1,29 @@
 import type { CompanyRecordProjectionDeclaration, CompanyRecordSourceDeclaration } from "./contracts.ts";
 import { validateRecordFilters } from "./query.ts";
 import { validateRecordSource } from "./source-validation.ts";
+import { normalizeRecordObject } from "./normalize.ts";
+import type { RecordIdentityDirectory } from "./identity-directory.ts";
+import { sha256 } from "../runtime/canonical.ts";
 
 export class CompanyRecordsRegistry {
   readonly #sources = new Map<string, CompanyRecordSourceDeclaration>();
   readonly #projections = new Map<string, CompanyRecordProjectionDeclaration>();
+  readonly identities?: RecordIdentityDirectory;
+
+  constructor(options: { identities?: RecordIdentityDirectory } = {}) {
+    this.identities = options.identities;
+  }
+
+  sourceDigest(id: string): string {
+    const source = this.source(id);
+    if (!source.fields.some((field) => field.resolve_identity)) return sha256(source);
+    if (!this.identities) throw new Error(`Record source '${id}' requires a frozen roster identity directory`);
+    return sha256({ source, identity_directory_digest: this.identities.digest });
+  }
+
+  normalize(args: Parameters<typeof normalizeRecordObject>[0]) {
+    return normalizeRecordObject({ ...args, identities: this.identities });
+  }
 
   registerSource(source: CompanyRecordSourceDeclaration): void {
     if (this.#sources.has(source.id)) throw new Error(`Record source '${source.id}' is already registered`);

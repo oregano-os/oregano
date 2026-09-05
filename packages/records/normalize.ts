@@ -3,6 +3,7 @@ import type { CompanyRecordSourceDeclaration, RecordObjectVersion } from "./cont
 import { recordDigest, recordVersionId } from "./identity.ts";
 import { readRecordPath, validateRecordFieldValue, validateRecordSource } from "./source-validation.ts";
 import { parseRecordText } from "./text-parser.ts";
+import type { RecordIdentityDirectory } from "./identity-directory.ts";
 
 export function normalizeRecordObject(args: {
   instanceId: string;
@@ -11,9 +12,11 @@ export function normalizeRecordObject(args: {
   observedAt: string;
   deleted?: boolean;
   receipt?: Record<string, JsonValue>;
+  identities?: RecordIdentityDirectory;
 }): RecordObjectVersion {
   const { instanceId, source, raw, observedAt } = args;
   validateRecordSource(source);
+  if (source.fields.some((field) => field.resolve_identity) && !args.identities) throw new Error(`Record source '${source.id}' requires a frozen roster identity directory`);
   const objectId = readRecordPath(raw, source.identity.source_field);
   if (typeof objectId !== "string" && typeof objectId !== "number") throw new Error(`Record source '${source.id}' did not yield a scalar object identity`);
   if (objectId === "" || (typeof objectId === "number" && !Number.isFinite(objectId))) throw new Error(`Record source '${source.id}' yielded an invalid object identity`);
@@ -26,7 +29,12 @@ export function normalizeRecordObject(args: {
       continue;
     }
     validateRecordFieldValue(field, value);
-    values[field.target] = structuredClone(value);
+    if (field.resolve_identity) {
+      if (!args.identities) throw new Error(`Record source '${source.id}' requires a frozen roster identity directory`);
+      values[field.target] = Array.isArray(value)
+        ? value.map((principal) => args.identities!.resolve(principal as string))
+        : args.identities.resolve(value as string);
+    } else values[field.target] = structuredClone(value);
   }
   const digest = recordDigest({ deleted: args.deleted ?? false, values });
   return {
@@ -39,6 +47,9 @@ export function normalizeRecordObject(args: {
     observed_at: observedAt,
     deleted: args.deleted ?? false,
     values,
-    source_receipt: args.receipt ?? {},
+    source_receipt: {
+      ...args.receipt,
+      ...(source.fields.some((field) => field.resolve_identity) ? { identity_directory_digest: args.identities!.digest } : {}),
+    },
   };
 }
