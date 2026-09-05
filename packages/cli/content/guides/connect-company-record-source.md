@@ -315,6 +315,7 @@ qualification:
   receipt_ref: ./slack-source-qualification.json
   digest: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 configuration:
+  credential_provider: direct-env
   team_id: T00001
   channel_id: C00001
   conversation_kind: public-channel
@@ -325,6 +326,25 @@ configuration:
   max_thread_pages: 20
   max_messages: 50000
 ```
+
+On the maintained Vercel Runner, the existing Slack Vercel Connect
+installation can supply the same app-scoped bot credential without exporting
+or duplicating it. Keep the SecretRef shape, point it at the connector handle,
+and select the Runner-specific credential provider:
+
+```yaml
+secret_ref: env:SLACK_CONNECTOR
+configuration:
+  credential_provider: vercel-connect-app
+  team_id: T00001
+  channel_id: C00001
+  # remaining source bounds stay unchanged
+```
+
+`vercel-connect-app` is a deployment adapter, not a provider-neutral Records
+contract. The Runner exchanges its trusted Vercel deployment identity for a
+fresh app token at the provider boundary; the token is never written into the
+Instance configuration, Artifact, Workspace, database, receipt, or logs.
 
 `oldest_at` and optional `latest_at` are explicit collection boundaries.
 Every pass reads one bounded complete inventory, including thread replies,

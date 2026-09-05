@@ -205,7 +205,7 @@ The maintained Runner requires these Instance values:
 
 | Value | Purpose |
 |---|---|
-| `SLACK_CONNECTOR` | Vercel Connect resource identifier for the environment-specific Slack installation |
+| `SLACK_CONNECTOR` | Vercel Connect resource identifier for the environment-specific Slack installation; it can also back a Slack Record Source when its Instance binding selects `credential_provider: vercel-connect-app` |
 | `COMPANYOS_SLACK_AGENT_VIEW` | optional exact `true` opt-in for Slack Agent View; requires Agent experience plus `chat:write` on the same installed Slack app and defaults to disabled |
 | `DATABASE_URL` | isolated Neon/Postgres connection used by the `companyos` schema |
 | `COMPANYOS_ARTIFACT_GZIP_BASE64` | gzip-compressed immutable Artifact built from clean exact checkouts |

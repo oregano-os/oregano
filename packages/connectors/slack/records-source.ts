@@ -132,11 +132,11 @@ const normalizeMessage = (args: {
 export class SlackRecordSourceConnector implements RecordSourceConnector {
   readonly id = SLACK_RECORD_SOURCE_CONNECTOR_ID;
   readonly version = SLACK_RECORD_SOURCE_CONNECTOR_VERSION;
-  readonly resolveSecret: (secretRef: string) => string;
+  readonly resolveSecret: (secretRef: string) => string | Promise<string>;
   readonly fetcher?: SlackFetch;
   readonly now: () => Date;
 
-  constructor(args: { resolveSecret: (secretRef: string) => string; fetcher?: SlackFetch; now?: () => Date }) {
+  constructor(args: { resolveSecret: (secretRef: string) => string | Promise<string>; fetcher?: SlackFetch; now?: () => Date }) {
     this.resolveSecret = args.resolveSecret;
     this.fetcher = args.fetcher;
     this.now = args.now ?? (() => new Date());
@@ -152,7 +152,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     qualification: Record<string, unknown>;
   }): Promise<RecordSourceInventory> {
     const config = configuration(args.source, args.binding, args.qualification);
-    const token = this.resolveSecret(args.binding.secret_ref);
+    const token = await this.resolveSecret(args.binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${args.binding.secret_ref}' is unavailable`);
     const client = new SlackWebApiClient({ token, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
     const requestIds: string[] = [];

@@ -38,6 +38,11 @@ Anthropic provider for model turns, and the Postgres Chat State adapter for
 durable subscriptions, locks, queues, and conversations. It
 registers only the Artifact's resolved ToolSet and delegates approvals and
 effects to `CompanyOSRuntime`. The legacy Eve adapter remains retired.
+The same Runner may resolve a Slack Record Source credential from the existing
+app-scoped Vercel Connect installation. That exchange stays behind the Runner
+credential broker: provider-neutral Record Source contracts retain only a
+SecretRef, while the issued token never enters the Workspace, Artifact,
+database, receipt, or log.
 
 Core also owns the provider-neutral, proposal-only Builder control path:
 
