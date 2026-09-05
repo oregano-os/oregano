@@ -197,4 +197,13 @@ requests without expiry remain retained but cannot authorize new effects.
 
 These store checks are covered by real Postgres tests, including rejection
 before any signature is consumed. They complement the pending workflow guard,
-role routing and R4 requester/approver separation; they do not replace them.
+role routing and request attribution; they do not replace them.
+
+
+The generic R4 boundary now records the original requester on the exact
+approval request and requires a different active human with a distinct stable
+roster ID at execution. Request evidence is durable in the existing Core event
+store, without a separate database schema. Workflow decisions must reuse this
+request path and carry the actual initiating human for R4; an Agent cannot
+substitute a human identifier in Tool input. The workflow guard and assignment
+integration remain pending.

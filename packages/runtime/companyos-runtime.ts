@@ -5,7 +5,7 @@ import { ConnectorRegistry } from "../connectors/registry.ts";
 import { sha256 } from "./canonical.ts";
 import { executeApprovedAction } from "../state-store/action-approval.ts";
 import type { StateStore } from "../state-store/interface.ts";
-import { authorizePrincipalApproval, findByCanonicalPrincipal, type RosterMember } from "../state-store/roster.ts";
+import { authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "../state-store/roster.ts";
 import { executeIsolatedCompanyTool } from "../tool-sdk/isolated-runner.ts";
 
 export interface ExecuteToolRequest {
@@ -99,6 +99,9 @@ export class CompanyOSRuntime {
     if (RISK_ORDER[risk as keyof typeof RISK_ORDER] < RISK_ORDER.R3) throw new Error(`Tool '${request.grantId}' does not require approval.`);
     const inputErrors = validateJsonSchemaValue(tool.contract.inputSchema, request.input);
     if (inputErrors.length > 0) throw new Error(`Invalid Tool input: ${inputErrors.join("; ")}`);
+    const requester = request.subjectPrincipal ? findByCanonicalPrincipal(this.#roster, request.subjectPrincipal) : undefined;
+    const humanRequester = requester && isHumanRosterMember(requester) && /^(active|aktiv)$/i.test(requester.status);
+    if (risk === "R4" && (!humanRequester || !requester.id)) throw new Error("R4 requests require an authenticated active human requester with a stable roster id.");
     await this.#ensureRun(request);
     const inputHash = sha256(request.input);
     const requestId = await this.#state.createApprovalRequest({
@@ -107,6 +110,13 @@ export class CompanyOSRuntime {
       action: tool.contract.runtimeId,
       inputHash,
       expiresAt: validity?.expiresAt,
+    });
+    await this.#state.appendEvent({
+      runId: request.runId, stepId: request.stepId,
+      actor: humanRequester ? `human:${requester.role}` : "agent", subjectPrincipal: request.subjectPrincipal,
+      event: "approval.requested", status: "succeeded",
+      payload: { request_id: requestId, action: tool.contract.runtimeId, input_hash: inputHash, risk,
+        requester_member_id: humanRequester ? requester.id ?? null : null, artifact_hash: this.#artifact.artifactHash },
     });
     return { requestId, inputHash };
   }

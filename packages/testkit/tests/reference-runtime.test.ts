@@ -320,7 +320,7 @@ test("the property campaign runs end to end through Tool SDK, resolved grants, C
     days: 5,
     assets: ["listing-42-landing-page", "creative-a", "creative-b"],
   };
-  await runtime.requestApproval({ runId: "run-reference", stepId: "launch", agentId: "growth", grantId: "company:launch-campaign", input: launchInput });
+  await runtime.requestApproval({ runId: "run-reference", stepId: "launch", agentId: "growth", grantId: "company:launch-campaign", input: launchInput, subjectPrincipal: "test:solstice:morgan" });
   const launched: any = await runtime.execute({
     runId: "run-reference",
     stepId: "launch",
@@ -542,4 +542,42 @@ test("runtime approval requests preserve an explicit workflow deadline and rejec
   assert.equal(result.rejected, true);
   assert.match(result.reason, /expired/);
   assert.equal(state.effects.size, 0);
+});
+
+for (const scenario of ["self", "alias", "changed-subject", "missing-request-evidence"] as const) {
+  test(`R4 runtime refuses ${scenario} approval before dispatch`, async () => {
+    const artifact = build();
+    const roster = structuredClone(artifact.roster);
+    roster.find((member) => member.id === "avery")!.principals!.push("test:solstice:avery-alias");
+    const state = new InMemoryStateStore();
+    const marketing = new MarketingSandboxConnector();
+    const runtime = new CompanyOSRuntime({ artifact, state, roster, connectors: [new ArtifactSandboxConnector(), marketing] });
+    const request = { runId: `run-r4-${scenario}`, stepId: "launch", agentId: "growth", grantId: "company:launch-campaign",
+      input: { campaign_key: "separation", daily_budget: 20, days: 5, assets: ["asset"] }, subjectPrincipal: "test:solstice:avery" };
+    await runtime.requestApproval(request);
+    if (scenario === "missing-request-evidence") state.events.splice(0);
+    const result: any = await runtime.execute({ ...request,
+      subjectPrincipal: scenario === "changed-subject" ? "test:solstice:morgan" : request.subjectPrincipal,
+      approvingPrincipal: scenario === "alias" ? "test:solstice:avery-alias" : "test:solstice:avery" });
+    assert.equal(result.rejected, true);
+    assert.match(result.reason, /different active human/);
+    assert.equal(state.effects.size, 0);
+    assert.equal(state.approvals.size, 0);
+  });
+}
+
+test("R4 request creation requires a known active human with a stable ID", async () => {
+  const artifact = build();
+  const request = { runId: "run-r4-requester", stepId: "launch", agentId: "growth", grantId: "company:launch-campaign",
+    input: { campaign_key: "separation", daily_budget: 20, days: 5, assets: ["asset"] } };
+  for (const subjectPrincipal of [undefined, "test:unknown", "test:solstice:growth-agent"]) {
+    const state = new InMemoryStateStore();
+    const runtime = new CompanyOSRuntime({ artifact, state, connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
+    await assert.rejects(() => runtime.requestApproval({ ...request, subjectPrincipal }), /active human requester/);
+    assert.equal(state.requests.length, 0);
+  }
+  const roster = structuredClone(artifact.roster);
+  delete roster.find((member) => member.id === "morgan")!.id;
+  const runtime = new CompanyOSRuntime({ artifact, roster, state: new InMemoryStateStore(), connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
+  await assert.rejects(() => runtime.requestApproval({ ...request, subjectPrincipal: "test:solstice:morgan" }), /stable roster id/);
 });

@@ -136,3 +136,15 @@ policy governs personal data separately.
 - changed action input invalidates the approval;
 - simultaneous approval attempts produce exactly one consumed action;
 - offboarded identity can neither initiate authorized work nor approve it.
+
+
+## Stable identities for R4 separation
+
+R4 requesters and approvers need distinct stable `members[].id` values and
+active human roster entries. Display names and different surface principals
+never establish that they are different people. Ambiguous principal mappings
+are unresolved; unknown identity kinds cannot approve. Existing roster entries
+without a `type` remain human for compatibility, while explicit `human` is
+preferred. A stored requester ID must still resolve to the same authenticated
+principal when the effect is authorized. Offboarding or reassignment therefore
+cannot silently transfer an old R4 request to another person.
