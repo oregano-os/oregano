@@ -1,0 +1,120 @@
+version: 2
+plan_id: friday-close-test-publication-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Publish a reviewed Friday Close simulation to one test thread
+objective: >-
+  Extend the authenticated Sprint scenario test publisher with one bounded
+  Friday Close publication set. After an operator reviews an exact proof-only
+  scenario digest, the runtime publishes the stored reminder, chase, and report
+  intents in order through the real compiled Sprint Agent, Workspace templates,
+  communication Capability, and exact Instance test binding. The reminder opens
+  one Slack thread and the two later messages reuse its provider receipt.
+non_goals:
+  - Add company names, provider ids, channel ids, people, schedules, templates, credentials, or model ids to Core.
+  - Accept arbitrary text, destinations, Agent ids, Tools, grants, intent ids, thread references, or provider payloads from the operator.
+  - Publish Retro, Monday hand-off changes, direct messages, live-channel messages, or work-item effects.
+  - Change active Sprint workers, conversational routing, production schedules, database schemas, or provider permissions.
+  - Merge, release, deploy, or perform the reviewed Slack test effects as part of this code change.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Company truth is not Core product truth
+  - Authority remains in the Company Workspace
+  - Humans remain accountable
+  - No hidden magic
+files_expected:
+  - .oregano/changes/2026-09-05-friday-close-test-publication.yaml
+  - docs/architecture/oregano-core.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runtime/sprint-scenario-publication.ts
+  - packages/testkit/tests/sprint-scenario-runner.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-user-request-to-extend-the-test-publisher-and-publish-the-three-friday-close-messages-only-to-the-reviewed-test-channel
+architecture_assessment:
+  responsibilities:
+    core:
+      - Select the fixed Friday Close intent set, enforce ordering, derive the provider thread from the reminder receipt, retain idempotent effect identities, and return provider receipts.
+    packages:
+      - Continue to own reusable Friday Close Workflow, Skill, and template assets without Company authority.
+    workspace:
+      - Continue to own participant policy, timing, classifications, wording, language, Agent grant, and Sprint behavior.
+    instance:
+      - Continue to own the exact test destination, forbidden live channel, credentials, runtime mode, and deployment activation.
+  existing_mechanisms:
+    - mechanism: company-records
+      decision: reuse
+      reason: The proof-only scenario continues to freeze the stabilized participant and work-item projections before publication.
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Publication uses the compiled Sprint Agent directly and creates no conversational route or handoff.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: The existing operator-only communication grant remains hidden from model-visible Shadow conversations.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Friday Close rendering is deterministic and performs no model call.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The existing operator secret protects the action and participant identities come from the reviewed scenario snapshot.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: The scenario runner already generates the reminder, chase, and report through the real controlled-clock lifecycle.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: One reviewed output digest gates the fixed three-effect set and deterministic run and step identities make partial retries safe.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: Every message crosses the existing communication.message.publish Tool and exact Slack binding.
+  new_core_mechanisms:
+    - One fixed friday-close publication set resolved from durable succeeded intents rather than operator-provided intent ids.
+    - Provider-receipt thread chaining from the reminder root to chase and report replies.
+    - One receipt set proving Agent, template, content digest, destination, message, thread, and publish time for all three messages.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The publisher consumes any compiled Company Workspace Sprint Artifact. All
+    Company values and provider bindings remain in the Workspace and Instance;
+    Core knows only the reusable Friday Close intent types and ordering rule.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-friday-close-test-publication.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-friday-close-test-publication.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A reviewed Friday Close scenario publishes exactly reminder, chase, and report in that order.
+  - The reminder is a root message and its returned provider thread reference is the only reference accepted for chase and report.
+  - Agent, Tool grant, templates, rendered content, destination, and thread reference cannot be supplied by the operator.
+  - A changed scenario digest, missing or duplicate required intent, failed intent, non-shadow runtime, missing test binding, or mismatched provider receipt fails closed.
+  - Retro, live-channel aliases, direct messages, and work-item effects remain ineligible.
+  - Retries reuse the same deterministic run and step identities so already successful messages are not duplicated.
+  - The ordinary conversational model ToolSet still cannot see the operator-only publication grant.
+  - Existing Monday hand-off test publication remains behaviorally unchanged.
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - specification.company-records-sprint-v0.1
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Remove the Friday Close publication action and receipt-set helper while
+  retaining already-written System-of-Proof and Slack provider receipts as
+  historical evidence. The original Monday hand-off publisher and proof-only
+  scenario remain available, and no live destination was eligible.
+open_decisions: []

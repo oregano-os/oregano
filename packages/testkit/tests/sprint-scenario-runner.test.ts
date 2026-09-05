@@ -4,7 +4,11 @@ import type { CompiledSprintRuntime } from "../../companyos-builder/types.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 import { InMemorySprintOrchestrationStore } from "../../runtime/memory-sprint-orchestration.ts";
 import { SprintScenarioRunner, type SprintScenarioInput } from "../../runtime/sprint-scenario-runner.ts";
-import { assertSprintScenarioPublicationDigest, publishSprintScenarioMessage } from "../../runtime/sprint-scenario-publication.ts";
+import {
+  assertSprintScenarioPublicationDigest,
+  publishSprintScenarioFridayClose,
+  publishSprintScenarioMessage,
+} from "../../runtime/sprint-scenario-publication.ts";
 import type { ExecuteToolRequest } from "../../runtime/companyos-runtime.ts";
 import { parseSprintOperatorRequest } from "../../runner-vercel/src/lib/sprint-runtime.ts";
 
@@ -218,6 +222,116 @@ test("one reviewed Monday hand-off publishes through the compiled Sprint Agent a
   );
 });
 
+test("one reviewed Friday Close publishes the fixed three-message sequence in one provider thread", async () => {
+  const store = new InMemorySprintOrchestrationStore();
+  const timerStore = new InMemoryDurableTimerStore();
+  const publicationCompiled: CompiledSprintRuntime = {
+    ...compiled,
+    execution: "shadow-only",
+    testPublication: { testOnly: true, communicationBinding: "sprint-test-channel" },
+  };
+  const report = await new SprintScenarioRunner({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    store,
+    timerStore,
+    agentEvidence,
+  }).run(input());
+  const calls: ExecuteToolRequest[] = [];
+  const effects: ExecuteToolRequest[] = [];
+  const outcomes = new Map<string, unknown>();
+  const runtime = {
+    async execute(request: ExecuteToolRequest) {
+      calls.push(request);
+      const key = `${request.runId}:${request.stepId}`;
+      const previous = outcomes.get(key);
+      if (previous) return previous;
+      effects.push(request);
+      const messageId = `1700000000.00000${effects.length}`;
+      const result = {
+        output: {
+          destination_binding: "sprint-test-channel",
+          message_id: messageId,
+          thread_reference: "1700000000.000001",
+          published_at: "2030-02-01T18:00:00.000Z",
+        },
+      };
+      outcomes.set(key, result);
+      return result;
+    },
+  };
+
+  const first = await publishSprintScenarioFridayClose({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    report,
+    expectedOutputDigest: report.output_digest,
+    store,
+    runtime,
+  });
+  const second = await publishSprintScenarioFridayClose({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    report,
+    expectedOutputDigest: report.output_digest,
+    store,
+    runtime,
+  });
+
+  assert.equal(calls.length, 6);
+  assert.equal(effects.length, 3);
+  assert.deepEqual(first, second);
+  assert.equal(first.publication_set, "friday-close");
+  assert.equal(first.agent_id, "sprint");
+  assert.equal(first.thread_reference, "1700000000.000001");
+  assert.deepEqual(first.messages.map((message) => message.intent_type), [
+    "message.close-reminder",
+    "message.close-chase",
+    "message.close-report",
+  ]);
+  assert.deepEqual(first.messages.map((message) => message.template_digest), [
+    compiled.templates.reminder.digest,
+    compiled.templates.chase.digest,
+    compiled.templates.closeReport.digest,
+  ]);
+  assert.equal((effects[0]?.input as Record<string, unknown>).thread_reference, undefined);
+  assert.equal((effects[1]?.input as Record<string, unknown>).thread_reference, "1700000000.000001");
+  assert.equal((effects[2]?.input as Record<string, unknown>).thread_reference, "1700000000.000001");
+  assert.equal(effects.every((request) => request.agentId === "sprint"), true);
+  assert.equal(effects.every((request) => request.grantId === "oregano:communications/publish"), true);
+  assert.equal(effects.every((request) => (request.input as Record<string, unknown>).destination_binding === "sprint-test-channel"), true);
+  assert.equal(new Set(effects.map((request) => request.runId)).size, 1);
+  assert.equal(new Set(effects.map((request) => request.stepId)).size, 3);
+  await assert.rejects(() => publishSprintScenarioFridayClose({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    report,
+    expectedOutputDigest: "f".repeat(64),
+    store,
+    runtime,
+  }), /output changed after review/);
+  await assert.rejects(() => publishSprintScenarioFridayClose({
+    instanceId: "fixture",
+    compiled: { ...publicationCompiled, execution: "active-capable" },
+    report,
+    expectedOutputDigest: report.output_digest,
+    store,
+    runtime,
+  }), /requires a shadow-only Sprint runtime/);
+  const chase = [...store.intents.values()].find((row) => row.intent.type === "message.close-chase");
+  assert.ok(chase);
+  chase.state = "failed";
+  await assert.rejects(() => publishSprintScenarioFridayClose({
+    instanceId: "fixture",
+    compiled: publicationCompiled,
+    report,
+    expectedOutputDigest: report.output_digest,
+    store,
+    runtime,
+  }), /is not succeeded/);
+  assert.equal(calls.length, 6);
+});
+
 test("the operator parser exposes one bounded proof-only simulation action", () => {
   assert.deepEqual(parseSprintOperatorRequest(JSON.stringify({
     action: "simulate",
@@ -279,6 +393,38 @@ test("the operator parser exposes one bounded proof-only simulation action", () 
     intentId: "message:monday",
     expectedOutputDigest: "a".repeat(64),
   });
+  assert.deepEqual(parseSprintOperatorRequest(JSON.stringify({
+    action: "publish-friday-close-simulation",
+    definition_id: "weekly-sprint",
+    scenario_run_id: "review-1",
+    sprint_id: "sprint-1",
+    period_start: "2030-01-28",
+    period_end: "2030-02-01",
+    excluded_participant_ids: [],
+    submission_outcomes: { alex: "complete", blair: "missing" },
+    expected_output_digest: "b".repeat(64),
+  })), {
+    action: "publish-friday-close-simulation",
+    definitionId: "weekly-sprint",
+    scenarioRunId: "review-1",
+    sprintId: "sprint-1",
+    periodStart: "2030-01-28",
+    periodEnd: "2030-02-01",
+    excludedParticipantIds: [],
+    submissionOutcomes: { alex: "complete", blair: "missing" },
+    expectedOutputDigest: "b".repeat(64),
+  });
+  assert.throws(() => parseSprintOperatorRequest(JSON.stringify({
+    action: "publish-friday-close-simulation",
+    scenario_run_id: "review-1",
+    sprint_id: "sprint-1",
+    period_start: "2030-01-28",
+    period_end: "2030-02-01",
+    excluded_participant_ids: [],
+    submission_outcomes: {},
+    intent_id: "operator-chosen-intent",
+    expected_output_digest: "b".repeat(64),
+  })), /cannot contain intent_id/);
 });
 
 test("the catalog does not claim missing compiled readiness behavior", async () => {

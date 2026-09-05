@@ -290,6 +290,15 @@ and stored Monday hand-off intent id to `publish-simulation`. The host derives
 the Agent, Tool, template, message content, and test destination from the
 compiled Artifact and rejects any changed digest or live-channel alias.
 
+To test Friday Close communication from the same reviewed proof, call
+`publish-friday-close-simulation` with the identical scenario input and exact
+output digest. Do not pass intent ids, content, destination, or thread data.
+The host resolves the succeeded reminder, chase, and report intents, publishes
+the reminder as the root message, and forces chase and report to reuse its real
+Slack thread receipt. Each step is independently idempotent, so retrying after
+a partial failure does not duplicate already successful messages. The action
+does not publish Retro and cannot select a live destination.
+
 The checked-in Vercel reference wakes the Sprint workers once per minute.
 Vercel currently supports that frequency only on plans with per-minute Cron;
 Hobby Cron is limited to once per day with hourly precision. A Company

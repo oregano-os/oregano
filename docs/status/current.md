@@ -198,7 +198,14 @@ evidence, historical prototypes, and production gaps.
   derives the Workspace template and content from durable state, and records
   the ordinary provider receipt. Workbench rejects a live-channel alias and
   requires the runtime itself to remain `shadow-only`. The Slack adapter hides
-  that operator-only publication grant from conversational model turns.
+  that operator-only publication grant from conversational model turns. A
+  companion `publish-friday-close-simulation` action accepts no intent id and
+  publishes only the fixed succeeded reminder, chase, and report sequence from
+  the reviewed scenario. The real reminder receipt becomes the one Slack
+  thread reference for both replies, and deterministic per-message effect
+  identities make partial retries non-duplicating. Content and destination
+  still come only from the compiled Workspace and Instance; Retro and live
+  targets remain ineligible.
 - Weekly Sprint declarations now compile independently. Monday hand-off can be
   enabled without also enabling daily digest and readiness; readiness retains
   its stricter planning, template, Tool, and direct-destination prerequisites.
@@ -685,10 +692,11 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.13` as the prepared `0.5.x` patch
-  candidate that adds an isolated Sprint scenario runner and digest-bound
+- Oregano Core source is versioned `0.5.13`; `v0.5.13` is the latest published
+  release and adds an isolated Sprint scenario runner plus digest-bound
   publication of the compiled Monday hand-off to an exact Slack test binding.
-  `v0.5.12` is the latest published release; `v0.5.13` becomes authority only
+  The next patch candidate extends that same boundary with the fixed,
+  single-thread Friday Close test sequence. It becomes release authority only
   after its exact immutable tag and protected release commit pass the release
   workflow. The
   current release line covers the experimental Sprint and Company Records
