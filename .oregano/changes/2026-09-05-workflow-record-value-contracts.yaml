@@ -1,0 +1,55 @@
+version: 3
+plan_id: workflow-record-value-contracts-2026-09-05
+created: "2026-09-05"
+title: Carry structured Record value and conversation reference contracts
+objective: >-
+  Validate an optional self-contained schema on JSON Record fields so workflow
+  inputs can use real structured values rather than invented field shapes.
+  Emit the maintained Slack thread reference used by communication receipts,
+  allowing exact source queries without parsing provider identities in Tools.
+non_goals:
+  - Change company field mappings, activate sources or deploy an Instance.
+  - Add workflow expressions, provider access to Company Tools or time coverage claims.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-record-value-contracts.yaml
+  - packages/records/contracts.ts
+  - packages/records/source-validation.ts
+  - packages/schema/company-record-source-v1.schema.json
+  - packages/connectors/slack/records-source.ts
+  - packages/testkit/tests/record-normalization.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/record-normalization.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - guide.connect-company-record-source
+    - status.current
+architecture:
+  placement:
+    core: Owns generic structured field validation and canonical provider conversation references.
+    packages: No business Package changes.
+    workspace: Declares the exact structured value schema and fields needed by its Tools.
+    instance: Pins the corrected maintained Connector without changing its approved source scope.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Refine JSON values with the existing self-contained schema validator before ingestion.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the existing communication thread reference in the read-only Slack adapter.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Structured provider values and exact thread references support any Workspace workflow without business parsing in Core.
+rollback: Remove optional value schemas and adopted fields before reverting; retain historical records and proof.

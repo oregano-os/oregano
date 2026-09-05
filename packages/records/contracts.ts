@@ -10,6 +10,8 @@ export interface RecordFieldMapping {
   required?: boolean;
   /** Required for json_list; other list types already have a fixed item type. */
   item_schema?: JsonSchema;
+  /** Optional self-contained refinement for a JSON value. */
+  value_schema?: JsonSchema;
   /** Resolve a qualified provider principal against the frozen reviewed roster. */
   resolve_identity?: boolean;
 }

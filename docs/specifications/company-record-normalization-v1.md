@@ -52,6 +52,14 @@ Object identity is a nonempty provider string or finite number, never a
 parser result. An ingestion event must name the same object. Invalid input
 does not consume the event's deduplication identity.
 
+A `json` mapping may additionally declare a self-contained `value_schema`,
+for example `{type: object, additionalProperties: {type: string}}` for provider
+column text. The same reference/ID and nesting restrictions apply. It is
+validated on every ingestion before an event identity is consumed. Other
+value types cannot use `value_schema`; `json_list` retains `item_schema`.
+Untyped JSON remains valid but cannot statically guarantee an object shape
+to a workflow input. The schema participates in the source digest.
+
 ## Roster identity resolution
 
 An `identity` or `identity_list` mapping may set `resolve_identity: true`.
@@ -88,7 +96,7 @@ external roster, name matching or Records-derived authorization is introduced.
 
 ### Maintained provider evidence
 
-Slack Record Source `0.1.1` emits `author_principal` in the exact qualified
+Slack Record Source `0.1.2` emits `author_principal` in the exact qualified
 conversation's team namespace (`slack:<team>:<user>`), and separate
 `slack-bot` or `slack-unknown` principals. A bot indicator takes precedence
 over a simultaneous `user` field. Original authorship remains separate from
@@ -96,6 +104,12 @@ over a simultaneous `user` field. Original authorship remains separate from
 editor has an explicit unknown content principal. Editing a bot message does
 not turn it into human evidence. These fields follow Slack's documented
 [message edit metadata](https://docs.slack.dev/reference/events/message/).
+
+`thread_reference` uses `slack:<channel>:<root-ts>`, exactly matching the
+communication publication receipt. `thread_id` keeps the raw timestamp and
+`team_id` retains the separate qualified account. A source query can filter
+by the stored receipt without splitting or fabricating a provider reference.
+This reference alone does not authenticate a conversation assignment.
 
 `occurred_at` preserves creation time; `accepted_at` is the current content
 version's edit time, or creation time for an unedited message. Both preserve

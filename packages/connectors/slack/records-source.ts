@@ -5,7 +5,7 @@ import type { CompanyRecordSourceBinding, RecordSourceConnector, RecordSourceInv
 import { SlackWebApiClient, type SlackFetch } from "./client.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.1";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.2";
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -131,6 +131,7 @@ const normalizeMessage = (args: {
     team_id: args.teamId,
     conversation_id: args.channelId,
     thread_id: threadTs,
+    thread_reference: `slack:${args.channelId}:${threadTs}`,
     is_thread_root: threadTs === ts,
     author_id: authorId,
     author_kind: authorKind,

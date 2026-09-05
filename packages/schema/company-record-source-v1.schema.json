@@ -107,6 +107,10 @@
           },
           "resolve_identity": {
             "type": "boolean"
+          },
+          "value_schema": {
+            "type": "object",
+            "maxProperties": 64
           }
         },
         "allOf": [
@@ -132,6 +136,23 @@
             "else": {
               "properties": {
                 "item_schema": false
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "value_type": {
+                  "const": "json"
+                }
+              },
+              "required": [
+                "value_type"
+              ]
+            },
+            "else": {
+              "properties": {
+                "value_schema": false
               }
             }
           }
