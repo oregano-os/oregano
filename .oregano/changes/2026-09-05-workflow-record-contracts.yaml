@@ -29,6 +29,8 @@ files_expected:
   - packages/state-store/records.ts
   - packages/state-postgres/records-store.ts
   - packages/schema/company-record-projection-v1.schema.json
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/tests/records.test.mjs
   - packages/connectors/company-records.ts
   - packages/capabilities/catalog.ts
   - packages/standard-tools/records.ts
@@ -45,6 +47,7 @@ files_expected:
   - docs/_generated/document-registry.json
   - docs/_generated/navigation.json
 tests:
+  - packages/cli/tests/records.test.mjs
   - packages/testkit/tests/record-query.test.ts
   - packages/testkit/tests/record-query-postgres.test.ts
   - packages/testkit/tests/company-records-foundation.test.ts
