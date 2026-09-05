@@ -17,17 +17,33 @@ objective: >-
   record-source data path for Friday submissions, uses work-item.batch-update
   for every multi-item write, and freezes parity fixtures ported from the
   Sprint Domain tests. This proposal covers phases 0 to 4 of the plan; the
-  pilot Workspace migration and the removal of the Sprint Domain ship as
-  their own plans once the parity gate passes.
+  pilot Workspace migration and complete legacy removal ship as their own
+  plans once the parity gate passes. The removal includes the Sprint Domain,
+  replay and scenario runners, simulation publishers, operator actions, modes,
+  configuration, hooks, Blueprint, and obsolete tests. No separate Sprint test
+  runtime or compatibility executor remains after migration. Generic Core CI,
+  contract tests, synthetic fixtures, and Workspace Tool tests remain.
+  Foundation acceptance requires real engine and CompanyOSRuntime regression
+  tests for independent-run isolation, redelivery, canonical JSONB identity
+  after a Postgres round trip, receipt-derived message threads, and restart
+  after a successful message without duplicate publication. Unknown provider
+  outcomes require reconciliation or review, never blind retries. Required
+  workflow, approval, effect, and timer database suites must run on every PR
+  and release candidate; missing database configuration or skipped required
+  tests fail the gate. Legacy simulation output and runtime mocks that supply
+  their own deduplication do not prove these properties.
 non_goals:
-  - Delete packages/domains/sprint, the Sprint loader, schemas, replay, runtime modes, or the Sprint Blueprint before the parity gate passes; they are frozen except for bug fixes.
-  - Introduce an expression language, cycles, or a `kind: agent` step in engine version 1.
+  - Delete the legacy Sprint runtime or its replay/scenario test infrastructure before replacement tests and the pilot acceptance pass; all legacy paths are frozen except for bug fixes and fully removed in the follow-up removal plan.
+  - Introduce an expression language, cycles, cross-run reads or exports, or a `kind: agent` step in engine version 1.
+  - Generalize the Sprint simulator or add renamed replay, simulation, or test-publication actions to the workflow operator; tests exercise the ordinary engine with controlled inputs and test adapters.
   - Change any Company Workspace or Company Instance in this Core work.
   - Add a Capability or Connector for a new external system.
 placement: core
 change_class: security
 files_expected:
   - .oregano/changes/2026-09-05-workflow-engine-foundation.yaml
+  - .github/workflows/check.yml
+  - .github/workflows/release.yml
   - docs/architecture/company-instance.md
   - docs/architecture/oregano-core.md
   - docs/architecture/validation-and-inspection.md
@@ -63,13 +79,17 @@ files_expected:
   - packages/testkit/tests/workflow-steps.test.ts
   - packages/testkit/tests/workflow-compiler.test.ts
   - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
   - packages/testkit/tests/workflow-sprint-parity.test.ts
 tests:
   - packages/cli/tests/workbench.test.mjs
   - packages/testkit/tests/workflow-steps.test.ts
   - packages/testkit/tests/workflow-compiler.test.ts
   - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
   - packages/testkit/tests/workflow-sprint-parity.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/runner-postgres-state.test.ts
 documentation_impact:
   required: true
   affected_documents:
@@ -90,7 +110,10 @@ architecture:
       decision, reference resolver, template substitution, pinning to the
       starting Workspace commit), Tool-boundary guard keyed by run context,
       evidence carrying workflow id, version, and step id, business-time as a
-      standard module.
+      standard module. Port regression cases from legacy suites before their
+      deletion; retain generic contract coverage. The follow-up removal plan
+      replaces the temporary workflow-sprint-parity suite with fixture-driven
+      workflow-fixture-conformance tests with no legacy Domain imports.
     packages: >-
       No Package in this plan. The Sprint Blueprint is deleted in the follow-up
       removal plan; a future Blueprint would carry `steps:` files, Skills,
@@ -104,7 +127,12 @@ architecture:
       Binds destinations, resources, roster principals, and SecretRefs,
       migrates the additive database manifest, activates schedules, and holds
       receipts. Which channel or board a step reaches is an Instance binding,
-      never a Core mode.
+      never a Core mode. The follow-up pilot plan proves an actual participant
+      answer through Records and Workspace computation to a delivered report,
+      human decision, and approved test-resource write with receipts. Repeat
+      acceptance on the exact final candidate with legacy execution removed;
+      source/import, route/configuration, and deployed surface checks must
+      prove that no old executor, operator action, mode, or fallback survives.
   mechanisms_extended:
     - mechanism: timers-and-business-time
       reason: >-
@@ -122,7 +150,7 @@ architecture:
     - mechanism: capability-contracts-and-connectors
       reason: >-
         records.query gains changed_since, missing_any_of, work_item_ids,
-        status_in, and accepted_after filters, an all-pages drain, and a
+        and status_in filters, an all-pages drain, and a
         synced_through source watermark in its result so a report step can
         require complete synchronization rather than freshness; records.query,
         communication.message.publish, and work-item.batch-update accept a
@@ -145,7 +173,7 @@ architecture:
     secrets_in_git: false
     public_fixtures: synthetic-only
   core_reusability: >-
-    The engine executes any `steps:` file that uses the eleven constructs.
+    The engine executes any `steps:` file that uses the ten v1 constructs.
     Sprint vocabulary exists only in the fictional testkit fixture and in the
     pilot Company Workspace. A second company or a second process needs no
     Core change except Connectors for new external systems.
