@@ -5,7 +5,7 @@ import type { CompanyRecordSourceBinding, RecordSourceConnector, RecordSourceInv
 import { SlackWebApiClient, type SlackFetch } from "./client.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.0";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.1";
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -39,10 +39,16 @@ const slackTimestamp = (iso: string): string => `${Date.parse(iso) / 1000}`;
 const timestampIso = (value: string): string => {
   const match = /^(\d{1,16})(?:\.(\d{1,9}))?$/.exec(value);
   if (!match) throw new Error(`Slack message timestamp '${value}' is invalid`);
-  const milliseconds = Number(match[1]) * 1_000 + Number((match[2] ?? "").padEnd(3, "0").slice(0, 3));
-  const result = new Date(milliseconds).toISOString();
-  if (result === "Invalid Date") throw new Error(`Slack message timestamp '${value}' is invalid`);
-  return result;
+  const seconds = Number(match[1]);
+  if (!Number.isSafeInteger(seconds) || seconds > 253_402_300_799) throw new Error(`Slack message timestamp '${value}' is invalid`);
+  // Date stores only milliseconds. Format the whole seconds separately so no
+  // provider fractional digit is lost before deadline or ordering decisions.
+  return new Date(seconds * 1_000).toISOString().slice(0, -5) + `.${(match[2] ?? "").padEnd(3, "0")}Z`;
+};
+const timestampNanos = (value: string): bigint => {
+  timestampIso(value);
+  const [seconds, fraction = ""] = value.split(".");
+  return BigInt(seconds!) * 1_000_000_000n + BigInt(fraction.padEnd(9, "0"));
 };
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue;
 
@@ -103,10 +109,20 @@ const normalizeMessage = (args: {
   const threadTs = String(args.message.thread_ts ?? args.rootTs ?? ts);
   const userId = typeof args.message.user === "string" ? args.message.user : undefined;
   const botId = typeof args.message.bot_id === "string" ? args.message.bot_id : undefined;
+  if (userId !== undefined && !/^[UW][A-Z0-9]{4,31}$/.test(userId)) throw new Error("Slack message has an invalid user identity");
+  if (botId !== undefined && !/^B[A-Z0-9]{4,31}$/.test(botId)) throw new Error("Slack message has an invalid bot identity");
   const subtype = typeof args.message.subtype === "string" ? args.message.subtype : "message";
-  const edited = args.message.edited && typeof args.message.edited === "object" && !Array.isArray(args.message.edited)
-    ? String((args.message.edited as Record<string, unknown>).ts ?? "")
-    : "";
+  const isBot = botId !== undefined || subtype === "bot_message" || typeof args.message.app_id === "string";
+  const authorKind = isBot ? "bot" : userId ? "user" : "unknown";
+  const authorId = (isBot ? botId ?? userId : userId) ?? "unknown";
+  const authorPrincipal = authorKind === "user"
+    ? `slack:${args.teamId}:${authorId}`
+    : `slack-${authorKind}:${args.teamId}:${authorId}`;
+  const edit = args.message.edited === undefined ? undefined : object(json(args.message.edited), "Slack edited metadata");
+  const edited = edit ? string(edit.ts, "Slack edited timestamp") : undefined;
+  if (edited && timestampNanos(edited) < timestampNanos(ts)) throw new Error("Slack edit timestamp precedes message creation");
+  const editorPrincipal = edit && typeof edit.user === "string" && /^[UW][A-Z0-9]{4,31}$/.test(edit.user)
+    ? `slack:${args.teamId}:${edit.user}` : null;
   return {
     id: `${args.channelId}:${ts}`,
     source_id: args.sourceId,
@@ -116,10 +132,14 @@ const normalizeMessage = (args: {
     conversation_id: args.channelId,
     thread_id: threadTs,
     is_thread_root: threadTs === ts,
-    author_id: userId ?? botId ?? "unknown",
-    author_kind: userId ? "user" : botId ? "bot" : "unknown",
+    author_id: authorId,
+    author_kind: authorKind,
+    author_principal: authorPrincipal,
+    editor_principal: editorPrincipal,
+    content_author_principal: edited && !isBot ? editorPrincipal ?? `slack-unknown:${args.teamId}:editor` : authorPrincipal,
     text: typeof args.message.text === "string" ? args.message.text : "",
     occurred_at: timestampIso(ts),
+    accepted_at: timestampIso(edited ?? ts),
     subtype,
     is_deleted: subtype === "message_deleted" || Boolean(args.message.deleted_ts),
     reply_count: typeof args.message.reply_count === "number" ? args.message.reply_count : 0,

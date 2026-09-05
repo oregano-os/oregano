@@ -173,8 +173,9 @@ fields:
     source: column_text.status_col
     value_type: status
   - target: owner
-    source: columns.people_col
-    value_type: identity
+    source: people_principals.people_col
+    value_type: identity_list
+    resolve_identity: true
 access:
   read_groups:
     - delivery
@@ -187,6 +188,21 @@ Monday selected-item inventory exposes the stable item fields `id`, `name`, `upd
 `column_text.<column-id>`. Choose the representation deliberately. The
 Workbench verifies that every named column exists on the qualified board but
 does not infer what it means.
+
+The principal mapping above requires Monday Record Source `0.3.2`, qualified
+account evidence and the frozen reviewed roster. It resolves exact people to
+stable roster IDs; unmatched identities and teams stay explicit. For raw
+provider IDs, use `columns.people_col` with `identity_list` and no resolution.
+People columns contain arrays, even when only one person is assigned.
+
+Slack Record Source `0.1.1` exposes `author_principal`, `editor_principal`,
+`content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
+evaluation map `accepted_at`: it reflects the current content version, including
+edits. Keep original authorship, current content authorship and `author_kind`
+so the Workspace can reject another editor's content or a bot response. Do not
+resolve the unqualified `author_id`. Updating either Connector requires an
+explicit Instance version pin and a new synchronization of adopted fields;
+it does not activate the source or prove synchronization through a cutoff.
 
 For a reviewed complete table surface, map the built-in fields `object_kind`,
 `provider_id`, `provider_payload`, `root_board_id`, `board_id`, `group_id`, and

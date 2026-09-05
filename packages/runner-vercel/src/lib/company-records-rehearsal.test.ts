@@ -115,7 +115,7 @@ const slackConfiguration = (): CompanyRecordsRehearsalConfiguration => {
       source_id: "fixture-conversation",
       resource_binding: "fixture-channel",
       connector: "oregano/slack-record-source",
-      connector_version: "0.1.0",
+      connector_version: "0.1.1",
       secret_ref: "env:SLACK_BOT_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
       configuration: {
