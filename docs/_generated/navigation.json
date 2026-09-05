@@ -504,6 +504,14 @@
     "availability": null
   },
   {
+    "document_id": "specification.company-record-normalization-v1",
+    "title": "Company Record Normalization v1",
+    "path": "docs/specifications/company-record-normalization-v1.md",
+    "kind": "specification",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
     "document_id": "specification.company-records-query-v1",
     "title": "Company Records Workflow Query Contract",
     "path": "docs/specifications/company-records-query-v1.md",

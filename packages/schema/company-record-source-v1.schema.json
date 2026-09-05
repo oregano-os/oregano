@@ -4,21 +4,61 @@
   "title": "Company Records source declaration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "id", "record_type", "connection", "resource_binding", "delivery", "identity", "fields", "access"],
+  "required": [
+    "schema_version",
+    "id",
+    "record_type",
+    "connection",
+    "resource_binding",
+    "delivery",
+    "identity",
+    "fields",
+    "access"
+  ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
-    "record_type": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{1,127}$" },
-    "connection": { "type": "string", "pattern": "^connections/[a-zA-Z0-9._/-]+\\.md$" },
-    "resource_binding": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$" },
-    "delivery": { "type": "string", "enum": ["poll", "webhook", "hybrid"] },
-    "reconcile_schedule": { "type": "string", "pattern": "^schedules/[a-zA-Z0-9._/-]+\\.(?:md|ya?ml)$" },
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,62}$"
+    },
+    "record_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9.-]{1,127}$"
+    },
+    "connection": {
+      "type": "string",
+      "pattern": "^connections/[a-zA-Z0-9._/-]+\\.md$"
+    },
+    "resource_binding": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,62}$"
+    },
+    "delivery": {
+      "type": "string",
+      "enum": [
+        "poll",
+        "webhook",
+        "hybrid"
+      ]
+    },
+    "reconcile_schedule": {
+      "type": "string",
+      "pattern": "^schedules/[a-zA-Z0-9._/-]+\\.(?:md|ya?ml)$"
+    },
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_field"],
+      "required": [
+        "source_field"
+      ],
       "properties": {
-        "source_field": { "type": "string", "minLength": 1, "maxLength": 255 }
+        "source_field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        }
       }
     },
     "fields": {
@@ -27,22 +67,227 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["target", "source", "value_type"],
+        "required": [
+          "target",
+          "source",
+          "value_type"
+        ],
         "properties": {
-          "target": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
-          "source": { "type": "string", "minLength": 1, "maxLength": 255 },
-          "value_type": { "type": "string", "enum": ["string", "number", "boolean", "timestamp", "status", "identity", "url", "json"] },
-          "required": { "type": "boolean" }
-        }
+          "target": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "value_type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "number",
+              "boolean",
+              "timestamp",
+              "status",
+              "identity",
+              "url",
+              "json",
+              "string_list",
+              "identity_list",
+              "json_list"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "item_schema": {
+            "type": "object",
+            "maxProperties": 64
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "value_type": {
+                  "const": "json_list"
+                }
+              },
+              "required": [
+                "value_type"
+              ]
+            },
+            "then": {
+              "required": [
+                "item_schema"
+              ],
+              "properties": {
+                "item_schema": {}
+              }
+            },
+            "else": {
+              "properties": {
+                "item_schema": false
+              }
+            }
+          }
+        ]
       }
     },
     "access": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["read_groups", "write_roles"],
+      "required": [
+        "read_groups",
+        "write_roles"
+      ],
       "properties": {
-        "read_groups": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
-        "write_roles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        "read_groups": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "write_roles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "parser": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "version",
+        "source",
+        "starts_with",
+        "sections"
+      ],
+      "properties": {
+        "kind": {
+          "const": "sectioned-text"
+        },
+        "version": {
+          "const": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "starts_with": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^\\r\\n]+$"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "heading",
+              "required"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,62}$"
+              },
+              "heading": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "pattern": "^[^\\r\\n]+$"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "fields": {
+                "type": "array",
+                "maxItems": 32,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "prefixes",
+                    "required"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]{0,62}$"
+                    },
+                    "prefixes": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 255,
+                        "pattern": "^[^\\r\\n]+$"
+                      }
+                    },
+                    "required": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "links": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "hosts",
+                  "path",
+                  "id_field",
+                  "required"
+                ],
+                "properties": {
+                  "hosts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 16,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$"
+                    }
+                  },
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^[^\\r\\n]+$"
+                  },
+                  "id_field": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,62}$"
+                  },
+                  "required": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

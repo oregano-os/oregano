@@ -107,6 +107,25 @@ test("records inspection reports only validated Workspace declarations", () => {
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
+test("records inspection rejects invalid parser mappings and incomplete list contracts", () => {
+  const { root, workspace, projection } = temporaryWorkspace();
+  try {
+    const source = JSON.parse(readFileSync(new URL("../../testkit/fixtures/record-normalization/source.json", import.meta.url), "utf8"));
+    source.connection = "connections/monday.md";
+    const path = join(workspace, "records", "sources", "messages.yaml");
+    writeFileSync(join(workspace, "records", "projections", "items.yaml"), YAML.stringify({ ...projection, record_type: source.record_type, source_ids: [source.id], fields: [{ name: "matched", path: "matched" }] }));
+    writeFileSync(path, YAML.stringify(source));
+    assert.deepEqual(inspectRecordWorkspace({ workspaceRoot: workspace }).diagnostics, []);
+    source.fields[0].source = "parsed.unknown_identity";
+    writeFileSync(path, YAML.stringify(source));
+    assert.ok(inspectRecordWorkspace({ workspaceRoot: workspace }).diagnostics.some((entry) => entry.code === "WS062"));
+    source.fields[0].source = "author_id";
+    delete source.fields.find((field) => field.value_type === "json_list").item_schema;
+    writeFileSync(path, YAML.stringify(source));
+    assert.ok(inspectRecordWorkspace({ workspaceRoot: workspace }).diagnostics.some((entry) => entry.code === "WS043"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("records inspection rejects projection paths absent from the selected source", () => {
   const fixture = temporaryWorkspace();
   try {

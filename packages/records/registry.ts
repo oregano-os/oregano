@@ -1,5 +1,6 @@
 import type { CompanyRecordProjectionDeclaration, CompanyRecordSourceDeclaration } from "./contracts.ts";
 import { validateRecordFilters } from "./query.ts";
+import { validateRecordSource } from "./source-validation.ts";
 
 export class CompanyRecordsRegistry {
   readonly #sources = new Map<string, CompanyRecordSourceDeclaration>();
@@ -9,6 +10,7 @@ export class CompanyRecordsRegistry {
     if (this.#sources.has(source.id)) throw new Error(`Record source '${source.id}' is already registered`);
     const targets = source.fields.map((field) => field.target);
     if (new Set(targets).size !== targets.length) throw new Error(`Record source '${source.id}' contains duplicate target fields`);
+    validateRecordSource(source);
     this.#sources.set(source.id, structuredClone(source));
   }
 

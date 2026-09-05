@@ -50,8 +50,6 @@ export class CompanyRecordsService {
   }): Promise<{ duplicate: boolean; version?: RecordObjectVersion; projected: string[] }> {
     const { instanceId, registry, store, now } = this.dependencies;
     const event: RecordSourceEvent = { ...args.event, instance_id: instanceId };
-    if (!await store.appendSourceEvent(event)) return { duplicate: true, projected: [] };
-
     const source = registry.source(event.source_id);
     const version = normalizeRecordObject({
       instanceId,
@@ -61,6 +59,9 @@ export class CompanyRecordsService {
       deleted: args.deleted,
       receipt: args.receipt,
     });
+    if (version.object_id !== event.object_id) throw new Error("Record event identity does not match the provider object");
+    // Invalid input must not consume the deduplication identity before a retry.
+    if (!await store.appendSourceEvent(event)) return { duplicate: true, projected: [] };
     await store.putObjectVersion(version);
 
     const projected: string[] = [];
