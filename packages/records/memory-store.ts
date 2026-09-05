@@ -1,3 +1,4 @@
+import { compareRecordInstants } from "./instant.ts";
 import type {
   RecordAccessDecision,
   RecordObjectVersion,
@@ -90,7 +91,7 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
     const sourceReceipts = args.sourceIds.flatMap((sourceId) => {
       const receipt = this.syncReceipts.filter((value) => value.instance_id === args.instanceId && value.source_id === sourceId
         && value.synced_through && value.watermark && value.errors === 0)
-        .sort((a, b) => Date.parse(b.synced_through!) - Date.parse(a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
+        .sort((a, b) => compareRecordInstants(b.synced_through!, a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
       return receipt ? [receipt] : [];
     });
     return structuredClone({ rows, sourceReceipts });

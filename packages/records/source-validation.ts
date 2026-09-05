@@ -1,3 +1,4 @@
+import { recordInstant } from "./instant.ts";
 import type { JsonSchema, JsonValue } from "../capabilities/contracts.ts";
 import { assertValidJsonSchema, validateJsonSchemaValue } from "../capabilities/validation.ts";
 import type { CompanyRecordSourceDeclaration, RecordFieldMapping } from "./contracts.ts";
@@ -99,20 +100,11 @@ export function validateRecordSource(source: CompanyRecordSourceDeclaration): vo
   }
 }
 
-const validTimestamp = (value: JsonValue): boolean => {
-  if (typeof value !== "string") return false;
-  const parts = /^(\d{4})-(\d\d)-(\d\d)T([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
-  if (!parts) return false;
-  const year = Number(parts[1]); const month = Number(parts[2]); const day = Number(parts[3]);
-  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  return month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1]! && Number.isFinite(Date.parse(value));
-};
 
 export function validateRecordFieldValue(field: RecordFieldMapping, value: JsonValue): void {
   const errors = validateJsonSchemaValue(recordFieldSchema(field), value);
   if (errors.length) throw new Error(`Record field '${field.target}' violates its declared type: ${errors[0]}`);
-  if (field.value_type === "timestamp" && !validTimestamp(value)) throw new Error(`Record field '${field.target}' requires an ISO timestamp with a timezone`);
+  if (field.value_type === "timestamp") recordInstant(value, `Record field '${field.target}'`);
   if (field.value_type === "url") {
     try {
       const url = new URL(value as string);

@@ -91,3 +91,24 @@ test("Postgres restart preserves identity evidence and rejects completeness afte
   assert.equal(version!.source_receipt.identity_directory_digest, original.identities!.digest);
   await assert.rejects(query(registry("member-2")), /not completely synchronized/);
 });
+
+test("Postgres retains sub-microsecond proof ordering and exact gates after restart", { skip }, async () => {
+  const instanceId = `record-precision-${randomUUID()}`;
+  const registry = new CompanyRecordsRegistry(); registry.registerSource(source); registry.registerProjection(projection);
+  const store = createPostgresCompanyRecordsStore();
+  const throughs = [
+    ["z-older", "2031-02-01T16:59:59.123456701Z"],
+    ["a-newer", "2031-02-01T17:59:59.123456702+01:00"],
+  ];
+  for (const [runId, through] of throughs) await synchronizeRecordSnapshot({
+    instanceId, source, registry, store, runId: runId!, leaseOwner: "worker", leaseToken: runId!,
+    leaseExpiresAt: "2031-02-01T18:00:00Z", inventory: { complete: true, observed_at: instant, synced_through: through!, objects: [], watermark: runId!, receipt: {} },
+  });
+  const service = new CompanyRecordsService({ instanceId, registry, store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) });
+  const query = (required: string) => service.query({ query: { projection_id: projection.id, require_synced_through: required }, subject });
+  const result = await query("2031-02-01T16:59:59.123456702Z");
+  assert.equal(result.source_proofs[0]!.run_id, "a-newer");
+  assert.equal(result.synced_through, "2031-02-01T16:59:59.123456702Z");
+  await assert.rejects(query("2031-02-01T16:59:59.123456703Z"), /not completely synchronized/);
+  assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_OUTPUT_SCHEMA, result), []);
+});

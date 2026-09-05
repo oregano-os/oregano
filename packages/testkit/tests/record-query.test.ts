@@ -1,3 +1,4 @@
+import { canonicalRecordInstant } from "../../records/instant.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
@@ -152,4 +153,42 @@ test("all-pages rejects repeated cursors, duplicate records and bounded overflow
   await assert.rejects(drainRecordPages(async () => ({ rows: [], nextCursor: "empty" })), /empty or repeated/);
   store.readProjectionSnapshot = async () => ({ rows: Array.from({ length: MAX_RECORD_QUERY_ROWS + 1 }, () => row), sourceReceipts: [] });
   await assert.rejects(service.query({ query: { projection_id: projection.id }, subject }), /snapshot bound/);
+});
+
+test("Record cutoffs retain fractional precision and reject invalid calendar instants", async () => {
+  assert.equal(canonicalRecordInstant("1969-12-31T23:59:59.123456789Z"), "1969-12-31T23:59:59.123456789Z");
+  assert.equal(canonicalRecordInstant("2032-02-29T18:00:00.123456789+01:00"), "2032-02-29T17:00:00.123456789Z");
+  const { service, store, sync } = await fixture();
+  const query = (filters: Record<string, string>) => service.query({ query: { projection_id: projection.id, filters }, subject });
+  assert.equal((await query({ changed_since: "2031-01-03T17:00:00.000000001Z" })).rows.length, 0);
+  const rows = [...store.projectionRows.values()];
+  rows[0]!.values.changed_at = "2031-01-03T18:00:00.000000002+01:00";
+  assert.equal((await query({ changed_since: "2031-01-03T17:00:00.000000002Z" })).rows.length, 1);
+  assert.equal((await query({ changed_since: "2031-01-03T17:00:00.000000003Z" })).rows.length, 0);
+  for (const invalid of ["2031-02-29T17:00:00Z", "2031-04-31T17:00:00Z", "2031-01-03T24:00:00Z", "2031-01-03T17:00:00.0000000001Z"]) {
+    await assert.rejects(query({ changed_since: invalid }), /ISO timestamp/);
+  }
+  await sync(instant, "exact-boundary");
+  await assert.rejects(service.query({ query: { projection_id: projection.id, require_synced_through: "2031-01-03T17:00:00.000000001Z" }, subject }), /not completely synchronized/);
+  await assert.rejects(sync("2031-01-03T17:00:00.000000001Z", "future-nanosecond"), /no later than/);
+});
+
+test("memory chooses the actual latest proof within a microsecond and the earliest source bound", async () => {
+  const { service, store, registry } = await fixture(0);
+  const add = async (sourceId: string, runId: string, through: string) => store.appendSyncReceipt({
+    instance_id: "test-instance", source_id: sourceId, source_digest: registry.sourceDigest(sourceId), run_id: runId,
+    started_at: instant, completed_at: instant, synced_through: through, watermark: runId,
+    observed: 0, inserted: 0, unchanged: 0, deleted: 0, errors: 0,
+  });
+  // Opposing run-id order catches a false equality after timestamp rounding.
+  await add(source.id, "z-older", "2031-01-03T16:59:59.123456701Z");
+  await add(source.id, "a-newer", "2031-01-03T17:59:59.123456702+01:00");
+  const first = await service.query({ query: { projection_id: projection.id }, subject });
+  assert.equal(first.source_proofs[0]!.run_id, "a-newer");
+  assert.equal(first.synced_through, "2031-01-03T16:59:59.123456702Z");
+  registry.registerSource({ ...source, id: "other-items" });
+  registry.registerProjection({ ...projection, id: "both", source_ids: [source.id, "other-items"] });
+  await add("other-items", "other", "2031-01-03T16:59:59.1234567Z");
+  const all = await service.query({ query: { projection_id: "both" }, subject });
+  assert.equal(all.synced_through, "2031-01-03T16:59:59.1234567Z", "numeric order, not lexical fractional-string order");
 });

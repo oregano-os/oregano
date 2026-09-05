@@ -5,14 +5,8 @@ import type { CompanyRecordProjectionDeclaration, RecordFilterDeclaration, Recor
 
 export const MAX_RECORD_QUERY_ROWS = 10_000;
 const pathPattern = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
-const instantPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
-
-export function recordQueryInstant(value: unknown, label: string): number {
-  if (typeof value !== "string" || !instantPattern.test(value) || !Number.isFinite(Date.parse(value))) {
-    throw new Error(`${label} must be an ISO timestamp with timezone`);
-  }
-  return Date.parse(value);
-}
+export { recordInstant as recordQueryInstant } from "./instant.ts";
+import { recordInstant as recordQueryInstant, canonicalRecordInstant, compareRecordInstants } from "./instant.ts";
 
 const readPath = (value: JsonValue, path: string): JsonValue | undefined => {
   let current: JsonValue | undefined = value;
@@ -117,13 +111,13 @@ export async function queryRecordSnapshot(args: {
     if (!receipt?.synced_through || !receipt.watermark) return [];
     const through = recordQueryInstant(receipt.synced_through, "Source completeness");
     if (through > recordQueryInstant(receipt.completed_at, "Synchronization completion")) throw new Error("Source completeness cannot exceed synchronization completion");
-    return [{ source_id: sourceId, source_digest: args.sourceDigests[sourceId]!, run_id: receipt.run_id, synced_through: new Date(through).toISOString(), watermark: receipt.watermark }];
+    return [{ source_id: sourceId, source_digest: args.sourceDigests[sourceId]!, run_id: receipt.run_id, synced_through: canonicalRecordInstant(receipt.synced_through), watermark: receipt.watermark }];
   }).sort((a, b) => a.source_id.localeCompare(b.source_id));
   const through = sourceIds.length && sourceProofs.length === sourceIds.length
-    ? sourceProofs.map((proof) => proof.synced_through).sort()[0] : undefined;
+    ? sourceProofs.map((proof) => proof.synced_through).sort(compareRecordInstants)[0] : undefined;
   if (query.require_synced_through) {
     const required = recordQueryInstant(query.require_synced_through, "Required source completeness");
-    if (!through || Date.parse(through) < required) {
+    if (!through || recordQueryInstant(through, "Source completeness") < required) {
       throw new Error(`Projection '${projection.id}' is not completely synchronized through ${query.require_synced_through}; complete the declared source synchronization and retry`);
     }
   }
