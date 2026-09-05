@@ -37,7 +37,7 @@ Before review, run `companyos validate` and `companyos inspect --plan <file>`.
 Include at least one happy-path, rejection, retry, and unauthorized-action test
 when the workflow can produce effects.
 
-## Executable steps (authoring validation available)
+## Executable steps (validation and compilation available)
 
 A workflow may declare `type: workflow`, a stable `id`, a `version`, its
 `owner`, `execution_mode`, one schedule trigger (or `operator`) and `steps:`.
@@ -57,7 +57,13 @@ payload; an empty batch must end before approval.
 
 `companyos validate` now checks executable authoring, including source-derived
 Record row types, grants, risk minima, markers, schedule references and control
-flow. Passing it does not yet make these workflows executable: the generic
-Artifact compiler and runtime are under implementation. Consult the
+flow. `companyos build` also compiles the validated steps into frozen manifests in
+the Artifact. Passing these checks does not yet make the workflows executable:
+the runtime guard and durable engine remain under implementation. Consult the
 [Workflow Execution specification](../../specifications/workflow-execution-v1-draft.md)
-for the available validation and remaining execution gates.
+for the available validation, compilation and remaining execution gates.
+
+Scheduled workflows use the originating schedule for business-day timeouts.
+For an operator workflow with timed waits or decisions, add
+`calendar: schedules/<file>.yaml`. Keep company parameters in literal config;
+the compiler does not infer a calendar from business parameter names.

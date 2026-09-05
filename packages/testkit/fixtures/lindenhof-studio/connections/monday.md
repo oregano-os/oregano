@@ -12,6 +12,7 @@ api_contract:
 capabilities:
   - records.query
   - work-item.read
+  - work-item.batch-update
   - work-item.update
   - work-item.comment
 connector_secret_refs:
@@ -23,5 +24,5 @@ connector_secret_refs:
 
 Monday remains authoritative for work items. Workflows read through Company
 Records projections (`records.query`) and write only through
-`work-item.update` with an expected provider version and read-after-write
+`work-item.batch-update` with an expected provider version and read-after-write
 evidence. Exact board identifiers are Instance configuration.

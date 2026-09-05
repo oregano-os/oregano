@@ -12,8 +12,8 @@ audience: [human, agent]
 
 # Workflow Execution v1
 
-This is the implementation target for the generic workflow engine. The
-compiler, runtime guard, durable engine and hosted acceptance are pending.
+This is the implementation target for the generic workflow engine. Authoring validation and Artifact compilation are implemented; the runtime
+guard, durable engine and hosted acceptance are pending.
 Existing prose workflows and legacy execution continue to operate until their
 replacement passes the migration gates. This document is not execution proof.
 
@@ -108,12 +108,12 @@ contracts and the restricted source inspector. Instance bindings and the final
 resolved ToolSet remain build-time responsibilities.
 
 Optional output leaves referenced by later steps are required execution
-preconditions. The compiler must infer these paths into its manifest and
-validate them before dependent steps can advance. For example, the generic
+preconditions. The compiler infers these paths into its manifest; the runtime must validate
+them before dependent steps can advance. For example, the generic
 message contract permits a receipt without `thread_reference`; a workflow
 that consumes it may advance only after the actual receipt supplies it.
 This does not upgrade the general Capability contract or invent a thread.
-The compiler and runtime enforcement of these obligations are still pending.
+The manifest records these obligations. Runtime enforcement is still pending.
 
 Control flow follows document order. Explicit targets may only name a later
 step or `end`; backward jumps, unreachable steps and references to a producer
@@ -132,7 +132,53 @@ A trigger parameter reference must exist on every variant that can open the
 workflow. Configurations and templates stay inside the Workspace; symlink and
 parent-directory escapes are rejected.
 
-The fictional `lindenhof-studio` fixture passes full Workspace validation;
-mutation tests exercise the failure cases. This is authoring evidence only.
-Artifact compilation, the durable engine, qualified provider completeness,
-and actual human/Instance acceptance remain separate gates.
+The fictional `lindenhof-studio` fixture passes full Workspace validation and
+Artifact compilation; mutation tests exercise the failure cases. The durable
+engine, qualified provider completeness and actual human/Instance acceptance
+remain separate gates.
+
+## Implemented Artifact compilation
+
+The builder captures Workspace source bytes once for Agent and workflow
+compilation. The same captured bytes pass semantic validation before manifest
+construction. The compiler verifies local Tool implementations against this
+snapshot and exact resolved Tool contracts, including Capability risk minima.
+Each workflow contains an ordered step graph with one entry, resolved Tool
+identity/version/contract digest, frozen literal inputs, templates, schedules,
+binding constraints, decision payload paths and required output paths. There
+is no business computation or provider call during compilation.
+
+`Artifact.workflows` is additive. Each workflow has its own `manifestHash`;
+the enclosing `artifactHash` binds it together with Tool code, policy, roster,
+Instance bindings and the rest of the Artifact. The manifest does not embed
+the enclosing hash because that would create a circular content hash. Runtime
+evidence must attach both hashes and exact provenance from the pinned run.
+Build time is excluded from Artifact identity. Canonical object-key ordering
+preserves both identities across a JSONB round trip.
+
+Scheduled workflows use their originating schedule as the business-day
+calendar unless `calendar: schedules/<file>.yaml` explicitly selects another.
+An operator workflow with timed waits or decisions must name `calendar`.
+This is engine metadata in the workflow, not a business key inferred from
+opaque config. Trigger params and holiday rules are frozen unchanged.
+
+Messages freeze their Skill body and format, destination and optional thread
+or recipient references. A direct recipient still needs an exact authorized
+Instance destination resolution; compilation grants no wildcard audience.
+Required outputs include nested fields needed by each `for_each` item, with
+`[]` marking all items. Foreach output is `{items: [{key, output}]}`. Every item
+key and required item field must be checked before the first item dispatch.
+A successful effect with insufficient receipt data must remain successful in
+the effect store while the workflow is blocked; it must never be republished.
+
+R3/R4 steps must consume an explicitly bound decision payload. The manifest
+records its exact input path independently of the resource binding. Effects
+are identified by maintained Capability mode, including low-risk effects.
+The manifest reserves their Tool identities and gives waiting conversation
+steps an empty allowlist by default. Runtime enforcement follows separately.
+
+The full generated Friday manifest is checked against a reviewed fictional
+expectation under `compiler-expectations/`. Tests also cover changed sources,
+config, templates, calendars and Tool versions, stale snapshots, forged risk,
+root/reply references and canonical identities. These are compilation tests,
+not proof that the engine has executed the workflow.

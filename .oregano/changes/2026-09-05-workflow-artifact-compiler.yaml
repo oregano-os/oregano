@@ -1,0 +1,63 @@
+version: 3
+plan_id: workflow-artifact-compiler-2026-09-05
+created: "2026-09-05"
+title: Compile frozen Workspace workflows into enforcement manifests
+objective: >-
+  Compile validated Workspace workflows, configuration, schedules, templates and
+  resolved Tool contracts into deterministic Artifact enforcement manifests.
+  Require one immutable input snapshot and derive mandatory downstream outputs.
+non_goals:
+  - Execute or activate workflows, deploy an Instance, or remove legacy executors.
+  - Claim live acceptance, runtime enforcement or provider completeness from compilation.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-artifact-compiler.yaml
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/companyos-builder/workspace-files.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/**
+  - packages/testkit/fixtures/lindenhof-studio/connections/monday.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/status/current.md
+  - docs/workbench/commands/build.md
+tests:
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-steps.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - status.current
+    - command.build
+architecture:
+  placement:
+    core: Owns deterministic workflow compilation and immutable enforcement manifests.
+    packages: No Package is created; existing Tool contracts remain the execution boundary.
+    workspace: Owns process, literal parameters, computations, templates and cohort rules.
+    instance: Continues to own exact provider bindings, secrets and activation evidence.
+  mechanisms_extended:
+    - mechanism: toolset-resolver
+      reason: Validate each step against the owning Agent grants and exact maintained or local Tool contracts.
+    - mechanism: company-records
+      reason: Derive typed query rows from actual source and projection declarations.
+    - mechanism: timers-and-business-time
+      reason: Validate generic schedules with opaque trigger parameters and collision checks.
+  new_core_mechanisms:
+    - Workflow manifests frozen with resolved Tools, literal configuration, schedules and templates.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Workspace process can compose the same maintained or Company Tools without business-specific Core validation.
+rollback: Revert the additive compiler before any workflow activation; existing Artifacts and legacy execution remain available.

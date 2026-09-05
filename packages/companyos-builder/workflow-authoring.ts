@@ -1,7 +1,8 @@
 import { CORE_CAPABILITY_CATALOG } from "../capabilities/catalog.ts";
 import { maximumRisk, type RiskLevel } from "../capabilities/contracts.ts";
-import { readFileSync, existsSync, readdirSync, realpathSync, lstatSync } from "node:fs";
-import { resolve, join, relative, basename, dirname, isAbsolute } from "node:path";
+import { readFileSync } from "node:fs";
+import { readWorkspaceFiles, workspaceFile, workspaceDocument, workspacePaths, type WorkspaceFiles } from "./workspace-files.ts";
+import { basename, dirname } from "node:path";
 import YAML from "yaml";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { STANDARD_DIRECTORY_TOOLS } from "../standard-tools/directory.ts";
@@ -22,38 +23,8 @@ const loadSchema = (name: string): any => {
   if (!schemas.has(name)) schemas.set(name, JSON.parse(readFileSync(new URL(`../schema/${name}`, import.meta.url), "utf8")));
   return schemas.get(name);
 };
-const frontmatter = (path: string): { data: any; body: string } => {
-  const raw = readFileSync(path, "utf8");
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(raw);
-  if (!match) return { data: null, body: raw };
-  return { data: YAML.parse(match[1]!), body: raw.slice(match[0].length) };
-};
-function safeFile(root: string, name: string): string {
-  if (isAbsolute(name) || name.split(/[\\/]/).some((part) => part === ".." || part === ".git")) throw new Error("Workflow paths must remain inside the Workspace");
-  const path = resolve(root, name);
-  const actual = realpathSync(path);
-  const within = relative(realpathSync(root), actual);
-  if (within.startsWith("..") || isAbsolute(within) || lstatSync(path).isSymbolicLink()) throw new Error("Workflow paths cannot escape through symlinks");
-  return actual;
-}
-function filesWithin(root: string, prefix: string, pattern: RegExp): string[] {
-  const base = join(root, prefix);
-  if (!existsSync(base)) return [];
-  const result: string[] = [];
-  const walk = (directory: string): void => {
-    safeFile(root, relative(root, directory));
-    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if ([".git", "node_modules"].includes(entry.name)) continue;
-      const path = join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error("Workflow declarations cannot use symlinks");
-      if (entry.isDirectory()) walk(path);
-      else if (pattern.test(path)) result.push(path);
-    }
-  };
-  walk(base); return result;
-}
-function readLiteralConfiguration(root: string, name: string): any {
-  const config = YAML.parse(readFileSync(safeFile(root, name), "utf8"));
+function readLiteralConfiguration(files: WorkspaceFiles, name: string): any {
+  const config = YAML.parse(workspaceFile(files, name));
   const errors = validateJsonSchemaValue(loadSchema("workflow-config-v2.schema.json"), config);
   if (errors.length) throw new Error(`Invalid workflow config: ${errors.join("; ")}`);
   const inspect = (value: unknown, depth = 0): void => {
@@ -113,13 +84,17 @@ function expandSchema(root: Schema, value: Schema = root, depth = 0): Schema {
 
 
 export function validateWorkflowAuthoring(dir: string): string[] {
+  return validateWorkflowFiles(readWorkspaceFiles(dir));
+}
+
+export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   ajv.addFormat("date-time", (value: string) => { try { recordInstant(value, "Workflow timestamp"); return true; } catch { return false; } });
   const errors: string[] = [];
   const err = (workflow: string, message: string) => errors.push(`${workflow}: ${message}`);
   const core = new Map(standardTools.map((tool) => [tool.contract.grantId ?? tool.contract.runtimeId, tool.contract]));
 
-  const loadDir = (sub: string) => existsSync(join(dir, "records", sub)) ? readdirSync(join(dir, "records", sub)).filter((f) => f.endsWith(".yaml")).map((f) => YAML.parse(readFileSync(safeFile(dir, `records/${sub}/${f}`), "utf8"))) : [];
+  const loadDir = (sub: string) => workspacePaths(files, `records/${sub}`, /\.yaml$/).map((path) => YAML.parse(workspaceFile(files, path)));
   const sourceValues = loadDir("sources"), projectionValues = loadDir("projections");
   const sources = new Map<string, any>(sourceValues.map((x: any) => [x.id, x]));
   const projections = new Map<string, any>(projectionValues.map((x: any) => [x.id, x]));
@@ -160,9 +135,9 @@ export function validateWorkflowAuthoring(dir: string): string[] {
     }
     return { type: "array", items: { type: "object", required: ["record_id", "values"], properties: { record_id: { type: "string" }, values: { type: "object", additionalProperties: false, required, properties } } } };
   };
-  const scheduleFiles = filesWithin(dir, "schedules", /\.ya?ml$/);
-  const schedules: any[] = scheduleFiles.map((path) => ({ path, data: YAML.parse(readFileSync(path, "utf8")) }));
-  for (const entry of schedules) validateSchedule(entry.data, relative(dir, entry.path), err);
+  const scheduleFiles = workspacePaths(files, "schedules", /\.ya?ml$/);
+  const schedules: any[] = scheduleFiles.map((path) => ({ path, data: YAML.parse(workspaceFile(files, path)) }));
+  for (const entry of schedules) validateSchedule(entry.data, entry.path, err);
   const triggerOwners = new Map<string, string>();
   for (const entry of schedules) for (const trigger of entry.data.triggers ?? []) {
     if (triggerOwners.has(trigger.id) && triggerOwners.get(trigger.id) !== entry.path) err(entry.path, `Trigger ${trigger.id} is ambiguous across schedules`);
@@ -171,13 +146,18 @@ export function validateWorkflowAuthoring(dir: string): string[] {
   const schedule = { triggers: schedules.flatMap((entry) => entry.data.triggers ?? []) };
   const triggerParams = new Map<string, Set<string>>();
   for (const trigger of schedule.triggers) triggerParams.set(trigger.id, new Set(Object.keys(trigger.params ?? {})));
-  const parsed = filesWithin(dir, "workflows", /\.md$/).map((path) => ({ f: relative(dir, path), ...frontmatter(path) })).filter((doc) => doc.data?.steps !== undefined);
+  const parsed = workspacePaths(files, "workflows", /\.md$/).map((path) => ({ f: path, ...workspaceDocument(files, path) })).filter((doc) => doc.data?.steps !== undefined);
   if (!parsed.length) return errors;
   const idsSeen = new Set<string>();
   for (const { f, data } of parsed) {
-    for (const issue of validateJsonSchemaValue(loadSchema("workflow-steps-v1.schema.json"), data)) err(f, issue);
+    const schemaIssues = validateJsonSchemaValue(loadSchema("workflow-steps-v1.schema.json"), data);
+    for (const issue of schemaIssues) err(f, issue);
+    if (schemaIssues.length) continue;
     if (idsSeen.has(data.id)) err(f, "Workflow id is declared more than once");
     idsSeen.add(data.id);
+    if (data.calendar && !schedules.some((entry) => entry.path === data.calendar)) err(f, "calendar must name a declared schedule file");
+    const needsCalendar = data.steps.some((step: any) => Object.values(step)[0]?.toString().startsWith("human:") || step.for?.business_days);
+    if (needsCalendar && data.trigger === "operator" && !data.calendar) err(f, "operator business-day waits and decisions require calendar");
   }
   if (errors.length) return errors;
   const stepsOf = (data: any) => data.steps.map((s: any) => {
@@ -189,17 +169,17 @@ export function validateWorkflowAuthoring(dir: string): string[] {
     if (data.trigger !== "operator" && !triggerParams.has(data.trigger.slice(9))) err(f, "Workflow trigger is not declared in a schedule");
     const fields = new Set(["trigger_id", "run_date", ...(data.instance?.fields ?? [])]);
     for (const key of typeof data.instance?.key === "string" ? [data.instance.key] : data.instance?.key ?? ["trigger_id", "run_date"]) if (!fields.has(key)) err(f, `Instance key ${key} is not a declared field`);
-    const config = data.config ? readLiteralConfiguration(dir, data.config) : {};
-    const owner = safeFile(dir, `${data.owner}/instructions.md`);
-    const grants = new Set(frontmatter(owner).data?.tools ?? []);
+    const config = data.config ? readLiteralConfiguration(files, data.config) : {};
+    const owner = `${data.owner}/instructions.md`;
+    const grants = new Set(workspaceDocument(files, owner).data?.tools ?? []);
     const companyTools = new Map<string, any>();
     const toolsDir = `${data.owner}/tools`;
-    for (const file of filesWithin(dir, toolsDir, /\/TOOL\.md$/)) {
-      const declaration = frontmatter(file).data;
+    for (const file of workspacePaths(files, toolsDir, /\/TOOL\.md$/)) {
+      const declaration = workspaceDocument(files, file).data;
       const id = basename(dirname(file));
       companyTools.set(`company:${id}`, declaration);
-      const implementation = safeFile(dir, relative(dir, join(dirname(file), "execute.ts")));
-      for (const issue of inspectAndCompileCompanyTool(readFileSync(implementation, "utf8"), relative(dir, implementation)).diagnostics) err(f, issue);
+      const implementation = `${dirname(file)}/execute.ts`;
+      for (const issue of inspectAndCompileCompanyTool(workspaceFile(files, implementation), implementation).diagnostics) err(f, issue);
     }
     const toolSchemas = (tool: any): { input: Schema; output: Schema; risk: string } | null => {
     if (typeof tool !== "string") return null;
@@ -451,10 +431,10 @@ export function validateWorkflowAuthoring(dir: string): string[] {
         }
         if (s.template) {
           const match = String(s.template).match(/^([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*\.md)$/);
-          const path = match ? safeFile(dir, `${data.owner}/skills/${match[1]}/assets/${match[2]}`) : "";
-          if (!path || !existsSync(path)) err(f, `${s.id}: template must name an existing owner Skill asset`);
+          const path = match ? `${data.owner}/skills/${match[1]}/assets/${match[2]}` : "";
+          if (!path || !Object.hasOwn(files, path)) err(f, `${s.id}: template must name an existing owner Skill asset`);
           else {
-            const template = frontmatter(path);
+            const template = workspaceDocument(files, path);
             if (!["plain-text", "provider-markdown"].includes(template.data?.format)) err(f, `${s.id}: template format is not supported`);
             const names = new Set([...template.body.matchAll(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\}\}/g)].map((value) => value[1]));
             for (const name of names) if (!Object.hasOwn(s.vars ?? {}, name)) err(f, `${s.id}: template variable '${name}' is not supplied`);

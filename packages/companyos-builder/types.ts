@@ -200,6 +200,7 @@ export interface CompanyOSArtifact {
   agents: CompiledAgent[];
   agentRouting: CompiledAgentRouting;
   sprints?: CompiledSprintRuntime[];
+  workflows?: import("./workflow-types.ts").CompiledWorkflow[];
   builder?: BuilderInstanceConfiguration;
   artifactHash: string;
 }

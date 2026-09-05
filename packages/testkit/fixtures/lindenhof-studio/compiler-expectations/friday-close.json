@@ -1,0 +1,1212 @@
+{
+  "manifestVersion": 1,
+  "id": "friday-close",
+  "version": 5,
+  "agentId": "sprint",
+  "executionMode": "unattended",
+  "source": {
+    "path": "workflows/friday-close.compact.md",
+    "digest": "df7f03eb1b209cbbdbe38f2f482d5ad0c43a4b3c3c8066e30b60fc19107dc12d"
+  },
+  "provenance": {
+    "coreCommit": "1111111111111111111111111111111111111111",
+    "workspaceCommit": "2222222222222222222222222222222222222222",
+    "workbenchVersion": "0.1.0-experimental.15",
+    "instanceId": "lindenhof-test"
+  },
+  "trigger": {
+    "kind": "schedule",
+    "id": "friday-close-reminder",
+    "schedulePath": "schedules/sprint-rhythm.yaml"
+  },
+  "instance": {
+    "key": [
+      "sprint_id"
+    ],
+    "fields": [
+      "trigger_id",
+      "run_date",
+      "sprint_id",
+      "period_start",
+      "period_end",
+      "next_sprint_id"
+    ]
+  },
+  "config": {
+    "path": "workflows/sprint/config.yaml",
+    "digest": "bae330945b37df94e19b209082f6bb8ac12b7c58107c0ae7493980120e9955fd",
+    "value": {
+      "schema_version": 2,
+      "id": "studio-sprint",
+      "participants": {
+        "roles_projection": "sprint-roles",
+        "roster_group": "sprint-participant",
+        "communication_prefix": "slack:T10001:",
+        "excluded_ids": []
+      },
+      "work_items": {
+        "projection": "sprint-work-items",
+        "resource_binding": "sprint-board",
+        "master_group": "in_sprint",
+        "planning_group": "planned",
+        "ready_status": "Ready for Sprint",
+        "planned_status": "Planned",
+        "closed_statuses": [
+          "Done"
+        ],
+        "required_fields": [
+          "outcome",
+          "definition_of_done",
+          "planned_effort"
+        ]
+      },
+      "submissions": {
+        "projection": "sprint-close-submissions"
+      },
+      "calendar": {
+        "timezone": "Europe/Berlin",
+        "business_calendar_ref": "schedules/sprint-rhythm.yaml",
+        "holiday_shift": "previous-business-day"
+      },
+      "close": {
+        "weekday": "friday",
+        "reminder_time": "15:30",
+        "complete_by": "16:15",
+        "report_at": "17:00",
+        "submission_cutoff_rule": "provider-accepted-timestamp"
+      },
+      "effort": "unavailable",
+      "rollover": {
+        "eligible": "all-open"
+      },
+      "delivery": {
+        "shared_thread": true,
+        "channel_binding": "studio-sprints",
+        "direct_binding": "sprint-direct",
+        "decision_binding": "sprint-direct"
+      },
+      "model_task_profile": "sprint.coordination"
+    }
+  },
+  "schedules": [
+    {
+      "path": "schedules/sprint-rhythm.yaml",
+      "digest": "ba1a022760a9a87bf27599c35d30c5ad1230b613bd8d62c4587f7670e3178d72",
+      "declaration": {
+        "schema_version": 1,
+        "id": "studio-sprint-rhythm",
+        "activation": "blocked",
+        "timezone": "Europe/Berlin",
+        "business_days": [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday"
+        ],
+        "holiday_calendar": {
+          "jurisdiction": "DE",
+          "scope": "nationwide",
+          "missing_year_policy": "assume-no-holidays",
+          "years": {
+            "2026": [
+              "2026-01-01",
+              "2026-04-03",
+              "2026-04-06",
+              "2026-05-01",
+              "2026-05-14",
+              "2026-05-25",
+              "2026-10-03",
+              "2026-12-25",
+              "2026-12-26"
+            ]
+          }
+        },
+        "delivery_window": {
+          "opens_at": "08:00",
+          "closes_at": "19:00"
+        },
+        "triggers": [
+          {
+            "id": "monday-sprint-post",
+            "weekdays": [
+              "monday"
+            ],
+            "at": "09:30"
+          },
+          {
+            "id": "weekday-activity-digest",
+            "weekdays": [
+              "monday",
+              "tuesday",
+              "thursday",
+              "friday"
+            ],
+            "at": "17:30",
+            "params": {
+              "readiness": false
+            }
+          },
+          {
+            "id": "weekday-activity-digest",
+            "weekdays": [
+              "wednesday"
+            ],
+            "at": "17:30",
+            "params": {
+              "readiness": true
+            }
+          },
+          {
+            "id": "friday-close-reminder",
+            "weekdays": [
+              "friday"
+            ],
+            "at": "15:30",
+            "holiday_shift": "previous-business-day"
+          },
+          {
+            "id": "friday-close-chase",
+            "weekdays": [
+              "friday"
+            ],
+            "at": "16:20",
+            "holiday_shift": "previous-business-day"
+          },
+          {
+            "id": "friday-close-finalize",
+            "weekdays": [
+              "friday"
+            ],
+            "at": "17:00",
+            "holiday_shift": "previous-business-day"
+          },
+          {
+            "id": "board-hygiene-weekly",
+            "weekdays": [
+              "tuesday"
+            ],
+            "at": "10:00"
+          }
+        ]
+      }
+    }
+  ],
+  "templates": [
+    {
+      "path": "agents/sprint/skills/sprint-sop/assets/close-chase-template.md",
+      "content": "Friday close reminder: {{chase_text}}\nPlease post or correct your update in this thread. The deadline is {{deadline_time}}.\n",
+      "format": "provider-markdown",
+      "digest": "dcdb0ea95ff880585e83e202e7a4dfdd5fb6ee84467e688ca02966aed151eec6"
+    },
+    {
+      "path": "agents/sprint/skills/sprint-sop/assets/friday-completeness-template.md",
+      "content": "Friday close — completeness check\n\n{{report_text}}\n\nThis records whether the update is complete. It is not a performance assessment.\n",
+      "format": "provider-markdown",
+      "digest": "fd87cd5ef05bb85e541cd806feb0d5d6d458e57cd61d07ada30ea73da06dd17f"
+    },
+    {
+      "path": "agents/sprint/skills/sprint-sop/assets/friday-update-template.md",
+      "content": "Friday close — please reply in this thread by {{deadline_time}}.\nUse one line for every task committed to the current Sprint. Keep card links.\n\nMY FRIDAY SPRINT UPDATE — [Your name], week of [date]\n\nTHIS WEEK\n[Done / In progress / Blocked] [Task] — [one-line result] — [card link]\n\nBiggest blocker / learning: [one line]\n\nNEXT WEEK\nSprint goal: [one weekly-sized outcome]\nMeasurable outcome: [number or condition that proves completion]\nTasks:\n- [Task] — [card link]\n",
+      "format": "provider-markdown",
+      "digest": "83db702a495a3b3f08375df240120089f6dbf5ef7a262d74ce067e95a5d58efd"
+    },
+    {
+      "path": "agents/sprint/skills/sprint-sop/assets/retro-template.md",
+      "content": "Friday retrospective draft\n\n{{report_text}}\n\nOpen work items:\n{{open_items_text}}\n\nEffort evidence: {{effort}}. Missing effort is not zero and is never estimated.\nPlease add factual lessons in this thread. Any rollover needs the Sprint Owner's separate decision.\n",
+      "format": "provider-markdown",
+      "digest": "ad346f3d87578730684d596a4a4d88bbb88fb071e6d602f011458dcc4ee6021e"
+    }
+  ],
+  "entry": "snapshot-directory",
+  "steps": [
+    {
+      "id": "snapshot-directory",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:directory/members"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "participant-roles"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "directory_digest",
+        "member_count",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "oregano:directory/members",
+        "runtimeId": "oregano:directory/members",
+        "version": "1.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "directory.members.query",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "79c2f4b18316265dd268cd7145011efd440f7265b5e7f1757740a41c3e4f40ff"
+      },
+      "input": {}
+    },
+    {
+      "id": "participant-roles",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:records/query"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "snapshot-participants"
+      ],
+      "allPages": true,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "projection_id",
+        "row_count",
+        "observed_at",
+        "fresh_until",
+        "snapshot_id",
+        "source_proofs",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "requireSyncedThrough": "$trigger.instant",
+      "tool": {
+        "grantId": "oregano:records/query",
+        "runtimeId": "oregano:records/query",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "records.query",
+            "version": "2.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+      },
+      "input": {
+        "projection_id": "sprint-roles"
+      }
+    },
+    {
+      "id": "snapshot-participants",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "company:sprint/participant-view"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "snapshot-work-items"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "directory_digest",
+        "rows"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "company:participant-view",
+        "runtimeId": "company:sprint/participant-view",
+        "version": "1.0.0",
+        "risk": "R0",
+        "capabilities": [],
+        "contractDigest": "51b10a7f2e3231bb49cd21b3e9c6c54ea244e24f45f09396eef622627e5988e6"
+      },
+      "input": {
+        "directory": "$steps.snapshot-directory",
+        "roles": "$steps.participant-roles.rows",
+        "group_id": "sprint-participant",
+        "communication_prefix": "slack:T10001:",
+        "excluded_ids": []
+      }
+    },
+    {
+      "id": "snapshot-work-items",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:records/query"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "open-close-thread"
+      ],
+      "allPages": true,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "projection_id",
+        "row_count",
+        "observed_at",
+        "fresh_until",
+        "snapshot_id",
+        "source_proofs",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "requireSyncedThrough": "$trigger.instant",
+      "tool": {
+        "grantId": "oregano:records/query",
+        "runtimeId": "oregano:records/query",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "records.query",
+            "version": "2.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+      },
+      "input": {
+        "projection_id": "sprint-work-items",
+        "filters": {
+          "group": "in_sprint"
+        }
+      }
+    },
+    {
+      "id": "open-close-thread",
+      "owner": "agent:sprint",
+      "kind": "message",
+      "allowedTools": [
+        "oregano:communications/publish"
+      ],
+      "maxRisk": "R2",
+      "next": [
+        "await-chase"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "thread_reference"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [
+        {
+          "inputPath": [
+            "destination_binding"
+          ],
+          "value": "studio-sprints"
+        }
+      ],
+      "conversationalTools": [],
+      "evidence": [
+        "destination_binding",
+        "message_id",
+        "thread_reference",
+        "published_at",
+        "connector"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "oregano:communications/publish",
+        "runtimeId": "oregano:communications/publish",
+        "version": "1.0.0",
+        "risk": "R2",
+        "capabilities": [
+          {
+            "id": "communication.message.publish",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "b298e2a65ca9e0bb93dec4b5eeefef2c6c125c8697b7a72a47b1860bb3c9a3a4"
+      },
+      "message": {
+        "template": "agents/sprint/skills/sprint-sop/assets/friday-update-template.md",
+        "vars": {
+          "deadline_time": "16:15"
+        },
+        "destination": "studio-sprints"
+      }
+    },
+    {
+      "id": "await-chase",
+      "owner": "agent:sprint",
+      "kind": "wait",
+      "allowedTools": [],
+      "maxRisk": "R0",
+      "next": [
+        "read-submissions-at-chase"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "instant"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "wait": {
+        "triggerId": "friday-close-chase",
+        "schedulePath": "schedules/sprint-rhythm.yaml"
+      }
+    },
+    {
+      "id": "read-submissions-at-chase",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:records/query"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "classify-at-chase"
+      ],
+      "allPages": true,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "projection_id",
+        "row_count",
+        "observed_at",
+        "fresh_until",
+        "snapshot_id",
+        "source_proofs",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "requireSyncedThrough": "$steps.await-chase.instant",
+      "tool": {
+        "grantId": "oregano:records/query",
+        "runtimeId": "oregano:records/query",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "records.query",
+            "version": "2.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+      },
+      "input": {
+        "projection_id": "sprint-close-submissions",
+        "filters": {
+          "thread_reference": "$steps.open-close-thread.thread_reference"
+        }
+      }
+    },
+    {
+      "id": "classify-at-chase",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "company:sprint/close-classification"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "chase-route"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "chase_text"
+        ],
+        [
+          "outcome"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "outcome",
+        "incomplete",
+        "cutoff",
+        "thread_reference"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "company:close-classification",
+        "runtimeId": "company:sprint/close-classification",
+        "version": "6.1.0",
+        "risk": "R0",
+        "capabilities": [],
+        "contractDigest": "96b636e40bfcf6a1e8b93670a4cda284000db175b3eb6107bcf7f06fea716e06"
+      },
+      "input": {
+        "participants": "$steps.snapshot-participants.rows",
+        "work_items": "$steps.snapshot-work-items.rows",
+        "submissions": "$steps.read-submissions-at-chase.rows",
+        "closed_statuses": [
+          "Done"
+        ],
+        "cutoff": "$steps.await-chase.instant",
+        "thread_reference": "$steps.open-close-thread.thread_reference"
+      }
+    },
+    {
+      "id": "chase-route",
+      "owner": "agent:sprint",
+      "kind": "route",
+      "allowedTools": [],
+      "maxRisk": "R0",
+      "next": [
+        "chase",
+        "await-report"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "route": {
+        "on": "$steps.classify-at-chase.outcome",
+        "targets": {
+          "incomplete": "chase",
+          "complete": "await-report"
+        }
+      }
+    },
+    {
+      "id": "chase",
+      "owner": "agent:sprint",
+      "kind": "message",
+      "allowedTools": [
+        "oregano:communications/publish"
+      ],
+      "maxRisk": "R2",
+      "next": [
+        "await-report"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [],
+      "bindingConstraints": [
+        {
+          "inputPath": [
+            "destination_binding"
+          ],
+          "value": "studio-sprints"
+        }
+      ],
+      "conversationalTools": [],
+      "evidence": [
+        "destination_binding",
+        "message_id",
+        "thread_reference",
+        "published_at",
+        "connector"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "oregano:communications/publish",
+        "runtimeId": "oregano:communications/publish",
+        "version": "1.0.0",
+        "risk": "R2",
+        "capabilities": [
+          {
+            "id": "communication.message.publish",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "b298e2a65ca9e0bb93dec4b5eeefef2c6c125c8697b7a72a47b1860bb3c9a3a4"
+      },
+      "message": {
+        "template": "agents/sprint/skills/sprint-sop/assets/close-chase-template.md",
+        "vars": {
+          "chase_text": "$steps.classify-at-chase.chase_text",
+          "deadline_time": "16:15"
+        },
+        "destination": "studio-sprints",
+        "thread": "$steps.open-close-thread.thread_reference"
+      }
+    },
+    {
+      "id": "await-report",
+      "owner": "agent:sprint",
+      "kind": "wait",
+      "allowedTools": [],
+      "maxRisk": "R0",
+      "next": [
+        "read-submissions-at-report"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "instant"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "wait": {
+        "triggerId": "friday-close-finalize",
+        "schedulePath": "schedules/sprint-rhythm.yaml"
+      }
+    },
+    {
+      "id": "read-submissions-at-report",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:records/query"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "close-view"
+      ],
+      "allPages": true,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "projection_id",
+        "row_count",
+        "observed_at",
+        "fresh_until",
+        "snapshot_id",
+        "source_proofs",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "requireSyncedThrough": "$steps.await-report.instant",
+      "tool": {
+        "grantId": "oregano:records/query",
+        "runtimeId": "oregano:records/query",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "records.query",
+            "version": "2.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+      },
+      "input": {
+        "projection_id": "sprint-close-submissions",
+        "filters": {
+          "thread_reference": "$steps.open-close-thread.thread_reference"
+        }
+      }
+    },
+    {
+      "id": "close-view",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "company:sprint/close-classification"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "report"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "open_items_text"
+        ],
+        [
+          "open_work_items"
+        ],
+        [
+          "report_text"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "outcome",
+        "incomplete",
+        "cutoff",
+        "thread_reference"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "company:close-classification",
+        "runtimeId": "company:sprint/close-classification",
+        "version": "6.1.0",
+        "risk": "R0",
+        "capabilities": [],
+        "contractDigest": "96b636e40bfcf6a1e8b93670a4cda284000db175b3eb6107bcf7f06fea716e06"
+      },
+      "input": {
+        "participants": "$steps.snapshot-participants.rows",
+        "work_items": "$steps.snapshot-work-items.rows",
+        "submissions": "$steps.read-submissions-at-report.rows",
+        "closed_statuses": [
+          "Done"
+        ],
+        "cutoff": "$steps.await-report.instant",
+        "thread_reference": "$steps.open-close-thread.thread_reference"
+      }
+    },
+    {
+      "id": "report",
+      "owner": "agent:sprint",
+      "kind": "message",
+      "allowedTools": [
+        "oregano:communications/publish"
+      ],
+      "maxRisk": "R2",
+      "next": [
+        "retro"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [],
+      "bindingConstraints": [
+        {
+          "inputPath": [
+            "destination_binding"
+          ],
+          "value": "studio-sprints"
+        }
+      ],
+      "conversationalTools": [],
+      "evidence": [
+        "destination_binding",
+        "message_id",
+        "thread_reference",
+        "published_at",
+        "connector"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "oregano:communications/publish",
+        "runtimeId": "oregano:communications/publish",
+        "version": "1.0.0",
+        "risk": "R2",
+        "capabilities": [
+          {
+            "id": "communication.message.publish",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "b298e2a65ca9e0bb93dec4b5eeefef2c6c125c8697b7a72a47b1860bb3c9a3a4"
+      },
+      "message": {
+        "template": "agents/sprint/skills/sprint-sop/assets/friday-completeness-template.md",
+        "vars": {
+          "report_text": "$steps.close-view.report_text"
+        },
+        "destination": "studio-sprints",
+        "thread": "$steps.open-close-thread.thread_reference"
+      }
+    },
+    {
+      "id": "retro",
+      "owner": "agent:sprint",
+      "kind": "message",
+      "allowedTools": [
+        "oregano:communications/publish"
+      ],
+      "maxRisk": "R2",
+      "next": [
+        "prepare-rollover"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [],
+      "bindingConstraints": [
+        {
+          "inputPath": [
+            "destination_binding"
+          ],
+          "value": "studio-sprints"
+        }
+      ],
+      "conversationalTools": [],
+      "evidence": [
+        "destination_binding",
+        "message_id",
+        "thread_reference",
+        "published_at",
+        "connector"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "after": "report",
+      "tool": {
+        "grantId": "oregano:communications/publish",
+        "runtimeId": "oregano:communications/publish",
+        "version": "1.0.0",
+        "risk": "R2",
+        "capabilities": [
+          {
+            "id": "communication.message.publish",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "b298e2a65ca9e0bb93dec4b5eeefef2c6c125c8697b7a72a47b1860bb3c9a3a4"
+      },
+      "message": {
+        "template": "agents/sprint/skills/sprint-sop/assets/retro-template.md",
+        "vars": {
+          "report_text": "$steps.close-view.report_text",
+          "open_items_text": "$steps.close-view.open_items_text",
+          "effort": "unavailable"
+        },
+        "destination": "studio-sprints",
+        "thread": "$steps.open-close-thread.thread_reference"
+      }
+    },
+    {
+      "id": "prepare-rollover",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "company:sprint/rollover-changes"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "rollover-route"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "outcome"
+        ],
+        [
+          "updates"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "outcome",
+        "updates"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "company:rollover-changes",
+        "runtimeId": "company:sprint/rollover-changes",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [],
+        "contractDigest": "ca3ae10f15eccc4e07ab99b991fdb32e2c330bb36a58724d3948c3c0da0f69f9"
+      },
+      "input": {
+        "open_work_items": "$steps.close-view.open_work_items",
+        "target_sprint_id": "$instance.next_sprint_id"
+      }
+    },
+    {
+      "id": "rollover-route",
+      "owner": "agent:sprint",
+      "kind": "route",
+      "allowedTools": [],
+      "maxRisk": "R0",
+      "next": [
+        "end",
+        "approve-rollover"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "route": {
+        "on": "$steps.prepare-rollover.outcome",
+        "targets": {
+          "none": "end",
+          "some": "approve-rollover"
+        }
+      }
+    },
+    {
+      "id": "approve-rollover",
+      "owner": "human:sprint-owner",
+      "kind": "decision",
+      "allowedTools": [],
+      "maxRisk": "R0",
+      "next": [
+        "apply-rollover",
+        "end"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [
+        [
+          "bound"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "decision": {
+        "role": "sprint-owner",
+        "binds": "$steps.prepare-rollover.updates",
+        "via": "sprint-direct",
+        "timeoutBusinessDays": 2,
+        "calendarPath": "schedules/sprint-rhythm.yaml",
+        "targets": {
+          "approve": "apply-rollover",
+          "reject": "end",
+          "timeout": "end"
+        }
+      }
+    },
+    {
+      "id": "apply-rollover",
+      "owner": "agent:sprint",
+      "kind": "effect",
+      "allowedTools": [
+        "oregano:work-items/batch-update"
+      ],
+      "maxRisk": "R3",
+      "next": [
+        "end"
+      ],
+      "allPages": false,
+      "requiredOutputPaths": [],
+      "requiresDecisions": [
+        {
+          "stepId": "approve-rollover",
+          "payloadPath": [
+            "updates"
+          ]
+        }
+      ],
+      "bindingConstraints": [
+        {
+          "inputPath": [
+            "resource_binding"
+          ],
+          "value": "sprint-board"
+        }
+      ],
+      "conversationalTools": [],
+      "evidence": [
+        "resource_binding",
+        "work_item_ids",
+        "previous_versions",
+        "provider_versions",
+        "changed_fields"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key",
+        "input_digest"
+      ],
+      "tool": {
+        "grantId": "oregano:work-items/batch-update",
+        "runtimeId": "oregano:work-items/batch-update",
+        "version": "1.0.0",
+        "risk": "R3",
+        "capabilities": [
+          {
+            "id": "work-item.batch-update",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "477bb368132c75e5b03e84c7ee38832b674eaf96b9939c02e307ff6229dbf5cc"
+      },
+      "input": {
+        "resource_binding": "sprint-board",
+        "updates": "$steps.approve-rollover.bound"
+      }
+    }
+  ],
+  "reservedEffects": [
+    "oregano:communications/publish",
+    "oregano:work-items/batch-update"
+  ],
+  "manifestHash": "f2814b1d00bd7bd06fa35116955c5aeb97d4d06602079b1dc81ef698b99f5cd5"
+}

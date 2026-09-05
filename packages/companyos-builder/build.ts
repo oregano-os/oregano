@@ -12,6 +12,7 @@ import { STANDARD_COMMUNICATION_TOOLS } from "../standard-tools/communication.ts
 import type { CompanyOSArtifact, InstanceBuildConfiguration } from "./types.ts";
 import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 import { validateAgentRouting } from "../runtime/agent-resolver.ts";
+import { compileWorkflows } from "./workflow-compiler.ts";
 import { compileSprintRuntimes } from "./sprint-loader.ts";
 
 export function buildCompanyOSArtifact(args: {
@@ -23,6 +24,7 @@ export function buildCompanyOSArtifact(args: {
   workbenchVersion: string;
   builtAt?: string;
 }): CompanyOSArtifact {
+  args = { ...args, instance: structuredClone(args.instance) };
   const standardTools = [
     ...STANDARD_KNOWLEDGE_TOOLS,
     ...STANDARD_RECORDS_TOOLS,
@@ -106,6 +108,7 @@ export function buildCompanyOSArtifact(args: {
     agents,
     agentRouting,
     sprints,
+    workflows: compileWorkflows({ files: workspace.allFiles, agents, provenance: { coreCommit: args.coreCommit, workspaceCommit: args.workspaceCommit, workbenchVersion, instanceId: args.instance.instanceId } }),
     builder: args.instance.builder,
   };
   const hashInput = {
