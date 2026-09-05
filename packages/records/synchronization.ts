@@ -7,6 +7,8 @@ import { projectRecord } from "./projection.ts";
 import type { CompanyRecordsRegistry } from "./registry.ts";
 import { CompanyRecordsService } from "./service.ts";
 import type { RecordSourceInventory } from "./source-connector.ts";
+import { sha256 } from "../runtime/canonical.ts";
+import { recordQueryInstant } from "./query.ts";
 
 export const DEFAULT_RECORD_SNAPSHOT_CONCURRENCY = 8;
 export const MAX_RECORD_SNAPSHOT_CONCURRENCY = 32;
@@ -51,6 +53,12 @@ export async function synchronizeRecordSnapshot(args: {
   concurrency?: number;
 }) {
   const { instanceId, source, inventory, registry, store, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
+  if (inventory.complete !== true) throw new Error("A partial inventory cannot be synchronized as complete");
+  if (sha256(source) !== sha256(registry.source(source.id))) throw new Error("Synchronization source differs from its registered declaration");
+  const observedAt = recordQueryInstant(inventory.observed_at, "Inventory observation");
+  if (inventory.synced_through !== undefined && recordQueryInstant(inventory.synced_through, "Source completeness") > observedAt) {
+    throw new Error("Source completeness must be an instant no later than the inventory observation");
+  }
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
     instanceId,
@@ -106,6 +114,8 @@ export async function synchronizeRecordSnapshot(args: {
       started_at: inventory.observed_at,
       completed_at: inventory.observed_at,
       watermark: inventory.watermark,
+      ...(inventory.synced_through ? { synced_through: inventory.synced_through } : {}),
+      source_digest: sha256(source),
       observed: inventory.objects.length,
       inserted,
       unchanged,

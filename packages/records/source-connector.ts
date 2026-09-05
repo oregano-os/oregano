@@ -22,6 +22,8 @@ export interface RecordSourceInventory {
   observed_at: string;
   objects: Array<Record<string, JsonValue>>;
   watermark: string;
+  /** Qualified complete coverage through this instant; read completion is not a substitute. */
+  synced_through?: string;
   receipt: Record<string, JsonValue>;
 }
 

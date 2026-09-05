@@ -13,6 +13,8 @@ import { projectionRecordId } from "./identity.ts";
 import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
+import { MAX_RECORD_QUERY_ROWS, queryRecordSnapshot } from "./query.ts";
+import { sha256 } from "../runtime/canonical.ts";
 
 export class RecordAccessDeniedError extends Error {
   readonly decision: RecordAccessDecision;
@@ -86,19 +88,27 @@ export class CompanyRecordsService {
     const accessDecision = decideProjectionAccess({ projection, subject: args.subject, decidedAt });
     await store.appendAccessDecision(accessDecision);
     if (!accessDecision.allowed) throw new RecordAccessDeniedError(accessDecision);
-    const page = await store.queryProjectionRows({
+    const sourceIds = projection.source_ids ?? registry.sourceForRecordType(projection.record_type).map((source) => source.id);
+    if (sourceIds.some((sourceId) => registry.source(sourceId).record_type !== projection.record_type)) {
+      throw new Error(`Projection '${projection.id}' names a source of another record type`);
+    }
+    const snapshot = await store.readProjectionSnapshot({
       instanceId,
       projectionId: projection.id,
-      filters: args.query.filters,
-      limit: Math.min(Math.max(args.query.limit ?? 50, 1), 200),
-      cursor: args.query.cursor,
+      sourceIds,
+      limit: MAX_RECORD_QUERY_ROWS,
     });
+    if (snapshot.rows.some((row) => row.instance_id !== instanceId)
+      || snapshot.sourceReceipts.some((receipt) => receipt.instance_id !== instanceId)) {
+      throw new Error("Record snapshot belongs to another Company Instance");
+    }
+    const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, sha256(registry.source(sourceId))]));
+    const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, query: args.query });
     const observedAt = page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
     const freshUntil = new Date(new Date(observedAt).getTime() + projection.freshness.max_age_minutes * 60_000).toISOString();
     return {
       projection_id: projection.id,
-      rows: page.rows,
-      ...(page.nextCursor ? { next_cursor: page.nextCursor } : {}),
+      ...page,
       observed_at: observedAt,
       fresh_until: freshUntil,
       access_decision: accessDecision,

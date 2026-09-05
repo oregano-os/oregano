@@ -20,6 +20,15 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- The [Records workflow query contract](../specifications/company-records-query-v1.md)
+  adds declared generic filters, bounded immutable reads, typed standard Tool
+  outputs and explicit complete-source evidence. Required Postgres tests cover
+  real SQL snapshots and restart. Provider adapters still need qualified time
+  coverage before they can satisfy a `require_synced_through` request. The
+  [workflow execution specification](../specifications/workflow-execution-v1-draft.md)
+  records the target boundary; its compiler, guard, engine and migration remain
+  pending.
+
 - The required [Postgres integration gate](../testing/postgres.md) provisions
   an isolated CI database and exercises the maintained HTTP driver and real
   stores without optional repository secrets. Missing or skipped required

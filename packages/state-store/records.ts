@@ -12,6 +12,11 @@ export interface ProjectionPage {
   nextCursor?: string;
 }
 
+export interface RecordReadSnapshot {
+  rows: RecordProjectionRow[];
+  sourceReceipts: RecordSyncReceipt[];
+}
+
 /** Durable Company Records boundary. Agents never receive this interface. */
 export interface CompanyRecordsStore {
   appendSourceEvent(event: RecordSourceEvent): Promise<boolean>;
@@ -29,6 +34,8 @@ export interface CompanyRecordsStore {
     row?: RecordProjectionRow;
   }): Promise<boolean>;
   queryProjectionRows(args: { instanceId: string; projectionId: string; filters?: Record<string, unknown>; limit: number; cursor?: string }): Promise<ProjectionPage>;
+  /** Rows and receipts from one immutable read; return limit + 1 to expose overflow. */
+  readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; limit: number }): Promise<RecordReadSnapshot>;
   appendAccessDecision(decision: RecordAccessDecision): Promise<void>;
   appendSyncReceipt(receipt: RecordSyncReceipt | RecordReconciliationReceipt): Promise<void>;
   getWatermark(instanceId: string, sourceId: string): Promise<string | undefined>;

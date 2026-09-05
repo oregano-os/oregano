@@ -1,4 +1,5 @@
 import type { CapabilityContract, JsonSchema } from "./contracts.ts";
+import { RECORD_QUERY_INPUT_SCHEMA, RECORD_QUERY_OUTPUT_SCHEMA } from "../records/query-schema.ts";
 
 const object = (required: string[], properties: Record<string, JsonSchema>): JsonSchema => ({
   type: "object" as const,
@@ -177,26 +178,14 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
   },
   {
     id: "records.query",
-    version: "1.0.0",
-    description: "Query one authorized Company Records projection without exposing database or provider access.",
+    version: "2.0.0",
+    description: "Query one authorized immutable Records snapshot with declared filters and explicit completeness evidence.",
     mode: "read",
     minimumRisk: "R0",
-    inputSchema: object(["projection_id"], {
-      projection_id: { type: "string", minLength: 1, maxLength: 63 },
-      filters: { type: "object" },
-      limit: { type: "integer", minimum: 1, maximum: 200 },
-      cursor: { type: "string", minLength: 1, maxLength: 1_000 },
-    }),
-    outputSchema: object(["projection_id", "rows", "observed_at", "fresh_until", "access_decision"], {
-      projection_id: { type: "string" },
-      rows: { type: "array", maxItems: 200, items: { type: "object" } },
-      next_cursor: { type: "string" },
-      observed_at: { type: "string" },
-      fresh_until: { type: "string" },
-      access_decision: { type: "object" },
-    }),
+    inputSchema: RECORD_QUERY_INPUT_SCHEMA,
+    outputSchema: RECORD_QUERY_OUTPUT_SCHEMA,
     idempotency: "none",
-    evidence: ["projection_id", "row_count", "observed_at", "fresh_until", "access_decision", "connector"],
+    evidence: ["projection_id", "row_count", "observed_at", "fresh_until", "snapshot_id", "source_proofs", "access_decision", "connector"],
   },
   {
     id: "work-item.read",

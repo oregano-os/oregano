@@ -33,7 +33,9 @@ export interface CompanyRecordProjectionDeclaration {
   schema_version: 1;
   id: string;
   record_type: string;
+  source_ids?: string[];
   selection?: Record<string, JsonValue>;
+  filters?: Record<string, RecordFilterDeclaration>;
   fields: Array<{ name: string; path: string }>;
   freshness: { max_age_minutes: number };
   access: { read_groups: string[] };
@@ -41,6 +43,13 @@ export interface CompanyRecordProjectionDeclaration {
     mode: "database-view" | "workspace-proposal";
     target?: string;
   };
+}
+
+/** Names and paths are Workspace data; operators are generic Core behavior. */
+export interface RecordFilterDeclaration {
+  operator: "equals" | "in" | "after" | "missing-any";
+  path: string;
+  fields?: string[];
 }
 
 export type RecordSourceEventKind = "created" | "updated" | "deleted" | "access-changed" | "reconcile";
@@ -104,6 +113,9 @@ export interface RecordSyncReceipt {
   started_at: string;
   completed_at: string;
   watermark?: string;
+  /** Explicit source completeness, never inferred from a cursor or freshness. */
+  synced_through?: string;
+  source_digest?: string;
   observed: number;
   inserted: number;
   unchanged: number;
@@ -121,6 +133,16 @@ export interface RecordQuery {
   filters?: Record<string, JsonValue>;
   limit?: number;
   cursor?: string;
+  all_pages?: boolean;
+  require_synced_through?: string;
+}
+
+export interface RecordSourceProof {
+  source_id: string;
+  source_digest: string;
+  run_id: string;
+  synced_through: string;
+  watermark: string;
 }
 
 export interface RecordQueryResult {
@@ -129,5 +151,8 @@ export interface RecordQueryResult {
   next_cursor?: string;
   observed_at: string;
   fresh_until: string;
+  snapshot_id: string;
+  source_proofs: RecordSourceProof[];
+  synced_through?: string;
   access_decision: RecordAccessDecision;
 }

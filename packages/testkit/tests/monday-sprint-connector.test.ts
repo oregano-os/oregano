@@ -322,7 +322,7 @@ test("Company Records and work-item standard Tools expose only provider-neutral 
   recordsRegistry.registerProjection(projection);
   const service = new CompanyRecordsService({ instanceId: "fixture-instance", registry: recordsRegistry, store: new InMemoryCompanyRecordsStore(), now: () => new Date("2030-02-01T10:00:00.000Z") });
   const connector = new CompanyRecordsConnector(service);
-  const registry = new ConnectorRegistry({ contracts: CORE_CAPABILITY_CATALOG, connectors: [connector], bindings: [{ capability: "records.query", contractVersion: "1.0.0", connector: connector.id, connectorVersion: connector.version }] });
+  const registry = new ConnectorRegistry({ contracts: CORE_CAPABILITY_CATALOG, connectors: [connector], bindings: [{ capability: "records.query", contractVersion: "2.0.0", connector: connector.id, connectorVersion: connector.version }] });
   const result = await registry.invoke("records.query", { projection_id: "participants" }, {
     instanceId: "fixture-instance", runId: "run", stepId: "read", agentId: "sprint-agent", toolId: "records-query",
     subject: { principalId: "human:member-1", principalType: "human", status: "active", groupIds: ["delivery"] },

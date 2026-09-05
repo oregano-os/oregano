@@ -1,4 +1,5 @@
 import type { CompanyRecordProjectionDeclaration, CompanyRecordSourceDeclaration } from "./contracts.ts";
+import { validateRecordFilters } from "./query.ts";
 
 export class CompanyRecordsRegistry {
   readonly #sources = new Map<string, CompanyRecordSourceDeclaration>();
@@ -15,6 +16,10 @@ export class CompanyRecordsRegistry {
     if (this.#projections.has(projection.id)) throw new Error(`Record projection '${projection.id}' is already registered`);
     const names = projection.fields.map((field) => field.name);
     if (new Set(names).size !== names.length) throw new Error(`Record projection '${projection.id}' contains duplicate field names`);
+    if (projection.source_ids && (!projection.source_ids.length || new Set(projection.source_ids).size !== projection.source_ids.length)) {
+      throw new Error(`Record projection '${projection.id}' requires distinct source identities`);
+    }
+    validateRecordFilters(projection);
     this.#projections.set(projection.id, structuredClone(projection));
   }
 

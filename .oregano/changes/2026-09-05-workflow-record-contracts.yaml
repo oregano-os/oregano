@@ -1,0 +1,89 @@
+version: 3
+plan_id: workflow-record-contracts-2026-09-05
+created: "2026-09-05"
+title: Establish real record and message contracts for declarative workflows
+objective: >-
+  Replace assumed reference Tool outputs with maintained typed contracts.
+  Extend Company Records with declared generic filters, bounded complete reads
+  from one immutable database snapshot, and explicit complete-source evidence.
+  A fresh row or webhook cursor never proves synchronization through a cutoff.
+  Publish the workflow execution specification frame without claiming that its
+  future compiler or engine is implemented.
+non_goals:
+  - Activate a Company Instance, modify production data, or remove legacy execution.
+  - Add workflow business rules, a provider, or a second record synchronization service.
+  - Claim provider completeness from an unqualified inventory or a partial scan.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-record-contracts.yaml
+  - packages/records/contracts.ts
+  - packages/records/query.ts
+  - packages/records/query-schema.ts
+  - packages/records/service.ts
+  - packages/records/registry.ts
+  - packages/records/projection.ts
+  - packages/records/memory-store.ts
+  - packages/records/source-connector.ts
+  - packages/records/synchronization.ts
+  - packages/state-store/records.ts
+  - packages/state-postgres/records-store.ts
+  - packages/schema/company-record-projection-v1.schema.json
+  - packages/connectors/company-records.ts
+  - packages/capabilities/catalog.ts
+  - packages/standard-tools/records.ts
+  - packages/standard-tools/communication.ts
+  - packages/testkit/tests/record-query.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - scripts/test-database.mjs
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/company-records-query-v1.md
+  - docs/status/current.md
+  - docs/_generated/architecture-index.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests:
+  - packages/testkit/tests/record-query.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - packages/testkit/tests/company-records-foundation.test.ts
+  - packages/testkit/tests/company-records-sprint-contracts.test.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - specification.company-records-query-v1
+    - status.current
+architecture:
+  placement:
+    core: >-
+      Owns generic query operators, immutable read snapshots, completeness
+      evidence, typed Tool contracts and the future execution specification.
+    packages: No Package or Blueprint is introduced or changed.
+    workspace: Selects source IDs, exposed fields, filter names and operators.
+    instance: Owns qualified source inventories and exact provider bindings.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: >-
+        Add explicit projection source selection, bounded immutable snapshots,
+        declared filters, all-pages reads and complete-source synchronization
+        receipts. Reuse the maintained source synchronization path and stores.
+    - mechanism: capability-contracts-and-connectors
+      reason: >-
+        Share actual Records query schemas across the Capability and standard
+        Tool; expose the existing message receipt schema in its standard Tool.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Any workflow can filter authorized operational records and require evidence
+    of a complete scan. Operator names and paths contain no company rules.
+rollback: >-
+  Revert the scoped implementation before consumers adopt the extensions.
+  Additional completeness metadata uses existing immutable receipt JSON;
+  no destructive migration or production change is needed.

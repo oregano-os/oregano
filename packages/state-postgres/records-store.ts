@@ -282,6 +282,29 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
           ${decision.policy_digest}, ${decision.reason}, ${decision.decided_at})`;
     },
 
+    async readProjectionSnapshot(args) {
+      await ensureCompanyRecordsSchema();
+      // One SQL statement gives rows and completion receipts the same MVCC snapshot.
+      // No connection or mutable read cursor survives beyond this request.
+      const result = await connection()`select
+        coalesce((select jsonb_agg(to_jsonb(r) order by r.record_id) from (
+          select * from companyos_records.projection_rows
+          where instance_id = ${args.instanceId} and projection_id = ${args.projectionId}
+          order by record_id collate "C" limit ${args.limit + 1}
+        ) r), '[]'::jsonb) as rows,
+        coalesce((select jsonb_agg(s.summary) from (
+          select distinct on (source_id) summary from companyos_records.sync_receipts
+          where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
+            and summary->>'synced_through' is not null and watermark is not null
+            and summary->>'errors' = '0'
+          order by source_id, (summary->>'synced_through')::timestamptz desc, run_id desc
+        ) s), '[]'::jsonb) as receipts`;
+      return {
+        rows: (json(result[0]?.rows) as Array<Record<string, any>>).map(projectionRow),
+        sourceReceipts: json(result[0]?.receipts),
+      };
+    },
+
     async appendSyncReceipt(receipt) {
       await ensureCompanyRecordsSchema();
       await connection()`insert into companyos_records.sync_receipts
