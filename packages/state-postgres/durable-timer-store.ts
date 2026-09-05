@@ -90,6 +90,13 @@ export function createPostgresDurableTimerStore(): DurableTimerStore {
       return rows.map(claimedTimer);
     },
 
+    async readClaim(args) {
+      await ensureCompanyRecordsSchema();
+      const rows = await connection()`select * from companyos_records.durable_timers
+        where instance_id = ${args.instanceId} and timer_id = ${args.timerId} and state = 'leased'
+          and lease_token = ${args.leaseToken} and lease_expires_at > greatest(${args.now}::timestamptz, clock_timestamp())`;
+      return rows[0] && claimedTimer(rows[0]);
+    },
     async complete(args) {
       await ensureCompanyRecordsSchema();
       const rows = await connection()`update companyos_records.durable_timers

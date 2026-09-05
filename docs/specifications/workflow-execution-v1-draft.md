@@ -299,6 +299,66 @@ Database manifest `2.0.0` adds these control tables, indexes and constraints.
 The `1.9.0` manifest retains its exact old digest. Mandatory Postgres tests
 exercise concurrent leases, JSONB redelivery, atomic assignment refusal,
 cancellation/dispatch races and the actual Runtime's refusal when cancellation
-lands between effect claim and dispatch. These tests position generic state
-explicitly; the complete step interpreter, scheduling/decision delivery and
-end-to-end fictional workflow acceptance remain subsequent implementation.
+lands between effect claim and dispatch. These state-only tests remain distinct from the interpreter acceptance below.
+
+
+## Implemented durable interpreter
+
+`WorkflowEngine` executes the compiled forward-only graph against the retained
+starting Artifact. Operator openings use an authenticated active Instance
+operator and an explicit request identity; retries retain their original logical
+time and reject changed fields. Scheduled openings require an active reviewed
+calendar and an exact occurrence, derive their identity from declared instance
+keys, and freeze that occurrence's parameters. The caller must supply business
+key/period fields; Core cannot invent company period naming. Previous-trigger
+references use the preceding declared calendar occurrence, never another run.
+Instance execution enablement and calendar activation are separate checks.
+
+Each Tool input or foreach collection is persisted before execution. The worker
+uses a fresh lease-bound context reader for the ordinary CompanyOSRuntime;
+Company Tools still execute in their existing restricted sandbox. Completed
+scalar outputs and typed-key item receipts are immutable. A worker can finish
+one item, restart and continue with the remaining items. Missing required
+publication proof blocks the step while retaining the completed effect. An
+unknown, failed or claimed effect cannot be retried by operator resume; it
+requires explicit reconciliation. Successful effects recover their existing
+receipt without a provider call. A read failure with no effect can resume.
+
+Waits and business-day deadlines use the existing durable timer store. Timers
+are restored from committed run state after an interrupted timer write. Their
+identity includes the exact due instant, so a missed delivery window may create
+a later wait without conflicting with the earlier completed timer. Only a
+currently held timer claim can wake a run. State leases/revisions prevent a
+second transition; a timer redelivered after a committed transition is stale.
+Workers perform at most 200 transitions and stop starting transitions after
+150 seconds; a single Tool remains bounded by its existing timeout. Timer
+repair scans at most 200 runs, returning a run-ID continuation. Hosted workers
+must retain that continuation across invocations until the scan completes.
+
+Human decisions freeze the complete payload, digest, exact eligible recipient
+IDs and business-day expiry before sending. The compiler resolves each notice
+through the owner's ordinary `oregano:communications/publish` grant (below R3),
+so delivery has the same effect claim, receipt and destination controls as other
+messages. Each recipient receives the entire bound JSON and an exact request
+ID. The v1 plain-text notice is bounded to 20,000 characters; an oversized review
+blocks without truncating the payload or dispatching a partial notice.
+
+The trusted host authenticates the actual response's principal, provider event
+and exact account/channel/thread. `decide` accepts only an unexpired pending
+request with a delivered notice for that current authorized human. It persists
+the response before advancing the graph. Invalid responses release their lease
+without granting authority. An exact already recorded provider response can be
+acknowledged after completion using retained delivery proof; that lookup does
+not grant active conversational authority. The effect rechecks current eligibility, payload
+and expiry and consumes the ordinary Runtime approval atomically. Rejection or
+business-day timeout ends the run without a write. Synthetic tests cannot stand
+in for an actual human response.
+
+Memory acceptance runs all four fictional workflows from their real entries,
+including Company Tools, routes, waits, keyed messages and decisions. Mandatory
+Postgres acceptance executes the same Runtime/store boundaries with retained
+Artifacts, JSONB redelivery, competing responses, crash recovery, business-day
+waits and cancellation before dispatch. Provider replies and test humans in
+these suites are synthetic. Hosted endpoints, qualified provider completeness,
+provider recipient resolution, real test-Instance acceptance and legacy removal
+remain separate required implementation and activation gates.

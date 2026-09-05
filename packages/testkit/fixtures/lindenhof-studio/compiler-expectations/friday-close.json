@@ -1084,8 +1084,10 @@
       "id": "approve-rollover",
       "owner": "human:sprint-owner",
       "kind": "decision",
-      "allowedTools": [],
-      "maxRisk": "R0",
+      "allowedTools": [
+        "oregano:communications/publish"
+      ],
+      "maxRisk": "R2",
       "next": [
         "apply-rollover",
         "end"
@@ -1099,7 +1101,13 @@
       "requiresDecisions": [],
       "bindingConstraints": [],
       "conversationalTools": [],
-      "evidence": [],
+      "evidence": [
+        "destination_binding",
+        "message_id",
+        "thread_reference",
+        "published_at",
+        "connector"
+      ],
       "idempotency": [
         "instance_id",
         "workflow_id",
@@ -1107,6 +1115,21 @@
         "step_id",
         "item_key"
       ],
+      "tool": {
+        "grantId": "oregano:communications/publish",
+        "runtimeId": "oregano:communications/publish",
+        "version": "1.0.0",
+        "risk": "R2",
+        "capabilities": [
+          {
+            "id": "communication.message.publish",
+            "version": "1.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "b298e2a65ca9e0bb93dec4b5eeefef2c6c125c8697b7a72a47b1860bb3c9a3a4"
+      },
       "decision": {
         "role": "sprint-owner",
         "binds": "$steps.prepare-rollover.updates",
@@ -1189,5 +1212,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "aba1d46fac4298e5843ebc83f9a3692b247f204917ff68977a890916651039b4"
+  "manifestHash": "708453677dd23974ed3bd1531337e2a9859cdc7c95817690ca6885bf320d9522"
 }

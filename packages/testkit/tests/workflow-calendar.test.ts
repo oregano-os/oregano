@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 import YAML from "yaml";
 import type { WorkflowSchedule } from "../../companyos-builder/workflow-types.ts";
-import { workflowBusinessDeadline, workflowDeliveryInstant, workflowNextTrigger, workflowOccurrences } from "../../runtime/workflow-engine/calendar.ts";
+import { workflowBusinessDeadline, workflowDeliveryInstant, workflowNextTrigger, workflowOccurrences, workflowPreviousTrigger } from "../../runtime/workflow-engine/calendar.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 
 const calendar = (): WorkflowSchedule => YAML.parse(readFileSync(resolve(import.meta.dirname, "../fixtures/lindenhof-studio/schedules/sprint-rhythm.yaml"), "utf8"));
@@ -90,4 +90,12 @@ test("a later nominal weekend trigger can shift to an earlier time on the same b
     { id: "review", weekdays: ["saturday"], at: "09:00", holiday_shift: "previous-business-day" },
   ];
   assert.equal(workflowNextTrigger(schedule, "review", "2026-09-10T06:00:00.000Z").instant, "2026-09-11T07:00:00.000Z");
+});
+
+
+test("previous occurrence is strict and follows holiday-shifted nominal dates without reading earlier runs", () => {
+  const schedule = calendar();
+  assert.equal(workflowPreviousTrigger(schedule, "weekday-activity-digest", "2026-04-07T15:30:00.000Z").instant, "2026-04-02T15:30:00.000Z");
+  assert.equal(workflowPreviousTrigger(schedule, "friday-close-reminder", "2026-04-02T14:00:00.000Z").instant, "2026-04-02T13:30:00.000Z");
+  assert.equal(workflowPreviousTrigger(schedule, "friday-close-reminder", "2026-04-02T13:30:00.000Z").instant, "2026-03-27T14:30:00.000Z");
 });

@@ -15,6 +15,7 @@ export interface WorkflowDecisionEvidence {
   boundDigest: string;
   approvingPrincipal?: string;
   expiresAt: string;
+  recipients?: string[];
 }
 
 /** Supplied only by the trusted host's persisted run/assignment reader. Never a Tool argument. */

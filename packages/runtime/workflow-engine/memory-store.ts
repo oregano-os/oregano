@@ -61,8 +61,8 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
   }
   async list(args: Parameters<WorkflowExecutionStore["list"]>[0]): Promise<WorkflowRun[]> {
     if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 200) throw new Error("Workflow listing limit must be from 1 to 200");
-    return [...this.#runs.values()].filter((run) => run.instanceId === args.instanceId && (!args.status || run.state.status === args.status))
-      .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) || a.runId.localeCompare(b.runId)).slice(0, args.limit).map((run) => structuredClone(run));
+    return [...this.#runs.values()].filter((run) => run.instanceId === args.instanceId && (!args.status || run.state.status === args.status) && (!args.afterRunId || run.runId > args.afterRunId))
+      .sort((a, b) => a.runId.localeCompare(b.runId)).slice(0, args.limit).map((run) => structuredClone(run));
   }
   async claim(args: Parameters<WorkflowExecutionStore["claim"]>[0]): Promise<WorkflowRun | undefined> {
     validateWorkflowLease(args);
@@ -70,6 +70,12 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
     if (!run || !active(run) || (run.lease && run.lease.expiresAt > args.now)) return undefined;
     run.lease = { owner: args.owner, token: args.token, expiresAt: args.expiresAt };
     return structuredClone(run);
+  }
+  async release(args: Parameters<WorkflowExecutionStore["release"]>[0]): Promise<boolean> {
+    const run = this.#runs.get(key(args.instanceId, args.runId));
+    if (!run || run.lease?.token !== args.leaseToken) return false;
+    delete run.lease;
+    return true;
   }
   async commit(args: WorkflowStateCommit): Promise<WorkflowRun | undefined> {
     workflowInstant(args.now);
@@ -86,7 +92,7 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
     run.state = structuredClone(args.state); run.revision++; run.updatedAt = args.now; delete run.lease;
     for (const assignment of args.assignments ?? []) this.#assignments.set(key(run.instanceId, assignment.assignmentKey), structuredClone(assignment));
     this.control.runs.get(run.runId)!.status = run.state.status;
-    this.control.appendEventSync({ runId: run.runId, stepId: args.event.stepId, actor: "agent", subjectPrincipal: args.event.principal,
+    this.control.appendEventSync({ runId: run.runId, stepId: args.event.stepId, actor: args.event.principal ? "human:workflow" : "agent", subjectPrincipal: args.event.principal,
       event: args.event.name, status: "succeeded", evidence: args.event.evidence,
       payload: { revision: run.revision, state_digest: sha256(run.state), artifact_hash: run.artifactHash, manifest_hash: run.manifestHash } });
     return structuredClone(run);
@@ -99,6 +105,11 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
     this.control.runs.get(run.runId)!.status = "cancelled";
     this.control.appendEventSync({ runId: run.runId, stepId: run.state.cursor ?? "end", actor: "human:operator", subjectPrincipal: args.principal, event: "workflow.cancelled", status: "succeeded", payload: { revision: run.revision } });
     return true;
+  }
+  async deliveredAssignment(args: Parameters<WorkflowExecutionStore["deliveredAssignment"]>[0]): Promise<WorkflowAssignment | undefined> {
+    const assignment = this.#assignments.get(key(args.instanceId, workflowAssignmentKey(args.instanceId, args.conversation)));
+    if (!assignment || (assignment.subjectPrincipal && assignment.subjectPrincipal !== args.conversation.subjectPrincipal)) return undefined;
+    return structuredClone(assignment);
   }
   async assignment(args: Parameters<WorkflowExecutionStore["assignment"]>[0]): Promise<WorkflowAssignment | undefined> {
     workflowInstant(args.now);

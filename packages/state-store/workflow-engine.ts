@@ -33,7 +33,7 @@ export interface WorkflowMutableState {
   logicalInstant: string;
   steps: Record<string, WorkflowStepState>;
   decisions: Record<string, WorkflowStoredDecision>;
-  wait?: { stepId: string; kind: "step" | "delivery" | "decision"; timerId: string; dueAt: string };
+  wait?: { stepId: string; kind: "step" | "delivery" | "decision" | "start"; timerId: string; dueAt: string };
   blocked?: { stepId: string; code: string; errorDigest: string };
 }
 export interface WorkflowRunIdentity {
@@ -89,10 +89,13 @@ export interface WorkflowExecutionStore {
   create(args: { identity: WorkflowRunIdentity; state: WorkflowMutableState; meta: RunMeta }): Promise<WorkflowRun>;
   read(instanceId: string, runId: string): Promise<WorkflowRun | undefined>;
   findOrigin(instanceId: string, workflowId: string, originKey: string): Promise<WorkflowRun | undefined>;
-  list(args: { instanceId: string; limit: number; status?: WorkflowMutableState["status"] }): Promise<WorkflowRun[]>;
+  list(args: { instanceId: string; limit: number; status?: WorkflowMutableState["status"]; afterRunId?: string }): Promise<WorkflowRun[]>;
   claim(args: { instanceId: string; runId: string; owner: string; token: string; now: string; expiresAt: string }): Promise<WorkflowRun | undefined>;
+  release(args: { instanceId: string; runId: string; leaseToken: string }): Promise<boolean>;
   /** Atomically advances state, records its event and binds delivered conversations; stale leases cannot commit. */
   commit(args: WorkflowStateCommit): Promise<WorkflowRun | undefined>;
   cancel(args: { instanceId: string; runId: string; principal: string; now: string }): Promise<boolean>;
+  /** Retained delivery proof only; it never grants active conversational authority. */
+  deliveredAssignment(args: { instanceId: string; conversation: WorkflowConversation }): Promise<WorkflowAssignment | undefined>;
   assignment(args: { instanceId: string; conversation: WorkflowConversation; now: string }): Promise<WorkflowAssignment | undefined>;
 }

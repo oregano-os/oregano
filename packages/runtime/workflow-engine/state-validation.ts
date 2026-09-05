@@ -89,7 +89,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
   for (const id of Object.keys(previous?.steps ?? {})) if (!Object.hasOwn(state.steps, id)) throw new Error("Workflow step history cannot be removed");
   for (const id of Object.keys(previous?.decisions ?? {})) if (!Object.hasOwn(state.decisions, id)) throw new Error("Workflow decision history cannot be removed");
   if (state.wait) {
-    if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
+    if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision", "start"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
     workflowInstant(state.wait.dueAt); identifier(state.wait.timerId);
   }
 }

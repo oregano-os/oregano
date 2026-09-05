@@ -44,7 +44,7 @@ bootstrap, and Brain persistence/identity. The ordinary unit suite may skip
 database cases without a local database; it cannot satisfy this separate gate.
 
 This is real database and store evidence, not a hosted Neon qualification or
-workflow-engine acceptance. The deployed Instance still needs its exact
+hosted workflow acceptance. The deployed Instance still needs its exact
 database profile qualification, Workflow acceptance, and human decisions.
 
 The required suite also runs generic workflow persistence against the actual
@@ -55,3 +55,13 @@ actual Runtime invocation cancelled after its effect claim but before provider
 dispatch. These are state/Runtime boundary tests; full workflow interpreter and
 hosted human acceptance are separate gates. Synthetic test clocks and state
 positioning do not count as real human approval or an elapsed pilot period.
+
+
+The mandatory suite now also executes the actual generic interpreter from the
+fictional Workspace's entry steps. Coverage includes Friday reads and Company
+Tools through waits, report, competing synthetic decision responses and one
+approval-bound batch; restart after publication but before state commit;
+keyed-recipient progress, expired timer claims, business-day waits and actual
+cancellation before provider dispatch. Test providers do not deduplicate sends.
+Their source watermarks and human replies are explicitly synthetic; the suite
+does not establish provider time coverage, a live approval or pilot duration.

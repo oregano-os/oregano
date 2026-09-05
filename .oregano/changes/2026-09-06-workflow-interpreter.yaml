@@ -1,0 +1,78 @@
+version: 3
+plan_id: workflow-interpreter-2026-09-06
+created: "2026-09-06"
+title: Execute compiled workflow steps through durable Core control
+objective: >-
+  Interpret the frozen step graph with the actual CompanyOSRuntime, persisted
+  context, existing timers, role-bound decisions and recoverable keyed items.
+  Prove the fictional Workspace through memory and required Postgres execution.
+non_goals:
+  - Deploy or activate an operating Company Workspace or bypass real human acceptance.
+  - Remove the legacy oracle before the parity and test-Instance gates.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-interpreter.yaml
+  - packages/runtime/workflow-engine/**
+  - packages/runtime/companyos-runtime.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/state-store/durable-timers.ts
+  - packages/runtime/memory-durable-timers.ts
+  - packages/state-postgres/durable-timer-store.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/testkit/workflow-state-fixture.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/tests/workflow-calendar.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/**
+  - scripts/test-database.mjs
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/tool-architecture.md
+  - docs/architecture/system-of-proof.md
+  - docs/status/current.md
+  - docs/testing/postgres.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - specification.tool-architecture
+    - architecture.system-of-proof
+    - status.current
+    - testing.postgres
+architecture:
+  placement:
+    core: Interprets only generic constructs, authenticates decisions, fences execution and retains evidence.
+    packages: Existing standard and restricted Company Tools run through CompanyOSRuntime.
+    workspace: Defines process, business calculations, recipients, templates, calendars and decision roles.
+    instance: Supplies authenticated operators, current roster, explicit execution enablement and qualified Connector bindings.
+  mechanisms_extended:
+    - mechanism: toolset-resolver
+      reason: Resolve decision notices and ordinary steps through existing granted Tools.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse exact input approvals, persisted execution state, fences and completed receipts.
+    - mechanism: timers-and-business-time
+      reason: Wake persisted waits and decision deadlines using the existing timer service.
+    - mechanism: identity-and-authorization
+      reason: Build trusted context from current leases or authenticated exact conversation assignments.
+    - mechanism: capability-contracts-and-connectors
+      reason: All provider execution stays behind ordinary Runtime Tool/Capability bindings.
+  new_core_mechanisms:
+    - A bounded interpreter of the compiled forward-only workflow graph.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: No company field, cohort, weekday purpose, calculation or business decision is encoded in the interpreter.
+rollback: Disable new workflow openings, cancel active runs, retain Artifacts and receipts, and keep the previous operating Workspace pin until real acceptance.

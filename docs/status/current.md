@@ -20,28 +20,35 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- The generic durable interpreter now runs the four fictional Workspace graphs
+  through actual Company Tools and CompanyOSRuntime. It persists scalar/keyed
+  progress, restores waits, freezes exact decision notices, authenticates bound
+  responses and recovers completed effects. Memory and mandatory Postgres
+  acceptance cover restart, cancellation and unknown-outcome refusal. Provider
+  responses and human decisions in those tests are synthetic. Hosted endpoints,
+  qualified source/recipient bindings, real acceptance and legacy removal remain
+  pending; no production activation or technical release is implied.
+
 - Generic workflow persistence retains historical Artifacts, immutable openings,
   step/decision state and exact conversation bindings in the existing control
   schema. Optimistic commits, events and assignments are atomic. Dispatch and
   cancellation share an execution lock, with current lease/time checks.
   Additive database manifest `2.0.0` preserves the old `1.9.0` identity.
-  Memory and required Postgres tests cover these boundaries; the full step
-  interpreter, hosted assignment/decision delivery and real acceptance remain
-  pending. No production database has been migrated by this development work.
+  Memory and required Postgres tests cover these boundaries. Hosted
+  assignment/decision delivery and real acceptance remain pending. No production database has been migrated by this development work.
 
 - Generic workflow calendars evaluate holiday-shifted triggers, opaque variant
   parameters, business-day approval/wait deadlines and delivery windows.
   Tests cover daylight saving, long weekends, absent calendar years, shifted
   occurrence ordering and canonical timer identity. Legacy calendar consumers
-  reuse the extracted primitives. Engine scheduling and activation remain
-  pending; calendar evaluation alone sends nothing.
+  reuse the extracted primitives. The interpreter supports exact scheduled openings; hosted schedule
+  dispatch and activation remain pending. Calendar evaluation alone sends nothing.
 
 - Compiled workflow Artifacts now use the Runtime Tool guard: host-owned
   context, exact run/step/Tool/input/binding/risk checks, current human decisions,
   exact recipient mappings and keyed effect identities. Restart tests use the
   actual Runtime effect claim without provider deduplication. Incomplete and
-  unknown receipts preserve evidence and suppress another send. Durable engine,
-  host assignment and provider recipient qualification remain pending; this
+  unknown receipts preserve evidence and suppress another send. Hosted assignment and provider recipient qualification remain pending; this
   does not activate schedules or replace real human acceptance. See the
   [workflow guard contract](../specifications/workflow-execution-v1-draft.md#implemented-runtime-guard).
 
@@ -1040,8 +1047,8 @@ including typed references, owner grants, Capability risk minima, markers and
 forward control flow. The fictional Lindenhof Workspace and mutation tests
 provide authoring evidence. The generic Artifact compiler now also embeds all four workflows, resolved
 Tool contracts, templates, literal config, calendars and required output paths.
-The complete Friday manifest has a checked-in expectation. The runtime guard,
-durable engine, provider completeness and hosted acceptance remain pending.
+The complete Friday manifest has a checked-in expectation. The runtime guard and durable interpreter now execute these manifests. Provider
+completeness and hosted acceptance remain pending.
 
 
 Workflow Artifact compilation now uses the same captured Workspace bytes as
