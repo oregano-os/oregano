@@ -71,6 +71,20 @@ export function compileWorkflows(args: {
     const usedSchedules = new Set<string>(startingSchedule ? [startingSchedule.path] : []);
     if (data.calendar) { calendar(); usedSchedules.add(data.calendar); }
     const templates = new Map<string, CompiledWorkflowTemplate>();
+    const resolveTool = (grantId: string, stepId: string) => {
+      const resolved = agent.toolSet.tools.find((tool) => tool.grantId === grantId);
+      const tool = agent.tools.find((tool) => tool.contract.runtimeId === resolved?.runtimeId);
+      if (!resolved || !tool || sha256(tool.contract) !== resolved.contractDigest) throw new Error(`${data.id}/${stepId}: Tool must match the resolved Artifact contract`);
+      if (resolved.version !== tool.contract.version) throw new Error(`${data.id}/${stepId}: Tool version differs from resolved ToolSet`);
+      if (grantId.startsWith("company:")) {
+        const captured = loadCompanyTool(files, agentId, grantId.slice(8));
+        if (sha256(captured) !== sha256(tool)) throw new Error(`${data.id}/${stepId}: compiled Tool differs from captured Workspace bytes`);
+      }
+      const capabilities = tool.contract.capabilities.map((id) => CORE_CAPABILITY_CATALOG.find((contract) => contract.id === id)!);
+      if (resolved.risk !== maximumRisk(tool.contract.risk, ...capabilities.map((contract) => contract.minimumRisk))) throw new Error(`${data.id}/${stepId}: resolved risk differs from maintained Capability minimum`);
+      const effectful = capabilities.some((contract) => contract.mode === "effect") || Number(resolved.risk.slice(1)) >= 3;
+      return { resolved, tool, effectful };
+    };
     const steps: CompiledWorkflowStep[] = rawSteps.map((raw, index) => {
       const next = raw.then ?? rawSteps[index + 1]?.id ?? "end";
       const base: CompiledWorkflowStep = {
@@ -95,19 +109,11 @@ export function compileWorkflows(args: {
       }
       if (raw.tool.startsWith("human:")) {
         const path = calendar(); usedSchedules.add(path);
-        return { ...base, kind: "decision", owner: raw.tool, next: [...new Set([raw.approve, raw.reject, "end"])], decision: { role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
+        const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);
+        if (Number(resolved.risk.slice(1)) >= 3) throw new Error(`${data.id}/${raw.id}: human decision notices require an R2 communication Tool`);
+        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
       }
-      const resolved = agent.toolSet.tools.find((tool) => tool.grantId === raw.tool);
-      const tool = agent.tools.find((tool) => tool.contract.runtimeId === resolved?.runtimeId);
-      if (!resolved || !tool || sha256(tool.contract) !== resolved.contractDigest) throw new Error(`${data.id}/${raw.id}: Tool must match the resolved Artifact contract`);
-      if (resolved.version !== tool.contract.version) throw new Error(`${data.id}/${raw.id}: Tool version differs from resolved ToolSet`);
-      if (raw.tool.startsWith("company:")) {
-        const captured = loadCompanyTool(files, agentId, raw.tool.slice(8));
-        if (sha256(captured) !== sha256(tool)) throw new Error(`${data.id}/${raw.id}: compiled Tool differs from captured Workspace bytes`);
-      }
-      const capabilities = tool.contract.capabilities.map((id) => CORE_CAPABILITY_CATALOG.find((contract) => contract.id === id)!);
-      if (resolved.risk !== maximumRisk(tool.contract.risk, ...capabilities.map((contract) => contract.minimumRisk))) throw new Error(`${data.id}/${raw.id}: resolved risk differs from maintained Capability minimum`);
-      const effectful = capabilities.some((contract) => contract.mode === "effect") || Number(resolved.risk.slice(1)) >= 3;
+      const { resolved, tool, effectful } = resolveTool(raw.tool, raw.id);
       const result: CompiledWorkflowStep = { ...base, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, kind: effectful ? "effect" : "compute", evidence: [...tool.contract.evidence] };
       if (raw.tool === "oregano:communications/publish") {
         const [skill, name] = raw.template.split("/");
@@ -164,7 +170,7 @@ export function compileWorkflows(args: {
       trigger: triggerId ? { kind: "schedule" as const, id: triggerId, schedulePath: startingSchedule!.path } : { kind: "operator" as const },
       instance: { key, fields }, ...(config ? { config } : {}),
       schedules: schedules.filter((schedule) => usedSchedules.has(schedule.path)), templates: [...templates.values()].sort((a, b) => a.path.localeCompare(b.path)),
-      entry: steps[0]!.id, steps, reservedEffects: [...new Set(steps.filter((step) => ["effect", "message"].includes(step.kind)).flatMap((step) => step.allowedTools))].sort(),
+      entry: steps[0]!.id, steps, reservedEffects: [...new Set(steps.filter((step) => ["effect", "message", "decision"].includes(step.kind)).flatMap((step) => step.allowedTools))].sort(),
     };
     return freeze({ ...manifest, manifestHash: sha256(manifest) } as CompiledWorkflow);
   }).sort((a, b) => a.id.localeCompare(b.id));

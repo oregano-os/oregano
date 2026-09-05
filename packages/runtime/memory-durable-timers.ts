@@ -63,6 +63,11 @@ export class InMemoryDurableTimerStore implements DurableTimerStore {
     });
   }
 
+  async readClaim(args: { instanceId: string; timerId: string; leaseToken: string; now: string }): Promise<ClaimedDurableTimer | undefined> {
+    const row = this.rows.get(key(args.instanceId, args.timerId));
+    if (!row || row.state !== "leased" || row.leaseToken !== args.leaseToken || Date.parse(row.leaseExpiresAt!) <= Math.max(Date.parse(args.now), Date.now())) return undefined;
+    return { ...structuredClone(row), leaseOwner: row.leaseOwner!, leaseToken: row.leaseToken!, leaseExpiresAt: row.leaseExpiresAt! };
+  }
   async complete(args: { instanceId: string; timerId: string; leaseToken: string; evidence: JsonValue; completedAt: string }): Promise<boolean> {
     return this.transition(args, "completed", args.completedAt);
   }

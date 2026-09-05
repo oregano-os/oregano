@@ -393,6 +393,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       }
       const expectedRisk = schemas ? schemas.risk : (["wait", "route"].includes(s.tool) ? "R0" : null);
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
+        if (!grants.has("oregano:communications/publish")) err(f, `${s.id}: human decision delivery requires the communication Tool grant`);
         if (!marker.startsWith("human:")) err(f, `${s.id}: decision step must carry a [human:<role>] marker, found [${marker}]`);
         else if (marker !== s.tool) err(f, `${s.id}: marker [${marker}] names a different role than ${s.tool}`);
       } else if (expectedRisk) {

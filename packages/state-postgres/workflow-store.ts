@@ -87,7 +87,8 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select * from companyos.workflow_executions
         where instance_id = ${args.instanceId} and (${args.status ?? null}::text is null or state_json->>'status' = ${args.status ?? null})
-        order by updated_at, run_id limit ${args.limit}`;
+        and (${args.afterRunId ?? null}::text is null or run_id > ${args.afterRunId ?? null})
+        order by run_id limit ${args.limit}`;
       return rows.map(runRow);
     },
     async claim(args) {
@@ -99,6 +100,13 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
           and state_json->>'status' in ('running', 'waiting')
           and (lease_token is null or lease_expires_at <= ${args.now}) returning *`;
       return rows[0] && runRow(rows[0]);
+    },
+    async release(args) {
+      await ensureWorkflowExecutionSchema();
+      const rows = await connection()`update companyos.workflow_executions
+        set lease_owner = null, lease_token = null, lease_expires_at = null
+        where instance_id = ${args.instanceId} and run_id = ${args.runId} and lease_token = ${args.leaseToken} returning run_id`;
+      return rows.length === 1;
     },
     async commit(args) {
       workflowInstant(args.now);
@@ -129,7 +137,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
           returning assignment_key
         ), evidence as (
           insert into companyos.events(run_id, step_id, actor, subject_principal, event, status, evidence, payload)
-          select run_id, ${args.event.stepId}, 'agent', ${args.event.principal ?? null}, ${args.event.name}, 'succeeded',
+          select run_id, ${args.event.stepId}, ${args.event.principal ? 'human:workflow' : 'agent'}, ${args.event.principal ?? null}, ${args.event.name}, 'succeeded',
             ${JSON.stringify(args.event.evidence ?? null)}::jsonb,
             jsonb_build_object('revision', revision, 'state_digest', ${sha256(args.state)}::text,
               'artifact_hash', artifact_hash, 'manifest_hash', manifest_hash) from advanced
@@ -153,6 +161,13 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
             'succeeded', jsonb_build_object('revision', revision) from cancelled
         ) select run_id from cancelled`;
       return rows.length === 1;
+    },
+    async deliveredAssignment(args) {
+      await ensureWorkflowExecutionSchema();
+      const rows = await connection()`select assignment_json from companyos.workflow_thread_assignments
+        where instance_id = ${args.instanceId} and assignment_key = ${workflowAssignmentKey(args.instanceId, args.conversation)}
+          and (not (assignment_json ? 'subjectPrincipal') or assignment_json->>'subjectPrincipal' = ${args.conversation.subjectPrincipal ?? null})`;
+      return rows[0] && json<WorkflowAssignment>(rows[0].assignment_json);
     },
     async assignment(args) {
       workflowInstant(args.now);

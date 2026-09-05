@@ -239,3 +239,14 @@ Schema-invalid effect receipts retain an unknown outcome with partial provider
 evidence. Successful receipts remain completed even if a workflow-required
 output field or later audit append fails. Recovery reads the retained effect;
 it does not ask a Connector to implement the Runtime's deduplication guarantee.
+
+
+The durable interpreter supplies Tool context by rereading its actual current
+lease, pinned run and current roster. Human decision notices compile to the
+same granted communication Tool below R3; they cannot recurse into an approval
+for their own delivery. A request's complete payload is shown before its
+response may authorize the bound consumer. Notice and foreach deliveries use
+separate stable item identities and retained receipts. The conversation reader
+uses authenticated account/channel/thread/subject assignments; a model cannot
+choose a run or step through Tool arguments. Hosted transport wiring and
+provider binding qualification remain separate from this Core implementation.

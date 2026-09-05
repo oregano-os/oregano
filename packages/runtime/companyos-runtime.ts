@@ -232,7 +232,10 @@ export class CompanyOSRuntime {
     const inputHash = jsonDigest(request.input);
     const idempotencyKey = guard?.idempotencyKey ?? `${tool.contract.runtimeId}:${request.runId}:${inputHash}`;
     const checkedResult = (result: unknown): unknown => {
-      if (guard?.context.mode === "engine" && !guard.step.forEach) assertWorkflowOutput(guard.step, (result as { output?: unknown })?.output);
+      if (guard?.context.mode === "engine" && !guard.step.forEach) {
+        const outputStep = guard.step.decision ? { ...guard.step, requiredOutputPaths: [["thread_reference"]] } : guard.step;
+        assertWorkflowOutput(outputStep, (result as { output?: unknown })?.output);
+      }
       return result;
     };
     if (guard) {
@@ -244,7 +247,7 @@ export class CompanyOSRuntime {
         return { ok: false, duplicate: true, status: existing.status, reason: "Workflow effect requires reconciliation or review before further dispatch." };
       }
     }
-    const approvingPrincipal = guard ? authorizeWorkflowDecisions(guard, request.input, risk as RiskLevel) : request.approvingPrincipal;
+    const approvingPrincipal = guard ? authorizeWorkflowDecisions(guard, request.input, risk as RiskLevel, new Date(Math.max(Date.now(), Date.parse(guard.context.dispatchFence?.now ?? new Date().toISOString())))) : request.approvingPrincipal;
     const capabilityEvidence: Record<string, unknown>[] = [];
     const unknownCapabilityEffects: unknown[] = [];
     const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal, guard?.context.currentRoster ?? this.#roster);

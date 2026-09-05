@@ -245,5 +245,9 @@ run event chain. Completed outputs, item receipts and decided bindings cannot
 be overwritten through the store. Conversation binding conflicts roll back
 state and event together. Cancellation keeps historical assignments and all
 effects; active lookup refuses a terminal run. A dispatch that began before
-cancellation retains its outcome instead of being erased. This persistence
-foundation does not claim a completed step engine or live approval delivery.
+cancellation retains its outcome instead of being erased. The interpreter now records preparation, completion, waiting, human-response
+and timer transitions in this chain. A human-response event identifies the
+actual authorized principal and provider event and retains the exact bound
+payload digest. Decision notices themselves have ordinary Tool/effect receipts.
+Memory and Postgres execution tests use synthetic provider responses and human
+identities; live approval delivery and acceptance remain separate proof gates.

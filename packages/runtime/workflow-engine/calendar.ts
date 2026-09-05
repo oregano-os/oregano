@@ -87,6 +87,28 @@ export function workflowNextTrigger(schedule: WorkflowSchedule, triggerId: strin
   return next;
 }
 
+/** Previous declared occurrence, strictly before this run; never a cross-run read. */
+export function workflowPreviousTrigger(schedule: WorkflowSchedule, triggerId: string, before: string): WorkflowOccurrence {
+  assertInstant(before);
+  const date = localDateAt(before, schedule.timezone), candidates: WorkflowOccurrence[] = [];
+  for (let distance = 0; distance <= 370; distance++) {
+    const prior = addCalendarDays(date, -distance);
+    candidates.push(...workflowOccurrences(schedule, { fromDate: prior, toDate: prior, triggerId }).filter((occurrence) => occurrence.instant < before));
+    if (candidates.length) {
+      const latestDate = candidates.reduce((latest, occurrence) => occurrence.localDate > latest ? occurrence.localDate : latest, candidates[0]!.localDate);
+      if (prior < latestDate && workflowBusinessDay(prior, schedule)) break;
+    }
+  }
+  for (let distance = 1; schedule.triggers.some((trigger) => trigger.id === triggerId && trigger.holiday_shift === "previous-business-day") && distance <= 370; distance++) {
+    const forward = addCalendarDays(date, distance);
+    if (workflowBusinessDay(forward, schedule)) break;
+    candidates.push(...workflowOccurrences(schedule, { fromDate: forward, toDate: forward, triggerId }).filter((occurrence) => occurrence.instant < before));
+  }
+  const previous = candidates.sort((a, b) => b.instant.localeCompare(a.instant))[0];
+  if (!previous) throw new Error("Workflow has no previous trigger within one year");
+  return previous;
+}
+
 const localMinute = (instant: string, timezone: string): string => {
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(instant));
   return `${parts.find((part) => part.type === "hour")!.value}:${parts.find((part) => part.type === "minute")!.value}`;

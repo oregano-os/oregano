@@ -1,3 +1,4 @@
+import { workflowDecisionNoticeInput } from "./decision-notice.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { RISK_ORDER, type JsonValue, type RiskLevel } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, CompiledCompanyTool } from "../../companyos-builder/types.ts";
@@ -44,6 +45,7 @@ export function assertWorkflowArtifact(artifact: CompanyOSArtifact): void {
 }
 
 export function workflowToolInput(artifact: CompanyOSArtifact, workflow: CompiledWorkflow, step: CompiledWorkflowStep, context: WorkflowReferenceContext): JsonValue {
+  if (step.decision) return workflowDecisionNoticeInput(artifact, workflow, step, context as WorkflowInvocationContext);
   if (!step.message) {
     const input = resolveWorkflowValue(step.input ?? {}, workflow, context);
     if (step.allPages) {
@@ -115,7 +117,9 @@ export async function guardWorkflowInvocation(args: {
       const members = context.currentRoster.filter((member) => member.id === memberId);
       if (members.length !== 1 || !isHumanRosterMember(members[0]!) || !/^(active|aktiv)$/i.test(members[0]!.status)) throw new Error("Workflow direct recipient is not one exact active human");
     };
-    if (step.forEach) {
+    if (step.decision) {
+      if (typeof context.itemKey !== "string" || context.item !== undefined) throw new Error("Decision notice requires one exact recipient key");
+    } else if (step.forEach) {
       const items = workflowItems(step, workflow, context);
       const selected = items.find((item) => canonicalJson(item.key) === canonicalJson(context.itemKey));
       if (!selected || canonicalJson(selected.value) !== canonicalJson(context.item)) throw new Error("Workflow item is not the exact keyed item in the frozen collection");
