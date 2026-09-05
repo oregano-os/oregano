@@ -59,6 +59,7 @@ export interface SprintDomainDeclaration {
     monday_handoff?: string;
     weekday_digest?: string;
     direct_question?: string;
+    replay_report?: string;
   };
 }
 

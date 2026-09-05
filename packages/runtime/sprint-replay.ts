@@ -54,7 +54,18 @@ export interface SprintReplayReport {
   submission_records: DerivedRecordEnvelope<Record<string, import("../capabilities/contracts.ts").JsonValue>>[];
   ignored_messages: SprintReplayIgnoredMessage[];
   participant_states: Record<string, "complete" | "needs-reformat" | "missing">;
+  participant_results: Array<{
+    participant_id: string;
+    display_name: string;
+    state: "complete" | "needs-reformat" | "missing";
+  }>;
   open_work_item_ids: string[];
+  open_work_items: Array<{
+    work_item_id: string;
+    title: string;
+    url?: string;
+  }>;
+  accepted_submission_count: number;
   total_effort_hours: number | null;
   limitations: string[];
   final_phase: SprintState["phase"];
@@ -306,7 +317,22 @@ export class SprintReplayService {
       submission_records: derived.map((item) => item.record),
       ignored_messages: ignored,
       participant_states: Object.fromEntries(close.participants.filter((participant) => participant.included).map((participant) => [participant.participant_id, participant.close_state])),
+      participant_results: close.participants
+        .filter((participant) => participant.included)
+        .map((participant) => ({
+          participant_id: participant.participant_id,
+          display_name: participant.display_name,
+          state: participant.close_state,
+        })),
       open_work_item_ids: close.open_work_items.map((item) => item.work_item_id).sort(),
+      open_work_items: close.open_work_items
+        .map((item) => ({
+          work_item_id: item.work_item_id,
+          title: item.title,
+          ...(item.url ? { url: item.url } : {}),
+        }))
+        .sort((left, right) => left.work_item_id.localeCompare(right.work_item_id)),
+      accepted_submission_count: eligible.length,
       total_effort_hours: close.total_effort_hours,
       limitations,
       final_phase: completed.state.phase,

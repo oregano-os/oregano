@@ -9,8 +9,9 @@ objective: >-
   by Slack; materialize typed derived records without making Sprint semantics a
   general record concern; and provide a controlled-clock Sprint replay that may
   read approved production records while dispatching only to exact test
-  destinations. Preserve source evidence, references, decisions, and replay
-  outcomes in the existing System of Proof.
+  destinations after an exact output-digest review. Preserve source evidence,
+  references, decisions, provider receipts, and replay outcomes in the existing
+  System of Proof.
 non_goals:
   - Activate, deploy, promote, merge, tag, release, or change a Company Instance in this change.
   - Post to a production conversation or modify a production work-management board.
@@ -65,7 +66,7 @@ architecture_assessment:
       reason: Live conversations retain deterministic Agent assignment; historical record ingestion and operator replay never infer an Agent from message content.
     - mechanism: toolset-resolver
       decision: reuse
-      reason: Replay output receives no direct authority and must resolve an existing Agent ToolSet before any test effect.
+      reason: Replay output receives no direct authority and must resolve a dedicated non-conversational publisher Agent ToolSet before any test effect.
     - mechanism: model-recipe-resolver
       decision: reuse
       reason: Deterministic source normalization and Sprint template parsing require no model; any later ambiguous interpretation uses a Workspace task profile through the existing resolver.
@@ -88,6 +89,7 @@ architecture_assessment:
     - A provider-neutral communication-record value contract represented through the existing Record Source and projection contracts.
     - A generic typed derived-record envelope with source lineage and typed references, stored through existing projection rows and proof tables.
     - A Sprint-specific historical submission projector and controlled-clock replay report that do not weaken live Sprint validation.
+    - A digest-bound test-publication operator action that renders one Workspace-owned report and reuses exact Slack publish and work-item comment Capabilities through a non-routable publisher Agent.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
@@ -120,6 +122,9 @@ tests:
   - A replay uses an isolated id, explicit date range, immutable input versions, and a controlled clock; repeated execution produces the same digest and no duplicate effect.
   - Production sources may be read for a replay, while every output outside System-of-Proof evidence is refused unless its exact destination is marked test-only.
   - A production source conversation and production work-management board cannot be selected as replay output destinations.
+  - Test publication recomputes the proof-only replay and refuses every effect when its output digest differs from the reviewed digest.
+  - A test publisher Agent is not a default or conversationally bound Agent and can publish only through the two exact compiled test bindings.
+  - Repeating the same reviewed publication reuses the same Slack and Monday effect identities and receipts.
   - Synthetic public fixtures contain no company messages, people, provider ids, credentials, or business content.
 documentation_impact:
   required: true
@@ -128,6 +133,7 @@ documentation_impact:
     - architecture.system-of-proof
     - specification.company-records-sprint-v0.1
     - guide.connect-company-record-source
+    - guide.prepare-instance
     - status.current
   reason_if_none: ""
 migration: >-

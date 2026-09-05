@@ -247,7 +247,18 @@ effect. The Sprint Domain MAY derive a typed submission and exact work-item
 references from authorized projection rows. Its accepted event MUST retain the
 source projection, record, and version identities. The maintained hosted mode
 is proof-only and MUST refuse every compiled live communication and work-item
-binding. A test publication is a separate Capability-controlled operation.
+binding. A test publication MUST be a separate authenticated operator action.
+It MUST recompute the proof-only replay, match one exact previously reviewed
+output digest before the first effect, and render only a Workspace-owned
+template. Its publisher Agent MUST NOT be a default Agent or appear in any
+conversational Agent binding. The Instance MUST bind one exact test channel,
+one exact read-write test work-item resource, and one exact report item while
+also declaring protected live provider resource ids. Workbench MUST reject
+logical or physical equality between any test and protected live target.
+Publication MUST cross the ordinary `communication.message.publish` and
+`work-item.comment` Capability boundaries, use one deterministic effect
+identity per output digest, and retain both provider receipts in System of
+Proof. A retry MUST reuse prior successful effects rather than duplicate them.
 
 ## 4. Tools and Connectors
 

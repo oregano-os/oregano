@@ -96,10 +96,33 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
         throw new Error(`${path}: sprint_runtimes[${index}].replay must be an object.`);
       }
       const candidate = runtime.replay as Record<string, unknown>;
-      const extraReplay = Object.keys(candidate).find((key) => !["message_projection"].includes(key));
+      const extraReplay = Object.keys(candidate).find((key) => !["message_projection", "test_publication"].includes(key));
       if (extraReplay) throw new Error(`${path}: sprint_runtimes[${index}].replay contains unsupported field '${extraReplay}'.`);
+      let testPublication: NonNullable<SprintRuntimeInstanceConfiguration["replay"]>["testPublication"];
+      if (candidate.test_publication !== undefined) {
+        if (!candidate.test_publication || typeof candidate.test_publication !== "object" || Array.isArray(candidate.test_publication)) {
+          throw new Error(`${path}: sprint_runtimes[${index}].replay.test_publication must be an object.`);
+        }
+        const publication = candidate.test_publication as Record<string, unknown>;
+        const extraPublication = Object.keys(publication).find((key) => ![
+          "test_only", "publisher_agent", "communication_binding", "work_item_binding", "work_item_id",
+          "forbidden_channel_ids", "forbidden_board_ids",
+        ].includes(key));
+        if (extraPublication) throw new Error(`${path}: sprint_runtimes[${index}].replay.test_publication contains unsupported field '${extraPublication}'.`);
+        if (publication.test_only !== true) throw new Error(`${path}: sprint_runtimes[${index}].replay.test_publication.test_only must be true.`);
+        testPublication = {
+          testOnly: true,
+          publisherAgentId: requiredIdentifier(publication.publisher_agent, `${path}: sprint_runtimes[${index}].replay.test_publication.publisher_agent`),
+          communicationBinding: requiredIdentifier(publication.communication_binding, `${path}: sprint_runtimes[${index}].replay.test_publication.communication_binding`),
+          workItemBinding: requiredIdentifier(publication.work_item_binding, `${path}: sprint_runtimes[${index}].replay.test_publication.work_item_binding`),
+          workItemId: requiredBoundedText(publication.work_item_id, `${path}: sprint_runtimes[${index}].replay.test_publication.work_item_id`, 255),
+          forbiddenChannelIds: requiredStringList(publication.forbidden_channel_ids, `${path}: sprint_runtimes[${index}].replay.test_publication.forbidden_channel_ids`, /^[A-Z0-9]{5,32}$/),
+          forbiddenBoardIds: requiredStringList(publication.forbidden_board_ids, `${path}: sprint_runtimes[${index}].replay.test_publication.forbidden_board_ids`, /^\d{1,20}$/),
+        };
+      }
       replay = {
         messageProjection: requiredIdentifier(candidate.message_projection, `${path}: sprint_runtimes[${index}].replay.message_projection`),
+        ...(testPublication ? { testPublication } : {}),
       };
     }
     return {
@@ -113,6 +136,22 @@ function parseSprintRuntimes(value: unknown, path: string): SprintRuntimeInstanc
       ...(replay ? { replay } : {}),
     };
   });
+}
+
+function requiredBoundedText(value: unknown, label: string, maximum: number): string {
+  if (typeof value !== "string" || value.length < 1 || value.length > maximum) {
+    throw new Error(`${label} must contain 1 to ${maximum} characters.`);
+  }
+  return value;
+}
+
+function requiredStringList(value: unknown, label: string, pattern: RegExp): string[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 100
+    || value.some((entry) => typeof entry !== "string" || !pattern.test(entry))) {
+    throw new Error(`${label} must be a bounded non-empty list of exact provider identifiers.`);
+  }
+  if (new Set(value).size !== value.length) throw new Error(`${label} must not contain duplicates.`);
+  return [...value].sort();
 }
 
 function requiredSprintExecution(value: unknown, label: string): "active-capable" | "shadow-only" {

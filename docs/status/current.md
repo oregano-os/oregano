@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-05
 owners:
   - oregano-maintainers
 audience:
@@ -171,8 +171,13 @@ evidence, historical prototypes, and production gaps.
   only to already authorized work-item records, and stores source-version
   lineage on durable Sprint events. The replay uses an isolated definition and
   controlled clock, reports current-snapshot limitations, and refuses every
-  compiled live Slack and work-item binding. It does not publish a test result
-  or provider effect; that remains a separate reviewed Capability operation.
+  compiled live Slack and work-item binding. A separately authenticated,
+  digest-bound `publish-replay` action can render one Workspace-owned report
+  and deliver it through an exact test Slack channel plus an exact test-board
+  report item. Workbench rejects a conversational publisher Agent and rejects
+  any logical or physical test/live target equality. Both effects use the
+  ordinary CompanyOS Capability, idempotency, receipt, and System-of-Proof
+  boundaries; a changed digest fails before the first provider effect.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts

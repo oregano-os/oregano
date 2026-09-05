@@ -6,6 +6,8 @@ import { DurableTimerService } from "../../runtime/durable-timers.ts";
 import { InMemoryDurableTimerStore } from "../../runtime/memory-durable-timers.ts";
 import { InMemorySprintOrchestrationStore } from "../../runtime/memory-sprint-orchestration.ts";
 import { runSprintReplayInMemory, SprintReplayService } from "../../runtime/sprint-replay.ts";
+import { assertSprintReplayPublicationDigest, publishSprintReplayReport } from "../../runtime/sprint-replay-publication.ts";
+import type { CompiledSprintRuntime } from "../../companyos-builder/types.ts";
 
 const policy: SprintDomainDeclaration = {
   schema_version: 1,
@@ -95,7 +97,13 @@ test("Sprint replay derives domain records, advances a controlled Friday Close, 
   assert.equal(first.final_phase, "closed");
   assert.equal(first.participant_states["person-a"], "complete");
   assert.equal(first.participant_states["person-b"], "needs-reformat");
+  assert.deepEqual(first.participant_results, [
+    { participant_id: "person-a", display_name: "Alex", state: "complete" },
+    { participant_id: "person-b", display_name: "Blair", state: "needs-reformat" },
+  ]);
   assert.deepEqual(first.open_work_item_ids, ["item-b"]);
+  assert.deepEqual(first.open_work_items, [{ work_item_id: "item-b", title: "Beta", url: "https://work.example/items/b" }]);
+  assert.equal(first.accepted_submission_count, 2);
   assert.equal(first.total_effort_hours, 3);
   assert.equal(first.submission_records.length, 3);
   assert.equal(first.submission_records[0]?.domain, "sprint");
@@ -110,6 +118,60 @@ test("Sprint replay derives domain records, advances a controlled Friday Close, 
   assert.ok(first.ignored_messages.some((message) => message.record_id === "message-4" && message.reason === "after-report"));
   assert.deepEqual(first.limitations, ["operational-snapshot-is-newer-than-replayed-period"]);
   assert.equal(second.output_digest, first.output_digest);
+});
+
+test("Sprint replay publication renders once and calls only exact compiled test bindings", async () => {
+  const report = await runSprintReplayInMemory("fixture-instance", input());
+  assert.doesNotThrow(() => assertSprintReplayPublicationDigest(report, report.output_digest));
+  assert.throws(() => assertSprintReplayPublicationDigest(report, "f".repeat(64)), /changed after review/);
+  const calls: any[] = [];
+  const compiled = {
+    definitionId: "weekly-delivery",
+    agentId: "sprint",
+    servicePrincipal: "companyos:fixture:sprint",
+    templates: {
+      replayReport: {
+        path: "workflows/sprint/replay-report.md",
+        content: "Sprint {{period_start}}–{{period_end}}\nComplete: {{complete_names}}\nReformat: {{needs_reformat_names}}\nMissing: {{missing_names}}\nOpen: {{open_work_item_ids}}\nAccepted: {{accepted_submission_count}}\nLimits: {{limitations}}\nDigest: {{output_digest}}",
+        digest: "a".repeat(64),
+      },
+    },
+    replay: {
+      messageProjection: "conversation-messages",
+      testPublication: {
+        testOnly: true,
+        publisherAgentId: "sprint-replay-publisher",
+        communicationBinding: "slack-test-channel",
+        workItemBinding: "monday-test-board",
+        workItemId: "report-item-1",
+      },
+    },
+  } as CompiledSprintRuntime;
+  const receipt = await publishSprintReplayReport({
+    compiled,
+    report,
+    runtime: {
+      async execute(request) {
+        calls.push(structuredClone(request));
+        if (request.grantId === "oregano:communications/publish") {
+          return { output: { destination_binding: "slack-test-channel", message_id: "m1", thread_reference: "t1", published_at: "2030-02-01T17:01:00.000Z" } };
+        }
+        return { output: { work_item_id: "report-item-1", comment_id: "c1", provider_version: "v2", created_at: "2030-02-01T17:02:00.000Z" } };
+      },
+    },
+  });
+  assert.deepEqual(calls.map((call) => [call.agentId, call.grantId, call.stepId]), [
+    ["sprint-replay-publisher", "oregano:communications/publish", "publish-slack-test-report"],
+    ["sprint-replay-publisher", "oregano:work-items/comment", "publish-monday-test-report"],
+  ]);
+  assert.equal(calls[0].input.destination_binding, "slack-test-channel");
+  assert.equal(calls[1].input.resource_binding, "monday-test-board");
+  assert.equal(calls[1].input.work_item_id, "report-item-1");
+  assert.equal(calls[0].runId, calls[1].runId);
+  assert.ok(calls[0].input.content.includes("Complete: Alex"));
+  assert.ok(calls[0].input.content.includes("Beta (https://work.example/items/b)"));
+  assert.equal(receipt.slack.message_id, "m1");
+  assert.equal(receipt.monday.comment_id, "c1");
 });
 
 test("Sprint replay refuses a production output binding before processing records", async () => {
