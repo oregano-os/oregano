@@ -219,3 +219,11 @@ identifiers, credentials, backups, and enforcement receipts belong to the
 Company Instance. A new schema is justified only when an independent data
 boundary cannot be represented safely in the three existing schemas; the name
 “System of Proof” alone is never sufficient reason.
+
+
+An `approval.requested` event binds the original authenticated requester to an
+exact request ID, action, risk and payload hash, with its stable member ID and
+Artifact identity. R4 authorization consumes this durable request evidence to
+check separation from the approving human. Missing or conflicting request
+evidence cannot authorize an effect; a later approving turn cannot replace
+the original requester. Request and effect history remain retained on refusal.

@@ -1038,4 +1038,13 @@ New requests receive a finite deadline; retained unbounded requests cannot
 create effects. Expired or superseded requests, mismatched run/step/input and
 rejected decisions produce no partial claim. Real Postgres counterexamples
 cover these refusals and ambiguous creation timestamps. Workflow business-day
-deadline integration and R4 requester separation remain under implementation.
+deadline integration remains under implementation.
+
+
+Generic R4 approval now requires a recorded active human requester and a
+different active human approver with distinct stable roster IDs. The Runtime
+writes request evidence before exposing the request; the approval path reads
+that exact evidence and rejects missing, remapped or self-requested approval,
+including alternate principals for the same person. Ambiguous principal
+mappings and unknown identity kinds cannot approve. Workflow assignment and
+role-specific decision integration remain separate pending work.

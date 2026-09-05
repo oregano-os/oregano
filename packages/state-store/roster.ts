@@ -78,13 +78,19 @@ export function findByPrincipal(
   teamId: string,
   userId: string,
 ): RosterMember | undefined {
-  return roster.find((m) => m.teamId === teamId && m.userId === userId);
+  const candidates = roster.filter((m) => m.teamId === teamId && m.userId === userId);
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 export function findByCanonicalPrincipal(roster: RosterMember[], principal: string): RosterMember | undefined {
-  return roster.find((member) =>
+  const candidates = roster.filter((member) =>
     member.principals?.includes(principal) ||
     (member.teamId !== undefined && member.userId !== undefined && slackPrincipal(member.teamId, member.userId) === principal));
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+export function isHumanRosterMember(member: RosterMember): boolean {
+  return member.type === undefined || member.type === "human";
 }
 
 export function authorizePrincipalApproval(
@@ -94,7 +100,7 @@ export function authorizePrincipalApproval(
 ): AuthorizeResult {
   const member = findByCanonicalPrincipal(roster, principal);
   if (!member) return { ok: false, principal, reason: `${principal} is not in the roster (handbook/roster.md).` };
-  if (member.type === "agent" || member.type === "service") {
+  if (!isHumanRosterMember(member)) {
     return { ok: false, member, principal, reason: `${member.name} is a non-human identity — agents never approve and services never approve.` };
   }
   if (!/^(aktiv|active)$/i.test(member.status)) {

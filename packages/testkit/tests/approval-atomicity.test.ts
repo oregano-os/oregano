@@ -224,3 +224,27 @@ test("equally timestamped Postgres drafts are ambiguous and cannot authorize eff
   assert.equal(await store!.getLatestApprovalRequest(s.runId, "step-1", "fixture_send"), undefined);
   assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
 });
+
+for (const separate of [false, true]) {
+  test(`Postgres-backed R4 action ${separate ? "accepts distinct humans" : "rejects the recorded requester"}`, { skip }, async () => {
+    const { executeApprovedAction } = await import("../../state-store/action-approval.ts");
+    const s = await stage(`r4_separate_${separate}`);
+    const requesterPrincipal = separate ? "test:requester" : principal;
+    await store!.appendEvent({
+      runId: s.runId, stepId: "step-1", actor: "human:owner", subjectPrincipal: requesterPrincipal,
+      event: "approval.requested", status: "succeeded",
+      payload: { request_id: s.requestId, action: "fixture_send", input_hash: s.inputHash, risk: "R4", requester_member_id: separate ? "requester" : "approver" },
+    });
+    let calls = 0;
+    const result = await executeApprovedAction({
+      store: store!, roster: [
+        { id: "requester", name: "Requester", role: "owner", status: "active", principals: ["test:requester"], mayApprove: [] },
+        { id: "approver", name: "Approver", role: "owner", status: "active", principals: [principal], mayApprove: ["R4"] },
+      ], runId: s.runId, stepId: "step-1", action: "fixture_send", inputHash: s.inputHash, principal, level: "R4", eventName: "fixture.sent",
+      effect: async () => { calls++; return { receipt: "test-only" }; },
+    });
+    assert.equal(result.ok, separate);
+    assert.equal(calls, separate ? 1 : 0);
+    assert.equal((await store!.getEffect(s.key))?.status, separate ? "succeeded" : undefined);
+  });
+}

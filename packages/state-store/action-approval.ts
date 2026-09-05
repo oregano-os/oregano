@@ -3,7 +3,7 @@ import { approvalIsUnexpired } from "./approval-validity.ts";
 // decision, while this Core path owns identity, authorization, stale-input
 // protection, atomic approval consumption, effect claiming, and evidence.
 import type { StateStore } from "./interface.ts";
-import { authorizeApproval, authorizePrincipalApproval, type RosterMember } from "./roster.ts";
+import { authorizeApproval, authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "./roster.ts";
 import { CapabilityEffectOutcomeUnknownError } from "../capabilities/contracts.ts";
 
 export type ActionResult =
@@ -78,6 +78,27 @@ export async function executeApprovedAction(args: {
       event: "approval.expired", status: "failed", payload: { action, request_id: request.requestId },
     });
     return { ok: false, rejected: true, reason: "This approval request has expired or has no expiry — request a fresh approval.", reRequest: true };
+  }
+
+  if (level === "R4") {
+    const requests = (await store.listEvents(runId)).filter((event) => {
+      const evidence = event.payload as Record<string, unknown> | undefined;
+      return event.event === "approval.requested" && (event.stepId ?? event.step_id) === stepId
+        && typeof event.actor === "string" && event.actor.startsWith("human:") && evidence?.request_id === request.requestId
+        && evidence.action === action && evidence.input_hash === inputHash && evidence.risk === "R4";
+    });
+    const evidence = requests[0]?.payload as Record<string, unknown> | undefined;
+    const requesterPrincipal = requests[0]?.subjectPrincipal ?? requests[0]?.subject_principal;
+    const requester = typeof requesterPrincipal === "string" ? findByCanonicalPrincipal(roster, requesterPrincipal) : undefined;
+    const validRequester = requests.length === 1 && requester?.id && requester.id === evidence?.requester_member_id
+      && isHumanRosterMember(requester) && /^(active|aktiv)$/i.test(requester.status);
+    if (!validRequester || !auth.member?.id || requester!.id === auth.member.id) {
+      await store.appendEvent({
+        runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+        event: "approval.separation-refused", status: "failed", payload: { action, request_id: request.requestId },
+      });
+      return { ok: false, rejected: true, reason: "R4 requires a recorded active human requester and a different active human approver with distinct stable roster identities.", reRequest: true };
+    }
   }
 
   const approvalId = await store.recordDecision({
