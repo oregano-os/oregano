@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- The governed `oregano:directory/members` standard Tool reads bounded facts
+  from the frozen Artifact roster through an explicit Instance read-group
+  policy. It uses normal grants, Capability bindings and authenticated runtime
+  subjects; it exposes no approval rights and computes no company membership
+  policy. Compiler-to-runtime sandbox tests prove access denial, immutability
+  and installation/grant separation. See the
+  [directory contract](../specifications/company-record-normalization-v1.md#read-only-directory-tool).
+
 - Maintained Slack and Monday Record Source adapters emit exact qualified
   principals for roster resolution. Slack preserves fractional creation/edit
   timestamps and separates original author, current content author and bots.
