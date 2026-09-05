@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { CompanyOSWorkbenchProposalValidator } from "../../runtime/builder/workbench-validator.ts";
+import type { BuilderJob } from "../../state-store/builder-jobs.ts";
 import {
   LocalGitProposalPublisher,
   LocalGitRepositorySourceAdapter,
@@ -132,4 +134,48 @@ test("LocalGitProposalPublisher creates one canonical outer commit only after ch
   } finally {
     rmSync(source.root, { recursive: true, force: true });
   }
+});
+
+
+for (const variant of ["untracked", "staged", "committed", "modified", "deleted", "renamed", "case-variant"] as const) {
+  test(`real Workbench validator rejects ${variant} operational state changes`, async () => {
+    const source = fixture();
+    try {
+      const directory = variant === "case-variant" ? "State" : "state";
+      mkdirSync(join(source.repository, directory));
+      writeFileSync(join(source.repository, directory, "audit-proof.json"), "{}\n");
+      let baseCommit = source.baseCommit;
+      if (["modified", "deleted", "renamed"].includes(variant)) {
+        git(source.repository, ["add", directory]);
+        git(source.repository, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "retained base state"]);
+        baseCommit = git(source.repository, ["rev-parse", "HEAD"]);
+        if (variant === "modified") writeFileSync(join(source.repository, directory, "audit-proof.json"), '{"changed":true}\n');
+        if (variant === "deleted") git(source.repository, ["rm", `${directory}/audit-proof.json`]);
+        if (variant === "renamed") git(source.repository, ["mv", `${directory}/audit-proof.json`, "evidence.json"]);
+      }
+      if (variant === "staged" || variant === "committed") git(source.repository, ["add", directory]);
+      if (variant === "committed") {
+        git(source.repository, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "worker commit"]);
+        writeFileSync(join(source.repository, "company.md"), "allowed dirty change\n");
+      }
+      const validator = new CompanyOSWorkbenchProposalValidator({ cliPath: join(import.meta.dirname, "../../cli/src/cli.mjs") });
+      await assert.rejects(() => validator.validate({ job: { baseCommit } as BuilderJob, workspacePath: source.repository }), /forbidden path '(?:state|State)\/audit-proof\.json'/);
+    } finally { rmSync(source.root, { recursive: true, force: true }); }
+  });
+}
+
+test("proposal inspection includes legitimate worker commits and ignores state-like sibling names", async () => {
+  const source = fixture();
+  try {
+    writeFileSync(join(source.repository, "company.md"), "reviewed worker change\n");
+    git(source.repository, ["add", "company.md"]);
+    git(source.repository, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "worker change"]);
+    const committed = await inspectProposalWorkspace(source.repository, source.baseCommit);
+    assert.deepEqual(committed.changedPaths, ["company.md"]);
+    writeFileSync(join(source.repository, "state-guide.md"), "Operating state is managed by Core.\n");
+    const mixed = await inspectProposalWorkspace(source.repository, source.baseCommit);
+    assert.deepEqual(mixed.changedPaths, ["company.md", "state-guide.md"]);
+    assert.match(mixed.diff, /reviewed worker change/);
+    assert.match(mixed.diff, /Operating state is managed/);
+  } finally { rmSync(source.root, { recursive: true, force: true }); }
 });

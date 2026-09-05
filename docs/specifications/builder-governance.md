@@ -268,3 +268,19 @@ pinned snapshot before the gate is repeated.
 - choose the isolated preview data and provider topology;
 - define authenticated external approval evidence for future automated merges;
 - approve the exact graduation metrics beyond proposal-only mode.
+
+
+## Operational state path enforcement
+
+The shared proposal inspector rejects the root `state/` path (including case
+variants) before Workbench checks can accept a Builder diff. It inspects the
+whole base-to-worktree change, not only working-tree status: worker commits,
+staged/unstaged edits, additions, removals and both sides of renames are covered.
+A committed forbidden change cannot hide behind an unrelated dirty file.
+
+The real CompanyOSWorkbenchProposalValidator has negative fixtures for every
+form above. This establishes a proposal-file boundary, not access to a
+production database and not a claim that an unactivated hosted profile has
+already received this code. Runtime state and audit retention stay under the
+Instance's separate authority. Existing trusted Git profiles must use the
+updated inspector and pass their qualification gate before activation.
