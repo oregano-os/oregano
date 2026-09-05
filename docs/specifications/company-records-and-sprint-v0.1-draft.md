@@ -243,7 +243,10 @@ Replay MUST use an isolated definition, explicit date range, immutable input
 versions, and controlled clock. Its durable timers MUST use a deterministic
 replay-specific schedule namespace: an exact replay retry reuses the same timer
 identities, while an independent replay of the same Sprint period cannot
-conflict with them. It MUST resolve a provider author only through
+conflict with them. Persisted timer payload identity MUST be compared by
+canonical JSON value because PostgreSQL JSONB does not preserve object-key
+order; key-order changes alone MUST NOT create a conflict, while any changed
+value MUST still fail closed. It MUST resolve a provider author only through
 one tenant-scoped canonical roster principal; message content and display names
 MUST NOT select an Agent, establish identity, approve an action, or grant an
 effect. The Sprint Domain MAY derive a typed submission and exact work-item

@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { ClaimedDurableTimer, DurableTimerStore } from "../state-store/durable-timers.ts";
+import { canonicalJson } from "../runtime/canonical.ts";
 import { postgresTimestampToIso } from "./postgres-values.ts";
 import { ensureCompanyRecordsSchema } from "./records-migrate.ts";
 
@@ -10,6 +11,9 @@ const connection = () => {
 };
 
 const payload = (value: unknown): any => typeof value === "string" ? JSON.parse(value) : value;
+
+/** PostgreSQL JSONB does not preserve object-key order; timer identity must. */
+export const durableTimerPayloadIdentity = (value: unknown): string => canonicalJson(payload(value));
 
 const claimedTimer = (row: Record<string, any>): ClaimedDurableTimer => ({
   instanceId: String(row.instance_id),
@@ -38,7 +42,8 @@ export function createPostgresDurableTimerStore(): DurableTimerStore {
         from companyos_records.durable_timers
         where instance_id = ${timer.instanceId} and timer_id = ${timer.timerId} limit 1`)[0];
       if (!existing || String(existing.timer_kind) !== timer.timerKind || postgresTimestampToIso(existing.due_at) !== timer.dueAt ||
-        String(existing.idempotency_key) !== timer.idempotencyKey || JSON.stringify(payload(existing.payload)) !== JSON.stringify(timer.payload)) {
+        String(existing.idempotency_key) !== timer.idempotencyKey
+        || durableTimerPayloadIdentity(existing.payload) !== durableTimerPayloadIdentity(timer.payload)) {
         throw new Error(`Durable timer '${timer.timerId}' conflicts with its existing identity`);
       }
       return false;

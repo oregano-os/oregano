@@ -1,0 +1,103 @@
+version: 2
+plan_id: canonical-durable-timer-payload-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Compare durable timer JSONB payloads canonically
+objective: >-
+  Preserve durable-timer idempotency when PostgreSQL JSONB returns an
+  equivalent payload with a different object-key order, so an exact hosted
+  Sprint replay can be reviewed and then published without a false identity
+  conflict.
+non_goals:
+  - Change timer ids, schedule versions, due times, payload values, or live Sprint policy.
+  - Weaken timer identity checks or accept a changed payload.
+  - Change any Company Workspace value, provider binding, or effect authority.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-05-canonical-durable-timer-payload.yaml
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - packages/state-postgres/durable-timer-store.ts
+  - packages/testkit/tests/runner-postgres-state.test.ts
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-user-authorized-production-rollout-and-in-scope-generic-blocker-remediation
+architecture_assessment:
+  responsibilities:
+    core:
+      - Canonicalize a persisted JSONB timer payload before comparing its immutable identity.
+    packages:
+      - No Package or Blueprint change.
+    workspace:
+      - Continue to own company Sprint policy, schedules, templates, sources, and destinations.
+    instance:
+      - Continue to persist timers in the existing Company Records schema without migration.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Timer persistence does not select a conversational Agent.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Replay publication Tool resolution and authority remain unchanged.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Timer identity is deterministic and invokes no model.
+    - mechanism: company-records
+      decision: reuse
+      reason: The existing durable-timer table and schema remain authoritative.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: No principal, grant, or provider authorization changes.
+    - mechanism: timers-and-business-time
+      decision: extend
+      reason: Equivalent JSONB payloads are compared by canonical value rather than database key order.
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Exact retries remain idempotent while any changed payload still fails closed.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: No Connector, Capability, binding, or provider effect changes.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    PostgreSQL JSONB key-order normalization affects every Company Instance
+    using the generic durable-timer store; the correction contains no company,
+    provider, identity, schedule, or credential value.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-canonical-durable-timer-payload.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-canonical-durable-timer-payload.yaml
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm public:check
+  - pnpm typecheck
+  - pnpm runner:typecheck
+  - pnpm test
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - A timer payload round-tripped through JSONB with reordered keys retains the same canonical identity.
+  - A changed timer payload retains a different canonical identity and still fails closed.
+  - Existing Sprint replay and durable-timer idempotency tests remain green.
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-sprint-v0.1
+    - status.current
+  reason_if_none: ""
+rollback: >-
+  Keep replay test publication disabled and revert this patch. No schema,
+  provider data, Workspace declaration, grant, binding, or timer id changes.
+open_decisions: []
