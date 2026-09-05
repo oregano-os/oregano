@@ -773,6 +773,7 @@ triggers:
     purpose: "unsafe",
     surfaces: ["slack"],
     eligibleRoles: ["contributor"],
+    eligibleGroups: [],
     ttlSeconds: 60,
   });
   assert.throws(() => compileSprintRuntimes({ workspace: handoffPublisher, instance: publicationInstance, coreCommit: "core", workspaceCommit: "workspace", workbenchVersion: "0.1.0-experimental.15" }), /must not be reachable through an Agent handoff/);
