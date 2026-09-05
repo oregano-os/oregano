@@ -20,6 +20,13 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Generic workflow calendars evaluate holiday-shifted triggers, opaque variant
+  parameters, business-day approval/wait deadlines and delivery windows.
+  Tests cover daylight saving, long weekends, absent calendar years, shifted
+  occurrence ordering and canonical timer identity. Legacy calendar consumers
+  reuse the extracted primitives. Engine scheduling and activation remain
+  pending; calendar evaluation alone sends nothing.
+
 - Compiled workflow Artifacts now use the Runtime Tool guard: host-owned
   context, exact run/step/Tool/input/binding/risk checks, current human decisions,
   exact recipient mappings and keyed effect identities. Restart tests use the

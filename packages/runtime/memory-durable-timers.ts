@@ -1,3 +1,4 @@
+import { canonicalJson } from "./canonical.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { ClaimedDurableTimer, DurableTimer, DurableTimerStore, StoredDurableTimer } from "../state-store/durable-timers.ts";
 
@@ -20,7 +21,7 @@ export class InMemoryDurableTimerStore implements DurableTimerStore {
     const timerKey = key(timer.instanceId, timer.timerId);
     const existing = this.rows.get(timerKey);
     if (existing) {
-      if (existing.idempotencyKey !== timer.idempotencyKey || JSON.stringify(existing.payload) !== JSON.stringify(timer.payload) || existing.dueAt !== timer.dueAt) {
+      if (existing.timerKind !== timer.timerKind || existing.idempotencyKey !== timer.idempotencyKey || canonicalJson(existing.payload) !== canonicalJson(timer.payload) || existing.dueAt !== timer.dueAt) {
         throw new Error(`Durable timer '${timer.timerId}' conflicts with its existing identity`);
       }
       return false;

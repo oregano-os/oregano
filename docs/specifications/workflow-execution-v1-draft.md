@@ -248,3 +248,21 @@ Tests exercise the compiled fictional Workspace through the actual Runtime,
 sandbox and effect store with a Connector that has no deduplication of its own.
 They prove the Tool boundary, not durable scheduling, authenticated transport
 assignment or real human approval. Those remain subsequent integration gates.
+
+## Implemented calendar evaluation
+
+Generic calendar primitives now live outside the legacy domain. The workflow
+evaluator resolves declared trigger variants, weekday/holiday shifts, opaque
+parameters, business-day deadlines and delivery windows. Deadlines retain local
+wall time, seconds and milliseconds across timezone offset changes. Opening is
+inclusive and closing is exclusive; out-of-window delivery moves to the next
+business opening. Nonexistent local times fail under the existing timezone
+converter. Missing holiday years follow the explicit Workspace policy.
+
+Wait resolution starts from the run's last logical instant, not a late worker's
+current clock. This keeps a delayed same-day chase/report sequence on its
+original calendar occurrence. Converging equivalent triggers deduplicate;
+conflicting parameters fail. Evaluation is bounded and never activates a
+calendar. The durable engine must persist each selected instant and timer.
+Memory and Postgres timer identity both compare canonical JSON payloads and
+include timer kind, so key reordering cannot cause a false conflict.
