@@ -2,6 +2,7 @@ import type { Chat } from "chat";
 import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } from "../../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
 import { CompanyRecordsConnector } from "../../../connectors/company-records.ts";
+import { CompanyDirectoryConnector } from "../../../connectors/company-directory.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
 import { MondayWorkItemConnector } from "../../../connectors/monday/connector.ts";
 import type { MondayResourceBinding } from "../../../connectors/monday/contracts.ts";
@@ -213,6 +214,13 @@ export function createConfiguredRuntimeConnectors(args: {
   for (const entry of args.artifact.connectors ?? []) {
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
+    if (entry.connector === "oregano/company-directory" && entry.connectorVersion === "1.0.0") {
+      exactKeys(entry.configuration, ["read_groups"], `Connector instance '${entry.id}'`);
+      const groups = entry.configuration.read_groups;
+      if (!Array.isArray(groups) || groups.some((group) => typeof group !== "string")) throw new Error(`Connector instance '${entry.id}' requires explicit read_groups`);
+      connectors.push(new CompanyDirectoryConnector({ instanceId: args.artifact.instance.id, roster: args.artifact.roster, readGroups: groups as string[] }));
+      continue;
+    }
     if (entry.connector === "oregano/company-records" && entry.connectorVersion === "0.1.0") {
       connectors.push(parseCompanyRecordsConfiguration(entry, args.artifact, environment));
       continue;

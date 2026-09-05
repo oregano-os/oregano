@@ -1,0 +1,54 @@
+version: 3
+plan_id: workflow-directory-query-2026-09-05
+created: "2026-09-05"
+title: Read the frozen reviewed directory through a governed standard Tool
+objective: >-
+  Expose bounded roster facts from the starting Artifact through an explicitly
+  granted standard Tool and access-scoped Connector. Workspace computations
+  can combine these facts with operational Records without Core business
+  membership rules or a second identity authority.
+non_goals:
+  - Derive company participation, roles, absence, destinations or approvals.
+  - Expose approval permissions, modify the roster or read an external directory.
+  - Activate an Instance or grant a Tool by installation.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-directory-query.yaml
+  - packages/directory/contracts.ts
+  - packages/connectors/company-directory.ts
+  - packages/standard-tools/directory.ts
+  - packages/capabilities/catalog.ts
+  - packages/companyos-builder/build.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/testkit/tests/directory-query.test.ts
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/directory-query.test.ts
+  - packages/testkit/tests/record-identities.test.ts
+  - packages/testkit/tests/toolset-resolver.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - status.current
+architecture:
+  placement:
+    core: Owns read-only directory contract, bounded frozen data, access checks and evidence.
+    packages: No company Blueprint or membership computation.
+    workspace: Owns roster facts, explicit Tool grants and any participation computation.
+    instance: Binds the maintained directory Connector with explicit read groups against its Artifact.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Add one read-only directory contract and standard Tool, using ordinary grants and exact Instance binding.
+    - mechanism: identity-and-authorization
+      reason: Reuse the frozen reviewed identity directory and trusted execution subject; output never grants rights.
+  new_core_mechanisms:
+    - Bounded Artifact-backed directory query through the existing Capability and Tool execution path.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company may read its reviewed directory under the same access contract; all process-specific joins remain Workspace computations.
+rollback: Remove the optional grant and binding before reverting; no state migration or provider action occurs.

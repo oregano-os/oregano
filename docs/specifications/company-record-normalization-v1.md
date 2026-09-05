@@ -119,6 +119,47 @@ Neither provider's timestamps or opaque inventory digest establish qualified
 activation. Pin the new Connector version explicitly, review the field mapping,
 and synchronize before a workflow uses it; retain historical versions.
 
+## Read-only directory Tool
+
+`oregano:directory/members` calls `directory.members.query@1.0.0` with `{}`.
+Its result contains `directory_digest` and at most 1,000 `members`, each with
+`member_id` (null if the reviewed entry lacks a stable ID), `display_name`,
+`type`, `status`, `group_ids` and `principals`. It returns reviewed facts,
+including inactive entries for explicit Workspace handling, and omits role
+authorization and approval permissions. It computes no company participation
+or absence policy and performs no external read.
+
+The maintained `oregano/company-directory@1.0.0` Connector freezes the starting
+Artifact's roster through the same identity directory used by Records. Its
+Instance configuration has one required `read_groups` array (1–100 exact group
+IDs). The trusted runtime subject must be active, belong to an allowed group,
+and execute in that exact Instance. Omitting the subject or supplying authority
+in Tool input fails. The normal explicit Agent Tool grant, allowed Capability
+and exact Instance binding remain mandatory. Installation grants nothing.
+
+Use the returned facts as input to a pure Company Tool when company-specific
+participation requires combining roster membership and operational role rows.
+That join stays reviewed Workspace computation. It cannot authenticate a user
+or substitute for approval-time role lookup. The directory digest and member
+count enter ordinary runtime read evidence; returned values are independent
+copies. A redeployed Artifact gets a new directory while a pinned run keeps
+the roster facts from its starting Artifact.
+
+Example Instance Connector declaration:
+
+```yaml
+id: reviewed-directory
+connector: oregano/company-directory
+connector_version: 1.0.0
+configuration:
+  read_groups: [coordination]
+```
+
+The Capability binding separately selects `directory.members.query`, contract
+version `1.0.0`, on that maintained Connector. The Agent separately grants
+`oregano:directory/members`. Removing these optional declarations is the
+rollback; no database migration or provider effect is involved.
+
 ## Reviewed sectioned text
 
 A source may declare one `parser` using `kind: sectioned-text`, `version: 1`,
