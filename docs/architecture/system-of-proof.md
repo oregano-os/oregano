@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -227,3 +227,13 @@ Artifact identity. R4 authorization consumes this durable request evidence to
 check separation from the approving human. Missing or conflicting request
 evidence cannot authorize an effect; a later approving turn cannot replace
 the original requester. Request and effect history remain retained on refusal.
+
+Compiled workflow Tool evidence carries the exact workflow/version, manifest,
+Artifact, Workspace commit, Instance, run, step and typed item identity. Runtime
+run metadata uses the actual workflow identity and version; standalone Tool
+invocations identify their Core revision. The effect claim has a stable identity
+and compares its input digest separately, so changed content cannot mint a new
+send. A valid completed effect retains its receipt even when a downstream
+workflow output requirement or audit append fails. Unknown provider outcomes
+retain partial evidence and require reconciliation. The guard's synthetic
+Runtime tests are not durable engine or hosted human-acceptance evidence.

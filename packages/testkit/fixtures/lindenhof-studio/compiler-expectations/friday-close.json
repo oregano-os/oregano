@@ -246,8 +246,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "oregano:directory/members",
@@ -300,8 +299,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "requireSyncedThrough": "$trigger.instant",
       "tool": {
@@ -352,8 +350,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "company:participant-view",
@@ -405,8 +402,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "requireSyncedThrough": "$trigger.instant",
       "tool": {
@@ -470,8 +466,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "oregano:communications/publish",
@@ -520,8 +515,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "wait": {
         "triggerId": "friday-close-chase",
@@ -562,8 +556,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "requireSyncedThrough": "$steps.await-chase.instant",
       "tool": {
@@ -622,8 +615,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "company:close-classification",
@@ -665,8 +657,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "route": {
         "on": "$steps.classify-at-chase.outcome",
@@ -711,8 +702,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "oregano:communications/publish",
@@ -763,8 +753,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "wait": {
         "triggerId": "friday-close-finalize",
@@ -805,8 +794,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "requireSyncedThrough": "$steps.await-report.instant",
       "tool": {
@@ -868,8 +856,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "company:close-classification",
@@ -925,8 +912,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "oregano:communications/publish",
@@ -987,8 +973,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "after": "report",
       "tool": {
@@ -1049,8 +1034,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "company:rollover-changes",
@@ -1086,8 +1070,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "route": {
         "on": "$steps.prepare-rollover.outcome",
@@ -1122,8 +1105,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "decision": {
         "role": "sprint-owner",
@@ -1180,8 +1162,7 @@
         "workflow_id",
         "run_id",
         "step_id",
-        "item_key",
-        "input_digest"
+        "item_key"
       ],
       "tool": {
         "grantId": "oregano:work-items/batch-update",
@@ -1208,5 +1189,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "f2814b1d00bd7bd06fa35116955c5aeb97d4d06602079b1dc81ef698b99f5cd5"
+  "manifestHash": "aba1d46fac4298e5843ebc83f9a3692b247f204917ff68977a890916651039b4"
 }

@@ -76,7 +76,7 @@ export function compileWorkflows(args: {
       const base: CompiledWorkflowStep = {
         id: raw.id, owner: `agent:${agentId}`, kind: "compute", allowedTools: [], maxRisk: "R0",
         next: [next], allPages: raw.all_pages === true, requiredOutputPaths: [], requiresDecisions: [], bindingConstraints: [], conversationalTools: [], evidence: [],
-        idempotency: ["instance_id", "workflow_id", "run_id", "step_id", "item_key", "input_digest"],
+        idempotency: ["instance_id", "workflow_id", "run_id", "step_id", "item_key"],
         ...(raw.after ? { after: raw.after } : {}),
         ...(raw.require_synced_through ? { requireSyncedThrough: raw.require_synced_through } : {}),
         ...(raw.for_each ? { forEach: { over: raw.for_each.over, key: raw.for_each.key, maxItems: 10000 as const } } : {}),

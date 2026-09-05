@@ -52,7 +52,7 @@ export interface CompiledWorkflowStep {
   bindingConstraints: Array<{ inputPath: string[]; value: WorkflowValue }>;
   conversationalTools: string[];
   evidence: string[];
-  idempotency: ["instance_id", "workflow_id", "run_id", "step_id", "item_key", "input_digest"];
+  idempotency: ["instance_id", "workflow_id", "run_id", "step_id", "item_key"];
 }
 export interface CompiledWorkflow {
   manifestVersion: 1;

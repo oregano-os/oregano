@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,15 @@ This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
+
+- Compiled workflow Artifacts now use the Runtime Tool guard: host-owned
+  context, exact run/step/Tool/input/binding/risk checks, current human decisions,
+  exact recipient mappings and keyed effect identities. Restart tests use the
+  actual Runtime effect claim without provider deduplication. Incomplete and
+  unknown receipts preserve evidence and suppress another send. Durable engine,
+  host assignment and provider recipient qualification remain pending; this
+  does not activate schedules or replace real human acceptance. See the
+  [workflow guard contract](../specifications/workflow-execution-v1-draft.md#implemented-runtime-guard).
 
 - JSON Record mappings can declare a bounded, self-contained `value_schema`.
   Ingestion enforces it before consuming an event identity; compiler consumers
@@ -71,7 +80,7 @@ evidence, historical prototypes, and production gaps.
   real SQL snapshots and restart. Provider adapters still need qualified time
   coverage before they can satisfy a `require_synced_through` request. The
   [workflow execution specification](../specifications/workflow-execution-v1-draft.md)
-  records the target boundary; its guard, engine and migration remain
+  records the target boundary; its durable engine and migration remain
   pending.
 
 - The required [Postgres integration gate](../testing/postgres.md) provisions
