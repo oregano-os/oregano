@@ -1,0 +1,113 @@
+version: 2
+plan_id: release-v0.5.12-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Prepare Oregano v0.5.12 durable timer JSONB patch
+objective: >-
+  Prepare one exact stable Oregano Core patch release containing the reviewed
+  canonical payload identity comparison for PostgreSQL-backed durable timers,
+  without activating or changing any Company Instance.
+non_goals:
+  - Deploy, promote, migrate, synchronize, replay, or activate a Company Instance.
+  - Change live Sprint schedules, policy, templates, provider mappings, grants, bindings, or effects.
+  - Add company people, resources, credentials, dates, or retention choices to Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-05-release-v0.5.12.yaml
+  - docs/status/current.md
+  - package.json
+  - packages/cli/tests/**
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-standing-authorization-to-complete-the-approved-core-release-and-company-production-rollout-without-repeating-normal-pr-or-merge-gates
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the exact Core patch identity and reproducible release evidence for the reviewed company-neutral durable-timer correction.
+    packages:
+      - Preserve the existing reusable Sprint Blueprint and all declarative assets unchanged.
+    workspace:
+      - Adopt the immutable release later through an exact independent compatibility pin.
+    instance:
+      - Select exact replay inputs, test destinations, durable storage, and production activation separately.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: Durable-timer persistence does not perform conversational Agent selection.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Test publication grants and Tool resolution are unchanged.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Timer identity comparison is deterministic and invokes no model.
+    - mechanism: company-records
+      decision: reuse
+      reason: Replay state, timers, evidence, and receipts remain in the existing records boundary.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Provider-author resolution and roster authorization are unchanged.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: The reviewed patch compares persisted JSONB timer payloads by canonical value.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Exact retries remain idempotent while changed values continue to fail closed.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: No Capability, Connector, grant, binding, or provider effect changes.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The release contains only a company-neutral JSONB identity correction
+    usable by every Company Instance with the PostgreSQL durable-timer store.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.11
+  target_version: 0.5.12
+  rationale: >-
+    This backward-compatible bug fix changes no public schema, configuration,
+    database manifest, or consumer obligation. The Workbench remains
+    0.1.0-experimental.15.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-release-v0.5.12.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-release-v0.5.12.yaml
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas --format json
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core reports 0.5.12 while Workbench remains 0.1.0-experimental.15.
+  - Existing Workspaces, databases, live Sprint timers, and exact replay retries remain compatible.
+  - PostgreSQL JSONB key-order normalization does not create a false durable-timer identity conflict.
+  - Release assets remain impossible until the protected commit is merged and tagged v0.5.12.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Existing v0.5.11 Workspaces and databases require no migration merely
+  because this release exists. Adoption requires an exact Workspace
+  compatibility pin and separately controlled Instance deployment.
+rollback: >-
+  Before publication, close or revert the candidate and remain on exact
+  v0.5.11. After publication, consumers may remain on v0.5.11; disable
+  historical replay before an Instance rollback while retaining immutable
+  evidence.
+open_decisions: []

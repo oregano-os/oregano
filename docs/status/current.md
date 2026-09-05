@@ -664,11 +664,12 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.11`; the next `0.5.x` patch candidate
-  canonically compares PostgreSQL JSONB durable-timer payloads so exact hosted
-  Sprint replay retries do not fail on database key-order normalization while
-  changed values remain blocked. `v0.5.11` is the latest published release and
-  remains authority until that candidate passes the release workflow. The
+- Oregano Core source is versioned `0.5.12` as the prepared `0.5.x` patch
+  candidate that canonically compares PostgreSQL JSONB durable-timer payloads,
+  so exact hosted Sprint replay retries do not fail on database key-order
+  normalization while changed values remain blocked. `v0.5.11` is the latest
+  published release; `v0.5.12` becomes authority only after its exact immutable
+  tag and protected release commit pass the release workflow. The
   current release line covers the experimental Sprint and Company Records
   lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed

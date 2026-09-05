@@ -17,7 +17,7 @@ import { createVercelNeonRecordSourceProfile } from "../src/records/profiles/ver
 const core = {
   repository: "example/oregano",
   ref: "a".repeat(40),
-  core_version: "0.5.11",
+  core_version: "0.5.12",
   workbench_version: "0.1.0-experimental.15",
   clean: true,
 };
