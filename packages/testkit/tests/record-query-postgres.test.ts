@@ -9,6 +9,7 @@ import { synchronizeRecordSnapshot } from "../../records/synchronization.ts";
 import type { CompanyRecordProjectionDeclaration, CompanyRecordSourceDeclaration, RecordAccessSubject } from "../../records/contracts.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { RECORD_QUERY_OUTPUT_SCHEMA } from "../../records/query-schema.ts";
+import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1" && !!process.env.DATABASE_URL;
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && !enabled) throw new Error("Required Records database configuration is missing");
@@ -69,4 +70,24 @@ test("Postgres never promotes cursors, failed scans or stale source definitions 
   assert.equal((await service.query({ query, subject })).rows.length, 0);
   const changed = new CompanyRecordsRegistry(); changed.registerSource({ ...source, resource_binding: "different-resource" }); changed.registerProjection(projection);
   await assert.rejects(new CompanyRecordsService({ instanceId, registry: changed, store, now: () => new Date(instant) }).query({ query, subject }), /not completely synchronized/);
+});
+
+test("Postgres restart preserves identity evidence and rejects completeness after a roster change", { skip }, async () => {
+  const instanceId = `record-identity-${randomUUID()}`;
+  const declaration = { ...source, fields: [{ target: "person", source: "principal", value_type: "identity" as const, required: true, resolve_identity: true }] };
+  const view = { ...projection, fields: [{ name: "person", path: "person" }], filters: {} };
+  const registry = (id: string) => {
+    const result = new CompanyRecordsRegistry({ identities: new RecordIdentityDirectory([{ id, name: "Example Person", role: "contributor", status: "active", mayApprove: [], principals: ["board:account-1:user-1"] }]) });
+    result.registerSource(declaration); result.registerProjection(view); return result;
+  };
+  const original = registry("member-1");
+  await synchronizeRecordSnapshot({ instanceId, source: declaration, registry: original, store: createPostgresCompanyRecordsStore(), runId: "scan", leaseOwner: "worker", leaseToken: "token",
+    leaseExpiresAt: "2031-02-01T18:00:00Z", inventory: { complete: true, observed_at: instant, synced_through: instant, watermark: "identity-scan", objects: [{ id: "item-1", principal: "board:account-1:user-1" }], receipt: {} } });
+  const query = (directory: CompanyRecordsRegistry) => new CompanyRecordsService({ instanceId, registry: directory, store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) }).query({ query: { projection_id: view.id, require_synced_through: instant }, subject });
+  const restarted = await query(registry("member-1"));
+  assert.equal(restarted.rows[0]!.values.person, "member-1");
+  assert.equal(restarted.source_proofs[0]!.source_digest, original.sourceDigest(source.id));
+  const version = await createPostgresCompanyRecordsStore().getCurrentObjectVersion(instanceId, source.id, "item-1");
+  assert.equal(version!.source_receipt.identity_directory_digest, original.identities!.digest);
+  await assert.rejects(query(registry("member-2")), /not completely synchronized/);
 });

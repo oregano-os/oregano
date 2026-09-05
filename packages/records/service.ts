@@ -10,11 +10,9 @@ import type {
 } from "./contracts.ts";
 import { decideProjectionAccess } from "./access.ts";
 import { projectionRecordId } from "./identity.ts";
-import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
 import { MAX_RECORD_QUERY_ROWS, queryRecordSnapshot } from "./query.ts";
-import { sha256 } from "../runtime/canonical.ts";
 
 export class RecordAccessDeniedError extends Error {
   readonly decision: RecordAccessDecision;
@@ -51,7 +49,7 @@ export class CompanyRecordsService {
     const { instanceId, registry, store, now } = this.dependencies;
     const event: RecordSourceEvent = { ...args.event, instance_id: instanceId };
     const source = registry.source(event.source_id);
-    const version = normalizeRecordObject({
+    const version = registry.normalize({
       instanceId,
       source,
       raw: args.raw,
@@ -103,7 +101,7 @@ export class CompanyRecordsService {
       || snapshot.sourceReceipts.some((receipt) => receipt.instance_id !== instanceId)) {
       throw new Error("Record snapshot belongs to another Company Instance");
     }
-    const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, sha256(registry.source(sourceId))]));
+    const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, registry.sourceDigest(sourceId)]));
     const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, query: args.query });
     const observedAt = page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
     const freshUntil = new Date(new Date(observedAt).getTime() + projection.freshness.max_age_minutes * 60_000).toISOString();

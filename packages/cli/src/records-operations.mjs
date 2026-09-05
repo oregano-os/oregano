@@ -11,6 +11,8 @@ import {
 import { SlackRecordSourceConnector } from "../../connectors/slack/records-source.ts";
 import { reconcileRecordSnapshot } from "../../records/reconciliation.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
+import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
+import { parseRoster } from "../../state-store/roster.ts";
 import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
 import { synchronizeRecordSnapshot } from "../../records/synchronization.ts";
 import {
@@ -236,8 +238,8 @@ export function createMaintainedRecordSourceConnectorRegistry({ resolveSecret = 
   ]);
 }
 
-const registeredRecords = (inspected) => {
-  const registry = new CompanyRecordsRegistry();
+const registeredRecords = (inspected, rosterMarkdown) => {
+  const registry = new CompanyRecordsRegistry(rosterMarkdown === undefined ? {} : { identities: new RecordIdentityDirectory(parseRoster(rosterMarkdown)) });
   for (const source of inspected.declarations.sources) registry.registerSource(source);
   for (const projection of inspected.declarations.projections) registry.registerProjection(projection);
   return registry;
@@ -274,6 +276,16 @@ export function planRecordSourceOperation({
     }
   }
   const source = selected.sources[0];
+  let rosterMarkdown;
+  let identityDirectoryDigest;
+  if (selected.inspected.declarations.sources.some((candidate) => candidate.fields?.some((field) => field.resolve_identity))) {
+    try {
+      rosterMarkdown = readFileSync(join(selected.workspace, "handbook", "roster.md"), "utf8");
+      identityDirectoryDigest = new RecordIdentityDirectory(parseRoster(rosterMarkdown)).digest;
+    } catch (error) {
+      diagnostics.push(diagnostic("REC026", "error", `Record identity resolution requires a valid reviewed roster: ${error.message}`));
+    }
+  }
   if (binding && source && qualification) {
     if (binding.source_id !== source.id) diagnostics.push(diagnostic("REC017", "error", `Binding source '${binding.source_id}' does not match declaration '${source.id}'.`, { file: resolve(bindingPath) }));
     if (binding.resource_binding !== source.resource_binding) diagnostics.push(diagnostic("REC018", "error", `Binding resource '${binding.resource_binding}' does not match declaration '${source.resource_binding}'.`, { file: resolve(bindingPath) }));
@@ -291,6 +303,7 @@ export function planRecordSourceOperation({
     core: coreIdentity ?? null,
     source_id: sourceId,
     source_digest: source ? sha256(JSON.stringify(source)) : null,
+    ...(identityDirectoryDigest ? { identity_directory_digest: identityDirectoryDigest } : {}),
     projection_digests: projections.map((projection) => ({ id: projection.id, digest: sha256(JSON.stringify(projection)) })),
     binding_path: resolve(bindingPath),
     binding_digest: binding ? sha256(JSON.stringify(binding)) : null,
@@ -318,7 +331,7 @@ export function planRecordSourceOperation({
     ],
   };
   plan.confirmation_hash = sha256(JSON.stringify(plan));
-  return { plan, diagnostics, source, projections, binding, qualification: qualification?.value, inspected: selected.inspected };
+  return { plan, diagnostics, source, projections, binding, qualification: qualification?.value, inspected: selected.inspected, rosterMarkdown };
 }
 
 export async function runRecordSourceOperation({
@@ -333,13 +346,15 @@ export async function runRecordSourceOperation({
   if (confirmationHash !== planResult.plan.confirmation_hash) {
     return { applied: false, diagnostics: [...planResult.diagnostics, diagnostic("REC020", "error", "Company Records operation confirmation does not match the current plan.")] };
   }
+  const registry = registeredRecords(planResult.inspected, planResult.rosterMarkdown);
+  if (registry.identities?.digest !== planResult.plan.identity_directory_digest) throw new Error("Record operation roster differs from its confirmed identity directory");
+  registry.sourceDigest(planResult.source.id);
   prepareDatabaseBinding();
   const recordsStore = store ?? createPostgresCompanyRecordsStore();
   const connector = connectorRegistry.resolve(planResult.binding);
   connector.validateBinding({ source: planResult.source, binding: planResult.binding, qualification: planResult.qualification });
   const inventory = await connector.readCompleteInventory({ source: planResult.source, binding: planResult.binding, qualification: planResult.qualification });
   if (inventory.complete !== true) throw new Error("Record Source Connector did not return a complete inventory; no watermark or absence decision may be recorded.");
-  const registry = registeredRecords(planResult.inspected);
   const runId = `${planResult.plan.operation}-${sha256(`${confirmationHash}:${inventory.watermark}`).slice(0, 32)}`;
   const leaseToken = randomUUID();
   const leaseOwner = `companyos-workbench:${process.pid}`;

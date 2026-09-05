@@ -83,6 +83,10 @@ A qualified Record Source inventory may supply `synced_through`, the instant
 through which it proves complete coverage of its declared resource scope.
 The synchronization service stores that value only after every object and
 projection operation succeeds, with a digest of the exact source declaration.
+When a source opts into roster identity resolution, this digest also binds the
+frozen reviewed identity directory; earlier receipts cannot establish coverage
+after its mapping changes. See the
+[normalization contract](company-record-normalization-v1.md).
 It must not exceed inventory observation time. A cursor, recent row, scan
 completion time or legacy receipt does not create this claim implicitly.
 
@@ -92,7 +96,9 @@ only when every contributing source has matching evidence; its value is the
 earliest of those instants. `require_synced_through` fails with an actionable
 diagnostic if the evidence is missing or too old. Empty synchronized sources
 are valid; unsynchronized empty results cannot prove completeness. Changing
-the source declaration requires new synchronization evidence.
+the source declaration or its identity directory requires new synchronization
+evidence. Hosted source selection honors explicit projection `source_ids`;
+legacy value-level `selection.source_id` remains a value predicate.
 
 This contract does not yet qualify a provider's time coverage. Maintained
 provider adapters that do not supply explicit `synced_through` continue to

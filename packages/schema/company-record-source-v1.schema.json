@@ -104,6 +104,9 @@
           "item_schema": {
             "type": "object",
             "maxProperties": 64
+          },
+          "resolve_identity": {
+            "type": "boolean"
           }
         },
         "allOf": [

@@ -2,7 +2,6 @@ import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordsStore } from "../state-store/records.ts";
 import type { RecordObjectVersion, RecordReconciliationReceipt, RecordSourceEvent } from "./contracts.ts";
 import { projectionRecordId, recordDigest, recordVersionId } from "./identity.ts";
-import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
 import {
@@ -26,6 +25,7 @@ export async function reconcileRecordSnapshot(args: {
   concurrency?: number;
 }): Promise<RecordReconciliationReceipt> {
   const { store, registry } = args;
+  registry.sourceDigest(args.sourceId);
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
     instanceId: args.instanceId,
@@ -40,7 +40,7 @@ export async function reconcileRecordSnapshot(args: {
   const startedAt = args.observedAt;
   const source = registry.source(args.sourceId);
   try {
-    const versions = args.objects.map((raw) => normalizeRecordObject({
+    const versions = args.objects.map((raw) => registry.normalize({
       instanceId: args.instanceId,
       source,
       raw,
