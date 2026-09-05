@@ -1,0 +1,162 @@
+version: 3
+plan_id: workflow-engine-foundation-2026-09-05
+created: "2026-09-05"
+proposal: true
+title: Define workflows in the Company Workspace and execute them with a generic Core engine
+objective: >-
+  Replace the Sprint-specific Core Domain with a generic workflow engine so
+  that a Company Workspace defines a process as a Markdown file whose YAML
+  frontmatter carries a `steps:` list and whose body carries the same steps as
+  prose, validated one to one. Core validates, compiles an enforcement
+  manifest, schedules, steps, waits for bound human decisions, calls Tools
+  through CompanyOSRuntime, and records evidence with workflow id, version,
+  and step id. Firm-specific computation lives in sandboxed Company Tools in
+  the Workspace; provider access stays in Core Capabilities and Connectors.
+  Before the engine is built, a reference-completion phase aligns the
+  fictional example Workspace with the real standard-Tool contracts, adds the
+  record-source data path for Friday submissions, uses work-item.batch-update
+  for every multi-item write, and freezes parity fixtures ported from the
+  Sprint Domain tests. This proposal covers phases 0 to 4 of the plan; the
+  pilot Workspace migration and the removal of the Sprint Domain ship as
+  their own plans once the parity gate passes.
+non_goals:
+  - Delete packages/domains/sprint, the Sprint loader, schemas, replay, runtime modes, or the Sprint Blueprint before the parity gate passes; they are frozen except for bug fixes.
+  - Introduce an expression language, cycles, or a `kind: agent` step in engine version 1.
+  - Change any Company Workspace or Company Instance in this Core work.
+  - Add a Capability or Connector for a new external system.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-engine-foundation.yaml
+  - docs/architecture/company-instance.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/validation-and-inspection.md
+  - docs/compatibility/registry.yaml
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/validate.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - packages/cli/src/workflow-steps.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/cli/src/structured-declarations.mjs
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-loader.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/runtime/business-time.ts
+  - packages/runtime/workflow-engine/**
+  - packages/runner-vercel/src/app/api/workflows/**
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/lib/workflow-runtime.ts
+  - packages/runner-vercel/vercel.json
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/schema/workflow-config-v2.schema.json
+  - packages/schema/schedule-v1.schema.json
+  - packages/state-store/workflow-runs.ts
+  - packages/state-postgres/workflow-runs-store.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/testkit/fixtures/lindenhof-studio/**
+  - packages/testkit/tests/workflow-steps.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-sprint-parity.test.ts
+tests:
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/workflow-steps.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-sprint-parity.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.oregano-core
+    - architecture.company-instance
+    - architecture.validation-inspection
+    - specification.companyos-core-v0.7
+    - specification.company-records-sprint-v0.1
+    - status.current
+    - command.validate
+    - guide.author-workflow
+architecture:
+  placement:
+    core: >-
+      Workflow steps schema and validator with one-to-one prose mapping,
+      deterministic compiler producing an enforcement manifest frozen into the
+      Artifact, generic run engine (step state machine, route, for_each, wait,
+      decision, reference resolver, template substitution, pinning to the
+      starting Workspace commit), Tool-boundary guard keyed by run context,
+      evidence carrying workflow id, version, and step id, business-time as a
+      standard module.
+    packages: >-
+      No Package in this plan. The Sprint Blueprint is deleted in the follow-up
+      removal plan; a future Blueprint would carry `steps:` files, Skills,
+      templates, and Tool declarations without runtime code.
+    workspace: >-
+      Owns the process: `steps:` in workflow files, prose, config.yaml,
+      schedules, Company Tools for computation, templates, Agent instructions,
+      roster roles, and risk policy. The fictional lindenhof-studio fixture is
+      the public example.
+    instance: >-
+      Binds destinations, resources, roster principals, and SecretRefs,
+      migrates the additive database manifest, activates schedules, and holds
+      receipts. Which channel or board a step reaches is an Instance binding,
+      never a Core mode.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: >-
+        The Sprint-specific timer scheduler becomes generic wait evaluation
+        over schedule-v1 triggers and business-day durations; triggers carry
+        opaque params that the scheduler passes through, so no workflow
+        semantics enter Core; a redelivered trigger resolves to the same run
+        through the declared instance key; business-time moves to a Core
+        standard module unchanged.
+    - mechanism: approvals-effects-and-idempotency
+      reason: >-
+        Approval requests gain expiresAt from the decision step timeout; effect
+        records gain workflow identity; idempotency identities include
+        for_each item keys.
+    - mechanism: capability-contracts-and-connectors
+      reason: >-
+        records.query gains changed_since, missing_any_of, work_item_ids,
+        status_in, and accepted_after filters, an all-pages drain, and a
+        synced_through source watermark in its result so a report step can
+        require complete synchronization rather than freshness; records.query,
+        communication.message.publish, and work-item.batch-update accept a
+        workflow run context so the engine can call them under the owning
+        Agent's grant; every multi-item write reuses work-item.batch-update
+        with its real updates[] shape; no new Capability or Connector.
+    - mechanism: identity-and-authorization
+      reason: >-
+        A conversation-to-run assignment derived from the thread reference or
+        decision delivery id in the run record determines the required run
+        context and the Agent's effective ToolSet while a run waits; the model
+        never names the run, so omitting the context cannot bypass the guard.
+  new_core_mechanisms:
+    - Workflow steps schema and validator with one-to-one prose mapping.
+    - Deterministic workflow compiler producing an enforcement manifest frozen into the Artifact.
+    - Generic workflow run engine with step state machine, route, for_each, wait, decision, reference resolver, template substitution, and pinning to the starting Workspace commit.
+    - Tool-boundary guard keyed by workflow run context.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The engine executes any `steps:` file that uses the eleven constructs.
+    Sprint vocabulary exists only in the fictional testkit fixture and in the
+    pilot Company Workspace. A second company or a second process needs no
+    Core change except Connectors for new external systems.
+rollback: >-
+  Phases 0 to 4 add code beside the frozen Sprint Domain and change no
+  Workspace or Instance; reverting the implementation pull requests restores
+  the previous behaviour. Additive workflow tables from database manifest
+  2.0.0 stay dormant. The Sprint Domain is deleted only by the later removal
+  plan after the parity gate, which carries its own rollback.
+open_decisions:
+  - Slack test channel and test recipients for the pilot Workspace migration (later plan).
+  - Whether apply-rollover writes to the Monday test board in the first two weeks (later plan).
+  - Whether records-reconciliation becomes a steps workflow or is dropped as prose (later plan).
+  - Whether dormant Sprint tables are removed destructively later or kept as proof (later plan).
