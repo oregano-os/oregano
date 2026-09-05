@@ -692,11 +692,10 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.13`; `v0.5.13` is the latest published
-  release and adds an isolated Sprint scenario runner plus digest-bound
-  publication of the compiled Monday hand-off to an exact Slack test binding.
-  The next patch candidate extends that same boundary with the fixed,
-  single-thread Friday Close test sequence. It becomes release authority only
+- Oregano Core source is versioned `0.5.14` as the prepared patch candidate
+  that extends the isolated Sprint scenario runner with a digest-bound, fixed,
+  single-thread Friday Close test sequence. `v0.5.13` is the latest published
+  release; `v0.5.14` becomes release authority only
   after its exact immutable tag and protected release commit pass the release
   workflow. The
   current release line covers the experimental Sprint and Company Records
@@ -708,7 +707,7 @@ evidence, historical prototypes, and production gaps.
   Record Source, plus isolated durable timer identities for independent
   historical Sprint replays, plus proof-only full-week Sprint simulation using
   the compiled Agent, templates, schedules, records, and durable evidence.
-  Existing consumers may remain on `v0.5.12` until they adopt the new exact Core
+  Existing consumers may remain on `v0.5.13` until they adopt the new exact Core
   authority, and publishing the Core does not activate a Company Workspace or
   Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
