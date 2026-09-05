@@ -1,0 +1,103 @@
+version: 2
+plan_id: tool-sdk-template-literal-scanner-2026-09-05
+status: approved
+author: claude-agent
+created: "2026-09-05"
+title: Make the Company Tool source scanner handle template literal substitutions
+objective: >-
+  The Company Tool source inspector tokenizes with the TypeScript scanner but
+  never calls reScanTemplateToken after the closing brace of a template
+  substitution. The scanner then treats the remainder of the literal as code,
+  and the closing backtick opens a new literal that swallows source up to the
+  next backtick. Two consequences: a valid Tool that formats an error message
+  with a template literal is rejected as missing its default export, and a
+  forbidden identifier placed after such a literal is not scanned and passes
+  static inspection. Track substitution depth and rescan the template token so
+  every token is inspected. Parser-confirmed regular-expression spans are
+  masked at preserved source offsets so regexp punctuation cannot confuse
+  template scanning and division cannot conceal executable identifiers.
+non_goals:
+  - Change the forbidden-identifier list, the import allowlist, or the isolated runner.
+  - Weaken the isolated runner; it remains the second layer and already denies process and network access.
+placement: core
+change_class: security
+vision_principles_affected:
+  - Security before autonomy
+  - Evidence beats claims
+files_expected:
+  - .oregano/changes/2026-09-05-tool-sdk-template-literal-scanner.yaml
+  - docs/status/current.md
+  - packages/testkit/tests/tool-sdk-security.test.ts
+  - packages/tool-sdk/source-inspector.ts
+  - package.json
+  - pnpm-lock.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: "2026-09-05"
+    evidence: explicit-user-instruction-to-fix-the-scanner-as-a-separate-branch-after-independent-review-reproduced-the-bypass
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-tool-sdk-template-literal-scanner.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-tool-sdk-template-literal-scanner.yaml
+  - node --experimental-strip-types --test packages/testkit/tests/tool-sdk-security.test.ts
+  - pnpm test
+tests:
+  - A valid Company Tool that uses template literals with substitutions, including a nested template, compiles without diagnostics.
+  - A forbidden identifier placed after a template literal with a substitution is reported and the Tool is not compiled.
+  - All existing rejection cases (Node import, provider import, environment access, network access, dynamic import, constructor escape) still fail closed.
+  - Regular-expression backticks cannot hide forbidden identifiers; division and type-only imports remain inspected.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+  reason_if_none: ""
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the static Company Tool source inspection and its tokenizer.
+    packages:
+      - No Package change.
+    workspace:
+      - No Workspace change; Company Tools written with template literals become acceptable.
+    instance:
+      - No Instance change.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: not-applicable
+      reason: Static source inspection does not route conversations.
+    - mechanism: toolset-resolver
+      decision: not-applicable
+      reason: Grants are unchanged; only the acceptance of Tool source changes.
+    - mechanism: model-recipe-resolver
+      decision: not-applicable
+      reason: No model is involved.
+    - mechanism: company-records
+      decision: not-applicable
+      reason: No record contract changes.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: The static inspection is one of the controls that keep Company Tools inside their authority; it is repaired, not widened.
+    - mechanism: timers-and-business-time
+      decision: not-applicable
+      reason: No timing involved.
+    - mechanism: approvals-effects-and-idempotency
+      decision: not-applicable
+      reason: No effect path changes.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The Tool SDK contract is unchanged; only the tokenizer inside the inspector is corrected.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The tokenizer fix is company neutral and applies to every Company Tool in
+    every Workspace.
+rollback: >-
+  Revert the commit. The previous tokenizer rejects valid template literals and
+  can be bypassed as described; revert only together with a warning in the
+  status page.
+open_decisions: []

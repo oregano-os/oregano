@@ -762,7 +762,15 @@ evidence, historical prototypes, and production gaps.
   implementation is statically inspected, compiled, and executed in a
   permission-limited child process that exposes only explicitly granted
   Capability calls. Provider imports, environment access, direct networking,
-  dynamic imports, and common sandbox escapes are rejected.
+  dynamic imports, and common sandbox escapes are rejected. The static
+  inspector tokenizes template literals with substitutions correctly since
+  2026-09-05; before that fix a valid Tool using `${}` was rejected as
+  missing its default export, and a forbidden identifier placed after such a
+  literal escaped static inspection (the isolated runner still denied it at
+  execution). Parser-confirmed regular-expression spans also keep regexp
+  backticks from hiding subsequent code; division and type-only imports remain
+  inspected. These cases are covered by regression tests. The JavaScript
+  parser is pinned to the existing lockfile version.
 - Workspace and Blueprint inspection include credential-indicator scanning.
   Instance build declarations reject resolved credentials and contain only
   non-secret binding metadata.

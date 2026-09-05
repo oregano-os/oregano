@@ -22,6 +22,7 @@
     "check": "pnpm public:check && pnpm validate && pnpm typecheck && pnpm runner:typecheck && pnpm builder:check && pnpm test"
   },
   "dependencies": {
+    "acorn": "8.18.0",
     "ajv": "8.20.0"
   },
   "devDependencies": {
