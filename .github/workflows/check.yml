@@ -4,9 +4,8 @@
 # deployed: the deploy workflow waits for this one on main, so a red check never
 # reaches production.
 #
-# The DB-backed approval tests skip themselves without DATABASE_URL. The
-# generic Builder, Tool SDK, Resolver, sandbox Connector, and neutrality tests
-# run unconditionally.
+# Required database suites use an isolated PostgreSQL service through the
+# maintained Neon HTTP driver. No repository database secret is required.
 name: check
 
 on:
@@ -27,6 +26,18 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15.18
+        env:
+          POSTGRES_USER: companyos_test
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: companyos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U companyos_test -d companyos_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,7 +121,8 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Required Postgres integration proofs (no skips)
+        run: pnpm test:database
         env:
-          # Present → the approval-atomicity tests run against a real Postgres.
-          # Absent → they self-skip and the rest still runs.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          COMPANYOS_TEST_DATABASE_URL: postgresql://companyos_test:local-test-only@127.0.0.1:5432/companyos_test

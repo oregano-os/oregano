@@ -20,6 +20,15 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- The required [Postgres integration gate](../testing/postgres.md) provisions
+  an isolated CI database and exercises the maintained HTTP driver and real
+  stores without optional repository secrets. Missing or skipped required
+  database tests fail PR and release acceptance. The initial run exposed and
+  corrected absent Brain model provenance being stored as JSON null but
+  queried as SQL NULL; source facts now round-trip and legacy null rows remain
+  readable and idempotent. Actual model-derived claims retain their extraction
+  and current-evidence checks.
+
 - Company Records v0.1 implements validated generic source and projection
   declarations, immutable deduplicated source events and object versions,
   current pointers, access-scoped rebuildable projections, freshness,
