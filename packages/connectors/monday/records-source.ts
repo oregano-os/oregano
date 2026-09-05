@@ -9,7 +9,7 @@ import type {
 import { MondayClient, type MondayFetch } from "./client.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
-export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.1";
+export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.2";
 export const MONDAY_RECORD_SOURCE_API_VERSION = "dev";
 
 const object = (value: JsonValue | undefined, label: string): Record<string, JsonValue> => {
@@ -34,7 +34,7 @@ const configuredColumnIds = (source: CompanyRecordSourceDeclaration): string[] =
   const paths = [source.identity.source_field, ...source.fields.map((field) => field.source)];
   const ids = paths.flatMap((path) => {
     const [root, id] = path.split(".");
-    return (root === "columns" || root === "column_text") && id ? [id] : [];
+    return (root === "columns" || root === "column_text" || root === "people_principals") && id ? [id] : [];
   });
   return [...new Set(ids)].sort();
 };
@@ -93,6 +93,11 @@ const mondayConfiguration = (
   if (discovery.identity_mapping_status !== "administrator-confirmed" || !discovery.identity?.externalAgentId) {
     throw new Error("Monday qualification does not contain an administrator-confirmed provider identity mapping");
   }
+  const accountId = discovery.account?.id === undefined ? undefined : String(discovery.account.id);
+  if (accountId !== undefined && !/^\d{1,20}$/.test(accountId)) throw new Error("Monday qualification contains an invalid account identity");
+  if (source.fields.some((field) => field.source.startsWith("people_principals.")) && !accountId) {
+    throw new Error("Monday people principals require an exact qualified account identity");
+  }
   const resource = (discovery.resources ?? []).find((candidate: any) => candidate.scope === "board" && String(candidate.id) === boardId);
   if (!resource || resource.permission !== permission) throw new Error(`Monday qualification does not prove '${permission}' access to board '${boardId}'`);
   const board = (discovery.boards ?? []).find((candidate: any) => String(candidate.id) === boardId);
@@ -103,14 +108,36 @@ const mondayConfiguration = (
   for (const columnId of configuredColumnIds(source)) {
     if (!qualifiedColumns.has(columnId)) throw new Error(`Monday column '${columnId}' is not active in the qualified board evidence`);
   }
+  for (const field of source.fields.filter((field) => field.source.startsWith("people_principals."))) {
+    const columnId = field.source.split(".")[1];
+    if (!board.columns.some((column: any) => String(column.id) === columnId && column.type === "people")) {
+      throw new Error(`Monday principal column '${columnId}' must be a qualified people column`);
+    }
+  }
   const qualifiedSubitemBoardIds = [...new Set<string>((board.columns ?? [])
     .filter((column: any) => !column.archived && column.type === "subtasks")
     .flatMap((column: any): string[] => Array.isArray(column.settings?.boardIds) ? column.settings.boardIds.map(String) : []))].sort();
   return {
-    apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
+    apiVersion, agentId, accountId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
     inventoryMode: inventoryMode as "selected-items" | "complete-table",
     qualifiedSubitemBoardIds,
   };
+};
+
+const peoplePrincipals = (accountId: string, raw: JsonValue, columnId: string): string[] => {
+  // An empty provider people column is normalized by the client to empty text.
+  if (raw === "") return [];
+  const entries = object(raw, `Monday people column '${columnId}'`).personsAndTeams;
+  if (!Array.isArray(entries)) throw new Error(`Monday people column '${columnId}' has no typed assignments`);
+  return [...new Set(entries.map((entry) => {
+    const person = object(entry, `Monday people column '${columnId}' assignment`);
+    const id = person.id;
+    if (!(typeof id === "string" && /^\d{1,20}$/.test(id)) && !(typeof id === "number" && Number.isSafeInteger(id) && id > 0)) {
+      throw new Error(`Monday people column '${columnId}' has an invalid assignment identity`);
+    }
+    if (person.kind !== "person" && person.kind !== "team") throw new Error(`Monday people column '${columnId}' has an unknown assignment kind`);
+    return `${person.kind === "person" ? "monday" : "monday-team"}:${accountId}:${id}`;
+  }))].sort();
 };
 
 export class MondayRecordSourceConnector implements RecordSourceConnector {
@@ -141,7 +168,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
   }): Promise<RecordSourceInventory> {
     const { source, binding, qualification } = args;
     const {
-      apiVersion, agentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
+      apiVersion, agentId, accountId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
       inventoryMode, qualifiedSubitemBoardIds,
     } = mondayConfiguration(source, binding, qualification);
     const token = this.resolveSecret(binding.secret_ref);
@@ -153,6 +180,15 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       allowedSubitemBoardIds: qualifiedSubitemBoardIds,
     });
     const observedAt = this.now().toISOString();
+    const peopleColumns = new Map(inventory.tableSchema.map((board) => [board.board_id,
+      board.columns.filter((column) => column.type === "people").map((column) => column.id)]));
+    const qualifiedPeople = (item: typeof inventory.objects[number]): Record<string, JsonValue> => {
+      if (!accountId || (item.object_kind !== "item" && item.object_kind !== "subitem")) return {};
+      const rawColumns = object(item.provider_payload.columns, "Monday raw columns");
+      return Object.fromEntries((peopleColumns.get(item.board_id) ?? [])
+        .filter((columnId) => Object.hasOwn(rawColumns, columnId))
+        .map((columnId) => [columnId, peoplePrincipals(accountId, rawColumns[columnId]!, columnId)]));
+    };
     const objects: Array<Record<string, JsonValue>> = inventory.objects.map((item) => ({
       id: item.id,
       source_id: source.id,
@@ -170,6 +206,8 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       parent_item_id: item.parent_item_id,
       columns: item.columns,
       column_text: item.column_text,
+      people_principals: qualifiedPeople(item),
+      ...(accountId ? { account_id: accountId } : {}),
       provider_payload: item.provider_payload,
     }));
     const inventoryDigest = digest(objects);
@@ -187,6 +225,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         resource_binding: binding.resource_binding,
         authentication_mode: "external-agent",
         agent_id: agentId,
+        ...(accountId ? { account_id: accountId } : {}),
         board_id: boardId,
         board_ids: inventory.boardIds,
         permission,

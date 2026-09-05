@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Maintained Slack and Monday Record Source adapters emit exact qualified
+  principals for roster resolution. Slack preserves fractional creation/edit
+  timestamps and separates original author, current content author and bots.
+  Monday keeps people and team assignments distinct under the qualified account.
+  Provider-bound tests exercise real adapter reads and Record normalization;
+  qualified time coverage and full workflow acceptance remain pending. See the
+  [provider evidence contract](../specifications/company-record-normalization-v1.md#maintained-provider-evidence).
+
 - Exact parent-scoped overrides pin transitive `fast-uri` to `3.1.6`, correcting the vulnerable
   `3.1.5` URI normalization used through AJV. This addresses the published
   [malformed IPv6](https://github.com/advisories/GHSA-f65p-4m7j-42xc) and

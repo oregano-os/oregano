@@ -90,7 +90,7 @@ const binding = (qualificationDigest: string): CompanyRecordSourceBinding => ({
   source_id: source.id,
   resource_binding: source.resource_binding,
   connector: "oregano/slack-record-source",
-  connector_version: "0.1.0",
+  connector_version: "0.1.1",
   secret_ref: "env:SLACK_BOT_TOKEN",
   qualification: { receipt_ref: "instance:fixture/slack", digest: qualificationDigest },
   configuration: {
@@ -138,10 +138,44 @@ test("Slack Record Source returns a complete, ordered, threaded communication in
   ]);
   assert.equal(inventory.objects[2]?.thread_id, "1893456001.000100");
   assert.equal(inventory.objects[2]?.author_id, "U22222");
+  assert.equal(inventory.objects[2]?.author_principal, "slack:T12345:U22222");
+  assert.equal(inventory.objects[2]?.occurred_at, "2030-01-01T00:00:02.000200Z");
+  assert.equal(inventory.objects[2]?.accepted_at, "2030-01-01T00:00:02.000200Z");
   assert.equal(calls.filter((url) => url.pathname.endsWith("/conversations.history")).length, 2);
   assert.equal(calls.filter((url) => url.pathname.endsWith("/conversations.replies")).length, 1);
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /Synthetic/);
   assert.match(inventory.watermark, /^slack:[a-f0-9]{64}$/);
+});
+
+test("Slack content versions retain precise edit times and distinguish bots from human authors", async () => {
+  const base = fixture();
+  const messages = [
+    { ts: "1893456000.123456789", user: "U11111", text: "Initial", edited: { ts: "1893456002.000001", user: "U22222" } },
+    { ts: "1893456001.000001", user: "U11111", bot_id: "B11111", text: "Bot with user", edited: { ts: "1893456002.000002", user: "U11111" } },
+    { ts: "1893456001.000002", user: "U11111", subtype: "bot_message", text: "Bot subtype" },
+    { ts: "1893456001.000003", user: "U11111", text: "Missing editor", edited: { ts: "1893456002.000003" } },
+  ];
+  const fetcher = async (input: string | URL | Request) => String(input).includes("conversations.history")
+    ? jsonResponse({ ok: true, messages, has_more: false }, "req-versions") : base.fetcher(input);
+  const qualification = await qualified(fetcher as typeof fetch);
+  const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher: fetcher as typeof fetch });
+  const args = { source, binding: binding(qualification.evidence.discovery.discovery_hash), qualification: qualification as unknown as Record<string, unknown> };
+  const inventory = await connector.readCompleteInventory(args);
+  const [human, bot, subtypeBot, unknownEditor] = inventory.objects;
+  assert.equal(human!.occurred_at, "2030-01-01T00:00:00.123456789Z");
+  assert.equal(human!.accepted_at, "2030-01-01T00:00:02.000001Z");
+  assert.equal(human!.author_principal, "slack:T12345:U11111");
+  assert.equal(human!.editor_principal, "slack:T12345:U22222");
+  assert.equal(human!.content_author_principal, "slack:T12345:U22222");
+  assert.equal(bot!.author_kind, "bot");
+  assert.equal(bot!.content_author_principal, "slack-bot:T12345:B11111");
+  assert.equal(subtypeBot!.author_kind, "bot");
+  assert.equal(unknownEditor!.content_author_principal, "slack-unknown:T12345:editor");
+  assert.equal(inventory.synced_through, undefined, "precise message times are not a source coverage proof");
+  messages[0]!.edited!.ts = "1893456000.123456788";
+  await assert.rejects(() => connector.readCompleteInventory(args), /edit timestamp precedes/);
+  messages[0]!.edited!.ts = "9999999999999999.1";
+  await assert.rejects(() => connector.readCompleteInventory(args), /timestamp.*invalid/);
 });
 
 test("Slack Record Source fails closed when provider retention hides history", async () => {

@@ -7,7 +7,7 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../../connectors/monday/records-source.ts";
-import { SlackRecordSourceConnector } from "../../../connectors/slack/records-source.ts";
+import { SlackRecordSourceConnector, SLACK_RECORD_SOURCE_CONNECTOR_ID, SLACK_RECORD_SOURCE_CONNECTOR_VERSION } from "../../../connectors/slack/records-source.ts";
 import {
   qualifySlackRecordSource,
   type SlackRecordSourceQualification,
@@ -398,7 +398,7 @@ function selectedSlackQualificationBinding(configuration: CompanyRecordsRehearsa
   if (binding.instance_id !== configuration.instance_id || binding.source_id !== source.id || binding.resource_binding !== source.resource_binding) {
     throw new CompanyRecordsRehearsalError("binding-mismatch", `Binding for source '${sourceId}' does not match the rehearsal Instance and declaration`, 503);
   }
-  if (binding.connector !== "oregano/slack-record-source" || binding.connector_version !== "0.1.0") {
+  if (binding.connector !== SLACK_RECORD_SOURCE_CONNECTOR_ID || binding.connector_version !== SLACK_RECORD_SOURCE_CONNECTOR_VERSION) {
     throw new CompanyRecordsRehearsalError("invalid-declaration", `Source '${sourceId}' does not select the maintained Slack Record Source Connector`, 503);
   }
   const provider = object(binding.configuration, `binding '${sourceId}'.configuration`);

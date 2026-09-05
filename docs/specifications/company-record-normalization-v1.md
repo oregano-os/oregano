@@ -86,6 +86,39 @@ covered by the existing configuration/confirmation digest. The subsequent
 workflow Artifact integration must supply the same reviewed content. No
 external roster, name matching or Records-derived authorization is introduced.
 
+### Maintained provider evidence
+
+Slack Record Source `0.1.1` emits `author_principal` in the exact qualified
+conversation's team namespace (`slack:<team>:<user>`), and separate
+`slack-bot` or `slack-unknown` principals. A bot indicator takes precedence
+over a simultaneous `user` field. Original authorship remains separate from
+`editor_principal` and `content_author_principal`; an edit without an identified
+editor has an explicit unknown content principal. Editing a bot message does
+not turn it into human evidence. These fields follow Slack's documented
+[message edit metadata](https://docs.slack.dev/reference/events/message/).
+
+`occurred_at` preserves creation time; `accepted_at` is the current content
+version's edit time, or creation time for an unedited message. Both preserve
+all provider fractional digits (up to nine). Malformed timestamps and edits
+before creation fail. A late correction cannot inherit its earlier posting
+time. A Workspace deciding whether the original author submitted a form must
+compare original and current content authorship as well as its cutoff.
+
+Monday Record Source `0.3.2` emits `people_principals.<column-id>` as an array
+of `monday:<account>:<person>` and `monday-team:<account>:<team>` principals.
+Only provider columns typed `people` qualify; the exact account comes from
+the reviewed external-Agent qualification. Person and team assignments are
+distinct as specified by the provider's [People contract](https://developer.monday.com/api-reference/reference/people).
+Unknown kinds and malformed IDs fail instead of disappearing. Teams are not
+expanded to human members. `columns.*` retains its older raw-ID representation.
+Declarations using principal fields require qualified account evidence;
+legacy receipts without that evidence cannot supply these fields.
+
+Neither provider's timestamps or opaque inventory digest establish qualified
+`synced_through` coverage. This adapter slice changes no resource scope or
+activation. Pin the new Connector version explicitly, review the field mapping,
+and synchronize before a workflow uses it; retain historical versions.
+
 ## Reviewed sectioned text
 
 A source may declare one `parser` using `kind: sectioned-text`, `version: 1`,
@@ -163,8 +196,8 @@ parser does not resolve a person, select a run, grant access, approve an effect
 or prove that a source has synchronized through a cutoff. A workflow still
 needs trusted source identity, exact thread assignment and complete-source
 evidence. Optional exact principal resolution is implemented as described
-above; provider principal emission, role-board aggregation and the generic
-workflow engine remain integration work.
+above, with maintained provider emission as specified here. Role-board
+aggregation and the generic workflow engine remain integration work.
 
 ## Compatibility and evidence
 

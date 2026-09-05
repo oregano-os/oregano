@@ -1,0 +1,60 @@
+version: 3
+plan_id: workflow-provider-evidence-2026-09-05
+created: "2026-09-05"
+title: Preserve provider identity and message acceptance evidence
+objective: >-
+  Emit qualified Slack sender and Monday people principals for reviewed Record
+  identity resolution. Preserve precise message and edit timestamps so deadline
+  comparisons use the actual content version, without adding business parsing
+  or claiming qualified synchronization coverage.
+non_goals:
+  - Activate sources, deploy an Instance, send messages or write provider data.
+  - Claim time coverage from an end-of-scan timestamp.
+  - Infer identity from display names, message text or unqualified provider IDs.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-provider-evidence.yaml
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/connectors/slack/records-source.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/testkit/tests/provider-record-evidence.test.ts
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/testkit/tests/provider-record-evidence.test.ts
+  - packages/testkit/tests/record-identities.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - guide.connect-company-record-source
+    - specification.company-record-normalization-v1
+    - status.current
+architecture:
+  placement:
+    core: Maintained read-only adapters preserve provider identity, kinds and precise content timestamps.
+    packages: No business Package or Blueprint implementation.
+    workspace: Chooses declared fields, identity resolution and message form rules.
+    instance: Pins reviewed Connector versions, qualifications and exact provider resources.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Supply actual provider fields for the existing typed normalization path.
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend existing read-only qualified adapters without provider access in Company Tools.
+    - mechanism: identity-and-authorization
+      reason: Reuse exact roster principal lookup; provider evidence never grants authority.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Sender, editor and typed people identities are provider evidence usable by every company workflow.
+rollback: >-
+  Revert before adopting new source fields and Connector pins. Preserve old
+  records as historical evidence; re-sync new mappings before relying on them.
