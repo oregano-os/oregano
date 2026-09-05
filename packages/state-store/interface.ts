@@ -36,6 +36,7 @@ export interface ApprovalRequestInput {
   action: string; // exactly ONE action per request
   inputHash: string;
   maxSpend?: number; // R4 budget approvals carry the limit
+  /** Defaults to the finite Core approval TTL when the caller has no workflow deadline. */
   expiresAt?: Date;
 }
 
@@ -46,6 +47,8 @@ export interface ApprovalRequestRow {
   action: string;
   inputHash: string;
   createdAt: Date;
+  /** Undefined only for retained historical requests; these cannot authorize effects. */
+  expiresAt?: Date;
 }
 
 export interface DecisionInput {

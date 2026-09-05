@@ -528,3 +528,18 @@ test("an approved provider effect with an unverifiable receipt is recorded as un
     capability_effects: [{ provider_id: "possibly-created" }],
   });
 });
+
+
+test("runtime approval requests preserve an explicit workflow deadline and reject expiry", async () => {
+  const state = new InMemoryStateStore();
+  const runtime = new CompanyOSRuntime({ artifact: build(), state, connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
+  const request = { runId: "run-deadline", stepId: "publish", agentId: "growth", grantId: "company:publish-asset", input: { artifact_id: "bounded", content: "reviewed", content_type: "text/plain" } };
+  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+  await runtime.requestApproval(request, { expiresAt });
+  assert.equal(state.requests[0]!.expiresAt!.getTime(), expiresAt.getTime());
+  state.requests[0]!.expiresAt = new Date(0);
+  const result: any = await runtime.execute({ ...request, approvingPrincipal: "test:solstice:avery" });
+  assert.equal(result.rejected, true);
+  assert.match(result.reason, /expired/);
+  assert.equal(state.effects.size, 0);
+});

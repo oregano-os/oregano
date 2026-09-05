@@ -94,7 +94,7 @@ export class CompanyOSRuntime {
     });
   }
 
-  async requestApproval(request: Omit<ExecuteToolRequest, "approvingPrincipal">): Promise<{ requestId: string; inputHash: string }> {
+  async requestApproval(request: Omit<ExecuteToolRequest, "approvingPrincipal">, validity: { expiresAt: Date } | undefined = undefined): Promise<{ requestId: string; inputHash: string }> {
     const { tool, risk } = this.#resolve(request.agentId, request.grantId);
     if (RISK_ORDER[risk as keyof typeof RISK_ORDER] < RISK_ORDER.R3) throw new Error(`Tool '${request.grantId}' does not require approval.`);
     const inputErrors = validateJsonSchemaValue(tool.contract.inputSchema, request.input);
@@ -106,6 +106,7 @@ export class CompanyOSRuntime {
       stepId: request.stepId,
       action: tool.contract.runtimeId,
       inputHash,
+      expiresAt: validity?.expiresAt,
     });
     return { requestId, inputHash };
   }

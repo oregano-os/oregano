@@ -1,3 +1,4 @@
+import { approvalExpiry } from "../state-store/approval-validity.ts";
 // state-postgres — Neon/Postgres implementation of state-store/interface.ts
 // against schema.sql (v2). claimEffect = INSERT on UNIQUE key; consumeApproval
 // = UPDATE … WHERE consumed_at IS NULL. The ONE-transaction rule
@@ -62,7 +63,7 @@ export function createPostgresStateStore(): StateStore {
     async createApprovalRequest(r: ApprovalRequestInput): Promise<string> {
       const rows = await sql()`
         insert into companyos.approval_requests (run_id, step_id, action, input_hash, max_spend, expires_at)
-        values (${r.runId}, ${r.stepId}, ${r.action}, ${r.inputHash}, ${r.maxSpend ?? null}, ${r.expiresAt ?? null})
+        values (${r.runId}, ${r.stepId}, ${r.action}, ${r.inputHash}, ${r.maxSpend ?? null}, ${approvalExpiry(r.expiresAt)})
         returning request_id`;
       return rows[0].request_id as string;
     },
@@ -78,11 +79,18 @@ export function createPostgresStateStore(): StateStore {
 
     async getLatestApprovalRequest(runId, stepId, action): Promise<ApprovalRequestRow | undefined> {
       const rows = await sql()`
-        select request_id, run_id, step_id, action, input_hash, created_at
-        from companyos.approval_requests
-        where run_id = ${runId} and step_id = ${stepId} and action = ${action}
-          and (expires_at is null or expires_at > now())
-        order by created_at desc limit 1`;
+        with latest as (
+          select request_id, run_id, step_id, action, input_hash, created_at, expires_at
+          from companyos.approval_requests
+          where run_id = ${runId} and step_id = ${stepId} and action = ${action}
+          order by created_at desc limit 1
+        )
+        select * from latest
+        where not exists (
+          select 1 from companyos.approval_requests other
+          where other.run_id = ${runId} and other.step_id = ${stepId} and other.action = ${action}
+            and other.request_id <> latest.request_id and other.created_at >= latest.created_at
+        )`;
       const r = rows[0];
       if (!r) return undefined;
       return {
@@ -92,6 +100,7 @@ export function createPostgresStateStore(): StateStore {
         action: r.action as string,
         inputHash: r.input_hash as string,
         createdAt: new Date(r.created_at as string),
+        expiresAt: r.expires_at ? new Date(r.expires_at as string) : undefined,
       };
     },
 
@@ -118,7 +127,18 @@ export function createPostgresStateStore(): StateStore {
         const rows = await sql()`
           with claimed as (
             insert into companyos.effects (idempotency_key, run_id, step_id, approval_id, input_hash)
-            values (${idempotencyKey}, ${runId}, ${stepId}, ${approvalId}, ${inputHash})
+            select ${idempotencyKey}, ${runId}, ${stepId}, ${approvalId}, ${inputHash}
+            from companyos.approvals approval
+            join companyos.approval_requests request on request.request_id = approval.request_id
+            where approval.approval_id = ${approvalId} and approval.decision = 'approved'
+              and approval.consumed_at is null
+              and request.run_id = ${runId} and request.step_id = ${stepId} and request.input_hash = ${inputHash}
+              and request.expires_at is not null and request.expires_at > now()
+              and not exists (
+                select 1 from companyos.approval_requests newer
+                where newer.run_id = request.run_id and newer.step_id = request.step_id and newer.action = request.action
+                  and newer.request_id <> request.request_id and newer.created_at >= request.created_at
+              )
             on conflict (idempotency_key) do nothing
             returning idempotency_key
           ),

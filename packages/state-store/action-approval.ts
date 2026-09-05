@@ -1,3 +1,4 @@
+import { approvalIsUnexpired } from "./approval-validity.ts";
 // Generic R-gated action orchestration. Presentation surfaces transport a
 // decision, while this Core path owns identity, authorization, stale-input
 // protection, atomic approval consumption, effect claiming, and evidence.
@@ -71,6 +72,14 @@ export async function executeApprovedAction(args: {
     };
   }
 
+  if (!approvalIsUnexpired(request)) {
+    await store.appendEvent({
+      runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+      event: "approval.expired", status: "failed", payload: { action, request_id: request.requestId },
+    });
+    return { ok: false, rejected: true, reason: "This approval request has expired or has no expiry — request a fresh approval.", reRequest: true };
+  }
+
   const approvalId = await store.recordDecision({
     requestId: request.requestId,
     subjectPrincipal: auth.principal,
@@ -88,6 +97,14 @@ export async function executeApprovedAction(args: {
     approvalId, idempotencyKey, runId, stepId, inputHash,
   });
   if (!claimed) {
+    if (!await store.getEffect(idempotencyKey)) {
+      await store.appendEvent({
+        runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+        event: "approval.claim-refused", status: "failed", idempotencyKey,
+        payload: { action, request_id: request.requestId },
+      });
+      return { ok: false, rejected: true, reason: "The approval is no longer valid for this effect — request a fresh approval.", reRequest: true };
+    }
     await store.appendEvent({
       runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
       event: "effect.duplicate-suppressed", status: "succeeded", idempotencyKey,
