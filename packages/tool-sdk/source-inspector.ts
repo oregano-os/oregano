@@ -19,12 +19,37 @@ interface Token {
   start: number;
 }
 
+/**
+ * Tokenize the whole source. Template literals with substitutions need the
+ * scanner's rescan: after the `}` that closes a `${...}` substitution the
+ * scanner must be told to continue the template, otherwise it treats the rest
+ * of the literal as code and the closing backtick opens a new literal that
+ * swallows everything up to the next backtick, including `export default` and
+ * any forbidden identifier. `templateDepths` tracks the brace depth inside
+ * each open substitution so nested objects and nested templates work.
+ */
 const scanTokens = (source: string): Token[] => {
   const scanner = createScanner(true, LanguageVariant.Standard, source);
   const tokens: Token[] = [];
-  for (let kind = scanner.scan(); kind !== SyntaxKind.EndOfFile; kind = scanner.scan()) {
-    tokens.push({ kind, text: scanner.getTokenText(), value: scanner.getTokenValue(), start: scanner.getTokenStart() });
+  const templateDepths: number[] = [];
+  const record = (kind: SyntaxKind) => tokens.push({ kind, text: scanner.getTokenText(), value: scanner.getTokenValue(), start: scanner.getTokenStart() });
+  let kind = scanner.scan();
+  while (kind !== SyntaxKind.EndOfFile) {
+    const inSubstitution = templateDepths.length > 0;
+    if (kind === SyntaxKind.CloseBraceToken && inSubstitution && templateDepths[templateDepths.length - 1] === 0) {
+      kind = scanner.reScanTemplateToken(false);
+      record(kind);
+      if (kind === SyntaxKind.TemplateTail) templateDepths.pop();
+      kind = scanner.scan();
+      continue;
+    }
+    record(kind);
+    if (kind === SyntaxKind.TemplateHead) templateDepths.push(0);
+    else if (kind === SyntaxKind.OpenBraceToken && inSubstitution) templateDepths[templateDepths.length - 1] += 1;
+    else if (kind === SyntaxKind.CloseBraceToken && inSubstitution) templateDepths[templateDepths.length - 1] -= 1;
+    kind = scanner.scan();
   }
+  if (templateDepths.length > 0) throw new Error("unterminated template literal substitution");
   return tokens;
 };
 

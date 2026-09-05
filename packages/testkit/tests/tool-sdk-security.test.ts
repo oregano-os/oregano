@@ -33,6 +33,38 @@ for (const [label, source] of [
   });
 }
 
+const withTemplateLiteral = `
+import { defineCompanyTool } from "@companyos/tool-sdk";
+type Row = { record_id: string; values: Record<string, unknown> };
+const requireFields = (kind: string, row: Row, fields: string[]): void => {
+  const missing = fields.filter((field) => row.values[field] === undefined);
+  if (missing.length > 0) throw new Error(\`\${kind} row '\${row.record_id}' is missing required values: \${missing.join(", ")}\`);
+};
+export default defineCompanyTool({
+  async execute(input: { rows: Row[] }) {
+    for (const row of input.rows) requireFields("participant", row, ["participant_id"]);
+    return { count: input.rows.length, label: \`\${input.rows.length} rows, nested \${\`\${input.rows.length > 1 ? "many" : "one"}\`}\` };
+  },
+});
+`;
+
+test("Company Tool inspection accepts template literals with substitutions", () => {
+  const result = inspectAndCompileCompanyTool(withTemplateLiteral);
+  assert.deepEqual(result.diagnostics, []);
+  assert.match(result.compiledSource ?? "", /is missing required values/);
+});
+
+test("a template literal cannot hide a forbidden identifier from the scanner", () => {
+  const hidden = `
+import { defineCompanyTool } from "@companyos/tool-sdk";
+export default defineCompanyTool({ async execute(input: unknown) { return input; } });
+const a = \`\${1}\`; const leak = process.env.SECRET; const z = \`\`;
+`;
+  const result = inspectAndCompileCompanyTool(hidden, "hidden.ts");
+  assert.ok(result.diagnostics.some((item) => /identifier 'process' is forbidden/.test(item)), JSON.stringify(result.diagnostics));
+  assert.equal(result.compiledSource, undefined);
+});
+
 test("the isolated runner exposes only explicitly allowed Capability calls", async () => {
   const inspection = inspectAndCompileCompanyTool(valid);
   const calls: unknown[] = [];
