@@ -19,7 +19,8 @@
     "runner:build": "pnpm --dir packages/runner-vercel build",
     "test": "node --experimental-strip-types --test packages/testkit/tests/*.test.ts packages/cli/tests/*.test.mjs packages/runner-vercel/src/lib/agent-handoff-tools.test.ts packages/runner-vercel/src/lib/slack-agent-experience.test.ts packages/runner-vercel/src/lib/company-records-*.test.ts packages/runner-vercel/src/lib/builder/*.test.ts",
     "builder:check": "pnpm --dir packages/builder-worker typecheck && node --experimental-strip-types --test packages/testkit/tests/agent-resolver.test.ts packages/testkit/tests/builder-*.test.ts packages/testkit/tests/repository-adapters.test.ts",
-    "check": "pnpm public:check && pnpm validate && pnpm typecheck && pnpm runner:typecheck && pnpm builder:check && pnpm test"
+    "check": "pnpm public:check && pnpm validate && pnpm typecheck && pnpm runner:typecheck && pnpm builder:check && pnpm test",
+    "test:database": "node scripts/test-database.mjs"
   },
   "dependencies": {
     "acorn": "8.18.0",
@@ -31,6 +32,7 @@
     "@agentclientprotocol/sdk": "1.4.0",
     "@neondatabase/serverless": "1.1.0",
     "@types/node": "^25.9.3",
+    "pg": "8.23.0",
     "typescript": "7.0.1-rc",
     "vercel": "56.3.2",
     "yaml": "2.9.0",

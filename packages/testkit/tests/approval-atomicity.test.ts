@@ -1,7 +1,7 @@
 // The heart of the governance layer: one approval = exactly one effect, even
 // under concurrent clicks. Runs against a real Postgres (Neon) because the
-// guarantee IS the SQL — a mock would only prove the mock. Skipped when no
-// DATABASE_URL is configured (CI without DB secrets still runs everything else).
+// guarantee IS the SQL — a mock would only prove the mock. The mandatory
+// test:database gate supplies an isolated Postgres through the Neon HTTP driver.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,6 +17,7 @@ function databaseUrl(): string | undefined {
 }
 
 const url = databaseUrl();
+if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && !url) throw new Error("Required approval database configuration is missing.");
 const skip = url ? false : "no database configured or explicitly disabled";
 if (url) process.env.DATABASE_URL = url;
 

@@ -576,6 +576,14 @@
     "availability": null
   },
   {
+    "document_id": "testing.postgres",
+    "title": "Isolated PostgreSQL Integration Tests",
+    "path": "docs/testing/postgres.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "vision.companyos",
     "title": "CompanyOS Vision",
     "path": "docs/vision.md",

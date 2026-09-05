@@ -1207,6 +1207,19 @@
     "relations": {}
   },
   {
+    "document_id": "testing.postgres",
+    "title": "Isolated PostgreSQL Integration Tests",
+    "path": "docs/testing/postgres.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-05",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "vision.companyos",
     "title": "CompanyOS Vision",
     "path": "docs/vision.md",
