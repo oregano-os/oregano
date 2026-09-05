@@ -1039,6 +1039,19 @@
     }
   },
   {
+    "document_id": "specification.company-records-query-v1",
+    "title": "Company Records Workflow Query Contract",
+    "path": "docs/specifications/company-records-query-v1.md",
+    "kind": "specification",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-05",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "specification.company-records-sprint-v0.1",
     "title": "Company Records and Sprint Foundation v0.1",
     "path": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
@@ -1157,6 +1170,19 @@
         "architecture.boundaries"
       ]
     }
+  },
+  {
+    "document_id": "specification.workflow-execution-v1",
+    "title": "Workflow Execution v1",
+    "path": "docs/specifications/workflow-execution-v1-draft.md",
+    "kind": "specification",
+    "status": "draft",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-05",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
   },
   {
     "document_id": "specification.workspace-generator-v0.1",

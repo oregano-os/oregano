@@ -6,7 +6,7 @@ import type {
   RecordSourceEvent,
   RecordSyncReceipt,
 } from "./contracts.ts";
-import type { CompanyRecordsStore, ProjectionPage } from "../state-store/records.ts";
+import type { CompanyRecordsStore, ProjectionPage, RecordReadSnapshot } from "../state-store/records.ts";
 
 const key = (...parts: string[]) => parts.join("\0");
 
@@ -79,6 +79,21 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
 
   async appendAccessDecision(decision: RecordAccessDecision): Promise<void> {
     this.accessDecisions.push(structuredClone(decision));
+  }
+
+  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; limit: number }): Promise<RecordReadSnapshot> {
+    // No await: rows and receipts are copied at the same observation boundary.
+    const rows = [...this.projectionRows.values()]
+      .filter((row) => row.instance_id === args.instanceId && row.projection_id === args.projectionId)
+      .sort((a, b) => a.record_id < b.record_id ? -1 : a.record_id > b.record_id ? 1 : 0)
+      .slice(0, args.limit + 1);
+    const sourceReceipts = args.sourceIds.flatMap((sourceId) => {
+      const receipt = this.syncReceipts.filter((value) => value.instance_id === args.instanceId && value.source_id === sourceId
+        && value.synced_through && value.watermark && value.errors === 0)
+        .sort((a, b) => Date.parse(b.synced_through!) - Date.parse(a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
+      return receipt ? [receipt] : [];
+    });
+    return structuredClone({ rows, sourceReceipts });
   }
 
   async appendSyncReceipt(receipt: RecordSyncReceipt | RecordReconciliationReceipt): Promise<void> {

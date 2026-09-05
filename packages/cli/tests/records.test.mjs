@@ -79,6 +79,23 @@ const writeBinding = (root, overrides = {}) => {
   return { path, binding, qualificationPath };
 };
 
+test("records inspection validates exact source selection and exposed filter paths", () => {
+  const { root, workspace, source, projection } = temporaryWorkspace();
+  try {
+    writeFileSync(join(workspace, "records", "sources", "items.yaml"), YAML.stringify(source));
+    const file = join(workspace, "records", "projections", "items.yaml");
+    const inspect = (overrides) => {
+      writeFileSync(file, YAML.stringify({ ...projection, source_ids: [source.id], ...overrides }));
+      return inspectRecordWorkspace({ workspaceRoot: workspace });
+    };
+    assert.equal(inspect({ filters: { status_in: { operator: "in", path: "status" } } }).diagnostics.length, 0);
+    assert.ok(inspect({ source_ids: ["unknown-source"] }).diagnostics.some((entry) => entry.code === "WS053"));
+    assert.ok(inspect({ record_type: "other-type" }).diagnostics.some((entry) => entry.code === "WS054"));
+    assert.ok(inspect({ filters: { secret: { operator: "equals", path: "unexposed" } } }).diagnostics.some((entry) => entry.code === "WS061"));
+    assert.ok(inspect({ filters: { missing: { operator: "missing-any", path: "status" } } }).diagnostics.some((entry) => entry.code === "WS061"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("records inspection reports only validated Workspace declarations", () => {
   const fixture = temporaryWorkspace();
   try {

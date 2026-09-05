@@ -4,6 +4,7 @@ import YAML from "yaml";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { diagnostic } from "./diagnostics.mjs";
 import { relativePath, walkFiles } from "./files.mjs";
+import { validateRecordFilters } from "../../records/query.ts";
 
 const schema = (name) => JSON.parse(readFileSync(new URL(`../../schema/${name}`, import.meta.url), "utf8"));
 
@@ -94,22 +95,30 @@ export function inspectStructuredDeclarations(root) {
       diagnostics.push(diagnostic("WS048", "error", "Database-view materialization must not declare a Workspace target.", { file: projection.path }));
     }
 
-    const selectedSourceId = projection.value.selection?.source_id;
     let selectedSources;
-    if (typeof selectedSourceId === "string") {
-      const exact = sources.find((source) => source.value.id === selectedSourceId);
-      if (!exact) {
-        diagnostics.push(diagnostic("WS053", "error", `Record projection selects unknown source '${selectedSourceId}'.`, { file: projection.path }));
-        selectedSources = [];
-      } else if (exact.value.record_type !== projection.value.record_type) {
-        diagnostics.push(diagnostic("WS054", "error", `Record projection type '${projection.value.record_type}' does not match selected source '${selectedSourceId}' type '${exact.value.record_type}'.`, { file: projection.path }));
-        selectedSources = [];
-      } else selectedSources = [exact];
+    if (Array.isArray(projection.value.source_ids)) {
+      selectedSources = projection.value.source_ids.flatMap((sourceId) => {
+        const exact = sources.find((source) => source.value.id === sourceId);
+        if (!exact) {
+          diagnostics.push(diagnostic("WS053", "error", `Record projection selects unknown source '${sourceId}'.`, { file: projection.path }));
+          return [];
+        }
+        if (exact.value.record_type !== projection.value.record_type) {
+          diagnostics.push(diagnostic("WS054", "error", `Record projection type '${projection.value.record_type}' does not match selected source '${sourceId}' type '${exact.value.record_type}'.`, { file: projection.path }));
+          return [];
+        }
+        return [exact];
+      });
     } else {
       selectedSources = sources.filter((source) => source.value.record_type === projection.value.record_type);
       if (selectedSources.length === 0) {
         diagnostics.push(diagnostic("WS053", "error", `Record projection type '${projection.value.record_type}' has no matching Record Source.`, { file: projection.path }));
       }
+    }
+    try {
+      validateRecordFilters(projection.value);
+    } catch (error) {
+      diagnostics.push(diagnostic("WS061", "error", `Invalid Record projection filters: ${error.message}`, { file: projection.path }));
     }
 
     if (selectedSources.length > 0) {

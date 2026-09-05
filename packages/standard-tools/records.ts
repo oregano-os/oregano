@@ -1,6 +1,7 @@
 import { sha256 } from "../runtime/canonical.ts";
 import type { CompiledCompanyTool } from "../companyos-builder/types.ts";
 import type { CompanyToolContract } from "../tool-sdk/contracts.ts";
+import { RECORD_QUERY_INPUT_SCHEMA, RECORD_QUERY_OUTPUT_SCHEMA } from "../records/query-schema.ts";
 
 const source = `import { defineCompanyTool } from "@companyos/tool-sdk";
 export default defineCompanyTool({
@@ -14,15 +15,15 @@ const contract: CompanyToolContract = {
   runtimeId: "oregano:records/query",
   agentId: "*",
   toolId: "records-query",
-  version: "1.0.0",
+  version: "2.0.0",
   description: "Query one access-scoped Company Records projection.",
   risk: "R0",
   dataClass: "business",
   idempotency: "input-hash",
   capabilities: ["records.query"],
-  inputSchema: { type: "object", required: ["projection_id"], additionalProperties: false, properties: { projection_id: { type: "string", minLength: 1, maxLength: 63 }, filters: { type: "object" }, limit: { type: "integer", minimum: 1, maximum: 200 }, cursor: { type: "string", minLength: 1, maxLength: 1_000 } } },
-  outputSchema: { type: "object" },
-  evidence: ["projection_id", "row_count", "observed_at", "fresh_until", "access_decision"],
+  inputSchema: RECORD_QUERY_INPUT_SCHEMA,
+  outputSchema: RECORD_QUERY_OUTPUT_SCHEMA,
+  evidence: ["projection_id", "row_count", "observed_at", "fresh_until", "snapshot_id", "source_proofs", "access_decision"],
   failure: "Fail closed when the subject or projection grant is unavailable; never expose SQL or provider credentials.",
 };
 

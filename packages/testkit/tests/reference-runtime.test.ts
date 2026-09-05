@@ -132,7 +132,7 @@ test("Artifact building resolves the provider-neutral Sprint standard Tools when
           ...instance.bindings,
           ...sprintCapabilities.map((capability) => ({
             capability,
-            contractVersion: "1.0.0",
+            contractVersion: capability === "records.query" ? "2.0.0" : "1.0.0",
             connector: "oregano/synthetic-sprint-connector",
             connectorVersion: "1.0.0",
           })),

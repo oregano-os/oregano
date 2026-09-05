@@ -22,7 +22,9 @@ export function projectRecord(args: {
   projectedAt: string;
 }): RecordProjectionRow | null {
   const { projection, version, projectedAt } = args;
-  if (projection.record_type !== version.record_type || version.deleted || !selected(version, projection.selection)) return null;
+  if (projection.record_type !== version.record_type || version.deleted
+    || (projection.source_ids && !projection.source_ids.includes(version.source_id))
+    || !selected(version, projection.selection)) return null;
   const values: Record<string, JsonValue> = {};
   for (const field of projection.fields) {
     const value = readPath(version.values, field.path);

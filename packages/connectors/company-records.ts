@@ -1,4 +1,5 @@
-import type { CapabilityCallContext, CapabilityResult, Connector, JsonValue } from "../capabilities/contracts.ts";
+import type { CapabilityCallContext, CapabilityResult, Connector } from "../capabilities/contracts.ts";
+import type { RecordQuery } from "../records/contracts.ts";
 import type { CompanyRecordsService } from "../records/service.ts";
 
 export class CompanyRecordsConnector implements Connector {
@@ -14,14 +15,9 @@ export class CompanyRecordsConnector implements Connector {
   async invoke(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult> {
     if (capability !== "records.query") throw new Error(`Company Records Connector does not implement '${capability}'`);
     if (!context.subject) throw new Error("Company Records queries require an authenticated subject");
-    const query = input as { projection_id: string; filters?: Record<string, unknown>; limit?: number; cursor?: string };
+    const query = input as RecordQuery;
     const result = await this.service.query({
-      query: {
-        projection_id: query.projection_id,
-        filters: query.filters as Record<string, JsonValue> | undefined,
-        limit: query.limit,
-        cursor: query.cursor,
-      },
+      query,
       subject: {
         principal_id: context.subject.principalId,
         status: context.subject.status,
@@ -36,6 +32,9 @@ export class CompanyRecordsConnector implements Connector {
         row_count: result.rows.length,
         observed_at: result.observed_at,
         fresh_until: result.fresh_until,
+        snapshot_id: result.snapshot_id,
+        source_proofs: result.source_proofs,
+        ...(result.synced_through ? { synced_through: result.synced_through } : {}),
         access_decision: result.access_decision,
       },
     };
