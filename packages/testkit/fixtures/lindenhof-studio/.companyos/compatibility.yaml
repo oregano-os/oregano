@@ -1,0 +1,8 @@
+version: 1
+mode: core-checkout
+core:
+  repository: example/companyos-core
+  version: 0.5.14
+  ref: "0000000000000000000000000000000000000000"
+workbench:
+  version: 0.1.0-experimental.15

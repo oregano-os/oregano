@@ -66,9 +66,14 @@ export function inspectStructuredDeclarations(root) {
     ));
   }
   const sprintPath = join(root, "workflows", "sprint", "config.yaml");
-  const sprint = existsSync(sprintPath)
-    ? readDeclaration(root, sprintPath, SPRINT_CONFIGURATION_SCHEMA, diagnostics)
-    : null;
+  // Config v2 is a generic workflow configuration, even at a legacy path.
+  // Keep the v1 validator until migration and full legacy removal pass.
+  let sprint = null;
+  if (existsSync(sprintPath)) {
+    try {
+      if (YAML.parse(readFileSync(sprintPath, "utf8"))?.schema_version !== 2) sprint = readDeclaration(root, sprintPath, SPRINT_CONFIGURATION_SCHEMA, diagnostics);
+    } catch { sprint = readDeclaration(root, sprintPath, SPRINT_CONFIGURATION_SCHEMA, diagnostics); }
+  }
 
   for (const id of duplicates(sources)) {
     for (const source of sources.filter((item) => item.value.id === id)) {

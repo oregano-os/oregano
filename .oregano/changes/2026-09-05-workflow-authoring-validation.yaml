@@ -1,0 +1,60 @@
+version: 3
+plan_id: workflow-authoring-validation-2026-09-05
+created: "2026-09-05"
+title: Validate Workspace-defined executable workflow authoring
+objective: >-
+  Validate compact workflow steps, frozen literal configuration, generic schedules,
+  typed Tool references and control flow before Artifact compilation. Provide a
+  complete fictional Workspace fixture while preserving existing prose workflows.
+non_goals:
+  - Execute workflows, activate schedules, deploy an Instance or remove legacy executors.
+  - Claim provider completeness, human acceptance or engine parity from validation.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-authoring-validation.yaml
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/schema/workflow-config-v2.schema.json
+  - packages/schema/schedule-v1.schema.json
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/cli/src/workflow-steps.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/cli/src/structured-declarations.mjs
+  - packages/testkit/tests/workflow-steps.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/**
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/workbench/commands/validate.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/workflow-steps.test.ts
+  - packages/cli/tests/workbench.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - command.validate
+    - status.current
+architecture:
+  placement:
+    core: Owns generic authoring syntax, reference validation and control-flow safety.
+    packages: No Package is created; existing Tool contracts remain the execution boundary.
+    workspace: Owns process, literal parameters, computations, templates and cohort rules.
+    instance: Continues to own exact provider bindings, secrets and activation evidence.
+  mechanisms_extended:
+    - mechanism: toolset-resolver
+      reason: Validate each step against the owning Agent grants and exact maintained or local Tool contracts.
+    - mechanism: company-records
+      reason: Derive typed query rows from actual source and projection declarations.
+    - mechanism: timers-and-business-time
+      reason: Validate generic schedules with opaque trigger parameters and collision checks.
+  new_core_mechanisms:
+    - Compact workflow authoring validation with typed references and acyclic control flow.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Workspace process can compose the same maintained or Company Tools without business-specific Core validation.
+rollback: Retain prose validation and remove executable steps before reverting the authoring validator; no runtime state is changed.

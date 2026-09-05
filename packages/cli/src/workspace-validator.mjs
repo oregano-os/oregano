@@ -1,3 +1,4 @@
+import { inspectWorkflowSteps } from "./workflow-steps.mjs";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import YAML from "yaml";
@@ -92,12 +93,14 @@ export function validateWorkspace(root) {
     }
   }
 
+  diagnostics.push(...inspectWorkflowSteps(root));
+
   const workflowDocs = documents.filter((document) => document.relative.startsWith("workflows/") && document.relative.endsWith(".md"));
   const agentRoles = new Set(documents
     .filter((document) => /^agents\/[^/]+\/instructions\.md$/.test(document.relative))
     .map((document) => document.relative.split("/")[1]));
   for (const workflow of workflowDocs) {
-    for (const field of ["owner", "trigger", "input"]) {
+    for (const field of workflow.data?.steps === undefined ? ["owner", "trigger", "input"] : ["owner", "trigger"]) {
       if (!workflow.data?.[field]) diagnostics.push(diagnostic("WS012", "error", `Workflow is missing '${field}' frontmatter.`, { file: workflow.relative }));
     }
     const workflowOwner = String(workflow.data?.owner ?? "").replace(/^agents\//, "");

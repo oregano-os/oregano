@@ -1,0 +1,37 @@
+schema_version: 1
+id: sprint-close-submissions
+record_type: communication-message
+source_ids:
+  - slack-close-submissions
+selection:
+  matched: true
+  author_kind: user
+fields:
+  - name: thread_reference
+    path: thread_reference
+  - name: participant_id
+    path: participant_id
+  - name: content_participant_id
+    path: content_participant_id
+  - name: author_kind
+    path: author_kind
+  - name: accepted_at
+    path: accepted_at
+  - name: task_ids
+    path: task_ids
+  - name: well_formed
+    path: well_formed
+  - name: next_week
+    path: next_week
+filters:
+  thread_reference:
+    operator: equals
+    path: thread_reference
+freshness:
+  max_age_minutes: 60
+access:
+  read_groups:
+    - sprint-participant
+    - sprint-process-steward
+materialization:
+  mode: database-view

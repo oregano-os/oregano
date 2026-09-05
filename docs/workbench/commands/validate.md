@@ -28,3 +28,12 @@ states. Validation checks Company Tool contract fields, restricted Tool source,
 credential indicators, grant references, and Workspace structure. Exact
 Capability availability and the final ToolSet are resolved by `companyos build`
 because they also require a Company Instance declaration.
+
+Workflows with `steps:` also receive generic authoring checks: strict option
+sets, input and reference types, Tool grants and minimum risk, ordered prose
+markers, acyclic control flow, literal config v2 and schedule references.
+`WF001` identifies semantic or schema errors and `WF002` identifies a file or
+parsing failure. Prose-only workflows keep their existing validation path.
+Validation does not prove compilation, runtime enforcement, provider coverage
+or a completed workflow. The executable authoring fixture is available at
+`packages/testkit/fixtures/lindenhof-studio`.

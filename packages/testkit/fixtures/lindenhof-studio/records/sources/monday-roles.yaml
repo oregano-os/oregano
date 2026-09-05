@@ -1,0 +1,35 @@
+schema_version: 1
+id: monday-roles
+record_type: organization-role
+resource_binding: roles-board
+connection: connections/monday.md
+delivery: poll
+identity:
+  source_field: id
+fields:
+  - target: person_ids
+    source: people_principals.people
+    value_type: identity_list
+    required: true
+    resolve_identity: true
+  - target: role
+    source: column_text.role
+    value_type: string
+    required: true
+  - target: location_scope
+    source: group_id
+    value_type: string
+    required: true
+  - target: lifecycle_state
+    source: state
+    value_type: status
+    required: true
+  - target: provider_version
+    source: updated_at
+    value_type: timestamp
+    required: true
+access:
+  read_groups:
+    - sprint-participant
+    - sprint-process-steward
+  write_roles: []
