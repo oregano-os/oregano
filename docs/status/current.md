@@ -71,7 +71,7 @@ evidence, historical prototypes, and production gaps.
   real SQL snapshots and restart. Provider adapters still need qualified time
   coverage before they can satisfy a `require_synced_through` request. The
   [workflow execution specification](../specifications/workflow-execution-v1-draft.md)
-  records the target boundary; its compiler, guard, engine and migration remain
+  records the target boundary; its guard, engine and migration remain
   pending.
 
 - The required [Postgres integration gate](../testing/postgres.md) provisions
@@ -1013,5 +1013,14 @@ Executable workflow authoring validation is implemented. The compact steps,
 generic literal config and schedule schemas are checked by `companyos validate`,
 including typed references, owner grants, Capability risk minima, markers and
 forward control flow. The fictional Lindenhof Workspace and mutation tests
-provide authoring evidence. Its generic Artifact compiler, runtime guard,
+provide authoring evidence. The generic Artifact compiler now also embeds all four workflows, resolved
+Tool contracts, templates, literal config, calendars and required output paths.
+The complete Friday manifest has a checked-in expectation. The runtime guard,
 durable engine, provider completeness and hosted acceptance remain pending.
+
+
+Workflow Artifact compilation now uses the same captured Workspace bytes as
+validation and Agent Tool loading. Tests prove immutable source/contract
+binding and canonical manifest identities, including changed Tool source and
+Instance bindings. No generic workflow activation or provider execution is
+claimed by this compiler gate.

@@ -237,6 +237,10 @@
           "maxLength": 255
         }
       }
+    },
+    "calendar": {
+      "type": "string",
+      "pattern": "^schedules/(?:[a-zA-Z0-9_-]+/)*[a-zA-Z0-9_-]+\\.ya?ml$"
     }
   }
 }
