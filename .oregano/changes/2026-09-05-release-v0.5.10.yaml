@@ -1,0 +1,115 @@
+version: 2
+plan_id: release-v0.5.10-2026-09-05
+status: approved
+author: codex-agent
+created: 2026-09-05
+title: Prepare Oregano v0.5.10 Vercel Connect credential patch
+objective: >-
+  Prepare one exact stable Oregano Core patch release that lets the maintained
+  Vercel Runner reuse an existing app-scoped Slack Vercel Connect installation
+  for governed Slack Record Sources without exporting or duplicating a bot
+  credential.
+non_goals:
+  - Activate, deploy, migrate, synchronize, replay, or promote a Company Instance.
+  - Change provider scopes, install another Slack app, or expose a provider credential.
+  - Add company resources, people, schedules, content, or retention choices to Core.
+placement: core
+change_class: security
+vision_principles_affected:
+  - A company-independent Core
+  - Security before autonomy
+  - Evidence beats claims
+  - Documentation is part of the system
+files_expected:
+  - .oregano/changes/2026-09-05-release-v0.5.10.yaml
+  - docs/status/current.md
+  - package.json
+  - packages/cli/tests/**
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: workspace-steward
+    approved_at: 2026-09-05
+    evidence: explicit-standing-authorization-to-complete-the-approved-core-release-and-company-production-rollout-without-repeating-normal-pr-or-merge-gates
+architecture_assessment:
+  responsibilities:
+    core:
+      - Own the exact Core patch identity and reproducible release evidence for the reviewed company-neutral Vercel Runner adapter.
+    packages:
+      - Preserve all existing reusable Sprint, communication, and Company Records contracts unchanged.
+    workspace:
+      - Adopt the immutable release later through an exact independent compatibility pin.
+    instance:
+      - Select the credential provider, exact Slack connector resource, source, schedule, and production activation separately.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: The patch does not change deterministic Agent selection.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: Record Source synchronization remains outside Agent Tool authority.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: Credential resolution does not invoke a model.
+    - mechanism: company-records
+      decision: reuse
+      reason: Existing source observations, projections, watermarks, and receipts remain authoritative.
+    - mechanism: identity-and-authorization
+      decision: reuse
+      reason: Trusted deployment identity obtains only the already installed app-scoped provider credential.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: Reconciliation timing is unchanged.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: Source reads and database writes retain their existing plans, confirmations, receipts, and duplicate protection.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: The reviewed patch remains behind the existing Slack Record Source and Vercel Runner boundaries.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The release contains only a runner-specific credential broker usable by
+    every Vercel-hosted Company Instance. Exact company selections remain in
+    the Workspace and Instance.
+release_classification:
+  selected_increment: patch
+  previous_version: 0.5.9
+  target_version: 0.5.10
+  rationale: >-
+    This is a backward-compatible provider-adapter correction behind existing
+    experimental contracts. It is inactive unless an Instance opts in and
+    requires no consumer or database migration.
+validation:
+  - pnpm companyos plan --check .oregano/changes/2026-09-05-release-v0.5.10.yaml
+  - pnpm companyos inspect-core --base origin/main --plan .oregano/changes/2026-09-05-release-v0.5.10.yaml
+  - pnpm companyos versions packages/testkit/fixtures/acme-casas --format json
+  - pnpm docs:generate
+  - pnpm docs:check
+  - pnpm check
+  - pnpm runner:build
+  - git diff --check
+tests:
+  - Core reports 0.5.10 while Workbench remains 0.1.0-experimental.15.
+  - Existing direct environment credentials and all existing Workspaces remain compatible.
+  - The full Core, Runner, documentation, public-boundary, and architecture suites pass.
+  - Release assets remain impossible until the protected commit is merged and tagged v0.5.10.
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+  reason_if_none: ""
+migration: >-
+  Existing v0.5.9 Workspaces and databases require no migration merely because
+  this release exists. Adoption requires an exact Workspace compatibility pin
+  and separately controlled Instance deployment.
+rollback: >-
+  Before publication, close or revert the candidate and remain on exact v0.5.9.
+  After publication, consumers may remain on v0.5.9 or disable the opt-in
+  Vercel Connect credential provider while retaining all immutable evidence.
+open_decisions: []

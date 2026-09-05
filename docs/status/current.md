@@ -661,14 +661,15 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.9` as the prepared patch candidate
+- Oregano Core source is versioned `0.5.10` as the prepared patch candidate
   for the experimental Sprint and Company Records lifecycle, declarative Sprint
   Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
   external-Agent ingress, resumable source connection, and separately guarded
-  production records operator and scheduler runtime. The latest published
-  release is `v0.5.8`; `v0.5.9` becomes authority only after its exact
+  production records operator and scheduler runtime, including reuse of an
+  existing app-scoped Slack Vercel Connect installation for a governed Slack
+  Record Source. The latest published release is `v0.5.9`; `v0.5.10` becomes authority only after its exact
   immutable tag and protected release commit pass the release workflow.
-  Existing consumers may remain on `v0.5.8` until they adopt the new exact Core
+  Existing consumers may remain on `v0.5.9` until they adopt the new exact Core
   authority, and publishing the Core does not activate a Company Workspace or
   Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
