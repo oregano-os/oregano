@@ -90,7 +90,7 @@ const binding = (qualificationDigest: string): CompanyRecordSourceBinding => ({
   source_id: source.id,
   resource_binding: source.resource_binding,
   connector: "oregano/slack-record-source",
-  connector_version: "0.1.1",
+  connector_version: "0.1.2",
   secret_ref: "env:SLACK_BOT_TOKEN",
   qualification: { receipt_ref: "instance:fixture/slack", digest: qualificationDigest },
   configuration: {
@@ -137,6 +137,7 @@ test("Slack Record Source returns a complete, ordered, threaded communication in
     "1893456002.000200",
   ]);
   assert.equal(inventory.objects[2]?.thread_id, "1893456001.000100");
+  assert.equal(inventory.objects[2]?.thread_reference, "slack:C12345:1893456001.000100");
   assert.equal(inventory.objects[2]?.author_id, "U22222");
   assert.equal(inventory.objects[2]?.author_principal, "slack:T12345:U22222");
   assert.equal(inventory.objects[2]?.occurred_at, "2030-01-01T00:00:02.000200Z");

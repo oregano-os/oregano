@@ -61,6 +61,11 @@ objects and Slack for allowlisted conversations. A future Notion, ClickUp,
 Teams, or other adapter must preserve this lifecycle behind the same Record
 Source Connector contract; it does not get a parallel synchronization command.
 
+For a structured provider object such as `column_text`, use `value_type: json`
+with a reviewed `value_schema` (for example an object of strings). This gives
+workflow validation an actual value contract and rejects malformed data during
+ingestion; plain untyped JSON cannot promise an object shape.
+
 ## 1. Interview the company values
 
 Before writing a source declaration, obtain explicit answers for:
@@ -195,7 +200,8 @@ stable roster IDs; unmatched identities and teams stay explicit. For raw
 provider IDs, use `columns.people_col` with `identity_list` and no resolution.
 People columns contain arrays, even when only one person is assigned.
 
-Slack Record Source `0.1.1` exposes `author_principal`, `editor_principal`,
+Slack Record Source `0.1.2` exposes `thread_reference` matching a published
+root receipt, plus `author_principal`, `editor_principal`,
 `content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
 evaluation map `accepted_at`: it reflects the current content version, including
 edits. Keep original authorship, current content authorship and `author_kind`

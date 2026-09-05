@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { normalizeRecordObject } from "../../records/normalize.ts";
+import { recordFieldSchema } from "../../records/source-validation.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
 import { CompanyRecordsService } from "../../records/service.ts";
@@ -129,4 +130,43 @@ test("ordinary snapshot synchronization persists parsed rows and refuses complet
   await assert.rejects(sync([{ ...raw(), author_id: false }], "sync-2"), /declared type/);
   assert.equal(store.syncReceipts.length, 1);
   assert.equal(await store.getWatermark("fixture-test", source.id), "sync-1");
+});
+
+test("structured JSON mappings enforce their declared value schema on ingestion", async () => {
+  const declaration = structuredClone(source);
+  delete declaration.parser;
+  declaration.fields = [{ target: "fields", source: "column_text", value_type: "json", required: true,
+    value_schema: { type: "object", additionalProperties: { type: "string" } as any } }];
+  const schema = JSON.parse(readFileSync(new URL("../../schema/company-record-source-v1.schema.json", import.meta.url), "utf8"));
+  assert.deepEqual(validateJsonSchemaValue(schema, declaration), []);
+  const registry = new CompanyRecordsRegistry(); registry.registerSource(declaration);
+  const store = new InMemoryCompanyRecordsStore();
+  const service = new CompanyRecordsService({ instanceId: "fixture-test", registry, store, now: () => new Date(observedAt) });
+  const event = { source_id: declaration.id, event_id: "structured-1", object_id: "item-1", kind: "created" as const, observed_at: observedAt, receipt: {} };
+  await assert.rejects(service.ingest({ event, raw: { id: "item-1", column_text: { estimate: 10 } } }), /declared type/);
+  assert.equal(store.sourceEvents.size, 0);
+  assert.equal((await service.ingest({ event, raw: { id: "item-1", column_text: { estimate: "10", brief: "" } } })).duplicate, false);
+  const invalid = structuredClone(declaration);
+  invalid.fields[0]!.value_type = "string";
+  assert.ok(validateJsonSchemaValue(schema, invalid).length > 0);
+  assert.throws(() => new CompanyRecordsRegistry().registerSource(invalid), /value_schema is only valid for json/);
+  invalid.fields[0]!.value_type = "json";
+  invalid.fields[0]!.value_schema = { $ref: "https://example.test/remote-schema" };
+  assert.throws(() => new CompanyRecordsRegistry().registerSource(invalid), /self-contained/);
+});
+
+
+test("mutating a caller schema cannot change a cached contract or reuse an obsolete validator", () => {
+  const declaration = structuredClone(source); delete declaration.parser;
+  declaration.fields = [{ target: "data", source: "data", value_type: "json", required: true,
+    value_schema: { type: "object", additionalProperties: false, required: ["value"], properties: { value: { type: "string" } } } }];
+  const field = declaration.fields[0]!;
+  const cached = recordFieldSchema(field);
+  assert.throws(() => { cached.properties!.value!.type = "number"; }, TypeError);
+  const run = (data: { value: string | number }) => normalizeRecordObject({ instanceId: "fixture-test", source: declaration, observedAt, raw: { id: "one", data } });
+  assert.deepEqual(run({ value: "one" }).values.data, { value: "one" });
+  field.value_schema!.properties!.value!.type = "number";
+  assert.equal(cached.properties!.value!.type, "string");
+  assert.throws(() => run({ value: "one" }), /declared type/);
+  assert.deepEqual(run({ value: 1 }).values.data, { value: 1 });
 });

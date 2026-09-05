@@ -20,6 +20,12 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- JSON Record mappings can declare a bounded, self-contained `value_schema`.
+  Ingestion enforces it before consuming an event identity; compiler consumers
+  can use the actual structured contract. Slack Record Source `0.1.2` also
+  emits the exact publication `thread_reference` for receipt-bound queries.
+  Source coverage remains a separate, unfinished integration requirement.
+
 - The governed `oregano:directory/members` standard Tool reads bounded facts
   from the frozen Artifact roster through an explicit Instance read-group
   policy. It uses normal grants, Capability bindings and authenticated runtime

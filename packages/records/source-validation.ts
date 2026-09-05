@@ -19,11 +19,21 @@ export function readRecordPath(value: Record<string, JsonValue>, path: string): 
 }
 
 const fieldSchemas = new Map<string, JsonSchema>();
+const freezeSchema = (schema: JsonSchema): JsonSchema => {
+  const freeze = (value: unknown): void => {
+    if (!value || typeof value !== "object") return;
+    Object.values(value).forEach(freeze);
+    Object.freeze(value);
+  };
+  const copy = structuredClone(schema);
+  freeze(copy);
+  return copy;
+};
 export function recordFieldSchema(field: RecordFieldMapping): JsonSchema {
-  const key = JSON.stringify([field.value_type, field.item_schema]);
+  const key = JSON.stringify([field.value_type, field.item_schema, field.value_schema]);
   let schema = fieldSchemas.get(key);
   if (!schema) {
-    schema = buildRecordFieldSchema(field);
+    schema = freezeSchema(buildRecordFieldSchema(field));
     if (fieldSchemas.size >= 256) fieldSchemas.delete(fieldSchemas.keys().next().value!);
     fieldSchemas.set(key, schema);
   }
@@ -35,7 +45,7 @@ function buildRecordFieldSchema(field: RecordFieldMapping): JsonSchema {
     case "string": case "status": case "identity": case "url": case "timestamp": return { type: "string" };
     case "number": return { type: "number" };
     case "boolean": return { type: "boolean" };
-    case "json": return {};
+    case "json": return field.value_schema ?? {};
     case "string_list": case "identity_list": return { type: "array", maxItems: 10_000, items: { type: "string" } };
     case "json_list":
       if (!field.item_schema) throw new Error("Record json_list requires an item_schema");
@@ -70,6 +80,8 @@ export function validateRecordSource(source: CompanyRecordSourceDeclaration): vo
     if (field.resolve_identity && (!["identity", "identity_list"].includes(field.value_type) || field.source === "parsed" || field.source.startsWith("parsed."))) throw new Error("Record identity resolution requires a provider identity field, never parsed text");
     if (field.item_schema && field.value_type !== "json_list") throw new Error("Record item_schema is only valid for json_list");
     if (field.item_schema) inspectItemSchema(field.item_schema);
+    if (field.value_schema && field.value_type !== "json") throw new Error("Record value_schema is only valid for json");
+    if (field.value_schema) inspectItemSchema(field.value_schema);
     const fieldSchema = recordFieldSchema(field);
     assertValidJsonSchema(fieldSchema, `Record field '${field.target}'`);
     if (field.source === "parsed" || field.source.startsWith("parsed.")) {
@@ -78,7 +90,8 @@ export function validateRecordSource(source: CompanyRecordSourceDeclaration): vo
         schema = (schema?.properties as Record<string, JsonSchema> | undefined)?.[segment];
       }
       if (!schema) throw new Error(`Record field '${field.target}' references an undeclared parser output`);
-      if (field.value_type !== "json" && schema.type !== fieldSchema.type) throw new Error(`Record field '${field.target}' has the wrong parser output type`);
+      const permittedTypes = Array.isArray(fieldSchema.type) ? fieldSchema.type : fieldSchema.type ? [fieldSchema.type] : [];
+      if (permittedTypes.length && (schema.type === undefined || Array.isArray(schema.type) || !permittedTypes.includes(schema.type))) throw new Error(`Record field '${field.target}' has the wrong parser output type`);
       const expectedItems = fieldSchema.items as JsonSchema | undefined;
       const producedItems = schema.items as JsonSchema | undefined;
       if (expectedItems?.type === "string" && producedItems?.type !== "string") throw new Error(`Record field '${field.target}' has the wrong parser item type`);
