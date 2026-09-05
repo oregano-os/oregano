@@ -1,0 +1,54 @@
+schema_version: 1
+id: sprint-work-items
+record_type: work-item
+source_ids:
+  - monday-sprint-board
+selection:
+  lifecycle_state: active
+fields:
+  - name: work_item_id
+    path: work_item_id
+  - name: title
+    path: title
+  - name: assignee_ids
+    path: assignee_ids
+  - name: group
+    path: group
+  - name: status
+    path: status
+  - name: fields
+    path: fields
+  - name: url
+    path: url
+  - name: provider_version
+    path: provider_version
+  - name: changed_at
+    path: changed_at
+filters:
+  group:
+    operator: equals
+    path: group
+  status_in:
+    operator: in
+    path: status
+  changed_since:
+    operator: after
+    path: changed_at
+  missing_any_of:
+    operator: missing-any
+    path: fields
+    fields:
+      - outcome
+      - definition_of_done
+      - planned_effort
+  work_item_ids:
+    operator: in
+    path: work_item_id
+freshness:
+  max_age_minutes: 60
+access:
+  read_groups:
+    - sprint-participant
+    - sprint-process-steward
+materialization:
+  mode: database-view

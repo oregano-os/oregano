@@ -87,3 +87,52 @@ Freshness, a provider cursor and an empty query are not substitutes. Required
 database tests must execute against real Postgres with zero skipped cases.
 Synthetic tests do not replace actual human decisions, hosted test-Instance
 acceptance or elapsed pilot periods.
+
+## Implemented authoring validation
+
+`companyos validate` recognizes `steps:` workflows alongside existing prose
+workflows. The generic schemas are `workflow-steps-v1.schema.json`,
+`workflow-config-v2.schema.json` and `schedule-v1.schema.json`. Schema checks
+validate shape and bounds; the semantic pass resolves each compact selector
+and rejects options that do not belong to that step kind. Config v2 contains
+`schema_version`, `id` and arbitrary literal company parameters. Core does not
+name business fields in its configuration schema. References must resolve to
+actual values and cannot contain expressions or prototype paths.
+
+Tool input literals undergo JSON Schema validation. Referenced values are
+checked against producing types, required object properties and typed Record
+projection rows, including multiple selected sources. Unknown output fields,
+missing required row fields and incompatible nullability fail. The validator
+uses the maintained Capability risk minimum, exact Agent grants, local Tool
+contracts and the restricted source inspector. Instance bindings and the final
+resolved ToolSet remain build-time responsibilities.
+
+Optional output leaves referenced by later steps are required execution
+preconditions. The compiler must infer these paths into its manifest and
+validate them before dependent steps can advance. For example, the generic
+message contract permits a receipt without `thread_reference`; a workflow
+that consumes it may advance only after the actual receipt supplies it.
+This does not upgrade the general Capability contract or invent a thread.
+The compiler and runtime enforcement of these obligations are still pending.
+
+Control flow follows document order. Explicit targets may only name a later
+step or `end`; backward jumps, unreachable steps and references to a producer
+that can be skipped on a path to the consumer fail. `after` must name an
+earlier mandatory predecessor. Routes cover a finite enum or boolean.
+Human decisions bind a prior step output and require a delivery binding,
+approve/reject targets and a bounded business-day timeout. The batch-update
+pattern must guard its empty updates outcome before requesting approval.
+
+Schedules use IANA timezones, validated holiday dates and opaque trigger
+parameters. Repeated trigger IDs are allowed in one calendar for non-colliding
+variants; an ID cannot be ambiguous across calendar files. Variants with the
+same local time and holiday shifting are rejected conservatively because they
+can converge on one business day. Runtime deduplication remains mandatory.
+A trigger parameter reference must exist on every variant that can open the
+workflow. Configurations and templates stay inside the Workspace; symlink and
+parent-directory escapes are rejected.
+
+The fictional `lindenhof-studio` fixture passes full Workspace validation;
+mutation tests exercise the failure cases. This is authoring evidence only.
+Artifact compilation, the durable engine, qualified provider completeness,
+and actual human/Instance acceptance remain separate gates.

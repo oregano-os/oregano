@@ -1,0 +1,98 @@
+schema_version: 1
+id: slack-close-submissions
+record_type: communication-message
+resource_binding: studio-sprints
+connection: connections/slack.md
+delivery: poll
+identity:
+  source_field: id
+fields:
+  - target: thread_reference
+    source: thread_reference
+    value_type: string
+    required: true
+  - target: participant_id
+    source: author_principal
+    value_type: identity
+    required: true
+    resolve_identity: true
+  - target: content_participant_id
+    source: content_author_principal
+    value_type: identity
+    required: true
+    resolve_identity: true
+  - target: author_kind
+    source: author_kind
+    value_type: string
+    required: true
+  - target: accepted_at
+    source: accepted_at
+    value_type: timestamp
+    required: true
+  - target: task_ids
+    source: parsed.sections.current.ids
+    value_type: string_list
+    required: true
+  - target: well_formed
+    source: parsed.well_formed
+    value_type: boolean
+    required: true
+  - target: matched
+    source: parsed.matched
+    value_type: boolean
+    required: true
+  - target: next_week
+    source: parsed.sections.next.items
+    value_type: json_list
+    required: true
+    item_schema:
+      type: object
+      required:
+        - work_item_id
+        - url
+        - text
+      properties:
+        work_item_id:
+          type: string
+        url:
+          type: string
+        text:
+          type: string
+access:
+  read_groups:
+    - sprint-participant
+    - sprint-process-steward
+  write_roles: []
+parser:
+  kind: sectioned-text
+  version: 1
+  source: text
+  starts_with: MY FRIDAY SPRINT UPDATE
+  sections:
+    - id: current
+      heading: THIS WEEK
+      required: true
+      fields:
+        - id: learning
+          prefixes:
+            - "Biggest blocker / learning:"
+          required: true
+      links: &a1
+        hosts:
+          - lindenhof.example.test
+        path: /boards/*/pulses/{id}
+        id_field: work_item_id
+        required: false
+    - id: next
+      heading: NEXT WEEK
+      required: true
+      fields:
+        - id: goal
+          prefixes:
+            - "Sprint goal:"
+          required: true
+        - id: outcome
+          prefixes:
+            - "Measurable outcome:"
+          required: true
+      links: *a1

@@ -1,0 +1,24 @@
+schema_version: 1
+id: sprint-roles
+record_type: organization-role
+source_ids:
+  - monday-roles
+selection:
+  lifecycle_state: active
+  location_scope: hq
+fields:
+  - name: person_ids
+    path: person_ids
+  - name: role
+    path: role
+  - name: lifecycle_state
+    path: lifecycle_state
+filters: {}
+freshness:
+  max_age_minutes: 60
+access:
+  read_groups:
+    - sprint-participant
+    - sprint-process-steward
+materialization:
+  mode: database-view

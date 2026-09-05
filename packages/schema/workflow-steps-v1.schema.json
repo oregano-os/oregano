@@ -1,0 +1,242 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://companyos.org/schema/workflow-steps-v1.schema.json",
+  "title": "Compact executable workflow authoring",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "id",
+    "version",
+    "owner",
+    "execution_mode",
+    "trigger",
+    "steps"
+  ],
+  "properties": {
+    "type": {
+      "const": "workflow"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,62}$"
+    },
+    "version": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "pattern": "^agents/[a-z][a-z0-9-]{0,62}$"
+    },
+    "execution_mode": {
+      "enum": [
+        "supervised",
+        "unattended"
+      ]
+    },
+    "trigger": {
+      "type": "string",
+      "pattern": "^(?:schedule:[a-z][a-z0-9-]{0,62}|operator)$"
+    },
+    "config": {
+      "type": "string",
+      "pattern": "^workflows/(?:[a-zA-Z0-9_-]+/)*[a-zA-Z0-9_-]+\\.ya?ml$"
+    },
+    "instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,62}$"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,62}$"
+              }
+            }
+          ]
+        },
+        "fields": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          }
+        }
+      },
+      "required": []
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "destination": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "thread": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      },
+      "required": []
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 64,
+        "propertyNames": {
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+        },
+        "properties": {
+          "input": {},
+          "vars": {
+            "type": "object"
+          },
+          "template": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "destination": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "recipient": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "thread": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "all_pages": {
+            "const": true
+          },
+          "require_synced_through": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "after": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "then": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "for_each": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "over": {
+                "type": "string",
+                "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"
+              },
+              "key": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]{0,62}$"
+              }
+            },
+            "required": [
+              "over",
+              "key"
+            ]
+          },
+          "for": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^schedule:[a-z][a-z0-9-]{0,62}$"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "business_days": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
+                  }
+                },
+                "required": [
+                  "business_days"
+                ]
+              }
+            ]
+          },
+          "on": {
+            "type": "string",
+            "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"
+          },
+          "binds": {
+            "type": "string",
+            "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"
+          },
+          "via": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "timeout": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "business_days": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 365
+              }
+            },
+            "required": [
+              "business_days"
+            ]
+          },
+          "approve": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "reject": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          }
+        },
+        "additionalProperties": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        }
+      }
+    }
+  }
+}

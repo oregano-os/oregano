@@ -1008,3 +1008,10 @@ not override this page or the canonical architecture and specifications.
 Record cutoff filters and completeness proofs preserve up to nine fractional
 digits across timezone offsets and memory/Postgres stores. Invalid calendar
 dates fail. Provider-qualified time coverage remains a separate pending gate.
+
+Executable workflow authoring validation is implemented. The compact steps,
+generic literal config and schedule schemas are checked by `companyos validate`,
+including typed references, owner grants, Capability risk minima, markers and
+forward control flow. The fictional Lindenhof Workspace and mutation tests
+provide authoring evidence. Its generic Artifact compiler, runtime guard,
+durable engine, provider completeness and hosted acceptance remain pending.
