@@ -767,7 +767,10 @@ evidence, historical prototypes, and production gaps.
   2026-09-05; before that fix a valid Tool using `${}` was rejected as
   missing its default export, and a forbidden identifier placed after such a
   literal escaped static inspection (the isolated runner still denied it at
-  execution). Both cases are now regression tests.
+  execution). Parser-confirmed regular-expression spans also keep regexp
+  backticks from hiding subsequent code; division and type-only imports remain
+  inspected. These cases are covered by regression tests. The JavaScript
+  parser is pinned to the existing lockfile version.
 - Workspace and Blueprint inspection include credential-indicator scanning.
   Instance build declarations reject resolved credentials and contain only
   non-secret binding metadata.

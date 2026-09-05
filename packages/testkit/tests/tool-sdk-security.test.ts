@@ -65,6 +65,27 @@ const a = \`\${1}\`; const leak = process.env.SECRET; const z = \`\`;
   assert.equal(result.compiledSource, undefined);
 });
 
+test("regexp punctuation is not a template and division cannot hide source", () => {
+  const source = 'import { defineCompanyTool } from "@companyos/tool-sdk";\n'
+    + 'const clean = (text: string) => text.replace(/[\\\\`*_]/g, "");\n'
+    + 'export default defineCompanyTool({ execute(input: { value: string }) { return { value: clean(input.value), ratio: 8 / 2 / 2 }; } });';
+  assert.deepEqual(inspectAndCompileCompanyTool(source).diagnostics, []);
+  const hidden = 'import { defineCompanyTool } from "@companyos/tool-sdk";\n'
+    + 'export default defineCompanyTool({ execute(input: unknown) { return input; } });\n'
+    + 'const a = /`/; const leak = process.env.SECRET; const z = /`/;';
+  const result = inspectAndCompileCompanyTool(hidden);
+  assert.ok(result.diagnostics.some((item) => /identifier 'process' is forbidden/.test(item)), JSON.stringify(result));
+  assert.equal(result.compiledSource, undefined);
+  const divided = hidden.replace('const a = /`/; const leak = process.env.SECRET; const z = /`/;', 'const ratio = 8 / process.pid / 2;');
+  assert.ok(inspectAndCompileCompanyTool(divided).diagnostics.some((item) => /identifier 'process' is forbidden/.test(item)));
+});
+
+test("type-only imports remain subject to source inspection after type stripping", () => {
+  const source = 'import type { Stats } from "node:fs"; import { defineCompanyTool } from "@companyos/tool-sdk"; '
+    + 'export default defineCompanyTool({ execute(input: unknown) { return input; } });';
+  assert.ok(inspectAndCompileCompanyTool(source).diagnostics.some((item) => /only the named defineCompanyTool import/.test(item)));
+});
+
 test("the isolated runner exposes only explicitly allowed Capability calls", async () => {
   const inspection = inspectAndCompileCompanyTool(valid);
   const calls: unknown[] = [];

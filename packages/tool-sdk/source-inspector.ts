@@ -1,4 +1,5 @@
 import { stripTypeScriptTypes } from "node:module";
+import { parse, type Token as JavaScriptToken } from "acorn";
 import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
 
 export interface SourceInspection {
@@ -28,8 +29,20 @@ interface Token {
  * any forbidden identifier. `templateDepths` tracks the brace depth inside
  * each open substitution so nested objects and nested templates work.
  */
-const scanTokens = (source: string): Token[] => {
-  const scanner = createScanner(true, LanguageVariant.Standard, source);
+const scanTokens = (source: string, compiledSource: string): Token[] => {
+  // A bare scanner cannot distinguish a regexp from division. Parse the
+  // executable JavaScript first and mask only parser-confirmed regexp spans
+  // before inspecting the original TypeScript (including type-only imports).
+  // Strip mode preserves offsets; refuse rather than inspect mismatched text.
+  if (compiledSource.length !== source.length) throw new Error("type stripping changed source offsets");
+  const executableTokens: JavaScriptToken[] = [];
+  parse(compiledSource, { ecmaVersion: "latest", sourceType: "module", onToken: executableTokens });
+  const masked = source.split("");
+  for (const token of executableTokens) {
+    if (token.type.label !== "regexp") continue;
+    for (let index = token.start; index < token.end; index++) masked[index] = index === token.start ? "0" : " ";
+  }
+  const scanner = createScanner(true, LanguageVariant.Standard, masked.join(""));
   const tokens: Token[] = [];
   const templateDepths: number[] = [];
   const record = (kind: SyntaxKind) => tokens.push({ kind, text: scanner.getTokenText(), value: scanner.getTokenValue(), start: scanner.getTokenStart() });
@@ -56,9 +69,12 @@ const scanTokens = (source: string): Token[] => {
 export function inspectAndCompileCompanyTool(source: string, file = "execute.ts"): SourceInspection {
   const diagnostics: string[] = [];
   if (Buffer.byteLength(source, "utf8") > 64 * 1024) diagnostics.push(`${file}: Company Tool source exceeds 64 KiB.`);
+  if (diagnostics.length > 0) return { diagnostics };
   let tokens: Token[] = [];
+  let compiledSource: string;
   try {
-    tokens = scanTokens(source);
+    compiledSource = stripTypeScriptTypes(source, { mode: "strip", sourceMap: false });
+    tokens = scanTokens(source, compiledSource);
   } catch (error) {
     diagnostics.push(`${file}: TypeScript scanner failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -91,10 +107,5 @@ export function inspectAndCompileCompanyTool(source: string, file = "execute.ts"
   }
   if (!hasDefaultDefinition) diagnostics.push(`${file}: default export must call defineCompanyTool({...}).`);
   if (diagnostics.length > 0) return { diagnostics };
-  try {
-    const compiledSource = stripTypeScriptTypes(source, { mode: "strip", sourceMap: false });
-    return { diagnostics, compiledSource };
-  } catch (error) {
-    return { diagnostics: [`${file}: ${error instanceof Error ? error.message : String(error)}`] };
-  }
+  return { diagnostics, compiledSource: compiledSource! };
 }
