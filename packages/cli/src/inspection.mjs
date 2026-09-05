@@ -5,22 +5,11 @@ import YAML from "yaml";
 import { inspectWorkspaceCompatibility } from "./compatibility.mjs";
 import { diagnostic } from "./diagnostics.mjs";
 import { readChangePlan, validateChangePlan } from "./change-plan.mjs";
+import { globToRegExp } from "./glob.mjs";
+
+export { globToRegExp };
 
 export const CLASS_RANK = { content: 1, behavior: 2, security: 3 };
-
-export const globToRegExp = (glob) => {
-  let source = "^";
-  for (let index = 0; index < glob.length; index += 1) {
-    const character = glob[index];
-    if (character === "*" && glob[index + 1] === "*") {
-      source += ".*";
-      index += 1;
-    } else if (character === "*") source += "[^/]*";
-    else if (character === "?") source += "[^/]";
-    else source += character.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-  }
-  return new RegExp(`${source}$`);
-};
 
 export const changedFiles = (root, baseRef) => {
   const run = (...args) => spawnSync("git", ["-C", root, ...args], { encoding: "utf8" });

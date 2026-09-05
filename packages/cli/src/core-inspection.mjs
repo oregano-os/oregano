@@ -3,7 +3,7 @@ import { join } from "node:path";
 import YAML from "yaml";
 import { diagnostic } from "./diagnostics.mjs";
 import { checkGeneratedDocumentation, inspectDocumentation } from "./docs-control.mjs";
-import { readChangePlan, REQUIRED_ARCHITECTURE_MECHANISMS, validateChangePlan } from "./change-plan.mjs";
+import { CURRENT_CHANGE_PLAN_VERSION, readChangePlan, REQUIRED_ARCHITECTURE_MECHANISMS, validateChangePlan } from "./change-plan.mjs";
 import { CLASS_RANK, changedFiles, classifyFiles, globToRegExp } from "./inspection.mjs";
 
 const REQUIRED_CONTROL_PLANE = [
@@ -87,6 +87,9 @@ export function inspectCore(root, planPath, baseRef) {
   if (JSON.stringify(governance?.architecture_assessment?.existing_mechanisms) !== JSON.stringify(REQUIRED_ARCHITECTURE_MECHANISMS)) {
     diagnostics.push(diagnostic("CFIT018", "error", "The governed architecture-mechanism catalog does not match the Change Plan validator.", { file: "docs/governance/core-change-policy.yaml" }));
   }
+  if (governance?.change_plan?.current_version !== CURRENT_CHANGE_PLAN_VERSION || governance?.change_plan?.approval !== "pull-request-merge") {
+    diagnostics.push(diagnostic("CFIT020", "error", `Core governance must declare change_plan.current_version ${CURRENT_CHANGE_PLAN_VERSION} with approval 'pull-request-merge'.`, { file: "docs/governance/core-change-policy.yaml" }));
+  }
 
   const files = changedFiles(root, baseRef);
   let diffClassification = null;
@@ -118,8 +121,23 @@ export function inspectCore(root, planPath, baseRef) {
       diagnostics.push(diagnostic("CFIT007", "error", `Plan declares '${plan.change_class}', but the actual Core diff requires '${diffClassification.effective}'.`, { file: resolvedPlanPath }));
     }
     const expected = plan?.files_expected ?? [];
+    const strict = Number(plan?.version) >= 3;
     for (const file of files ?? []) {
-      if (expected.length > 0 && !expected.some((pattern) => globToRegExp(pattern).test(file))) diagnostics.push(diagnostic("CFIT008", "warning", "Changed Core file is not listed in files_expected.", { file }));
+      if (expected.length > 0 && !expected.some((pattern) => globToRegExp(pattern).test(file))) {
+        diagnostics.push(diagnostic("CFIT008", strict ? "error" : "warning", "Changed Core file is not listed in files_expected.", {
+          file,
+          ...(strict ? { hint: "Version 3 plans must name every changed path; add it to files_expected or leave it out of this change." } : {}),
+        }));
+      }
+    }
+    if (plan?.proposal === true) {
+      const implementation = (files ?? []).filter((file) => !/^\.oregano\/changes\//.test(file) && !/^docs\//.test(file));
+      if (implementation.length > 0) {
+        diagnostics.push(diagnostic("CFIT019", "error", "A proposal Change Plan describes future work and may travel only with plan and documentation files.", {
+          file: resolvedPlanPath,
+          hint: `Remove 'proposal: true' when the implementation ships, or split the implementation into its own pull request. Implementation files found: ${implementation.slice(0, 5).join(", ")}${implementation.length > 5 ? ", …" : ""}.`,
+        }));
+      }
     }
     diagnostics.push(...inspectCoreDocumentationImpact(files, plan, documentation, governance));
   } else if (diffClassification?.effective && ["behavior", "security"].includes(diffClassification.effective)) {

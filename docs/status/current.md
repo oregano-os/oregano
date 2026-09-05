@@ -790,12 +790,19 @@ evidence, historical prototypes, and production gaps.
   security checks, onboarding, Package inspection, and Instance artifact
   builds. Its repository release candidate is `0.1.0-experimental.15`; no
   public package release is claimed.
-- Newly generated Change Plans use version 2 and fail closed unless they record
-  the Core, Package or Blueprint, Workspace, and Instance responsibility split;
-  review the governed catalog of existing Resolver, Records, authority, timer,
-  effect, Capability, and Connector mechanisms; preserve company-neutral Core
-  and synthetic public fixtures; and explain Core reusability. Historical
-  version 1 plans dated on or before 2026-08-31 remain valid evidence.
+- Newly generated Change Plans use version 3. They carry no status and no
+  approvals: the pull request that carries a plan is its approval and its
+  merge through the required check is the implementation record. A Core
+  behavior or security plan records the Core, Package or Blueprint,
+  Workspace, and Instance responsibility split, lists only the governed
+  mechanisms it extends (every other mechanism is reused by definition),
+  names new Core mechanisms, preserves company-neutral Core and synthetic
+  public fixtures, and explains Core reusability. Inspection now fails closed
+  when a changed file is missing from `files_expected`, when a catch-all glob
+  is used, when a listed test file does not exist, or when a `proposal: true`
+  plan travels with implementation files. Historical version 1 plans dated on
+  or before 2026-08-31 and version 2 plans dated on or before 2026-09-05
+  remain valid evidence and are not rewritten.
 - Codex and Claude Code now share one plugin-free
   `INSTALL-COMPANYOS.md` Release runbook with `BOOTSTRAP_FOR_AGENTS.md` as a
   compatibility entrypoint. `companyos create workspace` supports interactive
