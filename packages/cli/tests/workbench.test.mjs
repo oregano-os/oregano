@@ -7,7 +7,9 @@ import { test } from "node:test";
 import YAML from "yaml";
 import { checkGeneratedDocumentation, inspectDocumentation } from "../src/docs-control.mjs";
 import {
-  changePlanTemplate,
+  changePlanTemplateV2 as changePlanTemplate,
+  changePlanTemplate as changePlanTemplateV3,
+  isCatchAllGlob,
   REQUIRED_ARCHITECTURE_MECHANISMS,
   validateChangePlan,
   writeChangePlan,
@@ -591,24 +593,131 @@ test("behavior Change Plans require approval, docs impact, and rollback", () => 
   }
 });
 
-test("new Change Plans generate the complete version 2 architecture review", () => {
+test("new Change Plans generate the compact version 3 template without status or approvals", () => {
   const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-plan-generate-"));
   try {
     const corePath = join(temporaryRoot, "core.yaml");
     writeChangePlan(corePath, "core");
     const core = YAML.parse(readFileSync(corePath, "utf8"));
-    assert.equal(core.version, 2);
+    assert.equal(core.version, 3);
     assert.equal(core.placement, "core");
-    assert.equal(core.architecture_assessment.boundary_assertions.public_fixtures, "synthetic-only");
-    assert.deepEqual(
-      core.architecture_assessment.existing_mechanisms.map((entry) => entry.mechanism),
-      REQUIRED_ARCHITECTURE_MECHANISMS,
-    );
+    assert.equal(core.architecture.boundary_assertions.public_fixtures, "synthetic-only");
+    assert.deepEqual(core.architecture.mechanisms_extended, []);
+    for (const removed of ["status", "author", "approvals", "required_approvals", "validation", "vision_principles_affected", "architecture_assessment"]) {
+      assert.equal(core[removed], undefined, `version 3 template must not carry '${removed}'`);
+    }
 
     const workspacePath = join(temporaryRoot, "workspace.yaml");
     writeChangePlan(workspacePath, "workspace");
     const workspace = YAML.parse(readFileSync(workspacePath, "utf8"));
-    assert.equal(workspace.architecture_assessment.boundary_assertions.public_fixtures, "not-applicable");
+    assert.equal(workspace.architecture.boundary_assertions.public_fixtures, "not-applicable");
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+const completeV3 = (overrides = {}) => ({
+  ...structuredClone(changePlanTemplateV3),
+  plan_id: "cp-v3",
+  created: "2026-09-05",
+  title: "Add a reusable mechanism",
+  objective: "Prove version 3 enforcement.",
+  non_goals: ["Change company policy."],
+  placement: "core",
+  change_class: "behavior",
+  files_expected: ["packages/cli/src/change-plan.mjs", "packages/cli/tests/workbench.test.mjs"],
+  tests: ["packages/cli/tests/workbench.test.mjs"],
+  documentation_impact: { required: true, affected_documents: ["guide.plan-change"], reason_if_none: "" },
+  architecture: {
+    placement: { core: "Validate plans.", packages: "No change.", workspace: "No change.", instance: "No change." },
+    mechanisms_extended: [],
+    new_core_mechanisms: [],
+    boundary_assertions: { company_values_in_core: false, secrets_in_git: false, public_fixtures: "synthetic-only" },
+    core_reusability: "The validator is company neutral.",
+  },
+  rollback: "Revert the change.",
+  ...overrides,
+});
+
+test("Change Plan version 3 rejects status, approvals, catch-all globs, unknown fields, and missing tests", () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-plan-v3-"));
+  mkdirSync(join(temporaryRoot, ".oregano", "changes"), { recursive: true });
+  mkdirSync(join(temporaryRoot, "packages", "cli", "tests"), { recursive: true });
+  writeFileSync(join(temporaryRoot, "packages", "cli", "tests", "workbench.test.mjs"), "// fixture test file\n");
+  const path = join(temporaryRoot, ".oregano", "changes", "plan.yaml");
+  const check = (plan) => { writeFileSync(path, YAML.stringify(plan)); return validateChangePlan(path); };
+  try {
+    assert.deepEqual(check(completeV3()), []);
+
+    const withApprovals = { ...completeV3(), status: "approved", approvals: [{ role: "oregano-maintainer" }] };
+    const approvalCodes = check(withApprovals).map((item) => item.code);
+    assert.equal(approvalCodes.filter((code) => code === "PLAN030").length, 2);
+
+    assert.ok(check({ ...completeV3(), validation: ["pnpm check"] }).some((item) => item.code === "PLAN030"));
+
+    assert.ok(check(completeV3({ files_expected: ["packages/**"] })).some((item) => item.code === "PLAN032"));
+    assert.ok(check(completeV3({ files_expected: ["**"] })).some((item) => item.code === "PLAN032"));
+    assert.deepEqual(check(completeV3({ files_expected: ["packages/cli/**"] })), []);
+    assert.ok(isCatchAllGlob("docs/**"));
+    assert.ok(!isCatchAllGlob("packages/runtime/workflow-engine/**"));
+
+    assert.ok(check(completeV3({ tests: ["packages/cli/tests/does-not-exist.test.mjs"] })).some((item) => item.code === "PLAN031"));
+    assert.ok(check(completeV3({ tests: [] })).some((item) => item.code === "PLAN031"));
+    assert.deepEqual(check(completeV3({ tests: ["packages/cli/tests/*.test.mjs"] })), []);
+
+    const proposal = completeV3({ proposal: true, tests: ["packages/testkit/tests/future-engine.test.ts"] });
+    assert.deepEqual(check(proposal), []);
+    assert.ok(check(completeV3({ proposal: false })).some((item) => item.code === "PLAN034"));
+
+    const extended = completeV3();
+    extended.architecture.mechanisms_extended = [{ mechanism: "timers-and-business-time", reason: "Generic schedule triggers." }];
+    assert.deepEqual(check(extended), []);
+    extended.architecture.mechanisms_extended.push({ mechanism: "timers-and-business-time", reason: "duplicate" });
+    assert.ok(check(extended).some((item) => item.code === "PLAN016"));
+    extended.architecture.mechanisms_extended = [{ mechanism: "made-up", reason: "x" }];
+    assert.ok(check(extended).some((item) => item.code === "PLAN018"));
+    extended.architecture.mechanisms_extended = [{ mechanism: "company-records" }];
+    assert.ok(check(extended).some((item) => item.code === "PLAN017"));
+
+    const misplaced = completeV3({ placement: "workspace" });
+    misplaced.architecture.new_core_mechanisms = ["A misplaced Core mechanism."];
+    misplaced.architecture.boundary_assertions.public_fixtures = "not-applicable";
+    assert.ok(check(misplaced).some((item) => item.code === "PLAN020"));
+
+    const content = completeV3({ change_class: "content", tests: [] });
+    delete content.architecture;
+    assert.deepEqual(check(content), []);
+
+    const missingArchitecture = completeV3();
+    delete missingArchitecture.architecture;
+    assert.ok(check(missingArchitecture).some((item) => item.code === "PLAN014"));
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test("version 2 Change Plans are historical after the version 3 cutoff", () => {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), "companyos-plan-v2-cutoff-"));
+  const path = join(temporaryRoot, "change-plan.yaml");
+  try {
+    const plan = structuredClone(changePlanTemplate);
+    Object.assign(plan, {
+      plan_id: "CP-V2-LATE",
+      author: "alice",
+      created: "2026-09-06",
+      title: "Late version 2 plan",
+      objective: "Prove the cutoff.",
+      placement: "core",
+      change_class: "behavior",
+      required_approvals: ["oregano-maintainer"],
+      validation: ["companyos plan --check"],
+      tests: ["architecture assessment fixture"],
+      rollback: "Revert the change.",
+    });
+    plan.documentation_impact.affected_documents = ["guide.plan-change"];
+    plan.architecture_assessment = completeArchitectureAssessment("core");
+    writeFileSync(path, YAML.stringify(plan));
+    assert.ok(validateChangePlan(path).some((item) => item.code === "PLAN013"));
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });
   }

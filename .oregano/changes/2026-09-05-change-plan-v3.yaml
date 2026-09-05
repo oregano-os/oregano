@@ -1,0 +1,63 @@
+version: 3
+plan_id: change-plan-v3-2026-09-05
+created: "2026-09-05"
+title: Make the Change Plan small and let its pull request be the approval
+objective: >-
+  Replace the version 2 Change Plan contract with a compact version 3 that
+  records no status and no approvals, lists only extended or new mechanisms,
+  and makes three declarations enforceable: every changed file must match
+  files_expected, every listed test must be a real test file, and a proposal
+  plan may travel only with plan and documentation files. The pull request
+  that carries a plan is its approval; its merge is the implementation record.
+non_goals:
+  - Rewrite or revalidate the 98 historical version 1 and version 2 plans.
+  - Change what a Core Change Plan is required for, or the maintainer review mode.
+  - Add repository automation that edits plan files after a merge.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-change-plan-v3.yaml
+  - .oregano/changes/2026-09-05-workflow-engine-foundation.yaml
+  - docs/_generated/architecture-index.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/validation-and-inspection.md
+  - docs/governance/core-change-policy.yaml
+  - docs/status/current.md
+  - docs/workbench/commands/plan.md
+  - docs/workbench/guides/plan-a-change.md
+  - packages/cli/content/guides/plan-a-change.md
+  - packages/cli/src/change-plan.mjs
+  - packages/cli/src/core-inspection.mjs
+  - packages/cli/src/glob.mjs
+  - packages/cli/src/inspection.mjs
+  - packages/cli/tests/workbench.test.mjs
+tests:
+  - packages/cli/tests/workbench.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.validation-inspection
+    - command.plan
+    - guide.plan-change
+    - status.current
+architecture:
+  placement:
+    core: Owns the Change Plan schema, validator, template, and Core inspection rules.
+    packages: No change.
+    workspace: Company Workspaces inherit the same version 3 template for .companyos/changes; their governance files are unchanged.
+    instance: No change.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The plan contract is company neutral and applies identically to Core and
+    to every Company Workspace; no company value, provider, or person enters
+    the validator.
+rollback: >-
+  Revert this pull request. Version 3 plans already merged remain readable by
+  the reverted validator only if it is taught to ignore them; therefore revert
+  before merging any other version 3 plan, or forward-fix instead.
