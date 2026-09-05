@@ -266,3 +266,39 @@ conflicting parameters fail. Evaluation is bounded and never activates a
 calendar. The durable engine must persist each selected instant and timer.
 Memory and Postgres timer identity both compare canonical JSON payloads and
 include timer kind, so key reordering cannot cause a false conflict.
+
+## Implemented durable state foundation
+
+The generic execution store retains complete starting Artifacts, immutable run
+opening inputs, step/item outputs, finite decisions, waits and exact delivered
+conversation assignments. It extends `companyos.workflow_runs` and its event
+chain; mutable execution snapshots and retained Artifacts stay in the existing
+`companyos` control schema. Reconstructing a store never replaces a run's
+Artifact with the current deployment. Run IDs bind Instance, workflow and a
+stable opening key. The engine must derive scheduled opening keys from declared
+instance fields and keep an explicit operator request identity for independent
+runs. Reusing an opening key with changed inputs fails.
+
+A worker holds an expiring lease for at most five minutes. State commits require
+the same current lease and optimistic revision, retain completed outputs and
+decision bindings, append an event, and bind delivered conversations atomically.
+A conflicting conversation assignment rolls back the entire transition. Exact
+account/channel/thread identity is required; private assignments additionally
+require the bound subject. Expired or terminal-run assignments do not authorize
+conversation context. The host still has to wire authenticated transport reads.
+
+Cancellation and the transition to provider dispatch lock the same execution
+row. A cancelled run, stale lease, changed step or blocked state cannot start a
+new Tool effect. The final check also uses current database time, so a worker
+cannot retain an old timestamp past its lease. An effect whose dispatch already
+won the lock remains in flight and keeps its receipt; cancellation cannot undo
+an external call that has begun. Subsequent dispatch is refused. Historical
+rows, receipts and assignments are retained.
+
+Database manifest `2.0.0` adds these control tables, indexes and constraints.
+The `1.9.0` manifest retains its exact old digest. Mandatory Postgres tests
+exercise concurrent leases, JSONB redelivery, atomic assignment refusal,
+cancellation/dispatch races and the actual Runtime's refusal when cancellation
+lands between effect claim and dispatch. These tests position generic state
+explicitly; the complete step interpreter, scheduling/decision delivery and
+end-to-end fictional workflow acceptance remain subsequent implementation.

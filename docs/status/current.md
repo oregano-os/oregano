@@ -20,6 +20,15 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Generic workflow persistence retains historical Artifacts, immutable openings,
+  step/decision state and exact conversation bindings in the existing control
+  schema. Optimistic commits, events and assignments are atomic. Dispatch and
+  cancellation share an execution lock, with current lease/time checks.
+  Additive database manifest `2.0.0` preserves the old `1.9.0` identity.
+  Memory and required Postgres tests cover these boundaries; the full step
+  interpreter, hosted assignment/decision delivery and real acceptance remain
+  pending. No production database has been migrated by this development work.
+
 - Generic workflow calendars evaluate holiday-shifted triggers, opaque variant
   parameters, business-day approval/wait deadlines and delivery windows.
   Tests cover daylight saving, long weekends, absent calendar years, shifted

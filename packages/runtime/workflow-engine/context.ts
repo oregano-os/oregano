@@ -1,3 +1,4 @@
+import type { WorkflowDispatchFence } from "../../state-store/interface.ts";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import type { RosterMember } from "../../state-store/roster.ts";
 
@@ -29,6 +30,7 @@ export interface WorkflowInvocationContext extends WorkflowReferenceContext {
   itemKey?: string | number;
   decisions: Record<string, WorkflowDecisionEvidence>;
   currentRoster: RosterMember[];
+  dispatchFence?: WorkflowDispatchFence;
 }
 
 export interface WorkflowContextReader {

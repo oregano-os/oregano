@@ -2,7 +2,7 @@ import { approvalIsUnexpired } from "./approval-validity.ts";
 // Generic R-gated action orchestration. Presentation surfaces transport a
 // decision, while this Core path owns identity, authorization, stale-input
 // protection, atomic approval consumption, effect claiming, and evidence.
-import type { StateStore } from "./interface.ts";
+import type { StateStore, WorkflowDispatchFence } from "./interface.ts";
 import { authorizeApproval, authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "./roster.ts";
 import { CapabilityEffectOutcomeUnknownError } from "../capabilities/contracts.ts";
 
@@ -25,6 +25,7 @@ export async function executeApprovedAction(args: {
   inputHash: string;
   /** Trusted caller may provide the stable workflow run/step/item identity. */
   idempotencyKey?: string;
+  dispatchFence?: WorkflowDispatchFence;
   eventName: string; // e.g. 'lp.published'
   payload?: unknown;
   /** Runs exactly once after the atomic claim; returns the evidence. */
@@ -135,7 +136,7 @@ export async function executeApprovedAction(args: {
     return { ok: false, duplicate: true, reason: "This action was already executed (idempotency key held)." };
   }
 
-  if (!await store.markEffectDispatched(idempotencyKey)) throw new Error("Effect dispatch claim is no longer eligible.");
+  if (!await store.markEffectDispatched(idempotencyKey, args.dispatchFence)) throw new Error("Effect dispatch claim is no longer eligible.");
   let evidence: unknown;
   try {
     evidence = await effect({ approvalId, idempotencyKey, principal: auth.principal });

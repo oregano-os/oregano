@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners: [oregano-maintainers]
 audience: [human, agent]
 ---
@@ -46,3 +46,12 @@ database cases without a local database; it cannot satisfy this separate gate.
 This is real database and store evidence, not a hosted Neon qualification or
 workflow-engine acceptance. The deployed Instance still needs its exact
 database profile qualification, Workflow acceptance, and human decisions.
+
+The required suite also runs generic workflow persistence against the actual
+Neon HTTP driver and Postgres. It verifies pinned Artifact reconstruction,
+canonical opening redelivery, competing and expired leases, atomic assignment
+conflict rollback, private conversation identity, cancellation fencing and an
+actual Runtime invocation cancelled after its effect claim but before provider
+dispatch. These are state/Runtime boundary tests; full workflow interpreter and
+hosted human acceptance are separate gates. Synthetic test clocks and state
+positioning do not count as real human approval or an elapsed pilot period.

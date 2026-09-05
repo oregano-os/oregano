@@ -58,6 +58,15 @@ export interface DecisionInput {
   decision: "approved" | "rejected";
 }
 
+/** Trusted workflow lease checked atomically with the transition to provider dispatch. */
+export interface WorkflowDispatchFence {
+  instanceId: string;
+  runId: string;
+  stepId: string;
+  leaseToken: string;
+  now: string;
+}
+
 export interface StateStore {
   ensureRun(meta: RunMeta): Promise<void>;
   getRun(runId: string): Promise<Record<string, unknown> | undefined>;
@@ -108,7 +117,7 @@ export interface StateStore {
     inputHash: string;
   }): Promise<boolean>;
 
-  markEffectDispatched(idempotencyKey: string): Promise<boolean>;
+  markEffectDispatched(idempotencyKey: string, fence?: WorkflowDispatchFence): Promise<boolean>;
   completeEffect(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectFailed(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectUnknown(idempotencyKey: string, evidence: unknown): Promise<void>;
