@@ -1,0 +1,46 @@
+version: 3
+plan_id: workflow-publication-receipts-2026-09-06
+created: "2026-09-06"
+title: Bind workflow reply receipts to the requested destination and thread
+objective: >-
+  Reject mismatched publication receipts before completing a message step or
+  allowing dependent effects, including replies that create no new assignment.
+non_goals:
+  - Retry a provider effect to repair its receipt or move a message to another audience.
+  - Claim provider acceptance or remove the legacy parity gate.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-publication-receipts.yaml
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/fixtures/workflow-publication-receipts.test.ts
+  - packages/testkit/tests/workflow-publication-receipts.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-publication-receipts.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Validate requested and returned publication identity before workflow progress.
+    packages: Reuse the maintained communication publication contract without schema changes.
+    workspace: Existing declared message sequence and audience remain authoritative.
+    instance: Preserve the original effect receipt and stop for review on mismatch.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Apply the existing publication receipt boundary to replies before the assignment early return.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every workflow publication keeps its destination and existing conversation identity without business-specific checks.
+rollback: Retain blocked runs and provider evidence; never resend to repair a receipt. Reverting enforcement requires review of affected unresolved effects.

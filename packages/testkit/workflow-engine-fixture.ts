@@ -29,7 +29,7 @@ export function engineArtifact(instanceId = `engine-${randomUUID()}`, workspaceR
  * Every publish and batch call counts: the provider deliberately has no deduplication.
  * Synthetic coverage below is test input, not a Slack/Monday qualification claim.
  */
-export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; batchConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
+export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; batchConnector?: Connector; publicationConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
   const artifact = options.artifact ?? engineArtifact(), memory = new InMemoryWorkflowExecutionStore();
   const store = options.store ?? memory, control = options.control ?? memory.control, timerStore = options.timerStore ?? new InMemoryDurableTimerStore();
   const timers = new DurableTimerService({ store: timerStore, instanceId: artifact.instance.id });
@@ -57,6 +57,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
         source_proofs: [{ source_id: "synthetic-test-source", source_digest: sha256(rows), run_id: "synthetic-sync", synced_through: instant, watermark: "synthetic-only" }],
         access_decision: { allowed: true, projection_id: input.projection_id, principal_id: ENGINE_OPERATOR, policy_digest: "synthetic-test-policy", reason: "role-allowed", decided_at: fixture.now } }, evidence: { synthetic: true } };
     }
+    if (capability === "communication.message.publish" && options.publicationConnector) return options.publicationConnector.invoke(capability, input, context);
     if (capability === "communication.message.publish" && fixture.unknownPublication) throw new CapabilityEffectOutcomeUnknownError("Synthetic publication outcome unknown", { synthetic: true });
     if (capability === "communication.message.publish") return { output: { destination_binding: input.destination_binding, message_id: `message-${fixture.calls.length}`, published_at: fixture.now,
       ...(fixture.missingThread ? {} : { thread_reference: input.thread_reference ?? `thread-${fixture.calls.length}` }) }, evidence: { synthetic: true, receipt: fixture.calls.length } };

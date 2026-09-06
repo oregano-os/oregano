@@ -353,7 +353,11 @@ uses a fresh lease-bound context reader for the ordinary CompanyOSRuntime;
 Company Tools still execute in their existing restricted sandbox. Completed
 scalar outputs and typed-key item receipts are immutable. A worker can finish
 one item, restart and continue with the remaining items. Missing required
-publication proof blocks the step while retaining the completed effect. An
+publication proof blocks the step while retaining the completed effect. Every
+publication receipt must match its requested destination. A reply must also
+return the exact requested thread, even though it creates no new conversation
+assignment. A mismatched receipt stops dependent steps and remains retained;
+operator resume cannot repair it by resending the message. An
 unknown, failed or claimed effect cannot be retried by operator resume; it
 requires explicit reconciliation. Successful effects recover their existing
 receipt without a provider call. A read failure with no effect can resume.
