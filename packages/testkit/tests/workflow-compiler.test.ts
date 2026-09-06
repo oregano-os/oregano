@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import YAML from "yaml";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import { compileWorkflows } from "../../companyos-builder/workflow-compiler.ts";
+import { validateWorkflowFiles } from "../../companyos-builder/workflow-authoring.ts";
 import { readWorkspaceFiles, workspaceDocument } from "../../companyos-builder/workspace-files.ts";
 import { loadCompanyWorkspace, loadCompanyTool } from "../../companyos-builder/workspace-loader.ts";
 import { CORE_CAPABILITY_CATALOG } from "../../capabilities/catalog.ts";
@@ -33,6 +34,60 @@ const editWorkflow = (files: Record<string, string>, change: (declaration: any) 
 const artifact = build();
 const provenance = artifact.workflows![0]!.provenance;
 const compile = (files: Record<string, string>, agents = artifact.agents) => compileWorkflows({ files, agents, provenance });
+
+const unrelatedSchedule = YAML.stringify({
+  version: 1, timezone: "Europe/Berlin", notes: "Independent Records polling metadata",
+  triggers: [{ id: "records-poll", source: "message-source", every_minutes: 5 }],
+});
+
+test("prose Workspaces do not acquire executable calendar requirements", () => {
+  const files = { ...readWorkspaceFiles(resolve(import.meta.dirname, "../fixtures/acme-casas")), "schedules/records-poll.yaml": unrelatedSchedule };
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  assert.deepEqual(compile(files), []);
+});
+
+test("unrelated scheduling metadata does not change compiled workflow manifests", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  const baseline = compile(files);
+  files["schedules/records-poll.yaml"] = unrelatedSchedule;
+  files["schedules/unclassified.yaml"] = "notes: Reserved for another scheduling contract\n";
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  assert.deepEqual(compile(files), baseline);
+});
+
+test("explicitly referenced calendars must satisfy the complete calendar schema", () => {
+  const files: Record<string, string> = { ...readWorkspaceFiles(fixture), "schedules/selected.yaml": unrelatedSchedule };
+  editWorkflow(files, (data) => { data.calendar = "schedules/selected.yaml"; });
+  assert.throws(() => compile(files), /selected.yaml.*business_days/);
+  files["schedules/selected.yaml"] = "triggers: null\n";
+  assert.throws(() => compile(files), /selected.yaml.*triggers/);
+  delete files["schedules/selected.yaml"];
+  assert.throws(() => compile(files), /calendar must name a declared schedule file/);
+});
+
+test("a wait selects its own calendar and rejects missing or malformed declarations", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  const calendar = YAML.parse(files["schedules/sprint-rhythm.yaml"]!);
+  calendar.triggers = [{ ...calendar.triggers[0], id: "separate-wake" }];
+  files["schedules/other-calendar.yaml"] = YAML.stringify(calendar);
+  editWorkflow(files, (data) => { data.steps.find((step: any) => step["await-chase"]).for = "schedule:separate-wake"; });
+  const close = compile(files).find((workflow) => workflow.id === "friday-close")!;
+  assert.deepEqual(close.steps.find((step) => step.id === "await-chase")!.wait, { triggerId: "separate-wake", schedulePath: "schedules/other-calendar.yaml" });
+  assert.deepEqual(close.schedules.map((entry) => entry.path), ["schedules/other-calendar.yaml", "schedules/sprint-rhythm.yaml"]);
+  delete calendar.business_days;
+  files["schedules/other-calendar.yaml"] = YAML.stringify(calendar);
+  assert.throws(() => compile(files), /other-calendar.yaml.*business_days/);
+  delete files["schedules/other-calendar.yaml"];
+  assert.throws(() => compile(files), /wait names an undeclared trigger/);
+});
+
+test("competing calendar triggers and unreadable discovery candidates fail closed", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  files["schedules/duplicate.yaml"] = files["schedules/sprint-rhythm.yaml"]!;
+  assert.throws(() => compile(files), /ambiguous across schedules/);
+  files["schedules/duplicate.yaml"] = "triggers: [\n";
+  assert.throws(() => compile(files), /Flow sequence/);
+});
 
 test("complete fixture builds four workflows; full close manifest matches reviewed expectation", () => {
   assert.equal(artifact.workflows!.length, 4);

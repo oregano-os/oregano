@@ -1157,3 +1157,11 @@ field mappings fail before work-item access. Qualification metadata survives
 success and uncertain outcomes. Six synthetic tests exercise the actual hosted
 factory and client. Actual test credentials still require their real resource
 qualification; no live provider acceptance or production change is claimed.
+
+Workflow calendar discovery now scopes executable validation to declared
+opening/wait triggers and explicit calendar paths. Five synthetic regressions
+cover prose-only Workspaces, unrelated Records scheduling metadata, explicit
+and wait-selected calendars, missing declarations and ambiguous/unreadable
+candidates. Other scheduling metadata no longer changes compiled manifests or
+acquires executable calendar fields. This correction enables migration
+preflight; it does not activate an operating workflow.

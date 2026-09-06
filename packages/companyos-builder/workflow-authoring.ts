@@ -87,6 +87,25 @@ export function validateWorkflowAuthoring(dir: string): string[] {
   return validateWorkflowFiles(readWorkspaceFiles(dir));
 }
 
+/** Select by declared workflow references, not by company-specific filenames. */
+export function workflowSchedules(files: WorkspaceFiles, declarations: any[]): { path: string; data: any }[] {
+  if (!declarations.length) return [];
+  const paths = new Set(declarations.map((data) => data?.calendar).filter((path) => typeof path === "string"));
+  const triggers = new Set<string>();
+  const selectTrigger = (value: unknown): void => {
+    if (typeof value === "string" && value.startsWith("schedule:")) triggers.add(value.slice(9));
+  };
+  for (const data of declarations) {
+    selectTrigger(data?.trigger);
+    for (const step of Array.isArray(data?.steps) ? data.steps : []) selectTrigger(step?.for);
+  }
+  // Parse every candidate for unambiguous discovery. Invalid YAML cannot hide a
+  // competing trigger. Other scheduling schemas are not executable calendars.
+  return workspacePaths(files, "schedules", /\.ya?ml$/)
+    .map((path) => ({ path, data: YAML.parse(workspaceFile(files, path)) }))
+    .filter(({ path, data }) => paths.has(path) || (Array.isArray(data?.triggers) && data.triggers.some((trigger: any) => triggers.has(trigger?.id))));
+}
+
 export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   ajv.addFormat("date-time", (value: string) => { try { recordInstant(value, "Workflow timestamp"); return true; } catch { return false; } });
@@ -135,9 +154,11 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
     }
     return { type: "array", items: { type: "object", required: ["record_id", "values"], properties: { record_id: { type: "string" }, values: { type: "object", additionalProperties: false, required, properties } } } };
   };
-  const scheduleFiles = workspacePaths(files, "schedules", /\.ya?ml$/);
-  const schedules: any[] = scheduleFiles.map((path) => ({ path, data: YAML.parse(workspaceFile(files, path)) }));
+  const parsed = workspacePaths(files, "workflows", /\.md$/).map((path) => ({ f: path, ...workspaceDocument(files, path) })).filter((doc) => doc.data?.steps !== undefined);
+  if (!parsed.length) return errors;
+  const schedules = workflowSchedules(files, parsed.map((doc) => doc.data));
   for (const entry of schedules) validateSchedule(entry.data, entry.path, err);
+  if (errors.length) return errors;
   const triggerOwners = new Map<string, string>();
   for (const entry of schedules) for (const trigger of entry.data.triggers ?? []) {
     if (triggerOwners.has(trigger.id) && triggerOwners.get(trigger.id) !== entry.path) err(entry.path, `Trigger ${trigger.id} is ambiguous across schedules`);
@@ -146,8 +167,6 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
   const schedule = { triggers: schedules.flatMap((entry) => entry.data.triggers ?? []) };
   const triggerParams = new Map<string, Set<string>>();
   for (const trigger of schedule.triggers) triggerParams.set(trigger.id, new Set(Object.keys(trigger.params ?? {})));
-  const parsed = workspacePaths(files, "workflows", /\.md$/).map((path) => ({ f: path, ...workspaceDocument(files, path) })).filter((doc) => doc.data?.steps !== undefined);
-  if (!parsed.length) return errors;
   const idsSeen = new Set<string>();
   for (const { f, data } of parsed) {
     const schemaIssues = validateJsonSchemaValue(loadSchema("workflow-steps-v1.schema.json"), data);
