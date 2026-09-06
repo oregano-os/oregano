@@ -1,0 +1,42 @@
+version: 3
+plan_id: workflow-records-conformance-2026-09-06
+created: "2026-09-06"
+title: Verify ordinary workflows through the maintained Records pipeline
+objective: >-
+  Exercise source normalization, exact roster identity resolution, text parsing,
+  complete current scans, access decisions and retained provenance through the
+  ordinary engine before retiring equivalent legacy tests.
+non_goals:
+  - Change runtime behavior, company policy or provider access.
+  - Claim live source qualification or remove legacy execution before acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-records-conformance.yaml
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/fixtures/workflow-records-conformance.test.ts
+  - packages/testkit/tests/workflow-records-conformance.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-records-conformance.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse the compiler, engine, Records service, normalization and Connector.
+    packages: No Package or Connector behavior changes.
+    workspace: Company declarations and parsing rules come from a copied fictional fixture.
+    instance: Synthetic source inventories and in-memory stores; no live provider calls.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: The existing engine test helper can use the maintained Records Connector and service.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every workflow consuming Records uses the same identity, access and provenance boundaries.
+rollback: Revert the added tests and optional test-helper injection; runtime behavior is unchanged.
