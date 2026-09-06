@@ -19,6 +19,7 @@ import { workflowAssignmentKey, workflowInstant, workflowOriginDigest, workflowR
 import { workflowEffectReview } from "./effect-review.ts";
 import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 import { verifyCompletedWorkflow } from "./verification.ts";
+import type { WorkflowVerificationRequirement } from "./verification-requirements.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -434,13 +435,13 @@ export class WorkflowEngine {
   }
 
   /** Historical evidence only; this never resumes, claims, repairs or dispatches. */
-  async verify(runId: string, principal: string) {
+  async verify(runId: string, principal: string, requirements?: readonly WorkflowVerificationRequirement[]) {
     await this.#operator(principal);
     const run = await this.#options.store.read(this.#artifact.instance.id, runId);
     if (!run) throw new Error("Workflow run is unavailable in this Instance");
     const artifact = await this.#options.store.getArtifact(run.artifactHash);
     if (!artifact) throw new Error("Workflow historical Artifact is unavailable");
-    return verifyCompletedWorkflow({ artifact, run, control: this.#options.control });
+    return verifyCompletedWorkflow({ artifact, run, control: this.#options.control, requirements });
   }
 
   /** One effect per page keeps review bounded even for large keyed collections. */

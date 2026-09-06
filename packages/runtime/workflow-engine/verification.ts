@@ -8,6 +8,7 @@ import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, wor
 import { renderWorkflowDecisionNotice } from "./decision-notice.ts";
 import { workflowContext } from "./readers.ts";
 import { resolveWorkflowValue, workflowItems, valueAt } from "./references.ts";
+import { parseWorkflowVerificationRequirements, type WorkflowVerificationRequirement } from "./verification-requirements.ts";
 
 const object = (value: unknown): Record<string, any> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
 const field = (value: Record<string, any>, camel: string, snake: string) => value[camel] ?? value[snake];
@@ -15,8 +16,9 @@ const text = (value: unknown): value is string => typeof value === "string" && v
 const hash = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 
 /** Read-only verification of retained execution evidence, never a new execution. */
-export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifact; run: WorkflowRun; control: StateStore }) {
+export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifact; run: WorkflowRun; control: StateStore; requirements?: readonly WorkflowVerificationRequirement[] }) {
   const { artifact, run, control } = args;
+  const requirements = parseWorkflowVerificationRequirements(args.requirements);
   const checks: Array<{ code: string; passed: boolean; stepId?: string }> = [];
   const receipts: Array<{ stepId: string; effectKey: string; inputDigest: string; outputDigest: string; approvalId?: string }> = [];
   const sourceProofs: Array<{ stepId: string; digest: string; requiredThrough: string; snapshotId: string;
@@ -30,7 +32,7 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
     const proof = { schemaVersion: 1, scope: "workflow-run-evidence", instanceId: run.instanceId, workflowId: run.workflowId, runId: run.runId,
       artifactHash: run.artifactHash, manifestHash: run.manifestHash, coreCommit: artifact.provenance.coreCommit,
       workspaceCommit: artifact.provenance.workspaceCommit, revision: run.revision, environment: artifact.instance.environment,
-      checks, counts: { waits, decisions, batches, effects: receipts.length, sourceProofs: sourceProofs.length },
+      requirements, checks, counts: { waits, decisions, batches, effects: receipts.length, sourceProofs: sourceProofs.length },
       approvingPrincipals: [...approvingPrincipals].sort(), syntheticEvidence, receipts, sourceProofs };
     return { ...proof, ok: checks.length > 0 && checks.every((entry) => entry.passed), evidenceDigest: sha256(proof) };
   };
@@ -175,8 +177,10 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
       }
     } catch { check("unverifiable-step-evidence", false, step.id); }
   }
-  check("required-wait", waits > 0); check("required-human-decision", decisions > 0);
-  check("required-record-source-proof", sourceProofs.length > 0); check("required-approved-batch", batches > 0);
+  if (requirements.includes("wait")) check("required-wait", waits > 0);
+  if (requirements.includes("human-decision")) check("required-human-decision", decisions > 0);
+  if (requirements.includes("record-source")) check("required-record-source-proof", sourceProofs.length > 0);
+  if (requirements.includes("approved-batch")) check("required-approved-batch", batches > 0);
   const uniqueEffects = new Set(receipts.map((receipt) => receipt.effectKey));
   const approvals = receipts.flatMap((receipt) => receipt.approvalId ? [receipt.approvalId] : []);
   check("distinct-effect-and-approval-identities", uniqueEffects.size === receipts.length && new Set(approvals).size === approvals.length);
