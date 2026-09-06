@@ -115,7 +115,7 @@ const slackConfiguration = (): CompanyRecordsRehearsalConfiguration => {
       source_id: "fixture-conversation",
       resource_binding: "fixture-channel",
       connector: "oregano/slack-record-source",
-      connector_version: "0.1.2",
+      connector_version: "0.1.3",
       secret_ref: "env:SLACK_BOT_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
       configuration: {
@@ -171,7 +171,7 @@ test("hosted Records freezes roster evidence and selects projections by explicit
   value.projections[0].source_ids = ["fixture-conversation"];
   value.bindings[0].qualification = { kind: "slack-record-source-qualification", phase: "complete", evidence: { discovery: {
     discovery_hash: "d".repeat(64), authentication_mode: "bot-token", credentials_retained: false,
-    team_id: "T12345", channel: { id: "C12345", kind: "public-channel", is_member: true }, scopes: ["channels:history", "channels:read"],
+    team_id: "T12345", bot_user_id: "U99999", channel: { id: "C12345", kind: "public-channel", is_member: true }, scopes: ["channels:history", "channels:read"],
   } } };
   const decoded = decodeCompanyRecordsRehearsalConfiguration(gzipSync(Buffer.from(JSON.stringify(value))).toString("base64"));
   assert.equal(decoded.roster_markdown, value.roster_markdown);

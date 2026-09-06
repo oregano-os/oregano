@@ -5,6 +5,9 @@ import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
 import { normalizeRecordObject } from "../../records/normalize.ts";
 import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts";
 import type { CompanyRecordSourceBinding } from "../../records/source-connector.ts";
+import { CompanyRecordsRegistry } from "../../records/registry.ts";
+import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
+import { synchronizeRecordSnapshot } from "../../records/synchronization.ts";
 
 const source: CompanyRecordSourceDeclaration = {
   schema_version: 1, id: "assignments", connection: "connections/board.md", resource_binding: "delivery-board",
@@ -14,7 +17,7 @@ const source: CompanyRecordSourceDeclaration = {
 };
 const binding: CompanyRecordSourceBinding = {
   schema_version: 1, instance_id: "fixture-instance", source_id: source.id, resource_binding: source.resource_binding,
-  connector: "oregano/monday-record-source", connector_version: "0.3.2", secret_ref: "env:FIXTURE_TOKEN",
+  connector: "oregano/monday-record-source", connector_version: "0.3.3", secret_ref: "env:FIXTURE_TOKEN",
   qualification: { receipt_ref: "fixture:qualification", digest: "a".repeat(64) },
   configuration: { board_id: "200002", agent_id: "900001", api_version: "dev", permission: "read", group_ids: ["delivery"] },
 };
@@ -26,7 +29,7 @@ const board = {
 const qualification = () => ({
   kind: "monday-external-agent-qualification", phase: "complete", evidence: { discovery: {
     discovery_hash: binding.qualification.digest, authentication_mode: "external-agent", credentials_retained: false,
-    configured_agent_id: "900001", identity_mapping_status: "administrator-confirmed", identity: { externalAgentId: "900001" },
+    configured_agent_id: "900001", identity_mapping_status: "administrator-confirmed", identity: { memberId: "700007", kind: "external_agent_member", externalAgentId: "900001" },
     account: { id: "300003" }, resources: [{ scope: "board", id: "200002", permission: "read" }], boards: [structuredClone(board)],
   } },
 });
@@ -40,7 +43,11 @@ const fixture = (value: unknown) => {
   const connector = new MondayRecordSourceConnector({
     resolveSecret: () => "fixture-not-evidence", now: () => new Date("2030-01-01T12:00:00.000Z"),
     fetcher: async (_input, init) => {
-      requests.push(JSON.parse(String(init?.body)));
+      const request = JSON.parse(String(init?.body)); requests.push(request);
+      if (request.query.includes("QualifyCompanyOSExternalAgent")) return new Response(JSON.stringify({ data: {
+        me: { id: "700007", name: "Fixture Agent", kind: "external_agent_member", email: "agent-900001@agent.monday.com", account: { id: "300003", name: "Fixture Account" } },
+        boards: [board],
+      } }), { status: 200, headers: { "content-type": "application/json", "api-version": "dev", "x-request-id": "fixture-identity" } });
       return new Response(JSON.stringify({ data: { boards: [{ ...board, items_page: { cursor: null, items: [{
         id: "800001", name: "Synthetic assignment", updated_at: "2030-01-01T10:00:00.000Z", created_at: "2030-01-01T09:00:00.000Z",
         state: "active", url: "https://example.test/item/800001", board: { id: board.id }, group: { id: "delivery" },
@@ -56,15 +63,45 @@ test("Monday people evidence keeps account and assignment kind through real Reco
     { id: 1001, kind: "team" }, { id: 1001, kind: "person" }, { id: "1002", kind: "person" }, { id: 1001, kind: "person" },
   ] });
   const inventory = await connector.readCompleteInventory({ source, binding, qualification: qualification() });
-  assert.deepEqual(requests[0]!.variables.columnIds, ["owners"], "qualified principal paths must select their provider column");
+  assert.deepEqual(requests[1]!.variables.columnIds, ["owners"], "qualified principal paths must select their provider column after current identity qualification");
   assert.deepEqual(inventory.objects[0]!.people_principals, { owners: ["monday-team:300003:1001", "monday:300003:1001", "monday:300003:1002"] });
   const record = normalizeRecordObject({ instanceId: binding.instance_id, source, raw: inventory.objects[0]!, observedAt: inventory.observed_at, identities: directory });
   assert.deepEqual(record.values.owners, ["unresolved:monday-team:300003:1001", "alex", "unresolved:monday:300003:1002"]);
   assert.equal(record.source_receipt.identity_directory_digest, directory.digest);
   assert.equal(inventory.receipt.account_id, "300003");
+  assert.equal(inventory.receipt.authenticated_member_id, "700007");
+  assert.equal(inventory.receipt.authenticated_external_agent_id, "900001");
   assert.equal(inventory.synced_through, undefined);
   assert.doesNotMatch(JSON.stringify(inventory), /fixture-not-evidence/);
   assert.ok(requests.every((request) => !request.query.includes("mutation")));
+  const registry = new CompanyRecordsRegistry({ identities: directory }); registry.registerSource(source); registry.bindSource(binding, qualification());
+  const store = new InMemoryCompanyRecordsStore();
+  await synchronizeRecordSnapshot({ instanceId: binding.instance_id, source, registry, store, inventory,
+    runId: "qualified-read", leaseOwner: "worker", leaseToken: "qualified-read", leaseExpiresAt: "2030-01-01T13:00:00.000Z" });
+  assert.deepEqual(store.syncReceipts[0]!.provider_evidence, inventory.receipt);
+  assert.ok((store.syncReceipts[0]!.provider_evidence!.request_ids as string[]).includes("fixture-identity"));
+});
+
+test("Monday refuses a changed credential identity or source mapping before item reads", async () => {
+  for (const changed of ["account", "member", "kind", "agent", "group", "column"]) {
+    const base = fixture(null);
+    const connector = new MondayRecordSourceConnector({ resolveSecret: () => "rotated-fixture-token", fetcher: async (input, init) => {
+      const response = await base.connector.fetcher!(input, init);
+      const body = await response.json() as any;
+      if (body.data.me) {
+        if (changed === "account") body.data.me.account.id = "400004";
+        if (changed === "member") body.data.me.id = "700008";
+        if (changed === "kind") body.data.me.kind = "another-kind";
+        if (changed === "agent") body.data.me.email = "agent-900002@agent.monday.com";
+        if (changed === "group") body.data.boards[0].groups = [];
+        if (changed === "column") body.data.boards[0].columns[0].type = "text";
+      }
+      return new Response(JSON.stringify(body), { status: response.status, headers: response.headers });
+    } });
+    await assert.rejects(connector.readCompleteInventory({ source, binding, qualification: qualification() }), /reviewed account|no longer available|no longer matches/);
+    assert.equal(base.requests.length, 1, changed);
+    assert.ok(base.requests[0]!.query.includes("QualifyCompanyOSExternalAgent"));
+  }
 });
 
 test("Monday principal fields require qualified account and actual people column before reading", () => {

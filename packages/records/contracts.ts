@@ -145,6 +145,8 @@ export interface RecordSyncReceipt {
   source_digest?: string;
   /** Projection definitions materialized successfully by this source scan. */
   projection_digests?: Record<string, string>;
+  /** Content-free inventory/identity receipt retained with this completed scan. */
+  provider_evidence?: Record<string, JsonValue>;
   observed: number;
   inserted: number;
   unchanged: number;

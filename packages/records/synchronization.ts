@@ -129,6 +129,7 @@ export async function synchronizeRecordSnapshot(args: {
       source_digest: sourceDigest,
       projection_digests: Object.fromEntries(registry.projectionsForRecordType(source.record_type)
         .map((projection) => [projection.id, sha256(projection)])),
+      provider_evidence: structuredClone(inventory.receipt),
       observed: inventory.objects.length,
       inserted,
       unchanged,

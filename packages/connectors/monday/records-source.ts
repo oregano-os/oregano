@@ -10,7 +10,7 @@ import { MondayClient, type MondayFetch } from "./client.ts";
 import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
-export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.2";
+export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.3";
 export const MONDAY_RECORD_SOURCE_API_VERSION = "dev";
 
 const object = (value: JsonValue | undefined, label: string): Record<string, JsonValue> => {
@@ -95,10 +95,10 @@ const mondayConfiguration = (
     throw new Error("Monday qualification does not contain an administrator-confirmed provider identity mapping");
   }
   const accountId = discovery.account?.id === undefined ? undefined : String(discovery.account.id);
-  if (accountId !== undefined && !/^\d{1,20}$/.test(accountId)) throw new Error("Monday qualification contains an invalid account identity");
-  if (source.fields.some((field) => field.source.startsWith("people_principals.")) && !accountId) {
-    throw new Error("Monday people principals require an exact qualified account identity");
-  }
+  if (!accountId || !/^\d{1,20}$/.test(accountId)) throw new Error("Monday source requires an exact qualified account identity");
+  const memberId = discovery.identity.memberId;
+  const memberKind = discovery.identity.kind;
+  if (typeof memberId !== "string" || !/^\d{1,20}$/.test(memberId) || typeof memberKind !== "string" || !memberKind) throw new Error("Monday qualification requires the exact authenticated member identity and kind");
   const resource = (discovery.resources ?? []).find((candidate: any) => candidate.scope === "board" && String(candidate.id) === boardId);
   if (!resource || resource.permission !== permission) throw new Error(`Monday qualification does not prove '${permission}' access to board '${boardId}'`);
   const board = (discovery.boards ?? []).find((candidate: any) => String(candidate.id) === boardId);
@@ -119,7 +119,7 @@ const mondayConfiguration = (
     .filter((column: any) => !column.archived && column.type === "subtasks")
     .flatMap((column: any): string[] => Array.isArray(column.settings?.boardIds) ? column.settings.boardIds.map(String) : []))].sort();
   return {
-    apiVersion, agentId, accountId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
+    apiVersion, agentId, accountId, memberId, memberKind, externalAgentId: String(discovery.identity.externalAgentId), boardId, permission, groupIds, pageSize, maxPages, maxObjects,
     inventoryMode: inventoryMode as "selected-items" | "complete-table",
     qualifiedSubitemBoardIds,
   };
@@ -169,13 +169,26 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
   }): Promise<RecordSourceInventory> {
     const { source, binding, qualification } = args;
     const {
-      apiVersion, agentId, accountId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
+      apiVersion, agentId, accountId, memberId, memberKind, externalAgentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
       inventoryMode, qualifiedSubitemBoardIds,
     } = mondayConfiguration(source, binding, qualification);
     const token = this.resolveSecret(binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${binding.secret_ref}' is unavailable`);
     const client = new MondayClient({ token, apiVersion, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
+    const identity = await client.discoverAgentResources({ agentId, boardIds: [boardId] });
+    if (identity.data.account.id !== accountId || identity.data.identity.memberId !== memberId
+      || identity.data.identity.kind !== memberKind || identity.data.identity.externalAgentId !== externalAgentId) {
+      throw new Error("Monday source credential differs from its reviewed account and Agent identity");
+    }
+    const currentBoard = identity.data.boards[0]!;
+    for (const groupId of groupIds) if (!currentBoard.groups.some((group) => group.id === groupId && !group.archived && !group.deleted)) {
+      throw new Error(`Monday source group '${groupId}' is no longer available in the qualified board`);
+    }
     const columnIds = configuredColumnIds(source);
+    for (const columnId of columnIds) if (!currentBoard.columns.some((column) => column.id === columnId && !column.archived
+      && (!source.fields.some((field) => field.source === `people_principals.${columnId}`) || column.type === "people"))) {
+      throw new Error(`Monday source column '${columnId}' no longer matches the qualified mapping`);
+    }
     const inventory = await client.readCompleteRecordInventory({
       boardId, columnIds, groupIds, pageSize, maxPages, maxObjects, inventoryMode,
       allowedSubitemBoardIds: qualifiedSubitemBoardIds,
@@ -223,10 +236,12 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         connector_version: this.version,
         api_version_requested: apiVersion,
         api_versions_reported: inventory.reportedApiVersions,
-        request_ids: inventory.requestIds,
+        request_ids: [...new Set([identity.requestId, ...inventory.requestIds].filter((id): id is string => Boolean(id)))],
         resource_binding: binding.resource_binding,
         authentication_mode: "external-agent",
         agent_id: agentId,
+        authenticated_member_id: memberId,
+        authenticated_external_agent_id: externalAgentId,
         ...(accountId ? { account_id: accountId } : {}),
         board_id: boardId,
         board_ids: inventory.boardIds,
