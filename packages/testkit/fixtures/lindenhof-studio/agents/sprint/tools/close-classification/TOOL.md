@@ -3,7 +3,7 @@ type: tool
 description: Classify every frozen participant at a cutoff and list open work items with provider versions. Takes
   Company Records rows with typed values. Preserves the current Friday Close classification semantics without carrying
   data into Monday.
-version: 6.2.0
+version: 6.2.1
 risk: R0
 data_class: business
 idempotency: input-hash
@@ -98,6 +98,11 @@ input_schema:
             provider_version:
               type: string
               minLength: 1
+            title:
+              type: string
+            url:
+              type: string
+              pattern: '^https://[^\s<>()]+$'
             actual_hours:
               type: [number, "null"]
             planned_effort:
@@ -246,3 +251,8 @@ model, kept as the parity oracle:
 
 Inventory decision (D23): stays a Company Tool because it encodes the
 company's Friday template semantics.
+
+Open-item presentation retains an observed title and HTTPS link when provided.
+Labels are rendered as data; unsafe links fail validation. Missing presentation
+fields fall back to the stable item ID. The exact `open_work_items` identity and
+provider-version payload is unchanged and contains no presentation fields.

@@ -620,10 +620,10 @@
       "tool": {
         "grantId": "company:close-classification",
         "runtimeId": "company:sprint/close-classification",
-        "version": "6.2.0",
+        "version": "6.2.1",
         "risk": "R0",
         "capabilities": [],
-        "contractDigest": "844914add3815d82047f47102d7edb1a93786b18affd81c1e5ad9d671c0834dd"
+        "contractDigest": "156933354471d4cc047e3893d088f3236a41294801270c7aa752af9f8f29e879"
       },
       "input": {
         "participants": "$steps.snapshot-participants.rows",
@@ -924,10 +924,10 @@
       "tool": {
         "grantId": "company:close-classification",
         "runtimeId": "company:sprint/close-classification",
-        "version": "6.2.0",
+        "version": "6.2.1",
         "risk": "R0",
         "capabilities": [],
-        "contractDigest": "844914add3815d82047f47102d7edb1a93786b18affd81c1e5ad9d671c0834dd"
+        "contractDigest": "156933354471d4cc047e3893d088f3236a41294801270c7aa752af9f8f29e879"
       },
       "input": {
         "participants": "$steps.snapshot-participants.rows",
@@ -1276,5 +1276,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "851b0d03069b2d1156fc1ee242477977bbc660c765e5ad04d17c12e168e43ca8"
+  "manifestHash": "d07aeb0d7009aabe5aef634a675b9f1e90eb681464138155d28f1a0c90555f1b"
 }

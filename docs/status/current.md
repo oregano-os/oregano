@@ -1278,3 +1278,10 @@ reject protected materialization targets, unresolved projections, invalid
 referenced calendars, undeclared calendar credential fields and dynamic or unsafe
 configuration. Retained runs preserve their original compiled inputs. These
 tests preserve generic authoring boundaries without a separate business executor.
+
+The fictional close-classification Company Tool also preserves observed open-item
+titles and HTTPS links in its presentation. Optional display data never changes
+the exact versioned decision payload. Ordinary-engine cases check participant
+labels, retained source-row provenance, closed-item exclusion, escaped labels,
+thread linkage and repeat execution; malformed links fail Tool validation.
+This presentation remains Workspace policy, not runtime business logic.
