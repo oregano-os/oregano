@@ -639,3 +639,10 @@ configuration, proves bounded complete inventory and minimum read permission,
 emits payload-free evidence, passes synthetic conformance tests, and documents
 its qualification and costs. The shared `companyos records` lifecycle remains
 unchanged.
+
+A repeated history/thread continuation or a reply with the wrong root now fails
+source inventory explicitly. Inspect the provider response and retry a complete
+inventory through the same maintained source path; do not treat that failure as
+an empty channel or increase bounds to hide it. The selected history window and
+older-root discovery constraints are unchanged, and these checks create no
+historical synchronization watermark.

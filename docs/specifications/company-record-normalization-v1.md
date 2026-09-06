@@ -280,3 +280,11 @@ mapping, output schemas, malformed answers, extra and duplicate references,
 text/identity separation, bounds and failed-ingestion retry. CLI tests reject
 invalid declarations. These checks do not establish hosted source coverage,
 cross-provider identity or end-to-end workflow acceptance.
+
+Slack traversal rejects repeated continuation cursors independently for channel
+history and for each selected thread, before issuing another repeated request.
+Every retained thread reference must be a valid provider timestamp; a reply
+that names a root different from the requested thread invalidates the inventory.
+These failures yield no complete inventory or successful synchronization receipt.
+They do not extend the selected history window, discover older roots, or prove
+a lost message version at a historical cutoff.

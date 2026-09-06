@@ -110,6 +110,8 @@ const normalizeMessage = (args: {
   const ts = String(args.message.ts ?? args.message.deleted_ts ?? "");
   if (!ts) throw new Error("Slack message has no stable timestamp identity");
   const threadTs = String(args.message.thread_ts ?? args.rootTs ?? ts);
+  timestampIso(threadTs);
+  if (args.rootTs && threadTs !== args.rootTs) throw new Error("Slack reply belongs to a different thread than the requested root");
   const userId = typeof args.message.user === "string" ? args.message.user : undefined;
   const botId = typeof args.message.bot_id === "string" ? args.message.bot_id : undefined;
   if (userId !== undefined && !/^[UW][A-Z0-9]{4,31}$/.test(userId)) throw new Error("Slack message has an invalid user identity");
@@ -202,6 +204,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
       if (messages.size > config.maxMessages) throw new Error(`Slack record inventory exceeded the configured ${config.maxMessages}-message bound`);
     };
     let cursor: string | undefined;
+    const historyCursors = new Set<string>();
     const roots: Array<Record<string, unknown>> = [];
     do {
       if (historyPages >= config.maxPages) throw new Error(`Slack record inventory exceeded the configured ${config.maxPages}-page bound`);
@@ -221,6 +224,8 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
       }
       const next = result.data.response_metadata?.next_cursor?.trim() || undefined;
       if (result.data.has_more && !next) throw new Error("Slack history reported more messages without a continuation cursor");
+      if (next && historyCursors.has(next)) throw new Error("Slack history returned a repeated continuation cursor");
+      if (next) historyCursors.add(next);
       cursor = next;
     } while (cursor);
 
@@ -232,6 +237,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
         const expectedReplies = root.reply_count;
         const observedReplies = new Set<string>();
         let threadCursor: string | undefined;
+        const threadCursors = new Set<string>();
         let pagesForThread = 0;
         do {
           if (pagesForThread >= config.maxThreadPages) throw new Error(`Slack thread '${rootTs}' exceeded the configured ${config.maxThreadPages}-page bound`);
@@ -257,6 +263,8 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
           }
           const next = result.data.response_metadata?.next_cursor?.trim() || undefined;
           if (result.data.has_more && !next) throw new Error(`Slack thread '${rootTs}' reported more messages without a continuation cursor`);
+          if (next && threadCursors.has(next)) throw new Error("Slack thread returned a repeated continuation cursor");
+          if (next) threadCursors.add(next);
           threadCursor = next;
         } while (threadCursor);
         // `reply_count` describes the complete live thread, not the selected
