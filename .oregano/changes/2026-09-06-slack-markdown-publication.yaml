@@ -1,0 +1,42 @@
+version: 3
+plan_id: slack-markdown-publication-2026-09-06
+created: "2026-09-06"
+title: Publish workflow Markdown through the Slack Markdown transport
+objective: >-
+  Preserve report formatting and the single-message receipt contract by using
+  explicit Markdown payloads and rejecting oversized content before publication.
+non_goals:
+  - Change recipients, business workflows, approvals or production activation.
+  - Introduce implicit multipart delivery or truncate report content.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-slack-markdown-publication.yaml
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Select the Slack transport representation and enforce its payload bound.
+    packages: No business package changes.
+    workspace: Templates continue to produce Markdown independent of Slack.
+    instance: Existing configured destinations and credentials remain authoritative.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing Slack publisher without bypassing capability authorization.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve one publication receipt and existing uncertain-outcome handling.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every Workspace publishing Markdown uses the same provider adapter.
+rollback: Revert this change before deploying another candidate; retain previous delivery evidence.

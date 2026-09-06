@@ -138,6 +138,15 @@ function parseMondayConfiguration(
 
 type SlackChatClient = Pick<Chat, "channel" | "thread" | "openDM">;
 
+// Slack's native Markdown payload is bounded independently of plain text.
+// Reject before sending: the capability receipt represents exactly one message.
+function slackMarkdown(content: string): { markdown: string } {
+  if (content.length > 12_000) {
+    throw new Error("Slack report exceeds the 12,000-character Markdown limit. Shorten the report or publish a summary with a link; nothing was sent.");
+  }
+  return { markdown: content };
+}
+
 /**
  * Adapts Chat SDK transport primitives to the provider-neutral Slack
  * publisher. A newly opened channel thread is subscribed before its receipt
@@ -152,9 +161,10 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
           throw new Error("Slack thread reference does not belong to the configured channel destination.");
         }
       }
+      const payload = slackMarkdown(content);
       const client = chat();
       const destination = threadReference ? client.thread(threadReference) : client.channel(`slack:${channelId}`);
-      const message = await destination.post(content);
+      const message = await destination.post(payload);
       const receipt = { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
       if (!threadReference) {
         try {
@@ -181,7 +191,7 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
       return {
         threadReference: thread.id,
         async publish(content: string) {
-          const message = await thread.post(content);
+          const message = await thread.post(slackMarkdown(content));
           // Chat SDK openDM targets `slack:<channel>:`. Its post receipt keeps
           // that conversation-wide ID; use Slack's returned message timestamp
           // to bind each new root and its replies independently.

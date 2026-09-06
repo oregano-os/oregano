@@ -14,13 +14,13 @@ test("Slack runtime publisher subscribes a new bot-authored root before returnin
   const publisher = createSlackMessagePublisher(() => ({
     channel(id: string) {
       calls.push(`channel:${id}`);
-      return { async post(content: string) { calls.push(`post:${content}`); return sent("message-1", "slack:C123:root-1"); } } as any;
+      return { async post(content: { markdown: string }) { calls.push(`post:${content.markdown}`); return sent("message-1", "slack:C123:root-1"); } } as any;
     },
     thread(id: string) {
       calls.push(`thread:${id}`);
       return {
         async subscribe() { calls.push("subscribe"); },
-        async post(content: string) { calls.push(`reply:${content}`); return sent("message-2", id); },
+        async post(content: { markdown: string }) { calls.push(`reply:${content.markdown}`); return sent("message-2", id); },
       } as any;
     },
     async openDM() { throw new Error("not used"); },
@@ -49,7 +49,7 @@ test("Slack runtime publisher replies only inside the supplied channel thread wi
       calls.push(`thread:${id}`);
       return {
         async subscribe() { calls.push("subscribe"); },
-        async post(content: string) { calls.push(`reply:${content}`); return sent("message-2", id); },
+        async post(content: { markdown: string }) { calls.push(`reply:${content.markdown}`); return sent("message-2", id); },
       } as any;
     },
     async openDM() { throw new Error("not used"); },
@@ -110,4 +110,45 @@ test("a direct-message subscription failure preserves the already published root
     assert.ok(error instanceof CapabilityEffectOutcomeUnknownError);
     assert.equal((error.evidence as any).thread_reference, "slack:D12345:1893492000.000001"); return true;
   });
+});
+
+
+test("long Markdown remains one explicit payload and oversized content sends nothing", async () => {
+  const posts: unknown[] = [];
+  const publisher = createSlackMessagePublisher(() => ({
+    channel() { return { async post(content: unknown) { posts.push(content); return sent("message", "slack:C123:root"); } } as any; },
+    thread(id: string) { return { async subscribe() {}, async post(content: unknown) { posts.push(content); return sent("message", id); } } as any; },
+    async openDM() { return { id: "slack:D12345:", async post(content: unknown) { posts.push(content); return sent("1893492000.000001", "slack:D12345:"); } } as any; },
+  }));
+  const content = "### Report\n[Card](https://example.test/card)\n" + "x".repeat(6_000);
+  await publisher.publishChannel("C123", content);
+  assert.deepEqual(posts, [{ markdown: content }]);
+  await publisher.publishChannel("C123", "x".repeat(12_000), "slack:C123:root");
+  const direct = await publisher.openDirect("U12345");
+  await direct.publish(content);
+  assert.deepEqual(posts[2], { markdown: content });
+  for (const publish of [
+    () => publisher.publishChannel("C123", "x".repeat(12_001)),
+    () => publisher.publishChannel("C123", "x".repeat(12_001), "slack:C123:root"),
+    () => direct.publish("x".repeat(12_001)),
+  ]) await assert.rejects(publish, /nothing was sent/);
+  assert.equal(posts.length, 3);
+});
+
+
+test("the installed Slack adapter emits one native Markdown API request for a long report", async () => {
+  const { createSlackAdapter } = await import(new URL("../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js", import.meta.url).href);
+  const adapter = createSlackAdapter({ botToken: "xoxb-synthetic", signingSecret: "synthetic" });
+  const requests: any[] = [];
+  adapter._client.chat.postMessage = async (request: unknown) => {
+    requests.push(request);
+    return { ok: true, ts: "1893492000.000001" };
+  };
+  const markdown = "### Report\n[Card](https://example.test/card)\n" + "x".repeat(6_000);
+  const result = await adapter.postChannelMessage("slack:C12345", { markdown });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].markdown_text, markdown);
+  assert.equal(requests[0].text, undefined);
+  assert.equal(requests[0].unfurl_links, false);
+  assert.equal(result.threadId, "slack:C12345:1893492000.000001");
 });
