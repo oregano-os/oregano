@@ -178,6 +178,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     qualification: Record<string, unknown>;
   }): Promise<RecordSourceInventory> {
     const config = configuration(args.source, args.binding, args.qualification);
+    const scanStartedAt = this.now().toISOString();
     const token = await this.resolveSecret(args.binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${args.binding.secret_ref}' is unavailable`);
     const current = (await qualifySlackRecordSource({ token, teamId: config.teamId, channelId: config.channelId,
@@ -279,6 +280,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     const inventoryDigest = digest(objects);
     return {
       complete: true,
+      scan_started_at: scanStartedAt,
       observed_at: this.now().toISOString(),
       objects,
       watermark: `slack:${inventoryDigest}`,

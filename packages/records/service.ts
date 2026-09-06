@@ -13,6 +13,7 @@ import { projectionRecordId } from "./identity.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
 import { MAX_RECORD_QUERY_ROWS, queryRecordSnapshot } from "./query.ts";
+import { compareRecordInstants } from "./instant.ts";
 import { sha256 } from "../runtime/canonical.ts";
 
 export class RecordAccessDeniedError extends Error {
@@ -101,6 +102,7 @@ export class CompanyRecordsService {
       sourceIds,
       sourceDigests,
       ...(boundSourceIds.length ? { projectionDigest: sha256(projection) } : {}),
+      ...(args.query.require_scan_started_after !== undefined ? { currentScan: true, projectionDigest: sha256(projection) } : {}),
       limit: MAX_RECORD_QUERY_ROWS,
     });
     if (snapshot.rows.some((row) => row.instance_id !== instanceId)
@@ -108,7 +110,8 @@ export class CompanyRecordsService {
       throw new Error("Record snapshot belongs to another Company Instance");
     }
     const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, boundSourceIds, query: args.query });
-    const observedAt = page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
+    const observedAt = page.source_scan_proofs?.map((proof) => proof.scan_completed_at).sort(compareRecordInstants).at(-1)
+      ?? page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
     const freshUntil = new Date(new Date(observedAt).getTime() + projection.freshness.max_age_minutes * 60_000).toISOString();
     return {
       projection_id: projection.id,

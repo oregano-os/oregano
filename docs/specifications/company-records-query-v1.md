@@ -103,8 +103,9 @@ legacy value-level `selection.source_id` remains a value predicate.
 This contract does not yet qualify a provider's time coverage. Maintained
 provider adapters that do not supply explicit `synced_through` continue to
 work for ordinary queries, but cannot satisfy a completeness requirement.
-The workflow reference's source and parser work must establish that proof
-before hosted acceptance.
+A workflow requiring historical coverage must establish that proof before
+hosted acceptance. Workflows accepting current observations may instead use
+the explicit current-scan requirement below.
 
 ## Evidence
 
@@ -193,3 +194,55 @@ Memory and Postgres choose the same latest completeness receipt even within
 one microsecond. Postgres orders the integral second and original fractional
 text separately, retaining the proof in JSONB. This correction does not give
 a provider an unqualified completeness watermark.
+
+## Complete current provider scans
+
+The unreleased workflow-engine query contract also accepts
+`require_scan_started_after`. This is an explicit alternative to
+`require_synced_through`; combining them fails. It requests the current contents
+seen during complete provider scans starting at or after the specified instant,
+not historical reconstruction at that instant. The comparison is inclusive and
+preserves nanosecond precision. Workspace policy defines the deadline and the
+eligibility of individual observations.
+
+Maintained Slack and Monday sources report `scan_started_at` before identity
+qualification and data reads and `observed_at` after all required pages return.
+These timestamps describe an observation interval, not a transactional snapshot
+of the remote provider. Existing scope, identity, pagination, rate-limit and
+permission checks still apply. Slack only discovers roots inside the binding's
+reviewed history window; a caller must qualify coverage of its actual thread.
+A scan timestamp does not broaden that scope or create `synced_through`.
+
+After successful normalization and projection materialization, synchronization
+retains exact immutable `scan_version_ids` in the existing receipt summary.
+Membership contains version identifiers, not duplicate message payloads. Current
+scan queries select the latest eligible successful receipt for every exact
+source and projection generation and its immutable versions together. Postgres
+uses one SQL/MVCC statement; the memory store copies without yielding. The
+service applies the reviewed projection to those versions, never to a mixture
+of old current rows and a later partially ingested scan. Failed scans do not
+publish membership. Existing versions and audit receipts remain retained.
+
+An object absent from the selected complete scan contributes no result, even
+when an older projection row remains. This is scoped inventory absence, not an
+inferred global provider deletion. Visible edits contribute their observed
+contents. Successful empty scans are valid; missing or incomplete membership,
+wrong declarations, wrong Instance/source provenance, stale starts, invalid
+intervals and failed scans do not establish readiness. The query bounds total
+contributing inventory membership to 10,000 versions before projection and
+filtering. Larger inventories remain synchronizable for ordinary reads but do not retain
+current-query membership. A current query fails with a source-narrowing
+diagnostic instead of using an older smaller scan.
+
+Results include `scan_started_at` (the earliest contributing scan start) and
+`source_scan_proofs`: exact source/digest, sync run, start/completion interval,
+watermark and membership digest. They retain `source_proofs: []` and omit
+`synced_through`. Snapshot/cursor identity includes the selected scan proofs;
+retrying the same completed observation is stable. Authorization precedes
+inventory reads. Ordinary and historical query behavior remains unchanged.
+
+`record-current-scan.test.ts` and the mandatory Postgres query suite cover edits,
+absence, empty scans, failed completion, concurrent ingestion, exact timestamps,
+source generations, immutable membership, restart, authorization and paging.
+This Records foundation does not yet switch Workflow authoring or hosted live
+verification to the new requirement; those remain separate integration work.

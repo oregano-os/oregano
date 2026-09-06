@@ -315,7 +315,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+        "contractDigest": "81ee7e86b3c69f0e9f6eeddb006034e03fe7361b5031fcff57f33a469abda4ee"
       },
       "input": {
         "projection_id": "sprint-roles"
@@ -513,7 +513,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+        "contractDigest": "81ee7e86b3c69f0e9f6eeddb006034e03fe7361b5031fcff57f33a469abda4ee"
       },
       "input": {
         "projection_id": "sprint-work-items",
@@ -572,7 +572,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+        "contractDigest": "81ee7e86b3c69f0e9f6eeddb006034e03fe7361b5031fcff57f33a469abda4ee"
       },
       "input": {
         "projection_id": "sprint-close-submissions",
@@ -811,7 +811,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+        "contractDigest": "81ee7e86b3c69f0e9f6eeddb006034e03fe7361b5031fcff57f33a469abda4ee"
       },
       "input": {
         "projection_id": "sprint-work-items",
@@ -870,7 +870,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+        "contractDigest": "81ee7e86b3c69f0e9f6eeddb006034e03fe7361b5031fcff57f33a469abda4ee"
       },
       "input": {
         "projection_id": "sprint-close-submissions",
@@ -1276,5 +1276,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "ab407a205338471feaeb39fef5a54cb0ecd0f7c46dca3fd0b6467c4a5d52625b"
+  "manifestHash": "851b0d03069b2d1156fc1ee242477977bbc660c765e5ad04d17c12e168e43ca8"
 }

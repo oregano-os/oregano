@@ -1234,3 +1234,14 @@ provider qualification and source synchronization remain separate unchanged
 operations; passing the binding check grants no provider access.
 The existing credential-resolver regressions now have a default testkit
 entrypoint so the ordinary PR check runs them as well.
+
+## Complete current Records scans
+
+Records supports an explicit `require_scan_started_after` query alongside the
+existing historical completeness requirement. Successful scans retain exact
+immutable membership; current reads exclude absent old rows and partial later
+ingestion without deleting audit history. Maintained Slack/Monday Connectors
+record their actual read intervals. Memory and mandatory Postgres tests prove
+empty/edit/absence/failure/restart behavior. Workflow authoring, live verification
+and operating Workspace adoption of this mode remain pending; no real-provider
+workflow acceptance or production activation is claimed.

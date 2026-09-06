@@ -28,6 +28,47 @@ const projection: CompanyRecordProjectionDeclaration = {
 };
 const subject: RecordAccessSubject = { principal_id: "fixture-reader", status: "active", roles: [], group_ids: ["team"] };
 
+test("Postgres current scans preserve exact immutable membership across edits, failed writes and restart", { skip }, async () => {
+  const instanceId = `record-current-${randomUUID()}`;
+  const registry = new CompanyRecordsRegistry(); registry.registerSource(source); registry.registerProjection(projection);
+  const binding: CompanyRecordSourceBinding = { schema_version: 1, instance_id: instanceId, source_id: source.id,
+    resource_binding: source.resource_binding, connector: "fixture", connector_version: "1.0.0", secret_ref: "FIXTURE",
+    qualification: { receipt_ref: "fixture", digest: "fixture" }, configuration: {} };
+  registry.bindSource(binding, {});
+  const store = createPostgresCompanyRecordsStore();
+  const query = () => new CompanyRecordsService({ instanceId, registry, store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) })
+    .query({ subject, query: { projection_id: projection.id, all_pages: true, require_scan_started_after: "2031-02-01T16:59:00.000000100Z" } });
+  const sync = (runId: string, ids: string[], status: string, start: string) => synchronizeRecordSnapshot({ instanceId, source, registry, store,
+    runId, leaseOwner: "fixture", leaseToken: runId, leaseExpiresAt: "2031-02-01T18:00:00Z",
+    inventory: { complete: true, observed_at: instant, scan_started_at: start, binding_digest: registry.sourceBindingDigest(source.id),
+      objects: ids.map((id) => ({ id, payload: { status } })), watermark: runId, receipt: {} } });
+  await sync("old", [], "old", "2031-02-01T16:59:00.000000099Z");
+  await assert.rejects(query(), /started at or after/);
+  await sync("first", ["one", "two"], "original", "2031-02-01T16:59:00.000000100Z");
+  const first = await query();
+  assert.equal(first.rows.length, 2);
+  assert.equal(first.scan_started_at, "2031-02-01T16:59:00.0000001Z");
+  assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_OUTPUT_SCHEMA, first), []);
+  assert.equal((await query()).snapshot_id, first.snapshot_id);
+  const append = store.appendSyncReceipt;
+  store.appendSyncReceipt = async () => { throw new Error("Synthetic completion failure"); };
+  await assert.rejects(sync("failed", ["one", "three"], "partial", "2031-02-01T16:59:01Z"), /completion failure/);
+  store.appendSyncReceipt = append;
+  assert.equal((await query()).snapshot_id, first.snapshot_id);
+  await sync("edited", ["one"], "current edit", "2031-02-01T16:59:02Z");
+  const edited = await query();
+  assert.deepEqual(edited.rows.map((row) => row.values), [{ payload: { status: "current edit" } }]);
+  assert.equal(edited.source_scan_proofs?.[0]?.run_id, "edited");
+  const sql = neon(process.env.DATABASE_URL!);
+  const count = await sql`select count(*) as count from companyos_records.object_versions where instance_id = ${instanceId}`;
+  assert.equal(Number(count[0]!.count), 5, "earlier audit versions survive absence in the current scan");
+  await sync("empty", [], "unused", "2031-02-01T16:59:03Z");
+  const empty = await query();
+  assert.deepEqual(empty.rows, []);
+  assert.equal(empty.synced_through, undefined);
+  assert.equal((await query()).snapshot_id, empty.snapshot_id);
+});
+
 test("Postgres retains independent source and projection generations with exact materialization evidence", { skip }, async () => {
   const instanceId = `record-binding-${randomUUID()}`;
   const createRegistry = (resource: string, view = projection) => {

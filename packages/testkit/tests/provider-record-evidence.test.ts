@@ -72,6 +72,7 @@ test("Monday people evidence keeps account and assignment kind through real Reco
   assert.equal(inventory.receipt.authenticated_member_id, "700007");
   assert.equal(inventory.receipt.authenticated_external_agent_id, "900001");
   assert.equal(inventory.synced_through, undefined);
+  assert.equal(inventory.scan_started_at, "2030-01-01T12:00:00.000Z");
   assert.doesNotMatch(JSON.stringify(inventory), /fixture-not-evidence/);
   assert.ok(requests.every((request) => !request.query.includes("mutation")));
   const registry = new CompanyRecordsRegistry({ identities: directory }); registry.registerSource(source); registry.bindSource(binding, qualification());
