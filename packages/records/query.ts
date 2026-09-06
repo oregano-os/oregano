@@ -116,6 +116,7 @@ export async function queryRecordSnapshot(args: {
   }
   const sourceProofs = sourceIds.flatMap((sourceId) => {
     const receipt = snapshot.sourceReceipts.find((value) => value.source_id === sourceId && value.source_digest === args.sourceDigests[sourceId]
+      && (!args.boundSourceIds?.includes(sourceId) || value.projection_digests?.[projection.id] === sha256(projection))
       && value.synced_through && value.watermark && value.errors === 0);
     if (!receipt?.synced_through || !receipt.watermark) return [];
     const through = recordQueryInstant(receipt.synced_through, "Source completeness");

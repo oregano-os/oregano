@@ -82,15 +82,20 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
     this.accessDecisions.push(structuredClone(decision));
   }
 
-  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; limit: number }): Promise<RecordReadSnapshot> {
+  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; projectionDigest?: string; strictSourceScope?: boolean; limit: number }): Promise<RecordReadSnapshot> {
     // No await: rows and receipts are copied at the same observation boundary.
+    const allowedVersions = args.strictSourceScope ? new Set([...this.objectVersions.values()]
+      .filter((value) => value.instance_id === args.instanceId && args.sourceIds.includes(value.source_id)).map((value) => value.version_id)) : undefined;
+    const knownVersions = new Set([...this.objectVersions.values()].filter((value) => value.instance_id === args.instanceId).map((value) => value.version_id));
     const rows = [...this.projectionRows.values()]
       .filter((row) => row.instance_id === args.instanceId && row.projection_id === args.projectionId)
+      .filter((row) => !allowedVersions || allowedVersions.has(row.source_version_id) || !knownVersions.has(row.source_version_id))
       .sort((a, b) => a.record_id < b.record_id ? -1 : a.record_id > b.record_id ? 1 : 0)
       .slice(0, args.limit + 1);
     const sourceReceipts = args.sourceIds.flatMap((sourceId) => {
       const receipt = this.syncReceipts.filter((value) => value.instance_id === args.instanceId && value.source_id === sourceId
         && (!args.sourceDigests || value.source_digest === args.sourceDigests[sourceId])
+        && (!args.projectionDigest || value.projection_digests?.[args.projectionId] === args.projectionDigest)
         && value.synced_through && value.watermark && value.errors === 0)
         .sort((a, b) => compareRecordInstants(b.synced_through!, a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
       return receipt ? [receipt] : [];

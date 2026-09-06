@@ -169,8 +169,10 @@ legacy parity/removal and production rollout gates remain mandatory.
 Records completeness and row versions bind to the exact non-secret Instance
 source binding and qualification. Changing an account, resource or identity
 mapping requires new evidence; a new receipt cannot authorize old retained
-rows. Mixed current projections fail before filters or business computation.
-Historical Artifact retention does not yet preserve independently queryable
-projection generations after a binding/schema change. Keep those projections
-available and qualify migration before retiring them. See the
+rows. Source state and projection definitions have independent storage
+generations, so the opening Artifact can still read its own materialized
+projection after a binding/schema change. A new projection requires its own
+successful materialization receipt; empty rows alone are insufficient. Keep
+the old Artifact and Records generations, and continue qualified synchronization
+through all cutoffs needed by its active runs before retiring them. See the
 [Records query contract](../specifications/company-records-query-v1.md).

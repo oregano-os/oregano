@@ -143,6 +143,8 @@ export interface RecordSyncReceipt {
   /** Explicit source completeness, never inferred from a cursor or freshness. */
   synced_through?: string;
   source_digest?: string;
+  /** Projection definitions materialized successfully by this source scan. */
+  projection_digests?: Record<string, string>;
   observed: number;
   inserted: number;
   unchanged: number;

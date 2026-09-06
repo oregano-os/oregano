@@ -103,6 +103,7 @@ export async function inspectPostgresCompanyRecordSyncReceipt(
 export async function inspectPostgresCompanyRecordProjectionStatus(
   instanceId: string,
   projectionIds: readonly string[],
+  sourceScopeByProjection?: Record<string, string[]>,
 ): Promise<PostgresCompanyRecordProjectionStatus[]> {
   if (projectionIds.length > 100) throw new Error("Company Records status supports at most one hundred projections");
   const sql = connection();
@@ -110,7 +111,11 @@ export async function inspectPostgresCompanyRecordProjectionStatus(
   if (!present[0]?.projection_rows) return projectionIds.map((projectionId) => ({ available: false, projection_id: projectionId, rows: 0 }));
   return Promise.all(projectionIds.map(async (projectionId) => {
     const rows = await sql`select count(*) as count from companyos_records.projection_rows
-      where instance_id = ${instanceId} and projection_id = ${projectionId}`;
+      where instance_id = ${instanceId} and projection_id = ${projectionId}
+        and (${sourceScopeByProjection === undefined} or source_version_id in (
+          select version_id from companyos_records.object_versions
+          where instance_id = ${instanceId} and source_id = any(${sourceScopeByProjection?.[projectionId] ?? []}::text[])
+        ))`;
     return { available: true, projection_id: projectionId, rows: Number(rows[0]?.count ?? 0) };
   }));
 }
@@ -292,6 +297,12 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
       const result = await connection()`with selected_rows as materialized (
           select * from companyos_records.projection_rows
           where instance_id = ${args.instanceId} and projection_id = ${args.projectionId}
+            and (${args.strictSourceScope === true} = false or source_version_id in (
+              select version_id from companyos_records.object_versions
+              where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
+            ) or source_version_id not in (
+              select version_id from companyos_records.object_versions where instance_id = ${args.instanceId}
+            ))
           order by record_id collate "C" limit ${args.limit + 1}
         ) select
         coalesce((select jsonb_agg(to_jsonb(r) order by r.record_id) from selected_rows r), '[]'::jsonb) as rows,
@@ -306,6 +317,7 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
             and summary->>'synced_through' is not null and watermark is not null
             and summary->>'errors' = '0'
             and (${sourceDigests}::jsonb is null or summary->>'source_digest' = (${sourceDigests}::jsonb)->>source_id)
+            and (${args.projectionDigest ?? null}::text is null or summary->'projection_digests'->>${args.projectionId} = ${args.projectionDigest ?? null})
           order by source_id,
             regexp_replace(summary->>'synced_through', '[.][0-9]+', '')::timestamptz desc,
             rpad(coalesce(substring(summary->>'synced_through' from '[.]([0-9]+)'), ''), 9, '0') desc,

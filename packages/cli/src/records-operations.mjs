@@ -408,6 +408,7 @@ export async function inspectRecordSourceStatus({
   const binding = loadRecordSourceBinding(bindingPath);
   const source = selected.sources[0];
   const diagnostics = [];
+  let registry;
   if (workspaceInside(selected.workspace, resolve(bindingPath))) diagnostics.push(diagnostic("REC022", "error", "Record Source Instance bindings must stay outside the Company Workspace.", { file: resolve(bindingPath) }));
   if (binding.source_id !== source.id) diagnostics.push(diagnostic("REC017", "error", `Binding source '${binding.source_id}' does not match declaration '${source.id}'.`, { file: resolve(bindingPath) }));
   if (binding.resource_binding !== source.resource_binding) diagnostics.push(diagnostic("REC018", "error", `Binding resource '${binding.resource_binding}' does not match declaration '${source.resource_binding}'.`, { file: resolve(bindingPath) }));
@@ -415,11 +416,14 @@ export async function inspectRecordSourceStatus({
     const qualification = loadBindingQualification(binding, bindingPath);
     if (workspaceInside(selected.workspace, qualification.path)) diagnostics.push(diagnostic("REC021", "error", "Qualification evidence must stay outside the Company Workspace.", { file: qualification.path }));
     connectorRegistry.validate(source, binding, qualification.value);
+    const rosterPath = join(selected.workspace, "handbook", "roster.md");
+    registry = registeredRecords(selected.inspected, existsSync(rosterPath) ? readFileSync(rosterPath, "utf8") : undefined);
+    registry.bindSource(binding, qualification.value);
   } catch (error) {
     diagnostics.push(diagnostic("REC023", "error", `Record Source qualification evidence is unavailable or invalid: ${error.message}`, { file: resolve(bindingPath) }));
   }
   if (hasErrors(diagnostics)) return { diagnostics };
-  return { diagnostics, status: await inspectStatus(binding.instance_id, source.id), binding: { instance_id: binding.instance_id, connector: `${binding.connector}@${binding.connector_version}`, resource_binding: binding.resource_binding } };
+  return { diagnostics, status: { ...await inspectStatus(binding.instance_id, registry.sourceStorageId(source.id)), source_id: source.id }, binding: { instance_id: binding.instance_id, connector: `${binding.connector}@${binding.connector_version}`, resource_binding: binding.resource_binding } };
 }
 
 export const MAINTAINED_RECORD_SOURCE_CONNECTORS = Object.freeze([

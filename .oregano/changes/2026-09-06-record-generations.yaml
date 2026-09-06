@@ -1,0 +1,51 @@
+version: 3
+plan_id: record-generations-2026-09-06
+created: "2026-09-06"
+title: Retain independently readable Records generations for historical Artifacts
+objective: >-
+  Scope bound source state and projection materializations by their immutable
+  definitions so old and new Artifacts can query the same database safely.
+non_goals:
+  - Infer provider time coverage or copy legacy observations into a qualified generation.
+  - Delete historical Records or activate production.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-record-generations.yaml
+  - packages/records/**
+  - packages/state-store/records.ts
+  - packages/state-postgres/records-store.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/runner-vercel/src/lib/company-records-production.ts
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - packages/cli/src/records-operations.mjs
+  - packages/cli/tests/records.test.mjs
+  - packages/testkit/tests/record-binding-evidence.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - docs/specifications/company-records-query-v1.md
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/record-binding-evidence.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-query-v1
+    - operations.workflow-engine
+architecture:
+  placement:
+    core: Immutable storage identities and retained source/projection generations.
+    packages: Reuse source Connector inventory and Records query contracts.
+    workspace: Owns logical source and projection definitions and identity mappings.
+    instance: Supplies immutable qualified bindings; retains the database through rollback.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Reuse stores, atomic reads, leases and synchronization behind generation-scoped storage identities.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every historical Artifact can retain its source definitions without company-specific state or execution code.
+rollback: Disable affected workflows, retain all generations and return to the accepted Artifact. Never fall back to unqualified legacy rows or delete evidence.

@@ -277,12 +277,13 @@ const defaultDependencies: CompanyRecordsProductionDependencies = {
   async inspectStatus(configuration, sourceId) {
     const selected = validatedCompanyRecordsSelection(configuration, sourceId);
     const [status, projections] = await Promise.all([
-      inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, sourceId),
-      inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => projection.id)),
+      inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, selected.registry.sourceStorageId(sourceId)),
+      inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => selected.registry.projectionStorageId(projection.id)),
+        Object.fromEntries(selected.projections.map((projection) => [selected.registry.projectionStorageId(projection.id), selected.registry.projectionSourceIds(projection.id).map((id) => selected.registry.sourceStorageId(id))]))),
     ]);
     return {
-      status,
-      projections,
+      status: { ...status, source_id: sourceId },
+      projections: projections.map((value, index) => ({ ...value, projection_id: selected.projections[index]!.id })),
       binding: {
         instance_id: configuration.instance_id,
         connector: `${selected.binding.connector}@${selected.binding.connector_version}`,
@@ -333,7 +334,7 @@ export async function executeCompanyRecordsProduction(
   requireProductionEnabled(environment);
   if (request.confirmation_hash !== planned.plan.confirmation_hash) throw new CompanyRecordsRehearsalError("confirmation-mismatch", `${operation} confirmation does not match the current exact production plan`, 409);
   const runId = `${operation}-confirmed-${request.confirmation_hash.slice(0, 32)}`;
-  const prior = await dependencies.inspectReceipt(configuration.instance_id, request.source_id, runId);
+  const prior = await dependencies.inspectReceipt(configuration.instance_id, planned.selected.registry.sourceStorageId(request.source_id), runId);
   if (prior) {
     return {
       ok: true,
@@ -421,7 +422,8 @@ export async function runCompanyRecordsScheduledReconciliation(args: {
       continue;
     }
     const runId = `reconcile-scheduled-${schedule.source_id}-${due.service_date}-${companyRecordsConfigurationDigest(args.configuration).slice(0, 12)}`;
-    const prior = await dependencies.inspectReceipt(args.configuration.instance_id, schedule.source_id, runId);
+    const registry = validatedCompanyRecordsSelection(args.configuration, schedule.source_id).registry;
+    const prior = await dependencies.inspectReceipt(args.configuration.instance_id, registry.sourceStorageId(schedule.source_id), runId);
     if (prior) {
       results.push({ source_id: schedule.source_id, service_date: due.service_date, status: "already-completed" });
       continue;

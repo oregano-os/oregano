@@ -135,12 +135,39 @@ An empty or partial resynchronization cannot legitimize old rows by adding a
 new receipt. Receipt selection compares exact source digests before choosing
 the latest completeness instant.
 
-This fails closed on mixed current projections; it does not yet retain separate
-queryable projection generations after a resource/schema change. Keep matching
-historical projections available or stop affected runs until migration is
-qualified. A retained Artifact alone does not recreate those projections.
 `record-binding-evidence.test.ts` and the mandatory Postgres query suite prove
 these boundaries. Provider time coverage remains a separate requirement.
+
+## Retained source and projection generations
+
+A bound source's physical storage identity is a versioned hash of its logical
+ID and complete source digest. Its events, immutable versions, current pointers,
+leases, watermarks and receipts therefore remain independent when bindings or
+identity mappings change. A projection's storage identity hashes its complete
+definition. Rows also include their source generation in the storage key, and
+immutable reads select the exact contributing source generations before the
+row bound and paging. Logical Workspace source/projection IDs remain the public
+service contract. Instance identity stays unchanged in every table.
+
+This reuses existing tables and atomic store operations without a new SQL
+schema or copying historical evidence. New generations start unqualified and
+empty; they never fall back to legacy rows or another Artifact's data. CLI,
+hosted reads, synchronization, reconciliation and status/receipt lookup resolve
+the same storage identities. A bound registry freezes when storage is first
+used so its namespace cannot change during an operation.
+
+Successful synchronization records the exact projection definitions it
+materialized. A source receipt alone cannot establish that a newly declared
+projection is completely empty. That projection requires its own successful
+materialization, including when all source observations are duplicates. Earlier
+projection definitions retain their own rows and matching receipts; lease
+release and reconciliation in one source generation cannot alter another.
+
+Historical Artifacts select their retained definitions and evidence after a
+restart. Keep synchronizing every generation needed by active runs through its
+required cutoff; retaining a generation does not manufacture new provider
+observations. Source configuration remains in the immutable Artifact, credentials
+remain Instance SecretRefs, and provider cutoff qualification is still required.
 
 ## Exact timestamp comparisons
 
