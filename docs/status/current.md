@@ -1134,3 +1134,10 @@ preserves an unknown outcome, and complete batch preflight rejects unmapped
 fields before writing. Synthetic adapter and ordinary-engine regressions cover
 these cases. Current write-credential qualification and real provider acceptance
 remain separate outstanding checks.
+
+Additional ordinary-engine fixture cases exercise the close cohort, approved
+absence, all-open rollover, late workers, empty commitments, current Monday
+grouping and one focused readiness question per owner. Their independently
+specified expectations live under fictional fixture assets and import no old
+executor. Provider responses, coverage and human decisions are synthetic inputs;
+these cases do not replace real Instance acceptance or complete assertion parity.

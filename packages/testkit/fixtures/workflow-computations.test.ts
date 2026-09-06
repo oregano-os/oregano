@@ -186,8 +186,12 @@ test("close effort uses the explicitly selected basis, excludes absences from to
   assert.deepEqual(actual.participant_effort_hours, { a: 3.5, b: 2, absent: 8 });
   const planned = await execute("close-classification", { ...input, effort: "planned-effort" });
   assert.equal(planned.effort_basis, "planned-effort"); assert.equal(planned.total_effort_hours, 10);
+  const samePlannedValues = await execute("close-classification", { ...input, effort: "planned-effort",
+    work_items: input.work_items.map((row: any) => ({ ...row, values: { ...row.values, planned_effort: row.values.actual_hours } })) });
+  assert.equal(samePlannedValues.total_effort_hours, 5.5);
   for (const effort of [undefined, "unavailable"]) {
     const unavailable = await execute("close-classification", { ...input, ...(effort ? { effort } : {}) });
+    assert.equal(unavailable.effort_basis, "unavailable");
     assert.equal(unavailable.total_effort_hours, null);
     assert.deepEqual(unavailable.participant_effort_hours, { a: null, b: null, absent: null });
     assert.equal(unavailable.effort_text, "unavailable");
