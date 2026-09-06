@@ -119,7 +119,7 @@ test("close presentation is factual, uses display names and handles equivalent t
   const result = await execute("close-classification", input);
   assert.equal(result.states.a, "complete");
   assert.equal(result.report_text, "- Alex &amp; Sam: complete");
-  assert.equal(result.open_items_text, "- one");
+  assert.equal(result.open_items_text, "- [one](https://example.com/items/one)");
   assert.doesNotMatch(result.report_text, /provider_version|record_id/);
   await assert.rejects(execute("close-classification", { ...input, participants: [person("a"), person("a")] }), /Duplicate participant/);
 });

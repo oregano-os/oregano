@@ -1,0 +1,45 @@
+version: 3
+plan_id: workflow-report-details-2026-09-06
+created: "2026-09-06"
+title: Preserve readable open-item evidence in ordinary workflow reports
+objective: >-
+  Preserve observed work-item titles and safe links in the fictional Workspace
+  close report presentation while keeping its exact versioned decision payload
+  unchanged. Exercise rendering and source provenance through the ordinary engine.
+non_goals:
+  - Add business logic to the runtime or change approval and effect authority.
+  - Introduce provider calls, deploy, or remove legacy acceptance gates.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-report-details.yaml
+  - packages/testkit/fixtures/lindenhof-studio/agents/sprint/tools/close-classification/TOOL.md
+  - packages/testkit/fixtures/lindenhof-studio/agents/sprint/tools/close-classification/execute.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/fixtures/workflow-report-details.test.ts
+  - packages/testkit/fixtures/workflow-computations.test.ts
+  - packages/testkit/tests/workflow-report-details.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-report-details.test.ts
+  - packages/testkit/tests/workflow-company-tools.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse the unchanged compiler, engine, Runtime, source receipts and renderer.
+    packages: No Package or privileged Connector changes.
+    workspace: The fictional pure Company Tool owns readable business presentation and exact continuation data.
+    instance: Tests use only synthetic provider input and isolated in-memory state.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The same unchanged engine executes the reviewed Workspace Tool for any company.
+rollback: Restore the previous pure Tool version and presentation; preserve historical Artifacts and receipts.

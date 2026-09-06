@@ -2,7 +2,7 @@ import { defineCompanyTool } from "@companyos/tool-sdk";
 
 type Row<T> = { record_id: string; values: T };
 type ParticipantValues = { participant_id: string; display_name: string; included: boolean };
-type WorkItemValues = { work_item_id: string; assignee_ids: string[]; status: string; provider_version: string; actual_hours?: number | null; planned_effort?: number | null };
+type WorkItemValues = { work_item_id: string; assignee_ids: string[]; status: string; provider_version: string; title?: string; url?: string; actual_hours?: number | null; planned_effort?: number | null };
 type SubmissionValues = { participant_id: string; content_participant_id: string; accepted_at: string; task_ids: string[]; well_formed: boolean };
 type Input = {
   participants: Row<ParticipantValues>[];
@@ -76,8 +76,9 @@ export default defineCompanyTool({
     }));
     const total_effort_hours = effort_basis === "unavailable" ? null
       : total(input.participants.filter((row) => row.values.included).map((row) => participant_effort_hours[row.values.participant_id]));
-    const open_work_items = items
-      .filter((item) => !closed.has(item.status))
+    const openItems = items.filter((item) => !closed.has(item.status)).sort((a, b) => a.work_item_id.localeCompare(b.work_item_id));
+    const itemLabel = (value: string) => label(value).replace(/[\\`*_\[\]()]/g, "\\$&");
+    const open_work_items = openItems
       .map(({ work_item_id, provider_version }) => ({ work_item_id, provider_version }))
       .sort((a, b) => a.work_item_id.localeCompare(b.work_item_id));
     return {
@@ -94,7 +95,10 @@ export default defineCompanyTool({
       report_text: Object.entries(states).sort(([a], [b]) => a.localeCompare(b)).map(([id, state]) =>
         "- " + names.get(id) + ": " + (state === "complete" ? "complete" : state === "needs-reformat" ? "please correct the format or task list" : "not posted")).join("\n") || "No included participants for this close.",
       chase_text: incomplete.map((id) => names.get(id)).join(", ") || "Everyone has posted a complete update.",
-      open_items_text: open_work_items.map((item) => "- " + label(item.work_item_id)).join("\n") || "No open work items.",
+      open_items_text: openItems.map((item) => {
+        const title = itemLabel(item.title || item.work_item_id);
+        return "- " + (item.url ? "[" + title + "](" + item.url + ")" : title);
+      }).join("\n") || "No open work items.",
     };
   },
 });
