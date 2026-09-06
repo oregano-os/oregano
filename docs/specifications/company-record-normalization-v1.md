@@ -5,7 +5,7 @@ kind: specification
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -96,7 +96,7 @@ external roster, name matching or Records-derived authorization is introduced.
 
 ### Maintained provider evidence
 
-Slack Record Source `0.1.2` emits `author_principal` in the exact qualified
+Slack Record Source `0.1.3` emits `author_principal` in the exact qualified
 conversation's team namespace (`slack:<team>:<user>`), and separate
 `slack-bot` or `slack-unknown` principals. A bot indicator takes precedence
 over a simultaneous `user` field. Original authorship remains separate from
@@ -118,7 +118,7 @@ before creation fail. A late correction cannot inherit its earlier posting
 time. A Workspace deciding whether the original author submitted a form must
 compare original and current content authorship as well as its cutoff.
 
-Monday Record Source `0.3.2` emits `people_principals.<column-id>` as an array
+Monday Record Source `0.3.3` emits `people_principals.<column-id>` as an array
 of `monday:<account>:<person>` and `monday-team:<account>:<team>` principals.
 Only provider columns typed `people` qualify; the exact account comes from
 the reviewed external-Agent qualification. Person and team assignments are
@@ -255,6 +255,19 @@ above, with maintained provider emission as specified here. Role-board
 aggregation and the generic workflow engine remain integration work.
 
 ## Compatibility and evidence
+
+The maintained source versions requalify the actual credential account and
+actor before reading inventories. Slack uses the reviewed bot user and current
+conversation membership/scopes. Monday uses the reviewed account, member ID,
+member kind and administrator-confirmed external-Agent identity, then checks
+the selected groups and typed columns. A rotated credential that identifies
+another account or actor fails before reading message/item data. Sync receipts
+retain the content-free provider evidence; this does not prove time coverage.
+
+Instance bindings must select Slack `0.1.3` or Monday `0.3.3`. Incomplete older
+qualification receipts need renewed metadata qualification. Rebuild the
+Artifact with the exact binding and synchronize its new source generation;
+retain earlier Artifacts and evidence through migration.
 
 Existing source shapes remain valid; values that contradicted their declared
 type now fail. Correct invalid mappings and re-sync retained provider evidence

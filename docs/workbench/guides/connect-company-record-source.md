@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -194,13 +194,13 @@ Monday selected-item inventory exposes the stable item fields `id`, `name`, `upd
 Workbench verifies that every named column exists on the qualified board but
 does not infer what it means.
 
-The principal mapping above requires Monday Record Source `0.3.2`, qualified
+The principal mapping above requires Monday Record Source `0.3.3`, qualified
 account evidence and the frozen reviewed roster. It resolves exact people to
 stable roster IDs; unmatched identities and teams stay explicit. For raw
 provider IDs, use `columns.people_col` with `identity_list` and no resolution.
 People columns contain arrays, even when only one person is assigned.
 
-Slack Record Source `0.1.2` exposes `thread_reference` matching a published
+Slack Record Source `0.1.3` exposes `thread_reference` matching a published
 root receipt, plus `author_principal`, `editor_principal`,
 `content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
 evaluation map `accepted_at`: it reflects the current content version, including
@@ -622,6 +622,15 @@ the same records reconciliation boundary. Until then, scheduled reconciliation
 is the production freshness path.
 
 ## 9. Add another provider
+
+The maintained source bindings now select Slack `0.1.3` and Monday `0.3.3`.
+Each inventory rereads the actual credential account/actor and exact resource
+metadata before content. The archived Slack qualification must name its bot
+user; Monday must name its account, member ID, member kind and confirmed
+external-Agent mapping. Renew incomplete qualification with the maintained
+metadata-read flow, update the exact Instance binding version, rebuild the
+Artifact and synchronize that source generation. Do not overwrite historical
+Artifacts or evidence. A current identity check is not a time-coverage proof.
 
 Do not copy this command into `companyos notion sync` or
 `companyos clickup sync`. A maintained provider contribution implements the

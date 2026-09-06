@@ -4,9 +4,10 @@ import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts"
 import type { CompanyRecordSourceBinding, RecordSourceConnector, RecordSourceInventory } from "../../records/source-connector.ts";
 import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { SlackWebApiClient, type SlackFetch } from "./client.ts";
+import { qualifySlackRecordSource } from "./record-source-qualification.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.2";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.3";
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -86,6 +87,7 @@ const configuration = (
     throw new Error("Slack qualification does not prove bot-token authentication without retained credentials");
   }
   if (discovery.team_id !== teamId) throw new Error(`Slack qualification does not identify team '${teamId}'`);
+  if (typeof discovery.bot_user_id !== "string" || !/^[UW][A-Z0-9]{4,31}$/.test(discovery.bot_user_id)) throw new Error("Slack qualification requires an exact authenticated bot user identity");
   if (discovery.channel?.id !== channelId || discovery.channel?.kind !== conversationKind || discovery.channel?.is_member !== true) {
     throw new Error(`Slack qualification does not prove membership in exact ${conversationKind} '${channelId}'`);
   }
@@ -95,7 +97,7 @@ const configuration = (
   const scopes = new Set(Array.isArray(discovery.scopes) ? discovery.scopes.map(String) : []);
   const missingScope = requiredScopes.find((scope) => !scopes.has(scope));
   if (missingScope) throw new Error(`Slack qualification lacks required scope '${missingScope}'`);
-  return { teamId, channelId, conversationKind, oldestAt, latestAt, includeThreads, pageSize, maxPages, maxThreadPages, maxMessages };
+  return { teamId, channelId, conversationKind, botUserId: discovery.bot_user_id as string, oldestAt, latestAt, includeThreads, pageSize, maxPages, maxThreadPages, maxMessages };
 };
 
 const normalizeMessage = (args: {
@@ -176,9 +178,14 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     const config = configuration(args.source, args.binding, args.qualification);
     const token = await this.resolveSecret(args.binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${args.binding.secret_ref}' is unavailable`);
+    const current = (await qualifySlackRecordSource({ token, teamId: config.teamId, channelId: config.channelId,
+      now: this.now, ...(this.fetcher ? { fetcher: this.fetcher } : {}) })).evidence.discovery;
+    if (current.bot_user_id !== config.botUserId || current.channel.kind !== config.conversationKind) {
+      throw new Error("Slack source credential or conversation differs from its reviewed qualification");
+    }
     const client = new SlackWebApiClient({ token, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
-    const requestIds: string[] = [];
-    const scopes = new Set<string>();
+    const requestIds: string[] = [...current.request_ids];
+    const scopes = new Set<string>(current.scopes);
     let historyPages = 0;
     let threadPages = 0;
     const messages = new Map<string, Record<string, JsonValue>>();
@@ -272,6 +279,8 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
         connector: this.id,
         connector_version: this.version,
         authentication_mode: "bot-token",
+        authenticated_bot_user_id: current.bot_user_id,
+        identity_checked_at: current.observed_at,
         resource_binding: args.binding.resource_binding,
         team_id: config.teamId,
         conversation_id: config.channelId,

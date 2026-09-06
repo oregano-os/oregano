@@ -304,6 +304,8 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
     headers: { "api-version": "dev", "x-request-id": requestId },
   });
   const queue = [
+    response({ me: { id: "700007", name: "Fixture Agent", kind: "external_agent_member", email: "agent-800001@agent.monday.com", account: { id: "300003", name: "Fixture Account" } },
+      boards: [{ id: "100001", groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status_col", title: "Status", type: "status", archived: false }] }] }, "request-identity"),
     response({ boards: [{ id: "100001", items_page: { cursor: "cursor-2", items: [
       { id: "item-2", name: "Excluded", updated_at: "2030-02-01T09:00:00Z", board: { id: "100001" }, group: { id: "other" }, column_values: [{ id: "status_col", text: "Done", value: "{\"index\":1}" }] },
       { id: "item-1", name: "Included", updated_at: "2030-02-01T09:30:00Z", board: { id: "100001" }, group: { id: "ready" }, column_values: [{ id: "status_col", text: "Working", value: "{\"index\":2}" }] },
@@ -343,7 +345,7 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
       source_id: "fixture-items",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.3.0",
+      connector_version: "0.3.3",
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "c".repeat(64) },
       configuration: { api_version: "dev", agent_id: "700001", board_id: "100001", permission: "read", group_ids: ["ready"], page_size: 2, max_pages: 5 },
@@ -358,7 +360,8 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
           authentication_mode: "external-agent",
           configured_agent_id: "700001",
           identity_mapping_status: "administrator-confirmed",
-          identity: { externalAgentId: "800001" },
+          identity: { memberId: "700007", kind: "external_agent_member", externalAgentId: "800001" },
+          account: { id: "300003" },
           resources: [{ id: "100001", scope: "board", permission: "read" }],
           boards: [{
             id: "100001",
@@ -371,7 +374,7 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
   });
   assert.deepEqual(inventory.objects.map((item) => item.id), ["item-1", "item-3"]);
   assert.equal(inventory.receipt.pages, 2);
-  assert.deepEqual(inventory.receipt.request_ids, ["request-1", "request-2"]);
+  assert.deepEqual(inventory.receipt.request_ids, ["request-identity", "request-1", "request-2"]);
   assert.ok(requests.every((request) => request.headers.get("authorization") === "fixture-provider-value"));
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /fixture-provider-value|Included/);
 });
@@ -383,6 +386,11 @@ test("the maintained Monday source adapter mirrors a complete table surface with
     headers: { "api-version": "dev", "x-request-id": requestId },
   });
   const queue = [
+    response({ me: { id: "700007", name: "Fixture Agent", kind: "external_agent_member", email: "agent-800001@agent.monday.com", account: { id: "300003", name: "Fixture Account" } },
+      boards: [{ id: "100001", groups: [{ id: "backlog", title: "Backlog", archived: false, deleted: false }], columns: [
+        { id: "name", title: "Name", type: "name", archived: false }, { id: "status_col", title: "Status", type: "status", archived: false },
+        { id: "subtasks", title: "Subitems", type: "subtasks", archived: false, settings: { boardIds: [100002] } },
+      ] }] }, "request-identity"),
     response({ boards: [{
       id: "100001", name: "Synthetic Sprint", board_kind: "public", state: "active",
       groups: [{ id: "backlog", title: "Backlog", archived: false, deleted: false }],
@@ -439,7 +447,7 @@ test("the maintained Monday source adapter mirrors a complete table surface with
       source_id: "fixture-table",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.3.0",
+      connector_version: "0.3.3",
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
       configuration: {
@@ -453,7 +461,8 @@ test("the maintained Monday source adapter mirrors a complete table surface with
       evidence: { discovery: {
         discovery_hash: "d".repeat(64), credentials_retained: false, authentication_mode: "external-agent",
         configured_agent_id: "700001", identity_mapping_status: "administrator-confirmed",
-        identity: { externalAgentId: "800001" },
+        identity: { memberId: "700007", kind: "external_agent_member", externalAgentId: "800001" },
+        account: { id: "300003" },
         resources: [{ id: "100001", scope: "board", permission: "read-write" }],
         boards: [{ id: "100001", groups: [{ id: "backlog", archived: false, deleted: false }], columns: [
           { id: "name", archived: false }, { id: "status_col", archived: false },
@@ -476,7 +485,7 @@ test("the maintained Monday source adapter mirrors a complete table surface with
     ] },
     { board_id: "100002", columns: [{ id: "hours", title: "Hours", type: "numbers" }] },
   ]);
-  assert.deepEqual(inventory.receipt.request_ids, ["request-root", "request-child"]);
+  assert.deepEqual(inventory.receipt.request_ids, ["request-identity", "request-root", "request-child"]);
   assert.equal(requests[0].query.includes("updates"), false);
   assert.equal(requests[0].query.includes("assets"), false);
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /Parent|Child|Working|fixture-provider-value/);

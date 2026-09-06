@@ -1,0 +1,60 @@
+version: 3
+plan_id: record-provider-identity-2026-09-06
+created: "2026-09-06"
+title: Requalify actual source credentials before provider inventory reads
+objective: >-
+  Refuse inventory reads when a rotated credential belongs to another provider
+  account or actor, or the exact resource no longer matches reviewed access.
+non_goals:
+  - Infer time completeness from a metadata request or completed inventory.
+  - Activate production or modify provider resources and permissions.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-record-provider-identity.yaml
+  - packages/connectors/slack/records-source.ts
+  - packages/connectors/slack/record-source-qualification.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/records/contracts.ts
+  - packages/records/synchronization.ts
+  - packages/testkit/tests/provider-record-evidence.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/cli/tests/records.test.mjs
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/specifications/company-records-query-v1.md
+  - docs/status/current.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/provider-record-evidence.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - specification.company-records-query-v1
+    - status.current
+    - guide.connect-company-record-source
+architecture:
+  placement:
+    core: Current credential and resource identity checks at the privileged read boundary.
+    packages: Maintained Slack and Monday source Connectors revalidate their exact qualified resources.
+    workspace: Continues to declare logical source fields and mappings.
+    instance: Retains reviewed qualification, exact credential references and provider account bindings.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Retain the content-free actual inventory and identity receipt with the completed synchronization evidence.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse existing read-only provider qualification APIs before inventory pagination.
+    - mechanism: identity-and-authorization
+      reason: Bind normalized provider principals to the actual credential account and reviewed actor.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: No business workflow, company identity or provider credential enters Core configuration.
+rollback: Disable affected source synchronization and retain existing evidence until exact credential/resource qualification is restored; never relabel another account's data.
