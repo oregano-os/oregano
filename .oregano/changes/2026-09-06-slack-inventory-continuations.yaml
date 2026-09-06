@@ -1,0 +1,47 @@
+version: 3
+plan_id: slack-inventory-continuations-2026-09-06
+created: "2026-09-06"
+title: Reject repeated Slack continuations and foreign reply roots
+objective: >-
+  Reject inconsistent provider pagination and thread identity before an inventory
+  can produce complete synchronization evidence.
+non_goals:
+  - Broaden source history scope, discover older roots or invent historical cutoff coverage.
+  - Activate a provider source or change production bindings.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-slack-inventory-continuations.yaml
+  - packages/connectors/slack/records-source.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-record-source.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - guide.connect-company-record-source
+    - status.current
+architecture:
+  placement:
+    core: Maintained source adapter validates provider traversal within the existing Records contract.
+    packages: Existing Record Source Connector boundary remains unchanged.
+    workspace: Owns the same reviewed source declaration and projected fields.
+    instance: Retains exact qualified bindings and current credential scope; no live activation.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Refuse a complete inventory receipt for repeated continuations or mismatched reply roots.
+    - mechanism: capability-contracts-and-connectors
+      reason: Keep Slack-specific response consistency checks in the existing privileged adapter.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every qualified Slack Record Source receives the same bounded traversal checks.
+rollback: Retain prior deployment and evidence; no state migration or provider mutation occurs.

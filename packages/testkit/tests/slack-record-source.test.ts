@@ -255,3 +255,38 @@ test("Slack Record Source does not count replies beyond a bounded latest timesta
     "1893456001.000100",
   ]);
 });
+
+test("Slack rejects repeated history and per-thread cursors before another provider request", async () => {
+  for (const method of ["conversations.history", "conversations.replies"]) {
+    const original = fixture(), calls: URL[] = [];
+    const fetcher = async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      calls.push(url);
+      const response = await original.fetcher(input);
+      if (!url.pathname.endsWith(`/${method}`)) return response;
+      const value = await response.json();
+      value.has_more = true; value.response_metadata = { next_cursor: "repeated-page" };
+      return jsonResponse(value, "repeated-cursor-receipt");
+    };
+    const qualification = await qualified(fetcher as typeof fetch), selected = binding(qualification.evidence.discovery.discovery_hash);
+    selected.configuration.max_pages = 10; selected.configuration.max_thread_pages = 10;
+    const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher });
+    await assert.rejects(connector.readCompleteInventory({ source, binding: selected, qualification: { ...qualification } }), /repeated continuation cursor/);
+    assert.equal(calls.filter((url) => url.pathname.endsWith(`/${method}`)).length, 2);
+  }
+});
+
+test("Slack refuses replies naming a foreign root or an invalid thread timestamp", async () => {
+  for (const threadTs of ["1893455999.000001", "not-a-provider-timestamp"]) {
+    const original = fixture();
+    const fetcher = async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input), response = await original.fetcher(input);
+      if (!url.pathname.endsWith("/conversations.replies")) return response;
+      const value = await response.json(); value.messages[1].thread_ts = threadTs;
+      return jsonResponse(value, "wrong-root-receipt");
+    };
+    const qualification = await qualified(fetcher as typeof fetch);
+    const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher });
+    await assert.rejects(connector.readCompleteInventory({ source, binding: binding(qualification.evidence.discovery.discovery_hash), qualification: { ...qualification } }), /different thread|timestamp.*invalid/);
+  }
+});

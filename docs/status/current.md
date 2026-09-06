@@ -1115,3 +1115,8 @@ rejects partial success-shaped results and incomplete item coverage as unknown;
 operator review never retries or reconciles an effect. Synthetic actual-adapter
 and engine tests cover this boundary. Automatic business-owner notification,
 qualified recovery, live test acceptance and legacy removal remain outstanding.
+
+Slack source inventory now rejects repeated channel or thread continuations
+before repeating a request and refuses foreign or invalid reply roots. Focused
+synthetic adapter tests cover both traversal scopes and thread identity. This
+hardening does not establish older-root coverage or historical cutoff proof.
