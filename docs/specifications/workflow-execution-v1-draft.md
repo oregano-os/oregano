@@ -123,6 +123,10 @@ earlier mandatory predecessor. Routes cover a finite enum or boolean.
 Human decisions bind a prior step output and require a delivery binding,
 approve/reject targets and a bounded business-day timeout. The batch-update
 pattern must guard its empty updates outcome before requesting approval.
+Entries in one approved batch may have distinct target values. The complete
+ordered array, including every item's version, fields and values, is the bound
+payload; matching resource bindings and full preflight remain mandatory. The
+engine does not split it into separately approved or silently modified writes.
 
 Schedules use IANA timezones, validated holiday dates and opaque trigger
 parameters. Repeated trigger IDs are allowed in one calendar for non-colliding

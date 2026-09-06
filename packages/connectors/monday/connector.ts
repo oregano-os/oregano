@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { CapabilityEffectOutcomeUnknownError, type CapabilityCallContext, type CapabilityResult, type Connector, type JsonValue } from "../../capabilities/contracts.ts";
 import type { MondayEchoStore, MondayResourceBinding } from "./contracts.ts";
-import { recordDigest } from "../../records/identity.ts";
 import { MondayClient } from "./client.ts";
 
 const object = (value: unknown, label: string): Record<string, any> => {
@@ -95,7 +94,6 @@ export class MondayWorkItemConnector implements Connector {
     const ids = updates.map((entry) => String(object(entry, "Monday batch update entry").work_item_id));
     if (new Set(ids).size !== ids.length) throw new Error("Monday batch update work-item ids must be unique");
     const prepared: Array<{ workItemId: string; before: Awaited<ReturnType<MondayClient["readWorkItem"]>>; changes: Record<string, JsonValue> }> = [];
-    let homogeneousChanges: string | undefined;
     for (const raw of updates) {
       const update = object(raw, "Monday batch update entry");
       const workItemId = String(update.work_item_id);
@@ -104,11 +102,8 @@ export class MondayWorkItemConnector implements Connector {
       if (before.data.providerVersion !== expectedVersion) throw new Error(`Monday work item '${workItemId}' changed since expected version '${expectedVersion}'`);
       const changes = object(update.changes, "Monday batch work-item changes") as Record<string, JsonValue>;
       this.validateChanges(binding, changes);
-      const changesDigest = recordDigest(changes);
-      if (homogeneousChanges && homogeneousChanges !== changesDigest) {
-        throw new Error("Monday batch update requires one homogeneous frozen change set");
-      }
-      homogeneousChanges = changesDigest;
+      // Approval binds the whole array, including each item's distinct values.
+      // Preflight every item before entering the mutation loop below.
       prepared.push({ workItemId, before, changes });
     }
     const results: Array<{ work_item_id: string; previous_version: string; provider_version: string; changed_fields: string[] }> = [];
