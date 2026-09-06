@@ -1199,3 +1199,13 @@ review. Synthetic memory/provider and mandatory Postgres regressions cover
 multi-page delivery, crash recovery, revoked authority, changed input, expired
 business approval and cancellation. Actual provider delivery acceptance remains
 required before release or activation.
+
+The Records source connection planner now accepts the two documented non-secret
+Slack credential provider selectors at their exact Instance configuration path.
+Previously its credential-key heuristic rejected that supported setting before
+connection planning. Inline credentials, arbitrary or nested selectors and
+selectors on another Connector still fail inspection. Actual credential exchange,
+provider qualification and source synchronization remain separate unchanged
+operations; passing the binding check grants no provider access.
+The existing credential-resolver regressions now have a default testkit
+entrypoint so the ordinary PR check runs them as well.
