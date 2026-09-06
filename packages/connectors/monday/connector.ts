@@ -55,27 +55,36 @@ export class MondayWorkItemConnector implements Connector {
     const before = await this.client.readWorkItem(binding, workItemId);
     if (before.data.providerVersion !== String(input.expected_version)) throw new Error(`Monday work item '${workItemId}' changed since expected version '${String(input.expected_version)}'`);
     const changes = object(input.changes, "Monday work-item changes") as Record<string, JsonValue>;
-    await this.client.updateWorkItem(binding, workItemId, changes);
-    const after = await this.client.readWorkItem(binding, workItemId);
-    const changedFields = Object.keys(changes).sort();
-    await this.rememberEcho(binding, workItemId, after.data.providerVersion, context.idempotencyKey);
-    return {
-      output: { work_item: after.data, previous_version: before.data.providerVersion, provider_version: after.data.providerVersion, changed_fields: changedFields },
-      evidence: { resource_binding: binding.id, work_item_id: workItemId, previous_version: before.data.providerVersion, provider_version: after.data.providerVersion, changed_fields: changedFields, api_version: after.apiVersion, request_id: after.requestId },
-    };
+    // Reject known local input errors before the provider effect can begin.
+    this.validateChanges(binding, changes);
+    try {
+      await this.client.updateWorkItem(binding, workItemId, changes);
+      const after = await this.client.readWorkItem(binding, workItemId);
+      const changedFields = Object.keys(changes).sort();
+      await this.rememberEcho(binding, workItemId, after.data.providerVersion, context.idempotencyKey);
+      return {
+        output: { work_item: after.data, previous_version: before.data.providerVersion, provider_version: after.data.providerVersion, changed_fields: changedFields },
+        evidence: { resource_binding: binding.id, work_item_id: workItemId, previous_version: before.data.providerVersion, provider_version: after.data.providerVersion, changed_fields: changedFields, api_version: after.apiVersion, request_id: after.requestId },
+      };
+    } catch (error) { throw this.unknownItem(binding, workItemId, "update", error); }
   }
 
   private async comment(binding: MondayResourceBinding, workItemId: string, body: string, context: CapabilityCallContext): Promise<CapabilityResult> {
     if (!context.idempotencyKey) throw new Error("Monday work-item effects require a claimed idempotency key");
     await this.client.readWorkItem(binding, workItemId, []);
-    const result = await this.client.comment(binding, workItemId, body);
-    const after = await this.client.readWorkItem(binding, workItemId, []);
-    await this.rememberEcho(binding, workItemId, after.data.providerVersion, context.idempotencyKey);
-    const createdAt = result.data.create_update.created_at ?? this.now().toISOString();
-    return {
-      output: { comment_id: String(result.data.create_update.id), work_item_id: workItemId, provider_version: after.data.providerVersion, created_at: createdAt },
-      evidence: { resource_binding: binding.id, work_item_id: workItemId, comment_id: String(result.data.create_update.id), provider_version: after.data.providerVersion, created_at: createdAt, api_version: result.apiVersion, request_id: result.requestId },
-    };
+    if (binding.permission !== "read-write") throw new Error(`Monday resource binding '${binding.id}' is read-only`);
+    try {
+      const result = await this.client.comment(binding, workItemId, body);
+      const commentId = result.data.create_update?.id;
+      if ((typeof commentId !== "string" && typeof commentId !== "number") || !String(commentId).trim()) throw new Error("Monday comment acknowledgement has no stable comment identity");
+      const after = await this.client.readWorkItem(binding, workItemId, []);
+      await this.rememberEcho(binding, workItemId, after.data.providerVersion, context.idempotencyKey);
+      const createdAt = result.data.create_update.created_at ?? this.now().toISOString();
+      return {
+        output: { comment_id: String(result.data.create_update.id), work_item_id: workItemId, provider_version: after.data.providerVersion, created_at: createdAt },
+        evidence: { resource_binding: binding.id, work_item_id: workItemId, comment_id: String(result.data.create_update.id), provider_version: after.data.providerVersion, created_at: createdAt, api_version: result.apiVersion, request_id: result.requestId },
+      };
+    } catch (error) { throw this.unknownItem(binding, workItemId, "comment", error); }
   }
 
   private async batchUpdate(binding: MondayResourceBinding, input: Record<string, any>, context: CapabilityCallContext): Promise<CapabilityResult> {
@@ -94,7 +103,7 @@ export class MondayWorkItemConnector implements Connector {
       const expectedVersion = String(update.expected_version);
       if (before.data.providerVersion !== expectedVersion) throw new Error(`Monday work item '${workItemId}' changed since expected version '${expectedVersion}'`);
       const changes = object(update.changes, "Monday batch work-item changes") as Record<string, JsonValue>;
-      if (Object.keys(changes).length === 0) throw new Error(`Monday batch update for '${workItemId}' has no changes`);
+      this.validateChanges(binding, changes);
       const changesDigest = recordDigest(changes);
       if (homogeneousChanges && homogeneousChanges !== changesDigest) {
         throw new Error("Monday batch update requires one homogeneous frozen change set");
@@ -138,6 +147,19 @@ export class MondayWorkItemConnector implements Connector {
         changed_fields: [...new Set(results.flatMap((entry) => entry.changed_fields))].sort(),
       },
     };
+  }
+
+  private validateChanges(binding: MondayResourceBinding, changes: Record<string, JsonValue>): void {
+    if (binding.permission !== "read-write") throw new Error(`Monday resource binding '${binding.id}' is read-only`);
+    if (!Object.keys(changes).length || Object.keys(changes).some((field) => !binding.fields[field])) throw new Error("Monday update requires non-empty changes to allowed fields");
+  }
+
+  private unknownItem(binding: MondayResourceBinding, workItemId: string, operation: string, error: unknown): CapabilityEffectOutcomeUnknownError {
+    return new CapabilityEffectOutcomeUnknownError("Monday effect may have completed without its required receipt; human review is required", {
+      resource_binding: binding.id, work_item_id: workItemId, operation,
+      effect_review: { version: 1, items: [{ item_id: workItemId, status: "unknown" }] },
+      error_digest: createHash("sha256").update(error instanceof Error ? error.message : String(error)).digest("hex"),
+    });
   }
 
   private async rememberEcho(binding: MondayResourceBinding, workItemId: string, providerVersion: string, idempotencyKey: string): Promise<void> {

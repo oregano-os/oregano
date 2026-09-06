@@ -276,3 +276,17 @@ returned and its subsequent read receipt and echo evidence were retained. It
 does not establish provider-side atomicity or the absence of later changes.
 Readback or receipt-persistence failure leaves the current item uncertain.
 This report performs no reconciliation and grants no retry or new approval.
+
+The maintained Monday work-item client requires exactly one matching item in
+preflight and readback responses, and its update mutation acknowledgement must
+identify that same requested item. A wrong or ambiguous read before dispatch
+is refused; a missing/wrong acknowledgement or readback after dispatch remains
+outcome-unknown. Single updates and comments also preserve unknown evidence if
+their post-write receipt or echo persistence fails. A comment acknowledgement
+needs a stable comment identity. These checks do not establish provider-side
+atomicity or replace current credential and resource qualification.
+
+Allowed, non-empty mapped changes are validated for the entire batch before
+the first mutation. Known local field/permission failures do not start provider
+writes. Uncertain single-item effects use the same content-free item-review
+shape and existing Runtime claim/evidence lifecycle as batches.
