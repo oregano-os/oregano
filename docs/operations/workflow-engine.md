@@ -339,3 +339,10 @@ Operator bearer requests cannot submit button events or approving identities.
 Retained older Artifacts keep their original text notices and reply protocol.
 Do not rewrite an outstanding request during rollout. Existing Tool approval
 IDs also remain valid; removing their handlers would break pending requests.
+
+A shared installation may add a Connect Preview-branch destination at
+`/api/workflows/slack` while retaining its production destination. This endpoint
+ignores ordinary chat and unrelated controls; matching workflow actions still
+pass through the unchanged SDK signature verifier and exact delivered-decision
+authorization. Preserve existing connector environments and destinations when
+registering it, and verify the selected branch resolves to the reviewed Preview.

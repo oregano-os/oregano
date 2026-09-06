@@ -23,6 +23,9 @@ files_expected:
   - packages/runtime/workflow-engine/verification.ts
   - packages/connectors/slack/communication.ts
   - packages/runner-vercel/src/lib/decision-cards.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
   - packages/runner-vercel/src/lib/runtime-connectors.ts
   - packages/runner-vercel/src/lib/workflow-conversations.ts
   - packages/runner-vercel/src/lib/bot.ts

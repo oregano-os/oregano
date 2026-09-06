@@ -1349,3 +1349,6 @@ human and exact delivery checks. Legacy Artifact text inputs remain verifiable.
 Live button acceptance still requires qualified interactivity ingress into the
 owning Instance; a shared production app does not automatically route Preview
 clicks. No Teams or Telegram Connector is implied by the neutral contract.
+
+The dedicated `/api/workflows/slack` endpoint supports action-only trigger
+fan-out to a Preview without processing ordinary shared-installation chat.
