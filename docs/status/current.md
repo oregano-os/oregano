@@ -1120,3 +1120,10 @@ Slack source inventory now rejects repeated channel or thread continuations
 before repeating a request and refuses foreign or invalid reply roots. Focused
 synthetic adapter tests cover both traversal scopes and thread identity. This
 hardening does not establish older-root coverage or historical cutoff proof.
+
+The fictional Workspace now retains numeric and unavailable effort calculations
+in its isolated Company Tool, with schema-checked unknown values and explicit
+basis selection. Friday version 7 passes configuration through the ordinary
+engine and uses returned evidence text. The default remains unavailable; no
+actual company source mapping or provider collection is activated. These cases
+extend computation parity, not the full legacy removal or live acceptance gate.

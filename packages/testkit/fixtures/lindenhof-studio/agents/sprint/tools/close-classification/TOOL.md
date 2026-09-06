@@ -3,7 +3,7 @@ type: tool
 description: Classify every frozen participant at a cutoff and list open work items with provider versions. Takes
   Company Records rows with typed values. Preserves the current Friday Close classification semantics without carrying
   data into Monday.
-version: 6.1.0
+version: 6.2.0
 risk: R0
 data_class: business
 idempotency: input-hash
@@ -19,6 +19,10 @@ input_schema:
     - cutoff
     - thread_reference
   properties:
+    effort:
+      description: Explicit evidence basis. Omission is unavailable; missing values never borrow from another basis.
+      type: string
+      enum: [actual-hours, planned-effort, unavailable]
     participants:
       type: array
       items:
@@ -94,6 +98,10 @@ input_schema:
             provider_version:
               type: string
               minLength: 1
+            actual_hours:
+              type: [number, "null"]
+            planned_effort:
+              type: [number, "null"]
     submission_row:
       type: object
       required:
@@ -141,6 +149,10 @@ output_schema:
   type: object
   additionalProperties: false
   required:
+    - effort_basis
+    - participant_effort_hours
+    - total_effort_hours
+    - effort_text
     - outcome
     - cutoff
     - thread_reference
@@ -151,6 +163,17 @@ output_schema:
     - chase_text
     - open_items_text
   properties:
+    effort_basis:
+      type: string
+      enum: [actual-hours, planned-effort, unavailable]
+    participant_effort_hours:
+      type: object
+      additionalProperties:
+        type: [number, "null"]
+    total_effort_hours:
+      type: [number, "null"]
+    effort_text:
+      type: string
     outcome:
       type: string
       enum:
