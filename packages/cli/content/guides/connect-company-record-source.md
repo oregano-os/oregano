@@ -455,6 +455,20 @@ companyos records source connect \
   --plan
 ```
 
+The single-source connect command accepts a projection whose `source_ids`
+contains exactly the selected source, or whose legacy `selection.source_id`
+selects it. It does not silently narrow a multi-source projection into a
+single-source completeness claim. Configure all sources through the reviewed
+Instance configuration before using a combined projection.
+
+For an identity-aware source, the generated configuration retains the exact
+reviewed `handbook/roster.md` snapshot used by local planning. The source
+confirmation and configuration digest bind that snapshot. A later roster change
+requires a new plan and configuration; previously frozen configurations keep
+the original principal mapping. Sources without identity resolution need no
+roster. Keep this non-secret company material in protected Instance state;
+it is not public fixture content or an approval decision.
+
 Review the exact Core and Workspace commits, source and projection selection,
 binding and qualification evidence, runtime target, costs, and effects. Use
 `--apply <connect-hash>` to create only a mode-0600 credential-free local state.
