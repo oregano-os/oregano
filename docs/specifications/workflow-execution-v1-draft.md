@@ -137,6 +137,14 @@ A trigger parameter reference must exist on every variant that can open the
 workflow. Configurations and templates stay inside the Workspace; symlink and
 parent-directory escapes are rejected.
 
+Only files selected by executable opening triggers, wait triggers or explicit
+`calendar` paths receive the executable calendar schema. Other scheduling
+metadata may coexist under `schedules/` and is not included in workflow
+manifests. Discovery parses every YAML candidate when executable workflows are
+present, so unreadable files cannot conceal a competing trigger. Missing,
+malformed or ambiguous referenced calendars fail. A prose-only Workspace does
+not acquire executable calendar requirements.
+
 The fictional `lindenhof-studio` fixture passes full Workspace validation and
 Artifact compilation; mutation tests exercise the failure cases. The durable
 engine, qualified provider completeness and actual human/Instance acceptance

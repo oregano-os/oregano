@@ -1,0 +1,48 @@
+version: 3
+plan_id: workflow-calendar-selection-2026-09-06
+created: "2026-09-06"
+title: Select executable calendars without reclassifying other scheduling metadata
+objective: >-
+  Validate and compile only calendars selected by executable workflow triggers,
+  waits or explicit calendar paths. Preserve existing prose Workspaces and
+  unrelated Records scheduling declarations without weakening referenced calendars.
+non_goals:
+  - Activate a workflow or change company schedules.
+  - Infer a calendar from company-specific configuration property names.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-calendar-selection.yaml
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-steps.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - status.current
+architecture:
+  placement:
+    core: One shared selection boundary feeds existing validation and compilation.
+    packages: No Package or extension interface changes.
+    workspace: Explicit trigger and calendar references select the operating files.
+    instance: No Instance configuration, provider access or activation changes.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Keep existing calendar enforcement on every executable reference.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Calendar selection depends only on generic workflow references.
+rollback: Revert the parser correction; no database or provider migration is involved.

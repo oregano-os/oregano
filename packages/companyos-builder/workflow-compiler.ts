@@ -5,7 +5,7 @@ import YAML from "yaml";
 import { sha256 } from "../runtime/canonical.ts";
 import type { CompiledAgent } from "./types.ts";
 import type { CompiledWorkflow, CompiledWorkflowStep, CompiledWorkflowSchedule, CompiledWorkflowTemplate, WorkflowValue } from "./workflow-types.ts";
-import { validateWorkflowFiles } from "./workflow-authoring.ts";
+import { validateWorkflowFiles, workflowSchedules } from "./workflow-authoring.ts";
 import { workspaceFile, workspaceDocument, workspacePaths, type WorkspaceFiles } from "./workspace-files.ts";
 
 type Declaration = Record<string, any>;
@@ -34,7 +34,7 @@ export function compileWorkflows(args: {
   if (!declarations.length) return [];
   const errors = validateWorkflowFiles(files);
   if (errors.length) throw new Error(`Workflow compilation failed:\n${errors.join("\n")}`);
-  const schedules: CompiledWorkflowSchedule[] = workspacePaths(files, "schedules", /\.ya?ml$/).map((path) => ({ path, digest: sha256(workspaceFile(files, path)), declaration: YAML.parse(workspaceFile(files, path)) }));
+  const schedules: CompiledWorkflowSchedule[] = workflowSchedules(files, declarations.map(({ data }) => data)).map(({ path, data }) => ({ path, digest: sha256(workspaceFile(files, path)), declaration: data }));
   const scheduleFor = (triggerId: string): CompiledWorkflowSchedule => {
     const candidates = schedules.filter((schedule) => schedule.declaration.triggers.some((trigger) => trigger.id === triggerId));
     if (candidates.length !== 1) throw new Error(`Trigger '${triggerId}' needs exactly one schedule`);

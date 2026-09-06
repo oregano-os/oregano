@@ -58,8 +58,9 @@ payload; an empty batch must end before approval.
 `companyos validate` now checks executable authoring, including source-derived
 Record row types, grants, risk minima, markers, schedule references and control
 flow. `companyos build` also compiles the validated steps into frozen manifests in
-the Artifact. Passing these checks does not yet make the workflows executable:
-the runtime guard and durable engine remain under implementation. Consult the
+the Artifact. The generic runtime guard and durable engine are implemented;
+executing a workflow requires separately verified Instance controls and explicit
+activation. Consult the
 [Workflow Execution specification](../../specifications/workflow-execution-v1-draft.md)
 for the available validation, compilation and remaining execution gates.
 
@@ -67,3 +68,9 @@ Scheduled workflows use the originating schedule for business-day timeouts.
 For an operator workflow with timed waits or decisions, add
 `calendar: schedules/<file>.yaml`. Keep company parameters in literal config;
 the compiler does not infer a calendar from business parameter names.
+
+Opening triggers, wait triggers and explicit calendar paths select the files
+that must satisfy the executable calendar contract. Independent scheduling
+metadata may coexist in `schedules/`; it is not added to workflow manifests.
+Keep all candidate YAML readable and avoid competing trigger IDs. Invalid or
+missing referenced calendars still block validation and compilation.
