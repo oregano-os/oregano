@@ -100,8 +100,17 @@ export class WorkflowEngine {
       payload: { run_id: run.runId, workflow_id: run.workflowId, step_id: wait.stepId, kind: wait.kind, instant: wait.dueAt, artifact_hash: run.artifactHash } });
   }
 
-  async openOperator(args: { workflowId: string; requestId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }): Promise<WorkflowRun> {
+  async openOperator(args: { workflowId: string; requestId: string; principal: string; fields: Record<string, string>; triggerVariant?: number; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }): Promise<WorkflowRun> {
     await this.#operator(args.principal); this.#enabled(args.workflowId); opaqueId(args.requestId);
+    if (args.triggerVariant !== undefined) {
+      if (!Number.isSafeInteger(args.triggerVariant) || args.triggerVariant < 0 || args.triggerVariant > 999 || args.params !== undefined) throw new Error("Invalid or conflicting workflow trigger variant");
+      const workflow = this.#artifact.workflows?.find((candidate) => candidate.id === args.workflowId);
+      if (!workflow || workflow.trigger.kind !== "schedule") throw new Error("Workflow trigger variant requires a declared schedule");
+      const triggerId = workflow.trigger.id;
+      const variant = this.#calendar(workflow)?.triggers.filter((trigger) => trigger.id === triggerId)[args.triggerVariant];
+      if (!variant) throw new Error("Workflow trigger variant is absent from the retained calendar");
+      args = { ...args, params: structuredClone(variant.params ?? {}) };
+    }
     return this.#open(args, `operator:${sha256(args.requestId)}`);
   }
 

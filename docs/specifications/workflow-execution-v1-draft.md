@@ -349,6 +349,17 @@ key/period fields; Core cannot invent company period naming. Previous-trigger
 references use the preceding declared calendar occurrence, never another run.
 Instance execution enablement and calendar activation are separate checks.
 
+An operator opening may select `triggerVariant`, a zero-based index among
+the retained calendar entries matching that workflow's trigger ID, in declaration
+order. Only that entry's frozen parameters are copied; its scheduled time is
+not used as an opening time. This works with automatic calendar activation
+blocked and preserves delivery windows, waits, approvals and current operator
+authorization. Unknown variants and competing explicit parameters are rejected.
+The hosted request still rejects caller-supplied parameters, clocks and principals.
+Retained parameters participate in opening identity, so changing them under the
+same request ID is a conflict. An omitted selector keeps the existing opening
+behavior; it does not guess which calendar variant an operator intended.
+
 Each Tool input or foreach collection is persisted before execution. The worker
 uses a fresh lease-bound context reader for the ordinary CompanyOSRuntime;
 Company Tools still execute in their existing restricted sandbox. Completed

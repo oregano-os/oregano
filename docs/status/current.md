@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Manual hosted openings accept an optional bounded `triggerVariant` index.
+  It selects only parameters from an existing matching trigger in the retained
+  Workspace calendar. Tests exercise both branches through the request parser
+  and actual engine, changed-input retries, unauthorized callers, invalid
+  selectors, preserved real opening times and delayed business-day delivery.
+  No arbitrary parameters, clock override or business-specific host is exposed;
+  actual provider and human acceptance remain separate.
+
 - Ordinary publication fixtures verify the exact Agent, Tool, Instance, run,
   step and effect identity at the provider boundary. A pending handoff retains
   its original templates, destination, schedule and journal provenance after a

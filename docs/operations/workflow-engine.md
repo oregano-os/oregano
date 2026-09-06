@@ -103,6 +103,7 @@ parameters or replacement Artifact:
 
 ```json
 {"action":"open","workflowId":"period-close","requestId":"independent-request-1","fields":{"period_id":"period-1"}}
+{"action":"open","workflowId":"daily-summary","requestId":"independent-request-2","fields":{},"triggerVariant":1}
 {"action":"schedule","workflowId":"period-close","instant":"2030-01-04T16:00:00.000Z","fields":{"period_id":"period-1"}}
 {"action":"read","runId":"workflow:<64 hexadecimal characters>"}
 {"action":"list"}
@@ -120,6 +121,18 @@ receipts remain in the database. Refused requests return an evidence digest
 correlated with host logs. Unknown or failed effects cannot be blindly resumed:
 review retained provider evidence and resolve the incident before authorizing
 any new effect. There is no automatic unknown-effect reconciliation action.
+
+For a manual opening that needs declared trigger parameters, supply
+`triggerVariant` (integer 0–999). It indexes only the retained schedule entries
+whose ID matches the selected workflow's trigger, starting at zero in declaration
+order. For example, `1` selects the second matching entry's parameters. Inspect
+the actual compiled Artifact before choosing; a missing entry is rejected.
+The operator cannot replace those parameters. The run opens at the actual time,
+keeps all later delivery windows and deadlines, and needs the same enabled
+workflow and authenticated operator as any other opening. Automatic scheduling
+may remain blocked. Retrying the same request reuses its opening; selecting
+different parameters under that request ID fails. Omission preserves the
+existing behavior without inferring a variant.
 
 ## Human decisions and conversations
 
