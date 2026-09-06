@@ -160,8 +160,9 @@ acceptance. This is a schema binding, not a permission or a provider mutation.
 A reviewed source uses `mapped.columns.owner`,
 `mapped.column_text.classification`, `mapped.people_principals.owner` or
 `mapped.group`. Mapped principal fields require type `people` and retain the
-existing qualified-account identity rules. Only exact scalar column paths are
-allowed; there is no implicit lookup by display name or fallback to a physical
+existing qualified-account identity rules. A source may select a literal column
+key or a complete bounded mapped namespace such as `mapped.column_text` for a
+typed JSON field dictionary. There is no implicit lookup by display name or fallback to a physical
 column with a similar name. The same source can use different Instance IDs
 for equivalent schemas. Labels and business rules remain Workspace policy;
 the Connector does not infer business completion from provider status flags.

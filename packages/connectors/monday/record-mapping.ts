@@ -48,6 +48,7 @@ export function parseMondayRecordMapping(source: CompanyRecordSourceDeclaration,
   for (const path of paths.filter((path) => path === "mapped" || path.startsWith("mapped."))) {
     if (!mapping) throw new Error("Monday mapped source fields require an Instance mapping");
     if (path === "mapped.group" && Object.keys(mapping.groups).length) continue;
+    if (["mapped.columns", "mapped.column_text", "mapped.people_principals"].includes(path) && Object.keys(mapping.columns).length) continue;
     const [root, kind, key, ...rest] = path.split(".");
     if (root !== "mapped" || !["columns", "column_text", "people_principals"].includes(kind!) || !key || rest.length
       || !Object.hasOwn(mapping.columns, key)) throw new Error(`Monday mapped source field '${path}' has no exact column mapping`);

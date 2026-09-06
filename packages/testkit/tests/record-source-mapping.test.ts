@@ -14,6 +14,8 @@ const source: CompanyRecordSourceDeclaration = {
     { target: "classification", source: "mapped.column_text.classification", value_type: "status" },
     { target: "status", source: "mapped.column_text.status", value_type: "status" },
     { target: "location", source: "mapped.group", value_type: "string" },
+    { target: "fields", source: "mapped.column_text", value_type: "json", value_schema: { type: "object", additionalProperties: false,
+      properties: { owner: { type: "string" }, classification: { type: "string" }, status: { type: "string" } } } },
   ],
 };
 const identities = new RecordIdentityDirectory([{ id: "alex", name: "Alex Example", role: "contributor", type: "human", status: "active",
@@ -79,7 +81,8 @@ test("one Record declaration reads equivalent qualified schemas with different g
     assert.deepEqual(inventory.receipt.mapping, h.binding.configuration.mapping);
     records.push(normalizeRecordObject({ instanceId: h.binding.instance_id, source, raw, observedAt: inventory.observed_at, identities }).values);
   }
-  assert.deepEqual(records[0], { owners: ["alex"], classification: "Active", status: "Blocked", location: "delivery" });
+  assert.deepEqual(records[0], { owners: ["alex"], classification: "Active", status: "Blocked", location: "delivery",
+    fields: { owner: "Alex", classification: "Active", status: "Blocked" } });
   assert.deepEqual(records[0], records[1]);
   assert.notEqual(inventories[0]!.binding_digest, inventories[1]!.binding_digest);
   assert.notEqual(inventories[0]!.watermark, inventories[1]!.watermark);
