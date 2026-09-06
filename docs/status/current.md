@@ -20,6 +20,12 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- The hosted Slack capability publisher sends explicit Markdown for channel,
+  thread and direct publications. Reports longer than 12,000 UTF-16 code units
+  fail before message publication rather than silently truncating or introducing
+  multipart receipts. Workspace templates remain provider independent. Transport
+  tests do not replace verification of formatting in a deployed Slack client.
+
 - Manual hosted openings accept an optional bounded `triggerVariant` index.
   It selects only parameters from an existing matching trigger in the retained
   Workspace calendar. Tests exercise both branches through the request parser
