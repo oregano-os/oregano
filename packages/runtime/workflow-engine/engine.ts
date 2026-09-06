@@ -18,6 +18,7 @@ import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader, Work
 import { workflowAssignmentKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
 import { workflowEffectReview } from "./effect-review.ts";
 import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
+import { verifyCompletedWorkflow } from "./verification.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -426,6 +427,16 @@ export class WorkflowEngine {
     const cancelled = await this.#options.store.cancel({ instanceId: this.#artifact.instance.id, runId, principal, now: this.#now() });
     if (cancelled) for (const timer of await this.#options.timers.list("workflow")) if ((timer.payload as Record<string, JsonValue>).run_id === runId) await this.#options.timers.cancel(timer.timerId, { outcome: "run-cancelled" }, this.#now());
     return cancelled;
+  }
+
+  /** Historical evidence only; this never resumes, claims, repairs or dispatches. */
+  async verify(runId: string, principal: string) {
+    await this.#operator(principal);
+    const run = await this.#options.store.read(this.#artifact.instance.id, runId);
+    if (!run) throw new Error("Workflow run is unavailable in this Instance");
+    const artifact = await this.#options.store.getArtifact(run.artifactHash);
+    if (!artifact) throw new Error("Workflow historical Artifact is unavailable");
+    return verifyCompletedWorkflow({ artifact, run, control: this.#options.control });
   }
 
   /** One effect per page keeps review bounded even for large keyed collections. */

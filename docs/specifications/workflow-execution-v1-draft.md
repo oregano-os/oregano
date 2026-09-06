@@ -474,3 +474,40 @@ Friday workflow version 7 passes the declared basis and renders the Tool's
 scalar evidence text. The reference remains configured as unavailable. Any
 operating use of numeric effort requires reviewed, typed Records fields and
 projections; no provider collection is enabled by these computation fixtures.
+
+## Completed-run evidence verification
+
+The authenticated operator action `verify` reads a completed run and its
+historical Artifact. It MUST NOT open, resume, claim, repair, consume, approve
+or dispatch anything. The read compares exact run/Artifact/manifest/Core and
+Workspace identities, one opening receipt, contiguous revision evidence and
+the terminal state digest. Every executed step must be complete. A selected
+wait needs its persisted wait and timer-fired events; a human decision needs
+its matching principal, response-event identity, bound digest and finite
+unexpired decision time.
+
+The workflow acceptance scope requires at least one durable wait, approved
+human decision, Records completeness proof and approved completed batch. Every
+effect has its deterministic identity, exact reconstructed input digest,
+retained successful output and guard evidence checked. Decision notice content
+uses the same pure renderer as publication; retrospective rendering after
+expiry grants no new publication authority. R3/R4 effects additionally join
+the actual consumed approval and original request, compare action/input/run/
+step/principal/role, and match every bound payload requirement. Batch results
+must cover the exact unique item set and retain previous and resulting
+provider versions. Unknown or missing effects cannot pass.
+
+Source proofs retain the query's snapshot and complete synchronization claims;
+freshness timestamps are not a substitute. This verifier does not establish a
+new source-cutoff contract, independently qualify provider history, or replace
+manual comparison with the actual test resource. Those remain source delivery
+and Instance acceptance gates.
+
+The read is bounded to 10,000 audit entries and 1,000 effects within a
+30-second processing budget. Exceeding a bound fails explicitly; truncation
+cannot produce acceptance. Checks, counts, principal identities, receipt
+digests and an overall evidence digest are returned without message or work
+item bodies. Synthetic evidence is explicitly identified. The maintained
+`companyos verify-live --scope workflow` additionally performs a fresh
+authenticated request, compares the exact deployment and expected human set,
+and refuses synthetic evidence. It authorizes neither production nor a pilot.

@@ -25,6 +25,16 @@ export function authorizeWorkflowDecisionPrincipal(roster: RosterMember[], princ
   return auth.member;
 }
 
+/** Deterministic rendering also permits retrospective input verification after expiry. */
+export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string }): JsonValue {
+  const id = workflowDecisionId(args.runId, args.stepId, jsonDigest(args.bound));
+  const content = ["Approval required", `Workflow: ${args.workflowId}`, `Step: ${args.stepId}`, `Role: ${args.role}`,
+    `Expires: ${args.expiresAt}`, `Request: ${id}`, "", "Complete bound payload:", canonicalJson(args.bound), "",
+    `Reply in this thread with APPROVE ${id} or REJECT ${id}.`].join("\n");
+  if (content.length > 20_000) throw new Error("Decision payload is too large for a complete review notice; it must not be truncated");
+  return { destination_binding: args.destinationBinding, content, format: "plain-text" };
+}
+
 /** Generic control notice; the complete bound JSON is displayed without truncation. */
 export function workflowDecisionNoticeInput(artifact: CompanyOSArtifact, workflow: CompiledWorkflow, step: CompiledWorkflowStep, context: WorkflowInvocationContext): JsonValue {
   const decision = context.decisions[step.id];
@@ -38,10 +48,6 @@ export function workflowDecisionNoticeInput(artifact: CompanyOSArtifact, workflo
   const binding = resolveWorkflowValue(step.decision.via, workflow, context);
   const destinations = artifact.workflowBindings?.directRecipients.filter((entry) => entry.bindingId === binding && entry.memberId === context.itemKey) ?? [];
   if (destinations.length !== 1) throw new Error("Decision notice requires an exact qualified recipient destination");
-  const id = workflowDecisionId(context.runId, step.id, decision.boundDigest);
-  const content = ["Approval required", `Workflow: ${workflow.id}`, `Step: ${step.id}`, `Role: ${step.decision.role}`,
-    `Expires: ${decision.expiresAt}`, `Request: ${id}`, "", "Complete bound payload:", canonicalJson(bound), "",
-    `Reply in this thread with APPROVE ${id} or REJECT ${id}.`].join("\n");
-  if (content.length > 20_000) throw new Error("Decision payload is too large for a complete review notice; it must not be truncated");
-  return { destination_binding: destinations[0]!.destinationBinding, content, format: "plain-text" };
+  return renderWorkflowDecisionNotice({ runId: context.runId, workflowId: workflow.id, stepId: step.id, role: step.decision.role,
+    expiresAt: decision.expiresAt, bound, destinationBinding: destinations[0]!.destinationBinding });
 }

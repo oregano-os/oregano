@@ -7,7 +7,7 @@ import type { WorkflowRun } from "../../../state-store/workflow-engine.ts";
 export type WorkflowOperatorRequest =
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string> }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
-  | { action: "read" | "resume" | "cancel"; runId: string }
+  | { action: "read" | "resume" | "cancel" | "verify"; runId: string }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
   | { action: "receive-reply"; threadId: string; messageId: string };
@@ -25,7 +25,7 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     const common = { workflowId: text("workflowId", /^[a-z][a-z0-9-]{1,62}$/), fields: { ...fields } as Record<string, string> };
     return input.action === "open" ? { action: "open", ...common, requestId: text("requestId") } : { action: "schedule", ...common, instant: text("instant") };
   }
-  if (input.action === "read" || input.action === "resume" || input.action === "cancel") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
+  if (input.action === "read" || input.action === "resume" || input.action === "cancel" || input.action === "verify") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
   if (input.action === "review") {
     exact(["runId", "offset"]);
     if (input.offset !== undefined && (!Number.isSafeInteger(input.offset) || Number(input.offset) < 0 || Number(input.offset) >= 10000)) throw new Error("Invalid workflow review offset");
@@ -92,6 +92,13 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
       return Response.json({ ok: true, runs: runs.map(summary), ...(runs.length === 200 ? { afterRunId: runs.at(-1)!.runId } : {}) });
     }
     if (action.action === "cancel") return Response.json({ ok: true, cancelled: await host.engine.cancel(action.runId, principal) });
+    if (action.action === "verify") {
+      const verification = await host.engine.verify(action.runId, principal);
+      return Response.json({ ok: verification.ok, verification, deployment: {
+        id: process.env.VERCEL_DEPLOYMENT_ID ?? null, coreCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+        environment: process.env.VERCEL_ENV ?? null, artifactHash: artifact.artifactHash,
+      } }, { status: verification.ok ? 200 : 409 });
+    }
     if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
     if (action.action === "receive-reply") {

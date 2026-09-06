@@ -1,4 +1,5 @@
 import { approvalExpiry, approvalIsUnexpired } from "../state-store/approval-validity.ts";
+import { assertEventReadLimit } from "../state-store/interface.ts";
 import type {
   ApprovalRequestInput,
   ApprovalRequestRow,
@@ -33,7 +34,7 @@ export class InMemoryStateStore implements StateStore {
     return eventId;
   }
   async appendEvent(event: EventInput): Promise<string> { return this.appendEventSync(event); }
-  async listEvents(runId: string) { return this.events.filter((event) => event.runId === runId); }
+  async listEvents(runId: string, limit?: number) { assertEventReadLimit(limit); return this.events.filter((event) => event.runId === runId).slice(0, limit); }
   async createApprovalRequest(request: ApprovalRequestInput): Promise<string> {
     const requestId = this.#id("request");
     this.requests.push({ requestId, ...request, expiresAt: approvalExpiry(request.expiresAt), createdAt: new Date(this.#sequence) });
@@ -87,4 +88,13 @@ export class InMemoryStateStore implements StateStore {
     if (effect) Object.assign(effect, { status: "unknown", evidence });
   }
   async getEffect(key: string) { return this.effects.get(key); }
+  async getEffectApproval(key: string) {
+    const effect = this.effects.get(key), approvalId = effect?.approvalId;
+    if (typeof approvalId !== "string") return undefined;
+    const approval = this.approvals.get(approvalId), request = this.requests.find((row) => row.requestId === approval?.requestId);
+    if (!approval || !request) return undefined;
+    return { approvalId, requestId: request.requestId, runId: request.runId, stepId: request.stepId, action: request.action,
+      inputHash: request.inputHash, subjectPrincipal: approval.subjectPrincipal, role: approval.role, decision: approval.decision,
+      consumed: approval.consumed, expiresAt: request.expiresAt?.toISOString() ?? null };
+  }
 }

@@ -1,4 +1,5 @@
 import { approvalExpiry } from "../state-store/approval-validity.ts";
+import { assertEventReadLimit } from "../state-store/interface.ts";
 // state-postgres — Neon/Postgres implementation of state-store/interface.ts
 // against schema.sql (v2). claimEffect = INSERT on UNIQUE key; consumeApproval
 // = UPDATE … WHERE consumed_at IS NULL. The ONE-transaction rule
@@ -57,8 +58,9 @@ export function createPostgresStateStore(): StateStore {
       return rows[0].event_id as string;
     },
 
-    async listEvents(runId) {
-      return await sql()`select * from companyos.events where run_id = ${runId} order by ts`;
+    async listEvents(runId, limit) {
+      assertEventReadLimit(limit);
+      return await sql()`select * from companyos.events where run_id = ${runId} order by ts, event_id limit ${limit ?? null}`;
     },
 
     async createApprovalRequest(r: ApprovalRequestInput): Promise<string> {
@@ -239,6 +241,21 @@ export function createPostgresStateStore(): StateStore {
     async getEffect(idempotencyKey) {
       const rows = await sql()`select * from companyos.effects where idempotency_key = ${idempotencyKey}`;
       return rows[0];
+    },
+    async getEffectApproval(idempotencyKey) {
+      const rows = await sql()`
+        select a.approval_id, a.request_id, a.subject_principal, a.role, a.decision, a.consumed_at,
+          r.run_id, r.step_id, r.action, r.input_hash, r.expires_at
+        from companyos.effects e
+        join companyos.approvals a on a.approval_id = e.approval_id
+        join companyos.approval_requests r on r.request_id = a.request_id
+        where e.idempotency_key = ${idempotencyKey}`;
+      const row = rows[0];
+      if (!row) return undefined;
+      return { approvalId: String(row.approval_id), requestId: String(row.request_id), runId: String(row.run_id), stepId: String(row.step_id),
+        action: String(row.action), inputHash: String(row.input_hash), subjectPrincipal: String(row.subject_principal), role: String(row.role),
+        decision: row.decision as "approved" | "rejected", consumed: row.consumed_at != null,
+        expiresAt: row.expires_at == null ? null : (row.expires_at instanceof Date ? row.expires_at : new Date(String(row.expires_at))).toISOString() };
     },
   };
 }
