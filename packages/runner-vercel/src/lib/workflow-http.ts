@@ -6,7 +6,7 @@ import type { WorkflowRun } from "../../../state-store/workflow-engine.ts";
 import { parseWorkflowVerificationRequirements, type WorkflowVerificationRequirement } from "../../../runtime/workflow-engine/verification-requirements.ts";
 
 export type WorkflowOperatorRequest =
-  | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string> }
+  | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel"; runId: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
@@ -20,12 +20,16 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
   const exact = (allowed: string[]) => { if (Object.keys(input).some((key) => !["action", ...allowed].includes(key))) throw new Error("Unsupported workflow operator request field"); };
   const text = (key: string, pattern = /^[^\u0000-\u001f]{1,255}$/) => { if (typeof input[key] !== "string" || !pattern.test(input[key])) throw new Error(`Invalid workflow operator ${key}`); return input[key] as string; };
   if (input.action === "open" || input.action === "schedule") {
-    exact(["workflowId", "fields", input.action === "open" ? "requestId" : "instant"]);
+    exact(["workflowId", "fields", ...(input.action === "open" ? ["requestId", "triggerVariant"] : ["instant"])]);
     const fields = input.fields;
     if (!fields || typeof fields !== "object" || Array.isArray(fields) || Object.keys(fields).length > 100
       || Object.entries(fields).some(([key, value]) => !/^[a-z][a-z0-9_]{0,62}$/.test(key) || typeof value !== "string" || !/^[^\u0000-\u001f]{1,255}$/.test(value))) throw new Error("Workflow opening fields must be a bounded string map");
     const common = { workflowId: text("workflowId", /^[a-z][a-z0-9-]{1,62}$/), fields: { ...fields } as Record<string, string> };
-    return input.action === "open" ? { action: "open", ...common, requestId: text("requestId") } : { action: "schedule", ...common, instant: text("instant") };
+    if (input.action === "open") {
+      if (input.triggerVariant !== undefined && (!Number.isSafeInteger(input.triggerVariant) || Number(input.triggerVariant) < 0 || Number(input.triggerVariant) > 999)) throw new Error("Invalid workflow trigger variant");
+      return { action: "open", ...common, requestId: text("requestId"), ...(input.triggerVariant === undefined ? {} : { triggerVariant: input.triggerVariant as number }) };
+    }
+    return { action: "schedule", ...common, instant: text("instant") };
   }
   if (input.action === "verify") {
     exact(["runId", "requirements"]);

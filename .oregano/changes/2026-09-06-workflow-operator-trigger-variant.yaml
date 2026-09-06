@@ -1,0 +1,48 @@
+version: 3
+plan_id: workflow-operator-trigger-variant-2026-09-06
+created: "2026-09-06"
+title: Select a declared trigger variant for manual workflow openings
+objective: >-
+  Let an authenticated operator select parameters from one existing trigger
+  variant in the exact compiled Workspace calendar, without supplying arbitrary
+  parameters or a replacement opening time through the hosted interface.
+non_goals:
+  - Change company calendars, automatic activation, delivery windows or human decisions.
+  - Introduce a business-specific runner, simulated clock or provider access.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-operator-trigger-variant.yaml
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/tests/workflow-operator-trigger-variant.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-operator-trigger-variant.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-calendar.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Extend the existing authenticated opening and retained calendar lookup.
+    packages: No Package changes; public scenarios remain fictional.
+    workspace: Own the complete trigger variants and all operating policy.
+    instance: Authorize the operator and enabled workflows; retain exact Artifact and run evidence.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Reuse frozen trigger parameters for an immediate operator opening while preserving actual time and all later calendar controls.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any scheduled workflow with multiple reviewed parameter variants can be manually exercised through the same hosted interface.
+rollback: Omit the optional variant selector on new openings; retain all previous Artifacts and execution history.
