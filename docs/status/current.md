@@ -1294,3 +1294,12 @@ identity evidence. Unmapped role identities and missing reader groups block befo
 the first operating message. A report retains its accepted source snapshot after
 later source changes. Provider inventories and publication boundaries in these
 tests are synthetic; live qualification and human acceptance remain outstanding.
+
+Dispatch conformance now starts from ordinary engine-created runs and actual
+persisted worker claims. The maintained context reader and Runtime reject changes
+to run, step, Agent, human, Tool, destination or message content before a provider
+call or effect claim. A reconstructed worker recovers the successful receipt once;
+replaced leases and changed Artifact bytes cannot authorize another dispatch.
+An unavailable exact Connector retains its failed effect and requires explicit
+reconciliation even after configuration recovery. These synthetic-provider tests
+do not replace live recovery or qualified target-isolation acceptance.
