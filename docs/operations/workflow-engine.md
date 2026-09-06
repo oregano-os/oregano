@@ -281,6 +281,14 @@ for its non-secret exact-candidate file. The CLI sends only the authenticated
 operator action `verify`. Operator authentication and the configured hosting
 boundary remain required; missing or disabled hosting fails explicitly.
 
+The optional `requirements` array on `verify` selects a nonempty unique subset
+of `wait`, `human-decision`, `record-source`, and `approved-batch`. Omission
+requires all four. The receipt binds the normalized set; it never disables
+checks on executed steps. The corresponding CLI state field is
+`required_evidence`. Require actual batch evidence on a workflow that performs
+one rather than adding a redundant write to a review-only workflow. Retain the
+separate complete acceptance plan across exact-candidate runs.
+
 The operator response can inspect a historical run, but live candidate
 acceptance requires that run's Artifact and Core identity to match the exact
 current deployment. A later deployment does not inherit acceptance from a run

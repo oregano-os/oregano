@@ -1256,3 +1256,10 @@ checks enforce exact IDs and types; raw provider evidence remains unchanged and
 root mappings cannot leak into child or metadata rows. Fictional adapter tests
 cover equivalent normalization and rejected invalid or stale mappings. Actual
 company schema preparation and end-to-end test-Instance acceptance remain open.
+
+The maintained workflow evidence verifier accepts an explicit bounded required
+control set, recorded in its digest, with all four controls still the default.
+Every executed step remains checked. The live CLI now validates current-scan
+interval and membership receipts as well as historical source completeness.
+Subset receipts establish only their declared scope; real-provider, human,
+recovery, full-candidate and pilot acceptance remain separate requirements.

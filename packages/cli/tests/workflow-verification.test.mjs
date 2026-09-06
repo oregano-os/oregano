@@ -13,10 +13,10 @@ const state = () => ({ schema_version: 1, scope: "workflow", instance_id: "examp
 const response = () => {
   const value = state();
   const codes = ["pinned-run-identity", "completed-run", "bounded-audit", "opening-receipt", "complete-state-journal", "durable-wait", "human-decision",
-    "record-source-completeness", "successful-effect", "guard-receipt", "publication-receipt", "consumed-bound-approval", "complete-batch-receipts", "distinct-effect-and-approval-identities"];
+    "record-source-completeness", "successful-effect", "guard-receipt", "publication-receipt", "consumed-bound-approval", "complete-batch-receipts", "distinct-effect-and-approval-identities", "required-wait", "required-human-decision", "required-record-source-proof", "required-approved-batch"];
   const proof = { schemaVersion: 1, scope: "workflow-run-evidence", instanceId: value.instance_id, workflowId: value.workflow_id, runId: value.run_id,
     artifactHash: value.artifact_hash, manifestHash: value.manifest_hash, coreCommit: value.core_commit, workspaceCommit: value.workspace_commit,
-    environment: "preview", revision: 5, checks: codes.map((code) => ({ code, passed: true })), counts: { waits: 1, decisions: 1, batches: 1, effects: 1, sourceProofs: 1 },
+    environment: "preview", revision: 5, requirements: ["wait", "human-decision", "record-source", "approved-batch"], checks: codes.map((code) => ({ code, passed: true, ...(code === "record-source-completeness" ? { stepId: "read" } : {}) })), counts: { waits: 1, decisions: 1, batches: 1, effects: 1, sourceProofs: 1 },
     approvingPrincipals: value.expected_approvers, syntheticEvidence: false, receipts: [{ stepId: "apply", effectKey: `workflow:${"6".repeat(64)}`, inputDigest: "7".repeat(64), outputDigest: "8".repeat(64), approvalId: "example-approval" }],
     sourceProofs: [{ stepId: "read", digest: "9".repeat(64), requiredThrough: "2030-01-04T16:00:00.000Z", snapshotId: "a".repeat(64),
       sources: [{ sourceId: "example-source", sourceDigest: "b".repeat(64), syncRunId: "example-sync", syncedThrough: "2030-01-04T16:00:00.000Z", watermarkDigest: "c".repeat(64) }] }] };
@@ -100,5 +100,63 @@ test("provider failures and oversized responses disclose no credential or raw pr
       assert.equal(JSON.stringify(result).includes("private provider"), false);
       assert.equal(JSON.stringify(result).includes("x".repeat(48)), false);
     }
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("required evidence is pinned, defaults stay strict and observed failures always reject", () => {
+  const value = state(); value.required_evidence = ["wait", "human-decision", "record-source"];
+  const body = response(); body.verification.requirements = [...value.required_evidence];
+  body.verification.counts.batches = 0; delete body.verification.receipts[0].approvalId;
+  body.verification.checks = body.verification.checks.filter((entry) => !["required-approved-batch", "consumed-bound-approval", "complete-batch-receipts"].includes(entry.code));
+  resign(body);
+  assert.equal(verifyWorkflowResponse(value, body).ok, true);
+  assert.throws(() => verifyWorkflowResponse(state(), body), /different required evidence set/);
+  for (const invalid of [[], null, ["wait", "wait"], ["skip-errors"]]) {
+    assert.throws(() => parseWorkflowVerificationState({ ...value, required_evidence: invalid }), /evidence requirements/);
+  }
+  const missing = structuredClone(body); missing.verification.counts.waits = 0; resign(missing);
+  assert.throws(() => verifyWorkflowResponse(value, missing), /counts are incomplete/);
+  const failed = structuredClone(body); failed.verification.checks.push({ code: "consumed-bound-approval", passed: false }); resign(failed);
+  assert.throws(() => verifyWorkflowResponse(value, failed), /required successful evidence check/);
+});
+
+const currentResponse = () => {
+  const body = response(), proof = body.verification;
+  proof.checks.find((entry) => entry.code === "record-source-completeness").code = "record-current-scan";
+  const source = proof.sourceProofs[0], ref = source.sources[0];
+  source.requirement = "current-scan"; source.requiredScanStartedAfter = source.requiredThrough; delete source.requiredThrough;
+  ref.scanStartedAt = "2030-01-04T16:00:00.000Z"; ref.scanCompletedAt = "2030-01-04T16:00:00.000000001Z";
+  ref.inventoryDigest = "d".repeat(64); delete ref.syncedThrough;
+  return resign(body);
+};
+
+test("the maintained CLI accepts current-scan proof and rejects stale, mixed or malformed intervals", () => {
+  assert.equal(verifyWorkflowResponse(state(), currentResponse()).ok, true);
+  for (const change of [
+    (source) => { source.sources[0].scanStartedAt = "2030-01-04T15:59:59.999999999Z"; },
+    (source) => { source.sources[0].scanCompletedAt = "2030-01-04T15:59:59.999999999Z"; },
+    (source) => { source.sources[0].scanCompletedAt = "not-an-instant"; },
+    (source) => { delete source.sources[0].inventoryDigest; },
+    (source) => { source.sources[0].syncedThrough = "2099-01-01T00:00:00Z"; },
+    (source) => { source.requiredThrough = source.requiredScanStartedAfter; },
+    (source) => { source.sources.push(structuredClone(source.sources[0])); },
+    (source) => { source.stepId = "another-step"; },
+  ]) {
+    const body = currentResponse(); change(body.verification.sourceProofs[0]); resign(body);
+    assert.throws(() => verifyWorkflowResponse(state(), body), /unsupported fields|source .*invalid/);
+  }
+});
+
+test("live read forwards the exact selected requirements without executing work", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "workflow-required-evidence-")), path = join(directory, "state.json");
+  try {
+    const value = { ...state(), required_evidence: ["record-source"] }; writeFileSync(path, JSON.stringify(value));
+    const body = currentResponse(); body.verification.requirements = ["record-source"]; resign(body);
+    const result = await verifyLiveWorkflow({ statePath: path, environment: { TEST_OPERATOR: "x".repeat(48), TEST_PROTECTION: "y".repeat(48) },
+      fetchImpl: async (_url, options) => {
+        assert.deepEqual(JSON.parse(options.body), { action: "verify", runId: value.run_id, requirements: ["record-source"] });
+        return Response.json(body);
+      } });
+    assert.equal(result.verification.ok, true, JSON.stringify(result.diagnostics));
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });

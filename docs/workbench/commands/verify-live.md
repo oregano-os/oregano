@@ -105,7 +105,8 @@ receipts. Replace every placeholder with its recorded value:
     "protection_secret_ref": "env:WORKFLOW_PREVIEW_PROTECTION"
   },
   "operator_secret_ref": "env:WORKFLOW_OPERATOR",
-  "expected_approvers": ["slack:T10001:U10002"]
+  "expected_approvers": ["slack:T10001:U10002"],
+  "required_evidence": ["wait", "human-decision", "record-source", "approved-batch"]
 }
 ```
 
@@ -118,20 +119,43 @@ accepted only for an exact `vercel.app` origin. Both credentials must be at
 least 32 characters and must not contain newlines. HTTPS origins cannot contain
 credentials, query parameters or alternate paths; redirects are refused.
 
-The command sends only `{"action":"verify","runId":"…"}` to the authenticated
-workflow operator endpoint. It does not open or resume the run, answer a human
+The command sends only the authenticated `verify` operator action with its exact
+run ID and, when supplied, the requested evidence requirements. It does not open or resume the run, answer a human
 decision, synchronize a source, migrate a database or invoke a provider effect.
 The maintained Vercel profile requires exact deployment ID, environment and
 runtime Core commit, plus matching current Artifact and historical run pins.
 The expected human principal set must match the actual approved decisions.
 
-The required evidence covers one completed ordinary run with a durable wait,
-Records completeness claims, delivered and answered human decision, consumed
-bound approval, and a completed batch with per-item provider versions. The
-reader verifies the complete bounded revision journal and effect input/output
-digests. An incomplete run, unknown effect, missing receipt, changed identity,
-missing check, oversized response or synthetic evidence returns nonzero exit
-status. Successful readiness is `validated` at scope `live-workflow-instance`.
+`required_evidence` is optional; omission retains all four required controls.
+An explicit set contains one to four unique values: `wait`, `human-decision`,
+`record-source`, and `approved-batch`. The exact normalized set is returned
+inside the evidence digest and must match the request. A review without writes
+may require the first three; an immediate approved update may require the last
+three. These receipts prove only their declared sets. A separate acceptance
+plan must require every control its release needs across the same exact
+candidate; a subset receipt cannot stand in for full acceptance.
+
+Every executed step is still checked even when its control is not explicitly
+required. Missing or inconsistent executed approvals, publications, effects,
+source proofs and the complete bounded state journal fail verification.
+Requested controls must actually occur: declaring `approved-batch` on a run
+without a batch fails. An approved batch needs a consumed bound approval and
+complete per-item provider versions. Expected approvers match every actual
+approved decision; an empty expected set is allowed only without a required
+human decision and with no actual approving principals.
+
+`record-source` accepts the specific proof required by the compiled step.
+Historical coverage retains `requiredThrough` and `syncedThrough`. Current
+observations use `requirement: current-scan`, `requiredScanStartedAfter`, and
+each source's start/end interval, inventory digest and watermark digest. The
+CLI rejects mixed formats, missing membership evidence, duplicate sources,
+pre-deadline starts and backwards intervals, including submillisecond instants.
+A current scan is not a claim of historical reconstruction.
+
+An incomplete run, unknown effect, missing receipt, changed identity or required
+set, missing check, oversized response or synthetic evidence returns nonzero
+exit status. Successful readiness is `validated` at scope
+`live-workflow-instance`, limited to the returned requirements and candidate.
 
 This verifies retained execution evidence from the exact maintained deployment.
 It does not independently prove provider history, replace actual source
