@@ -441,31 +441,37 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       }
 
       // message steps
-      if (s.tool === "oregano:communications/publish") {
-        if (!s.template) err(f, `${s.id}: message step needs template:`);
-        if (s.input) err(f, `${s.id}: message step must use vars:, not input:`);
-        if (!s.vars) err(f, `${s.id}: message step needs vars:`);
-        if (!s.destination && !data.defaults?.destination) err(f, `${s.id}: no destination and no defaults.destination`);
-        if (s.vars) for (const value of Object.values(s.vars)) validateInput(value, { type: ["string", "number", "boolean"] }, s.id, itemSchema);
+      if (s.tool === "oregano:communications/publish" || (s.tool.startsWith("human:") && s.message)) {
+        const m = s.message ?? s;
+        if (s.message && (typeof s.message !== "object" || Array.isArray(s.message) || Object.keys(s.message).some((key) => !["template", "vars"].includes(key)))) err(f, `${s.id}: decision message supports only template and vars`);
+        if (!m.template) err(f, `${s.id}: message step needs template:`);
+        if (!s.message && s.input) err(f, `${s.id}: message step must use vars:, not input:`);
+        if (!m.vars) err(f, `${s.id}: message step needs vars:`);
+        if (!s.message && !s.destination && !data.defaults?.destination) err(f, `${s.id}: no destination and no defaults.destination`);
+        if (m.vars) for (const value of Object.values(m.vars)) validateInput(value, { type: ["string", "number", "boolean"] }, s.id, itemSchema);
         for (const value of [s.thread ?? data.defaults?.thread, s.destination ?? data.defaults?.destination, s.recipient]) {
           if (value !== undefined) validateInput(value, { type: "string", minLength: 1 }, s.id, itemSchema);
         }
-        if (s.template) {
-          const match = String(s.template).match(/^([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*\.md)$/);
+        if (m.template) {
+          const match = String(m.template).match(/^([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*\.md)$/);
           const path = match ? `${data.owner}/skills/${match[1]}/assets/${match[2]}` : "";
           if (!path || !Object.hasOwn(files, path)) err(f, `${s.id}: template must name an existing owner Skill asset`);
           else {
             const template = workspaceDocument(files, path);
             if (!["plain-text", "provider-markdown"].includes(template.data?.format)) err(f, `${s.id}: template format is not supported`);
             const names = new Set([...template.body.matchAll(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\}\}/g)].map((value) => value[1]));
-            for (const name of names) if (!Object.hasOwn(s.vars ?? {}, name)) err(f, `${s.id}: template variable '${name}' is not supplied`);
-            for (const name of Object.keys(s.vars ?? {})) if (!names.has(name)) err(f, `${s.id}: unused template variable '${name}'`);
+            for (const name of names) if (!Object.hasOwn(m.vars ?? {}, name)) err(f, `${s.id}: template variable '${name}' is not supplied`);
+            for (const name of Object.keys(m.vars ?? {})) if (!names.has(name)) err(f, `${s.id}: unused template variable '${name}'`);
           }
         }
-        continue;
+        if (!s.message) continue;
       }
       if (s.template || s.vars) err(f, `${s.id}: template/vars are only valid on message steps`);
 
+      if (s.labels !== undefined) {
+        if (!s.labels || typeof s.labels !== "object" || Array.isArray(s.labels)
+          || Object.entries(s.labels).some(([key, value]) => !["approve", "reject"].includes(key) || typeof value !== "string" || !/^[^\u0000-\u001f]{1,75}$/.test(value))) err(f, `${s.id}: labels must contain bounded approve/reject text`);
+      }
       // decision binds
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         validateInput(s.via, { type: "string", minLength: 1 }, s.id);
@@ -545,7 +551,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
   } else if (step.tool === "wait") allowed.push("for");
-  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject"];
+  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");

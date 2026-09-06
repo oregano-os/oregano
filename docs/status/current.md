@@ -1338,3 +1338,14 @@ in its generated runtime configuration and confirmation. Exact single-source
 multi-source view is not narrowed implicitly. Synthetic end-to-end setup cases
 prove hosted principal resolution, changed-roster confirmation invalidation,
 preserved old mappings and compatibility for sources without identity resolution.
+
+## Decision presentation extension
+
+Workflow human steps support captured Workspace explanations and optional
+approve/reject labels. The Slack publisher and existing Tool approval cards
+share native card rendering. Workflow clicks enter the existing bound-decision
+engine through a signature-verified SDK callback, with provider account, current
+human and exact delivery checks. Legacy Artifact text inputs remain verifiable.
+Live button acceptance still requires qualified interactivity ingress into the
+owning Instance; a shared production app does not automatically route Preview
+clicks. No Teams or Telegram Connector is implied by the neutral contract.

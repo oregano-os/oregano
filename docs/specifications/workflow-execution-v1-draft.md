@@ -561,3 +561,42 @@ a bound decision and a batch, then exercises the retained-evidence verifier.
 These automated synthetic cases do not qualify actual provider scope or replace
 human participation. Operating Workspace adoption and real-provider acceptance
 remain separate delivery work.
+
+## Human decision presentation
+
+A human step may declare `message: { template, vars }` and optional
+`labels: { approve, reject }`. Templates are owner Skill Markdown assets, use
+scalar variables, and are captured in the workflow manifest. The same reference
+and dominance validation applies as for ordinary messages. Labels are literal
+single-line strings of 1–75 characters; they cannot introduce new actions.
+
+```yaml
+- review: human:owner
+  binds: $steps.prepare.updates
+  via: $config.delivery.decisions
+  message:
+    template: operations/review.md
+    vars:
+      summary: $steps.prepare.review_summary
+  labels:
+    approve: Apply reviewed changes
+    reject: Keep unchanged
+  timeout:
+    business_days: 1
+  approve: apply
+  reject: end
+```
+
+Core retains the complete bound payload alongside the explanation; descriptive
+text never substitutes for execution authority. Decision controls carry a
+request identity derived from the run, step and bound digest. Explanations and
+labels are reconstructed from the retained Artifact and prior outputs for
+effect verification. Historical compiled steps without presentation metadata
+retain their exact original notice inputs.
+
+The communication Capability accepts optional provider-neutral `decision`
+metadata (`request_id`, `approve_label`, `reject_label`). A supporting Connector
+must render fixed approve/reject controls and route authenticated interactions
+to the correct Instance. Slack uses native buttons. This contract alone does
+not implement or qualify another provider. Workspace declarations contain no
+Slack action IDs, provider URLs or executable callbacks.

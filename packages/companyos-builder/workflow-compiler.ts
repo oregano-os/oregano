@@ -109,10 +109,20 @@ export function compileWorkflows(args: {
         return { ...base, kind: "wait", wait: { businessDays: raw.for.business_days, calendarPath: path } };
       }
       if (raw.tool.startsWith("human:")) {
+        let message;
+        if (raw.message) {
+          const [skill, name] = raw.message.template.split("/");
+          const path = `${data.owner}/skills/${skill}/assets/${name}`;
+          const template = workspaceDocument(files, path);
+          templates.set(path, { path, content: template.body, format: template.data.format, digest: sha256(workspaceFile(files, path)) });
+          message = { template: path, vars: raw.message.vars };
+        }
+        const presentation = { version: 1 as const, ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
+
         const path = calendar(); usedSchedules.add(path);
         const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);
         if (Number(resolved.risk.slice(1)) >= 3) throw new Error(`${data.id}/${raw.id}: human decision notices require an R2 communication Tool`);
-        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
+        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { presentation, role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
       }
       const { resolved, tool, effectful } = resolveTool(raw.tool, raw.id);
       const result: CompiledWorkflowStep = { ...base, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, kind: effectful ? "effect" : "compute", evidence: [...tool.contract.evidence] };
@@ -133,7 +143,7 @@ export function compileWorkflows(args: {
       return result;
     });
     for (const step of steps) {
-      const consumed = [step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.binds, step.decision?.via, step.forEach?.over];
+      const consumed = [step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
         const match = reference.exec(text);
         if (!match) return;

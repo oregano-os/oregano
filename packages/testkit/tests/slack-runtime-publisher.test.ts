@@ -152,3 +152,22 @@ test("the installed Slack adapter emits one native Markdown API request for a lo
   assert.equal(requests[0].unfurl_links, false);
   assert.equal(result.threadId, "slack:C12345:1893492000.000001");
 });
+
+
+test("workflow decision cards render native links and retain fixed bound buttons", async () => {
+  const { createSlackAdapter } = await import(new URL("../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js", import.meta.url).href);
+  const adapter = createSlackAdapter({ botToken: "xoxb-synthetic", signingSecret: "synthetic" });
+  const requests: any[] = [];
+  adapter._client.chat.postMessage = async (request: unknown) => { requests.push(request); return { ok: true, ts: "1893492000.000001" }; };
+  const publisher = createSlackMessagePublisher(() => ({ channel: (id: string) => ({ post: async (message: any) => ({ ...await adapter.postChannelMessage(id, message), metadata: { dateSent: new Date("2030-01-01T00:00:00Z") } }) }), thread: () => ({ subscribe: async () => {} }) }) as any);
+  await publisher.publishChannel("C12345", "### Review\n[Card title](https://example.test/card)\n**Status:** Planned → Ready", undefined,
+    { request_id: "a".repeat(64), approve_label: "Apply changes", reject_label: "Keep unchanged" });
+  assert.equal(requests.length, 1);
+  const text = requests[0].blocks.filter((block: any) => block.type === "section").map((block: any) => block.text.text).join("\n");
+  assert.match(text, /<https:\/\/example.test\/card\|Card title>/);
+  assert.ok(!text.includes("[Card title]("));
+  const actions = requests[0].blocks.find((block: any) => block.type === "actions").elements;
+  assert.deepEqual(actions.map((action: any) => [action.action_id, action.text.text, action.value]), [
+    ["companyos.workflow.approve", "Apply changes", "a".repeat(64)], ["companyos.workflow.reject", "Keep unchanged", "a".repeat(64)],
+  ]);
+});

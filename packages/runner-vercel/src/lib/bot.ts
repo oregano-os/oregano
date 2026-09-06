@@ -1,3 +1,4 @@
+import { decisionCard } from "./decision-cards.ts";
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
@@ -193,18 +194,11 @@ function resolvedTools(
           requestedBy: requester,
         };
         await state.set(`approval:${token}`, pending, DAY);
-        await thread.post(Card({
+        await thread.post(decisionCard({
           title: `CompanyOS approval · ${resolved.risk}`,
-          children: [
-            CardText(`Action: ${resolved.grantId}`),
-            CardText(`Exact input hash: ${approval.inputHash}`),
-            CardText(`Requested by: ${requester}`),
-            CardText(`Input preview: ${compact(input)}`),
-            Actions([
-              Button({ id: "companyos.approve", label: "Approve", style: "primary", value: token }),
-              Button({ id: "companyos.reject", label: "Reject", style: "danger", value: token }),
-            ]),
-          ],
+          content: [`Action: ${resolved.grantId}`, `Exact input hash: ${approval.inputHash}`,
+            `Requested by: ${requester}`, `Input preview: ${compact(input)}`].join("\n\n"),
+          value: token, approve: { id: "companyos.approve", label: "Approve" }, reject: { id: "companyos.reject", label: "Reject" },
         }));
         return { ok: true, pendingApproval: true, requestId: approval.requestId, inputHash: approval.inputHash };
       },
@@ -494,6 +488,25 @@ function registerHandlers(bot: Chat) {
       bridgedLegacyConversation,
     }));
   });
+  bot.onAction(["companyos.workflow.approve", "companyos.workflow.reject"], async (event) => {
+    if (!event.thread || !event.value) return;
+    try {
+      if (event.adapter.name !== "slack") throw new Error("Workflow action reached the wrong transport");
+      if (!workflowHostingEnabled()) throw new Error("Workflow interactions are unavailable in this Instance");
+      const { createWorkflowHost } = await import("./workflow-host.ts");
+      const host = await createWorkflowHost();
+      const result = await host.conversations.receiveAction({ actionId: event.actionId, value: event.value,
+        threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw });
+      if (await state.setIfNotExists(`workflow-button-result:${result.runId}:${event.value}`, true, 30 * DAY)) {
+        await event.thread.post(result.decision === "approved" ? "Approved. The workflow can now continue with the reviewed changes." : "Rejected. The proposed changes were not authorized.");
+      }
+    } catch (error) {
+      const reference = sha256(error instanceof Error ? error.message : String(error));
+      console.error(JSON.stringify({ event: "workflow.button.failed", reference }));
+      await event.thread.post(`This decision could not be accepted. It may be expired, already resolved, or belong to another Instance. No new decision was inferred. Reference: ${reference}`);
+    }
+  });
+
   bot.onAction(["companyos.approve", "companyos.reject"], async (event) => {
   if (!event.thread || !event.value) return;
   const pending = await state.get<PendingApproval>(`approval:${event.value}`);

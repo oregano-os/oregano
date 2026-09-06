@@ -5,7 +5,7 @@ import type { CompiledWorkflow, CompiledWorkflowStep } from "../../companyos-bui
 import { authorizePrincipalApproval, isHumanRosterMember, type RosterMember } from "../../state-store/roster.ts";
 import { canonicalJson, jsonDigest, sha256 } from "../canonical.ts";
 import type { WorkflowInvocationContext } from "./context.ts";
-import { resolveWorkflowValue } from "./references.ts";
+import { resolveWorkflowValue, valueAt } from "./references.ts";
 
 export function workflowDecisionRisk(workflow: CompiledWorkflow, stepId: string): RiskLevel {
   return workflow.steps.filter((step) => step.requiresDecisions.some((requirement) => requirement.stepId === stepId))
@@ -26,13 +26,37 @@ export function authorizeWorkflowDecisionPrincipal(roster: RosterMember[], princ
 }
 
 /** Deterministic rendering also permits retrospective input verification after expiry. */
-export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string }): JsonValue {
+export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string; presentation?: { explanation: string; approve: string; reject: string } }): JsonValue {
   const id = workflowDecisionId(args.runId, args.stepId, jsonDigest(args.bound));
+  if (args.presentation) {
+    const content = [args.presentation.explanation || "Please review the proposed change before deciding.",
+      `Decision expires: ${args.expiresAt}`, "Exact proposed changes:", canonicalJson(args.bound)].join("\n\n");
+    if (content.length > 20_000) throw new Error("Decision payload is too large for a complete review notice; it must not be truncated");
+    return { destination_binding: args.destinationBinding, content, format: "provider-markdown",
+      decision: { request_id: id, approve_label: args.presentation.approve, reject_label: args.presentation.reject } };
+  }
   const content = ["Approval required", `Workflow: ${args.workflowId}`, `Step: ${args.stepId}`, `Role: ${args.role}`,
     `Expires: ${args.expiresAt}`, `Request: ${id}`, "", "Complete bound payload:", canonicalJson(args.bound), "",
     `Reply in this thread with APPROVE ${id} or REJECT ${id}.`].join("\n");
   if (content.length > 20_000) throw new Error("Decision payload is too large for a complete review notice; it must not be truncated");
   return { destination_binding: args.destinationBinding, content, format: "plain-text" };
+}
+
+export function workflowDecisionPresentation(workflow: CompiledWorkflow, step: CompiledWorkflowStep, context: WorkflowInvocationContext) {
+  const presentation = step.decision?.presentation;
+  if (!presentation) return undefined; // Preserve the exact inputs of historical Artifacts.
+  let explanation = "";
+  if (presentation.message) {
+    const template = workflow.templates.find((entry) => entry.path === presentation.message!.template);
+    if (!template) throw new Error("Decision template is absent from the pinned Artifact");
+    const variables = resolveWorkflowValue(presentation.message.vars, workflow, context);
+    explanation = template.content.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\}\}/g, (_match, name: string) => {
+      const value = valueAt(variables, [name], "Decision template variables");
+      if (!["string", "number", "boolean"].includes(typeof value)) throw new Error("Decision template variables must be scalar");
+      return String(value);
+    });
+  }
+  return { explanation, ...presentation.labels };
 }
 
 /** Generic control notice; the complete bound JSON is displayed without truncation. */
@@ -49,5 +73,5 @@ export function workflowDecisionNoticeInput(artifact: CompanyOSArtifact, workflo
   const destinations = artifact.workflowBindings?.directRecipients.filter((entry) => entry.bindingId === binding && entry.memberId === context.itemKey) ?? [];
   if (destinations.length !== 1) throw new Error("Decision notice requires an exact qualified recipient destination");
   return renderWorkflowDecisionNotice({ runId: context.runId, workflowId: workflow.id, stepId: step.id, role: step.decision.role,
-    expiresAt: decision.expiresAt, bound, destinationBinding: destinations[0]!.destinationBinding });
+    presentation: workflowDecisionPresentation(workflow, step, context), expiresAt: decision.expiresAt, bound, destinationBinding: destinations[0]!.destinationBinding });
 }

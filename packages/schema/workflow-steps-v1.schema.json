@@ -234,6 +234,42 @@
           "reject": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "message": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "template",
+              "vars"
+            ],
+            "properties": {
+              "template": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "vars": {
+                "type": "object"
+              }
+            }
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "approve": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 75,
+                "pattern": "^[^\\u0000-\\u001f]+$"
+              },
+              "reject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 75,
+                "pattern": "^[^\\u0000-\\u001f]+$"
+              }
+            }
           }
         },
         "additionalProperties": {

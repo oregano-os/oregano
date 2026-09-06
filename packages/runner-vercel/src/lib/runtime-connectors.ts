@@ -1,3 +1,6 @@
+import { SlackFormatConverter } from "@chat-adapter/slack";
+import { decisionCard } from "./decision-cards.ts";
+import type { DecisionPresentation } from "../../../capabilities/decision-presentation.ts";
 import type { Chat } from "chat";
 import { gzipSync } from "node:zlib";
 import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } from "../../../capabilities/contracts.ts";
@@ -147,6 +150,12 @@ function slackMarkdown(content: string): { markdown: string } {
   return { markdown: content };
 }
 
+function slackPublication(content: string, decision?: DecisionPresentation) {
+  return decision ? decisionCard({ title: "Approval required", content: new SlackFormatConverter().toResponseUrlText({ markdown: content }), value: decision.request_id,
+    approve: { id: "companyos.workflow.approve", label: decision.approve_label },
+    reject: { id: "companyos.workflow.reject", label: decision.reject_label } }) : slackMarkdown(content);
+}
+
 /**
  * Adapts Chat SDK transport primitives to the provider-neutral Slack
  * publisher. A newly opened channel thread is subscribed before its receipt
@@ -154,14 +163,14 @@ function slackMarkdown(content: string): { markdown: string } {
  */
 export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackMessagePublisher {
   return {
-    async publishChannel(channelId, content, threadReference) {
+    async publishChannel(channelId, content, threadReference, decision) {
       if (threadReference) {
         const [surface, threadChannelId] = threadReference.split(":");
         if (surface !== "slack" || threadChannelId !== channelId) {
           throw new Error("Slack thread reference does not belong to the configured channel destination.");
         }
       }
-      const payload = slackMarkdown(content);
+      const payload = slackPublication(content, decision);
       const client = chat();
       const destination = threadReference ? client.thread(threadReference) : client.channel(`slack:${channelId}`);
       const message = await destination.post(payload);
@@ -190,8 +199,8 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
       const thread = await chat().openDM(userId);
       return {
         threadReference: thread.id,
-        async publish(content: string) {
-          const message = await thread.post(slackMarkdown(content));
+        async publish(content: string, decision?: DecisionPresentation) {
+          const message = await thread.post(slackPublication(content, decision));
           // Chat SDK openDM targets `slack:<channel>:`. Its post receipt keeps
           // that conversation-wide ID; use Slack's returned message timestamp
           // to bind each new root and its replies independently.

@@ -32,6 +32,28 @@ interface WorkflowConversationHostOptions {
 export class WorkflowConversationHost {
   readonly #args: WorkflowConversationHostOptions;
   constructor(args: WorkflowConversationHostOptions) { this.#args = args; }
+  /** Only the Chat SDK's signature-verified action handler may call this entrypoint.
+   * It is deliberately not exposed by the bearer-authenticated operator API. */
+  async receiveAction(args: { actionId: string; value: string; threadId: string; messageId: string; userId: string; raw: unknown }) {
+    const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
+    const raw = args.raw as any;
+    const option = args.actionId === "companyos.workflow.approve" ? "approved" : args.actionId === "companyos.workflow.reject" ? "rejected" : undefined;
+    const actions = Array.isArray(raw?.actions) ? raw.actions.filter((action: any) => action.action_id === args.actionId && action.value === args.value) : [];
+    if (!option || !match || args.messageId !== match[2] || !/^[a-f0-9]{64}$/.test(args.value)
+      || raw?.type !== "block_actions" || raw.user?.id !== args.userId || raw.channel?.id !== match[1]
+      || raw.message?.ts !== args.messageId || actions.length !== 1 || !/^\d+\.\d+$/.test(actions[0].action_ts ?? "")) throw new Error("Invalid workflow button event");
+    return this.#args.slack(async (transport) => {
+      const accountId = await transport.account();
+      if (raw.team?.id !== accountId) throw new Error("Workflow button belongs to another installation");
+      const principal = await transport.human(accountId, args.userId, await this.#args.roster());
+      const conversation: WorkflowConversation = { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]!, subjectPrincipal: principal };
+      const run = await this.#args.engine.decide({ principal, conversation,
+        eventId: `slack:${accountId}:${match[1]}:${args.messageId}:${actions[0].action_ts}`,
+        requestId: args.value, decision: option });
+      return { kind: "decision" as const, runId: run.runId, decision: option };
+    });
+  }
+
   async receive(args: { threadId: string; messageId: string; authorId?: string }): Promise<WorkflowInboundResult> {
     const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
     if (!match || args.messageId === match[2]) return { kind: "unassigned" };

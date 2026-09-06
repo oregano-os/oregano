@@ -39,7 +39,7 @@ test("actual Engine runs frozen Company Tools, waits, report and a bound synthet
   const messages = h.calls.filter((c) => c.capability === "communication.message.publish");
   assert.equal(Object.hasOwn(messages[0]!.input, "thread_reference"), false);
   for (const message of messages.slice(1, 4)) assert.equal(message.input.thread_reference, (run.state.steps["open-close-thread"]!.output as any).thread_reference);
-  assert.match(messages.at(-1)!.input.content, /Complete bound payload/);
+  assert.match(messages.at(-1)!.input.content, /Exact proposed changes/);
   assert.match(messages.at(-1)!.input.content, /item-1/);
   const decision = response(h, run);
   run = await h.engine().decide(decision);

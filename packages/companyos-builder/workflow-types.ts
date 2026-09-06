@@ -40,7 +40,7 @@ export interface CompiledWorkflowStep {
   message?: { template: string; vars: Record<string, WorkflowValue>; destination: WorkflowValue; recipient?: WorkflowValue; thread?: WorkflowValue };
   wait?: { triggerId: string; schedulePath: string } | { businessDays: number; calendarPath: string };
   route?: { on: WorkflowValue; targets: Record<string, string> };
-  decision?: { role: string; binds: WorkflowValue; via: WorkflowValue; timeoutBusinessDays: number; calendarPath: string; targets: { approve: string; reject: string; timeout: "end" } };
+  decision?: { presentation?: { version: 1; message?: { template: string; vars: Record<string, WorkflowValue> }; labels: { approve: string; reject: string } }; role: string; binds: WorkflowValue; via: WorkflowValue; timeoutBusinessDays: number; calendarPath: string; targets: { approve: string; reject: string; timeout: "end" } };
   forEach?: { over: WorkflowValue; key: string; maxItems: 10000 };
   after?: string;
   next: string[];

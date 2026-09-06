@@ -318,3 +318,24 @@ runtime identity. Do not invent a source ref, alter identity tokens, or disable
 the runtime's exact-commit comparison. The [Vercel metadata guide](https://vercel.com/kb/guide/branch-variables-and-domains-not-linked-to-cli-deployments)
 documents this CLI mechanism. This does not require connecting a production
 Git webhook or promoting a Preview.
+
+## Decision buttons and interaction ingress
+
+Newly compiled human decisions publish provider-neutral decision controls with a
+request identity and optional Workspace labels. Slack renders native buttons;
+its signature-verified action handler checks the current human identity and the
+exact delivered message before invoking the existing engine decision operation.
+Tool approvals reuse the same card renderer but retain their separate Runtime
+approval operation. An action label never names a Tool or chooses a workflow
+branch; only the fixed approve/reject semantics do that.
+
+The Slack Interactivity endpoint must reach the Instance which owns the pending
+request. Sharing an app between production and a Preview does not provide an
+interaction router. A click received by another Instance fails closed; it must
+not be forwarded to an arbitrary URL supplied in a button or interpreted by a
+language model. Qualify actual button ingress before enabling live decisions.
+Operator bearer requests cannot submit button events or approving identities.
+
+Retained older Artifacts keep their original text notices and reply protocol.
+Do not rewrite an outstanding request during rollout. Existing Tool approval
+IDs also remain valid; removing their handlers would break pending requests.
