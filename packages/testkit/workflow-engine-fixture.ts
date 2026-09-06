@@ -29,7 +29,7 @@ export function engineArtifact(instanceId = `engine-${randomUUID()}`, workspaceR
  * Every publish and batch call counts: the provider deliberately has no deduplication.
  * Synthetic coverage below is test input, not a Slack/Monday qualification claim.
  */
-export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; batchConnector?: Connector; publicationConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
+export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; recordsConnector?: Connector; batchConnector?: Connector; publicationConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
   const artifact = options.artifact ?? engineArtifact(), memory = new InMemoryWorkflowExecutionStore();
   const store = options.store ?? memory, control = options.control ?? memory.control, timerStore = options.timerStore ?? new InMemoryDurableTimerStore();
   const timers = new DurableTimerService({ store: timerStore, instanceId: artifact.instance.id });
@@ -48,6 +48,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
       return { output: { directory_digest: directory.digest, members: directory.members().map((m) => ({ member_id: m.id ?? null, display_name: m.name, type: m.type ?? "human", status: m.status, group_ids: m.groups ?? [], principals: m.principals ?? [] })) }, evidence: { synthetic: true } };
     }
     if (capability === "records.query") {
+      if (options.recordsConnector) return options.recordsConnector.invoke(capability, input, context);
       if (fixture.failQuery) throw new Error("Synthetic Records provider is unavailable");
       const rows = input.projection_id === "sprint-roles" ? ["jonas-owner", "lea-contributor", "tim-contributor"].map((id) => ({ record_id: `role-${id}`, values: { person_ids: [id], lifecycle_state: "active", role: "delivery" } }))
         : input.projection_id === "sprint-close-submissions" ? fixture.submissions : input.filters?.group === "planned" ? fixture.planning : fixture.items;

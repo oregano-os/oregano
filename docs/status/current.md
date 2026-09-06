@@ -1285,3 +1285,12 @@ the exact versioned decision payload. Ordinary-engine cases check participant
 labels, retained source-row provenance, closed-item exclusion, escaped labels,
 thread linkage and repeat execution; malformed links fail Tool validation.
 This presentation remains Workspace policy, not runtime business logic.
+
+The ordinary engine also consumes the maintained Company Records Connector in
+conformance tests. Bound source generations, exact roster principals, sectioned
+text parsing, current-scan membership, query authorization and source-version
+provenance are exercised together. Identical display names never substitute for
+identity evidence. Unmapped role identities and missing reader groups block before
+the first operating message. A report retains its accepted source snapshot after
+later source changes. Provider inventories and publication boundaries in these
+tests are synthetic; live qualification and human acceptance remain outstanding.
