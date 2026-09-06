@@ -20,6 +20,13 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Ordinary publication fixtures verify the exact Agent, Tool, Instance, run,
+  step and effect identity at the provider boundary. A pending handoff retains
+  its original templates, destination, schedule and journal provenance after a
+  separately compiled Workspace revision; a newly opened run uses the revision.
+  Close publications preserve their received root thread and distinct effect
+  identities across retries. Providers in these cases remain synthetic.
+
 - Ordinary worker fixtures cover a Close worker arriving after both deadlines:
   it retains the original chase/report cutoffs and shared-thread order across
   reconstructed engine calls, with no duplicate publication on retry. Idle
