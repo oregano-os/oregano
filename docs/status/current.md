@@ -1263,3 +1263,11 @@ Every executed step remains checked. The live CLI now validates current-scan
 interval and membership receipts as well as historical source completeness.
 Subset receipts establish only their declared scope; real-provider, human,
 recovery, full-candidate and pilot acceptance remain separate requirements.
+
+Ordinary workflow conformance also exercises competing workers in memory and
+Postgres, preserving every completed step and one publication across store
+reconstruction. Persisted wait cases cover duplicate scheduling/completion,
+expired claims and explicit delayed retry. A missing report receipt blocks the
+dependent retro and decision even after operator resume; changing the synthetic
+provider cannot replace the retained receipt or authorize a second send. These
+are synthetic-provider regressions, not live acceptance or legacy-removal proof.
