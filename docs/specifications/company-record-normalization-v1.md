@@ -133,6 +133,50 @@ Neither provider's timestamps or opaque inventory digest establish qualified
 activation. Pin the new Connector version explicitly, review the field mapping,
 and synchronize before a workflow uses it; retain historical versions.
 
+### Logical Monday schema mappings
+
+The unreleased workflow-engine candidate adds optional Instance
+`configuration.mapping` to the maintained Monday Record Source Connector.
+It has two optional maps, each bounded to 100 distinct safe literal keys:
+
+```yaml
+mapping:
+  columns:
+    owner: { id: person_column, type: people }
+    classification: { id: type_column, type: status }
+    status: { id: execution_column, type: status }
+  groups:
+    delivery: group_delivery
+```
+
+Each logical column pins one exact physical ID and provider type. A group key
+pins one exact physical group ID. One physical field cannot have two aliases.
+Unknown options, empty mappings, missing keys, unsafe paths and malformed IDs
+fail before credential resolution. Every mapped column/group must occur once
+and be active in retained qualification and fresh provider metadata; column
+types must match. Returned inventory column metadata is checked again before
+acceptance. This is a schema binding, not a permission or a provider mutation.
+
+A reviewed source uses `mapped.columns.owner`,
+`mapped.column_text.classification`, `mapped.people_principals.owner` or
+`mapped.group`. Mapped principal fields require type `people` and retain the
+existing qualified-account identity rules. Only exact scalar column paths are
+allowed; there is no implicit lookup by display name or fallback to a physical
+column with a similar name. The same source can use different Instance IDs
+for equivalent schemas. Labels and business rules remain Workspace policy;
+the Connector does not infer business completion from provider status flags.
+
+The `mapped` object applies only to main items of the qualified root board.
+Child and metadata objects have an empty `mapped` object, preserving their raw
+evidence without inheriting root semantics. An unmapped physical group yields
+`mapped.group: null`. Required fields and projection selection must express
+the intended row scope. Existing `columns`, `column_text`, `people_principals`,
+`group_id` and `provider_payload` remain unchanged. Mapping is retained in the
+provider receipt and already participates in the exact binding digest; changing
+it requires a new bound generation and scan. Existing physical mappings remain
+supported. Use an exact Core candidate that implements this extension; an old
+deployment cannot be qualified by changing its configuration alone.
+
 ## Read-only directory Tool
 
 `oregano:directory/members` calls `directory.members.query@1.0.0` with `{}`.

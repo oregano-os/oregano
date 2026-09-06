@@ -1,0 +1,47 @@
+version: 3
+plan_id: record-source-mapping-2026-09-06
+created: "2026-09-06"
+title: Bind logical Record fields to qualified provider schema
+objective: >-
+  Allow one reviewed Record Source declaration to normalize equivalent boards
+  with different generated column and group IDs, while preserving physical
+  evidence and rejecting stale, ambiguous or invalid schema mappings.
+non_goals:
+  - Change provider data, permissions or company policy.
+  - Add a provider SDK or runtime code to a Company Workspace.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-record-source-mapping.yaml
+  - packages/connectors/monday/records-source.ts
+  - packages/connectors/monday/record-mapping.ts
+  - packages/testkit/tests/record-source-mapping.test.ts
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/record-source-mapping.test.ts
+  - packages/testkit/tests/provider-record-evidence.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - status.current
+architecture:
+  placement:
+    core: Extend the existing Monday source binding and privileged adapter.
+    packages: No Package changes; fixtures remain fictional.
+    workspace: Reviewed logical Record paths and business policy remain in files.
+    instance: Bind exact provider IDs and types with qualified non-secret evidence.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Normalize logical mapped fields while preserving raw physical evidence.
+    - mechanism: capability-contracts-and-connectors
+      reason: Validate and revalidate bounded mappings through the maintained source adapter.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company may reuse a Record declaration across equivalent provider environments with different generated IDs.
+rollback: Remove the optional mapping and restore physical source paths in a reviewed declaration; retain historical receipts and versions.
