@@ -1303,3 +1303,10 @@ replaced leases and changed Artifact bytes cannot authorize another dispatch.
 An unavailable exact Connector retains its failed effect and requires explicit
 reconciliation even after configuration recovery. These synthetic-provider tests
 do not replace live recovery or qualified target-isolation acceptance.
+
+Additional ordinary-workflow conformance rejects missing operator credentials,
+undeclared opening-clock overrides, changed timer claims and conflicting stored
+timer identities. Foreign Instance and timer-kind rows remain untouched. Invalid
+message variables and unresolved configuration cannot replace a compiled run;
+the original Agent instructions and Skill material remain recoverable after a
+later Workspace build. These cases use isolated synthetic stores and providers.
