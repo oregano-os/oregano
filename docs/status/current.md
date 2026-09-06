@@ -1271,3 +1271,10 @@ expired claims and explicit delayed retry. A missing report receipt blocks the
 dependent retro and decision even after operator resume; changing the synthetic
 provider cannot replace the retained receipt or authorize a second send. These
 are synthetic-provider regressions, not live acceptance or legacy-removal proof.
+
+Declaration conformance now also runs ordinary workflows built from validated
+Record sources, projections and company-owned literal parameters. Counterexamples
+reject protected materialization targets, unresolved projections, invalid
+referenced calendars, undeclared calendar credential fields and dynamic or unsafe
+configuration. Retained runs preserve their original compiled inputs. These
+tests preserve generic authoring boundaries without a separate business executor.
