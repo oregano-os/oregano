@@ -1,0 +1,43 @@
+version: 3
+plan_id: workflow-boundary-conformance-2026-09-06
+created: "2026-09-06"
+title: Verify workflow admission and persisted timer boundaries
+objective: >-
+  Preserve regression evidence for unauthenticated admission, undeclared clock
+  overrides, timer identity and Instance isolation, invalid template inputs,
+  and captured Agent material before removing legacy execution tests.
+non_goals:
+  - Change runtime authority, company policy or provider configuration.
+  - Treat synthetic regression evidence as live acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-boundary-conformance.yaml
+  - packages/testkit/fixtures/workflow-boundary-conformance.test.ts
+  - packages/testkit/tests/workflow-boundary-conformance.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-boundary-conformance.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse the HTTP parser, compiler, engine, durable timers and retained Artifact store.
+    packages: No Package implementation or new extension contract.
+    workspace: All execution policy and changed Agent material come from fictional Workspace files.
+    instance: Test credentials and foreign timer identities are synthetic and isolated.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Exercise real persisted wait identities and failure evidence through reconstructed workers.
+    - mechanism: identity-and-authorization
+      reason: Verify absent credentials and forbidden request fields cannot select workflow authority.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every workflow needs exact admission, immutable material and isolated durable wakeups.
+rollback: Revert the conformance cases and status evidence; runtime behavior is unchanged.
