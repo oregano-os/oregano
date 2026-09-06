@@ -251,3 +251,16 @@ actual authorized principal and provider event and retains the exact bound
 payload digest. Decision notices themselves have ordinary Tool/effect receipts.
 Memory and Postgres execution tests use synthetic provider responses and human
 identities; live approval delivery and acceptance remain separate proof gates.
+
+Completed-run verification reads the retained Artifact, the complete bounded
+revision journal, durable waits, human-response events, source completeness
+claims, effect receipts and the actual consumed-approval join. It compares
+effect inputs with the frozen workflow and decision notice, and checks batch
+item identities and provider versions. It returns only identifiers, checks and
+digests; it neither fills missing evidence nor invokes a provider effect.
+Source proof references include the logical source, its digest, synchronization
+run, coverage instant and query snapshot; raw watermark/cursor values stay hashed.
+Synthetic receipt markers prevent the live CLI scope from treating an automated
+fixture as acceptance. Exact deployment identity, source qualification and
+human participation remain essential: a checksum is not a provider signature
+or proof that an arbitrary untrusted server ran the maintained Core.

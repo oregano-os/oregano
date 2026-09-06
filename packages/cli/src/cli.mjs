@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { inspectBootstrap, verifyBootstrap } from "./bootstrap.mjs";
 import { inspectCoreCheckout } from "./core-checkout.mjs";
+import { verifyLiveWorkflow } from "./workflow-verification.mjs";
 import {
   advanceLiveSetup,
   initializeLiveSetup,
@@ -111,7 +112,7 @@ Usage:
   companyos setup --profile vercel-neon-slack --workspace <path> --answers <yaml|json> --apply <hash> [--state <file>] [--format human|json]
   companyos setup --profile vercel-neon-slack --state <file> --resume [--operating-confirmation <hash>] [--merge-confirmation <hash>] [--production-confirmation <hash>] [--format human|json]
   companyos setup --profile vercel-neon-slack --state <file> --status [--format human|json]
-  companyos verify-live --state <file> [--format human|json]
+  companyos verify-live --state <file> [--scope starter|workflow] [--format human|json]
   companyos records source inspect --workspace <path> [--source <id>] [--format human|json]
   companyos records projection inspect --workspace <path> [--projection <id>] [--format human|json]
   companyos records source qualify --provider monday --workspace <path> --agent-id <id> --board-access <id>:read|read-write [--board-access <value>] --state <file> [--runtime-profile vercel-neon --runtime-scope <team> --runtime-project <project> --endpoint <preview-url>] --plan [--format human|json]
@@ -1190,7 +1191,9 @@ try {
   } else if (command === "verify-live") {
     const statePath = optionValue("--state");
     if (!statePath) throw new Error("verify-live requires --state <file>.");
-    const result = await verifyLiveSetup({ statePath });
+    const scope = optionValue("--scope") ?? "starter";
+    if (scope !== "starter" && scope !== "workflow") throw new Error("verify-live --scope must be starter or workflow.");
+    const result = scope === "workflow" ? await verifyLiveWorkflow({ statePath }) : await verifyLiveSetup({ statePath });
     if (format === "json") {
       process.stdout.write(`${JSON.stringify({ ok: result.verification.ok, ...result }, null, 2)}\n`);
       if (!result.verification.ok) process.exitCode = 1;

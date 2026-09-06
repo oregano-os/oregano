@@ -58,6 +58,25 @@ export interface DecisionInput {
   decision: "approved" | "rejected";
 }
 
+/** Retrospective evidence only; reading it cannot consume or authorize an effect. */
+export interface EffectApprovalReceipt {
+  approvalId: string;
+  requestId: string;
+  runId: string;
+  stepId: string;
+  action: string;
+  inputHash: string;
+  subjectPrincipal: string;
+  role: string;
+  decision: "approved" | "rejected";
+  consumed: boolean;
+  expiresAt: string | null;
+}
+
+export function assertEventReadLimit(limit: number | undefined): void {
+  if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1 || limit > 10001)) throw new Error("Event read limit must be between 1 and 10001");
+}
+
 /** Trusted workflow lease checked atomically with the transition to provider dispatch. */
 export interface WorkflowDispatchFence {
   instanceId: string;
@@ -73,7 +92,7 @@ export interface StateStore {
   ensureRun(meta: RunMeta): Promise<void>;
   getRun(runId: string): Promise<Record<string, unknown> | undefined>;
   appendEvent(e: EventInput): Promise<string>;
-  listEvents(runId: string): Promise<Record<string, unknown>[]>;
+  listEvents(runId: string, limit?: number): Promise<Record<string, unknown>[]>;
 
   createApprovalRequest(r: ApprovalRequestInput): Promise<string>;
   /**
@@ -124,4 +143,5 @@ export interface StateStore {
   markEffectFailed(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectUnknown(idempotencyKey: string, evidence: unknown): Promise<void>;
   getEffect(idempotencyKey: string): Promise<Record<string, unknown> | undefined>;
+  getEffectApproval(idempotencyKey: string): Promise<EffectApprovalReceipt | undefined>;
 }

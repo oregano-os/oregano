@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Completed workflow evidence has a read-only operator `verify` action and
+  `companyos verify-live --scope workflow`. The verifier checks the pinned
+  execution journal, waits, human decisions, source completeness claims,
+  ordinary effects and consumed batch approvals. Live verification compares
+  exact deployment and expected approver identities and rejects synthetic
+  evidence. Real source qualification, human acceptance, restart/rollback
+  rehearsals, final removal and pilot evidence remain separate requirements.
+
 - Public fixture tests run 28 computation cases through the maintained Company
   Tool inspector and isolation: 17 contract cases and 11 frozen synthetic
   outputs checked against the legacy close/rollover/readiness oracle. These

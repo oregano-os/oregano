@@ -8,11 +8,31 @@ import { engineFixture, ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine
 import { workflowDecisionId } from "../../runtime/workflow-engine/decision-notice.ts";
 import { WorkflowRecordWorkers } from "../../runtime/workflow-engine/record-workers.ts";
 import { sha256 } from "../../runtime/canonical.ts";
+import { completedVerificationFixture } from "../fixtures/workflow-verification-fixture.ts";
 import { WorkflowReviewContextReader } from "../../runtime/workflow-engine/readers.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required database configuration is missing.");
 const fixture = () => engineFixture({ store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+
+test("Postgres verification joins the consumed approval and preserves run, event and effect state", { skip: !enabled }, async () => {
+  const { h, run } = await completedVerificationFixture({ store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+  const events = await h.control.listEvents(run.runId), calls = h.calls.length;
+  const proof = await h.engine().verify(run.runId, ENGINE_OPERATOR);
+  assert.equal(proof.ok, true, JSON.stringify(proof.checks.filter((entry) => !entry.passed)));
+  const effect = proof.receipts.find((receipt) => receipt.approvalId)!;
+  const approval = await h.control.getEffectApproval(effect.effectKey);
+  assert.equal(approval?.consumed, true);
+  assert.equal(approval?.runId, run.runId);
+  assert.equal(approval?.inputHash, effect.inputDigest);
+  assert.equal(approval?.subjectPrincipal, ENGINE_OWNER);
+  assert.deepEqual(await h.control.listEvents(run.runId), events);
+  assert.equal((await h.store.read(h.artifact.instance.id, run.runId))?.revision, run.revision);
+  assert.equal(h.calls.length, calls);
+  assert.equal((await h.control.listEvents(run.runId, 1)).length, 1);
+  await assert.rejects(h.control.listEvents(run.runId, 0), /read limit/);
+  assert.equal(await h.control.getEffectApproval(`missing:${randomUUID()}`), undefined);
+});
 
 const stoppedForReview = async () => {
   const h = fixture();

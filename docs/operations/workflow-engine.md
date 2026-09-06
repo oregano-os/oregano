@@ -272,3 +272,28 @@ with the Artifact and preserve its prior evidence. Token rotation to a different
 identity needs reviewed Instance configuration. Qualification metadata is
 retained with success and unknown-effect receipts, but is not proof of write
 success or atomicity. This setup change does not activate production.
+
+## Verify one completed run
+
+Use `companyos verify-live --scope workflow --state <file>` after the ordinary
+workflow completes. See [the command contract](../workbench/commands/verify-live.md)
+for its non-secret exact-candidate file. The CLI sends only the authenticated
+operator action `verify`. Operator authentication and the configured hosting
+boundary remain required; missing or disabled hosting fails explicitly.
+
+The operator response can inspect a historical run, but live candidate
+acceptance requires that run's Artifact and Core identity to match the exact
+current deployment. A later deployment does not inherit acceptance from a run
+on an earlier Artifact. Verification never repairs audit gaps or retries an
+effect. Preserve the returned receipt with the separate real-provider,
+restart, deactivation, rollback and human-participation evidence.
+
+For a CLI deployment from a Git worktree, verify the provider source metadata.
+Vercel CLI versions that read `.git/config` directly may omit the Git provider
+when `.git` is a worktree file. Supply the documented GitHub metadata from the
+actual clean checkout (`githubDeployment=1`, exact `githubCommitSha`,
+`githubCommitRef`, repository and owner), then compare deployment metadata and
+runtime identity. Do not invent a source ref, alter identity tokens, or disable
+the runtime's exact-commit comparison. The [Vercel metadata guide](https://vercel.com/kb/guide/branch-variables-and-domains-not-linked-to-cli-deployments)
+documents this CLI mechanism. This does not require connecting a production
+Git webhook or promoting a Preview.

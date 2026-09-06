@@ -1,0 +1,65 @@
+version: 3
+plan_id: workflow-run-verification-2026-09-06
+created: "2026-09-06"
+title: Verify one completed hosted workflow from its retained evidence
+objective: >-
+  Implement the planned workflow scope of verify-live using a fresh authenticated
+  read of the exact deployed run. Verify pinned source identities, durable wait
+  and human-decision events, source completeness proofs, consumed approvals,
+  exact effect inputs and retained provider results without causing effects.
+non_goals:
+  - Start workflows, answer decisions or substitute synthetic runs for live acceptance.
+  - Authorize production, replace pilot weeks or define source cutoff semantics.
+  - Re-execute effects or change retained business data during verification.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-run-verification.yaml
+  - packages/runtime/workflow-engine/**
+  - packages/runtime/memory-state.ts
+  - packages/state-store/interface.ts
+  - packages/state-postgres/store.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/workflow-verification.mjs
+  - packages/cli/tests/workflow-verification.test.mjs
+  - packages/testkit/fixtures/workflow-verification.test.ts
+  - packages/testkit/fixtures/workflow-verification-fixture.ts
+  - packages/testkit/tests/workflow-verification.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/architecture/system-of-proof.md
+  - docs/operations/workflow-engine.md
+  - docs/workbench/commands/verify-live.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/cli/tests/workflow-verification.test.mjs
+  - packages/testkit/tests/workflow-verification.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - architecture.system-of-proof
+    - operations.workflow-engine
+    - command.verify-live
+    - status.current
+architecture:
+  placement:
+    core: Verify existing run, event, approval and effect records through read-only interfaces.
+    packages: Reuse standard Records, publication and batch contracts and their receipts.
+    workspace: The pinned workflow retains all process rules and selected decision roles.
+    instance: Exact deployment, Artifact, operator SecretRef and run identify the verification target.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Expose the retained consumed approval for an effect and bounded audit reads without new mutation authority.
+    - mechanism: identity-and-authorization
+      reason: Reuse current operator authentication and compare exact deployment and historical run identities.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any hosted workflow with waits, Records reads and human-approved batch effects uses the same evidence verification; no process vocabulary enters Core.
+rollback: Return to the preceding verifier or deployment; preserve all run, approval, effect and provider evidence. Verification never writes state.
