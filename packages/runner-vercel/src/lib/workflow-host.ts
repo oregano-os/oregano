@@ -5,6 +5,8 @@ import { createWorkflowSlackScope, qualifyWorkflowMessageInputs, qualifyWorkflow
 import { WorkflowConversationHost } from "./workflow-conversations.ts";
 import { WorkflowEngine } from "../../../runtime/workflow-engine/engine.ts";
 import { WorkflowWorkers } from "../../../runtime/workflow-engine/workers.ts";
+import { WorkflowRecordWorkers } from "../../../runtime/workflow-engine/record-workers.ts";
+import { createWorkflowRecordSynchronizer } from "./workflow-records.ts";
 import { DurableTimerService } from "../../../runtime/durable-timers.ts";
 import { createPostgresDurableTimerStore } from "../../../state-postgres/durable-timer-store.ts";
 import { createPostgresWorkflowExecutionStore } from "../../../state-postgres/workflow-store.ts";
@@ -34,6 +36,8 @@ export async function createWorkflowHost() {
     qualifyMessageDestinations: (pinned, inputs) => qualifyWorkflowMessageInputs({ scope: slack, artifact: pinned, inputs, roster }),
     conversationForReceipt: ({ artifact: pinned, destinationBinding, output }) => slack(async (transport) => transport.conversation(pinned, destinationBinding, output, await roster())) });
   const workers = new WorkflowWorkers({ artifact, engine, store, timers, configuration });
+  const records = new WorkflowRecordWorkers({ artifact, store, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
+    recordSync: configuration.recordSync, synchronizeSource: createWorkflowRecordSynchronizer() });
   const conversations = new WorkflowConversationHost({ artifact, engine, store, control, connectors, roster, slack, enabledWorkflowIds: configuration.enabledWorkflowIds });
-  return { artifact, configuration, store, engine, workers, conversations };
+  return { artifact, configuration, store, engine, workers, records, conversations };
 }

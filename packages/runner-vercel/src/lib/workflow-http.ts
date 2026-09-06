@@ -53,12 +53,13 @@ const failure = (event: string, error: unknown) => {
   return Response.json({ ok: false, error: event, errorDigest }, { status: 503 });
 };
 
-export async function handleWorkflowWorker(request: Request, kind: WorkflowWorkerKind): Promise<Response> {
+export async function handleWorkflowWorker(request: Request, kind: WorkflowWorkerKind | "records"): Promise<Response> {
   if (!authenticateWorkflowScheduler(request)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   try {
     if (!workflowHostingEnabled()) return Response.json({ ok: true, enabled: false });
     const { createWorkflowHost } = await import("./workflow-host.ts");
-    const result = await (await createWorkflowHost()).workers.run(kind);
+    const host = await createWorkflowHost();
+    const result = await (kind === "records" ? host.records.run() : host.workers.run(kind));
     return Response.json(result, { status: result.ok ? 200 : 503 });
   } catch (error) { return failure(`workflow.${kind}-worker.failed`, error); }
 }

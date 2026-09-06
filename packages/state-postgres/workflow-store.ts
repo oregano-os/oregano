@@ -92,6 +92,14 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
         order by run_id limit ${args.limit}`;
       return rows.map(runRow);
     },
+    async hasActiveArtifact(args) {
+      await ensureWorkflowExecutionSchema();
+      const rows = await connection()`select exists(select 1 from companyos.workflow_executions
+        where instance_id = ${args.instanceId} and artifact_hash = ${args.artifactHash}
+        and workflow_id in (select jsonb_array_elements_text(${JSON.stringify(args.workflowIds)}::jsonb))
+        and state_json->>'status' in ('running', 'waiting')) as active`;
+      return rows[0]?.active === true;
+    },
     async claim(args) {
       validateWorkflowLease(args);
       await ensureWorkflowExecutionSchema();

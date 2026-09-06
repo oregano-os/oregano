@@ -52,7 +52,7 @@ establish provider data completeness or authorize production activation.
    in an Artifact or repository.
 6. Set `COMPANYOS_WORKFLOW_ENABLED=true` only for the approved Instance; the
    default is `false`. `/api/health` reports enablement without exposing operator
-   credentials. The cron configuration invokes both workers every minute.
+   credentials. The cron configuration invokes the workers every minute.
    Preview tests must invoke these same protected endpoints through their
    approved driver when the host does not schedule Preview cron invocations.
 
@@ -69,6 +69,12 @@ Example shape; replace all illustrative IDs and the hash:
   "schedulePrincipal": "slack:TEXAMPLE:UEXAMPLE",
   "activatedAt": "2030-01-01T00:00:00.000Z",
   "maxLatenessMinutes": 60,
+  "recordSync": {
+    "intervalMinutes": 5,
+    "targets": [
+      { "artifactHash": "<exact Artifact hash>", "sourceIds": ["work-items"] }
+    ]
+  },
   "operators": [
     { "principal": "slack:TEXAMPLE:UEXAMPLE", "secretRef": "env:WORKFLOW_OPERATOR_SECRET" }
   ]
@@ -88,6 +94,7 @@ fields. The engine persists a start wait; Core does not invent business periods.
 |---|---|---|
 | `GET /api/workflows/timers` | Scheduler bearer credential | Open automatic occurrences, repair waits and wake claimed timers. |
 | `GET /api/workflows/steps` | Scheduler bearer credential | Advance bounded pages of enabled running workflows. |
+| `GET /api/workflows/records` | Scheduler bearer credential | Synchronize explicitly retained Artifact/source pairs through the existing Records service. |
 | `POST /api/workflows/operator` | Configured human bearer credential | Open, prepare, inspect, cancel or resume runs; reread a provider reply. |
 
 Operator bodies are strict JSON, at most 32 KiB. Each example is a separate
@@ -176,3 +183,30 @@ successful materialization receipt; empty rows alone are insufficient. Keep
 the old Artifact and Records generations, and continue qualified synchronization
 through all cutoffs needed by its active runs before retiring them. See the
 [Records query contract](../specifications/company-records-query-v1.md).
+
+`recordSync` is optional and disabled when absent. Its current Instance
+allowlist contains at most 100 unique Artifact/source pairs and an explicit
+polling interval of 1–1440 minutes. Include the deployed Artifact to prepare
+its source generations before opening a run. Retained Artifacts additionally
+need a currently running or waiting execution of an enabled workflow in the
+same Instance. Terminal executions and disabled workflows do not keep their
+sources active. Removing a pair revokes future polling without deleting data.
+An already-started read can finish; revocation does not retract provider reads.
+
+The worker loads each source from exactly one non-secret Records snapshot in
+that Artifact. It reuses current provider credential qualification, generation
+storage, source leases and `synchronizeRecordSnapshot`. The installed Core must
+still support the exact source Connector version; no implicit adapter upgrade
+or configuration fallback is allowed. Polling appends observations without
+inferring deletion from absence. Existing explicit reconciliation is separate.
+
+Each invocation starts at most three source synchronizations and stops starting
+them after 150 seconds. A durable cursor continues larger sets on a subsequent
+invocation. Already-started scans survive interval boundaries; obsolete unopened
+polls are coalesced. The interval is a minimum cadence, not a promise of provider
+throughput or a completion deadline. A source failure records a payload-free
+error digest and does not stop independent sources; a later poll retries it.
+Completed source receipts are reused after a crash before timer completion.
+Per-source leases protect concurrent synchronization. No provider write, schema
+migration, missing-message inference or `synced_through` value is created by
+this worker. A failed or unqualified source still blocks completeness queries.

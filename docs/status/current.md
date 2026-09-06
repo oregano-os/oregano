@@ -20,7 +20,7 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
-- Generic hosted workers now expose `/api/workflows/timers`, `steps` and
+- Generic hosted workers now expose `/api/workflows/timers`, `steps`, `records` and
   `operator`, with explicit Artifact/Instance activation, separate operator and
   scheduler credentials, durable pagination and no inferred business periods.
   Slack routing rereads exact provider replies, uses individual DM roots,
@@ -29,6 +29,10 @@ evidence, historical prototypes, and production gaps.
   and one batch; actual installation qualification, source cutoff coverage and
   real test-Instance acceptance remain pending. See the
   [workflow operations guide](../operations/workflow-engine.md).
+  The opt-in Records worker synchronizes exact current and retained source
+  generations through the existing service, with current allowlists, active
+  historical execution checks and durable bounded continuation. It creates no
+  implicit provider cutoff evidence or production activation.
 
 - The generic durable interpreter now runs the four fictional Workspace graphs
   through actual Company Tools and CompanyOSRuntime. It persists scalar/keyed

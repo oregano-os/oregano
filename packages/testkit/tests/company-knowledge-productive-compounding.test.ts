@@ -510,6 +510,7 @@ test("the maintained Vercel adapters preserve Knowledge order and declare guarde
     { path: "/api/sprint/intents", schedule: "* * * * *" },
     { path: "/api/workflows/timers", schedule: "* * * * *" },
     { path: "/api/workflows/steps", schedule: "* * * * *" },
+    { path: "/api/workflows/records", schedule: "* * * * *" },
   ];
   const root = JSON.parse(readFileSync(join(import.meta.dirname, "../../../vercel.json"), "utf8")) as { crons?: unknown };
   const runner = JSON.parse(readFileSync(join(import.meta.dirname, "../../runner-vercel/vercel.json"), "utf8")) as { crons?: unknown };

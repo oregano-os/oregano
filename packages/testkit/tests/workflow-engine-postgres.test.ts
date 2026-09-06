@@ -6,10 +6,41 @@ import { createPostgresStateStore } from "../../state-postgres/store.ts";
 import { createPostgresDurableTimerStore } from "../../state-postgres/durable-timer-store.ts";
 import { engineFixture, ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
 import { workflowDecisionId } from "../../runtime/workflow-engine/decision-notice.ts";
+import { WorkflowRecordWorkers } from "../../runtime/workflow-engine/record-workers.ts";
+import { sha256 } from "../../runtime/canonical.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required database configuration is missing.");
 const fixture = () => engineFixture({ store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+
+test("Postgres Records worker checks current historical execution eligibility and retains completed polls across restart", { skip: !enabled }, async () => {
+  const h = fixture(); h.artifact.provenance.workspaceCommit = sha256(randomUUID()).slice(0, 40);
+  const rehash = (value: typeof h.artifact) => {
+    value.workflows = structuredClone(value.workflows);
+    for (const workflow of value.workflows ?? []) {
+      workflow.provenance.workspaceCommit = value.provenance.workspaceCommit;
+      const { manifestHash: _, ...manifest } = workflow; workflow.manifestHash = sha256(manifest);
+    }
+    const { artifactHash: _, ...content } = value; value.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
+  };
+  rehash(h.artifact);
+  const run = await h.engine().openOperator({ workflowId: "friday-close", requestId: randomUUID(), principal: ENGINE_OPERATOR, fields: { sprint_id: "one", next_sprint_id: "two" } });
+  await h.engine().advance(run.runId);
+  const scope = { instanceId: h.artifact.instance.id, artifactHash: h.artifact.artifactHash, workflowIds: ["friday-close"] };
+  assert.equal(await createPostgresWorkflowExecutionStore().hasActiveArtifact(scope), true);
+  assert.equal(await h.store.hasActiveArtifact({ ...scope, workflowIds: [] }), false);
+  assert.equal(await h.store.hasActiveArtifact({ ...scope, instanceId: "another-instance" }), false);
+  const updated = structuredClone(h.artifact); updated.provenance.workspaceCommit = sha256(randomUUID()).slice(0, 40); rehash(updated);
+  const reads: string[] = [];
+  const worker = () => new WorkflowRecordWorkers({ artifact: updated, store: createPostgresWorkflowExecutionStore(), timers: h.timers, clock: () => h.now,
+    enabledWorkflowIds: scope.workflowIds, recordSync: { intervalMinutes: 1, targets: [{ artifactHash: h.artifact.artifactHash, sourceIds: ["fixture-source"] }] },
+    synchronizeSource: async (pinned) => { reads.push(pinned.artifactHash); return { synthetic: true }; } });
+  assert.equal((await worker().run()).synchronized, 1); await worker().run(); assert.deepEqual(reads, [h.artifact.artifactHash]);
+  await h.engine().cancel(run.runId, ENGINE_OPERATOR);
+  assert.equal(await createPostgresWorkflowExecutionStore().hasActiveArtifact(scope), false);
+  h.now = "2030-01-04T14:31:00.000Z";
+  const stopped = await worker().run(); assert.equal(stopped.skipped, 1); assert.equal(stopped.synchronized, 0); assert.equal(reads.length, 1);
+});
 
 test("Postgres actual Engine runs Friday from entry through persisted waits, decision and atomic approval/effect", { skip: !enabled }, async () => {
   const h = fixture(), requestId = randomUUID();
