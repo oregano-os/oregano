@@ -20,6 +20,16 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Ordinary worker fixtures cover a Close worker arriving after both deadlines:
+  it retains the original chase/report cutoffs and shared-thread order across
+  reconstructed engine calls, with no duplicate publication on retry. Idle
+  hosted workers create no run or provider effect, and step workers leave
+  non-enabled workflows untouched. Provider completeness inputs in these
+  cases are explicitly synthetic and do not prove historical source coverage.
+  The generic operator rejects the retired replay/simulation action names;
+  an accepted ordinary opening executes the compiled workflow directly. The
+  separate legacy routes still await the final removal gate.
+
 - Hosted workflow and real Postgres engine cases now reside in fictional
   fixture assets behind unchanged CI entrypoints. Their authentication,
   decision, timer, concurrency and recovery assertions remain intact; database
