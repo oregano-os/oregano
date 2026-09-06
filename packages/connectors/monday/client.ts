@@ -469,6 +469,7 @@ export class MondayClient {
     }`, { ids: [workItemId], columnIds: fields.map((field) => binding.fields[field]) });
     const item = response.data.items[0];
     if (!item) throw new Error(`Monday work item '${workItemId}' was not found`);
+    if (response.data.items.length !== 1 || String(item.id) !== workItemId) throw new Error("Monday work-item read returned a different or ambiguous item identity");
     if (String(item.board.id) !== binding.boardId) throw new Error(`Monday work item '${workItemId}' is outside resource binding '${binding.id}'`);
     const logicalByProvider = new Map(Object.entries(binding.fields).map(([logical, provider]) => [provider, logical]));
     const values: Record<string, JsonValue> = {};
@@ -499,9 +500,11 @@ export class MondayClient {
       providerChanges[provider] = value;
     }
     if (Object.keys(providerChanges).length === 0) throw new Error("Monday work-item update requires at least one allowed field");
-    return this.graphql<{ id: string }>(`mutation UpdateWorkItem($boardId: ID!, $itemId: ID!, $values: JSON!) {
+    const response = await this.graphql<{ change_multiple_column_values: { id: string } | null }>(`mutation UpdateWorkItem($boardId: ID!, $itemId: ID!, $values: JSON!) {
       change_multiple_column_values(board_id: $boardId, item_id: $itemId, column_values: $values) { id }
     }`, { boardId: binding.boardId, itemId: workItemId, values: JSON.stringify(providerChanges) });
+    if (!response.data.change_multiple_column_values || String(response.data.change_multiple_column_values.id) !== workItemId) throw new Error("Monday mutation acknowledgement does not identify the requested work item");
+    return { ...response, data: { id: workItemId } };
   }
 
   async comment(binding: MondayResourceBinding, workItemId: string, body: string): Promise<MondayGraphqlResponse<{ create_update: { id: string; created_at?: string } }>> {

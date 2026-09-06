@@ -1127,3 +1127,10 @@ basis selection. Friday version 7 passes configuration through the ordinary
 engine and uses returned evidence text. The default remains unavailable; no
 actual company source mapping or provider collection is activated. These cases
 extend computation parity, not the full legacy removal or live acceptance gate.
+
+Maintained work-item effects now verify exact item identity in preflight,
+mutation acknowledgements and readback. Single update/comment receipt loss
+preserves an unknown outcome, and complete batch preflight rejects unmapped
+fields before writing. Synthetic adapter and ordinary-engine regressions cover
+these cases. Current write-credential qualification and real provider acceptance
+remain separate outstanding checks.

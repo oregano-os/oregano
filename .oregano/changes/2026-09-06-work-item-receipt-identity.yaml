@@ -1,0 +1,47 @@
+version: 3
+plan_id: work-item-receipt-identity-2026-09-06
+created: "2026-09-06"
+title: Require exact work-item receipt identity after provider writes
+objective: >-
+  Reject wrong-item reads and mutation acknowledgements and retain unknown
+  outcomes when a single effect loses its required post-write evidence.
+non_goals:
+  - Claim atomic provider updates, current credential qualification or historical coverage.
+  - Change provider bindings or execute live effects.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-work-item-receipt-identity.yaml
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/connector.ts
+  - packages/testkit/tests/work-item-receipt-identity.test.ts
+  - docs/specifications/tool-architecture.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/work-item-receipt-identity.test.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/tests/workflow-effect-review.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.tool-architecture
+    - status.current
+architecture:
+  placement:
+    core: The maintained provider adapter verifies exact returned resource identity.
+    packages: Existing Capability exceptions and effect-review evidence carry uncertain outcomes.
+    workspace: Existing grants and declarations remain the business review surface.
+    instance: Existing resource bindings and effect receipts remain authoritative; no new provider authority.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Validate exact provider receipt identity at the maintained adapter boundary.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Post-write proof failures remain unknown and cannot become retryable ordinary failures.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company using the maintained work-item Connector receives the same receipt checks.
+rollback: Preserve prior deployment and all effect receipts; no state migration or provider mutation occurs.
