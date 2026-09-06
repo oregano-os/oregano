@@ -7,6 +7,7 @@ import type {
   RecordSourceInventory,
 } from "../../records/source-connector.ts";
 import { MondayClient, type MondayFetch } from "./client.ts";
+import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
 export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.2";
@@ -216,6 +217,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       observed_at: observedAt,
       objects,
       watermark: `monday:${inventoryDigest}`,
+      binding_digest: recordSourceBindingDigest(binding, qualification),
       receipt: {
         connector: this.id,
         connector_version: this.version,

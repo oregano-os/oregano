@@ -13,6 +13,7 @@ export function normalizeRecordObject(args: {
   deleted?: boolean;
   receipt?: Record<string, JsonValue>;
   identities?: RecordIdentityDirectory;
+  sourceDigest?: string;
 }): RecordObjectVersion {
   const { instanceId, source, raw, observedAt } = args;
   validateRecordSource(source);
@@ -36,7 +37,8 @@ export function normalizeRecordObject(args: {
         : args.identities.resolve(value as string);
     } else values[field.target] = structuredClone(value);
   }
-  const digest = recordDigest({ deleted: args.deleted ?? false, values });
+  const digest = recordDigest({ deleted: args.deleted ?? false, values,
+    ...(args.sourceDigest ? { source_digest: args.sourceDigest } : {}) });
   return {
     instance_id: instanceId,
     source_id: source.id,
@@ -49,6 +51,7 @@ export function normalizeRecordObject(args: {
     values,
     source_receipt: {
       ...args.receipt,
+      ...(args.sourceDigest ? { source_digest: args.sourceDigest } : {}),
       ...(source.fields.some((field) => field.resolve_identity) ? { identity_directory_digest: args.identities!.digest } : {}),
     },
   };

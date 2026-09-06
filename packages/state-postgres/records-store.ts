@@ -284,21 +284,28 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
 
     async readProjectionSnapshot(args) {
       await ensureCompanyRecordsSchema();
+      const sourceDigests = args.sourceDigests ? JSON.stringify(args.sourceDigests) : null;
       // One SQL statement gives rows and completion receipts the same MVCC snapshot.
       // No connection or mutable read cursor survives beyond this request.
       // Sort integral seconds and fractional text separately: timestamptz rounds
       // beyond microseconds and would choose the wrong proof within one microsecond.
-      const result = await connection()`select
-        coalesce((select jsonb_agg(to_jsonb(r) order by r.record_id) from (
+      const result = await connection()`with selected_rows as materialized (
           select * from companyos_records.projection_rows
           where instance_id = ${args.instanceId} and projection_id = ${args.projectionId}
           order by record_id collate "C" limit ${args.limit + 1}
-        ) r), '[]'::jsonb) as rows,
+        ) select
+        coalesce((select jsonb_agg(to_jsonb(r) order by r.record_id) from selected_rows r), '[]'::jsonb) as rows,
+        coalesce((select jsonb_agg(jsonb_build_object('version_id', v.version_id,
+          'source_id', v.source_id, 'source_digest', v.source_receipt->>'source_digest'))
+          from companyos_records.object_versions v
+          where v.instance_id = ${args.instanceId}
+            and v.version_id in (select source_version_id from selected_rows)), '[]'::jsonb) as row_sources,
         coalesce((select jsonb_agg(s.summary) from (
           select distinct on (source_id) summary from companyos_records.sync_receipts
           where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
             and summary->>'synced_through' is not null and watermark is not null
             and summary->>'errors' = '0'
+            and (${sourceDigests}::jsonb is null or summary->>'source_digest' = (${sourceDigests}::jsonb)->>source_id)
           order by source_id,
             regexp_replace(summary->>'synced_through', '[.][0-9]+', '')::timestamptz desc,
             rpad(coalesce(substring(summary->>'synced_through' from '[.]([0-9]+)'), ''), 9, '0') desc,
@@ -307,6 +314,7 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
       return {
         rows: (json(result[0]?.rows) as Array<Record<string, any>>).map(projectionRow),
         sourceReceipts: json(result[0]?.receipts),
+        rowSources: json(result[0]?.row_sources),
       };
     },
 

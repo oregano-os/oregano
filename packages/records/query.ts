@@ -97,7 +97,7 @@ export async function drainRecordPages(read: (cursor?: string) => Promise<Projec
 }
 
 export async function queryRecordSnapshot(args: {
-  snapshot: RecordReadSnapshot; projection: CompanyRecordProjectionDeclaration; sourceIds: string[]; sourceDigests: Record<string, string>; query: RecordQuery;
+  snapshot: RecordReadSnapshot; projection: CompanyRecordProjectionDeclaration; sourceIds: string[]; sourceDigests: Record<string, string>; boundSourceIds?: string[]; query: RecordQuery;
 }): Promise<{ rows: RecordProjectionRow[]; next_cursor?: string; snapshot_id: string; source_proofs: RecordSourceProof[]; synced_through?: string }> {
   const { query, snapshot, projection, sourceIds } = args;
   const limit = query.limit ?? 50;
@@ -105,6 +105,15 @@ export async function queryRecordSnapshot(args: {
   if (query.all_pages && query.cursor) throw new Error("A complete Record query cannot start at a partial cursor");
   if (snapshot.rows.length > MAX_RECORD_QUERY_ROWS) throw new Error(`Record projection exceeds the ${MAX_RECORD_QUERY_ROWS}-row snapshot bound; narrow the projection`);
   if (snapshot.rows.some((row) => row.projection_id !== projection.id)) throw new Error("Record snapshot contains a row from another projection");
+  if (args.boundSourceIds?.length) {
+    for (const row of snapshot.rows) {
+      const origins = snapshot.rowSources?.filter((origin) => origin.version_id === row.source_version_id) ?? [];
+      if (origins.length !== 1 || !sourceIds.includes(origins[0]!.source_id)
+        || (args.boundSourceIds.includes(origins[0]!.source_id) && origins[0]!.source_digest !== args.sourceDigests[origins[0]!.source_id])) {
+        throw new Error(`Projection '${projection.id}' contains a row without matching source-binding provenance; synchronize its exact sources and repair the projection before retrying`);
+      }
+    }
+  }
   const sourceProofs = sourceIds.flatMap((sourceId) => {
     const receipt = snapshot.sourceReceipts.find((value) => value.source_id === sourceId && value.source_digest === args.sourceDigests[sourceId]
       && value.synced_through && value.watermark && value.errors === 0);

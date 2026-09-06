@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts";
 import type { CompanyRecordSourceBinding, RecordSourceConnector, RecordSourceInventory } from "../../records/source-connector.ts";
+import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { SlackWebApiClient, type SlackFetch } from "./client.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
@@ -266,6 +267,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
       observed_at: this.now().toISOString(),
       objects,
       watermark: `slack:${inventoryDigest}`,
+      binding_digest: recordSourceBindingDigest(args.binding, args.qualification),
       receipt: {
         connector: this.id,
         connector_version: this.version,

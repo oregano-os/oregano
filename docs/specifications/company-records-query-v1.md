@@ -5,7 +5,7 @@ kind: specification
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners: [oregano-maintainers]
 audience: [human, agent]
 ---
@@ -114,6 +114,33 @@ freshness, empty and failed scans, stable JSON identity, paging and bounds.
 exercises the real SQL read, JSONB, restart, source isolation and failed scans.
 These are Records contract tests; they do not prove workflow execution or
 actual provider synchronization.
+
+## Exact Instance binding evidence
+
+Hosted source selection validates and freezes every contributing Instance
+binding and qualification receipt. Its source digest includes their canonical
+digest, including provider account/resource configuration, Connector version,
+SecretRef and qualification content. No credential value enters this digest.
+CLI synchronization binds the selected source in the same way. A bound
+inventory must carry the matching `binding_digest` supplied by its Connector;
+a missing or changed digest fails before database writes. Duplicate object
+identities also fail before synchronization begins.
+
+Bound normalized versions include `source_digest` in their immutable identity
+and receipt. Identical provider values from a different binding therefore
+cannot reuse an old version. Queries read content-free version provenance in
+the same memory/SQL snapshot as rows and receipts and reject any retained row
+without the exact contributing source evidence, before applying filters.
+An empty or partial resynchronization cannot legitimize old rows by adding a
+new receipt. Receipt selection compares exact source digests before choosing
+the latest completeness instant.
+
+This fails closed on mixed current projections; it does not yet retain separate
+queryable projection generations after a resource/schema change. Keep matching
+historical projections available or stop affected runs until migration is
+qualified. A retained Artifact alone does not recreate those projections.
+`record-binding-evidence.test.ts` and the mandatory Postgres query suite prove
+these boundaries. Provider time coverage remains a separate requirement.
 
 ## Exact timestamp comparisons
 

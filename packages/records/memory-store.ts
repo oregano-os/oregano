@@ -82,7 +82,7 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
     this.accessDecisions.push(structuredClone(decision));
   }
 
-  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; limit: number }): Promise<RecordReadSnapshot> {
+  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; limit: number }): Promise<RecordReadSnapshot> {
     // No await: rows and receipts are copied at the same observation boundary.
     const rows = [...this.projectionRows.values()]
       .filter((row) => row.instance_id === args.instanceId && row.projection_id === args.projectionId)
@@ -90,11 +90,17 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
       .slice(0, args.limit + 1);
     const sourceReceipts = args.sourceIds.flatMap((sourceId) => {
       const receipt = this.syncReceipts.filter((value) => value.instance_id === args.instanceId && value.source_id === sourceId
+        && (!args.sourceDigests || value.source_digest === args.sourceDigests[sourceId])
         && value.synced_through && value.watermark && value.errors === 0)
         .sort((a, b) => compareRecordInstants(b.synced_through!, a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
       return receipt ? [receipt] : [];
     });
-    return structuredClone({ rows, sourceReceipts });
+    const versionIds = new Set(rows.map((row) => row.source_version_id));
+    const rowSources = [...this.objectVersions.values()]
+      .filter((version) => version.instance_id === args.instanceId && versionIds.has(version.version_id))
+      .map((version) => ({ version_id: version.version_id, source_id: version.source_id,
+        ...(typeof version.source_receipt.source_digest === "string" ? { source_digest: version.source_receipt.source_digest } : {}) }));
+    return structuredClone({ rows, sourceReceipts, rowSources });
   }
 
   async appendSyncReceipt(receipt: RecordSyncReceipt | RecordReconciliationReceipt): Promise<void> {

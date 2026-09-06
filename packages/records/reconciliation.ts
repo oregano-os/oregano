@@ -26,6 +26,7 @@ export async function reconcileRecordSnapshot(args: {
 }): Promise<RecordReconciliationReceipt> {
   const { store, registry } = args;
   registry.sourceDigest(args.sourceId);
+  registry.assertSourceInstance(args.sourceId, args.instanceId);
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
     instanceId: args.instanceId,

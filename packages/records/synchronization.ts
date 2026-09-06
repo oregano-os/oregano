@@ -55,9 +55,19 @@ export async function synchronizeRecordSnapshot(args: {
   if (inventory.complete !== true) throw new Error("A partial inventory cannot be synchronized as complete");
   if (sha256(source) !== sha256(registry.source(source.id))) throw new Error("Synchronization source differs from its registered declaration");
   const sourceDigest = registry.sourceDigest(source.id);
+  registry.assertSourceInstance(source.id, instanceId);
+  const bindingDigest = registry.sourceBindingDigest(source.id);
+  if (bindingDigest && inventory.binding_digest !== bindingDigest) throw new Error("Record inventory does not prove the registered Instance binding");
   const observedAt = recordQueryInstant(inventory.observed_at, "Inventory observation");
   if (inventory.synced_through !== undefined && recordQueryInstant(inventory.synced_through, "Source completeness") > observedAt) {
     throw new Error("Source completeness must be an instant no later than the inventory observation");
+  }
+  // Reject conflicting/repeated identities before any source event or projection mutation.
+  const objectIds = new Set<string>();
+  for (const raw of inventory.objects) {
+    const version = registry.normalize({ instanceId, source, raw, observedAt: inventory.observed_at });
+    if (objectIds.has(version.object_id)) throw new Error("Record inventory contains a repeated object identity");
+    objectIds.add(version.object_id);
   }
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({

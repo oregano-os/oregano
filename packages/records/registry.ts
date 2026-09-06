@@ -4,10 +4,12 @@ import { validateRecordSource } from "./source-validation.ts";
 import { normalizeRecordObject } from "./normalize.ts";
 import type { RecordIdentityDirectory } from "./identity-directory.ts";
 import { sha256 } from "../runtime/canonical.ts";
+import { recordSourceBindingDigest, type CompanyRecordSourceBinding } from "./source-connector.ts";
 
 export class CompanyRecordsRegistry {
   readonly #sources = new Map<string, CompanyRecordSourceDeclaration>();
   readonly #projections = new Map<string, CompanyRecordProjectionDeclaration>();
+  readonly #bindings = new Map<string, { digest: string; instanceId: string }>();
   readonly identities?: RecordIdentityDirectory;
 
   constructor(options: { identities?: RecordIdentityDirectory } = {}) {
@@ -16,13 +18,35 @@ export class CompanyRecordsRegistry {
 
   sourceDigest(id: string): string {
     const source = this.source(id);
-    if (!source.fields.some((field) => field.resolve_identity)) return sha256(source);
-    if (!this.identities) throw new Error(`Record source '${id}' requires a frozen roster identity directory`);
-    return sha256({ source, identity_directory_digest: this.identities.digest });
+    const resolvesIdentity = source.fields.some((field) => field.resolve_identity);
+    if (resolvesIdentity && !this.identities) throw new Error(`Record source '${id}' requires a frozen roster identity directory`);
+    const bindingDigest = this.sourceBindingDigest(id);
+    if (!resolvesIdentity && !bindingDigest) return sha256(source);
+    return sha256({ source, ...(resolvesIdentity ? { identity_directory_digest: this.identities!.digest } : {}),
+      ...(bindingDigest ? { binding_digest: bindingDigest } : {}) });
+  }
+
+  /** Call after Connector qualification validation; no provider credential enters this registry. */
+  bindSource(binding: CompanyRecordSourceBinding, qualification: Record<string, unknown>): void {
+    const source = this.source(binding.source_id);
+    if (source.resource_binding !== binding.resource_binding || !binding.instance_id) throw new Error("Record source binding does not match its declaration or Instance");
+    if (this.#bindings.has(source.id)) throw new Error(`Record source '${source.id}' is already bound`);
+    this.#bindings.set(source.id, { digest: recordSourceBindingDigest(binding, qualification), instanceId: binding.instance_id });
+  }
+
+  sourceBindingDigest(id: string): string | undefined { return this.#bindings.get(id)?.digest; }
+
+  assertSourceInstance(id: string, instanceId: string): void {
+    const binding = this.#bindings.get(id);
+    if (binding && binding.instanceId !== instanceId) throw new Error(`Record source '${id}' is bound to another Company Instance`);
   }
 
   normalize(args: Parameters<typeof normalizeRecordObject>[0]) {
-    return normalizeRecordObject({ ...args, identities: this.identities });
+    this.assertSourceInstance(args.source.id, args.instanceId);
+    const bound = this.sourceBindingDigest(args.source.id) !== undefined;
+    if (bound && sha256(args.source) !== sha256(this.source(args.source.id))) throw new Error("Normalization source differs from its registered declaration");
+    return normalizeRecordObject({ ...args, identities: this.identities,
+      sourceDigest: bound ? this.sourceDigest(args.source.id) : undefined });
   }
 
   registerSource(source: CompanyRecordSourceDeclaration): void {
