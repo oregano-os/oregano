@@ -218,8 +218,32 @@ An authenticated operator can list stopped executions, then submit
 endpoint. A keyed collection returns one effect per page; supply the returned
 `nextOffset` as `offset` for the next page. Each report identifies the retained
 Artifact, manifest, run revision, step, effect claim and evidence digests.
-The human operator must inspect every page. This is an operator review queue;
-it does not claim automatic notification of the business owner.
+The human operator must inspect every page. The operator report remains
+available when automated delivery is unavailable or requires its own review.
+
+For a stopped approval-bound scalar effect, the step worker also prepares
+control-notice pages from the retained normalized outcome. It sends them through
+the pinned R2 publication Tool to the actual approving human's original decision
+thread. The current human role, exact recipient mapping and retained delivery
+receipt must still agree. No replacement recipient or destination is inferred.
+These notices respect the historical delivery window. An expired business
+approval may receive an outcome notice; the approval is never renewed by it.
+
+Pages contain at most 40 normalized evidence lines and 20,000 characters; at most
+256 pages may be prepared. Every page is frozen before publication, has a
+separate effect identity and retains its publication receipt. The existing
+bounded step worker drains them while the business cursor remains stopped.
+Restart after provider success recovers the ordinary Runtime receipt. Missing
+eligibility or qualification leaves delivery pending for later inspection;
+uncertain publication is retained as blocked and is never blindly repeated.
+Cancellation or Instance disablement stops new notice dispatch. The separate
+review dispatch fence cannot authorize a business Tool or changed page input.
+
+The `review` response includes page count, delivered count and any delivery
+error digest. It excludes notice content. Cases without exactly one recorded
+approving human, without a usable original delivery, or exceeding the automatic
+size bound remain in the authenticated operator queue. Inspect any explicitly
+reported additional Capability receipts there; no omitted receipt is success.
 
 For a partially completed batch, `verified` identifies a retained write/readback
 receipt, `unknown` requires checking the provider outcome, and `not-attempted`

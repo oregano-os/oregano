@@ -232,7 +232,7 @@ export class CompanyOSRuntime {
     const inputHash = jsonDigest(request.input);
     const idempotencyKey = guard?.idempotencyKey ?? `${tool.contract.runtimeId}:${request.runId}:${inputHash}`;
     const checkedResult = (result: unknown): unknown => {
-      if (guard?.context.mode === "engine" && !guard.step.forEach) {
+      if ((guard?.context.mode === "engine" || guard?.context.mode === "review") && !guard.step.forEach) {
         const outputStep = guard.step.decision ? { ...guard.step, requiredOutputPaths: [["thread_reference"]] } : guard.step;
         assertWorkflowOutput(outputStep, (result as { output?: unknown })?.output);
       }

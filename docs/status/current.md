@@ -1165,3 +1165,13 @@ and wait-selected calendars, missing declarations and ambiguous/unreadable
 candidates. Other scheduling metadata no longer changes compiled manifests or
 acquires executable calendar fields. This correction enables migration
 preflight; it does not activate an operating workflow.
+
+Stopped approval-bound effects now have a separate automatic R2 review-notice
+path through the ordinary engine and publication Tool. Frozen per-item pages
+target the actual human approver's retained decision conversation, with current
+role qualification, publication receipts and cancellation fences. The business
+cursor stays stopped. An uncertain notice is itself retained for operator
+review. Synthetic memory/provider and mandatory Postgres regressions cover
+multi-page delivery, crash recovery, revoked authority, changed input, expired
+business approval and cancellation. Actual provider delivery acceptance remains
+required before release or activation.

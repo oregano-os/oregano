@@ -1,6 +1,7 @@
 import type { WorkflowDispatchFence } from "../../state-store/interface.ts";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import type { RosterMember } from "../../state-store/roster.ts";
+import type { WorkflowReviewDelivery } from "../../state-store/workflow-engine.ts";
 
 export interface WorkflowReferenceContext {
   steps: Record<string, JsonValue>;
@@ -20,7 +21,7 @@ export interface WorkflowDecisionEvidence {
 
 /** Supplied only by the trusted host's persisted run/assignment reader. Never a Tool argument. */
 export interface WorkflowInvocationContext extends WorkflowReferenceContext {
-  mode: "engine" | "conversation";
+  mode: "engine" | "conversation" | "review";
   runId: string;
   workflowId: string;
   stepId: string;
@@ -32,6 +33,7 @@ export interface WorkflowInvocationContext extends WorkflowReferenceContext {
   decisions: Record<string, WorkflowDecisionEvidence>;
   currentRoster: RosterMember[];
   dispatchFence?: WorkflowDispatchFence;
+  reviewDelivery?: WorkflowReviewDelivery;
 }
 
 export interface WorkflowContextReader {
@@ -49,4 +51,7 @@ export interface WorkflowEvidence {
   run_id: string;
   step_id: string;
   item_key?: string | number;
+  purpose?: "effect-review";
+  reviewed_step_id?: string;
+  review_page?: number;
 }

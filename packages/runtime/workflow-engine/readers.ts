@@ -3,6 +3,7 @@ import type { WorkflowConversation, WorkflowExecutionStore, WorkflowRun } from "
 import type { WorkflowContextReader, WorkflowInvocationContext } from "./context.ts";
 import { workflowItems } from "./references.ts";
 import { canonicalJson } from "../canonical.ts";
+import { workflowReviewNoticeInput, workflowReviewStepId } from "./review-notice.ts";
 
 export class WorkflowLeaseLostError extends Error {
   constructor() { super("Workflow worker no longer owns the active execution lease"); this.name = "WorkflowLeaseLostError"; }
@@ -50,6 +51,29 @@ export class WorkflowRunContextReader implements WorkflowContextReader {
       ctx.itemKey = item.key; ctx.item = item.value;
     }
     return ctx;
+  }
+}
+
+/** Only the original approved conversation can receive stopped-effect control pages. */
+export class WorkflowReviewContextReader implements WorkflowContextReader {
+  readonly args: { store: WorkflowExecutionStore; instanceId: string; runId: string; leaseToken: string; roster: () => Promise<RosterMember[]>; clock: () => string };
+  constructor(args: { store: WorkflowExecutionStore; instanceId: string; runId: string; leaseToken: string; roster: () => Promise<RosterMember[]>; clock: () => string }) { this.args = args; }
+  async read(): Promise<WorkflowInvocationContext> {
+    const now = this.args.clock(), run = await this.args.store.read(this.args.instanceId, this.args.runId);
+    const delivery = run?.state.reviewDelivery;
+    if (!run || run.state.status !== "waiting" || !run.state.blocked || run.state.blocked.stepId !== run.state.cursor
+      || !delivery || delivery.blocked || delivery.blockedStepId !== run.state.cursor || run.lease?.token !== this.args.leaseToken || run.lease.expiresAt <= now) throw new WorkflowLeaseLostError();
+    const page = delivery.outputs.length, frozen = delivery.pages[page];
+    if (!frozen) throw new WorkflowLeaseLostError();
+    const artifact = await this.args.store.getArtifact(run.artifactHash), workflow = artifact?.workflows?.find((entry) => entry.id === run.workflowId);
+    const step = workflow?.steps.find((entry) => entry.id === delivery.decisionStepId);
+    if (!artifact || !workflow || !step) throw new Error("Effect review historical definition is unavailable");
+    const context: WorkflowInvocationContext = { ...workflowContext(run, await this.args.roster()), mode: "review", stepId: step.id,
+      subjectPrincipal: delivery.principal, reviewDelivery: structuredClone(delivery),
+      dispatchFence: { instanceId: run.instanceId, runId: run.runId, stepId: delivery.blockedStepId, leaseToken: this.args.leaseToken, now,
+        review: { digest: delivery.digest, page, inputDigest: frozen.inputDigest, executionStepId: workflowReviewStepId(delivery.blockedStepId, page) } } };
+    workflowReviewNoticeInput(artifact, workflow, step, context);
+    return context;
   }
 }
 

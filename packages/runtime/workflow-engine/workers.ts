@@ -101,7 +101,7 @@ export class WorkflowWorkers {
         result.processed = repaired.completed; continuation = repaired.repairAfterRunId;
         result.errors.push(...repaired.errors.map((error) => ({ reference: error.timerId, errorDigest: error.errorDigest })));
       } else {
-        const runs = await store.list({ instanceId: artifact.instance.id, status: "running", limit: 200, ...(after ? { afterRunId: after } : {}) });
+        const runs = await store.list({ instanceId: artifact.instance.id, activeOnly: true, limit: 200, ...(after ? { afterRunId: after } : {}) });
         let last = after;
         for (const candidate of runs) {
           if (Date.now() >= deadline) { continuation = last; break; }
@@ -109,7 +109,9 @@ export class WorkflowWorkers {
           if (!configuration.enabledWorkflowIds.includes(candidate.workflowId)) continue;
           try {
             let run = candidate;
-            for (let count = 0; count < 32 && Date.now() < deadline && run.state.status === "running"; count++) {
+            const hasWork = () => run.state.status === "running" || (run.state.status === "waiting" && !!run.state.blocked
+              && !run.state.reviewDelivery?.blocked && (!run.state.reviewDelivery || run.state.reviewDelivery.outputs.length < run.state.reviewDelivery.pages.length));
+            for (let count = 0; count < 32 && Date.now() < deadline && hasWork(); count++) {
               const next = await engine.advance(run.runId, 1);
               if (!next || next.revision === run.revision) break;
               result.processed++; run = next;

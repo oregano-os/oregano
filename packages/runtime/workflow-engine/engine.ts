@@ -14,9 +14,10 @@ import { workflowBusinessDeadline, workflowDeliveryInstant, workflowNextTrigger,
 import { authorizeWorkflowDecisionPrincipal, workflowDecisionId, workflowDecisionMemberAllowed } from "./decision-notice.ts";
 import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, workflowToolInput } from "./guard.ts";
 import { assertWorkflowOutput, resolveWorkflowValue, workflowItems, workflowOpeningFields } from "./references.ts";
-import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader } from "./readers.ts";
+import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader, WorkflowReviewContextReader } from "./readers.ts";
 import { workflowAssignmentKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
 import { workflowEffectReview } from "./effect-review.ts";
+import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -154,7 +155,8 @@ export class WorkflowEngine {
   async step(runId: string): Promise<WorkflowRun | undefined> {
     const store = this.#options.store, instanceId = this.#artifact.instance.id;
     const existing = await store.read(instanceId, runId);
-    if (!existing || terminal(existing) || existing.state.blocked) return existing;
+    if (!existing || terminal(existing)) return existing;
+    if (existing.state.blocked) return this.#deliverReview(existing);
     this.#enabled(existing.workflowId); await this.#ensureTimers(existing);
     if (existing.state.status === "waiting") return existing;
     const now = this.#now();
@@ -445,8 +447,65 @@ export class WorkflowEngine {
       revision: run.revision, stepId: step.id, blocked: run.state.blocked,
       message: "Execution is stopped. Inspect the retained receipts and provider state before any separate recovery decision. This report does not authorize retry.",
       offset, totalEffects: items.length, inputAvailable, ...(offset + 1 < items.length ? { nextOffset: offset + 1 } : {}),
+      ...(run.state.reviewDelivery ? { delivery: { digest: run.state.reviewDelivery.digest, recipient: run.state.reviewDelivery.memberId,
+        pages: run.state.reviewDelivery.pages.length, delivered: run.state.reviewDelivery.outputs.length, ...(run.state.reviewDelivery.blocked ? { blocked: run.state.reviewDelivery.blocked } : {}) } } : {}),
       ...(item?.key === undefined ? {} : { itemKey: item.key }), ...(idempotencyKey ? { idempotencyKey } : {}),
       effect: workflowEffectReview(effect, input) };
+  }
+
+  /** A separate R2 control purpose drains its frozen pages while business execution stays stopped. */
+  async #deliverReview(existing: WorkflowRun): Promise<WorkflowRun | undefined> {
+    this.#enabled(existing.workflowId);
+    if (existing.state.reviewDelivery?.blocked || (existing.state.reviewDelivery && existing.state.reviewDelivery.outputs.length === existing.state.reviewDelivery.pages.length)) return existing;
+    const store = this.#options.store, now = this.#now();
+    const run = await store.claim({ instanceId: existing.instanceId, runId: existing.runId, owner: "workflow-review", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) return store.read(existing.instanceId, existing.runId);
+    try {
+      if (run.state.status !== "waiting" || !run.state.blocked) return run;
+      const { artifact, workflow, step } = await this.#definition(run), state = structuredClone(run.state);
+      const roster = await this.#options.currentRoster();
+      if (!state.reviewDelivery) {
+        if (!step.tool || step.forEach || step.requiresDecisions.length !== 1) return run;
+        const context = workflowContext(run, roster), effect = await this.#options.control.getEffect(workflowEffectKey(artifact, context));
+        if (!effect) return run;
+        const delivery = prepareWorkflowReviewDelivery({ run, workflow, step, roster, effect, input: workflowToolInput(artifact, workflow, step, context) });
+        if (!delivery) return run;
+        await this.#options.qualifyMessageDestinations(artifact, [delivery.pages[0]!.input]);
+        state.reviewDelivery = delivery;
+        return await this.#save(run, state, "workflow.review-prepared", { review_digest: delivery.digest, pages: delivery.pages.length });
+      }
+      const delivery = state.reviewDelivery;
+      if (delivery.blocked || delivery.outputs.length === delivery.pages.length) return run;
+      const calendar = this.#calendar(workflow);
+      if (calendar && workflowDeliveryInstant(calendar, now) !== now) return run;
+      const reader = new WorkflowReviewContextReader({ store, instanceId: run.instanceId, runId: run.runId, leaseToken: run.lease!.token, roster: this.#options.currentRoster, clock: () => this.#now() });
+      const context = await reader.read(), noticeStep = workflow.steps.find((entry) => entry.id === delivery.decisionStepId)!;
+      const input = workflowReviewNoticeInput(artifact, workflow, noticeStep, context);
+      await this.#options.qualifyMessageDestinations(artifact, [input]);
+      const runtime = new CompanyOSRuntime({ artifact, state: this.#options.control, roster, connectors: await this.#options.connectors(artifact), workflowContext: reader });
+      const page = delivery.outputs.length;
+      let output: JsonValue;
+      try {
+        const result = await runtime.execute({ runId: run.runId, stepId: workflowReviewStepId(delivery.blockedStepId, page), agentId: workflow.agentId,
+          grantId: noticeStep.tool!.grantId, input, subjectPrincipal: delivery.principal }) as { output?: JsonValue } | undefined;
+        if (!result || result.output === undefined) throw new Error("Effect review publication has no verified outcome; inspect it without retry");
+        const receipt = result.output as Record<string, JsonValue>, requested = input as Record<string, JsonValue>;
+        if (typeof receipt?.message_id !== "string" || receipt.thread_reference !== requested.thread_reference || receipt.destination_binding !== requested.destination_binding) throw new Error("Effect review publication receipt differs from its exact conversation");
+        output = result.output;
+      } catch (error) {
+        if (error instanceof WorkflowLeaseLostError) return store.read(run.instanceId, run.runId);
+        const current = await store.read(run.instanceId, run.runId);
+        if (!current || terminal(current) || current.lease?.token !== run.lease!.token) return current;
+        const effect = await this.#options.control.getEffect(workflowReviewEffectKey(run.instanceId, run.runId, workflowReviewStepId(delivery.blockedStepId, page)));
+        if (!effect) throw error;
+        delivery.blocked = { errorDigest: sha256(error instanceof Error ? error.message : String(error)) };
+        return await this.#save(run, state, "workflow.review-delivery-blocked", { review_digest: delivery.digest, error_digest: delivery.blocked.errorDigest });
+      }
+      delivery.outputs.push(output);
+      return await this.#save(run, state, "workflow.review-delivered", { review_digest: delivery.digest, page, output_digest: jsonDigest(output) });
+    } finally {
+      await store.release({ instanceId: run.instanceId, runId: run.runId, leaseToken: run.lease!.token });
+    }
   }
 
   async resume(runId: string, principal: string): Promise<WorkflowRun> {

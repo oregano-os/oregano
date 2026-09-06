@@ -65,6 +65,8 @@ export interface WorkflowDispatchFence {
   stepId: string;
   leaseToken: string;
   now: string;
+  /** Exact frozen control-notice page; never permits the stopped business effect. */
+  review?: { digest: string; page: number; inputDigest: string; executionStepId: string };
 }
 
 export interface StateStore {

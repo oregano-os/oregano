@@ -49,6 +49,14 @@ test("actual Monday partial receipts survive the ordinary engine and authenticat
   assert.deepEqual(await h.engine().review(blocked.runId, ENGINE_OPERATOR), review);
   await assert.rejects(h.engine().resume(blocked.runId, ENGINE_OPERATOR), /reconciliation/);
   await h.engine().advance(blocked.runId);
+  await h.engine().step(blocked.runId);
+  const notice = h.calls.filter((call) => call.capability === "communication.message.publish").at(-1)!.input;
+  assert.match(notice.content, /"item-1": verified/);
+  assert.match(notice.content, /"item-2": unknown/);
+  assert.match(notice.content, /"item-3": not-attempted/);
+  assert.equal(notice.destination_binding, "direct-jonas-owner");
+  assert.equal(notice.content.includes("private-provider-error"), false);
+  assert.equal(notice.content.includes("synthetic-token"), false);
   assert.equal(providerCalls, 6); assert.equal(queue.length, 0);
   await assert.rejects(h.engine().review(blocked.runId, ENGINE_OWNER), /authorized human/);
   h.roster.find((member) => member.principals?.includes(ENGINE_OPERATOR))!.status = "inactive";
