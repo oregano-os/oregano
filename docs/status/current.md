@@ -1242,6 +1242,9 @@ existing historical completeness requirement. Successful scans retain exact
 immutable membership; current reads exclude absent old rows and partial later
 ingestion without deleting audit history. Maintained Slack/Monday Connectors
 record their actual read intervals. Memory and mandatory Postgres tests prove
-empty/edit/absence/failure/restart behavior. Workflow authoring, live verification
-and operating Workspace adoption of this mode remain pending; no real-provider
-workflow acceptance or production activation is claimed.
+empty/edit/absence/failure/restart behavior. Workflow authoring, compilation, trusted Tool input and retained-run live
+verification now support explicit current-scan requirements and preserve the
+original logical deadline for delayed workers. Real engine tests cover complete
+execution and rejected stale/missing/contradictory scan evidence. Operating
+Workspace adoption remains pending; no real-provider workflow acceptance or
+production activation is claimed.

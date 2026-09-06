@@ -489,6 +489,8 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
           }
         }
       }
+      if (s.require_scan_started_after) validateInput(s.require_scan_started_after, { type: "string", format: "date-time" }, s.id);
+      if ((s.require_scan_started_after || s.input?.require_scan_started_after) && (s.require_synced_through || s.input?.require_synced_through)) err(f, `${s.id}: choose current scan or historical completeness, not both`);
       if (s.require_synced_through) validateInput(s.require_synced_through, { type: "string", format: "date-time" }, s.id);
       if (s.tool === "wait" && typeof s.for === "string" && !triggerParams.has(s.for.slice(9))) err(f, `${s.id}: wait names an undeclared trigger`);
     }
@@ -547,7 +549,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");
-    if (step.tool === "oregano:records/query") allowed.push("all_pages", "require_synced_through");
+    if (step.tool === "oregano:records/query") allowed.push("all_pages", "require_synced_through", "require_scan_started_after");
   }
   for (const key of Object.keys(step)) if (!allowed.includes(key)) err(file, `${step.id}: unknown option '${key}' for ${step.tool}`);
   if (step.tool === "wait" && !step.for) err(file, `${step.id}: wait requires for`);

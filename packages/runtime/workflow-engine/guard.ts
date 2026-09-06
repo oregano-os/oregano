@@ -53,6 +53,10 @@ export function workflowToolInput(artifact: CompanyOSArtifact, workflow: Compile
       if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Paged workflow Tool input must be an object");
       input.all_pages = true;
     }
+    if (step.requireScanStartedAfter !== undefined) {
+      if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Scan-bound Tool input must be an object");
+      input.require_scan_started_after = resolveWorkflowValue(step.requireScanStartedAfter, workflow, context);
+    }
     if (step.requireSyncedThrough !== undefined) {
       if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Synchronization-bound Tool input must be an object");
       input.require_synced_through = resolveWorkflowValue(step.requireSyncedThrough, workflow, context);
