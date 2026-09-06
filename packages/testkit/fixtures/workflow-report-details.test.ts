@@ -16,13 +16,12 @@ test("ordinary close reports retain participant names and observed open-item tit
   assert.equal(run.state.blocked, undefined);
   const close = run.state.steps["close-view"]!.output as any;
   assert.deepEqual(close.states, { "jonas-owner": "needs-reformat", "lea-contributor": "complete" });
+  assert.equal(close.report_text, "- Jonas Example: please correct the format or task list\n- Lea Example: complete");
   assert.deepEqual(close.open_work_items, [{ work_item_id: "item-a", provider_version: "v1" }, { work_item_id: "item-c", provider_version: "v1" }]);
   assert.equal(close.open_items_text, "- [Alpha](https://example.test/items/item-a)\n- [Gamma](https://example.test/items/item-c)");
   const messages = h.calls.filter((call) => call.capability === "communication.message.publish");
   const report = messages.find((call) => call.context.stepId === "report")!;
-  assert.ok(report.input.content.includes("Lea"));
-  assert.ok(report.input.content.includes("complete"));
-  assert.ok(report.input.content.includes("Jonas"));
+  assert.ok(report.input.content.includes(close.report_text));
   const retro = messages.find((call) => call.context.stepId === "retro")!;
   assert.ok(retro.input.content.includes(close.open_items_text));
   assert.doesNotMatch(retro.input.content, /\[Beta\]|https:\/\/example.test\/items\/item-b/);
