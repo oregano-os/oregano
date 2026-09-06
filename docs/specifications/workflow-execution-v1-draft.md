@@ -372,6 +372,14 @@ preserve selected close, rollover and readiness comparisons without importing
 legacy runtime code. This is computation evidence only: sequencing, provider
 coverage, real decisions and complete legacy removal require their own gates.
 
+The fictional close additionally exercises current work facts separately from
+its frozen participant cohort. Its declared chase/report queries refresh
+status, assignments and expected provider versions at the relevant instant;
+an opening snapshot is not a substitute for those mutable facts. Empty changes
+skip decisions and writes. Late processing preserves the wait's logical cutoff.
+These are Workspace choices executed through ordinary steps, not Core business
+rules or a provider coverage guarantee.
+
 The Vercel host exposes generic timer, step, Records and operator endpoints, with strict
 Artifact/Instance/environment activation and distinct scheduler/human operator
 credentials. Business periods remain explicit operator inputs; automatic

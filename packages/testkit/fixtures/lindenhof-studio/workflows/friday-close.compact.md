@@ -1,7 +1,7 @@
 ---
 type: workflow
 id: friday-close
-version: 5
+version: 6
 owner: agents/sprint
 execution_mode: unattended
 config: workflows/sprint/config.yaml
@@ -25,15 +25,15 @@ steps:
       group_id: $config.participants.roster_group
       communication_prefix: $config.participants.communication_prefix
       excluded_ids: $config.participants.excluded_ids
-  - snapshot-work-items: oregano:records/query
-    input: { projection_id: $config.work_items.projection, filters: { group: $config.work_items.master_group } }
-    all_pages: true
-    require_synced_through: $trigger.instant
   - open-close-thread: oregano:communications/publish
     template: sprint-sop/friday-update-template.md
     vars: { deadline_time: $config.close.complete_by }
   - await-chase: wait
     for: schedule:friday-close-chase
+  - work-items-at-chase: oregano:records/query
+    input: { projection_id: $config.work_items.projection, filters: { group: $config.work_items.master_group } }
+    all_pages: true
+    require_synced_through: $steps.await-chase.instant
   - read-submissions-at-chase: oregano:records/query
     input: { projection_id: $config.submissions.projection, filters: { thread_reference: $steps.open-close-thread.thread_reference } }
     all_pages: true
@@ -41,7 +41,7 @@ steps:
   - classify-at-chase: company:close-classification
     input:
       participants: $steps.snapshot-participants.rows
-      work_items: $steps.snapshot-work-items.rows
+      work_items: $steps.work-items-at-chase.rows
       submissions: $steps.read-submissions-at-chase.rows
       closed_statuses: $config.work_items.closed_statuses
       cutoff: $steps.await-chase.instant
@@ -57,6 +57,10 @@ steps:
     then: await-report
   - await-report: wait
     for: schedule:friday-close-finalize
+  - work-items-at-report: oregano:records/query
+    input: { projection_id: $config.work_items.projection, filters: { group: $config.work_items.master_group } }
+    all_pages: true
+    require_synced_through: $steps.await-report.instant
   - read-submissions-at-report: oregano:records/query
     input: { projection_id: $config.submissions.projection, filters: { thread_reference: $steps.open-close-thread.thread_reference } }
     all_pages: true
@@ -64,7 +68,7 @@ steps:
   - close-view: company:close-classification
     input:
       participants: $steps.snapshot-participants.rows
-      work_items: $steps.snapshot-work-items.rows
+      work_items: $steps.work-items-at-report.rows
       submissions: $steps.read-submissions-at-report.rows
       closed_statuses: $config.work_items.closed_statuses
       cutoff: $steps.await-report.instant
@@ -99,22 +103,23 @@ steps:
 1. [sprint, R0] Freeze the reviewed directory facts for this run. <!-- step:snapshot-directory -->
 2. [sprint, R0] Read complete role evidence synchronized through the trigger. <!-- step:participant-roles -->
 3. [sprint, R0] Build the participant snapshot using the reviewed group, exact identities, role evidence and exclusions. <!-- step:snapshot-participants -->
-4. [sprint, R0] Freeze the committed work items of the Sprint master group. <!-- step:snapshot-work-items -->
-5. [sprint, R2] At the reminder time, open one shared Close thread linking the current template and the deadline. <!-- step:open-close-thread -->
-6. [sprint, R0] Wait for the chase time. <!-- step:await-chase -->
+4. [sprint, R2] At the reminder time, open one shared Close thread linking the current template and the deadline. <!-- step:open-close-thread -->
+5. [sprint, R0] Wait for the chase time. <!-- step:await-chase -->
+6. [sprint, R0] Read the current master-group work facts, including current status, assignments and provider versions, synchronized through the chase instant. <!-- step:work-items-at-chase -->
 7. [sprint, R0] Read every submission recorded in the Close thread; require the Slack record source to be synchronized through the chase time. <!-- step:read-submissions-at-chase -->
 8. [sprint, R0] Classify every frozen participant as complete, needs-reformat, or missing. <!-- step:classify-at-chase -->
 9. [sprint, R0] Continue to the chase only when someone is incomplete. <!-- step:chase-route -->
 10. [sprint, R2] Post one chase in the thread naming the incomplete participants. Never a second one. <!-- step:chase -->
 11. [sprint, R0] Wait for the report cutoff. <!-- step:await-report -->
-12. [sprint, R0] Read the submissions again; require synchronization through the cutoff. A later submission does not change the report. <!-- step:read-submissions-at-report -->
-13. [sprint, R0] Classify again at the cutoff and keep the result, including the cutoff instant and the Close thread reference, as this Sprint's close view. <!-- step:close-view -->
-14. [sprint, R2] Post the completeness report. Every frozen participant appears exactly once. <!-- step:report -->
-15. [sprint, R2] After the report, post the retro draft with the open items. Effort is unavailable, never estimated. <!-- step:retro -->
-16. [sprint, R0] Prepare the complete Rollover update set: every open item with its expected version and the target Sprint field. <!-- step:prepare-rollover -->
-17. [sprint, R0] End when there is nothing to roll over. <!-- step:rollover-route -->
-18. [human:sprint-owner] Decide within two business days whether exactly this update set rolls over. Rejection or timeout ends the close without a write. <!-- step:approve-rollover -->
-19. [sprint, R3] Apply the approved update set as one batch: all items are checked before the first write, and a partial result is reported, never hidden. <!-- step:apply-rollover -->
+12. [sprint, R0] Read the current master-group work facts, including current status, assignments and provider versions, synchronized through the report instant. <!-- step:work-items-at-report -->
+13. [sprint, R0] Read the submissions again; require synchronization through the cutoff. A later submission does not change the report. <!-- step:read-submissions-at-report -->
+14. [sprint, R0] Classify again at the cutoff and keep the result, including the cutoff instant and the Close thread reference, as this Sprint's close view. <!-- step:close-view -->
+15. [sprint, R2] Post the completeness report. Every frozen participant appears exactly once. <!-- step:report -->
+16. [sprint, R2] After the report, post the retro draft with the open items. Effort is unavailable, never estimated. <!-- step:retro -->
+17. [sprint, R0] Prepare the complete Rollover update set: every open item with its expected version and the target Sprint field. <!-- step:prepare-rollover -->
+18. [sprint, R0] End when there is nothing to roll over. <!-- step:rollover-route -->
+19. [human:sprint-owner] Decide within two business days whether exactly this update set rolls over. Rejection or timeout ends the close without a write. <!-- step:approve-rollover -->
+20. [sprint, R3] Apply the approved update set as one batch: all items are checked before the first write, and a partial result is reported, never hidden. <!-- step:apply-rollover -->
 ---
 
 <!--

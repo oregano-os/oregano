@@ -1,12 +1,12 @@
 {
   "manifestVersion": 1,
   "id": "friday-close",
-  "version": 5,
+  "version": 6,
   "agentId": "sprint",
   "executionMode": "unattended",
   "source": {
     "path": "workflows/friday-close.compact.md",
-    "digest": "df7f03eb1b209cbbdbe38f2f482d5ad0c43a4b3c3c8066e30b60fc19107dc12d"
+    "digest": "fdf998bb75c4aca00410fee46ec4a6f40633cadae32f83a1624b83e4f2c16883"
   },
   "provenance": {
     "coreCommit": "1111111111111111111111111111111111111111",
@@ -330,7 +330,7 @@
       ],
       "maxRisk": "R0",
       "next": [
-        "snapshot-work-items"
+        "open-close-thread"
       ],
       "allPages": false,
       "requiredOutputPaths": [
@@ -366,65 +366,6 @@
         "group_id": "sprint-participant",
         "communication_prefix": "slack:T10001:",
         "excluded_ids": []
-      }
-    },
-    {
-      "id": "snapshot-work-items",
-      "owner": "agent:sprint",
-      "kind": "compute",
-      "allowedTools": [
-        "oregano:records/query"
-      ],
-      "maxRisk": "R0",
-      "next": [
-        "open-close-thread"
-      ],
-      "allPages": true,
-      "requiredOutputPaths": [
-        [
-          "rows"
-        ]
-      ],
-      "requiresDecisions": [],
-      "bindingConstraints": [],
-      "conversationalTools": [],
-      "evidence": [
-        "projection_id",
-        "row_count",
-        "observed_at",
-        "fresh_until",
-        "snapshot_id",
-        "source_proofs",
-        "access_decision"
-      ],
-      "idempotency": [
-        "instance_id",
-        "workflow_id",
-        "run_id",
-        "step_id",
-        "item_key"
-      ],
-      "requireSyncedThrough": "$trigger.instant",
-      "tool": {
-        "grantId": "oregano:records/query",
-        "runtimeId": "oregano:records/query",
-        "version": "2.0.0",
-        "risk": "R0",
-        "capabilities": [
-          {
-            "id": "records.query",
-            "version": "2.0.0",
-            "connector": "test/compile-only",
-            "connectorVersion": "1.0.0"
-          }
-        ],
-        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
-      },
-      "input": {
-        "projection_id": "sprint-work-items",
-        "filters": {
-          "group": "in_sprint"
-        }
       }
     },
     {
@@ -498,7 +439,7 @@
       "allowedTools": [],
       "maxRisk": "R0",
       "next": [
-        "read-submissions-at-chase"
+        "work-items-at-chase"
       ],
       "allPages": false,
       "requiredOutputPaths": [
@@ -520,6 +461,65 @@
       "wait": {
         "triggerId": "friday-close-chase",
         "schedulePath": "schedules/sprint-rhythm.yaml"
+      }
+    },
+    {
+      "id": "work-items-at-chase",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:records/query"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "read-submissions-at-chase"
+      ],
+      "allPages": true,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "projection_id",
+        "row_count",
+        "observed_at",
+        "fresh_until",
+        "snapshot_id",
+        "source_proofs",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key"
+      ],
+      "requireSyncedThrough": "$steps.await-chase.instant",
+      "tool": {
+        "grantId": "oregano:records/query",
+        "runtimeId": "oregano:records/query",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "records.query",
+            "version": "2.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+      },
+      "input": {
+        "projection_id": "sprint-work-items",
+        "filters": {
+          "group": "in_sprint"
+        }
       }
     },
     {
@@ -627,7 +627,7 @@
       },
       "input": {
         "participants": "$steps.snapshot-participants.rows",
-        "work_items": "$steps.snapshot-work-items.rows",
+        "work_items": "$steps.work-items-at-chase.rows",
         "submissions": "$steps.read-submissions-at-chase.rows",
         "closed_statuses": [
           "Done"
@@ -736,7 +736,7 @@
       "allowedTools": [],
       "maxRisk": "R0",
       "next": [
-        "read-submissions-at-report"
+        "work-items-at-report"
       ],
       "allPages": false,
       "requiredOutputPaths": [
@@ -758,6 +758,65 @@
       "wait": {
         "triggerId": "friday-close-finalize",
         "schedulePath": "schedules/sprint-rhythm.yaml"
+      }
+    },
+    {
+      "id": "work-items-at-report",
+      "owner": "agent:sprint",
+      "kind": "compute",
+      "allowedTools": [
+        "oregano:records/query"
+      ],
+      "maxRisk": "R0",
+      "next": [
+        "read-submissions-at-report"
+      ],
+      "allPages": true,
+      "requiredOutputPaths": [
+        [
+          "rows"
+        ]
+      ],
+      "requiresDecisions": [],
+      "bindingConstraints": [],
+      "conversationalTools": [],
+      "evidence": [
+        "projection_id",
+        "row_count",
+        "observed_at",
+        "fresh_until",
+        "snapshot_id",
+        "source_proofs",
+        "access_decision"
+      ],
+      "idempotency": [
+        "instance_id",
+        "workflow_id",
+        "run_id",
+        "step_id",
+        "item_key"
+      ],
+      "requireSyncedThrough": "$steps.await-report.instant",
+      "tool": {
+        "grantId": "oregano:records/query",
+        "runtimeId": "oregano:records/query",
+        "version": "2.0.0",
+        "risk": "R0",
+        "capabilities": [
+          {
+            "id": "records.query",
+            "version": "2.0.0",
+            "connector": "test/compile-only",
+            "connectorVersion": "1.0.0"
+          }
+        ],
+        "contractDigest": "972fb626af19ef875ef46f9f1ac27084468342d0ac68f5b2a6fc1c4e4194f8b9"
+      },
+      "input": {
+        "projection_id": "sprint-work-items",
+        "filters": {
+          "group": "in_sprint"
+        }
       }
     },
     {
@@ -868,7 +927,7 @@
       },
       "input": {
         "participants": "$steps.snapshot-participants.rows",
-        "work_items": "$steps.snapshot-work-items.rows",
+        "work_items": "$steps.work-items-at-report.rows",
         "submissions": "$steps.read-submissions-at-report.rows",
         "closed_statuses": [
           "Done"
@@ -1212,5 +1271,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "708453677dd23974ed3bd1531337e2a9859cdc7c95817690ca6885bf320d9522"
+  "manifestHash": "f545be71f4ce52ad798f588033c1b56cb109722daed080bd1fa3098d79065796"
 }
