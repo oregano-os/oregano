@@ -179,3 +179,10 @@ member as `actor_id`. The host rechecks account, external-Agent identity, active
 board, minimum access and mapped columns using the actual client credential.
 Local onboarding reports this as an external Instance check; it cannot verify a
 token or infer missing provider identities from Workspace files.
+
+Before inviting a human to test Workflow decision buttons, complete the
+[Hosted interaction acceptance gate](../operations/workflow-engine.md#hosted-interaction-acceptance-gate).
+A successful starter chat, outgoing card, build or health response does not
+qualify incoming button delivery. Check actual routing to the exact test
+Instance, then a real rejection and a separately bounded approval. Report
+unverified external steps explicitly; never present them as passing tests.

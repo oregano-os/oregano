@@ -1360,3 +1360,12 @@ engine decision precedes this transport projection; a failed card edit is
 reported separately and must not be represented as a failed decision. An exact
 provider redelivery can retry the projection through the engine's existing
 idempotent response path. Rejected or unverified requests never close a card.
+
+### Workflow interaction qualification guidance
+
+Public onboarding now links the provider-neutral hosted interaction acceptance
+gate. Concrete destination and environment troubleshooting are documented in
+the [provider operations guide](../operations/vercel-connect-workflow-interactions.md). This is an explicit
+operator qualification, not a newly implemented automatic setup diagnostic.
+Local contract tests and a healthy deployment cannot qualify a new provider
+installation or replace its real human decision test.

@@ -39,15 +39,28 @@ files_expected:
   - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
   - docs/specifications/workflow-execution-v1-draft.md
   - docs/operations/workflow-engine.md
+  - docs/onboarding/README.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/governance/documentation-rules.md
+  - docs/governance/documentation-scope-baseline.json
+  - packages/cli/src/docs-scope.mjs
+  - packages/cli/src/docs-control.mjs
+  - packages/cli/tests/docs-scope.test.mjs
+  - docs/operations/vercel-connect-workflow-interactions.md
   - docs/status/current.md
   - docs/_generated/**
 tests:
+  - packages/cli/tests/docs-scope.test.mjs
   - packages/testkit/tests/workflow-decision-presentation.test.ts
 documentation_impact:
   required: true
   affected_documents:
     - specification.workflow-execution-v1
     - operations.workflow-engine
+    - onboarding.index
+    - operations.vercel-workflow-runner
+    - governance.documentation
+    - operations.vercel-connect-workflow-interactions
     - status.current
 architecture:
   placement:

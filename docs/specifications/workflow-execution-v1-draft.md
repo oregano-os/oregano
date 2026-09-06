@@ -608,3 +608,12 @@ engine decision precedes this transport projection; a failed card edit is
 reported separately and must not be represented as a failed decision. An exact
 provider redelivery can retry the projection through the engine's existing
 idempotent response path. Rejected or unverified requests never close a card.
+
+## Hosted interaction qualification scope
+
+A passing local decision contract test does not qualify external interaction
+routing. Hosted acceptance records delivery, authenticated decision, durable
+state and provider effects separately under the
+[interaction acceptance gate](../operations/workflow-engine.md#hosted-interaction-acceptance-gate).
+Hosting-specific registration belongs to provider operations guides; the
+workflow decision contract does not require any particular host or chat system.

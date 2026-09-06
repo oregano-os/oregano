@@ -883,6 +883,32 @@
     }
   },
   {
+    "document_id": "operations.vercel-connect-workflow-interactions",
+    "title": "Vercel Connect Workflow Interaction Qualification",
+    "path": "docs/operations/vercel-connect-workflow-interactions.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-06",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "operations.vercel-workflow-runner",
+    "title": "Vercel Workflow Runner Operations",
+    "path": "docs/operations/vercel-workflow-runner.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-06",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "operations.workflow-engine",
     "title": "Hosted Workflow Engine Operations",
     "path": "docs/operations/workflow-engine.md",

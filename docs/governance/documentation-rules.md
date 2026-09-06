@@ -62,3 +62,41 @@ entrypoints, Instance preparation, or acceptance checks must update
 same pull request. A setup instruction without a deterministic check must state
 which accountable administrator verifies it and where the external evidence
 lives.
+
+## General contracts and concrete implementations
+
+General documentation defines the contract independently of a vendor, product,
+model, Connector, host, company or installation. This applies to specifications,
+architecture, capability contracts and guides. The default `implementation_scope`
+is `general`. A concrete implementation document declares
+`implementation_scope: provider` and a non-empty `providers` list. Here provider
+means the named implementation, including a model or Connector implementation.
+Do not relabel a general contract to silence a diagnostic.
+
+General documents may link to implementation guides. A concrete example belongs
+in an explicitly marked `::: implementation-example` block, closed by `:::`,
+and must link to the implementation document. The example illustrates the
+contract; it must never become a required default for all implementations.
+
+`pnpm docs:check` checks known implementation names outside references and
+marked examples, validates scope metadata, and requires examples to contain a
+document link. Existing violations are recorded in
+`documentation-scope-baseline.json` by exact file and line text. This is migration
+debt, not an allowlist for new writing. New or changed violations fail CI. Do not
+expand the baseline to accept new text; remove entries as pages are cleaned up.
+The check cannot understand every vendor alias or detect every semantic
+assumption. Reviewers must also check the contract's independence and whether an
+example's linked document actually explains the implementation.
+
+## Write simply
+
+Start with the reader's task and the result they should expect. Use short,
+direct sentences and familiar words. Explain a technical term on first use.
+Give concrete steps in the order the reader needs them. Keep implementation
+details in their implementation guide and link to them. Separate requirements
+from examples and explain why a requirement exists. Avoid long noun chains,
+repeated disclaimers and unexplained internal terminology.
+
+Reviewers must check clarity. Passing the automated scope check is not proof
+that a page is easy to understand. Improve the section being changed; a small
+change does not require rewriting the entire documentation tree.

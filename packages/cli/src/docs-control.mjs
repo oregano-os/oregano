@@ -4,6 +4,8 @@ import { inspectCompatibilityRegistry } from "./compatibility-registry.mjs";
 import { diagnostic } from "./diagnostics.mjs";
 import { readDocument, walkFiles } from "./files.mjs";
 
+import { inspectDocumentationScopes } from "./docs-scope.mjs";
+
 const REQUIRED = [
   "document_id", "title", "kind", "status", "authority", "language",
   "updated", "owners", "audience",
@@ -113,6 +115,9 @@ export function inspectDocumentation(repoRoot) {
   if (currentStatuses.length !== 1) {
     diagnostics.push(diagnostic("DOC015", "error", `Expected exactly one approved current status document, found ${currentStatuses.length}.`));
   }
+
+  const scopeBaseline = join(docsRoot, "governance", "documentation-scope-baseline.json");
+  diagnostics.push(...inspectDocumentationScopes(documents, existsSync(scopeBaseline) ? JSON.parse(readFileSync(scopeBaseline, "utf8")) : []));
 
   diagnostics.push(...inspectCompatibilityRegistry(repoRoot, { documentIds: new Set(byId.keys()) }).diagnostics);
 
