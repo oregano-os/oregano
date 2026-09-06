@@ -1141,3 +1141,11 @@ grouping and one focused readiness question per owner. Their independently
 specified expectations live under fictional fixture assets and import no old
 executor. Provider responses, coverage and human decisions are synthetic inputs;
 these cases do not replace real Instance acceptance or complete assertion parity.
+
+The maintained Monday adapter now accepts distinct values in the exact approved
+batch array. A new actual-adapter traversal exposed and removes its extra
+identical-values restriction, which blocked mixed readiness label changes after
+approval. Complete preflight, mapped fields, expected versions, partial receipts
+and ordinary runtime idempotency remain enforced. The reference compiler golden
+reflects the corrected standard Tool description; contract shapes and bindings
+are unchanged. Live write-credential qualification remains outstanding.

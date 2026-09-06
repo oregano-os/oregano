@@ -210,8 +210,10 @@ test("the Monday Connector performs zero batch writes when any preflight version
   assert.equal(requests.filter((request) => String(request.query).includes("change_multiple_column_values")).length, 0);
 });
 
-test("the Monday Connector rejects a non-homogeneous batch before any write", async () => {
-  const queue = [response(identifiedItem("item-1", "v1")), response(identifiedItem("item-2", "v1"))];
+test("the Monday Connector preserves distinct per-item values after complete batch preflight", async () => {
+  const queue = [response(identifiedItem("item-1", "v1")), response(identifiedItem("item-2", "v1")),
+    response({ change_multiple_column_values: { id: "item-1" } }), response(identifiedItem("item-1", "v2", "Planned")),
+    response({ change_multiple_column_values: { id: "item-2" } }), response(identifiedItem("item-2", "v2", "Ready"))];
   const requests: any[] = [];
   const connector = new MondayWorkItemConnector({
     client: new MondayClient({ token: "fixture-token", apiVersion: "dev", fetcher: async (_input, init) => {
@@ -221,14 +223,18 @@ test("the Monday Connector rejects a non-homogeneous batch before any write", as
     bindings: [{ id: "sprint-board", boardId: "board-1", permission: "read-write", fields: { status: "status_col" } }],
     actorId: "agent-1", instanceId: "fixture-instance", echoStore: new InMemoryMondayEchoStore(),
   });
-  await assert.rejects(() => connector.invoke("work-item.batch-update", {
+  const result = await connector.invoke("work-item.batch-update", {
     resource_binding: "sprint-board",
     updates: [
       { work_item_id: "item-1", expected_version: "v1", changes: { status: "Planned" } },
       { work_item_id: "item-2", expected_version: "v1", changes: { status: "Ready" } },
     ],
-  }, { instanceId: "fixture-instance", runId: "run-mixed", stepId: "rollover", agentId: "sprint", toolId: "batch", idempotencyKey: "batch-mixed" }), /homogeneous frozen change set/);
-  assert.equal(requests.filter((request) => String(request.query).includes("change_multiple_column_values")).length, 0);
+  }, { instanceId: "fixture-instance", runId: "run-mixed", stepId: "rollover", agentId: "sprint", toolId: "batch", idempotencyKey: "batch-mixed" });
+  assert.equal((result.output as any).complete, true);
+  assert.deepEqual(requests.slice(0, 2).map((request) => request.variables.ids), [["item-1"], ["item-2"]]);
+  assert.deepEqual(requests.filter((request) => String(request.query).includes("change_multiple_column_values")).map((request) => JSON.parse(request.variables.values)), [
+    { status_col: "Planned" }, { status_col: "Ready" },
+  ]);
 });
 
 test("the Monday Connector records outcome-unknown evidence after a partial batch effect", async () => {

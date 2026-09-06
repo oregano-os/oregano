@@ -1264,7 +1264,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "477bb368132c75e5b03e84c7ee38832b674eaf96b9939c02e307ff6229dbf5cc"
+        "contractDigest": "c6f9b40e53c49903ffe4feeb65092784fc433dbf1b41732252271c761f30ee5f"
       },
       "input": {
         "resource_binding": "sprint-board",
@@ -1276,5 +1276,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "5a6fd4e93218514d45e4adf28192f6096e92d665fa1c87ca8ca499fbdb052e01"
+  "manifestHash": "ab407a205338471feaeb39fef5a54cb0ecd0f7c46dca3fd0b6467c4a5d52625b"
 }

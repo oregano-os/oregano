@@ -1,0 +1,53 @@
+version: 3
+plan_id: approved-batch-values-2026-09-06
+created: "2026-09-06"
+title: Honor every entry of the exact approved work-item batch
+objective: >-
+  Allow the maintained provider adapter to apply distinct per-item values already
+  represented by the generic batch contract and bound by one exact human approval.
+non_goals:
+  - Relax resource, field, identity, version, approval or partial-outcome controls.
+  - Claim provider atomicity, live acceptance or completion of legacy removal.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-approved-batch-values.yaml
+  - packages/connectors/monday/connector.ts
+  - packages/standard-tools/work-items.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/tests/work-item-batch-values.test.ts
+  - packages/testkit/fixtures/workflow-batch-interop.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - docs/specifications/tool-architecture.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/work-item-batch-values.test.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+  - packages/testkit/tests/workflow-effect-review.test.ts
+  - packages/testkit/tests/work-item-receipt-identity.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.tool-architecture
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Keeps complete preflight and exact approval while removing a provider-only business restriction.
+    packages: The maintained privileged Connector honors the existing per-item Capability input shape.
+    workspace: Computes the exact proposed per-item target values and presents one bound decision.
+    instance: Supplies the same reviewed resource, field and credential bindings; no live change is made.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Align the maintained adapter and standard Tool description with the existing generic batch array contract.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Verify distinct values through actual adapter execution under the existing digest-bound decision.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company may approve one exact versioned array without requiring identical business values for unrelated items.
+rollback: Keep retained receipts and the previous deployment; do not retry partial effects or reinterpret old approvals.

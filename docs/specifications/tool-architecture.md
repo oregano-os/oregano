@@ -263,7 +263,14 @@ or model authorization. Operator reports expose only these allowed fields and
 evidence digests; raw provider errors and payloads stay in the existing store.
 
 For `work-item.batch-update`, the Registry rejects duplicate request IDs before
-dispatch. A successful result must say `complete: true` and account for exactly
+dispatch. Each entry may contain distinct target values: the human decision
+binds the complete ordered array, including item IDs, expected versions, fields
+and values, on one independently bound resource. A provider adapter must not
+require identical changes across entries. Every mapped field and expected
+version is preflighted before the first mutation. This corrects the maintained
+adapter's extra restriction within the existing `1.0.0` Capability input shape;
+it adds no grant or approval authority. A successful result must say
+`complete: true` and account for exactly
 every requested item once. A partial result or an incomplete identity set becomes
 outcome-unknown even when the output satisfies its JSON schema. An optional item
 review must match the complete requested sequence; invalid or absent evidence
