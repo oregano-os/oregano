@@ -1310,3 +1310,10 @@ timer identities. Foreign Instance and timer-kind rows remain untouched. Invalid
 message variables and unresolved configuration cannot replace a compiled run;
 the original Agent instructions and Skill material remain recoverable after a
 later Workspace build. These cases use isolated synthetic stores and providers.
+
+The fictional message source and projection now retain their already parsed
+next-period goal and measurable outcome alongside task links. This prevents
+normalization from discarding bounded planning fields without adding business
+logic to Core. Ordinary Records conformance also checks distinct qualified
+owners despite identical titles, unassigned cards, blank statuses and unknown
+effort. These examples do not change live source scope or workflow activation.

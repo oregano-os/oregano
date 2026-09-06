@@ -58,6 +58,14 @@ fields:
           type: string
         text:
           type: string
+  - target: next_week_goal
+    source: parsed.sections.next.fields.goal
+    value_type: string
+    required: true
+  - target: next_week_outcome
+    source: parsed.sections.next.fields.outcome
+    value_type: string
+    required: true
 access:
   read_groups:
     - sprint-participant
