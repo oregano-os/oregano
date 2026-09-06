@@ -174,6 +174,28 @@ export function createPostgresStateStore(): StateStore {
     async markEffectDispatched(idempotencyKey, fence) {
       if (fence) {
         await ensureWorkflowExecutionSchema();
+        if (fence.review) {
+          const review = fence.review;
+          if (!Number.isSafeInteger(review.page) || review.page < 0 || review.page >= 256) return false;
+          const rows = await sql()`with eligible as (
+            select run_id, lease_expires_at from companyos.workflow_executions
+            where run_id = ${fence.runId} and instance_id = ${fence.instanceId}
+              and lease_token = ${fence.leaseToken} and lease_expires_at > ${fence.now}
+              and state_json->>'status' = 'waiting' and state_json->>'cursor' = ${fence.stepId}
+              and state_json->'blocked'->>'stepId' = ${fence.stepId}
+              and state_json->'reviewDelivery'->>'blockedStepId' = ${fence.stepId}
+              and state_json->'reviewDelivery'->>'digest' = ${review.digest}
+              and not (state_json->'reviewDelivery' ? 'blocked')
+              and jsonb_array_length(state_json->'reviewDelivery'->'outputs') = ${review.page}
+              and state_json->'reviewDelivery'->'pages'->${review.page}::int->>'inputDigest' = ${review.inputDigest}
+              and ${review.executionStepId} = 'review:' || ${fence.stepId} || ':' || ${String(review.page)}
+              for update
+          ) update companyos.effects effects set status = 'dispatched', updated_at = ${fence.now}
+            from eligible where effects.run_id = eligible.run_id and effects.idempotency_key = ${idempotencyKey}
+              and effects.step_id = ${review.executionStepId} and effects.input_hash = ${review.inputDigest} and effects.status = 'claimed'
+              and eligible.lease_expires_at > greatest(${fence.now}::timestamptz, clock_timestamp()) returning effects.idempotency_key`;
+          return rows.length === 1;
+        }
         const rows = await sql()`with eligible as (
           select run_id, lease_expires_at from companyos.workflow_executions
           where run_id = ${fence.runId} and instance_id = ${fence.instanceId}

@@ -8,10 +8,62 @@ import { engineFixture, ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine
 import { workflowDecisionId } from "../../runtime/workflow-engine/decision-notice.ts";
 import { WorkflowRecordWorkers } from "../../runtime/workflow-engine/record-workers.ts";
 import { sha256 } from "../../runtime/canonical.ts";
+import { WorkflowReviewContextReader } from "../../runtime/workflow-engine/readers.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required database configuration is missing.");
 const fixture = () => engineFixture({ store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+
+const stoppedForReview = async () => {
+  const h = fixture();
+  let run = await h.engine().openOperator({ workflowId: "friday-close", requestId: randomUUID(), principal: ENGINE_OPERATOR, fields: { sprint_id: "one", next_sprint_id: "two" } });
+  await h.engine().advance(run.runId);
+  for (const instant of ["2030-01-04T15:20:00.000Z", "2030-01-04T16:00:00.000Z"]) {
+    h.now = instant; await h.engine().timers(); run = (await h.engine().advance(run.runId))!;
+  }
+  const decision = run.state.decisions["approve-rollover"]!;
+  await h.engine().decide({ principal: ENGINE_OWNER, conversation: h.conversation("direct-jonas-owner", decision.deliveries["jonas-owner"]!), eventId: randomUUID(),
+    requestId: workflowDecisionId(run.runId, decision.stepId, decision.boundDigest), decision: "approved" });
+  h.unknownBatch = true; run = (await h.engine().advance(run.runId))!;
+  assert.ok(run.state.blocked); run = (await h.engine().step(run.runId))!;
+  assert.ok(run.state.reviewDelivery);
+  return { h, run };
+};
+
+test("Postgres review publication survives worker loss after provider success without replay or business progress", { skip: !enabled }, async () => {
+  const { h, run } = await stoppedForReview();
+  const commit = h.store.commit.bind(h.store); let crash = true;
+  h.store.commit = async (args) => { if (crash && args.event.name === "workflow.review-delivered") { crash = false; throw new Error("Synthetic lost worker after notice publication"); } return commit(args); };
+  const count = h.calls.filter((call) => call.capability === "communication.message.publish").length;
+  await assert.rejects(h.engine().step(run.runId), /Synthetic lost worker/);
+  assert.equal(h.calls.filter((call) => call.capability === "communication.message.publish").length, count + 1);
+  const recovered = engineFixture({ artifact: h.artifact, store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+  recovered.now = h.now;
+  const delivered = (await recovered.engine().step(run.runId))!;
+  assert.equal(delivered.state.reviewDelivery!.outputs.length, 1);
+  assert.equal(delivered.state.cursor, run.state.cursor); assert.deepEqual(delivered.state.blocked, run.state.blocked);
+  assert.equal(recovered.calls.length, 0);
+  await recovered.engine().step(run.runId); assert.equal(recovered.calls.length, 0);
+  await assert.rejects(recovered.engine().resume(run.runId, ENGINE_OPERATOR), /reconciliation/);
+});
+
+test("Postgres review fences bind page payload and effect identity and cancellation prevents delivery", { skip: !enabled }, async () => {
+  const { h, run } = await stoppedForReview();
+  const lease = await h.store.claim({ instanceId: run.instanceId, runId: run.runId, owner: "test-review", token: randomUUID(), now: h.now, expiresAt: "2030-01-04T16:01:00.000Z" });
+  const reader = new WorkflowReviewContextReader({ store: h.store, instanceId: run.instanceId, runId: run.runId, leaseToken: lease!.lease!.token, roster: async () => h.roster, clock: () => h.now });
+  const context = await reader.read(), fence = context.dispatchFence!, page = fence.review!;
+  const otherKey = randomUUID(), changedKey = randomUUID(), cancelledKey = randomUUID();
+  await h.control.claimEffect({ idempotencyKey: otherKey, runId: run.runId, stepId: run.state.cursor!, inputHash: page.inputDigest });
+  assert.equal(await h.control.markEffectDispatched(otherKey, fence), false);
+  await h.control.claimEffect({ idempotencyKey: changedKey, runId: run.runId, stepId: page.executionStepId, inputHash: "a".repeat(64) });
+  assert.equal(await h.control.markEffectDispatched(changedKey, fence), false);
+  await h.control.claimEffect({ idempotencyKey: cancelledKey, runId: run.runId, stepId: page.executionStepId, inputHash: page.inputDigest });
+  await h.engine().cancel(run.runId, ENGINE_OPERATOR);
+  assert.equal(await h.control.markEffectDispatched(cancelledKey, fence), false);
+  await assert.rejects(reader.read(), /lease/);
+  await h.engine().step(run.runId);
+  assert.equal(h.calls.filter((call) => call.capability === "communication.message.publish" && call.input.content.startsWith("Workflow stopped:")).length, 0);
+});
 
 test("Postgres Records worker checks current historical execution eligibility and retains completed polls across restart", { skip: !enabled }, async () => {
   const h = fixture(); h.artifact.provenance.workspaceCommit = sha256(randomUUID()).slice(0, 40);

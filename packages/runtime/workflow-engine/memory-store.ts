@@ -5,6 +5,7 @@ import { canonicalJson, sha256 } from "../canonical.ts";
 import { InMemoryStateStore } from "../memory-state.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
 import { validateWorkflowAssignment, validateWorkflowCreation, validateWorkflowLease, validateWorkflowState, workflowAssignmentKey, workflowInstant } from "./state-validation.ts";
+import { workflowReviewStepId } from "./review-notice.ts";
 
 const key = (instance: string, id: string): string => canonicalJson([instance, id]);
 const active = (run: WorkflowRun): boolean => run.state.status === "running" || run.state.status === "waiting";
@@ -19,8 +20,12 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
   constructor() {
     this.control.workflowFence = (fence: WorkflowDispatchFence) => {
       const run = this.#runs.get(key(fence.instanceId, fence.runId));
-      return !!run && run.state.status === "running" && !run.state.blocked && run.state.cursor === fence.stepId
-        && run.lease?.token === fence.leaseToken && Date.parse(run.lease.expiresAt) > Math.max(Date.parse(fence.now), Date.now());
+      if (!run || run.state.cursor !== fence.stepId || run.lease?.token !== fence.leaseToken || Date.parse(run.lease.expiresAt) <= Math.max(Date.parse(fence.now), Date.now())) return false;
+      if (!fence.review) return run.state.status === "running" && !run.state.blocked;
+      const delivery = run.state.reviewDelivery, page = fence.review.page;
+      return run.state.status === "waiting" && run.state.blocked?.stepId === fence.stepId && !!delivery && !delivery.blocked
+        && delivery.blockedStepId === fence.stepId && delivery.digest === fence.review.digest && delivery.outputs.length === page
+        && delivery.pages[page]?.inputDigest === fence.review.inputDigest && workflowReviewStepId(fence.stepId, page) === fence.review.executionStepId;
     };
   }
 

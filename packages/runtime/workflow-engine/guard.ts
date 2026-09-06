@@ -1,4 +1,5 @@
 import { workflowDecisionNoticeInput } from "./decision-notice.ts";
+import { workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { RISK_ORDER, type JsonValue, type RiskLevel } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, CompiledCompanyTool } from "../../companyos-builder/types.ts";
@@ -102,9 +103,15 @@ export async function guardWorkflowInvocation(args: {
   const workflow = workflows.find((workflow) => workflow.id === context.workflowId);
   if (!workflow || context.artifactHash !== args.artifact.artifactHash || context.manifestHash !== workflow.manifestHash) throw new Error("Workflow context does not match the pinned Artifact and manifest");
   const step = workflow.steps.find((step) => step.id === context.stepId);
-  if (!step || workflow.agentId !== args.request.agentId || context.runId !== args.request.runId || workflowExecutionStepId(step.id, context.itemKey) !== args.request.stepId) throw new Error("Tool call does not match the trusted run, Agent and step assignment");
+  const executionStepId = context.mode === "review" && context.reviewDelivery
+    ? workflowReviewStepId(context.reviewDelivery.blockedStepId, context.reviewDelivery.outputs.length) : workflowExecutionStepId(context.stepId, context.itemKey);
+  if (!step || workflow.agentId !== args.request.agentId || context.runId !== args.request.runId || executionStepId !== args.request.stepId) throw new Error("Tool call does not match the trusted run, Agent and step assignment");
   if (context.subjectPrincipal !== args.request.subjectPrincipal) throw new Error("Tool subject differs from the trusted workflow assignment");
-  if (context.mode === "conversation") {
+  if (context.mode === "review") {
+    if (context.status !== "waiting" || !step.decision || args.risk !== "R2" || args.tool.contract.runtimeId !== "oregano:communications/publish"
+      || step.tool?.grantId !== args.request.grantId || step.tool.contractDigest !== sha256(args.tool.contract) || step.tool.version !== args.tool.contract.version) throw new Error("Effect review permits only the pinned decision publication Tool");
+    if (canonicalJson(workflowReviewNoticeInput(args.artifact, workflow, step, context)) !== canonicalJson(args.request.input)) throw new Error("Effect review page or destination differs from its frozen state");
+  } else if (context.mode === "conversation") {
     if (context.status !== "waiting" || !step.conversationalTools.includes(args.request.grantId) || reserved) throw new Error("Tool is outside the waiting step's conversational allowlist");
   } else {
     if (context.status !== "running") throw new Error("Workflow run is not eligible for dispatch");
@@ -136,11 +143,13 @@ export async function guardWorkflowInvocation(args: {
     validateRecipient(context);
   }
   return {
-    context, workflow, step, idempotencyKey: workflowEffectKey(args.artifact, context),
+    context, workflow, step, idempotencyKey: context.mode === "review"
+      ? workflowReviewEffectKey(args.artifact.instance.id, context.runId, executionStepId) : workflowEffectKey(args.artifact, context),
     evidence: { workflow_id: workflow.id, workflow_version: workflow.version, manifest_hash: workflow.manifestHash,
       workspace_commit: args.artifact.provenance.workspaceCommit, artifact_hash: args.artifact.artifactHash,
       instance_id: args.artifact.instance.id, run_id: context.runId, step_id: step.id,
-      ...(context.itemKey === undefined ? {} : { item_key: context.itemKey }) },
+      ...(context.itemKey === undefined ? {} : { item_key: context.itemKey }),
+      ...(context.mode === "review" ? { purpose: "effect-review" as const, reviewed_step_id: context.reviewDelivery!.blockedStepId, review_page: context.reviewDelivery!.outputs.length } : {}) },
   };
 }
 

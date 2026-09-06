@@ -3,6 +3,7 @@ import type { RunMeta } from "../../state-store/interface.ts";
 import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, WorkflowRunIdentity } from "../../state-store/workflow-engine.ts";
 import { canonicalJson, sha256, jsonDigest } from "../canonical.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
+import { workflowReviewDeliveryDigest } from "./review-notice.ts";
 
 export function workflowInstant(value: string): void {
   if (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) throw new Error("Workflow state requires an exact UTC ISO instant");
@@ -42,7 +43,7 @@ export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: W
   if (meta.runId !== identity.runId || meta.workflow !== identity.workflowId || meta.workflowVersion !== String(workflow.version)
     || meta.companyCommit !== artifact.provenance.workspaceCommit || meta.companySnapshotHash !== artifact.provenance.workspaceHash
     || meta.agentDefinitionHash !== sha256({ instructions: agent.instructions, materials: agent.materials })) throw new Error("Workflow control metadata differs from its pinned Artifact");
-  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked) throw new Error("New workflow must start at its empty entry state");
+  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery) throw new Error("New workflow must start at its empty entry state");
   validateWorkflowState(state, identity.workflowId, artifact);
 }
 
@@ -88,6 +89,32 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
   }
   for (const id of Object.keys(previous?.steps ?? {})) if (!Object.hasOwn(state.steps, id)) throw new Error("Workflow step history cannot be removed");
   for (const id of Object.keys(previous?.decisions ?? {})) if (!Object.hasOwn(state.decisions, id)) throw new Error("Workflow decision history cannot be removed");
+  const delivery = state.reviewDelivery, priorDelivery = previous?.reviewDelivery;
+  if (priorDelivery && !delivery) throw new Error("Effect review delivery history cannot be removed");
+  if (delivery) {
+    const failed = workflow.steps.find((step) => step.id === delivery.blockedStepId), decision = state.decisions[delivery.decisionStepId];
+    if (!failed?.requiresDecisions.some((requirement) => requirement.stepId === delivery.decisionStepId)
+      || decision?.status !== "approved" || decision.approvingPrincipal !== delivery.principal || !decision.recipients.includes(delivery.memberId)) throw new Error("Effect review must retain its original approved decision");
+    if (!priorDelivery && (state.status !== "waiting" || state.blocked?.stepId !== delivery.blockedStepId || state.cursor !== delivery.blockedStepId)) throw new Error("Effect review must start from the stopped business step");
+    const receipt = decision.deliveries[delivery.memberId] as Record<string, unknown> | undefined;
+    digest(delivery.digest); digest(delivery.evidenceDigest);
+    if (!Array.isArray(delivery.pages) || !delivery.pages.length || delivery.pages.length > 256 || !Array.isArray(delivery.outputs)
+      || delivery.outputs.length > delivery.pages.length || delivery.digest !== workflowReviewDeliveryDigest(delivery)) throw new Error("Invalid frozen effect review pages");
+    for (const page of delivery.pages) {
+      const input = page.input as Record<string, unknown>;
+      safeObject(input); digest(page.inputDigest);
+      if (page.inputDigest !== jsonDigest(input) || Object.keys(input).sort().join(",") !== "content,destination_binding,format,thread_reference"
+        || input.format !== "plain-text" || typeof input.content !== "string" || input.content.length > 20_000
+        || typeof input.thread_reference !== "string" || input.thread_reference !== receipt?.thread_reference || input.destination_binding !== receipt?.destination_binding) throw new Error("Effect review changed its payload or original decision conversation");
+    }
+    if (delivery.blocked) digest(delivery.blocked.errorDigest);
+    if (priorDelivery) {
+      if (delivery.digest !== priorDelivery.digest || delivery.outputs.length < priorDelivery.outputs.length || delivery.outputs.length > priorDelivery.outputs.length + 1) throw new Error("Effect review pages are immutable and advance one receipt at a time");
+      for (const [index, output] of priorDelivery.outputs.entries()) if (canonicalJson(delivery.outputs[index]) !== canonicalJson(output)) throw new Error("Effect review publication evidence is immutable");
+      if (priorDelivery.blocked && canonicalJson(delivery) !== canonicalJson(priorDelivery)) throw new Error("Uncertain effect review publication requires separate human inspection");
+    } else if (delivery.outputs.length || delivery.blocked) throw new Error("New effect review cannot claim prior delivery");
+    for (const output of delivery.outputs as Record<string, unknown>[]) if (typeof output?.message_id !== "string" || output.destination_binding !== receipt?.destination_binding || output.thread_reference !== receipt?.thread_reference) throw new Error("Effect review receipt differs from the original conversation");
+  }
   if (state.wait) {
     if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision", "start"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
     workflowInstant(state.wait.dueAt); identifier(state.wait.timerId);

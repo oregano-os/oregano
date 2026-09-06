@@ -70,6 +70,7 @@ export class InMemoryStateStore implements StateStore {
     if (fence && (!this.workflowFence || !this.workflowFence(fence))) return false;
     const effect = this.effects.get(key);
     if (!effect || effect.status !== "claimed" || (fence && effect.runId !== fence.runId)) return false;
+    if (fence?.review && (effect.stepId !== fence.review.executionStepId || effect.inputHash !== fence.review.inputDigest)) return false;
     effect.status = "dispatched";
     return true;
   }

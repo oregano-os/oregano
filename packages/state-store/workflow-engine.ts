@@ -35,6 +35,19 @@ export interface WorkflowMutableState {
   decisions: Record<string, WorkflowStoredDecision>;
   wait?: { stepId: string; kind: "step" | "delivery" | "decision" | "start"; timerId: string; dueAt: string };
   blocked?: { stepId: string; code: string; errorDigest: string };
+  /** Frozen control notice pages; advancing them never advances the business cursor. */
+  reviewDelivery?: WorkflowReviewDelivery;
+}
+export interface WorkflowReviewDelivery {
+  blockedStepId: string;
+  decisionStepId: string;
+  memberId: string;
+  principal: string;
+  evidenceDigest: string;
+  pages: Array<{ input: JsonValue; inputDigest: string }>;
+  digest: string;
+  outputs: JsonValue[];
+  blocked?: { errorDigest: string };
 }
 export interface WorkflowRunIdentity {
   instanceId: string;

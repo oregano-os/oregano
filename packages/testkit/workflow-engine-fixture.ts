@@ -36,7 +36,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
   const fixture = {
     artifact, store, control, timerStore, timers, now: "2030-01-04T14:30:00.000Z", roster: structuredClone(artifact.roster),
     calls: [] as Array<{ capability: string; input: any }>,
-    missingThread: false, unknownBatch: false, failQuery: false,
+    missingThread: false, unknownBatch: false, unknownPublication: false, failQuery: false,
     submissions: [] as Array<{ record_id: string; values: Record<string, JsonValue> }>,
     items: [{ record_id: "item-1", values: { work_item_id: "item-1", title: "Fictional deliverable", assignee_ids: ["lea-contributor"], status: "Working", provider_version: "v1", group: "in_sprint", url: "https://example.test/items/1" } }] as Array<{ record_id: string; values: Record<string, JsonValue> }>,
     planning: [] as Array<{ record_id: string; values: Record<string, JsonValue> }>,
@@ -57,6 +57,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
         source_proofs: [{ source_id: "synthetic-test-source", source_digest: sha256(rows), run_id: "synthetic-sync", synced_through: instant, watermark: "synthetic-only" }],
         access_decision: { allowed: true, projection_id: input.projection_id, principal_id: ENGINE_OPERATOR, policy_digest: "synthetic-test-policy", reason: "role-allowed", decided_at: fixture.now } }, evidence: { synthetic: true } };
     }
+    if (capability === "communication.message.publish" && fixture.unknownPublication) throw new CapabilityEffectOutcomeUnknownError("Synthetic publication outcome unknown", { synthetic: true });
     if (capability === "communication.message.publish") return { output: { destination_binding: input.destination_binding, message_id: `message-${fixture.calls.length}`, published_at: fixture.now,
       ...(fixture.missingThread ? {} : { thread_reference: input.thread_reference ?? `thread-${fixture.calls.length}` }) }, evidence: { synthetic: true, receipt: fixture.calls.length } };
     if (capability === "work-item.batch-update") {
@@ -77,5 +78,6 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
   return { ...fixture, get now() { return fixture.now; }, set now(value: string) { fixture.now = value; }, get roster() { return fixture.roster; },
     get missingThread() { return fixture.missingThread; }, set missingThread(value: boolean) { fixture.missingThread = value; },
     get unknownBatch() { return fixture.unknownBatch; }, set unknownBatch(value: boolean) { fixture.unknownBatch = value; },
+    get unknownPublication() { return fixture.unknownPublication; }, set unknownPublication(value: boolean) { fixture.unknownPublication = value; },
     get failQuery() { return fixture.failQuery; }, set failQuery(value: boolean) { fixture.failQuery = value; }, engine, conversation };
 }

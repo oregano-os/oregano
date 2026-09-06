@@ -261,6 +261,28 @@ sandbox and effect store with a Connector that has no deduplication of its own.
 They prove the Tool boundary, not durable scheduling, authenticated transport
 assignment or real human approval. Those remain subsequent integration gates.
 
+## Stopped-effect control notice
+
+A stopped scalar effect with one recorded approved decision can deliver its
+normalized per-item outcome to that decision's actual human approver. Core
+retains frozen pages in the existing workflow state, selects the original
+decision conversation and invokes the pinned publication Tool under a separate
+R2 review purpose. Current recipient eligibility, exact payload, Artifact and
+lease are checked again. The review purpose is trusted host context and is
+never selectable through model or operator request fields.
+
+Notice page effects have distinct identities from decision requests and
+business effects. State and dispatch checks bind the exact pending page,
+digest, execution step, input and active lease; cancellation shares the normal
+database row lock. Successful receipt recovery does not send twice. A notice
+with unknown outcome stops its own delivery, and no notice advances the
+business cursor, extends an approval, or authorizes recovery. Finite size and
+delivery-window bounds apply; cases outside them retain operator review.
+
+The state extension is additive JSON in database manifest 2.0.0, with no new
+table or provider migration. Historical page and decision receipts remain
+immutable across worker reconstruction and cancellation.
+
 ## Implemented calendar evaluation
 
 Generic calendar primitives now live outside the legacy domain. The workflow
