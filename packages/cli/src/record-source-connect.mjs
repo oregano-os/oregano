@@ -77,7 +77,9 @@ const validCoreIdentity = (identity) => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.tes
   && identity.clean;
 
 const selectedProjections = (planResult) => planResult?.source
-  ? planResult.projections.filter((projection) => projection.selection?.source_id === planResult.source.id)
+  ? planResult.projections.filter((projection) => Array.isArray(projection.source_ids)
+    ? projection.source_ids.length === 1 && projection.source_ids[0] === planResult.source.id
+    : projection.selection?.source_id === planResult.source.id)
   : [];
 const inside = (root, path) => {
   const fromRoot = relative(resolve(root), resolve(path));
@@ -115,7 +117,8 @@ export function planRecordSourceConnect({
     diagnostics.push(diagnostic("REC034", "error", error.message));
   }
   const projections = operation ? selectedProjections(operation) : [];
-  if (operation && projections.length === 0) diagnostics.push(diagnostic("REC035", "error", `Source '${sourceId}' requires at least one projection with selection.source_id '${sourceId}' before rehearsal.`));
+  const identitySnapshot = operation?.rosterMarkdown === undefined ? {} : { roster_markdown: operation.rosterMarkdown };
+  if (operation && projections.length === 0) diagnostics.push(diagnostic("REC035", "error", `Source '${sourceId}' requires at least one projection selecting only '${sourceId}' through source_ids or selection.source_id before rehearsal.`));
   const effectiveStatePath = resolve(statePath ?? `.companyos-cache/records-${sourceId}-${profile}.json`);
   if (workspaceRoot && inside(workspaceRoot, effectiveStatePath)) diagnostics.push(diagnostic("REC038", "error", "Record Source connect state must stay outside the Company Workspace.", { file: effectiveStatePath }));
   const completeOperation = Boolean(operation?.source && operation?.binding && operation?.qualification);
@@ -125,6 +128,7 @@ export function planRecordSourceConnect({
     projections,
     binding: operation.binding,
     qualification: operation.qualification,
+    ...identitySnapshot,
   } : null;
   const sourceConfirmation = sourceSelection ? sha256(sourceSelection) : null;
   const configuration = completeOperation && workspaceGit ? {
@@ -137,6 +141,7 @@ export function planRecordSourceConnect({
     sources: [operation.source],
     projections,
     bindings: [{ source_id: sourceId, binding: operation.binding, qualification: operation.qualification }],
+    ...identitySnapshot,
   } : null;
   const plan = {
     schema_version: 1,

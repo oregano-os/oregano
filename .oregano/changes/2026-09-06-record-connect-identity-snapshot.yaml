@@ -1,0 +1,47 @@
+version: 3
+plan_id: record-connect-identity-snapshot-2026-09-06
+created: "2026-09-06"
+title: Retain source selection and reviewed identities in hosted Records setup
+objective: >-
+  Carry the operation planner's frozen roster into the generated hosted
+  Records configuration and source confirmation so identity-aware sources
+  normalize the same principals locally and in the deployed runtime. Support
+  exact single-source source_ids selection without narrowing multi-source views.
+non_goals:
+  - Add provider scope, authority, a new identity resolver or a source lifecycle.
+  - Change historical configurations, release a version or activate production.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-record-connect-identity-snapshot.yaml
+  - packages/cli/src/record-source-connect.mjs
+  - packages/cli/tests/record-source-connect-identities.test.mjs
+  - docs/workbench/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/cli/tests/record-source-connect-identities.test.mjs
+  - packages/cli/tests/record-source-connect.test.mjs
+  - packages/cli/tests/records.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - guide.connect-company-record-source
+    - status.current
+architecture:
+  placement:
+    core: Preserve existing planner identity evidence through the maintained hosted setup adapter.
+    packages: No package or privileged adapter change.
+    workspace: Keep the reviewed roster and identity mappings in the exact Workspace revision.
+    instance: Retain the non-secret roster snapshot with source configuration and confirmation hashes.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Transfer the already validated identity snapshot into the existing hosted source configuration.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any identity-aware source needs identical reviewed principal resolution in local and hosted execution.
+rollback: Revert the setup correction and leave existing runtime artifacts and historical records unchanged; do not deploy an identity-aware source without a valid roster snapshot.

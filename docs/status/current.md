@@ -1317,3 +1317,10 @@ normalization from discarding bounded planning fields without adding business
 logic to Core. Ordinary Records conformance also checks distinct qualified
 owners despite identical titles, unassigned cards, blank statuses and unknown
 effort. These examples do not change live source scope or workflow activation.
+
+Hosted Record Source setup now retains the locally validated roster snapshot
+in its generated runtime configuration and confirmation. Exact single-source
+`source_ids` projections are accepted alongside legacy source selection; a
+multi-source view is not narrowed implicitly. Synthetic end-to-end setup cases
+prove hosted principal resolution, changed-roster confirmation invalidation,
+preserved old mappings and compatibility for sources without identity resolution.
