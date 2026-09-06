@@ -1,0 +1,42 @@
+version: 3
+plan_id: workflow-late-worker-parity-2026-09-06
+created: "2026-09-06"
+title: Exercise late and idle hosted workers through ordinary workflows
+objective: >-
+  Preserve ordered catch-up, original logical deadlines, idle no-op behavior
+  and disabled-workflow isolation through the maintained generic engine.
+  Verify that its operator rejects retired simulator action names and accepts
+  an ordinary compiled workflow opening.
+non_goals:
+  - Change runtime behavior, completeness guarantees or business policy.
+  - Replace actual provider acceptance or remove the legacy executor early.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-late-worker-parity.yaml
+  - packages/testkit/fixtures/workflow-late-workers.test.ts
+  - packages/testkit/tests/workflow-late-workers.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-late-workers.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse the ordinary engine and bounded hosted workers.
+    packages: No Package, Blueprint or Connector changes.
+    workspace: Fictional schedules and ordered Close expectations remain fixture assets.
+    instance: Actual runtime stores retain waits, events and claims; provider responses are synthetic.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Exercise late worker recovery and durable ordered waits rather than preserve a dedicated business simulator.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any compiled workflow can use the tested idle, enabled-selection and late-worker guarantees.
+rollback: Revert these fixture cases; preserve the legacy oracle until complete migration acceptance.
