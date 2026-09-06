@@ -340,7 +340,7 @@ instance_id: example-staging
 source_id: coordination-conversation
 resource_binding: coordination-conversation
 connector: oregano/slack-record-source
-connector_version: 0.1.0
+connector_version: 0.1.3
 secret_ref: env:SLACK_BOT_TOKEN
 qualification:
   receipt_ref: ./slack-source-qualification.json
@@ -376,6 +376,11 @@ configuration:
 contract. The Runner exchanges its trusted Vercel deployment identity for a
 fresh app token at the provider boundary; the token is never written into the
 Instance configuration, Artifact, Workspace, database, receipt, or logs.
+
+Workbench binding inspection accepts only `direct-env` and `vercel-connect-app`
+at the maintained Slack binding's exact `configuration.credential_provider`
+field. It remains ordinary non-secret configuration. Arbitrary values, nested
+selectors, inline tokens and a selector on another Connector are rejected.
 
 `oldest_at` and optional `latest_at` are explicit collection boundaries.
 Every pass reads one bounded complete inventory, including thread replies,

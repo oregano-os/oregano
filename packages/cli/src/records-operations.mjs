@@ -8,7 +8,7 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../connectors/monday/records-source.ts";
-import { SlackRecordSourceConnector } from "../../connectors/slack/records-source.ts";
+import { SLACK_RECORD_SOURCE_CONNECTOR_ID, SlackRecordSourceConnector } from "../../connectors/slack/records-source.ts";
 import { reconcileRecordSnapshot } from "../../records/reconciliation.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
 import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
@@ -37,14 +37,17 @@ const inspectValue = (contract, value, code, label, file) =>
   validateJsonSchemaValue(contract, value).map((message) => diagnostic(code, "error", `${label}: ${message}.`, { file }));
 
 const forbiddenBindingKey = /(?:^|_)(?:access_token|api_key|authorization|client_secret|credential|database_url|password|private_key|refresh_token|secret|token)(?:_|$)/i;
-const inspectNoInlineSecrets = (value, path = "binding") => {
+const inspectNoInlineSecrets = (value, path = "binding", sourceBinding = value) => {
   const diagnostics = [];
   if (!value || typeof value !== "object") return diagnostics;
   for (const [key, entry] of Object.entries(value)) {
-    if ((key === "secret_ref" && path !== "binding") || (key !== "secret_ref" && forbiddenBindingKey.test(key))) {
+    const maintainedSelector = sourceBinding?.connector === SLACK_RECORD_SOURCE_CONNECTOR_ID
+      && path === "binding.configuration" && key === "credential_provider"
+      && (entry === "direct-env" || entry === "vercel-connect-app");
+    if (!maintainedSelector && ((key === "secret_ref" && path !== "binding") || (key !== "secret_ref" && forbiddenBindingKey.test(key)))) {
       diagnostics.push(diagnostic("REC004", "error", `Instance binding field '${path}.${key}' could contain inline credential material; use secret_ref only.`));
     }
-    if (entry && typeof entry === "object") diagnostics.push(...inspectNoInlineSecrets(entry, `${path}.${key}`));
+    if (entry && typeof entry === "object") diagnostics.push(...inspectNoInlineSecrets(entry, `${path}.${key}`, sourceBinding));
   }
   return diagnostics;
 };

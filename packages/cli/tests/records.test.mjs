@@ -91,6 +91,36 @@ const writeBinding = (root, overrides = {}) => {
   return { path, binding, qualificationPath };
 };
 
+test("Slack credential provider selection is non-secret exact adapter configuration", () => {
+  const root = mkdtempSync(join(tmpdir(), "record-credential-choice-"));
+  try {
+    for (const credential_provider of ["direct-env", "vercel-connect-app"]) {
+      const { path, binding } = writeBinding(root, { connector: "oregano/slack-record-source", connector_version: "0.1.3",
+        configuration: { credential_provider, team_id: "T10001", channel_id: "C10001" } });
+      assert.deepEqual(loadRecordSourceBinding(path), binding);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("credential selectors cannot conceal values or bypass another binding secret check", () => {
+  const root = mkdtempSync(join(tmpdir(), "record-credential-negatives-"));
+  try {
+    const configurations = [
+      { credential_provider: "unreviewed-provider" }, { credential_provider: "synthetic-inline-credential" },
+      { credential_provider: ["direct-env"] }, { credential_provider: { secret: "synthetic-value" } },
+      { nested: { credential_provider: "direct-env" } },
+      { credential_provider: "direct-env", access_token: "synthetic-value" },
+      { credential_provider: "vercel-connect-app", nested: { secret_ref: "env:UNREVIEWED" } },
+    ];
+    for (const configuration of configurations) {
+      const { path } = writeBinding(root, { connector: "oregano/slack-record-source", connector_version: "0.1.3", configuration });
+      assert.throws(() => loadRecordSourceBinding(path), (error) => error.diagnostics.some((entry) => entry.code === "REC004"));
+    }
+    const { path } = writeBinding(root, { configuration: { credential_provider: "direct-env" } });
+    assert.throws(() => loadRecordSourceBinding(path), (error) => error.diagnostics.some((entry) => entry.code === "REC004"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("records inspection validates exact source selection and exposed filter paths", () => {
   const { root, workspace, source, projection } = temporaryWorkspace();
   try {
