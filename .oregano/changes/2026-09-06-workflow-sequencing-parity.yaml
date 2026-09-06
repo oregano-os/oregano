@@ -1,0 +1,51 @@
+version: 3
+plan_id: workflow-sequencing-parity-2026-09-06
+created: "2026-09-06"
+title: Preserve current work facts and close sequencing in the Workspace fixture
+objective: >-
+  Prove frozen participants, current work facts, timely submissions and empty
+  decision branches through the ordinary engine. Correct Workspace queries
+  that retained mutable work-item status and provider versions from opening.
+non_goals:
+  - Invent provider cutoff coverage or change the frozen participant policy.
+  - Remove legacy execution before full parity and actual Instance acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-sequencing-parity.yaml
+  - packages/testkit/fixtures/workflow-sequencing.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/workflows/friday-close.compact.md
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/tests/workflow-sequencing.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-sequencing.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Existing compiler, engine, Runtime and isolation execute the test cases unchanged.
+    packages: Existing Records and Company Tool contracts provide the data boundary.
+    workspace: Explicitly chooses when to read current work facts while retaining its participant snapshot.
+    instance: Synthetic bindings and controlled clocks only; no provider activation.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Query current work-item rows at the declared chase/report instants through existing contracts.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Verify empty changes skip approval and reporting preserves actual delivery order.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The correction changes synthetic Workspace steps, not engine business rules.
+rollback: Retain the existing deployment and legacy oracle until the corrected Workspace passes all migration gates.

@@ -39,7 +39,7 @@ test("complete fixture builds four workflows; full close manifest matches review
   assert.deepEqual(artifact.sprints, []);
   const close = artifact.workflows!.find((workflow) => workflow.id === "friday-close")!;
   assert.deepEqual(JSON.parse(JSON.stringify(close)), JSON.parse(readFileSync(join(fixture, "compiler-expectations/friday-close.json"), "utf8")));
-  assert.equal(close.steps.length, 19);
+  assert.equal(close.steps.length, 20);
   assert.deepEqual(close.instance.key, ["sprint_id"]);
   const root = close.steps.find((step) => step.id === "open-close-thread")!;
   assert.equal(root.message!.thread, undefined);

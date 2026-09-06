@@ -26,6 +26,12 @@ evidence, historical prototypes, and production gaps.
   cover selected computation semantics, not complete engine parity, live source
   coverage or human acceptance. The separate legacy executor remains pending
   the full migration gates.
+  Two additional actual-engine regressions exposed and fixed stale work facts
+  in the fictional close: workflow version 6 keeps participants frozen while
+  reading current work status, membership and provider versions at each chase
+  and report. Closed work produces no rollover decision, and late-processed
+  timely replies retain the original report cutoff. The engine required no
+  business-specific change.
 
 - Generic hosted workers now expose `/api/workflows/timers`, `steps`, `records` and
   `operator`, with explicit Artifact/Instance activation, separate operator and
