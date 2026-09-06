@@ -23,6 +23,10 @@ fields:
     path: well_formed
   - name: next_week
     path: next_week
+  - name: next_week_goal
+    path: next_week_goal
+  - name: next_week_outcome
+    path: next_week_outcome
 filters:
   thread_reference:
     operator: equals

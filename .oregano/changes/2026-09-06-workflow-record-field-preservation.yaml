@@ -1,0 +1,43 @@
+version: 3
+plan_id: workflow-record-field-preservation-2026-09-06
+created: "2026-09-06"
+title: Preserve parsed planning fields in fictional workflow Records
+objective: >-
+  Retain the already parsed next-period goal and outcome in the fictional
+  Workspace source and projection, and verify stable work-item ownership and
+  empty provider fields through ordinary execution.
+non_goals:
+  - Introduce business parsing or company policy into Core runtime code.
+  - Add provider data scope, grant permissions or claim live acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-record-field-preservation.yaml
+  - packages/testkit/fixtures/lindenhof-studio/records/sources/slack-close-submissions.yaml
+  - packages/testkit/fixtures/lindenhof-studio/records/projections/sprint-close-submissions.yaml
+  - packages/testkit/fixtures/workflow-records-conformance.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-records-conformance.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse source normalization, identity resolution and the ordinary engine unchanged.
+    packages: No Package or Connector changes.
+    workspace: Fictional declarations expose two existing bounded parser outputs as strings.
+    instance: Synthetic source inventories and qualified principal identities only.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Preserve parsed fields in the existing fictional source and projection contract.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Explicit source field mappings retain bounded evidence for any company workflow.
+rollback: Revert the fictional mappings, expectations and conformance evidence; no live data is changed.

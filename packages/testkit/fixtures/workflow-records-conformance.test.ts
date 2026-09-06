@@ -140,6 +140,8 @@ test("ordinary close parses current source messages and retains provenance while
   assert.deepEqual(lea.values.task_ids, ["item-3"]);
   assert.equal(lea.values.accepted_at, "2030-01-04T15:30:00Z");
   assert.deepEqual(lea.values.next_week, [{ work_item_id: "next-card", url: "https://lindenhof.example.test/boards/board/pulses/next-card", text: "https://lindenhof.example.test/boards/board/pulses/next-card — Next draft" }]);
+  assert.equal(lea.values.next_week_goal, "Deliver the next draft");
+  assert.equal(lea.values.next_week_outcome, "One reviewed draft");
   assert.equal(query.source_scan_proofs?.[0]?.run_id, receipt.run_id);
   assert.equal(query.source_scan_proofs?.[0]?.source_digest, registry.sourceDigest(messagesId));
   assert.equal(query.scan_started_at, reportAt);
@@ -163,6 +165,31 @@ test("ordinary workflow stops before its first message when a role cannot resolv
   assert.equal(roles.rows.some((row) => (row.values.person_ids as string[]).includes("unresolved:monday:300001:unknown")), true);
   assert.equal(run.state.steps["open-close-thread"], undefined);
   assert.equal(h.calls.filter((call) => call.context.stepId === "open-close-thread" || call.capability === "work-item.batch-update").length, 0);
+});
+
+test("ordinary work-item reads preserve exact provider ownership, unassigned cards and empty status without inventing effort", async (t) => {
+  const { h, rows, sync } = pipeline(t);
+  rows[itemsId]![0]!.name = "Shared Example";
+  rows[itemsId]![1]!.name = "Shared Example";
+  rows[itemsId]![2]!.people_principals = { person: [] };
+  rows[itemsId]![2]!.column_text = { status: "" };
+  await sync(rolesId);
+  let run = await openParityClose(h);
+  h.now = "2030-01-04T15:20:00.000Z";
+  await sync(itemsId); await sync(messagesId);
+  run = await wakeParity(h, run.runId, h.now);
+  assert.equal(run.state.blocked, undefined);
+  assert.equal(run.state.cursor, "await-report");
+  const work = (run.state.steps["work-items-at-chase"]!.output as unknown as RecordQueryResult).rows;
+  assert.deepEqual(work.map((row) => [row.values.work_item_id, row.values.assignee_ids, row.values.status]).sort(([a], [b]) => String(a).localeCompare(String(b))), [
+    ["item-2", ["jonas-owner"], "Done"], ["item-3", ["lea-contributor"], "Working"], ["item-4", [], ""],
+  ]);
+  assert.equal(work.filter((row) => row.values.title === "Shared Example").length, 2);
+  assert.equal(work.every((row) => row.values.actual_hours === undefined && row.values.planned_effort === undefined), true);
+  assert.equal((run.state.steps["classify-at-chase"]!.output as any).total_effort_hours, null);
+  const retained = structuredClone(run.state.steps["work-items-at-chase"]);
+  assert.deepEqual((await h.engine().advance(run.runId))!.state.steps["work-items-at-chase"], retained);
+  assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 0);
 });
 
 test("ordinary workflow cannot read Records without the invoking human's reviewed group permission", async (t) => {
