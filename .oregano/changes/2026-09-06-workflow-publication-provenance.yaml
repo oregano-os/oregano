@@ -1,0 +1,43 @@
+version: 3
+plan_id: workflow-publication-provenance-2026-09-06
+created: "2026-09-06"
+title: Prove frozen publication authority across compiled Workspace revisions
+objective: >-
+  Exercise actual workflow publication after a separately compiled Workspace
+  revision and verify Agent, Tool, destination, run, step and journal provenance
+  through the real Runtime. Preserve shared-thread authority and retry evidence
+  without retaining a separate scenario publisher.
+non_goals:
+  - Change runtime behavior, business policy or source completeness semantics.
+  - Replace real-provider acceptance or remove legacy code before its gate.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-publication-provenance.yaml
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/fixtures/workflow-publication-provenance.test.ts
+  - packages/testkit/tests/workflow-publication-provenance.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-publication-provenance.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Exercise maintained compiler, engine, Runtime guard, effects and journal.
+    packages: No Package, Blueprint or privileged Connector changes.
+    workspace: Fictional revision changes only a template and configured destination.
+    instance: Synthetic providers expose exact invocation context and deliberately do not deduplicate.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve exact publication provenance and historical recovery assertions through ordinary engine fixtures.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any compiled workflow retains its publication policy and evidence across later Workspace deployment.
+rollback: Revert these additional fixtures while retaining the original regression oracle until full acceptance.
