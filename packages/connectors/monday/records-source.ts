@@ -8,6 +8,7 @@ import type {
 } from "../../records/source-connector.ts";
 import { MondayClient, type MondayFetch } from "./client.ts";
 import { recordSourceBindingDigest } from "../../records/source-connector.ts";
+import { mappedMondayRecordFields, parseMondayRecordMapping, validateMondayRecordMapping } from "./record-mapping.ts";
 
 export const MONDAY_RECORD_SOURCE_CONNECTOR_ID = "oregano/monday-record-source";
 export const MONDAY_RECORD_SOURCE_CONNECTOR_VERSION = "0.3.3";
@@ -52,6 +53,7 @@ const mondayConfiguration = (
     throw new Error(`Record binding resource '${binding.resource_binding}' does not match declaration '${source.resource_binding}'`);
   }
   const configuration = object(binding.configuration, "Monday record-source configuration");
+  const mapping = parseMondayRecordMapping(source, configuration.mapping);
   const apiVersion = string(configuration.api_version, "Monday api_version");
   if (apiVersion !== MONDAY_RECORD_SOURCE_API_VERSION) {
     throw new Error(`Maintained Monday record-source Connector requires API version '${MONDAY_RECORD_SOURCE_API_VERSION}'`);
@@ -103,6 +105,7 @@ const mondayConfiguration = (
   if (!resource || resource.permission !== permission) throw new Error(`Monday qualification does not prove '${permission}' access to board '${boardId}'`);
   const board = (discovery.boards ?? []).find((candidate: any) => String(candidate.id) === boardId);
   if (!board) throw new Error(`Monday qualification does not contain exact board '${boardId}'`);
+  validateMondayRecordMapping(mapping, board);
   const qualifiedGroups = new Set((board.groups ?? []).filter((group: any) => !group.archived && !group.deleted).map((group: any) => String(group.id)));
   for (const groupId of groupIds) if (!qualifiedGroups.has(groupId)) throw new Error(`Monday group '${groupId}' is not active in the qualified board evidence`);
   const qualifiedColumns = new Set((board.columns ?? []).filter((column: any) => !column.archived).map((column: any) => String(column.id)));
@@ -121,6 +124,7 @@ const mondayConfiguration = (
   return {
     apiVersion, agentId, accountId, memberId, memberKind, externalAgentId: String(discovery.identity.externalAgentId), boardId, permission, groupIds, pageSize, maxPages, maxObjects,
     inventoryMode: inventoryMode as "selected-items" | "complete-table",
+    mapping,
     qualifiedSubitemBoardIds,
   };
 };
@@ -170,7 +174,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
     const { source, binding, qualification } = args;
     const {
       apiVersion, agentId, accountId, memberId, memberKind, externalAgentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
-      inventoryMode, qualifiedSubitemBoardIds,
+      inventoryMode, qualifiedSubitemBoardIds, mapping,
     } = mondayConfiguration(source, binding, qualification);
     const scanStartedAt = this.now().toISOString();
     const token = this.resolveSecret(binding.secret_ref);
@@ -182,10 +186,11 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       throw new Error("Monday source credential differs from its reviewed account and Agent identity");
     }
     const currentBoard = identity.data.boards[0]!;
+    validateMondayRecordMapping(mapping, currentBoard);
     for (const groupId of groupIds) if (!currentBoard.groups.some((group) => group.id === groupId && !group.archived && !group.deleted)) {
       throw new Error(`Monday source group '${groupId}' is no longer available in the qualified board`);
     }
-    const columnIds = configuredColumnIds(source);
+    const columnIds = [...new Set([...configuredColumnIds(source), ...Object.values(mapping?.columns ?? {}).map((column) => column.id)])].sort();
     for (const columnId of columnIds) if (!currentBoard.columns.some((column) => column.id === columnId && !column.archived
       && (!source.fields.some((field) => field.source === `people_principals.${columnId}`) || column.type === "people"))) {
       throw new Error(`Monday source column '${columnId}' no longer matches the qualified mapping`);
@@ -195,6 +200,11 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       allowedSubitemBoardIds: qualifiedSubitemBoardIds,
     });
     const observedAt = this.now().toISOString();
+    if (mapping) {
+      const rootSchema = inventory.tableSchema.find((board) => board.board_id === boardId);
+      if (!rootSchema) throw new Error("Monday mapped inventory has no root schema");
+      validateMondayRecordMapping(mapping, { columns: rootSchema.columns, groups: currentBoard.groups });
+    }
     const peopleColumns = new Map(inventory.tableSchema.map((board) => [board.board_id,
       board.columns.filter((column) => column.type === "people").map((column) => column.id)]));
     const qualifiedPeople = (item: typeof inventory.objects[number]): Record<string, JsonValue> => {
@@ -204,7 +214,9 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         .filter((columnId) => Object.hasOwn(rawColumns, columnId))
         .map((columnId) => [columnId, peoplePrincipals(accountId, rawColumns[columnId]!, columnId)]));
     };
-    const objects: Array<Record<string, JsonValue>> = inventory.objects.map((item) => ({
+    const objects: Array<Record<string, JsonValue>> = inventory.objects.map((item) => {
+      const people = qualifiedPeople(item);
+      return {
       id: item.id,
       source_id: source.id,
       object_kind: item.object_kind,
@@ -221,10 +233,11 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       parent_item_id: item.parent_item_id,
       columns: item.columns,
       column_text: item.column_text,
-      people_principals: qualifiedPeople(item),
+      people_principals: people,
+      ...(mapping ? { mapped: mappedMondayRecordFields(mapping, item, boardId, people) } : {}),
       ...(accountId ? { account_id: accountId } : {}),
       provider_payload: item.provider_payload,
-    }));
+    }; });
     const inventoryDigest = digest(objects);
     return {
       complete: true,
@@ -251,6 +264,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
         inventory_mode: inventory.inventoryMode,
         group_ids: groupIds,
         column_ids: inventoryMode === "complete-table" ? "all-active-columns" : columnIds,
+        ...(mapping ? { mapping } : {}),
         pages: inventory.pageCount,
         object_counts: inventory.objectCounts,
         schema_coverage: inventory.tableSchema,

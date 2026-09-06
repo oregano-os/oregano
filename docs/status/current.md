@@ -1248,3 +1248,11 @@ original logical deadline for delayed workers. Real engine tests cover complete
 execution and rejected stale/missing/contradictory scan evidence. Operating
 Workspace adoption remains pending; no real-provider workflow acceptance or
 production activation is claimed.
+
+The maintained Monday Record Source supports optional Instance schema mappings
+for logical columns and physical groups. One reviewed source can normalize
+equivalent boards with different generated IDs. Qualification and fresh metadata
+checks enforce exact IDs and types; raw provider evidence remains unchanged and
+root mappings cannot leak into child or metadata rows. Fictional adapter tests
+cover equivalent normalization and rejected invalid or stale mappings. Actual
+company schema preparation and end-to-end test-Instance acceptance remain open.
