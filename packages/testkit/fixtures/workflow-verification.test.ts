@@ -17,6 +17,8 @@ test("completed evidence verification is repeatable and read-only while identify
   assert.equal(proof.counts.decisions, 1);
   assert.equal(proof.counts.batches, 1);
   assert.ok(proof.counts.sourceProofs > 0);
+  assert.equal(proof.sourceProofs[0]!.sources[0]!.syncRunId, "synthetic-sync");
+  assert.equal(JSON.stringify(proof).includes('"watermark":"synthetic-only"'), false);
   assert.deepEqual(await h.engine().verify(run.runId, ENGINE_OPERATOR), proof);
   assert.equal(h.calls.length, calls);
   assert.equal((await h.control.listEvents(run.runId)).length, events);

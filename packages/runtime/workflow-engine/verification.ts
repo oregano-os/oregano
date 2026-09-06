@@ -19,7 +19,8 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
   const { artifact, run, control } = args;
   const checks: Array<{ code: string; passed: boolean; stepId?: string }> = [];
   const receipts: Array<{ stepId: string; effectKey: string; inputDigest: string; outputDigest: string; approvalId?: string }> = [];
-  const sourceProofs: Array<{ stepId: string; digest: string }> = [];
+  const sourceProofs: Array<{ stepId: string; digest: string; requiredThrough: string; snapshotId: string;
+    sources: Array<{ sourceId: string; sourceDigest: string; syncRunId: string; syncedThrough: string; watermarkDigest: string }> }> = [];
   const approvingPrincipals = new Set<string>();
   let waits = 0, decisions = 0, batches = 0, syntheticEvidence = false;
   const check = (code: string, passed: boolean, stepId?: string) => { checks.push({ code, passed, ...(stepId ? { stepId } : {}) }); return passed; };
@@ -80,7 +81,10 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
           && hash(output.snapshot_id) && Array.isArray(proofs) && proofs.length > 0 && proofs.length <= 100
           && proofs.every((entry: unknown) => { const proof = object(entry); return text(proof.source_id) && hash(proof.source_digest)
             && text(proof.run_id) && text(proof.watermark) && text(proof.synced_through) && compareRecordInstants(proof.synced_through, required) >= 0; });
-        if (check("record-source-completeness", !!valid, step.id)) sourceProofs.push({ stepId: step.id, digest: sha256({ required, snapshot: output.snapshot_id, proofs }) });
+        if (check("record-source-completeness", !!valid, step.id)) sourceProofs.push({ stepId: step.id, requiredThrough: required as string,
+          snapshotId: output.snapshot_id, digest: sha256({ required, snapshot: output.snapshot_id, proofs }),
+          sources: proofs.map((proof: any) => ({ sourceId: proof.source_id, sourceDigest: proof.source_digest, syncRunId: proof.run_id,
+            syncedThrough: proof.synced_through, watermarkDigest: sha256(proof.watermark) })) });
       }
       if (!step.tool) continue;
       const tool = artifact.agents.find((entry) => entry.id === workflow!.agentId)?.tools.find((entry) => entry.contract.runtimeId === step.tool!.runtimeId);

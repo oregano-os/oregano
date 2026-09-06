@@ -78,8 +78,14 @@ export function verifyWorkflowResponse(state, body) {
       || (receipt.approvalId !== undefined && !text(receipt.approvalId, /^[A-Za-z0-9._:-]{1,128}$/))) throw new Error("Workflow effect receipt metadata is invalid.");
   }
   for (const source of proof.sourceProofs) {
-    exact(object(source), ["stepId", "digest"]);
-    if (!text(source.stepId, step) || !text(source.digest, hash)) throw new Error("Workflow source proof metadata is invalid.");
+    exact(object(source), ["stepId", "digest", "requiredThrough", "snapshotId", "sources"]);
+    if (!text(source.stepId, step) || !text(source.digest, hash) || !text(source.snapshotId, hash)
+      || !Number.isFinite(Date.parse(source.requiredThrough)) || !Array.isArray(source.sources) || !source.sources.length || source.sources.length > 100) throw new Error("Workflow source proof metadata is invalid.");
+    for (const ref of source.sources) {
+      exact(object(ref), ["sourceId", "sourceDigest", "syncRunId", "syncedThrough", "watermarkDigest"]);
+      if (!text(ref.sourceId, /^[a-z][a-z0-9-]{1,62}$/) || !text(ref.sourceDigest, hash) || !text(ref.syncRunId, /^[A-Za-z0-9._:-]{1,255}$/)
+        || !Number.isFinite(Date.parse(ref.syncedThrough)) || !text(ref.watermarkDigest, hash)) throw new Error("Workflow source receipt reference is invalid.");
+    }
   }
   if (!Array.isArray(proof.approvingPrincipals) || JSON.stringify([...proof.approvingPrincipals].sort()) !== JSON.stringify([...state.expected_approvers].sort())) throw new Error("The run was not approved by the exact expected human principal set.");
   return proof;

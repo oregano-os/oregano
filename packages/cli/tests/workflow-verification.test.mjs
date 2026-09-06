@@ -18,7 +18,8 @@ const response = () => {
     artifactHash: value.artifact_hash, manifestHash: value.manifest_hash, coreCommit: value.core_commit, workspaceCommit: value.workspace_commit,
     environment: "preview", revision: 5, checks: codes.map((code) => ({ code, passed: true })), counts: { waits: 1, decisions: 1, batches: 1, effects: 1, sourceProofs: 1 },
     approvingPrincipals: value.expected_approvers, syntheticEvidence: false, receipts: [{ stepId: "apply", effectKey: `workflow:${"6".repeat(64)}`, inputDigest: "7".repeat(64), outputDigest: "8".repeat(64), approvalId: "example-approval" }],
-    sourceProofs: [{ stepId: "read", digest: "9".repeat(64) }] };
+    sourceProofs: [{ stepId: "read", digest: "9".repeat(64), requiredThrough: "2030-01-04T16:00:00.000Z", snapshotId: "a".repeat(64),
+      sources: [{ sourceId: "example-source", sourceDigest: "b".repeat(64), syncRunId: "example-sync", syncedThrough: "2030-01-04T16:00:00.000Z", watermarkDigest: "c".repeat(64) }] }] };
   return { ok: true, verification: { ...proof, ok: true, evidenceDigest: sha256(proof) }, deployment: { id: value.deployment.id, coreCommit: value.core_commit, artifactHash: value.artifact_hash, environment: "preview" } };
 };
 const resign = (body) => { const { ok, evidenceDigest, ...value } = body.verification; body.verification.evidenceDigest = sha256(value); return body; };
