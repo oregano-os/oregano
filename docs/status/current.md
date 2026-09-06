@@ -1150,6 +1150,14 @@ specified expectations live under fictional fixture assets and import no old
 executor. Provider responses, coverage and human decisions are synthetic inputs;
 these cases do not replace real Instance acceptance or complete assertion parity.
 
+Company-example engine and calendar cases now live under the fictional fixture
+directory, with thin test entrypoints. Additional actual-engine cases cover a
+holiday-shifted close with persisted same-day waits and business-day expiry,
+a summer opening at the declared local wall time,
+six independent weekly openings without duplicate evidence or publications,
+and separate timer identities for two operator runs of the same period. These
+are synthetic lifecycle proofs, not another scenario executor or publisher.
+
 The maintained Monday adapter now accepts distinct values in the exact approved
 batch array. A new actual-adapter traversal exposed and removes its extra
 identical-values restriction, which blocked mixed readiness label changes after
