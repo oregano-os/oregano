@@ -242,3 +242,16 @@ test("current human eligibility is checked again after notice delivery and befor
   const blocked = (await h.engine().advance(run.runId))!; assert.ok(blocked.state.blocked);
   assert.equal(h.calls.filter((c) => c.capability === "work-item.batch-update").length, 0);
 });
+
+test("transient feedback runs only after exact human authorization and never on redelivery", async () => {
+  const h = engineFixture(), run = await atDecision(h), decision = response(h, run);
+  let calls = 0;
+  const feedback = async () => { calls++; };
+  await assert.rejects(h.engine().decide({ ...decision, requestId: "wrong" }, feedback));
+  await assert.rejects(h.engine().decide({ ...decision, principal: ENGINE_OPERATOR }, feedback));
+  assert.equal(calls, 0);
+  await h.engine().decide(decision, async () => { calls++; throw new Error("presentation failure"); });
+  assert.equal(calls, 1);
+  await h.engine().decide(decision, feedback);
+  assert.equal(calls, 1);
+});

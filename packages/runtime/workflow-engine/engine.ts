@@ -317,7 +317,7 @@ export class WorkflowEngine {
 
 
   /** Trusted transport must authenticate principal, conversation and provider event identity. */
-  async decide(args: { principal: string; conversation: WorkflowConversation; eventId: string; requestId: string; decision: "approved" | "rejected" }): Promise<WorkflowRun> {
+  async decide(args: { principal: string; conversation: WorkflowConversation; eventId: string; requestId: string; decision: "approved" | "rejected" }, onValidated?: (language?: string) => Promise<void>): Promise<WorkflowRun> {
     opaqueId(args.eventId);
     const now = this.#now(), store = this.#options.store, instanceId = this.#artifact.instance.id;
     const assignment = await store.deliveredAssignment({ instanceId, conversation: { ...args.conversation, subjectPrincipal: args.principal } });
@@ -332,11 +332,13 @@ export class WorkflowEngine {
     const run = await store.claim({ instanceId, runId: prior.runId, owner: "workflow-human-response", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
     if (!run) throw new WorkflowLeaseLostError();
     try {
-      const { workflow, step } = await this.#definition(run), decision = run.state.decisions[step.id];
+      const { artifact, workflow, step } = await this.#definition(run), decision = run.state.decisions[step.id];
       if (!step.decision || assignment.stepId !== step.id || !decision || decision.status !== "pending" || decision.expiresAt <= now
         || workflowDecisionId(run.runId, step.id, decision.boundDigest) !== args.requestId) throw new Error("Human response is stale, expired or names another bound decision");
       const member = authorizeWorkflowDecisionPrincipal(await this.#options.currentRoster(), args.principal, workflow, step);
       if (!Object.hasOwn(decision.deliveries, member.id!)) throw new Error("Human response has no delivered review notice for this exact member");
+      // Presentation is optional and cannot authorize, veto or alter the decision.
+      if (onValidated) { try { await onValidated(artifact.language); } catch { /* Continue durable processing if presentation fails. */ } }
       const state = structuredClone(run.state), recorded = state.decisions[step.id]!;
       recorded.status = args.decision; recorded.approvingPrincipal = args.principal; recorded.responseEventId = args.eventId; recorded.decidedAt = now;
       this.#finish(state, step, { bound: recorded.bound, decision: args.decision }, now, args.decision === "approved" ? step.decision.targets.approve : step.decision.targets.reject);

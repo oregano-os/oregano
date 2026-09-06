@@ -1,3 +1,4 @@
+import { decisionFeedback, type DecisionFeedback } from "../../../runtime/decision-feedback.ts";
 import { Actions, Button, Card, CardText } from "chat";
 
 /** Shared native-card presentation; Tool and workflow decisions keep their own handlers. */
@@ -24,12 +25,11 @@ export function decisionCard(args: {
   ] });
 }
 
-/** A recorded decision closes the controls; it does not claim effect completion. */
-export function resolvedDecisionCard(decision: "approved" | "rejected") {
-  return Card({
-    title: decision === "approved" ? "Approved — decision recorded" : "Rejected — decision recorded",
-    children: [CardText(decision === "approved"
-      ? "Your approval was saved. The workflow may now execute the reviewed changes; this is not confirmation that those changes have finished."
-      : "Your rejection was saved. The proposed changes were not authorized and will not be applied by this decision.")],
-  });
+/** Feedback never exposes controls or claims completion of downstream effects. */
+export function feedbackDecisionCard(status: DecisionFeedback, language?: string) {
+  const text = decisionFeedback(status, language);
+  return Card({ title: text.title, children: [CardText(text.content)] });
+}
+export function resolvedDecisionCard(decision: "approved" | "rejected", language?: string) {
+  return feedbackDecisionCard(decision, language);
 }

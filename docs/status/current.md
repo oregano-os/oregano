@@ -1369,3 +1369,10 @@ the [provider operations guide](../operations/vercel-connect-workflow-interactio
 operator qualification, not a newly implemented automatic setup diagnostic.
 Local contract tests and a healthy deployment cannot qualify a new provider
 installation or replace its real human decision test.
+
+Decision response presentation now includes authorized transient processing and
+uncertain-result handling, without adding a Workflow step. New Artifacts retain
+the existing company language for English/German system feedback; unsupported or
+older language metadata falls back to English. Hosted latency improvement still
+requires measurement on the deployed candidate and a real user click; local
+response tests alone do not prove a perceptible improvement.

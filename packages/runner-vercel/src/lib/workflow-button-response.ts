@@ -1,14 +1,33 @@
-import { resolvedDecisionCard } from "./decision-cards.ts";
+import { feedbackDecisionCard, resolvedDecisionCard } from "./decision-cards.ts";
 
-/** Persist authority before projecting it into a transport card. Redelivery can
- * retry the projection without treating an edit failure as a decision failure. */
+/** The engine calls onValidated only after exact current decision authorization.
+ * Processing is transient; only durable acceptance may show a success notice. */
 export async function recordWorkflowButtonResponse(args: {
-  decide: () => Promise<{ runId: string; decision: "approved" | "rejected" }>;
+  decide: (onValidated: (language?: string) => Promise<void>) => Promise<{ runId: string; decision: "approved" | "rejected" }>;
   replace: (card: ReturnType<typeof resolvedDecisionCard>) => Promise<unknown>;
+  language?: string;
+  observe?: (phase: "validated" | "processing" | "recorded" | "resolved", elapsedMs: number) => void;
 }) {
-  const recorded = await args.decide();
+  const start = performance.now();
+  let language = args.language, processingShown = false;
+  const mark = (phase: "validated" | "processing" | "recorded" | "resolved") => { try { args.observe?.(phase, Math.round(performance.now() - start)); } catch { /* Telemetry is not authority. */ } };
+  let recorded;
   try {
-    await args.replace(resolvedDecisionCard(recorded.decision));
+    recorded = await args.decide(async (historicalLanguage) => {
+      language = historicalLanguage ?? args.language;
+      mark("validated");
+      try { await args.replace(feedbackDecisionCard("processing", language)); processingShown = true; }
+      catch { /* A presentation failure must not prevent the user's decision. */ }
+      mark("processing");
+    });
+  } catch (error) {
+    if (processingShown) await args.replace(feedbackDecisionCard("uncertain", language)).catch(() => undefined);
+    throw error;
+  }
+  mark("recorded");
+  try {
+    await args.replace(resolvedDecisionCard(recorded.decision, language));
+    mark("resolved");
     return { ...recorded, presentation: "updated" as const };
   } catch (error) {
     return { ...recorded, presentation: "failed" as const, error };

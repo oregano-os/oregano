@@ -32,3 +32,32 @@ test("card delivery failure preserves the recorded result and can be retried", a
   const retry = await recordWorkflowButtonResponse({ decide: async () => recorded, replace: async () => undefined });
   assert.equal(retry.presentation, "updated");
 });
+
+test("validated action shows localized processing before durable acceptance", async () => {
+  const cards: string[] = [], phases: string[] = [];
+  await recordWorkflowButtonResponse({
+    decide: async (validated) => { await validated("de-DE"); assert.match(cards[0]!, /verarbeitet/); return { runId: "run", decision: "approved" }; },
+    replace: async (card) => { cards.push(JSON.stringify(card)); },
+    observe: (phase) => { phases.push(phase); },
+  });
+  assert.match(cards[1]!, /Freigabe gespeichert/);
+  assert.deepEqual(phases, ["validated", "processing", "recorded", "resolved"]);
+  assert.ok(cards.every((card) => !card.includes('"actions"')));
+});
+test("failed processing notice cannot veto the decision", async () => {
+  let edits = 0;
+  const result = await recordWorkflowButtonResponse({
+    decide: async (validated) => { await validated(); return { runId: "run", decision: "rejected" }; },
+    replace: async () => { if (++edits === 1) throw new Error("transport"); },
+  });
+  assert.equal(result.decision, "rejected"); assert.equal(edits, 2);
+});
+test("failed persistence replaces processing with uncertainty, never success", async () => {
+  const cards: string[] = [];
+  await assert.rejects(recordWorkflowButtonResponse({
+    decide: async (validated) => { await validated(); throw new Error("storage unavailable"); },
+    replace: async (card) => { cards.push(JSON.stringify(card)); },
+  }), /storage unavailable/);
+  assert.equal(cards.length, 2); assert.match(cards[1]!, /could not be confirmed/);
+  assert.ok(cards.every((card) => !card.includes("decision recorded")));
+});

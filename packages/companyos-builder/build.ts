@@ -83,6 +83,7 @@ export function buildCompanyOSArtifact(args: {
   const withoutHash = {
     schemaVersion: 1 as const,
     company: workspace.company,
+    ...(workspace.language ? { language: workspace.language } : {}),
     instance: { id: args.instance.instanceId, environment: args.instance.environment },
     provenance: {
       coreVersion,

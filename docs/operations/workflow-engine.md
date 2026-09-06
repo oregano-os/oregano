@@ -74,3 +74,18 @@ controls after approve/reject, no edit after failed authorization, and preserved
 decision state after a presentation failure. These tests cannot establish a
 customer's external installation routing. The hosted gate above remains an
 explicit operator qualification; it is not an automatic universal setup doctor.
+
+## Feedback while saving a decision
+
+After the current user and exact request pass authorization, the interface may
+show “Processing your decision…”. This is temporary feedback, not a new
+Workflow step or a saved decision. A success notice appears only after the
+decision is stored. If storage fails, show that the result could not be confirmed
+and direct the user to an administrator; do not claim rejection or success.
+
+System feedback uses the existing working language from the Workspace's company
+file. New Artifacts retain it; no new required Workspace field is introduced.
+The current system-message catalog supports English and German, including
+regional language tags. Older Artifacts without this field, unsupported languages
+and invalid tags fall back to English. Business explanations and button labels
+remain authored in the Workspace. Runtime decisions stay in the Instance store.

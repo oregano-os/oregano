@@ -617,3 +617,11 @@ state and provider effects separately under the
 [interaction acceptance gate](../operations/workflow-engine.md#hosted-interaction-acceptance-gate).
 Hosting-specific registration belongs to provider operations guides; the
 workflow decision contract does not require any particular host or chat system.
+
+Transient decision feedback is a transport projection. It cannot grant authority,
+add a Workflow state, change bound inputs, or veto a decision when delivery fails.
+It may begin only after exact current decision authorization. A stored success
+notice must follow durable acceptance. Exact response redelivery must not reset
+a completed card to processing. The optional Artifact language is presentation
+metadata derived from the existing Workspace company language; old Artifacts
+remain valid with the documented fallback.

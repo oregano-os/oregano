@@ -1,3 +1,4 @@
+import { decisionFeedback } from "../../../runtime/decision-feedback.ts";
 import { decisionCard } from "./decision-cards.ts";
 import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
 import { randomUUID } from "node:crypto";
@@ -491,26 +492,32 @@ function registerHandlers(bot: Chat) {
   });
   bot.onAction(["companyos.workflow.approve", "companyos.workflow.reject"], async (event) => {
     if (!event.thread || !event.value) return;
+    let feedbackLanguage: string | undefined;
     try {
       if (event.adapter.name !== "slack") throw new Error("Workflow action reached the wrong transport");
       if (!workflowHostingEnabled()) throw new Error("Workflow interactions are unavailable in this Instance");
+      const started = performance.now();
       const { createWorkflowHost } = await import("./workflow-host.ts");
       const host = await createWorkflowHost();
+      feedbackLanguage = host.artifact.language;
+      console.info(JSON.stringify({ event: "workflow.button.host-ready", elapsedMs: Math.round(performance.now() - started) }));
       const result = await recordWorkflowButtonResponse({
-        decide: () => host.conversations.receiveAction({ actionId: event.actionId, value: event.value!,
-          threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw }),
+        language: host.artifact.language,
+        observe: (phase, elapsedMs) => console.info(JSON.stringify({ event: "workflow.button.phase", phase, elapsedMs })),
+        decide: (onValidated) => host.conversations.receiveAction({ actionId: event.actionId, value: event.value!,
+          threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw }, onValidated),
         replace: (card) => event.adapter.editMessage(event.threadId, event.messageId, card),
       });
       if (result.presentation === "failed") {
         console.error(JSON.stringify({ event: "workflow.button.presentation-failed", runId: result.runId,
           reference: sha256(result.error instanceof Error ? result.error.message : String(result.error)) }));
-        await event.thread.post(`Your ${result.decision === "approved" ? "approval" : "rejection"} was saved, but the card could not be updated. Please do not click again.`)
+        await event.thread.post(decisionFeedback("delivery", feedbackLanguage).content)
           .catch(() => console.error(JSON.stringify({ event: "workflow.button.receipt-failed", runId: result.runId })));
       }
     } catch (error) {
       const reference = sha256(error instanceof Error ? error.message : String(error));
       console.error(JSON.stringify({ event: "workflow.button.failed", reference }));
-      await event.thread.post(`This decision could not be accepted. It may be expired, already resolved, or belong to another Instance. No new decision was inferred. Reference: ${reference}`);
+      await event.thread.post(`${decisionFeedback("uncertain", feedbackLanguage).content} (${reference})`);
     }
   });
 

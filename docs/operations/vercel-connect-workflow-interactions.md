@@ -68,3 +68,19 @@ For a Slack timeout or unchanged decision card, inspect these checkpoints:
 A non-decision diagnostic proves forwarding only. A real human click must prove
 button identity and authorization. Never submit a manufactured human approval,
 disable request verification, or route an arbitrary callback URL from a button.
+
+## Visible processing feedback and timing
+
+The current handler can replace the original card with a processing notice only
+after the engine has checked the exact request and current human authorization.
+This is not a native client-side loading button: network and verification time
+still precede the update. The subsequent edit confirms the persisted decision.
+If saving fails after processing was shown, the handler attempts to replace the
+notice with an uncertain-result message and reports the failure separately.
+
+The handler emits `workflow.button.host-ready` duration and
+`workflow.button.phase` milestones (`validated`, `processing`, `recorded`,
+`resolved`). Phase durations are cumulative from entry to the response helper;
+host creation is measured separately. Compare provider ingress timing as well.
+No payload, credential, decision text or identity is included in these timings.
+A card update failure does not roll back a saved human decision.

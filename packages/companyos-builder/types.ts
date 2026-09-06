@@ -179,6 +179,7 @@ export interface CompiledAgent {
 export interface CompanyOSArtifact {
   schemaVersion: 1;
   company: string;
+  language?: string;
   instance: { id: string; environment: string };
   provenance: {
     coreVersion: string;

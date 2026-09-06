@@ -38,6 +38,7 @@ export interface LoadedAgent {
 
 export interface LoadedWorkspace {
   company: string;
+  language?: string;
   version: string;
   roster: RosterMember[];
   agents: LoadedAgent[];
@@ -85,6 +86,7 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
   }
   return {
     company: requireString(company.data.name, "company.name"),
+    ...(typeof company.data.language === "string" ? { language: company.data.language } : {}),
     version: requireExactSemanticVersion(company.data.workspace_version, "company.workspace_version"),
     roster: parseRoster(allFiles["handbook/roster.md"] ?? ""),
     agents: agents.sort((a, b) => a.id.localeCompare(b.id)),
