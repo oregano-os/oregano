@@ -15,6 +15,28 @@ const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required database configuration is missing.");
 const fixture = () => engineFixture({ store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
 
+test("Postgres competing ordinary workers retain every step and one publication across store reconstruction", { skip: !enabled }, async () => {
+  const h = fixture();
+  const opened = await h.engine().openOperator({ workflowId: "monday-handoff", requestId: randomUUID(), principal: ENGINE_OPERATOR,
+    fields: { period_start: "2030-01-07", period_end: "2030-01-11" } });
+  await Promise.all(Array.from({ length: 4 }, () => h.engine().advance(opened.runId)));
+  const run = (await h.engine().advance(opened.runId))!;
+  assert.equal(run.state.status, "done");
+  assert.deepEqual(Object.entries(run.state.steps).sort(([a], [b]) => a.localeCompare(b)).map(([id, step]) => [id, step.status]), [
+    ["current-items", "succeeded"], ["directory", "succeeded"], ["handoff-view", "succeeded"],
+    ["participant-roles", "succeeded"], ["participants", "succeeded"], ["post-handoff", "succeeded"],
+  ]);
+  assert.equal((run.state.steps["handoff-view"]!.output as any).unique_work_item_count, 1);
+  const events = await h.control.listEvents(run.runId);
+  assert.deepEqual(events.filter((event) => event.event === "workflow.step-completed").map((event) => event.step_id ?? event.stepId).sort(), Object.keys(run.state.steps).sort());
+  assert.equal(events.filter((event) => event.event === "workflow.opened").length, 1);
+  assert.equal(h.calls.filter((call) => call.capability === "communication.message.publish").length, 1);
+  const recovered = engineFixture({ artifact: h.artifact, store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+  assert.deepEqual(await recovered.engine().advance(run.runId), run);
+  assert.deepEqual(await recovered.control.listEvents(run.runId), events);
+  assert.equal(recovered.calls.length, 0);
+});
+
 test("Postgres verification joins the consumed approval and preserves run, event and effect state", { skip: !enabled }, async () => {
   const { h, run } = await completedVerificationFixture({ store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
   const events = await h.control.listEvents(run.runId), calls = h.calls.length;
