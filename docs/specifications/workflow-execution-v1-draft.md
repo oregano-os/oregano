@@ -366,6 +366,12 @@ required implementation and activation gates.
 
 ## Maintained hosted adapter
 
+The public computation fixture suite uses the maintained Company Tool source
+inspector, input/output schemas and isolated runner. Frozen synthetic cases
+preserve selected close, rollover and readiness comparisons without importing
+legacy runtime code. This is computation evidence only: sequencing, provider
+coverage, real decisions and complete legacy removal require their own gates.
+
 The Vercel host exposes generic timer, step, Records and operator endpoints, with strict
 Artifact/Instance/environment activation and distinct scheduler/human operator
 credentials. Business periods remain explicit operator inputs; automatic

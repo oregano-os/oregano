@@ -20,6 +20,13 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Public fixture tests run 28 computation cases through the maintained Company
+  Tool inspector and isolation: 17 contract cases and 11 frozen synthetic
+  outputs checked against the legacy close/rollover/readiness oracle. These
+  cover selected computation semantics, not complete engine parity, live source
+  coverage or human acceptance. The separate legacy executor remains pending
+  the full migration gates.
+
 - Generic hosted workers now expose `/api/workflows/timers`, `steps`, `records` and
   `operator`, with explicit Artifact/Instance activation, separate operator and
   scheduler credentials, durable pagination and no inferred business periods.
