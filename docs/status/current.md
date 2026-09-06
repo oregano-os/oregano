@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Hosted workflow and real Postgres engine cases now reside in fictional
+  fixture assets behind unchanged CI entrypoints. Their authentication,
+  decision, timer, concurrency and recovery assertions remain intact; database
+  execution is still mandatory and rejects skips. An ordinary handoff case
+  verifies that participant and item labels cannot inject Slack mentions or
+  links through the Workspace rendering Tool before governed publication.
+  This is synthetic regression evidence, not real-provider acceptance.
+
 - Completed workflow evidence has a read-only operator `verify` action and
   `companyos verify-live --scope workflow`. The verifier checks the pinned
   execution journal, waits, human decisions, source completeness claims,

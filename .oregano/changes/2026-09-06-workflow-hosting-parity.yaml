@@ -1,0 +1,47 @@
+version: 3
+plan_id: workflow-hosting-parity-2026-09-06
+created: "2026-09-06"
+title: Retain hosted and database engine proofs as fictional fixture cases
+objective: >-
+  Keep existing hosted execution and real Postgres engine assertions under the
+  fictional fixture boundary with unchanged CI entrypoints. Prove that the
+  ordinary Monday workflow treats participant and item labels as data.
+non_goals:
+  - Change runtime behavior, source completeness policy or production.
+  - Remove legacy execution before full parity and actual Instance acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-hosting-parity.yaml
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - packages/testkit/fixtures/workflow-engine-postgres.test.ts
+  - packages/testkit/fixtures/workflow-message-data.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/workflow-message-data.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/workflow-message-data.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse the ordinary engine, hosted workers, authentication and durable stores.
+    packages: No Package or Connector changes.
+    workspace: Fictional workflow expectations and rendering policy remain fixture assets.
+    instance: Real isolated Postgres exercises concurrency and recovery; provider effects remain synthetic.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve real hosted and database execution proofs without retaining a dedicated business executor.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Ordinary fixture entrypoints exercise reusable workers and stores without an embedded company simulator.
+rollback: Revert fixture placement and the added case; retain historical evidence and the legacy comparison oracle until acceptance.
