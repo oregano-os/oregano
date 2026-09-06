@@ -1,0 +1,44 @@
+version: 3
+plan_id: workflow-fixture-conformance-2026-09-06
+created: "2026-09-06"
+title: Preserve close and weekly behavior through actual Workspace execution
+objective: >-
+  Exercise the original close cohort and task cases through the ordinary engine,
+  including deadline sequencing, approved absences, all-open rollover and current
+  weekly work facts, with independently specified synthetic expectations.
+non_goals:
+  - Declare full assertion parity, provider watermark coverage or live acceptance.
+  - Remove the legacy comparison oracle before migration acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-fixture-conformance.yaml
+  - packages/testkit/fixtures/workflow-parity-cases.ts
+  - packages/testkit/fixtures/workflow-fixture-conformance.test.ts
+  - packages/testkit/fixtures/workflow-computations.test.ts
+  - packages/testkit/tests/workflow-fixture-conformance.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-fixture-conformance.test.ts
+  - packages/testkit/tests/workflow-company-tools.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Existing engine and isolated Tool execution enforce the compiled workflow.
+    packages: No Package implementation or authority changes.
+    workspace: Synthetic inputs and expected business outcomes remain fixture assets.
+    instance: Test-only memory stores and provider responses carry no live acceptance claim.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Exercise existing ordinary execution, persisted receipts and bound decisions against fixture expectations.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Shared test entrypoints execute fixture data without importing a business executor.
+rollback: Revert the fixture change; retain the old oracle until all parity and actual migration gates pass.
