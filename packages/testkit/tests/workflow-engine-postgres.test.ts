@@ -108,3 +108,26 @@ test("Postgres keyed messages and business-day timers survive reconstructed work
   assert.equal((await h.store.read(run.instanceId, run.runId))!.state.status, "cancelled");
   assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 0);
 });
+
+test("Postgres unknown batch evidence remains reviewable after reconstructing both stores and never authorizes retry", { skip: !enabled }, async () => {
+  const h = fixture();
+  let run = await h.engine().openOperator({ workflowId: "friday-close", requestId: randomUUID(), principal: ENGINE_OPERATOR, fields: { sprint_id: "one", next_sprint_id: "two" } });
+  await h.engine().advance(run.runId);
+  for (const instant of ["2030-01-04T15:20:00.000Z", "2030-01-04T16:00:00.000Z"]) {
+    h.now = instant; await h.engine().timers(); run = (await h.engine().advance(run.runId))!;
+    assert.equal(run.state.blocked, undefined);
+  }
+  const decision = run.state.decisions["approve-rollover"]!;
+  await h.engine().decide({ principal: ENGINE_OWNER, conversation: h.conversation("direct-jonas-owner", decision.deliveries["jonas-owner"]!), eventId: randomUUID(),
+    requestId: workflowDecisionId(run.runId, decision.stepId, decision.boundDigest), decision: "approved" });
+  h.unknownBatch = true; run = (await h.engine().advance(run.runId))!; assert.ok(run.state.blocked);
+  const report = await h.engine().review(run.runId, ENGINE_OPERATOR);
+  const restarted = engineFixture({ artifact: h.artifact, store: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(), timerStore: createPostgresDurableTimerStore() });
+  restarted.now = h.now;
+  assert.deepEqual(await restarted.engine().review(run.runId, ENGINE_OPERATOR), report);
+  assert.deepEqual(report.effect.capabilities[0]?.items, [{ item_id: "item-1", status: "unknown" }]);
+  assert.equal(report.effect.retryAuthorized, false);
+  await assert.rejects(restarted.engine().resume(run.runId, ENGINE_OPERATOR), /reconciliation/);
+  await restarted.engine().advance(run.runId); assert.equal(restarted.calls.length, 0);
+  assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 1);
+});

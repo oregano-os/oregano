@@ -29,7 +29,7 @@ export function engineArtifact(instanceId = `engine-${randomUUID()}`, workspaceR
  * Every publish and batch call counts: the provider deliberately has no deduplication.
  * Synthetic coverage below is test input, not a Slack/Monday qualification claim.
  */
-export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
+export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; batchConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
   const artifact = options.artifact ?? engineArtifact(), memory = new InMemoryWorkflowExecutionStore();
   const store = options.store ?? memory, control = options.control ?? memory.control, timerStore = options.timerStore ?? new InMemoryDurableTimerStore();
   const timers = new DurableTimerService({ store: timerStore, instanceId: artifact.instance.id });
@@ -41,7 +41,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
     items: [{ record_id: "item-1", values: { work_item_id: "item-1", title: "Fictional deliverable", assignee_ids: ["lea-contributor"], status: "Working", provider_version: "v1", group: "in_sprint", url: "https://example.test/items/1" } }] as Array<{ record_id: string; values: Record<string, JsonValue> }>,
     planning: [] as Array<{ record_id: string; values: Record<string, JsonValue> }>,
   };
-  const connector: Connector = { id: "test/engine", version: "1.0.0", capabilities: artifact.bindings.map((b) => b.capability), async invoke(capability, raw) {
+  const connector: Connector = { id: "test/engine", version: "1.0.0", capabilities: artifact.bindings.map((b) => b.capability), async invoke(capability, raw, context) {
     const input = raw as Record<string, any>; fixture.calls.push({ capability, input: structuredClone(input) });
     if (capability === "directory.members.query") {
       const directory = new RecordIdentityDirectory(fixture.roster);
@@ -60,6 +60,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
     if (capability === "communication.message.publish") return { output: { destination_binding: input.destination_binding, message_id: `message-${fixture.calls.length}`, published_at: fixture.now,
       ...(fixture.missingThread ? {} : { thread_reference: input.thread_reference ?? `thread-${fixture.calls.length}` }) }, evidence: { synthetic: true, receipt: fixture.calls.length } };
     if (capability === "work-item.batch-update") {
+      if (options.batchConnector) return options.batchConnector.invoke(capability, input, context);
       if (fixture.unknownBatch) throw new CapabilityEffectOutcomeUnknownError("Synthetic partial batch outcome", { synthetic: true, partial: true });
       return { output: { complete: true, results: input.updates.map((update: any) => ({ work_item_id: update.work_item_id, applied: true })) }, evidence: { synthetic: true, receipt: fixture.calls.length } };
     }

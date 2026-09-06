@@ -414,3 +414,20 @@ before each source read, preserves generation identity, retains bounded scan
 cursors and reuses completed source receipts after restart. Removing a pair
 or disabling its workflow stops future historical polling without rewriting
 retained state. Poll completion does not imply qualified time coverage.
+
+### Authenticated blocked-effect review
+
+The engine exposes one retained effect per review page for a blocked execution.
+Only a currently active human in the Instance operator allowlist can read it.
+It uses the opening Artifact, exact run/step/typed item effect identity and the
+ordinary effect store. The report includes run revision, provenance, effect
+status, evidence digests and validated per-item Capability outcomes. Unknown
+batch receipts without adequate item evidence report all requested items as
+unknown; absence of evidence never means unattempted. Broken input must not
+hide an already retained effect. Large foreach collections have explicit page
+continuations, and raw error strings/provider payloads are not returned.
+
+The operator review interface is read-only. Reviewing or acknowledging a report
+does not reconcile an effect, release a claim, substitute a human decision or
+resume execution. Automated business-owner notification and a governed recovery
+path still require their own delivery and reconciliation evidence.

@@ -16,6 +16,7 @@ import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, wor
 import { assertWorkflowOutput, resolveWorkflowValue, workflowItems, workflowOpeningFields } from "./references.ts";
 import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader } from "./readers.ts";
 import { workflowAssignmentKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
+import { workflowEffectReview } from "./effect-review.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -423,6 +424,29 @@ export class WorkflowEngine {
     const cancelled = await this.#options.store.cancel({ instanceId: this.#artifact.instance.id, runId, principal, now: this.#now() });
     if (cancelled) for (const timer of await this.#options.timers.list("workflow")) if ((timer.payload as Record<string, JsonValue>).run_id === runId) await this.#options.timers.cancel(timer.timerId, { outcome: "run-cancelled" }, this.#now());
     return cancelled;
+  }
+
+  /** One effect per page keeps review bounded even for large keyed collections. */
+  async review(runId: string, principal: string, offset = 0) {
+    await this.#operator(principal);
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset >= 10000) throw new Error("Invalid workflow review offset");
+    const run = await this.#options.store.read(this.#artifact.instance.id, runId);
+    if (!run?.state.blocked) throw new Error("Workflow has no blocked execution to review");
+    const { artifact, workflow, step } = await this.#definition(run), ctx = workflowContext(run, await this.#options.currentRoster());
+    const items = !step.tool ? [] : step.forEach ? workflowItems(step, workflow, ctx)
+      : step.decision ? (run.state.decisions[step.id]?.recipients ?? []).map((key) => ({ key, value: undefined })) : [{ key: undefined, value: undefined }];
+    if (offset >= Math.max(1, items.length)) throw new Error("Workflow review offset exceeds the collection");
+    const item = items[offset], context = { ...ctx, ...(item?.key === undefined ? {} : { itemKey: item.key, ...(item.value === undefined ? {} : { item: item.value }) }) };
+    const idempotencyKey = item ? workflowEffectKey(artifact, context) : undefined;
+    let input: JsonValue = null, inputAvailable = false;
+    try { if (item) { input = workflowToolInput(artifact, workflow, step, context); inputAvailable = true; } } catch { /* Broken input must not hide an already retained receipt. */ }
+    const effect = idempotencyKey ? await this.#options.control.getEffect(idempotencyKey) : undefined;
+    return { runId, workflowId: run.workflowId, artifactHash: run.artifactHash, manifestHash: run.manifestHash,
+      revision: run.revision, stepId: step.id, blocked: run.state.blocked,
+      message: "Execution is stopped. Inspect the retained receipts and provider state before any separate recovery decision. This report does not authorize retry.",
+      offset, totalEffects: items.length, inputAvailable, ...(offset + 1 < items.length ? { nextOffset: offset + 1 } : {}),
+      ...(item?.key === undefined ? {} : { itemKey: item.key }), ...(idempotencyKey ? { idempotencyKey } : {}),
+      effect: workflowEffectReview(effect, input) };
   }
 
   async resume(runId: string, principal: string): Promise<WorkflowRun> {

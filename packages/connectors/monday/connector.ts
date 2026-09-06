@@ -120,6 +120,11 @@ export class MondayWorkItemConnector implements Connector {
         resource_binding: binding.id,
         planned_work_item_ids: ids,
         completed: results,
+        effect_review: { version: 1, items: ids.map((id, index) => ({
+          item_id: id,
+          status: index < results.length ? "verified" : index === results.length ? "unknown" : "not-attempted",
+          ...(results[index] ? { provider_version: results[index]!.provider_version } : {}),
+        })) },
         error_digest: createHash("sha256").update(error instanceof Error ? error.message : String(error)).digest("hex"),
       });
     }
