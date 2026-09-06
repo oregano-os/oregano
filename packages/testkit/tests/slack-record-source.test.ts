@@ -131,6 +131,8 @@ test("Slack Record Source returns a complete, ordered, threaded communication in
     qualification: qualification as unknown as Record<string, unknown>,
   });
   assert.equal(inventory.complete, true);
+  assert.equal(inventory.scan_started_at, "2030-01-02T01:00:00.000Z");
+  assert.equal(inventory.synced_through, undefined, "a current scan is not historical coverage");
   assert.deepEqual(inventory.objects.map((message) => message.message_id), [
     "1893456000.000100",
     "1893456001.000100",
@@ -148,6 +150,21 @@ test("Slack Record Source returns a complete, ordered, threaded communication in
   assert.match(inventory.watermark, /^slack:[a-f0-9]{64}$/);
   assert.equal(inventory.receipt.authenticated_bot_user_id, "U99999");
   assert.equal(inventory.receipt.identity_checked_at, "2030-01-02T01:00:00.000Z");
+});
+
+test("Slack current scan interval begins before provider requests and ends after pagination", async () => {
+  const fixtureTransport = fixture();
+  const qualification = await qualified(fixtureTransport.fetcher as typeof fetch);
+  const start = Date.parse("2030-01-02T01:00:00.000Z");
+  let current = start;
+  const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", now: () => new Date(current),
+    fetcher: async (input) => { const result = await fixtureTransport.fetcher(input); current += 1_000; return result; } });
+  const inventory = await connector.readCompleteInventory({ source, binding: binding(qualification.evidence.discovery.discovery_hash),
+    qualification: qualification as unknown as Record<string, unknown> });
+  assert.equal(inventory.scan_started_at, new Date(start).toISOString());
+  assert.equal(inventory.observed_at, new Date(current).toISOString());
+  assert.ok(current > start);
+  assert.equal(inventory.synced_through, undefined);
 });
 
 test("Slack rereads current account, actor, conversation and scopes before any message inventory", async () => {

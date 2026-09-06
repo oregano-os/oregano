@@ -7,7 +7,7 @@ import type { CompanyRecordsRegistry } from "./registry.ts";
 import { CompanyRecordsService } from "./service.ts";
 import type { RecordSourceInventory } from "./source-connector.ts";
 import { sha256 } from "../runtime/canonical.ts";
-import { recordQueryInstant } from "./query.ts";
+import { MAX_RECORD_QUERY_ROWS, recordQueryInstant } from "./query.ts";
 
 export const DEFAULT_RECORD_SNAPSHOT_CONCURRENCY = 8;
 export const MAX_RECORD_SNAPSHOT_CONCURRENCY = 32;
@@ -63,12 +63,18 @@ export async function synchronizeRecordSnapshot(args: {
   if (inventory.synced_through !== undefined && recordQueryInstant(inventory.synced_through, "Source completeness") > observedAt) {
     throw new Error("Source completeness must be an instant no later than the inventory observation");
   }
+  if (inventory.scan_started_at !== undefined) {
+    if (recordQueryInstant(inventory.scan_started_at, "Scan start") > observedAt) throw new Error("Scan start cannot exceed inventory observation");
+    if (!inventory.watermark) throw new Error("Current scan requires a non-empty inventory watermark");
+  }
+  const versionIds: string[] = [];
   // Reject conflicting/repeated identities before any source event or projection mutation.
   const objectIds = new Set<string>();
   for (const raw of inventory.objects) {
     const version = registry.normalize({ instanceId, source, raw, observedAt: inventory.observed_at });
     if (objectIds.has(version.object_id)) throw new Error("Record inventory contains a repeated object identity");
     objectIds.add(version.object_id);
+    versionIds.push(version.version_id);
   }
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
@@ -127,6 +133,9 @@ export async function synchronizeRecordSnapshot(args: {
       watermark: inventory.watermark,
       ...(inventory.synced_through ? { synced_through: inventory.synced_through } : {}),
       source_digest: sourceDigest,
+      ...(inventory.scan_started_at ? { scan_started_at: inventory.scan_started_at,
+        ...(versionIds.length <= MAX_RECORD_QUERY_ROWS ? { scan_version_ids: versionIds.sort() } : {}),
+      } : {}),
       projection_digests: Object.fromEntries(registry.projectionsForRecordType(source.record_type)
         .map((projection) => [projection.id, sha256(projection)])),
       provider_evidence: structuredClone(inventory.receipt),

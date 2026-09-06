@@ -1,7 +1,8 @@
+import { currentScanSnapshot } from "./current-scan.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import { canonicalJson, sha256 } from "../runtime/canonical.ts";
 import type { ProjectionPage, RecordReadSnapshot } from "../state-store/records.ts";
-import type { CompanyRecordProjectionDeclaration, RecordFilterDeclaration, RecordProjectionRow, RecordQuery, RecordSourceProof } from "./contracts.ts";
+import type { CompanyRecordProjectionDeclaration, RecordFilterDeclaration, RecordProjectionRow, RecordQuery, RecordSourceProof, RecordSourceScanProof } from "./contracts.ts";
 
 export const MAX_RECORD_QUERY_ROWS = 10_000;
 const pathPattern = /^[a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*$/;
@@ -98,8 +99,17 @@ export async function drainRecordPages(read: (cursor?: string) => Promise<Projec
 
 export async function queryRecordSnapshot(args: {
   snapshot: RecordReadSnapshot; projection: CompanyRecordProjectionDeclaration; sourceIds: string[]; sourceDigests: Record<string, string>; boundSourceIds?: string[]; query: RecordQuery;
-}): Promise<{ rows: RecordProjectionRow[]; next_cursor?: string; snapshot_id: string; source_proofs: RecordSourceProof[]; synced_through?: string }> {
-  const { query, snapshot, projection, sourceIds } = args;
+}): Promise<{ rows: RecordProjectionRow[]; next_cursor?: string; snapshot_id: string; source_proofs: RecordSourceProof[]; synced_through?: string; scan_started_at?: string; source_scan_proofs?: RecordSourceScanProof[] }> {
+  const { query, projection, sourceIds } = args;
+  let snapshot = args.snapshot;
+  if (query.require_scan_started_after !== undefined && query.require_synced_through !== undefined) {
+    throw new Error("Choose current scan or historical completeness explicitly, not both");
+  }
+  const scan = query.require_scan_started_after !== undefined ? currentScanSnapshot({ ...args, requiredAfter: query.require_scan_started_after, limit: MAX_RECORD_QUERY_ROWS }) : undefined;
+  if (scan) snapshot = { ...snapshot, rows: scan.rows, rowSources: snapshot.scanVersions!.map((version) => ({
+    version_id: version.version_id, source_id: version.source_id,
+    ...(typeof version.source_receipt.source_digest === "string" ? { source_digest: version.source_receipt.source_digest } : {}),
+  })) };
   const limit = query.limit ?? 50;
   if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error("Record page limit must be between 1 and 200");
   if (query.all_pages && query.cursor) throw new Error("A complete Record query cannot start at a partial cursor");
@@ -115,6 +125,7 @@ export async function queryRecordSnapshot(args: {
     }
   }
   const sourceProofs = sourceIds.flatMap((sourceId) => {
+    if (scan) return [];
     const receipt = snapshot.sourceReceipts.find((value) => value.source_id === sourceId && value.source_digest === args.sourceDigests[sourceId]
       && (!args.boundSourceIds?.includes(sourceId) || value.projection_digests?.[projection.id] === sha256(projection))
       && value.synced_through && value.watermark && value.errors === 0);
@@ -133,7 +144,7 @@ export async function queryRecordSnapshot(args: {
   }
   const rows = filterRecordRows(projection, query.filters ?? {}, snapshot.rows)
     .sort((a, b) => a.record_id < b.record_id ? -1 : a.record_id > b.record_id ? 1 : 0);
-  const snapshotId = sha256(canonicalJson({ projection, filters: query.filters ?? {}, rows, source_proofs: sourceProofs }));
+  const snapshotId = sha256(canonicalJson({ projection, filters: query.filters ?? {}, rows, source_proofs: sourceProofs, ...(scan ? { source_scan_proofs: scan.source_scan_proofs } : {}) }));
   const page = async (cursor?: string): Promise<ProjectionPage> => {
     let offset = 0;
     if (cursor) {
@@ -151,6 +162,7 @@ export async function queryRecordSnapshot(args: {
     ...("nextCursor" in first && first.nextCursor ? { next_cursor: first.nextCursor } : {}),
     snapshot_id: snapshotId,
     source_proofs: sourceProofs,
+    ...(scan ? { scan_started_at: scan.scan_started_at, source_scan_proofs: scan.source_scan_proofs } : {}),
     ...(through ? { synced_through: through } : {}),
   };
 }

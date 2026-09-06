@@ -35,7 +35,8 @@ export function createRecordGenerationStore(registry: CompanyRecordsRegistry, st
       sourceIds: [...ids.keys()], strictSourceScope: true,
       ...(args.sourceDigests ? { sourceDigests: Object.fromEntries(args.sourceIds.map((id) => [source(id), args.sourceDigests![id]!])) } : {}),
     });
-    return { rows: result.rows.map((value) => row(value, args.projectionId)),
+    return { ...(result.scanVersions ? { scanVersions: result.scanVersions.map((value) => version(value, logicalSource(value.source_id))!) } : {}),
+      rows: result.rows.map((value) => row(value, args.projectionId)),
       sourceReceipts: result.sourceReceipts.map((value) => ({ ...value, source_id: logicalSource(value.source_id),
         ...(value.projection_digests?.[projection(args.projectionId)] ? { projection_digests: {
           [args.projectionId]: value.projection_digests[projection(args.projectionId)]!,

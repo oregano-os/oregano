@@ -21,6 +21,8 @@ export interface CompanyRecordSourceBinding {
 export interface RecordSourceInventory {
   complete: true;
   observed_at: string;
+  /** Actual start of a complete current inventory read; never historical coverage. */
+  scan_started_at?: string;
   objects: Array<Record<string, JsonValue>>;
   watermark: string;
   /** Exact non-secret Instance binding and qualification used by this read. */

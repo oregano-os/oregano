@@ -143,6 +143,9 @@ export interface RecordSyncReceipt {
   /** Explicit source completeness, never inferred from a cursor or freshness. */
   synced_through?: string;
   source_digest?: string;
+  /** Actual provider-read start and exact immutable membership of a successful current scan. */
+  scan_started_at?: string;
+  scan_version_ids?: string[];
   /** Projection definitions materialized successfully by this source scan. */
   projection_digests?: Record<string, string>;
   /** Content-free inventory/identity receipt retained with this completed scan. */
@@ -166,6 +169,17 @@ export interface RecordQuery {
   cursor?: string;
   all_pages?: boolean;
   require_synced_through?: string;
+  require_scan_started_after?: string;
+}
+
+export interface RecordSourceScanProof {
+  source_id: string;
+  source_digest: string;
+  run_id: string;
+  scan_started_at: string;
+  scan_completed_at: string;
+  inventory_digest: string;
+  watermark: string;
 }
 
 export interface RecordSourceProof {
@@ -185,5 +199,7 @@ export interface RecordQueryResult {
   snapshot_id: string;
   source_proofs: RecordSourceProof[];
   synced_through?: string;
+  scan_started_at?: string;
+  source_scan_proofs?: RecordSourceScanProof[];
   access_decision: RecordAccessDecision;
 }

@@ -82,7 +82,7 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
     this.accessDecisions.push(structuredClone(decision));
   }
 
-  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; projectionDigest?: string; strictSourceScope?: boolean; limit: number }): Promise<RecordReadSnapshot> {
+  async readProjectionSnapshot(args: { instanceId: string; projectionId: string; sourceIds: string[]; sourceDigests?: Record<string, string>; projectionDigest?: string; strictSourceScope?: boolean; currentScan?: boolean; limit: number }): Promise<RecordReadSnapshot> {
     // No await: rows and receipts are copied at the same observation boundary.
     const allowedVersions = args.strictSourceScope ? new Set([...this.objectVersions.values()]
       .filter((value) => value.instance_id === args.instanceId && args.sourceIds.includes(value.source_id)).map((value) => value.version_id)) : undefined;
@@ -96,16 +96,19 @@ export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
       const receipt = this.syncReceipts.filter((value) => value.instance_id === args.instanceId && value.source_id === sourceId
         && (!args.sourceDigests || value.source_digest === args.sourceDigests[sourceId])
         && (!args.projectionDigest || value.projection_digests?.[args.projectionId] === args.projectionDigest)
-        && value.synced_through && value.watermark && value.errors === 0)
-        .sort((a, b) => compareRecordInstants(b.synced_through!, a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
+        && (args.currentScan ? value.scan_started_at : value.synced_through) && value.watermark && value.errors === 0)
+        .sort((a, b) => compareRecordInstants(args.currentScan ? b.scan_started_at! : b.synced_through!, args.currentScan ? a.scan_started_at! : a.synced_through!) || b.run_id.localeCompare(a.run_id))[0];
       return receipt ? [receipt] : [];
     });
+    const scanVersions = args.currentScan ? [...this.objectVersions.values()].filter((version) => version.instance_id === args.instanceId
+      && sourceReceipts.some((receipt) => receipt.source_id === version.source_id && receipt.scan_version_ids?.includes(version.version_id)))
+      .sort((a, b) => a.version_id.localeCompare(b.version_id)).slice(0, args.limit + 1) : undefined;
     const versionIds = new Set(rows.map((row) => row.source_version_id));
     const rowSources = [...this.objectVersions.values()]
       .filter((version) => version.instance_id === args.instanceId && versionIds.has(version.version_id))
       .map((version) => ({ version_id: version.version_id, source_id: version.source_id,
         ...(typeof version.source_receipt.source_digest === "string" ? { source_digest: version.source_receipt.source_digest } : {}) }));
-    return structuredClone({ rows, sourceReceipts, rowSources });
+    return structuredClone({ rows: args.currentScan ? [] : rows, sourceReceipts, rowSources, ...(scanVersions ? { scanVersions } : {}) });
   }
 
   async appendSyncReceipt(receipt: RecordSyncReceipt | RecordReconciliationReceipt): Promise<void> {

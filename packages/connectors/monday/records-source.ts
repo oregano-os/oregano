@@ -172,6 +172,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
       apiVersion, agentId, accountId, memberId, memberKind, externalAgentId, boardId, permission, groupIds, pageSize, maxPages, maxObjects,
       inventoryMode, qualifiedSubitemBoardIds,
     } = mondayConfiguration(source, binding, qualification);
+    const scanStartedAt = this.now().toISOString();
     const token = this.resolveSecret(binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${binding.secret_ref}' is unavailable`);
     const client = new MondayClient({ token, apiVersion, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
@@ -227,6 +228,7 @@ export class MondayRecordSourceConnector implements RecordSourceConnector {
     const inventoryDigest = digest(objects);
     return {
       complete: true,
+      scan_started_at: scanStartedAt,
       observed_at: observedAt,
       objects,
       watermark: `monday:${inventoryDigest}`,

@@ -11,6 +11,7 @@ export const RECORD_QUERY_INPUT_SCHEMA = object(["projection_id"], {
   cursor: { type: "string", minLength: 1, maxLength: 1_000 },
   all_pages: { type: "boolean" },
   require_synced_through: instant,
+  require_scan_started_after: instant,
 });
 
 export const RECORD_QUERY_OUTPUT_SCHEMA = object(["projection_id", "rows", "observed_at", "fresh_until", "access_decision", "snapshot_id", "source_proofs"], {
@@ -25,6 +26,11 @@ export const RECORD_QUERY_OUTPUT_SCHEMA = object(["projection_id", "rows", "obse
   synced_through: instant,
   source_proofs: { type: "array", items: object(["source_id", "source_digest", "run_id", "synced_through", "watermark"], {
     source_id: text, source_digest: text, run_id: text, synced_through: instant, watermark: text,
+  }) },
+  scan_started_at: instant,
+  source_scan_proofs: { type: "array", maxItems: 100, items: object(["source_id", "source_digest", "run_id", "scan_started_at", "scan_completed_at", "inventory_digest", "watermark"], {
+    source_id: text, source_digest: text, run_id: text, scan_started_at: instant, scan_completed_at: instant,
+    inventory_digest: { type: "string", pattern: "^[a-f0-9]{64}$" }, watermark: text,
   }) },
   access_decision: object(["allowed", "projection_id", "principal_id", "policy_digest", "reason", "decided_at"], {
     allowed: { type: "boolean" }, projection_id: text, principal_id: text, policy_digest: text,
