@@ -67,6 +67,15 @@ personal account.
 | Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |
 | Connected systems | For example Slack or Monday provider connections | Only when declared by an approved connection or Tool grant | Each connection has a named owner, minimum access, revocation path, and no secrets in Git. |
 
+For the maintained hosted Monday Connector, the Instance declaration pins the
+reviewed account, authenticated member, external-Agent kind and provider Agent
+subject in `credential_identity`; `actor_id` equals that member ID. Obtain these
+values from the completed external-Agent qualification receipt. Each retained
+Artifact needs its own reviewed configuration; a missing identity blocks access.
+The host rechecks the same credential and current resource permissions before
+invocation. This external check remains `manual` in local onboarding and does
+not make the Workspace a credential or provider-identity authority.
+
 Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider
 account. The maintained complete starter does require a Vercel account, consent
 to create or adopt a Neon Marketplace resource, permission to install the Slack

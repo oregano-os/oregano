@@ -18,8 +18,10 @@ export class MondayWorkItemConnector implements Connector {
   readonly instanceId: string;
   readonly echoStore: MondayEchoStore;
   readonly now: () => Date;
+  /** Trusted host hook; the maintained hosted factory requires it. Never a Tool argument. */
+  readonly qualifyCredential?: (binding: MondayResourceBinding) => Promise<Record<string, unknown>>;
 
-  constructor(args: { client: MondayClient; bindings: MondayResourceBinding[]; actorId: string; instanceId: string; echoStore: MondayEchoStore; now?: () => Date }) {
+  constructor(args: { client: MondayClient; bindings: MondayResourceBinding[]; actorId: string; instanceId: string; echoStore: MondayEchoStore; now?: () => Date; qualifyCredential?: (binding: MondayResourceBinding) => Promise<Record<string, unknown>> }) {
     this.client = args.client;
     this.bindings = new Map(args.bindings.map((binding) => [binding.id, structuredClone(binding)]));
     if (this.bindings.size !== args.bindings.length) throw new Error("Monday resource binding ids must be unique");
@@ -27,18 +29,30 @@ export class MondayWorkItemConnector implements Connector {
     this.instanceId = args.instanceId;
     this.echoStore = args.echoStore;
     this.now = args.now ?? (() => new Date());
+    this.qualifyCredential = args.qualifyCredential;
   }
 
   async invoke(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult> {
+    if (context.instanceId !== this.instanceId) throw new Error("Monday invocation belongs to another Company Instance");
+    if (!this.capabilities.some((candidate) => candidate === capability)) throw new Error(`Monday Connector does not implement '${capability}'`);
     const value = object(input, "Monday Capability input");
     const binding = this.bindings.get(String(value.resource_binding));
     if (!binding) throw new Error(`Monday resource binding '${String(value.resource_binding)}' is not available to this Connector`);
-    if (capability === "work-item.batch-update") return this.batchUpdate(binding, value, context);
-    const workItemId = String(value.work_item_id);
-    if (capability === "work-item.read") return this.read(binding, workItemId, value.fields);
-    if (capability === "work-item.update") return this.update(binding, workItemId, value, context);
-    if (capability === "work-item.comment") return this.comment(binding, workItemId, String(value.body), context);
-    throw new Error(`Monday Connector does not implement '${capability}'`);
+    const qualification = await this.qualifyCredential?.(structuredClone(binding));
+    try {
+      const workItemId = String(value.work_item_id);
+      const result = capability === "work-item.batch-update" ? await this.batchUpdate(binding, value, context)
+        : capability === "work-item.read" ? await this.read(binding, workItemId, value.fields)
+          : capability === "work-item.update" ? await this.update(binding, workItemId, value, context)
+            : await this.comment(binding, workItemId, String(value.body), context);
+      return qualification ? { ...result, evidence: { ...result.evidence, credential_qualification: qualification } } : result;
+    } catch (error) {
+      if (qualification && error instanceof CapabilityEffectOutcomeUnknownError) {
+        const prior = error.evidence && typeof error.evidence === "object" && !Array.isArray(error.evidence) ? error.evidence : { provider_evidence: error.evidence };
+        throw new CapabilityEffectOutcomeUnknownError(error.message, { ...prior, credential_qualification: qualification });
+      }
+      throw error;
+    }
   }
 
   private async read(binding: MondayResourceBinding, workItemId: string, fields?: unknown): Promise<CapabilityResult> {

@@ -6,6 +6,7 @@ import { CompanyRecordsConnector } from "../../../connectors/company-records.ts"
 import { CompanyDirectoryConnector } from "../../../connectors/company-directory.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
 import { MondayWorkItemConnector } from "../../../connectors/monday/connector.ts";
+import { mondayCredentialIdentity, qualifyMondayWorkItemCredential } from "../../../connectors/monday/work-item-qualification.ts";
 import type { MondayResourceBinding } from "../../../connectors/monday/contracts.ts";
 import {
   SlackCommunicationConnector,
@@ -96,7 +97,9 @@ function parseMondayConfiguration(
   environment: NodeJS.ProcessEnv,
 ): MondayWorkItemConnector {
   const configuration = entry.configuration;
-  exactKeys(configuration, ["token_ref", "api_version", "actor_id", "resources"], `Connector instance '${entry.id}'`);
+  exactKeys(configuration, ["token_ref", "api_version", "actor_id", "credential_identity", "resources"], `Connector instance '${entry.id}'`);
+  const actorId = text(configuration.actor_id, `Connector instance '${entry.id}'.actor_id`, /^\d{1,20}$/);
+  const expected = mondayCredentialIdentity(configuration.credential_identity, actorId);
   if (!Array.isArray(configuration.resources) || configuration.resources.length === 0 || configuration.resources.length > 20) {
     throw new Error(`Connector instance '${entry.id}' requires between one and twenty Monday resources.`);
   }
@@ -119,15 +122,17 @@ function parseMondayConfiguration(
       fields,
     };
   });
+  const client = new MondayClient({
+    token: resolveEnvironmentSecretRef(configuration.token_ref, environment, `Connector instance '${entry.id}'.token_ref`),
+    apiVersion: text(configuration.api_version, `Connector instance '${entry.id}'.api_version`, /^[A-Za-z0-9._-]{1,32}$/),
+  });
   return new MondayWorkItemConnector({
-    client: new MondayClient({
-      token: resolveEnvironmentSecretRef(configuration.token_ref, environment, `Connector instance '${entry.id}'.token_ref`),
-      apiVersion: text(configuration.api_version, `Connector instance '${entry.id}'.api_version`, /^[A-Za-z0-9._-]{1,32}$/),
-    }),
+    client,
     bindings: resources,
-    actorId: text(configuration.actor_id, `Connector instance '${entry.id}'.actor_id`, /^[A-Za-z0-9._:-]{1,128}$/),
+    actorId,
     instanceId: artifact.instance.id,
     echoStore: createPostgresMondayEchoStore(),
+    qualifyCredential: (binding) => qualifyMondayWorkItemCredential({ client, expected, binding }),
   });
 }
 
