@@ -1,0 +1,54 @@
+version: 3
+plan_id: record-binding-evidence-2026-09-06
+created: "2026-09-06"
+title: Bind Records evidence and queried versions to exact Instance sources
+objective: >-
+  Prevent a changed provider account, resource, qualification or source binding
+  from inheriting earlier completeness evidence or silently reading mixed rows.
+non_goals:
+  - Manufacture provider cutoff coverage from inventory completion time.
+  - Activate production or delete retained evidence.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-record-binding-evidence.yaml
+  - packages/records/**
+  - packages/state-store/records.ts
+  - packages/state-postgres/records-store.ts
+  - packages/connectors/slack/records-source.ts
+  - packages/connectors/monday/records-source.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/cli/src/records-operations.mjs
+  - packages/cli/tests/records.test.mjs
+  - packages/testkit/tests/record-binding-evidence.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - docs/specifications/company-records-query-v1.md
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/record-binding-evidence.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-query-v1
+    - operations.workflow-engine
+architecture:
+  placement:
+    core: Exact evidence identity and fail-closed projection provenance checks.
+    packages: Maintained source Connectors attest the binding used for each inventory.
+    workspace: Declares logical sources, projections and identity mappings.
+    instance: Supplies reviewed provider resources, qualification receipts and secret references.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Bind synchronization and immutable query snapshots to exact source configuration.
+    - mechanism: capability-contracts-and-connectors
+      reason: Carry source-binding evidence across the privileged inventory boundary.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Applies to every source-backed workflow without business vocabulary or provider credentials in the Core.
+rollback: Retain all observations; disable affected workflows if matching source evidence is unavailable. Do not fall back to evidence for an old binding.

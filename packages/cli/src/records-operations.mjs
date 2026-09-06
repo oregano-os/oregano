@@ -353,6 +353,7 @@ export async function runRecordSourceOperation({
   const recordsStore = store ?? createPostgresCompanyRecordsStore();
   const connector = connectorRegistry.resolve(planResult.binding);
   connector.validateBinding({ source: planResult.source, binding: planResult.binding, qualification: planResult.qualification });
+  registry.bindSource(planResult.binding, planResult.qualification);
   const inventory = await connector.readCompleteInventory({ source: planResult.source, binding: planResult.binding, qualification: planResult.qualification });
   if (inventory.complete !== true) throw new Error("Record Source Connector did not return a complete inventory; no watermark or absence decision may be recorded.");
   const runId = `${planResult.plan.operation}-${sha256(`${confirmationHash}:${inventory.watermark}`).slice(0, 32)}`;

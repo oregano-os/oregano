@@ -91,18 +91,21 @@ export class CompanyRecordsService {
     if (sourceIds.some((sourceId) => registry.source(sourceId).record_type !== projection.record_type)) {
       throw new Error(`Projection '${projection.id}' names a source of another record type`);
     }
+    for (const sourceId of sourceIds) registry.assertSourceInstance(sourceId, instanceId);
+    const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, registry.sourceDigest(sourceId)]));
     const snapshot = await store.readProjectionSnapshot({
       instanceId,
       projectionId: projection.id,
       sourceIds,
+      sourceDigests,
       limit: MAX_RECORD_QUERY_ROWS,
     });
     if (snapshot.rows.some((row) => row.instance_id !== instanceId)
       || snapshot.sourceReceipts.some((receipt) => receipt.instance_id !== instanceId)) {
       throw new Error("Record snapshot belongs to another Company Instance");
     }
-    const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, registry.sourceDigest(sourceId)]));
-    const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, query: args.query });
+    const boundSourceIds = sourceIds.filter((sourceId) => registry.sourceBindingDigest(sourceId) !== undefined);
+    const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, boundSourceIds, query: args.query });
     const observedAt = page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
     const freshUntil = new Date(new Date(observedAt).getTime() + projection.freshness.max_age_minutes * 60_000).toISOString();
     return {

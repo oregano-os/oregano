@@ -8,7 +8,7 @@ import YAML from "yaml";
 import { MondayClient } from "../../connectors/monday/client.ts";
 import { MondayRecordSourceConnector } from "../../connectors/monday/records-source.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
-import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
+import { RecordSourceConnectorRegistry, recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { writeMondayAgentQualificationState } from "../src/monday-agent-qualification.mjs";
 import {
   applyRecordSourceMaterialization,
@@ -215,9 +215,10 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
         { id: "item-1", name: "First", column_text: { status_col: "Working" } },
         { id: "item-2", name: "Second", column_text: { status_col: "Done" } },
       ],
-      async readCompleteInventory() {
+      async readCompleteInventory({ binding, qualification }) {
         return {
           complete: true,
+          binding_digest: recordSourceBindingDigest(binding, qualification),
           observed_at: "2030-02-01T10:00:00.000Z",
           objects: structuredClone(this.inventory),
           watermark: `fixture:${this.inventory.map((item) => item.id).join(",")}`,
@@ -260,7 +261,7 @@ test("source operation confirmation freezes the exact roster used for identity r
     const roster = (id) => `---\nmembers:\n  - id: ${id}\n    name: Example Person\n    role: contributor\n    identities:\n      board:\n        principal: board:account-1:user-1\n---\n`;
     const connectorRegistry = new RecordSourceConnectorRegistry([{
       id: "fixture/record-source", version: "1.0.0", validateBinding() {},
-      async readCompleteInventory() { return { complete: true, observed_at: "2030-02-01T10:00:00.000Z", objects: [{ id: "item-1", name: "First", principal: "board:account-1:user-1" }], watermark: "fixture", receipt: {} }; },
+      async readCompleteInventory({ binding, qualification }) { return { complete: true, binding_digest: recordSourceBindingDigest(binding, qualification), observed_at: "2030-02-01T10:00:00.000Z", objects: [{ id: "item-1", name: "First", principal: "board:account-1:user-1" }], watermark: "fixture", receipt: {} }; },
     }]);
     const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.14", workbench_version: "0.1.0-experimental.15", clean: true };
     const plan = () => planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "sync", coreIdentity, connectorRegistry });

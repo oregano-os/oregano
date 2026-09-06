@@ -486,7 +486,6 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
     if (candidateMessages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", candidateMessages[0]!, 503);
     registry.registerSource(candidate as unknown as CompanyRecordSourceDeclaration);
   }
-  registry.sourceDigest(source.id);
   for (const candidate of configuration.projections) {
     const candidateMessages = schemaErrors(PROJECTION_SCHEMA, candidate, `projection '${String(candidate.id)}'`);
     if (candidateMessages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", candidateMessages[0]!, 503);
@@ -496,7 +495,19 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
     new MondayRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
     new SlackRecordSourceConnector({ resolveSecret: async () => await resolveRecordSourceCredential(binding) }),
   ]);
-  connectors.validate(source, binding, bindingEntry.qualification);
+  for (const candidate of configuration.sources) {
+    const candidateSource = registry.source(String(candidate.id));
+    const entries = configuration.bindings.filter((entry) => entry.source_id === candidateSource.id);
+    if (entries.length !== 1) throw new CompanyRecordsRehearsalError("binding-mismatch", `Source '${candidateSource.id}' requires one exact binding`, 503);
+    const entry = entries[0]!;
+    const errors = schemaErrors(BINDING_SCHEMA, entry.binding, `binding '${candidateSource.id}'`);
+    if (errors.length) throw new CompanyRecordsRehearsalError("invalid-declaration", errors[0]!, 503);
+    const candidateBinding = entry.binding as unknown as CompanyRecordSourceBinding;
+    if (candidateBinding.instance_id !== configuration.instance_id) throw new CompanyRecordsRehearsalError("binding-mismatch", "Record source is bound to another Instance", 503);
+    connectors.validate(candidateSource, candidateBinding, entry.qualification);
+    registry.bindSource(candidateBinding, entry.qualification);
+    registry.sourceDigest(candidateSource.id);
+  }
   return { source, binding, qualification: bindingEntry.qualification, projections, registry, connectors };
 }
 

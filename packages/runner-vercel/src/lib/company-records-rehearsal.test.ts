@@ -178,6 +178,11 @@ test("hosted Records freezes roster evidence and selects projections by explicit
   const selected = validatedCompanyRecordsSelection(decoded, "fixture-conversation");
   assert.equal(selected.projections.length, 1);
   assert.equal(selected.registry.identities!.resolve("slack:T12345:U12345"), "member-1");
+  assert.ok(selected.registry.sourceBindingDigest("fixture-conversation"));
+  const rebound = structuredClone(decoded) as any;
+  rebound.bindings[0].binding.configuration.channel_id = "C98765";
+  rebound.bindings[0].qualification.evidence.discovery.channel.id = "C98765";
+  assert.notEqual(validatedCompanyRecordsSelection(rebound, "fixture-conversation").registry.sourceDigest("fixture-conversation"), selected.registry.sourceDigest("fixture-conversation"));
   const plan = planCompanyRecordsPreviewSync(decoded, "fixture-conversation").plan;
   const changed = { ...decoded, roster_markdown: value.roster_markdown.replace("member-1", "member-2") };
   assert.notEqual(plan.confirmation_hash, planCompanyRecordsPreviewSync(changed, "fixture-conversation").plan.confirmation_hash);

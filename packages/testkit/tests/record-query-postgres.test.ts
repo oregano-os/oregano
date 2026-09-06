@@ -10,6 +10,7 @@ import type { CompanyRecordProjectionDeclaration, CompanyRecordSourceDeclaration
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { RECORD_QUERY_OUTPUT_SCHEMA } from "../../records/query-schema.ts";
 import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
+import type { CompanyRecordSourceBinding } from "../../records/source-connector.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1" && !!process.env.DATABASE_URL;
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && !enabled) throw new Error("Required Records database configuration is missing");
@@ -26,6 +27,42 @@ const projection: CompanyRecordProjectionDeclaration = {
   freshness: { max_age_minutes: 60 }, access: { read_groups: ["team"] }, materialization: { mode: "database-view" },
 };
 const subject: RecordAccessSubject = { principal_id: "fixture-reader", status: "active", roles: [], group_ids: ["team"] };
+
+test("Postgres atomically verifies bound row versions and refuses mixed resource generations", { skip }, async () => {
+  const instanceId = `record-binding-${randomUUID()}`;
+  const createRegistry = (resource: string) => {
+    const registry = new CompanyRecordsRegistry(); registry.registerSource(source); registry.registerProjection(projection);
+    const binding: CompanyRecordSourceBinding = { schema_version: 1, instance_id: instanceId, source_id: source.id,
+      resource_binding: source.resource_binding, connector: "fixture/records", connector_version: "1.0.0",
+      secret_ref: "env:FIXTURE_TOKEN", qualification: { receipt_ref: "fixture:qualification", digest: "a".repeat(64) },
+      configuration: { account: "fixture-account", resource } };
+    registry.bindSource(binding, { kind: "fixture-qualified", resource }); return registry;
+  };
+  const first = createRegistry("resource-a"); const second = createRegistry("resource-b");
+  const store = createPostgresCompanyRecordsStore();
+  const sync = (registry: CompanyRecordsRegistry, runId: string, ids: string[]) => synchronizeRecordSnapshot({
+    instanceId, source, registry, store, runId, leaseOwner: "worker", leaseToken: runId, leaseExpiresAt: "2031-02-01T18:00:00.000Z",
+    inventory: { complete: true, observed_at: instant, synced_through: instant, watermark: runId, binding_digest: registry.sourceBindingDigest(source.id),
+      receipt: {}, objects: ids.map((id) => ({ id, payload: { status: "open" } })) },
+  });
+  const query = (registry: CompanyRecordsRegistry) => new CompanyRecordsService({ instanceId, registry,
+    store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) }).query({ subject,
+    query: { projection_id: projection.id, all_pages: true, require_synced_through: instant } });
+  await sync(first, "original", ["one", "two"]);
+  assert.equal((await query(createRegistry("resource-a"))).rows.length, 2, "new process reads exact persisted provenance");
+  await assert.rejects(query(second), /source-binding provenance/);
+  await sync(second, "new-one", ["one"]);
+  await assert.rejects(query(second), /source-binding provenance/);
+  await assert.rejects(query(first), /source-binding provenance/);
+  await sync(second, "new-two", ["one", "two"]);
+  assert.equal((await query(second)).rows.length, 2);
+  const frozen = await store.readProjectionSnapshot({ instanceId, projectionId: projection.id, sourceIds: [source.id], limit: 100 });
+  assert.equal(frozen.rowSources?.length, 2);
+  const sql = neon(process.env.DATABASE_URL!);
+  await sql`update companyos_records.object_versions set source_receipt = '{}'::jsonb where instance_id = ${instanceId}`;
+  assert.ok(frozen.rowSources!.every((origin) => origin.source_digest === second.sourceDigest(source.id)));
+  await assert.rejects(query(second), /source-binding provenance/);
+});
 
 test("Postgres preserves immutable complete reads, source proof and JSONB query identity after restart", { skip }, async () => {
   const instanceId = `record-test-${randomUUID()}`;
