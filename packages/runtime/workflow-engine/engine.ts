@@ -241,9 +241,13 @@ export class WorkflowEngine {
   }
 
   async #assignments(run: WorkflowRun, artifact: CompanyOSArtifact, step: CompiledWorkflowStep, input: JsonValue, output: JsonValue, itemKey?: string | number): Promise<WorkflowAssignment[]> {
-    if ((!step.message && !step.decision) || Object.hasOwn(input as object, "thread_reference")) return [];
+    if (!step.message && !step.decision) return [];
     const destination = (input as Record<string, JsonValue>).destination_binding;
     if (typeof destination !== "string" || (output as Record<string, JsonValue>)?.destination_binding !== destination) throw new Error("Publication receipt differs from its requested destination");
+    if (Object.hasOwn(input as object, "thread_reference")) {
+      if ((output as Record<string, JsonValue>)?.thread_reference !== (input as Record<string, JsonValue>).thread_reference) throw new Error("Publication receipt differs from its requested thread");
+      return [];
+    }
     if (!step.decision && typeof (output as Record<string, JsonValue>)?.thread_reference !== "string") return [];
     const conversation = await this.#options.conversationForReceipt({ artifact, destinationBinding: destination, output });
     const privateDelivery = !!step.decision || step.message?.recipient !== undefined;

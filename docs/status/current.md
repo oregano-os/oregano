@@ -1158,6 +1158,14 @@ six independent weekly openings without duplicate evidence or publications,
 and separate timer identities for two operator runs of the same period. These
 are synthetic lifecycle proofs, not another scenario executor or publisher.
 
+Reply-receipt conformance exposed an assignment early return that skipped
+destination and thread checks for messages in an existing thread. The engine
+now checks both identities before that return. A wrong destination, changed
+thread or absent reply-thread receipt blocks the step and its dependants while
+preserving the original effect. Synthetic adapter regressions fail before the
+fix and verify that ordinary resume does not resend or advance to a report,
+retro or batch; matching receipts still progress.
+
 The maintained Monday adapter now accepts distinct values in the exact approved
 batch array. A new actual-adapter traversal exposed and removes its extra
 identical-values restriction, which blocked mixed readiness label changes after
