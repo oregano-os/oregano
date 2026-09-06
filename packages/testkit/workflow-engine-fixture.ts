@@ -52,9 +52,13 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
       const rows = input.projection_id === "sprint-roles" ? ["jonas-owner", "lea-contributor", "tim-contributor"].map((id) => ({ record_id: `role-${id}`, values: { person_ids: [id], lifecycle_state: "active", role: "delivery" } }))
         : input.projection_id === "sprint-close-submissions" ? fixture.submissions : input.filters?.group === "planned" ? fixture.planning : fixture.items;
       const instant = input.require_synced_through ?? fixture.now;
+      const proof = input.require_scan_started_after !== undefined ? {
+        scan_started_at: input.require_scan_started_after, source_proofs: [],
+        source_scan_proofs: [{ source_id: "synthetic-test-source", source_digest: sha256(rows), run_id: "synthetic-sync",
+          scan_started_at: input.require_scan_started_after, scan_completed_at: fixture.now, inventory_digest: sha256(rows), watermark: "synthetic-only" }],
+      } : { synced_through: instant, source_proofs: [{ source_id: "synthetic-test-source", source_digest: sha256(rows), run_id: "synthetic-sync", synced_through: instant, watermark: "synthetic-only" }] };
       return { output: { projection_id: input.projection_id, rows: rows.map((row) => ({ ...row, instance_id: artifact.instance.id, projection_id: input.projection_id, record_type: "synthetic", source_version_id: sha256(row), projected_at: fixture.now })),
-        observed_at: fixture.now, fresh_until: fixture.now, snapshot_id: sha256(rows), synced_through: instant,
-        source_proofs: [{ source_id: "synthetic-test-source", source_digest: sha256(rows), run_id: "synthetic-sync", synced_through: instant, watermark: "synthetic-only" }],
+        observed_at: fixture.now, fresh_until: fixture.now, snapshot_id: sha256(rows), ...proof,
         access_decision: { allowed: true, projection_id: input.projection_id, principal_id: ENGINE_OPERATOR, policy_digest: "synthetic-test-policy", reason: "role-allowed", decided_at: fixture.now } }, evidence: { synthetic: true } };
     }
     if (capability === "communication.message.publish" && options.publicationConnector) return options.publicationConnector.invoke(capability, input, context);

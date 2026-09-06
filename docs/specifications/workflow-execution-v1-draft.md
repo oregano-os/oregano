@@ -82,8 +82,9 @@ R4 requires separate requesting and approving humans. An empty update array
 routes to end before requesting approval. Partial batch results remain partial
 and cannot silently retry already applied items.
 
-Completeness-sensitive steps require explicit `synced_through` evidence.
-Freshness, a provider cursor and an empty query are not substitutes. Required
+Completeness-sensitive steps declare their evidence mode explicitly: historical
+`require_synced_through` or current `require_scan_started_after`. Freshness, a
+provider cursor and an unqualified empty query are not substitutes. Required
 database tests must execute against real Postgres with zero skipped cases.
 Synthetic tests do not replace actual human decisions, hosted test-Instance
 acceptance or elapsed pilot periods.
@@ -515,3 +516,37 @@ item bodies. Synthetic evidence is explicitly identified. The maintained
 `companyos verify-live --scope workflow` additionally performs a fresh
 authenticated request, compares the exact deployment and expected human set,
 and refuses synthetic evidence. It authorizes neither production nor a pilot.
+
+## Current-scan workflow requirements
+
+An `oregano:records/query` step may declare `require_scan_started_after` with a
+literal timestamp or a typed reference such as `$steps.await-report.instant`.
+It requests complete current observations whose provider read started at or
+after that logical instant. The compiler captures this requirement and its
+reference dependencies in the immutable manifest. The Runtime resolves it from
+trusted run context and injects the exact query input. A delayed worker keeps
+the declared wait instant; it does not silently change the deadline to its own
+wall clock.
+
+Historical and current requirements are alternatives. The authoring pass
+rejects a current requirement combined with `require_synced_through`, including
+when the conflicting value is supplied inside Tool input. Non-Records steps
+cannot declare the option. Missing references, invalid types and unavailable
+step output fail normal schema and dependency validation.
+
+Retrospective verification requires the current query's snapshot digest and
+non-empty distinct source scan proofs with exact source/declaration/run IDs,
+read intervals, membership digests and watermarks. Every start must satisfy the
+resolved requirement and every end must be at or after its start. The aggregate
+start equals the earliest contributing start. A historical watermark cannot
+substitute for current-scan evidence. The receipt records
+`requirement: current-scan` and `requiredScanStartedAfter`, rather than relabeling
+those observations as historical coverage.
+
+The ordinary approval, effect, journal, exact-candidate and synthetic-evidence
+checks continue to apply. `workflow-current-scans.test.ts` compiles actual
+fictional Workspace revisions and runs the real engine/Runtime through waits,
+a bound decision and a batch, then exercises the retained-evidence verifier.
+These automated synthetic cases do not qualify actual provider scope or replace
+human participation. Operating Workspace adoption and real-provider acceptance
+remain separate delivery work.

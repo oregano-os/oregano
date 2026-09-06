@@ -92,6 +92,7 @@ export function compileWorkflows(args: {
         next: [next], allPages: raw.all_pages === true, requiredOutputPaths: [], requiresDecisions: [], bindingConstraints: [], conversationalTools: [], evidence: [],
         idempotency: ["instance_id", "workflow_id", "run_id", "step_id", "item_key"],
         ...(raw.after ? { after: raw.after } : {}),
+        ...(raw.require_scan_started_after ? { requireScanStartedAfter: raw.require_scan_started_after } : {}),
         ...(raw.require_synced_through ? { requireSyncedThrough: raw.require_synced_through } : {}),
         ...(raw.for_each ? { forEach: { over: raw.for_each.over, key: raw.for_each.key, maxItems: 10000 as const } } : {}),
       };
@@ -132,7 +133,7 @@ export function compileWorkflows(args: {
       return result;
     });
     for (const step of steps) {
-      const consumed = [step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.route?.on, step.decision?.binds, step.decision?.via, step.forEach?.over];
+      const consumed = [step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.binds, step.decision?.via, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
         const match = reference.exec(text);
         if (!match) return;

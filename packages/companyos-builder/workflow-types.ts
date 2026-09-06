@@ -46,6 +46,7 @@ export interface CompiledWorkflowStep {
   next: string[];
   allPages: boolean;
   requireSyncedThrough?: WorkflowValue;
+  requireScanStartedAfter?: WorkflowValue;
   requiredOutputPaths: string[][];
   requiresDecisions: WorkflowDecisionRequirement[];
   /** Values are resolved with the frozen run; never supplied as guard authority. */

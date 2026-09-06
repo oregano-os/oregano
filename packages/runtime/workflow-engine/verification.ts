@@ -20,7 +20,9 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
   const checks: Array<{ code: string; passed: boolean; stepId?: string }> = [];
   const receipts: Array<{ stepId: string; effectKey: string; inputDigest: string; outputDigest: string; approvalId?: string }> = [];
   const sourceProofs: Array<{ stepId: string; digest: string; requiredThrough: string; snapshotId: string;
-    sources: Array<{ sourceId: string; sourceDigest: string; syncRunId: string; syncedThrough: string; watermarkDigest: string }> }> = [];
+    sources: Array<{ sourceId: string; sourceDigest: string; syncRunId: string; syncedThrough: string; watermarkDigest: string }> }
+    | { stepId: string; digest: string; requirement: "current-scan"; requiredScanStartedAfter: string; snapshotId: string;
+      sources: Array<{ sourceId: string; sourceDigest: string; syncRunId: string; scanStartedAt: string; scanCompletedAt: string; inventoryDigest: string; watermarkDigest: string }> }> = [];
   const approvingPrincipals = new Set<string>();
   let waits = 0, decisions = 0, batches = 0, syntheticEvidence = false;
   const check = (code: string, passed: boolean, stepId?: string) => { checks.push({ code, passed, ...(stepId ? { stepId } : {}) }); return passed; };
@@ -85,6 +87,24 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
           snapshotId: output.snapshot_id, digest: sha256({ required, snapshot: output.snapshot_id, proofs }),
           sources: proofs.map((proof: any) => ({ sourceId: proof.source_id, sourceDigest: proof.source_digest, syncRunId: proof.run_id,
             syncedThrough: proof.synced_through, watermarkDigest: sha256(proof.watermark) })) });
+      }
+      if (step.requireScanStartedAfter) {
+        const output = object(stored.output), required = resolveWorkflowValue(step.requireScanStartedAfter, workflow!, context);
+        const proofs = output.source_scan_proofs;
+        const valid = text(required) && text(output.scan_started_at) && compareRecordInstants(output.scan_started_at, required) >= 0
+          && output.synced_through === undefined && Array.isArray(output.source_proofs) && output.source_proofs.length === 0
+          && hash(output.snapshot_id) && Array.isArray(proofs) && proofs.length > 0 && proofs.length <= 100
+          && new Set(proofs.map((entry: unknown) => object(entry).source_id)).size === proofs.length
+          && proofs.every((entry: unknown) => { const proof = object(entry); return text(proof.source_id) && hash(proof.source_digest)
+            && text(proof.run_id) && text(proof.watermark) && hash(proof.inventory_digest)
+            && text(proof.scan_started_at) && text(proof.scan_completed_at)
+            && compareRecordInstants(proof.scan_started_at, required) >= 0
+            && compareRecordInstants(proof.scan_completed_at, proof.scan_started_at) >= 0; })
+          && compareRecordInstants(output.scan_started_at, proofs.map((entry: any) => entry.scan_started_at).sort(compareRecordInstants)[0]) === 0;
+        if (check("record-current-scan", !!valid, step.id)) sourceProofs.push({ stepId: step.id, requirement: "current-scan", requiredScanStartedAfter: required as string,
+          snapshotId: output.snapshot_id, digest: sha256({ required, snapshot: output.snapshot_id, proofs }),
+          sources: proofs.map((proof: any) => ({ sourceId: proof.source_id, sourceDigest: proof.source_digest, syncRunId: proof.run_id,
+            scanStartedAt: proof.scan_started_at, scanCompletedAt: proof.scan_completed_at, inventoryDigest: proof.inventory_digest, watermarkDigest: sha256(proof.watermark) })) });
       }
       if (!step.tool) continue;
       const tool = artifact.agents.find((entry) => entry.id === workflow!.agentId)?.tools.find((entry) => entry.contract.runtimeId === step.tool!.runtimeId);

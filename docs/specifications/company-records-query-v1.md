@@ -244,5 +244,7 @@ inventory reads. Ordinary and historical query behavior remains unchanged.
 `record-current-scan.test.ts` and the mandatory Postgres query suite cover edits,
 absence, empty scans, failed completion, concurrent ingestion, exact timestamps,
 source generations, immutable membership, restart, authorization and paging.
-This Records foundation does not yet switch Workflow authoring or hosted live
-verification to the new requirement; those remain separate integration work.
+Workflow authoring, the compiler, trusted input guard and hosted retained-run
+verification support the explicit current-scan requirement; see the
+[workflow contract](workflow-execution-v1-draft.md). Operating Workspace adoption
+and actual provider acceptance remain separate delivery work.

@@ -142,6 +142,11 @@
           "all_pages": {
             "const": true
           },
+          "require_scan_started_after": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
           "require_synced_through": {
             "type": "string",
             "minLength": 1,
