@@ -23,3 +23,13 @@ export function decisionCard(args: {
     ]),
   ] });
 }
+
+/** A recorded decision closes the controls; it does not claim effect completion. */
+export function resolvedDecisionCard(decision: "approved" | "rejected") {
+  return Card({
+    title: decision === "approved" ? "Approved — decision recorded" : "Rejected — decision recorded",
+    children: [CardText(decision === "approved"
+      ? "Your approval was saved. The workflow may now execute the reviewed changes; this is not confirmation that those changes have finished."
+      : "Your rejection was saved. The proposed changes were not authorized and will not be applied by this decision.")],
+  });
+}

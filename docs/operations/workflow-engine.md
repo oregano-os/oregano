@@ -346,3 +346,11 @@ ignores ordinary chat and unrelated controls; matching workflow actions still
 pass through the unchanged SDK signature verifier and exact delivered-decision
 authorization. Preserve existing connector environments and destinations when
 registering it, and verify the selected branch resolves to the reviewed Preview.
+
+A successful workflow button decision replaces the original card with an
+explicit recorded approval or rejection and no action controls. Approval
+confirmation does not claim that downstream effects have executed. The durable
+engine decision precedes this transport projection; a failed card edit is
+reported separately and must not be represented as a failed decision. An exact
+provider redelivery can retry the projection through the engine's existing
+idempotent response path. Rejected or unverified requests never close a card.

@@ -34,7 +34,7 @@ export class WorkflowConversationHost {
   constructor(args: WorkflowConversationHostOptions) { this.#args = args; }
   /** Only the Chat SDK's signature-verified action handler may call this entrypoint.
    * It is deliberately not exposed by the bearer-authenticated operator API. */
-  async receiveAction(args: { actionId: string; value: string; threadId: string; messageId: string; userId: string; raw: unknown }) {
+  async receiveAction(args: { actionId: string; value: string; threadId: string; messageId: string; userId: string; raw: unknown }): Promise<Extract<WorkflowInboundResult, { kind: "decision" }>> {
     const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
     const raw = args.raw as any;
     const option = args.actionId === "companyos.workflow.approve" ? "approved" : args.actionId === "companyos.workflow.reject" ? "rejected" : undefined;

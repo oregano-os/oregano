@@ -600,3 +600,11 @@ must render fixed approve/reject controls and route authenticated interactions
 to the correct Instance. Slack uses native buttons. This contract alone does
 not implement or qualify another provider. Workspace declarations contain no
 Slack action IDs, provider URLs or executable callbacks.
+
+A successful workflow button decision replaces the original card with an
+explicit recorded approval or rejection and no action controls. Approval
+confirmation does not claim that downstream effects have executed. The durable
+engine decision precedes this transport projection; a failed card edit is
+reported separately and must not be represented as a failed decision. An exact
+provider redelivery can retry the projection through the engine's existing
+idempotent response path. Rejected or unverified requests never close a card.

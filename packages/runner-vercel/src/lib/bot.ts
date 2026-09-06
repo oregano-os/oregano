@@ -1,4 +1,5 @@
 import { decisionCard } from "./decision-cards.ts";
+import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
@@ -495,10 +496,16 @@ function registerHandlers(bot: Chat) {
       if (!workflowHostingEnabled()) throw new Error("Workflow interactions are unavailable in this Instance");
       const { createWorkflowHost } = await import("./workflow-host.ts");
       const host = await createWorkflowHost();
-      const result = await host.conversations.receiveAction({ actionId: event.actionId, value: event.value,
-        threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw });
-      if (await state.setIfNotExists(`workflow-button-result:${result.runId}:${event.value}`, true, 30 * DAY)) {
-        await event.thread.post(result.decision === "approved" ? "Approved. The workflow can now continue with the reviewed changes." : "Rejected. The proposed changes were not authorized.");
+      const result = await recordWorkflowButtonResponse({
+        decide: () => host.conversations.receiveAction({ actionId: event.actionId, value: event.value!,
+          threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw }),
+        replace: (card) => event.adapter.editMessage(event.threadId, event.messageId, card),
+      });
+      if (result.presentation === "failed") {
+        console.error(JSON.stringify({ event: "workflow.button.presentation-failed", runId: result.runId,
+          reference: sha256(result.error instanceof Error ? result.error.message : String(result.error)) }));
+        await event.thread.post(`Your ${result.decision === "approved" ? "approval" : "rejection"} was saved, but the card could not be updated. Please do not click again.`)
+          .catch(() => console.error(JSON.stringify({ event: "workflow.button.receipt-failed", runId: result.runId })));
       }
     } catch (error) {
       const reference = sha256(error instanceof Error ? error.message : String(error));

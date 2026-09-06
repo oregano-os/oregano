@@ -1352,3 +1352,11 @@ clicks. No Teams or Telegram Connector is implied by the neutral contract.
 
 The dedicated `/api/workflows/slack` endpoint supports action-only trigger
 fan-out to a Preview without processing ordinary shared-installation chat.
+
+A successful workflow button decision replaces the original card with an
+explicit recorded approval or rejection and no action controls. Approval
+confirmation does not claim that downstream effects have executed. The durable
+engine decision precedes this transport projection; a failed card edit is
+reported separately and must not be represented as a failed decision. An exact
+provider redelivery can retry the projection through the engine's existing
+idempotent response path. Rejected or unverified requests never close a card.

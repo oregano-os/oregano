@@ -6,6 +6,8 @@ objective: >-
   Add Workspace-owned decision explanations and labels, a provider-neutral
   decision presentation contract and Slack button delivery. Reuse existing
   card primitives without replacing distinct Tool and workflow authorization.
+  Replace resolved controls only after a durable decision and distinguish
+  delivery or card-update failures from authorization outcomes.
 non_goals:
   - Activate production or change Slack production ingress without its deployment gate.
   - Remove Tool approval semantics or weaken bound decisions and delivery identity.
@@ -23,6 +25,8 @@ files_expected:
   - packages/runtime/workflow-engine/verification.ts
   - packages/connectors/slack/communication.ts
   - packages/runner-vercel/src/lib/decision-cards.ts
+  - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
   - packages/runner-vercel/src/lib/workflow-action-ingress.ts
   - packages/runner-vercel/src/app/api/workflows/slack/route.ts
   - packages/testkit/tests/workflow-action-ingress.test.ts
