@@ -27,6 +27,9 @@ test("workflow activation is explicit and configuration pins exact Artifact and 
   }
   assert.throws(() => decodeWorkflowHostingConfiguration(h.artifact, { ...h.environment, VERCEL_ENV: "production" }), /deployed/);
   assert.throws(() => decodeWorkflowHostingConfiguration(h.artifact, { ...h.environment, CRON_SECRET: h.environment.TEST_OPERATOR_SECRET }), /distinct/);
+  const recordSync = { intervalMinutes: 5, targets: [{ artifactHash: h.artifact.artifactHash, sourceIds: ["fixture-source"] }] };
+  assert.deepEqual(decodeWorkflowHostingConfiguration(h.artifact, change({ ...h.value, recordSync })).recordSync, recordSync);
+  assert.throws(() => decodeWorkflowHostingConfiguration(h.artifact, change({ ...h.value, recordSync: { ...recordSync, intervalMinutes: 0 } })), /polling interval/);
 });
 
 test("operator credentials select one configured human; a caller cannot supply another principal", () => {

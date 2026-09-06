@@ -90,6 +90,8 @@ export interface WorkflowExecutionStore {
   read(instanceId: string, runId: string): Promise<WorkflowRun | undefined>;
   findOrigin(instanceId: string, workflowId: string, originKey: string): Promise<WorkflowRun | undefined>;
   list(args: { instanceId: string; limit: number; status?: WorkflowMutableState["status"]; afterRunId?: string; activeOnly?: boolean }): Promise<WorkflowRun[]>;
+  /** Current read eligibility, independent of listing pagination and retained terminal history. */
+  hasActiveArtifact(args: { instanceId: string; artifactHash: string; workflowIds: readonly string[] }): Promise<boolean>;
   claim(args: { instanceId: string; runId: string; owner: string; token: string; now: string; expiresAt: string }): Promise<WorkflowRun | undefined>;
   release(args: { instanceId: string; runId: string; leaseToken: string }): Promise<boolean>;
   /** Atomically advances state, records its event and binds delivered conversations; stale leases cannot commit. */

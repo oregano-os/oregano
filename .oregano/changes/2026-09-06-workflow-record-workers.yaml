@@ -1,0 +1,62 @@
+version: 3
+plan_id: workflow-record-workers-2026-09-06
+created: "2026-09-06"
+title: Synchronize explicitly retained workflow source generations
+objective: >-
+  Keep approved source generations of active historical workflow Artifacts
+  synchronized through the maintained Records service after redeployment.
+non_goals:
+  - Infer provider time coverage or historical values from a completed poll.
+  - Activate production or grant implicit access to every retained source.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-record-workers.yaml
+  - packages/runtime/workflow-engine/record-workers.ts
+  - packages/runtime/workflow-engine/memory-store.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/runner-vercel/src/lib/workflow-*.ts
+  - packages/runner-vercel/src/app/api/workflows/records/route.ts
+  - packages/runner-vercel/vercel.json
+  - vercel.json
+  - packages/testkit/tests/workflow-record-workers.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-record-workers.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Generic bounded worker and current execution eligibility checks.
+    packages: Maintained Records source Connectors supply actual inventory evidence.
+    workspace: Owns source definitions, projections and workflow cutoffs.
+    instance: Explicitly allowlists exact retained Artifact/source pairs and polling cadence.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Reuse source qualification, synchronization, source leases and retained generations.
+    - mechanism: timers-and-business-time
+      reason: Reuse durable timers for bounded source scan continuation and restart.
+    - mechanism: capability-contracts-and-connectors
+      reason: Resolve each source from the exact pinned non-secret Artifact snapshot.
+    - mechanism: identity-and-authorization
+      reason: Current Instance configuration can revoke historical read authority without rewriting history.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Polling depends only on exact source identities and active generic executions, never business periods or Sprint rules.
+rollback: Remove source pairs from the current allowlist or disable workflow hosting; retain Artifacts, source generations and receipts.

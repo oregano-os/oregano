@@ -366,7 +366,7 @@ required implementation and activation gates.
 
 ## Maintained hosted adapter
 
-The Vercel host exposes generic timer, step and operator endpoints, with strict
+The Vercel host exposes generic timer, step, Records and operator endpoints, with strict
 Artifact/Instance/environment activation and distinct scheduler/human operator
 credentials. Business periods remain explicit operator inputs; automatic
 opening accepts only workflows whose referenced fields are supplied by trigger
@@ -391,3 +391,12 @@ replace a historical run's sources or bindings. Qualified synchronization and
 cutoff completeness remain separate source contracts; recipient qualification
 or a successful worker tick cannot prove them. Test provider objects and human
 responses remain explicitly synthetic until real installation acceptance.
+
+The Records worker reuses maintained source synchronization for exact
+Artifact/source pairs explicitly allowlisted by the current Instance. Retained
+Artifacts need a running or waiting enabled execution in that Instance;
+current-Artifact pairs may be prepared before opening. It checks eligibility
+before each source read, preserves generation identity, retains bounded scan
+cursors and reuses completed source receipts after restart. Removing a pair
+or disabling its workflow stops future historical polling without rewriting
+retained state. Poll completion does not imply qualified time coverage.

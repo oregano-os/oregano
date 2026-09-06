@@ -40,6 +40,10 @@
     {
       "path": "/api/workflows/steps",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/workflows/records",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -64,6 +64,10 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
     return [...this.#runs.values()].filter((run) => run.instanceId === args.instanceId && (!args.status || run.state.status === args.status) && (!args.afterRunId || run.runId > args.afterRunId) && (!args.activeOnly || active(run)))
       .sort((a, b) => a.runId.localeCompare(b.runId)).slice(0, args.limit).map((run) => structuredClone(run));
   }
+  async hasActiveArtifact(args: Parameters<WorkflowExecutionStore["hasActiveArtifact"]>[0]): Promise<boolean> {
+    return [...this.#runs.values()].some((run) => run.instanceId === args.instanceId && run.artifactHash === args.artifactHash
+      && args.workflowIds.includes(run.workflowId) && active(run));
+  }
   async claim(args: Parameters<WorkflowExecutionStore["claim"]>[0]): Promise<WorkflowRun | undefined> {
     validateWorkflowLease(args);
     const run = this.#runs.get(key(args.instanceId, args.runId));
