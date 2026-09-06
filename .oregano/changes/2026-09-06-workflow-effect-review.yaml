@@ -1,0 +1,59 @@
+version: 3
+plan_id: workflow-effect-review-2026-09-06
+created: "2026-09-06"
+title: Preserve per-item effect outcomes for authenticated workflow review
+objective: >-
+  Expose verified, unknown and unattempted batch items through the authenticated
+  operator review path without retrying effects or declaring partial success.
+non_goals:
+  - Automate reconciliation or substitute an operator for business approval.
+  - Claim automatic review-message delivery or actual provider acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-effect-review.yaml
+  - packages/capabilities/effect-review.ts
+  - packages/connectors/registry.ts
+  - packages/connectors/monday/connector.ts
+  - packages/runtime/workflow-engine/effect-review.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/tests/workflow-effect-review.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - docs/specifications/tool-architecture.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-effect-review.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.tool-architecture
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Validates generic effect evidence and exposes current authenticated review.
+    packages: Privileged Connectors supply scoped per-item receipts through the existing contract.
+    workspace: Owns business processes and decisions; no provider logic is moved into Company Tools.
+    instance: Existing authenticated operators inspect retained evidence in their exact Instance.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Retain normalized item outcome evidence and reject incomplete batch results as success.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Read existing claims and partial receipts without changing approval or retry authority.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can inspect retained partial effects without domain-specific recovery code.
+rollback: Keep old deployment and retained receipts; this change performs no reconciliation or state migration.

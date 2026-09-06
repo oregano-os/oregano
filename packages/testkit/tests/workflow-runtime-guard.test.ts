@@ -50,7 +50,7 @@ function harness(initial = context(), state = new InMemoryStateStore()) {
         };
         return { output, evidence: { receipt: calls.length } };
       }
-      if (capability === "work-item.batch-update") return { output: { results: [{ applied: true }], complete: true }, evidence: { receipt: calls.length } };
+      if (capability === "work-item.batch-update") return { output: { results: (input as any).updates.map((entry: any) => ({ work_item_id: entry.work_item_id, applied: true })), complete: true }, evidence: { receipt: calls.length } };
       throw new Error(`Unexpected test Capability '${capability}'`);
     },
   };

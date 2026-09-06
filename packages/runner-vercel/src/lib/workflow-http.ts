@@ -8,6 +8,7 @@ export type WorkflowOperatorRequest =
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string> }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel"; runId: string }
+  | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
   | { action: "receive-reply"; threadId: string; messageId: string };
 
@@ -25,6 +26,11 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     return input.action === "open" ? { action: "open", ...common, requestId: text("requestId") } : { action: "schedule", ...common, instant: text("instant") };
   }
   if (input.action === "read" || input.action === "resume" || input.action === "cancel") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
+  if (input.action === "review") {
+    exact(["runId", "offset"]);
+    if (input.offset !== undefined && (!Number.isSafeInteger(input.offset) || Number(input.offset) < 0 || Number(input.offset) >= 10000)) throw new Error("Invalid workflow review offset");
+    return { action: "review", runId: text("runId", /^workflow:[a-f0-9]{64}$/), ...(input.offset === undefined ? {} : { offset: input.offset as number }) };
+  }
   if (input.action === "list") { exact(["afterRunId"]); return { action: "list", ...(input.afterRunId === undefined ? {} : { afterRunId: text("afterRunId", /^workflow:[a-f0-9]{64}$/) }) }; }
   if (input.action === "receive-reply") { exact(["threadId", "messageId"]); return { action: "receive-reply", threadId: text("threadId", /^slack:[A-Z0-9]{5,32}:\d+\.\d+$/), messageId: text("messageId", /^\d+\.\d+$/) }; }
   throw new Error("Unsupported workflow operator action");
@@ -86,6 +92,7 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
       return Response.json({ ok: true, runs: runs.map(summary), ...(runs.length === 200 ? { afterRunId: runs.at(-1)!.runId } : {}) });
     }
     if (action.action === "cancel") return Response.json({ ok: true, cancelled: await host.engine.cancel(action.runId, principal) });
+    if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
     if (action.action === "receive-reply") {
       const result = await host.conversations.receive(action);

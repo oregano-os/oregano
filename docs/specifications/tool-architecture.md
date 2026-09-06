@@ -250,3 +250,29 @@ separate stable item identities and retained receipts. The conversation reader
 uses authenticated account/channel/thread/subject assignments; a model cannot
 choose a run or step through Tool arguments. Hosted transport wiring and
 provider binding qualification remain separate from this Core implementation.
+
+## Partial effect review evidence
+
+An outcome-unknown Capability exception retains its original provider evidence
+inside a Registry envelope with the exact bound Connector, Connector version,
+Capability and contract version. Provider fields cannot replace that identity.
+The optional `effect_review` v1 contains at most 1,000 unique bounded item IDs,
+each with `verified`, `unknown` or `not-attempted`, and an optional bounded
+provider version. This is privileged Connector receipt evidence, never a Tool
+or model authorization. Operator reports expose only these allowed fields and
+evidence digests; raw provider errors and payloads stay in the existing store.
+
+For `work-item.batch-update`, the Registry rejects duplicate request IDs before
+dispatch. A successful result must say `complete: true` and account for exactly
+every requested item once. A partial result or an incomplete identity set becomes
+outcome-unknown even when the output satisfies its JSON schema. An optional item
+review must match the complete requested sequence; invalid or absent evidence
+cannot prove an item was unattempted. The effect remains claimed and cannot be
+retried automatically.
+
+The maintained Monday batch adapter records its completed prefix, the current
+uncertain item and the remaining unattempted suffix. `verified` means its write
+returned and its subsequent read receipt and echo evidence were retained. It
+does not establish provider-side atomicity or the absence of later changes.
+Readback or receipt-persistence failure leaves the current item uncertain.
+This report performs no reconciliation and grants no retry or new approval.

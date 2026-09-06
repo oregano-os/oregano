@@ -1107,3 +1107,11 @@ that exact evidence and rejects missing, remapped or self-requested approval,
 including alternate principals for the same person. Ambiguous principal
 mappings and unknown identity kinds cannot approve. Workflow assignment and role-specific decision integration now have synthetic
 host coverage; real human acceptance remains pending.
+
+Blocked workflow effects now have a current-human authenticated, paginated
+operator review report over retained effect receipts. The maintained batch
+adapter exposes verified, uncertain and unattempted entries. Registry validation
+rejects partial success-shaped results and incomplete item coverage as unknown;
+operator review never retries or reconciles an effect. Synthetic actual-adapter
+and engine tests cover this boundary. Automatic business-owner notification,
+qualified recovery, live test acceptance and legacy removal remain outstanding.

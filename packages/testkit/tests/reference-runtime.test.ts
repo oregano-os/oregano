@@ -525,7 +525,7 @@ test("an approved provider effect with an unverifiable receipt is recorded as un
   const effect = [...state.effects.values()][0];
   assert.equal(effect?.status, "unknown");
   assert.deepEqual((effect?.evidence as any).partial_evidence, {
-    capability_effects: [{ provider_id: "possibly-created" }],
+    capability_effects: [{ connector: "oregano/artifact-sandbox", connector_version: "1.0.0", capability: "artifact.publish", contract_version: "1.0.0", provider_evidence: { provider_id: "possibly-created" } }],
   });
 });
 

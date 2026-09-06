@@ -210,3 +210,24 @@ Completed source receipts are reused after a crash before timer completion.
 Per-source leases protect concurrent synchronization. No provider write, schema
 migration, missing-message inference or `synced_through` value is created by
 this worker. A failed or unqualified source still blocks completeness queries.
+
+## Inspect a stopped effect
+
+An authenticated operator can list stopped executions, then submit
+`{"action":"review","runId":"workflow:<digest>"}` to the existing operator
+endpoint. A keyed collection returns one effect per page; supply the returned
+`nextOffset` as `offset` for the next page. Each report identifies the retained
+Artifact, manifest, run revision, step, effect claim and evidence digests.
+The human operator must inspect every page. This is an operator review queue;
+it does not claim automatic notification of the business owner.
+
+For a partially completed batch, `verified` identifies a retained write/readback
+receipt, `unknown` requires checking the provider outcome, and `not-attempted`
+requires explicit Connector evidence that dispatch had not reached that item.
+Missing or malformed item evidence remains unknown. Raw provider exceptions,
+message content, tokens and arbitrary evidence fields are excluded. A later
+provider change is still possible; the receipt is not a current-state lock.
+No report authorizes replay, changes approval scope or silently retries the
+unattempted suffix. The complete effect stays stopped pending a separately
+qualified recovery action. Current `resume` continues to refuse unresolved
+unknown, failed or claimed effects.
