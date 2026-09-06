@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { neon } from "@neondatabase/serverless";
-import { createPostgresCompanyRecordsStore } from "../../state-postgres/records-store.ts";
+import { createPostgresCompanyRecordsStore, inspectPostgresCompanyRecordProjectionStatus, inspectPostgresCompanyRecordSourceStatus, inspectPostgresCompanyRecordSyncReceipt } from "../../state-postgres/records-store.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
 import { CompanyRecordsService } from "../../records/service.ts";
 import { synchronizeRecordSnapshot } from "../../records/synchronization.ts";
@@ -28,10 +28,10 @@ const projection: CompanyRecordProjectionDeclaration = {
 };
 const subject: RecordAccessSubject = { principal_id: "fixture-reader", status: "active", roles: [], group_ids: ["team"] };
 
-test("Postgres atomically verifies bound row versions and refuses mixed resource generations", { skip }, async () => {
+test("Postgres retains independent source and projection generations with exact materialization evidence", { skip }, async () => {
   const instanceId = `record-binding-${randomUUID()}`;
-  const createRegistry = (resource: string) => {
-    const registry = new CompanyRecordsRegistry(); registry.registerSource(source); registry.registerProjection(projection);
+  const createRegistry = (resource: string, view = projection) => {
+    const registry = new CompanyRecordsRegistry(); registry.registerSource(source); registry.registerProjection(view);
     const binding: CompanyRecordSourceBinding = { schema_version: 1, instance_id: instanceId, source_id: source.id,
       resource_binding: source.resource_binding, connector: "fixture/records", connector_version: "1.0.0",
       secret_ref: "env:FIXTURE_TOKEN", qualification: { receipt_ref: "fixture:qualification", digest: "a".repeat(64) },
@@ -49,14 +49,27 @@ test("Postgres atomically verifies bound row versions and refuses mixed resource
     store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) }).query({ subject,
     query: { projection_id: projection.id, all_pages: true, require_synced_through: instant } });
   await sync(first, "original", ["one", "two"]);
-  assert.equal((await query(createRegistry("resource-a"))).rows.length, 2, "new process reads exact persisted provenance");
-  await assert.rejects(query(second), /source-binding provenance/);
+  const original = await query(createRegistry("resource-a"));
+  assert.equal(original.rows.length, 2, "new process reads exact persisted provenance");
+  await assert.rejects(query(second), /not completely synchronized/);
   await sync(second, "new-one", ["one"]);
-  await assert.rejects(query(second), /source-binding provenance/);
-  await assert.rejects(query(first), /source-binding provenance/);
+  assert.equal((await query(second)).rows.length, 1);
+  assert.equal((await query(first)).snapshot_id, original.snapshot_id);
+  const scopes = { [second.projectionStorageId(projection.id)]: [second.sourceStorageId(source.id)] };
+  assert.equal((await inspectPostgresCompanyRecordProjectionStatus(instanceId, Object.keys(scopes), scopes))[0]!.rows, 1);
+  assert.equal((await inspectPostgresCompanyRecordSourceStatus(instanceId, second.sourceStorageId(source.id))).current_objects, 1);
+  assert.equal((await inspectPostgresCompanyRecordSyncReceipt(instanceId, second.sourceStorageId(source.id), "new-one"))?.run_id, "new-one");
+  assert.equal(await inspectPostgresCompanyRecordSyncReceipt(instanceId, first.sourceStorageId(source.id), "new-one"), undefined);
   await sync(second, "new-two", ["one", "two"]);
   assert.equal((await query(second)).rows.length, 2);
-  const frozen = await store.readProjectionSnapshot({ instanceId, projectionId: projection.id, sourceIds: [source.id], limit: 100 });
+  const changedProjection = { ...projection, fields: [{ name: "renamed", path: "payload" }], filters: {} };
+  const third = createRegistry("resource-b", changedProjection);
+  await assert.rejects(query(third), /not completely synchronized/);
+  await sync(third, "new-projection", ["one", "two"]);
+  assert.deepEqual((await query(third)).rows[0]!.values, { renamed: { status: "open" } });
+  assert.deepEqual((await query(second)).rows[0]!.values, { payload: { status: "open" } });
+  assert.equal((await query(createRegistry("resource-a"))).snapshot_id, original.snapshot_id);
+  const frozen = await second.scopeStore(store).readProjectionSnapshot({ instanceId, projectionId: projection.id, sourceIds: [source.id], limit: 100 });
   assert.equal(frozen.rowSources?.length, 2);
   const sql = neon(process.env.DATABASE_URL!);
   await sql`update companyos_records.object_versions set source_receipt = '{}'::jsonb where instance_id = ${instanceId}`;

@@ -24,7 +24,8 @@ export async function reconcileRecordSnapshot(args: {
   store: CompanyRecordsStore;
   concurrency?: number;
 }): Promise<RecordReconciliationReceipt> {
-  const { store, registry } = args;
+  const { registry } = args;
+  const store = registry.scopeStore(args.store);
   registry.sourceDigest(args.sourceId);
   registry.assertSourceInstance(args.sourceId, args.instanceId);
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;

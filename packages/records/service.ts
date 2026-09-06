@@ -13,6 +13,7 @@ import { projectionRecordId } from "./identity.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
 import { MAX_RECORD_QUERY_ROWS, queryRecordSnapshot } from "./query.ts";
+import { sha256 } from "../runtime/canonical.ts";
 
 export class RecordAccessDeniedError extends Error {
   readonly decision: RecordAccessDecision;
@@ -37,7 +38,7 @@ export class CompanyRecordsService {
     store: CompanyRecordsStore;
     now: () => Date;
   }) {
-    this.dependencies = dependencies;
+    this.dependencies = { ...dependencies, store: dependencies.registry.scopeStore(dependencies.store) };
   }
 
   async ingest(args: {
@@ -93,18 +94,19 @@ export class CompanyRecordsService {
     }
     for (const sourceId of sourceIds) registry.assertSourceInstance(sourceId, instanceId);
     const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, registry.sourceDigest(sourceId)]));
+    const boundSourceIds = sourceIds.filter((sourceId) => registry.sourceBindingDigest(sourceId) !== undefined);
     const snapshot = await store.readProjectionSnapshot({
       instanceId,
       projectionId: projection.id,
       sourceIds,
       sourceDigests,
+      ...(boundSourceIds.length ? { projectionDigest: sha256(projection) } : {}),
       limit: MAX_RECORD_QUERY_ROWS,
     });
     if (snapshot.rows.some((row) => row.instance_id !== instanceId)
       || snapshot.sourceReceipts.some((receipt) => receipt.instance_id !== instanceId)) {
       throw new Error("Record snapshot belongs to another Company Instance");
     }
-    const boundSourceIds = sourceIds.filter((sourceId) => registry.sourceBindingDigest(sourceId) !== undefined);
     const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, boundSourceIds, query: args.query });
     const observedAt = page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
     const freshUntil = new Date(new Date(observedAt).getTime() + projection.freshness.max_age_minutes * 60_000).toISOString();

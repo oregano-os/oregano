@@ -591,10 +591,13 @@ const defaultDependencies: RehearsalDependencies = {
   async inspectStatus(configuration, sourceId) {
     const selected = validatedCompanyRecordsSelection(configuration, sourceId);
     const [status, projections] = await Promise.all([
-      inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, sourceId),
-      inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => projection.id)),
+      inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, selected.registry.sourceStorageId(sourceId)),
+      inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => selected.registry.projectionStorageId(projection.id)),
+        Object.fromEntries(selected.projections.map((projection) => [selected.registry.projectionStorageId(projection.id), selected.registry.projectionSourceIds(projection.id).map((id) => selected.registry.sourceStorageId(id))]))),
     ]);
-    return { status, projections, binding: { instance_id: configuration.instance_id, connector: `${selected.binding.connector}@${selected.binding.connector_version}`, resource_binding: selected.binding.resource_binding } };
+    return { status: { ...status, source_id: sourceId },
+      projections: projections.map((value, index) => ({ ...value, projection_id: selected.projections[index]!.id })),
+      binding: { instance_id: configuration.instance_id, connector: `${selected.binding.connector}@${selected.binding.connector_version}`, resource_binding: selected.binding.resource_binding } };
   },
   async inspectIdentities(configuration, sourceId) {
     const selected = validatedCompanyRecordsSelection(configuration, sourceId);

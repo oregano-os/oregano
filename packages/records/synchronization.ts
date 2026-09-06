@@ -51,7 +51,8 @@ export async function synchronizeRecordSnapshot(args: {
   leaseExpiresAt: string;
   concurrency?: number;
 }) {
-  const { instanceId, source, inventory, registry, store, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
+  const { instanceId, source, inventory, registry, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
+  const store = registry.scopeStore(args.store);
   if (inventory.complete !== true) throw new Error("A partial inventory cannot be synchronized as complete");
   if (sha256(source) !== sha256(registry.source(source.id))) throw new Error("Synchronization source differs from its registered declaration");
   const sourceDigest = registry.sourceDigest(source.id);
@@ -126,6 +127,8 @@ export async function synchronizeRecordSnapshot(args: {
       watermark: inventory.watermark,
       ...(inventory.synced_through ? { synced_through: inventory.synced_through } : {}),
       source_digest: sourceDigest,
+      projection_digests: Object.fromEntries(registry.projectionsForRecordType(source.record_type)
+        .map((projection) => [projection.id, sha256(projection)])),
       observed: inventory.objects.length,
       inserted,
       unchanged,

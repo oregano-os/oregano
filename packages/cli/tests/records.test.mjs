@@ -8,6 +8,9 @@ import YAML from "yaml";
 import { MondayClient } from "../../connectors/monday/client.ts";
 import { MondayRecordSourceConnector } from "../../connectors/monday/records-source.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
+import { CompanyRecordsRegistry } from "../../records/registry.ts";
+import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
+import { parseRoster } from "../../state-store/roster.ts";
 import { RecordSourceConnectorRegistry, recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { writeMondayAgentQualificationState } from "../src/monday-agent-qualification.mjs";
 import {
@@ -17,9 +20,18 @@ import {
   planRecordSourceMaterialization,
   planRecordSourceOperation,
   runRecordSourceOperation,
+  inspectRecordSourceStatus,
 } from "../src/records-operations.mjs";
 
 const REPO = new URL("../../..", import.meta.url).pathname;
+
+const operationStore = (plan, store) => {
+  const registry = new CompanyRecordsRegistry(plan.rosterMarkdown ? { identities: new RecordIdentityDirectory(parseRoster(plan.rosterMarkdown)) } : {});
+  for (const source of plan.inspected.declarations.sources) registry.registerSource(source);
+  for (const projection of plan.inspected.declarations.projections) registry.registerProjection(projection);
+  registry.bindSource(plan.binding, plan.qualification);
+  return registry.scopeStore(store);
+};
 
 const temporaryWorkspace = () => {
   const root = mkdtempSync(join(tmpdir(), "companyos-records-cli-"));
@@ -242,13 +254,18 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
     assert.equal(invoked, false);
     const synced = await runRecordSourceOperation({ planResult: syncPlan, confirmationHash: syncPlan.plan.confirmation_hash, connectorRegistry, store, now: () => new Date("2030-02-01T10:00:00.000Z") });
     assert.equal(synced.receipt.inserted, 2);
-    assert.equal((await store.getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, false);
+    assert.equal((await operationStore(syncPlan, store).getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, false);
+    const status = await inspectRecordSourceStatus({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, connectorRegistry,
+      inspectStatus: async (instanceId, sourceId) => ({ source_id: sourceId, current_objects: (await store.listCurrentObjectIds(instanceId, sourceId)).length }),
+    });
+    assert.equal(status.status.current_objects, 2);
+    assert.equal(status.status.source_id, fixture.source.id, "CLI hides storage identities behind logical source IDs");
 
     connector.inventory = [{ id: "item-1", name: "First", column_text: { status_col: "Done" } }];
     const reconcilePlan = planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "reconcile", coreIdentity, connectorRegistry });
     const reconciled = await runRecordSourceOperation({ planResult: reconcilePlan, confirmationHash: reconcilePlan.plan.confirmation_hash, connectorRegistry, store, now: () => new Date("2030-02-01T11:00:00.000Z") });
     assert.equal(reconciled.receipt.missing_from_provider, 1);
-    assert.equal((await store.getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, true);
+    assert.equal((await operationStore(reconcilePlan, store).getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, true);
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
@@ -275,7 +292,7 @@ test("source operation confirmation freezes the exact roster used for identity r
     assert.notEqual(plan().plan.confirmation_hash, first.plan.confirmation_hash);
     const store = new InMemoryCompanyRecordsStore();
     await runRecordSourceOperation({ planResult: first, confirmationHash: first.plan.confirmation_hash, connectorRegistry, store });
-    assert.equal((await store.getCurrentObjectVersion("fixture-production", fixture.source.id, "item-1")).values.person, "member-1");
+    assert.equal((await operationStore(first, store).getCurrentObjectVersion("fixture-production", fixture.source.id, "item-1")).values.person, "member-1");
     await assert.rejects(runRecordSourceOperation({ planResult: { ...first, rosterMarkdown: roster("member-2") }, confirmationHash: first.plan.confirmation_hash, connectorRegistry, store }), /differs from its confirmed/);
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
 });
