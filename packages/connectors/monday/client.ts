@@ -139,6 +139,7 @@ export class MondayClient {
     }`, { boardIds: requested });
     const externalAgentId = /^agent-(\d+)@agent\.monday\.com$/i.exec(response.data.me.email ?? "")?.[1] ?? null;
     const byId = new Map(response.data.boards.map((board) => [String(board.id), board]));
+    if (byId.size !== response.data.boards.length || [...byId.keys()].some((id) => !requested.includes(id))) throw new Error("Monday returned an ambiguous or unrequested board identity");
     const missing = requested.filter((boardId) => !byId.has(boardId));
     if (missing.length > 0) throw new Error(`Monday did not return explicitly selected board(s): ${missing.join(", ")}`);
     return {

@@ -1149,3 +1149,11 @@ approval. Complete preflight, mapped fields, expected versions, partial receipts
 and ordinary runtime idempotency remain enforced. The reference compiler golden
 reflects the corrected standard Tool description; contract shapes and bindings
 are unchanged. Live write-credential qualification remains outstanding.
+
+The maintained hosted Monday factory now requires a pinned non-secret provider
+identity and installs same-client qualification before every invocation. Current
+account/member/Agent mismatch, unavailable resources, revoked access and invalid
+field mappings fail before work-item access. Qualification metadata survives
+success and uncertain outcomes. Six synthetic tests exercise the actual hosted
+factory and client. Actual test credentials still require their real resource
+qualification; no live provider acceptance or production change is claimed.

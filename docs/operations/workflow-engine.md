@@ -231,3 +231,20 @@ No report authorizes replay, changes approval scope or silently retries the
 unattempted suffix. The complete effect stays stopped pending a separately
 qualified recovery action. Current `resume` continues to refuse unresolved
 unknown, failed or claimed effects.
+
+## Pin provider write identity
+
+Every retained Artifact using the maintained hosted Monday Connector must carry
+the reviewed `credential_identity` in its Instance configuration. Copy its
+account ID, authenticated member ID, external-Agent kind and provider Agent
+subject from the completed external-Agent qualification receipt; `actor_id`
+is the authenticated member ID. Do not infer these values from a newly supplied
+token. The host rechecks identity, active resource, current minimum access and
+mapped columns before each invocation using the same client credential.
+
+A missing identity on a retained Artifact blocks provider access. Prepare the
+qualified Instance declaration before migrating to this Core release; pin it
+with the Artifact and preserve its prior evidence. Token rotation to a different
+identity needs reviewed Instance configuration. Qualification metadata is
+retained with success and unknown-effect receipts, but is not proof of write
+success or atomicity. This setup change does not activate production.

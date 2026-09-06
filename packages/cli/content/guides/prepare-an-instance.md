@@ -91,7 +91,12 @@ connectors:
     configuration:
       token_ref: env:MONDAY_API_TOKEN
       api_version: dev
-      actor_id: external-agent-member-id
+      actor_id: "700007"
+      credential_identity:
+        account_id: "300003"
+        member_id: "700007"
+        kind: external_agent_member
+        external_agent_id: "900001"
       resources:
         - id: sprint-test-board
           board_id: "10000000001"
@@ -146,6 +151,14 @@ sprint_runtimes:
 The declaration must never contain a token, signing secret, database URL, or
 other resolved credential. A Capability binding and Agent grant are still
 required independently; Connector configuration alone grants no authority.
+For hosted Monday access, populate `credential_identity` from the completed
+external-Agent qualification receipt, using the authenticated member ID for
+`actor_id`. These fictional IDs are examples, not defaults. The host requires
+this identity on every retained Artifact and rechecks the same credential's
+account, Agent subject, active board, minimum access and mapped columns before
+each call. Missing or changed identity blocks access; it is never inferred from
+the token. Alternative hosts must install equivalent qualification at their
+trusted Connector construction boundary.
 An active Sprint Agent that performs briefings needs both the normal
 `oregano:work-items/update` Tool and the
 `oregano:work-items/confirmed-update` Tool. The latter accepts only the exact

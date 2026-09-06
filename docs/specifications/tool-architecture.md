@@ -284,6 +284,17 @@ does not establish provider-side atomicity or the absence of later changes.
 Readback or receipt-persistence failure leaves the current item uncertain.
 This report performs no reconciliation and grants no retry or new approval.
 
+Hosted Monday Connector configuration requires an exact
+`credential_identity` (account, authenticated member, external-Agent kind and
+provider Agent subject); `actor_id` must equal that authenticated member ID.
+The hosted factory always installs the trusted qualification hook. Before each
+Capability invocation, the same client checks current identity, active board,
+minimum access and active mapped columns. Duplicate or unexpected board results
+and field aliases fail. Successful and uncertain receipts retain content-free
+qualification metadata separately from write evidence. Low-level adapter
+construction remains a trusted integration boundary; an alternative host must
+supply equivalent qualification and cannot delegate it to a Company Tool.
+
 The maintained Monday work-item client requires exactly one matching item in
 preflight and readback responses, and its update mutation acknowledgement must
 identify that same requested item. A wrong or ambiguous read before dispatch

@@ -173,3 +173,9 @@ Records snapshots, provider account/recipient checks, source cutoff coverage and
 real human decision evidence. `companyos onboard` keeps these as external
 Instance verification; passing local validation or the Tool-free starter check
 cannot establish workflow execution readiness.
+Hosted Monday access additionally requires the reviewed `credential_identity`
+in each retained Artifact's Instance configuration, with the authenticated
+member as `actor_id`. The host rechecks account, external-Agent identity, active
+board, minimum access and mapped columns using the actual client credential.
+Local onboarding reports this as an external Instance check; it cannot verify a
+token or infer missing provider identities from Workspace files.
