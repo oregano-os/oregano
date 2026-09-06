@@ -176,3 +176,36 @@ test("close rejects content changed by another or unidentified editor", async ()
     assert.equal((await execute("close-classification", closeInput([answer]))).states.a, "needs-reformat");
   }
 });
+
+test("close effort uses the explicitly selected basis, excludes absences from totals and preserves unknown evidence", async () => {
+  const input = { ...closeInput(), participants: [person("a"), person("b"), person("absent", "Absent", false)],
+    work_items: [item("one", ["a"], { actual_hours: 3.5, planned_effort: 4 }), item("two", ["b"], { actual_hours: 2, planned_effort: 6 }),
+      item("three", ["absent"], { actual_hours: 8, planned_effort: 10 })] };
+  const actual = await execute("close-classification", { ...input, effort: "actual-hours" });
+  assert.equal(actual.effort_basis, "actual-hours"); assert.equal(actual.total_effort_hours, 5.5);
+  assert.deepEqual(actual.participant_effort_hours, { a: 3.5, b: 2, absent: 8 });
+  const planned = await execute("close-classification", { ...input, effort: "planned-effort" });
+  assert.equal(planned.effort_basis, "planned-effort"); assert.equal(planned.total_effort_hours, 10);
+  for (const effort of [undefined, "unavailable"]) {
+    const unavailable = await execute("close-classification", { ...input, ...(effort ? { effort } : {}) });
+    assert.equal(unavailable.total_effort_hours, null);
+    assert.deepEqual(unavailable.participant_effort_hours, { a: null, b: null, absent: null });
+    assert.equal(unavailable.effort_text, "unavailable");
+  }
+  delete input.work_items[0].values.actual_hours;
+  const missing = await execute("close-classification", { ...input, effort: "actual-hours" });
+  assert.equal(missing.participant_effort_hours.a, null); assert.equal(missing.total_effort_hours, null);
+  assert.equal(missing.effort_text, "actual-hours: unavailable");
+});
+
+test("close effort keeps measured zero separate from missing input and validates its explicit numeric evidence", async () => {
+  const input = { ...closeInput(), work_items: [item("one", ["a"], { actual_hours: 0, planned_effort: null })] };
+  assert.equal((await execute("close-classification", { ...input, effort: "actual-hours" })).total_effort_hours, 0);
+  assert.equal((await execute("close-classification", { ...input, effort: "planned-effort" })).total_effort_hours, null);
+  for (const actual_hours of ["3.5", {}, []]) {
+    await assert.rejects(execute("close-classification", { ...input, effort: "actual-hours", work_items: [item("one", ["a"], { actual_hours })] }), /actual_hours|number/);
+  }
+  await assert.rejects(execute("close-classification", { ...input, effort: "estimate" }), /effort|enum/);
+  assert.equal((await execute("close-classification", { ...input, participants: [], work_items: [] })).total_effort_hours, null);
+  assert.equal((await execute("close-classification", { ...input, participants: [], work_items: [], effort: "actual-hours" })).total_effort_hours, 0);
+});

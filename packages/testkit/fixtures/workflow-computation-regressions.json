@@ -128,7 +128,15 @@
         ],
         "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
         "chase_text": "Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -226,7 +234,15 @@
         ],
         "report_text": "- Alex: not posted\n- Blair: not posted",
         "chase_text": "Alex, Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -348,7 +364,15 @@
         ],
         "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
         "chase_text": "Alex, Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -467,7 +491,15 @@
         ],
         "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
         "chase_text": "Alex, Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -588,7 +620,15 @@
         ],
         "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
         "chase_text": "Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -721,7 +761,15 @@
         ],
         "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
         "chase_text": "Alex, Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -851,7 +899,15 @@
         ],
         "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
         "chase_text": "Blair",
-        "open_items_text": "- item-a\n- item-c"
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -954,7 +1010,15 @@
         ],
         "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
         "chase_text": "Blair",
-        "open_items_text": "- item-c"
+        "open_items_text": "- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {
@@ -1072,7 +1136,15 @@
         ],
         "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
         "chase_text": "Alex, Blair",
-        "open_items_text": "- item-c"
+        "open_items_text": "- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
       }
     },
     {

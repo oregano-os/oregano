@@ -1,12 +1,12 @@
 {
   "manifestVersion": 1,
   "id": "friday-close",
-  "version": 6,
+  "version": 7,
   "agentId": "sprint",
   "executionMode": "unattended",
   "source": {
     "path": "workflows/friday-close.compact.md",
-    "digest": "fdf998bb75c4aca00410fee46ec4a6f40633cadae32f83a1624b83e4f2c16883"
+    "digest": "ba4fe0f437a8559915b257d0ab6bed4ce21dc453ddf1cd698372414520e77db6"
   },
   "provenance": {
     "coreCommit": "1111111111111111111111111111111111111111",
@@ -620,15 +620,16 @@
       "tool": {
         "grantId": "company:close-classification",
         "runtimeId": "company:sprint/close-classification",
-        "version": "6.1.0",
+        "version": "6.2.0",
         "risk": "R0",
         "capabilities": [],
-        "contractDigest": "96b636e40bfcf6a1e8b93670a4cda284000db175b3eb6107bcf7f06fea716e06"
+        "contractDigest": "844914add3815d82047f47102d7edb1a93786b18affd81c1e5ad9d671c0834dd"
       },
       "input": {
         "participants": "$steps.snapshot-participants.rows",
         "work_items": "$steps.work-items-at-chase.rows",
         "submissions": "$steps.read-submissions-at-chase.rows",
+        "effort": "unavailable",
         "closed_statuses": [
           "Done"
         ],
@@ -892,6 +893,9 @@
       "allPages": false,
       "requiredOutputPaths": [
         [
+          "effort_text"
+        ],
+        [
           "open_items_text"
         ],
         [
@@ -920,15 +924,16 @@
       "tool": {
         "grantId": "company:close-classification",
         "runtimeId": "company:sprint/close-classification",
-        "version": "6.1.0",
+        "version": "6.2.0",
         "risk": "R0",
         "capabilities": [],
-        "contractDigest": "96b636e40bfcf6a1e8b93670a4cda284000db175b3eb6107bcf7f06fea716e06"
+        "contractDigest": "844914add3815d82047f47102d7edb1a93786b18affd81c1e5ad9d671c0834dd"
       },
       "input": {
         "participants": "$steps.snapshot-participants.rows",
         "work_items": "$steps.work-items-at-report.rows",
         "submissions": "$steps.read-submissions-at-report.rows",
+        "effort": "unavailable",
         "closed_statuses": [
           "Done"
         ],
@@ -1055,7 +1060,7 @@
         "vars": {
           "report_text": "$steps.close-view.report_text",
           "open_items_text": "$steps.close-view.open_items_text",
-          "effort": "unavailable"
+          "effort": "$steps.close-view.effort_text"
         },
         "destination": "studio-sprints",
         "thread": "$steps.open-close-thread.thread_reference"
@@ -1271,5 +1276,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "f545be71f4ce52ad798f588033c1b56cb109722daed080bd1fa3098d79065796"
+  "manifestHash": "5a6fd4e93218514d45e4adf28192f6096e92d665fa1c87ca8ca499fbdb052e01"
 }

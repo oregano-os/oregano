@@ -2,7 +2,7 @@ import { defineCompanyTool } from "@companyos/tool-sdk";
 
 type Row<T> = { record_id: string; values: T };
 type ParticipantValues = { participant_id: string; display_name: string; included: boolean };
-type WorkItemValues = { work_item_id: string; assignee_ids: string[]; status: string; provider_version: string };
+type WorkItemValues = { work_item_id: string; assignee_ids: string[]; status: string; provider_version: string; actual_hours?: number | null; planned_effort?: number | null };
 type SubmissionValues = { participant_id: string; content_participant_id: string; accepted_at: string; task_ids: string[]; well_formed: boolean };
 type Input = {
   participants: Row<ParticipantValues>[];
@@ -11,6 +11,7 @@ type Input = {
   closed_statuses: string[];
   cutoff: string;
   thread_reference: string;
+  effort?: "actual-hours" | "planned-effort" | "unavailable";
 };
 
 const requireFields = (kind: string, row: Row<Record<string, unknown>>, fields: string[]): void => {
@@ -65,6 +66,16 @@ export default defineCompanyTool({
       else states[id] = "complete";
     }
     const incomplete = Object.entries(states).filter(([, state]) => state !== "complete").map(([id]) => id).sort();
+    const effort_basis = input.effort ?? "unavailable";
+    const total = (values: (number | null | undefined)[]): number | null => values.some((value) => value === null || value === undefined)
+      ? null : values.reduce<number>((sum, value) => sum + value!, 0);
+    const participant_effort_hours = Object.fromEntries(input.participants.map(({ values: participant }) => {
+      const committed = items.filter((item) => item.assignee_ids.includes(participant.participant_id));
+      return [participant.participant_id, effort_basis === "unavailable" ? null
+        : total(committed.map((item) => effort_basis === "actual-hours" ? item.actual_hours : item.planned_effort))];
+    }));
+    const total_effort_hours = effort_basis === "unavailable" ? null
+      : total(input.participants.filter((row) => row.values.included).map((row) => participant_effort_hours[row.values.participant_id]));
     const open_work_items = items
       .filter((item) => !closed.has(item.status))
       .map(({ work_item_id, provider_version }) => ({ work_item_id, provider_version }))
@@ -74,6 +85,10 @@ export default defineCompanyTool({
       cutoff: input.cutoff,
       thread_reference: input.thread_reference,
       states,
+      effort_basis,
+      participant_effort_hours,
+      total_effort_hours,
+      effort_text: effort_basis === "unavailable" ? "unavailable" : effort_basis + ": " + (total_effort_hours === null ? "unavailable" : total_effort_hours + " hours"),
       incomplete,
       open_work_items,
       report_text: Object.entries(states).sort(([a], [b]) => a.localeCompare(b)).map(([id, state]) =>

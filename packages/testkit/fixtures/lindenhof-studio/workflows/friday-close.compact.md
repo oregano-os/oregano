@@ -1,7 +1,7 @@
 ---
 type: workflow
 id: friday-close
-version: 6
+version: 7
 owner: agents/sprint
 execution_mode: unattended
 config: workflows/sprint/config.yaml
@@ -43,6 +43,7 @@ steps:
       participants: $steps.snapshot-participants.rows
       work_items: $steps.work-items-at-chase.rows
       submissions: $steps.read-submissions-at-chase.rows
+      effort: $config.effort
       closed_statuses: $config.work_items.closed_statuses
       cutoff: $steps.await-chase.instant
       thread_reference: $steps.open-close-thread.thread_reference
@@ -70,6 +71,7 @@ steps:
       participants: $steps.snapshot-participants.rows
       work_items: $steps.work-items-at-report.rows
       submissions: $steps.read-submissions-at-report.rows
+      effort: $config.effort
       closed_statuses: $config.work_items.closed_statuses
       cutoff: $steps.await-report.instant
       thread_reference: $steps.open-close-thread.thread_reference
@@ -81,7 +83,7 @@ steps:
     thread: $steps.open-close-thread.thread_reference
     after: report
     template: sprint-sop/retro-template.md
-    vars: { report_text: $steps.close-view.report_text, open_items_text: $steps.close-view.open_items_text, effort: $config.effort }
+    vars: { report_text: $steps.close-view.report_text, open_items_text: $steps.close-view.open_items_text, effort: $steps.close-view.effort_text }
   - prepare-rollover: company:rollover-changes
     input: { open_work_items: $steps.close-view.open_work_items, target_sprint_id: $instance.next_sprint_id }
   - rollover-route: route

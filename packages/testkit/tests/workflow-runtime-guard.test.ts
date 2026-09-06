@@ -104,7 +104,7 @@ test("restart recovers the root receipt; independent runs produce separate real 
   assert.equal(h.calls.length, 1);
   assert.equal(first.workflow.manifest_hash, ctx.manifestHash);
   assert.equal(h.state.runs.get(ctx.runId)!.workflow, "friday-close");
-  assert.equal(h.state.runs.get(ctx.runId)!.workflowVersion, "6");
+  assert.equal(h.state.runs.get(ctx.runId)!.workflowVersion, "7");
   const next = { ...ctx, runId: "run-two" };
   h.setContext(next);
   await h.runtime().execute(request(next));

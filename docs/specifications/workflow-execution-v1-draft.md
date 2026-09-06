@@ -431,3 +431,12 @@ The operator review interface is read-only. Reviewing or acknowledging a report
 does not reconcile an effect, release a claim, substitute a human decision or
 resume execution. Automated business-owner notification and a governed recovery
 path still require their own delivery and reconciliation evidence.
+
+The synthetic close-classification Tool 6.2.0 preserves explicit actual-hours,
+planned-effort and unavailable calculations as Workspace code. Missing values
+remain null, excluded participants do not contribute to the total, and one
+basis never substitutes for another. Its optional input defaults to unavailable;
+Friday workflow version 7 passes the declared basis and renders the Tool's
+scalar evidence text. The reference remains configured as unavailable. Any
+operating use of numeric effort requires reviewed, typed Records fields and
+projections; no provider collection is enabled by these computation fixtures.
