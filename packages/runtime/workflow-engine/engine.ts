@@ -1,3 +1,4 @@
+import { validateCollection } from "./collection.ts";
 import { randomUUID } from "node:crypto";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
@@ -189,6 +190,36 @@ export class WorkflowEngine {
         this.#finish(state, step, { outcome }, now, target);
         return await this.#save(run, state, "workflow.routed", { outcome, target });
       }
+      if (step.start) {
+        const target = artifact.workflows?.find((candidate) => candidate.id === step.start!.workflowId);
+        if (!target || target.trigger.kind !== "operator" || target.steps.some((candidate) => candidate.start)) throw new Error("Workflow start target must be a leaf operator workflow");
+        const items = step.forEach ? workflowItems(step, workflow, ctx) : [{ key: "single", value: null }];
+        const prepared = items.map((item) => {
+          const fields = resolveWorkflowValue(step.start!.fields, workflow, { ...ctx, item: item.value }) as Record<string, string>;
+          if (Object.values(fields).some((value) => typeof value !== "string" || !value) || workflowOpeningFields(target).some((field) => !["trigger_id", "run_date"].includes(field) && !fields[field])
+            || Object.keys(fields).some((field) => !target.instance.fields.includes(field) || ["trigger_id", "run_date"].includes(field))) throw new Error("Child opening fields do not match the target contract");
+          return { ...item, fields };
+        });
+        const prior = state.steps[step.id] ?? { status: "running" as const, startedAt: now, items: {} };
+        state.steps[step.id] = prior; prior.items ??= {};
+        const item = prepared.find((item) => !prior.items![jsonDigest(item.key)]);
+        if (item) {
+          const childEngine = new WorkflowEngine({ ...this.#options, artifact });
+          // Semantic child identity survives repeated intake ticks and parent retries.
+          const requestId = "workflow-start:" + sha256({ workflow: target.id, fields: item.fields });
+          const child = await childEngine.openOperator({ workflowId: target.id, requestId, principal: run.subjectPrincipal, fields: item.fields });
+          prior.items[jsonDigest(item.key)] = { key: item.key, output: { run_id: child.runId } };
+          return await this.#save(run, state, "workflow.child-opened", { child_run_id: child.runId });
+        }
+        this.#finish(state, step, step.forEach ? { items: prepared.map((item) => prior.items![jsonDigest(item.key)]!) } : prior.items[jsonDigest("single")]!.output, now);
+        return await this.#save(run, state, "workflow.children-opened");
+      }
+      if (step.collect) {
+        const dueAt = workflowBusinessDeadline(this.#calendar(workflow, step.collect.calendarPath)!, now, step.collect.timeoutBusinessDays);
+        state.steps[step.id] = { status: "waiting", startedAt: now };
+        state.status = "waiting"; state.wait = { stepId: step.id, kind: "step", dueAt, timerId: timerId(run, step.id, "step", dueAt) };
+        return await this.#save(run, state, "workflow.collecting", { due_at: dueAt });
+      }
       if (step.wait) {
         const dueAt = "triggerId" in step.wait
           ? workflowNextTrigger(this.#calendar(workflow, step.wait.schedulePath)!, step.wait.triggerId, state.logicalInstant).instant
@@ -277,7 +308,8 @@ export class WorkflowEngine {
     let decision = state.decisions[step.id];
     if (!decision) {
       const bound = resolveWorkflowValue(declaration.binds, workflow, workflowContext(run, roster));
-      const recipients = roster.filter((member) => workflowDecisionMemberAllowed(member, workflow, step)).map((member) => member.id!).sort();
+      const recipient = declaration.recipient === undefined ? undefined : resolveWorkflowValue(declaration.recipient, workflow, workflowContext(run, roster));
+      const recipients = roster.filter((member) => (recipient === undefined || member.id === recipient) && workflowDecisionMemberAllowed(member, workflow, step)).map((member) => member.id!).sort();
       if (!recipients.length || new Set(recipients).size !== recipients.length) throw new Error("Workflow decision has no unambiguous active human role recipient");
       decision = { stepId: step.id, role: declaration.role, status: "pending", bound, boundDigest: jsonDigest(bound), recipients, deliveries: {}, createdAt: now,
         expiresAt: workflowBusinessDeadline(this.#calendar(workflow, declaration.calendarPath)!, now, declaration.timeoutBusinessDays) };
@@ -315,6 +347,29 @@ export class WorkflowEngine {
     return await this.#save(run, state, "workflow.awaiting-decision", { bound_digest: decision.boundDigest, expires_at: decision.expiresAt });
   }
 
+
+  /** The host captures verified conversation and event identity; models submit facts only. */
+  async collect(args: { principal: string; conversation: WorkflowConversation; eventId: string; output: JsonValue }): Promise<WorkflowRun> {
+    opaqueId(args.eventId);
+    const now = this.#now(), store = this.#options.store, instanceId = this.#artifact.instance.id;
+    const assignment = await store.assignment({ instanceId, conversation: { ...args.conversation, subjectPrincipal: args.principal }, now });
+    if (!assignment || assignment.subjectPrincipal !== args.principal) throw new Error("Collection requires its exact private human assignment");
+    const run = await store.claim({ instanceId, runId: assignment.runId, owner: "workflow-collection", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Workflow collection is busy or closed");
+    try {
+      this.#enabled(run.workflowId);
+      const { workflow, step } = await this.#definition(run);
+      const roster = await this.#options.currentRoster(), member = findByCanonicalPrincipal(roster, args.principal);
+      if (!member || !isHumanRosterMember(member) || !/^(active|aktiv)$/i.test(member.status)) throw new Error("Collection requires an active human");
+      const source = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect?.from));
+      if (!step.collect || !source || assignment.stepId !== source[1] || run.state.status !== "waiting" || run.state.blocked
+        || !run.state.wait || run.state.wait.dueAt <= now) throw new Error("Collection is not waiting for this conversation");
+      validateCollection(step, args.output);
+      const state = structuredClone(run.state);
+      this.#finish(state, step, args.output, now);
+      return await this.#save(run, state, "workflow.facts-collected", { response_event_id: args.eventId, output_digest: jsonDigest(args.output) }, undefined, args.principal);
+    } finally { await store.release({ instanceId, runId: run.runId, leaseToken: run.lease!.token }); }
+  }
 
   /** Trusted transport must authenticate principal, conversation and provider event identity. */
   async decide(args: { principal: string; conversation: WorkflowConversation; eventId: string; requestId: string; decision: "approved" | "rejected" }, onValidated?: (language?: string) => Promise<void>): Promise<WorkflowRun> {
@@ -376,7 +431,8 @@ export class WorkflowEngine {
         }
         if (payload.kind === "step") {
           state.logicalInstant = payload.instant;
-          this.#finish(state, step, { instant: payload.instant }, now);
+          if (step.collect) { state.status = "cancelled"; state.cursor = null; delete state.wait; }
+          else this.#finish(state, step, { instant: payload.instant }, now);
         } else { state.status = "running"; delete state.wait; }
       }
       await this.#save(run, state, "workflow.timer-fired", { timer_id: timer.timerId, instant: payload.instant });

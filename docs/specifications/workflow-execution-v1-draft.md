@@ -625,3 +625,36 @@ notice must follow durable acceptance. Exact response redelivery must not reset
 a completed card to processing. The optional Artifact language is presentation
 metadata derived from the existing Workspace company language; old Artifacts
 remain valid with the documented fallback.
+
+## Assigned fact collection
+
+A `collect` step pauses for one private conversation. `from` references a prior
+root message's `thread_reference`; that message must have one explicit recipient.
+`context` supplies the reviewed card or other business facts. `fields` names up
+to 30 required text fields, each at most 4,000 characters. `timeout.business_days`
+uses the workflow calendar. On timeout the run is cancelled without an effect.
+
+The Agent asks questions and submits only these fields. Core verifies the active
+human, delivered thread, current step and deadline, then freezes the output.
+Submission is not consent. A later human decision binds the proposed changes.
+Use `recipient` to limit a decision to one exact member. `human:subject` confirms
+only R0–R2 effects for that member without granting an approval role. R3–R4 still
+require the existing risk authorization and named role. The action labels belong
+to the Workspace. A conversational acknowledgement does not approve a decision.
+
+Keep selection, questions and permitted business fields in the Workspace. Put
+provider integration in its Connector. Operational state remains in the Instance,
+never in Workspace files. Verify unauthorized replies, expiry, rejected proposals,
+stale versions, retry and provider readback before enabling a workflow.
+
+A `start` step opens a declared leaf operator workflow using `workflow` and an
+`input` map of its instance fields. It may use `for_each`. The child must be
+explicitly enabled in the Instance and the opening principal remains subject to
+operator authorization. The target and exact fields identify the child across
+repeated intake runs. A child cannot start another child. This gives Workspace
+selectors a reusable dispatch path without business rules in the engine.
+
+An exact `yes` or `no` reply on a delivered subject-decision thread can record
+that decision; a German-language Workspace uses `ja` or `nein`. Other text stays
+conversation. A reply on the earlier discussion thread cannot approve the later
+proposal. Native buttons remain the unambiguous primary action.

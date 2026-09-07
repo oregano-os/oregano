@@ -168,7 +168,11 @@ export function authorizeWorkflowDecisions(guard: GuardedWorkflowInvocation, inp
     const bound = resolveWorkflowValue(declaration.binds, guard.workflow, guard.context);
     if (jsonDigest(bound) !== decision.boundDigest || jsonDigest(valueAt(input, requirement.payloadPath)) !== decision.boundDigest) throw new Error("Workflow decision digest differs from the exact effect payload");
     const authorized = authorizePrincipalApproval(guard.context.currentRoster, decision.approvingPrincipal, risk);
-    if (!authorized.ok || authorized.member?.role !== declaration.role) throw new Error("Workflow decision requires an active authorized human in the declared role");
+    const subjectConfirmation = declaration.role === "subject" && RISK_ORDER[risk] <= RISK_ORDER.R2
+      && authorized.member && isHumanRosterMember(authorized.member) && /^(active|aktiv)$/i.test(authorized.member.status)
+      && authorized.member.id === resolveWorkflowValue(declaration.recipient!, guard.workflow, guard.context)
+      && decision.recipients?.includes(authorized.member.id!);
+    if (!subjectConfirmation && (!authorized.ok || authorized.member?.role !== declaration.role)) throw new Error("Workflow decision requires an active authorized human in the declared role");
     principals.add(decision.approvingPrincipal);
   }
   if (RISK_ORDER[risk] >= RISK_ORDER.R3 && principals.size !== 1) throw new Error("Workflow R3/R4 effect requires one bound human approval");

@@ -15,13 +15,13 @@ export function workflowDecisionId(runId: string, stepId: string, boundDigest: s
   return sha256({ runId, stepId, boundDigest });
 }
 export function workflowDecisionMemberAllowed(member: RosterMember, workflow: CompiledWorkflow, step: CompiledWorkflowStep): boolean {
-  return !!member.id && isHumanRosterMember(member) && /^(active|aktiv)$/i.test(member.status) && member.role === step.decision?.role
-    && (workflowDecisionRisk(workflow, step.id) === "R0" || member.mayApprove.includes(workflowDecisionRisk(workflow, step.id)));
+  return !!member.id && isHumanRosterMember(member) && /^(active|aktiv)$/i.test(member.status) && (step.decision?.role === "subject" ? step.decision.recipient !== undefined && RISK_ORDER[workflowDecisionRisk(workflow, step.id)] <= 2 : member.role === step.decision?.role)
+    && (step.decision?.role === "subject" || workflowDecisionRisk(workflow, step.id) === "R0" || member.mayApprove.includes(workflowDecisionRisk(workflow, step.id)));
 }
 export function authorizeWorkflowDecisionPrincipal(roster: RosterMember[], principal: string, workflow: CompiledWorkflow, step: CompiledWorkflowStep): RosterMember {
   const risk = workflowDecisionRisk(workflow, step.id);
   const auth = authorizePrincipalApproval(roster, principal, risk === "R0" ? "R1" : risk);
-  if (!auth.member || !workflowDecisionMemberAllowed(auth.member, workflow, step) || (risk !== "R0" && !auth.ok)) throw new Error("Workflow decision requires an authenticated active human in the authorized role");
+  if (!auth.member || !workflowDecisionMemberAllowed(auth.member, workflow, step) || (step.decision?.role !== "subject" && risk !== "R0" && !auth.ok)) throw new Error("Workflow decision requires an authenticated active human in the authorized role");
   return auth.member;
 }
 
@@ -74,4 +74,14 @@ export function workflowDecisionNoticeInput(artifact: CompanyOSArtifact, workflo
   if (destinations.length !== 1) throw new Error("Decision notice requires an exact qualified recipient destination");
   return renderWorkflowDecisionNotice({ runId: context.runId, workflowId: workflow.id, stepId: step.id, role: step.decision.role,
     presentation: workflowDecisionPresentation(workflow, step, context), expiresAt: decision.expiresAt, bound, destinationBinding: destinations[0]!.destinationBinding });
+}
+
+/** Short replies are accepted only on the actual delivered subject-confirmation thread. */
+export function subjectDecisionReply(text: string, role: string, language = "en"): "approved" | "rejected" | undefined {
+  if (role !== "subject") return undefined;
+  const value = text.trim().toLowerCase();
+  const german = language.toLowerCase().split(/[-_]/)[0] === "de";
+  if (value === (german ? "ja" : "yes")) return "approved";
+  if (value === (german ? "nein" : "no")) return "rejected";
+  return undefined;
 }

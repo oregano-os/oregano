@@ -100,6 +100,11 @@ export function compileWorkflows(args: {
         const targets = Object.fromEntries(Object.entries(raw).filter(([key]) => !["id", "tool", "on"].includes(key))) as Record<string, string>;
         return { ...base, kind: "route", route: { on: raw.on, targets }, next: [...new Set(Object.values(targets))] };
       }
+      if (raw.tool === "start") return { ...base, kind: "start", start: { workflowId: raw.workflow, fields: raw.input } };
+      if (raw.tool === "collect") {
+        const path = calendar(); usedSchedules.add(path);
+        return { ...base, kind: "collect", collect: { from: raw.from, context: raw.context, fields: raw.fields, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path } };
+      }
       if (raw.tool === "wait") {
         if (typeof raw.for === "string") {
           const id = raw.for.slice(9); const schedule = scheduleFor(id); usedSchedules.add(schedule.path);
@@ -122,7 +127,7 @@ export function compileWorkflows(args: {
         const path = calendar(); usedSchedules.add(path);
         const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);
         if (Number(resolved.risk.slice(1)) >= 3) throw new Error(`${data.id}/${raw.id}: human decision notices require an R2 communication Tool`);
-        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { presentation, role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
+        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { ...(raw.recipient ? { recipient: raw.recipient } : {}), presentation, role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
       }
       const { resolved, tool, effectful } = resolveTool(raw.tool, raw.id);
       const result: CompiledWorkflowStep = { ...base, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, kind: effectful ? "effect" : "compute", evidence: [...tool.contract.evidence] };
@@ -143,7 +148,7 @@ export function compileWorkflows(args: {
       return result;
     });
     for (const step of steps) {
-      const consumed = [step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
+      const consumed = [step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
         const match = reference.exec(text);
         if (!match) return;
@@ -169,6 +174,9 @@ export function compileWorkflows(args: {
           for (const value of consumed) visit(value, (text) => { if (text.startsWith("$item.")) add(text.slice(6).split(".")); });
         }
       }
+    }
+    for (const step of steps) {
+      if (step.decision?.role === "subject" && (!step.decision.recipient || steps.some((effect) => effect.requiresDecisions.some((requirement) => requirement.stepId === step.id) && Number(effect.maxRisk.slice(1)) > 2))) throw new Error("Subject confirmation requires one recipient and effects no higher than R2");
     }
     for (const step of steps) step.requiredOutputPaths.sort((a, b) => a.join(".").localeCompare(b.join(".")));
     const rawKey = data.instance?.key ?? ["trigger_id", "run_date"];

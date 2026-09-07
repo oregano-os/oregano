@@ -1,0 +1,50 @@
+version: 3
+plan_id: workflow-collection-2026-09-07
+created: "2026-09-07"
+title: Collect typed facts in an assigned workflow conversation
+objective: Collect bounded fields from one assigned private conversation before a separate human decision and existing effect; start enabled leaf workflows from Workspace intake selections.
+non_goals:
+  - Add business selection rules or a provider-specific conversation engine.
+  - Infer consent from model output or activate production.
+placement: core
+change_class: security
+files_expected:
+  - packages/cli/content/guides/author-a-workflow.md
+  - packages/cli/src/workspace-validator.mjs
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/companyos-builder/workflow-*.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/runtime/workflow-engine/**
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-collection.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - status.current
+architecture:
+  placement:
+    core: Reuse delivered assignments, leases, typed outputs, decisions and effects.
+    packages: No business package.
+    workspace: Own eligible items, requested fields, questions and proposals.
+    instance: Bind exact authenticated conversations and isolated resources.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Permit bounded output submission only from the frozen private conversation.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Collecting facts advances to an ordinary decision without approving it.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any workflow can collect fields before its independently authorized effect.
+rollback: Disable new workflow openings and retain pinned artifacts and history for pending runs.

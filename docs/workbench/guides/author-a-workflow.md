@@ -74,3 +74,30 @@ that must satisfy the executable calendar contract. Independent scheduling
 metadata may coexist in `schedules/`; it is not added to workflow manifests.
 Keep all candidate YAML readable and avoid competing trigger IDs. Invalid or
 missing referenced calendars still block validation and compilation.
+
+## Assigned fact collection
+
+A `collect` step pauses for one private conversation. `from` references a prior
+root message's `thread_reference`; that message must have one explicit recipient.
+`context` supplies the reviewed card or other business facts. `fields` names up
+to 30 required text fields, each at most 4,000 characters. `timeout.business_days`
+uses the workflow calendar. On timeout the run is cancelled without an effect.
+
+The Agent asks questions and submits only these fields. Core verifies the active
+human, delivered thread, current step and deadline, then freezes the output.
+Submission is not consent. A later human decision binds the proposed changes.
+Use `recipient` to limit a decision to one exact member. `human:subject` confirms
+only R0–R2 effects for that member without granting an approval role. R3–R4 still
+require the existing risk authorization and named role. The action labels belong
+to the Workspace. A conversational acknowledgement does not approve a decision.
+
+Keep selection, questions and permitted business fields in the Workspace. Put
+provider integration in its Connector. Operational state remains in the Instance,
+never in Workspace files. Verify unauthorized replies, expiry, rejected proposals,
+stale versions, retry and provider readback before enabling a workflow.
+
+For a recurring intake, select eligible objects in a Company Tool, then use
+`start` with `workflow`, `input` and optional `for_each` to open one child per
+object. The exact input fields deduplicate repeated intake scans. The child must
+be an enabled operator workflow and cannot start further workflows. Keep the
+intake calendar blocked until its recipients and provider effects are tested.

@@ -1376,3 +1376,10 @@ the existing company language for English/German system feedback; unsupported or
 older language metadata falls back to English. Hosted latency improvement still
 requires measurement on the deployed candidate and a real user click; local
 response tests alone do not prove a perceptible improvement.
+
+## Assigned workflow conversations
+
+Typed fact collection, recipient-bound reversible confirmations and deduplicated
+child openings are implemented. Their contracts and limits are described in the
+[Workflow Execution specification](../specifications/workflow-execution-v1-draft.md).
+Local execution tests do not replace actual host, human and provider acceptance.
