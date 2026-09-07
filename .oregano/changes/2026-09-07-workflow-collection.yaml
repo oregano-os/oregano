@@ -9,6 +9,9 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - .oregano/changes/2026-09-07-decision-review-retention.yaml
+  - packages/runner-vercel/src/lib/slack-decision-review.ts
+  - packages/testkit/tests/slack-decision-review.test.ts
   - .oregano/changes/2026-09-07-conversation-presentation.yaml
   - packages/runner-vercel/src/lib/workflow-conversation-presentation.ts
   - packages/runner-vercel/src/lib/slack-agent-experience.ts
