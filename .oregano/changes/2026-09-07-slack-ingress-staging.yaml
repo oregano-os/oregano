@@ -1,0 +1,95 @@
+version: 2
+plan_id: slack-ingress-staging-2026-09-07
+created: 2026-09-07
+title: Preserve existing chat behavior during shared-app event staging
+objective: Add an opt-in guard for channel message events on the primary webhook
+  without changing DM, mention or control handling.
+non_goals:
+  - Enable new business workflows or change grants, artifacts, storage or
+    providers.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-slack-ingress-staging.yaml
+  - packages/runner-vercel/src/app/api/webhooks/**
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - docs/operations/vercel-slack-event-staging.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-channel-events.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-slack-event-staging
+rollback: Restore the previous event subscriptions before removing the configured guard.
+status: approved
+author: codex-agent
+required_approvals:
+  - oregano-maintainer
+approvals:
+  - role: oregano-maintainer
+    approver: Peter Notzel
+    approved_at: 2026-09-07
+    evidence: Explicit current request to complete the explained minimal production
+      ingress guard, existing-app event update and isolated retest.
+validation:
+  - pnpm check
+  - pnpm runner:build
+  - pnpm companyos inspect-core --plan
+    .oregano/changes/2026-09-07-slack-ingress-staging.yaml --base
+    70ce019dc126c1277e14036508e55ad83c27c3e7
+  - git diff --check
+open_decisions: []
+architecture_assessment:
+  responsibilities:
+    core:
+      - Provider-specific ingress filtering only; retain signature verification
+        for processed events.
+    packages:
+      - No package or business policy.
+    workspace:
+      - No Workspace change or workflow activation.
+    instance:
+      - Opt in to retaining mention and direct-message behavior during an event
+        rollout.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing agent-resolver behavior
+        intact.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing toolset-resolver behavior
+        intact.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing model-recipe-resolver
+        behavior intact.
+    - mechanism: company-records
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing company-records behavior
+        intact.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: An explicit staging option drops ordinary channel message events before
+        bot processing; all processed events retain existing verification.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing timers-and-business-time
+        behavior intact.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing
+        approvals-effects-and-idempotency behavior intact.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing
+        capability-contracts-and-connectors behavior intact.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Instance sharing an app with a staged destination may
+    retain its existing event behavior.

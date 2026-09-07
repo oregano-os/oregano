@@ -883,6 +883,19 @@
     }
   },
   {
+    "document_id": "operations.vercel-slack-event-staging",
+    "title": "Stage Slack channel events on a shared app",
+    "path": "docs/operations/vercel-slack-event-staging.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-07",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "plan.builder-acp-mvp-implementation",
     "title": "Builder ACP MVP Architecture and Delivery Plan",
     "path": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
