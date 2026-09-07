@@ -1,3 +1,4 @@
+import { retainSlackDecisionReview } from "./slack-decision-review.ts";
 import { decisionFeedback } from "../../../runtime/decision-feedback.ts";
 import { decisionCard } from "./decision-cards.ts";
 import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
@@ -575,7 +576,7 @@ function registerHandlers(bot: Chat) {
         observe: (phase, elapsedMs) => console.info(JSON.stringify({ event: "workflow.button.phase", phase, elapsedMs })),
         decide: (onValidated) => host.conversations.receiveAction({ actionId: event.actionId, value: event.value!,
           threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw }, onValidated),
-        replace: (card) => event.adapter.editMessage(event.threadId, event.messageId, card),
+        replace: (card) => event.adapter.editMessage(event.threadId, event.messageId, retainSlackDecisionReview(event.raw, card)),
         continueRun: (runId) => host.engine.advance(runId, 32),
       });
       if (result.continuation === "failed") console.error(JSON.stringify({ event: "workflow.button.continuation-failed", runId: result.runId, reference: sha256(String(result.continuationError)) }));

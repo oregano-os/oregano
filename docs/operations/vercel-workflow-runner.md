@@ -351,8 +351,10 @@ For provider-specific destination registration and routing diagnostics, use the
 Other hosts and communication providers must satisfy the same acceptance gate
 below through their own adapters; they do not inherit Vercel setup requirements.
 
-A successful workflow button decision replaces the original card with an
-explicit recorded approval or rejection and no action controls. Approval
+A workflow button keeps the original proposal, field values and links visible.
+Only the buttons are replaced with processing feedback, followed by a recorded
+approval or rejection. An unsupported original layout is left intact and the
+presentation failure is reported separately; content is never silently dropped. Approval
 confirmation does not claim that downstream effects have executed. The durable
 engine decision precedes this transport projection; a failed card edit is
 reported separately and must not be represented as a failed decision. An exact
