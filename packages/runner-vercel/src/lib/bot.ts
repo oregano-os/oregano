@@ -1,4 +1,6 @@
 import { retainSlackDecisionReview } from "./slack-decision-review.ts";
+import { workflowDmRecipients } from "./slack-workflow-dm-routing.ts";
+import { workflowInboundThreadId } from "./workflow-conversations.ts";
 import { decisionFeedback } from "../../../runtime/decision-feedback.ts";
 import { decisionCard } from "./decision-cards.ts";
 import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
@@ -247,7 +249,7 @@ export async function recoverHostedWorkflowReply(reference: { threadId: string; 
   const host = await createWorkflowHost();
   const referenceDigest = sha256(reference);
   const result = await recoverWorkflowReply(reference, {
-    receive: (input) => input.authorId !== undefined && process.env.COMPANYOS_WORKFLOW_ONLY === "true"
+    receive: (input) => input.authorId !== undefined && input.threadId.endsWith(`:${input.messageId}`)
       ? host.conversations.receiveChannel(input) : host.conversations.receive(input),
     dispatch: async (message) => {
       console.info(JSON.stringify({ event: "workflow.reply-recovery.dispatch", referenceDigest }));
@@ -279,8 +281,8 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     try {
       const { createWorkflowHost } = await import("./workflow-host.ts");
       const host = await createWorkflowHost();
-      const input = { threadId: thread.id, messageId: message.id, authorId: message.author.userId };
-      const received = thread.id.endsWith(`:${message.id}`) && process.env.COMPANYOS_WORKFLOW_ONLY === "true"
+      const input = { threadId: workflowInboundThreadId(thread.id, message.id), messageId: message.id, authorId: message.author.userId };
+      const received = input.threadId.endsWith(`:${message.id}`)
         ? await host.conversations.receiveChannel(input) : await host.conversations.receive(input);
       trace.emit("assignment", received.kind);
       if (received.kind === "ambiguous") {
@@ -318,7 +320,8 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     trace.emit("reply-posted");
     return;
   }
-  if (!await state.setIfNotExists(`message:${thread.id}:${message.id}`, true, 30 * DAY)) { trace.emit("deduplicated"); return; }
+  const claimThreadId = workflowSession ? workflowInboundThreadId(thread.id, message.id) : thread.id;
+  if (!await state.setIfNotExists(`message:${claimThreadId}:${message.id}`, true, 30 * DAY)) { trace.emit("deduplicated"); return; }
   await thread.subscribe();
   const requester = workflowSession?.principal ?? principal(member);
   const conversation: ResolvedConversationAgent = workflowSession ? {
@@ -679,6 +682,7 @@ export function createCompanyOSRuntimeConnectors(
 
 export function getBot(): Chat {
   if (botInstance) return botInstance;
+  workflowDmRecipients();
   state = createPostgresChatState();
   artifact = loadArtifact();
   assignmentStore = createPostgresConversationAssignmentStore();

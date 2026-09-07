@@ -6,7 +6,7 @@ import { sha256 } from "../../runtime/canonical.ts";
 
 export type WorkflowSlackChannelKind = "direct-message" | "private-channel" | "public-channel";
 export interface WorkflowSlackApi {
-  qualifyReplies?(kind: WorkflowSlackChannelKind): Promise<void>;
+  qualifyReplies?(kind: WorkflowSlackChannelKind, principal?: string): Promise<void>;
   call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies" | "conversations.history", args: Record<string, string>): Promise<Record<string, any>>;
 }
 export interface WorkflowSlackDestination { id: string; accountId: string; channelId?: string; userId?: string; kind: "channel" | "direct-message" }
@@ -45,7 +45,7 @@ export class WorkflowSlackTransport {
     const { conversation: c, messageId } = args;
     if (c.surface !== "slack" || !/^[A-Z0-9]{5,32}$/.test(c.channelId) || !/^\d+\.\d+$/.test(c.threadId)
       || !/^\d+\.\d+$/.test(messageId) || messageId === c.threadId || c.accountId !== await this.account()) throw new Error("Workflow reply identity is invalid");
-    if (args.channelReply && (!/^[CG]/.test(c.channelId) || Number(messageId) <= Number(c.threadId))) throw new Error("Channel reply predates its question");
+    if (args.channelReply && (!/^[CDG]/.test(c.channelId) || Number(messageId) <= Number(c.threadId))) throw new Error("Root reply predates its question");
     const response = args.channelReply
       ? await this.#api.call("conversations.history", { channel: c.channelId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" })
       : await this.#api.call("conversations.replies", { channel: c.channelId, ts: c.threadId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" });
@@ -86,7 +86,7 @@ export class WorkflowSlackTransport {
       if (principal && this.#api.qualifyReplies && typeof channel.is_private !== "boolean") throw new Error("Slack channel visibility could not be verified");
       kind = channel.is_private ? "private-channel" : "public-channel";
     }
-    if (principal) await this.#api.qualifyReplies?.(kind);
+    if (principal) await this.#api.qualifyReplies?.(kind, principal);
     return { provider: "slack", artifact_hash: artifact.artifactHash, destination_binding: destination, binding_digest: sha256(binding), account_id: account,
       ...(principal ? { principal } : { channel_id: binding.channelId! }), verified_at: new Date().toISOString() };
   }

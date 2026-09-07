@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { ownsWorkflowDm, workflowDmRecipients } from "./slack-workflow-dm-routing.ts";
 
 export type WorkflowSlackIngressReason = "workflow-action" | "workflow-message" | "not-post" | "unsupported-content-type"
   | "payload-too-large" | "invalid-payload" | "other-action" | "conversations-disabled" | "other-event"
@@ -17,7 +18,7 @@ export function slackMessageReference(channel: unknown, timestamp: unknown): str
 }
 
 /** Selection is not authentication. Preserve original request bytes for the SDK verifier. */
-export async function inspectWorkflowSlackRequest(request: Request, workflowOnly: boolean): Promise<WorkflowSlackIngressInspection> {
+export async function inspectWorkflowSlackRequest(request: Request, workflowOnly: boolean, dmRecipients = workflowDmRecipients()): Promise<WorkflowSlackIngressInspection> {
   const ignored = (reason: WorkflowSlackIngressReason, messageRef?: string): WorkflowSlackIngressInspection => ({ kind: "ignored", reason, ...(messageRef ? { messageRef } : {}) });
   if (request.method !== "POST") return ignored("not-post");
   const contentType = request.headers.get("content-type") ?? "";
@@ -37,7 +38,7 @@ export async function inspectWorkflowSlackRequest(request: Request, workflowOnly
     const messageRef = slackMessageReference(event?.channel, event?.ts);
     if (payload?.type !== "event_callback" || !["message", "app_mention"].includes(event?.type)) return ignored("other-event", messageRef);
     if (event.subtype || event.bot_id || event.app_id) return ignored("bot-or-subtype", messageRef);
-    if (typeof event.channel !== "string" || !/^[CG][A-Z0-9]{4,31}$/.test(event.channel)) return ignored("not-channel-message", messageRef);
+    if (typeof event.channel !== "string" || (!/^[CG][A-Z0-9]{4,31}$/.test(event.channel) && !ownsWorkflowDm(payload, dmRecipients))) return ignored("not-channel-message", messageRef);
     if (typeof event.ts !== "string" || !/^\d+\.\d+$/.test(event.ts)
       || (event.thread_ts !== undefined && (typeof event.thread_ts !== "string" || !/^\d+\.\d+$/.test(event.thread_ts)))
       || typeof event.user !== "string" || !/^[UW][A-Z0-9]{4,31}$/.test(event.user)

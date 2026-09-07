@@ -20,7 +20,7 @@ export async function recoverWorkflowReply(
   const channelRoot = reference.authorId !== undefined
     && reference.authorId === identity?.[2]
     && reference.threadId === `slack:${conversation.channelId}:${reference.messageId}`
-    && /^[CG][A-Z0-9]{4,31}$/.test(conversation.channelId)
+    && /^[CDG][A-Z0-9]{4,31}$/.test(conversation.channelId)
     && Number(reference.messageId) > Number(conversation.threadId);
   if (!identity || identity[1] !== conversation.accountId
     || (reference.authorId !== undefined ? !channelRoot : reference.threadId !== `slack:${conversation.channelId}:${conversation.threadId}`)

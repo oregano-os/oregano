@@ -4,6 +4,7 @@ import { createSlackAdapter } from "@chat-adapter/slack";
 import { test } from "node:test";
 import { inspectWorkflowSlackRequest, slackMessageReference } from "./workflow-action-ingress.ts";
 import { createWorkflowSlackTrace, dispatchWorkflowSlackRequest } from "./workflow-slack-diagnostics.ts";
+import { workflowInboundThreadId } from "./workflow-conversations.ts";
 
 const secret = "synthetic-signing-key";
 const event = { type: "message", channel: "C10001", channel_type: "group", user: "U10001", ts: "20.000001", text: "Synthetic private business facts" };
@@ -55,6 +56,30 @@ test("diagnostics do not authenticate an unsigned message or bypass the existing
   assert.deepEqual(sdk.delivered, []);
   assert.equal(entries.at(-1)!.status, 401);
   assert.equal(entries.some((entry) => entry.stage === "handler-entered"), false);
+});
+
+test("an explicitly routed DM uses the same SDK verification for roots and replies", async () => {
+  const previous = process.env.SLACK_WORKFLOW_DM_RECIPIENTS;
+  process.env.SLACK_WORKFLOW_DM_RECIPIENTS = "T10001:U10001";
+  try {
+    for (const thread_ts of [undefined, "10.000001"]) {
+      const value = { ...event, channel: "D10001", channel_type: "im", thread_ts };
+      const sdk = await adapterHarness();
+      const response = await dispatchWorkflowSlackRequest(request(value), {
+        workflowOnly: true, diagnostics: false, handler: sdk.handler, waitUntil() {},
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual(sdk.delivered.map((id) => workflowInboundThreadId(id, event.ts)), [`slack:D10001:${thread_ts ?? event.ts}`]);
+      const invalid = await adapterHarness();
+      assert.equal((await dispatchWorkflowSlackRequest(request(value, false), {
+        workflowOnly: true, diagnostics: false, handler: invalid.handler, waitUntil() {},
+      })).status, 401);
+      assert.deepEqual(invalid.delivered, []);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.SLACK_WORKFLOW_DM_RECIPIENTS;
+    else process.env.SLACK_WORKFLOW_DM_RECIPIENTS = previous;
+  }
 });
 
 test("filtered messages identify their reason and never initialize a general agent", async () => {

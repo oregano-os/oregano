@@ -81,7 +81,7 @@ test("operator parser excludes approval impersonation, hidden schedule parameter
     { action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002" });
   const root = { action: "recover-reply", threadId: "slack:C10001:100.002", messageId: "100.002", authorId: "U10002" };
   assert.deepEqual(parseWorkflowOperatorRequest(root), root);
-  for (const patch of [{ threadId: "slack:C10001:100.001" }, { threadId: "slack:D10001:100.002" }, { action: "receive-reply" }, { authorId: "forged" }]) {
+  for (const patch of [{ threadId: "slack:C10001:100.001" }, { threadId: "slack:D10001:100.001" }, { action: "receive-reply" }, { authorId: "forged" }]) {
     assert.throws(() => parseWorkflowOperatorRequest({ ...root, ...patch }));
   }
 });

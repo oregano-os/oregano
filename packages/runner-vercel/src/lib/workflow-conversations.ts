@@ -35,6 +35,13 @@ export function workflowReplyThreadId(session: WorkflowConversationSession): str
   return `slack:${session.conversation.channelId}:${session.conversation.threadId}`;
 }
 
+/** The Slack SDK represents a main-DM message with an empty thread suffix.
+ * Use its actual message timestamp to locate that root; do not invent a reply. */
+export function workflowInboundThreadId(threadId: string, messageId: string): string {
+  return /^slack:D[A-Z0-9]{4,31}:$/.test(threadId) && /^\d+\.\d+$/.test(messageId)
+    ? `${threadId}${messageId}` : threadId;
+}
+
 /** Shared by verified webhook delivery and operator-triggered provider rereads. Neither can submit an approving principal. */
 interface WorkflowConversationHostOptions {
     artifact: CompanyOSArtifact; engine: WorkflowEngine; store: WorkflowExecutionStore; control: StateStore;
@@ -67,7 +74,7 @@ export class WorkflowConversationHost {
   }
 
   async receiveChannel(args: { threadId: string; messageId: string; authorId?: string }): Promise<WorkflowInboundResult> {
-    const match = /^slack:([CG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.threadId);
+    const match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.threadId);
     if (!match || match[2] !== args.messageId || !args.authorId || !/^[UW][A-Z0-9]{4,31}$/.test(args.authorId)) return { kind: "unassigned" };
     const { artifact, store } = this.#args, now = this.#args.clock?.() ?? new Date().toISOString();
     const candidates = await this.#args.slack(async (transport) => {

@@ -645,12 +645,13 @@ require the existing risk authorization and named role. The action labels belong
 to the Workspace. A conversational acknowledgement does not approve a decision.
 
 
-A person may answer in the main channel when exactly one unexpired fact-collection
+A person may answer in the main conversation, including a direct message, when
+exactly one unexpired fact-collection
 question is open for that recipient in that account and channel. The host reads
 the original provider message and uses the existing question as its context;
 it does not pretend that the message was sent in a thread. Multiple possible
 questions require clarification. Unrelated users, other channels and expired
-questions cannot select a conversation. Channel fallback collects facts only;
+questions cannot select a conversation. This fallback collects facts only;
 a human decision still requires its own delivered question or action.
 
 Keep selection, questions and permitted business fields in the Workspace. Put

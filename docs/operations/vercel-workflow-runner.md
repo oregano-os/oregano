@@ -374,12 +374,11 @@ encoding fits, do not truncate the Artifact or remove its integrity checks.
 
 ## Conversation tests with a shared Slack app
 
-The action-only test endpoint does not receive normal conversations. Do not test
-a new conversation in the shared app's direct messages: the production bot may
-also process that reply. Use a new thread in the approved test
-channel, with one recipient mapping and `COMPANYOS_WORKFLOW_ONLY=true` in the
-test environment. This enables original channel-thread events on the workflow
-endpoint. The SDK verifies the original event; only subscribed, assigned threads
+The action-only test endpoint does not receive normal conversations. Start with
+a new thread in the approved test channel, one recipient mapping, and
+`COMPANYOS_WORKFLOW_ONLY=true` in the test environment. This enables channel
+messages on the workflow endpoint. A shared app's direct messages need the
+explicit ownership setup below; otherwise the normal bot may answer them. The SDK verifies the original event; only subscribed, assigned threads
 reach the workflow, and unassigned replies receive no general-agent fallback.
 Replies may include an explicit app mention when the channel has an exclusive
 destination as described below. Do not reuse a production thread.
@@ -388,6 +387,37 @@ A recipient-bound channel remains visible to channel members; it is not a privat
 message. The recipient restriction controls who may supply facts or confirm.
 For private tests, use a separately installed test app or an independently reviewed
 exclusive event route. Provider fan-out alone does not isolate normal DM replies.
+
+### Give a workflow Instance exclusive ownership of a test DM
+
+By default, the workflow-only endpoint ignores direct messages. Buttons use a
+separate route, so a working button and a delivered card list do not prove that
+text replies work. The host rejects new DM questions without a declared route.
+
+For a reviewed shared-app test, set `SLACK_WORKFLOW_DM_RECIPIENTS` to the same
+comma-separated `account:user` list on both destinations, for example
+`T10001:U10002`. These are exact Slack account and user IDs, not names or secrets.
+On the normal webhook, messages from those users in their DMs are excluded.
+On the workflow-only endpoint, they are admitted to the existing SDK verifier.
+All other DMs retain their previous route. Do not set this on only one destination:
+that can leave the user with either two responders or none. This reserves that
+person's DM for workflow tests, including new root messages; it does not limit the
+reservation to a question thread. Keep ordinary chat elsewhere during that test.
+
+Deploy the normal-webhook exclusion first, under the required deployment
+approval, then enable the workflow route. Before opening a business question,
+verify both deployed versions and settings. Test one real root answer and one
+thread answer: each must reach the assigned workflow exactly once, with no
+response from the other Instance. Declared ownership is configuration, not proof
+that the other deployment actually uses it. Remove both settings together after
+the test. No reinstall or additional message scope is introduced by this setting.
+
+The receiving host still checks the provider account, current human and delivered
+question. A root answer can select exactly one active question in that DM; several
+questions require clarification. It records facts only. A new-root “yes” cannot
+approve a different question. The reply continues in the original question thread.
+Recovery uses the exact provider message and author; it cannot supply replacement
+text or manufacture a decision. Record recovery separately from automatic delivery.
 
 ### Check incoming replies before opening a conversation
 

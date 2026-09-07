@@ -1,0 +1,59 @@
+version: 3
+plan_id: workflow-direct-replies-2026-09-07
+created: "2026-09-07"
+title: Qualify exclusive direct-message workflow routing before delivery
+objective: Route original direct-message answers to one active recipient-bound question and reject workflow-only DM publication unless the Instance explicitly owns that recipient's DM route.
+non_goals:
+  - Change company business rules, model selection, credentials or human decisions.
+  - Activate production workflows or silently change another Instance's routing.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-workflow-direct-replies.yaml
+  - packages/runner-vercel/src/lib/slack-workflow-dm-routing.ts
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-slack.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/workflow-reply-recovery.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - docs/operations/vercel-workflow-runner.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - packages/testkit/tests/workflow-slack-events.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-workflow-runner
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+architecture:
+  placement:
+    core: Extend existing recipient-bound collection and Slack event selection without adding another workflow engine or authorization mechanism.
+    packages: No new Package behavior or domain-specific contract.
+    workspace: Own the questions, Skills, collection fields and manual publication instructions.
+    instance: Own exact account-and-user DM routes and verify exclusive delivery across shared-app destinations before enabling them.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Preserve verified provider authors, exact delivered assignments, unique active collection and separate human decisions for root DM replies.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can collect facts from a direct-message root or question thread without a business-specific Agent handoff.
+rollback: Restore the previous exact deployment and both Instance route settings together. Preserve original messages, assignments and decisions. Do not treat routing repair as a human response or completed workflow.

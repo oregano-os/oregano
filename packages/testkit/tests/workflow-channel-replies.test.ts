@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { collectionFixture } from "../workflow-collection-fixture.ts";
 import { ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
-import { WorkflowConversationHost, workflowReplyThreadId } from "../../runner-vercel/src/lib/workflow-conversations.ts";
+import { WorkflowConversationHost, workflowReplyThreadId, workflowInboundThreadId } from "../../runner-vercel/src/lib/workflow-conversations.ts";
 import { WorkflowSlackTransport } from "../../connectors/slack/workflow-transport.ts";
 import { recoverWorkflowReply } from "../../runner-vercel/src/lib/workflow-reply-recovery.ts";
 
-async function setup(count = 1) {
-  const h = collectionFixture({ conversationForReceipt: async ({ output }) => ({ surface: "slack", accountId: "T10001", channelId: "C10001",
+async function setup(count = 1, channelId = "C10001") {
+  const h = collectionFixture({ conversationForReceipt: async ({ output }) => ({ surface: "slack", accountId: "T10001", channelId,
     threadId: `${(output as any).message_id.replace("message-", "")}.000001`, subjectPrincipal: ENGINE_OWNER }) });
   const runs = [];
   for (let i = 0; i < count; i++) {
@@ -26,7 +26,7 @@ async function setup(count = 1) {
       assert.equal(args.oldest, message.ts); assert.equal(args.latest, message.ts);
       return { ok: true, has_more: false, messages: [message] };
     } })) });
-  const input = { threadId: "slack:C10001:999.000001", messageId: "999.000001", authorId: "U10002" };
+  const input = { threadId: `slack:${channelId}:999.000001`, messageId: "999.000001", authorId: "U10002" };
   return { h, host, runs, input, calls, setMessage: (patch: Record<string, unknown>) => { message = { ...message, ...patch }; } };
 }
 
@@ -101,4 +101,33 @@ test("operator recovery of a channel root rereads its actual author and never ch
   const multiple = await setup(2);
   const ambiguous = await recoverWorkflowReply(multiple.input, { receive: (ref) => multiple.host.receiveChannel(ref), dispatch: async () => { assert.fail("Ambiguous root was dispatched"); } });
   assert.equal(ambiguous.kind, "ambiguous"); assert.equal(ambiguous.dispatchCompleted, false);
+});
+
+for (const count of [1, 2]) test(`a root direct answer requires exactly one active question (${count} open)`, async () => {
+  const { host, input, calls, runs } = await setup(count, "D10001");
+  const sdkReference = workflowInboundThreadId("slack:D10001:", input.messageId);
+  assert.equal(sdkReference, input.threadId);
+  const result = await host.receiveChannel({ ...input, threadId: sdkReference });
+  assert.equal(result.kind, count === 1 ? "conversation" : "ambiguous");
+  if (result.kind === "conversation") {
+    assert.equal(result.session.runId, runs[0]!.runId);
+    assert.equal(result.session.text, "The agreed intended outcome");
+    assert.equal(workflowReplyThreadId(result.session), `slack:D10001:${result.session.conversation.threadId}`);
+    assert.ok(calls.includes("conversations.history"));
+  }
+});
+
+test("direct root recovery preserves actual identity and cannot decide or switch recipients", async () => {
+  const { host, input, h, runs, setMessage } = await setup(1, "D10001");
+  const received: string[] = [];
+  const dependencies = { receive: (ref: { threadId: string; messageId: string; authorId?: string }) => host.receiveChannel(ref), dispatch: async (message: { text: string }) => { received.push(message.text); } };
+  setMessage({ text: "yes" });
+  assert.equal((await recoverWorkflowReply(input, dependencies)).dispatchCompleted, true);
+  assert.deepEqual(received, ["yes"]);
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, runs[0]!.runId))!.state.decisions, {});
+  assert.equal((await host.receiveChannel({ ...input, authorId: "U10001" })).kind, "unassigned");
+  assert.equal((await host.receiveChannel({ ...input, threadId: "slack:D20001:999.000001" })).kind, "unassigned");
+  setMessage({ user: "U10001" });
+  await assert.rejects(recoverWorkflowReply(input, dependencies));
+  assert.equal(received.length, 1);
 });

@@ -51,7 +51,7 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     const reference = { action: input.action, threadId: text("threadId", /^slack:[A-Z0-9]{5,32}:\d+\.\d+$/), messageId: text("messageId", /^\d+\.\d+$/) };
     if (input.authorId === undefined) return reference as WorkflowOperatorRequest;
     const authorId = text("authorId", /^[UW][A-Z0-9]{4,31}$/);
-    if (!/^slack:[CG][A-Z0-9]{4,31}:/.test(reference.threadId) || !reference.threadId.endsWith(`:${reference.messageId}`)) throw new Error("A recovery author hint is only valid for an original channel-root message");
+    if (!/^slack:[CDG][A-Z0-9]{4,31}:/.test(reference.threadId) || !reference.threadId.endsWith(`:${reference.messageId}`)) throw new Error("A recovery author hint is only valid for an original channel-root or direct-message root");
     return { ...reference, authorId } as WorkflowOperatorRequest;
   }
   throw new Error("Unsupported workflow operator action");
