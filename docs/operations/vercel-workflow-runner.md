@@ -415,3 +415,13 @@ fabricated webhook or count an operator-only replay as live delivery acceptance.
 
 See the [Vercel Slack setup instructions](https://vercel.com/kb/guide/build-a-slack-bot-with-vercel-connect)
 and [Slack private-channel events](https://docs.slack.dev/reference/events/message.groups/).
+
+For a staged shared-app rollout, the main Slack webhook has an opt-in
+`SLACK_CHANNEL_MESSAGE_EVENTS=ignore` guard. Deploy and verify this guard on a
+destination that must retain mention/DM-only behavior **before** subscribing the
+app to channel message events. It drops `message` events from public or private
+channels on `/api/webhooks/slack`; `app_mention`, direct messages and interactive
+controls keep their existing authenticated path. The workflow-only test endpoint
+is separate. The default `process` behavior is unchanged. This is an Instance
+rollout choice, not a Workspace business rule or permission to deploy production.
+Remove the guard only after channel conversation behavior is explicitly accepted.

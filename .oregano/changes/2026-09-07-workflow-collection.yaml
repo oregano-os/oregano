@@ -9,6 +9,9 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/runner-vercel/src/app/api/webhooks/**
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
   - packages/runner-vercel/src/lib/workflow-slack.ts
   - packages/runner-vercel/src/lib/workflow-slack-events.ts
   - packages/testkit/tests/workflow-slack-events.test.ts
