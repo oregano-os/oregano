@@ -178,6 +178,18 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
           and (not (assignment_json ? 'subjectPrincipal') or assignment_json->>'subjectPrincipal' = ${args.conversation.subjectPrincipal ?? null})`;
       return rows[0] && json<WorkflowAssignment>(rows[0].assignment_json);
     },
+    async channelAssignments(args) {
+      workflowInstant(args.now);
+      await ensureWorkflowExecutionSchema();
+      const rows = await connection()`select assignment_json from companyos.workflow_thread_assignments assigned
+        join companyos.workflow_executions runs on assigned.run_id = runs.run_id and assigned.instance_id = runs.instance_id
+        where assigned.instance_id = ${args.instanceId} and assigned.expires_at > ${args.now}
+          and runs.state_json->>'status' in ('running','waiting')
+          and assignment_json->>'surface' = ${args.surface} and assignment_json->>'accountId' = ${args.accountId}
+          and assignment_json->>'channelId' = ${args.channelId} and assignment_json->>'subjectPrincipal' = ${args.subjectPrincipal}
+        order by assignment_key limit 21`;
+      return rows.map((row) => json<WorkflowAssignment>(row.assignment_json));
+    },
     async assignment(args) {
       workflowInstant(args.now);
       await ensureWorkflowExecutionSchema();

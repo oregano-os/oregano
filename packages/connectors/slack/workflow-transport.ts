@@ -7,7 +7,7 @@ import { sha256 } from "../../runtime/canonical.ts";
 export type WorkflowSlackChannelKind = "direct-message" | "private-channel" | "public-channel";
 export interface WorkflowSlackApi {
   qualifyReplies?(kind: WorkflowSlackChannelKind): Promise<void>;
-  call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies", args: Record<string, string>): Promise<Record<string, any>>;
+  call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies" | "conversations.history", args: Record<string, string>): Promise<Record<string, any>>;
 }
 export interface WorkflowSlackDestination { id: string; accountId: string; channelId?: string; userId?: string; kind: "channel" | "direct-message" }
 
@@ -41,15 +41,18 @@ export class WorkflowSlackTransport {
     return principal;
   }
   /** Reread the exact provider object; a caller's text/user/account is never approval evidence. */
-  async reply(args: { conversation: WorkflowConversation; messageId: string; roster: RosterMember[] }): Promise<{ principal: string; text: string; eventId: string }> {
+  async reply(args: { conversation: WorkflowConversation; messageId: string; roster: RosterMember[]; channelReply?: boolean }): Promise<{ principal: string; text: string; eventId: string }> {
     const { conversation: c, messageId } = args;
     if (c.surface !== "slack" || !/^[A-Z0-9]{5,32}$/.test(c.channelId) || !/^\d+\.\d+$/.test(c.threadId)
       || !/^\d+\.\d+$/.test(messageId) || messageId === c.threadId || c.accountId !== await this.account()) throw new Error("Workflow reply identity is invalid");
-    const response = await this.#api.call("conversations.replies", { channel: c.channelId, ts: c.threadId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" });
+    if (args.channelReply && (!/^[CG]/.test(c.channelId) || Number(messageId) <= Number(c.threadId))) throw new Error("Channel reply predates its question");
+    const response = args.channelReply
+      ? await this.#api.call("conversations.history", { channel: c.channelId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" })
+      : await this.#api.call("conversations.replies", { channel: c.channelId, ts: c.threadId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" });
     const matches = Array.isArray(response.messages) ? response.messages.filter((message: any) => message.ts === messageId) : [];
     if (response.ok !== true || response.has_more === true || response.response_metadata?.next_cursor || matches.length !== 1) throw new Error("The exact workflow reply could not be read completely");
     const message = matches[0];
-    if (message.thread_ts !== c.threadId || message.type !== "message" || message.bot_id || message.app_id || message.subtype || message.edited
+    if ((args.channelReply ? message.thread_ts && message.thread_ts !== messageId : message.thread_ts !== c.threadId) || message.type !== "message" || message.bot_id || message.app_id || message.subtype || message.edited
       || typeof message.text !== "string" || typeof message.user !== "string") throw new Error("Workflow reply is not an original attributable human message");
     const principal = await this.human(c.accountId, message.user, args.roster);
     if (c.subjectPrincipal && c.subjectPrincipal !== principal) throw new Error("Workflow reply belongs to another private recipient");

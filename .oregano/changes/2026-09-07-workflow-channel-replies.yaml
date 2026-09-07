@@ -1,0 +1,60 @@
+version: 3
+plan_id: workflow-channel-replies-2026-09-07
+created: "2026-09-07"
+title: Route channel replies to an unambiguous active fact collection
+objective: Accept authenticated channel answers without requiring thread knowledge, while retaining exact recipient, original message evidence and separate human decisions.
+non_goals:
+  - Infer approval from a channel message or select between competing conversations with a model.
+  - Activate production workflows or change company-specific business rules in Core.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-workflow-channel-replies.yaml
+  - packages/state-store/workflow-engine.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/runtime/workflow-engine/memory-store.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/workflow-collection-fixture.ts
+  - packages/testkit/tests/workflow-*.test.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - operations.vercel-workflow-runner
+    - status.current
+architecture:
+  placement:
+    core: Reuse durable assignments and typed collection; resolve only one current recipient-bound conversation.
+    packages: No new package or business mechanism.
+    workspace: Own requested facts, card context, questions, language and the subsequent decision.
+    instance: Keep original provider message identity and exact active conversation association in operational state.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Match current recipient, account, channel, deadline and collection step before admitting a channel reply.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reread the exact original channel message through the existing authenticated Slack transport.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve real event identity and prohibit channel fallback from recording a human decision.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any recipient-bound fact collection may accept a channel reply when its context is unambiguous.
+rollback: Disable the workflow-only message ingress; existing thread replies and pending decisions retain their original identities.

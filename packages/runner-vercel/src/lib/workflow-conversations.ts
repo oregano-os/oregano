@@ -27,7 +27,7 @@ export interface WorkflowConversationSession {
   collection?: { schema: ReturnType<typeof collectionSchema>; context: JsonValue; submit: (output: JsonValue) => Promise<unknown> };
 }
 export type WorkflowInboundResult = { kind: "unassigned" } | { kind: "decision"; runId: string; decision: "approved" | "rejected" }
-  | { kind: "closed" } | { kind: "conversation"; session: WorkflowConversationSession };
+  | { kind: "ambiguous"; conversations: WorkflowConversation[] } | { kind: "closed" } | { kind: "conversation"; session: WorkflowConversationSession };
 
 /** Shared by verified webhook delivery and operator-triggered provider rereads. Neither can submit an approving principal. */
 interface WorkflowConversationHostOptions {
@@ -60,7 +60,36 @@ export class WorkflowConversationHost {
     });
   }
 
-  async receive(args: { threadId: string; messageId: string; authorId?: string }): Promise<WorkflowInboundResult> {
+  async receiveChannel(args: { threadId: string; messageId: string; authorId?: string }): Promise<WorkflowInboundResult> {
+    const match = /^slack:([CG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.threadId);
+    if (!match || match[2] !== args.messageId || !args.authorId || !/^[UW][A-Z0-9]{4,31}$/.test(args.authorId)) return { kind: "unassigned" };
+    const { artifact, store } = this.#args, now = this.#args.clock?.() ?? new Date().toISOString();
+    const candidates = await this.#args.slack(async (transport) => {
+      const accountId = await transport.account();
+      const assignments = await store.channelAssignments({ instanceId: artifact.instance.id, surface: "slack", accountId,
+        channelId: match[1]!, subjectPrincipal: `slack:${accountId}:${args.authorId}`, now });
+      if (!assignments.length) return [];
+      await transport.human(accountId, args.authorId!, await this.#args.roster());
+      // Never treat a truncated candidate set as proof of uniqueness.
+      if (assignments.length === 21) return assignments;
+      const eligible = [];
+      for (const assignment of assignments) {
+        if (Number(assignment.threadId) >= Number(args.messageId)) continue;
+        const run = await store.read(artifact.instance.id, assignment.runId);
+        if (!run || run.state.status !== "waiting" || run.state.blocked || !run.state.wait || run.state.wait.dueAt <= now || !this.#args.enabledWorkflowIds.includes(run.workflowId)) continue;
+        const pinned = await store.getArtifact(run.artifactHash);
+        const step = pinned?.workflows?.find((w) => w.id === run.workflowId)?.steps.find((s) => s.id === run.state.cursor);
+        if (step?.collect && step.collect.from === `$steps.${assignment.stepId}.thread_reference`) eligible.push(assignment);
+      }
+      return eligible;
+    });
+    if (!candidates.length) return { kind: "unassigned" };
+    if (candidates.length !== 1) return { kind: "ambiguous", conversations: candidates.slice(0, 20) };
+    const target = candidates[0]!;
+    return this.receive({ ...args, threadId: `slack:${target.channelId}:${target.threadId}` }, true);
+  }
+
+  async receive(args: { threadId: string; messageId: string; authorId?: string }, channelReply = false): Promise<WorkflowInboundResult> {
     const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
     if (!match || args.messageId === match[2]) return { kind: "unassigned" };
     const now = this.#args.clock?.() ?? new Date().toISOString(), { store, artifact } = this.#args;
@@ -69,25 +98,25 @@ export class WorkflowConversationHost {
       const conversation: WorkflowConversation = { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]! };
       // Reread first when no webhook author hint is available. The hint selects
       // only candidate delivery proof; provider data must independently match it.
-      const initial = args.authorId ? undefined : await transport.reply({ conversation, messageId: args.messageId, roster });
+      const initial = args.authorId ? undefined : await transport.reply({ conversation, messageId: args.messageId, roster, channelReply });
       const principal = initial?.principal ?? `slack:${accountId}:${args.authorId}`;
       const qualifiedConversation = { ...conversation, subjectPrincipal: principal };
       const delivered = await store.deliveredAssignment({ instanceId: artifact.instance.id, conversation: qualifiedConversation });
       if (!delivered) return { kind: "unassigned" };
-      const reply = initial ?? await transport.reply({ conversation: qualifiedConversation, messageId: args.messageId, roster });
+      const reply = initial ?? await transport.reply({ conversation: qualifiedConversation, messageId: args.messageId, roster, channelReply });
       if (reply.principal !== principal) throw new Error("Workflow reply author differs from the candidate delivery identity");
       const run = await store.read(artifact.instance.id, delivered.runId);
       if (!run) throw new Error("Delivered workflow run is unavailable");
       if (!this.#args.enabledWorkflowIds.includes(run.workflowId)) throw new Error("Workflow conversation is disabled in this Instance");
       const decision = /^(APPROVE|REJECT) ([a-f0-9]{64})$/.exec(reply.text.trim());
-      if (decision) {
+      if (decision && !channelReply) {
         const result = await this.#args.engine.decide({ principal, conversation, eventId: reply.eventId, requestId: decision[2]!, decision: decision[1] === "APPROVE" ? "approved" : "rejected" });
         return { kind: "decision", runId: result.runId, decision: decision[1] === "APPROVE" ? "approved" : "rejected" };
       }
       const deliveredDefinition = await store.getArtifact(run.artifactHash);
       const directDecision = run.state.decisions[delivered.stepId];
       const subjectReply = directDecision && subjectDecisionReply(reply.text, directDecision.role, deliveredDefinition?.language);
-      if (subjectReply) {
+      if (subjectReply && !channelReply) {
         const result = await this.#args.engine.decide({ principal, conversation, eventId: reply.eventId,
           requestId: workflowDecisionId(run.runId, delivered.stepId, directDecision.boundDigest), decision: subjectReply });
         return { kind: "decision", runId: result.runId, decision: subjectReply };
@@ -98,6 +127,8 @@ export class WorkflowConversationHost {
       const workflow = pinned?.workflows?.find((workflow) => workflow.id === run.workflowId), step = workflow?.steps.find((step) => step.id === run.state.cursor);
       const agent = pinned?.agents.find((agent) => agent.id === workflow?.agentId);
       if (!pinned || !workflow || !step || !agent || !member) throw new Error("Workflow conversation has no exact historical definition");
+      if (step.collect && (!run.state.wait || run.state.wait.dueAt <= now)) return { kind: "closed" };
+      if (channelReply && (!step.collect || run.state.status !== "waiting" || run.state.blocked)) return { kind: "closed" };
       if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) return { kind: "closed" };
       const runtime = new CompanyOSRuntime({ artifact: pinned, state: this.#args.control, connectors: await this.#args.connectors(pinned),
         workflowContext: new WorkflowConversationContextReader({ store, instanceId: artifact.instance.id, conversation, subjectPrincipal: principal,

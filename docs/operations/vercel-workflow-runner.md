@@ -425,3 +425,30 @@ controls keep their existing authenticated path. The workflow-only test endpoint
 is separate. The default `process` behavior is unchanged. This is an Instance
 rollout choice, not a Workspace business rule or permission to deploy production.
 Remove the guard only after channel conversation behavior is explicitly accepted.
+
+### Channel replies and a silent conversation
+
+In the workflow-only Slack lane, a reply in the main channel can continue one
+open fact-collection question for the same recipient. With multiple questions,
+the bot links to the possible conversations and asks the person to choose.
+The host uses `conversations.history` for the exact channel message and
+`conversations.replies` for a thread reply. Both keep the original message ID.
+Approval buttons and decision-thread replies retain their existing rules.
+
+Check each hop when a posted question gets no answer:
+
+1. Confirm the person's message exists in the expected channel or thread.
+2. Check the app's actual Slack event subscriptions and installed permissions,
+   then its membership in that channel. Connector configuration alone is not
+   evidence of event delivery.
+3. In Vercel Connect Observability, find the corresponding inbound trigger and
+   its forward to `/api/workflows/slack` in the intended test environment.
+4. Find that request in the deployment logs, then verify the active assignment
+   and the host result. A successful read through `receive-reply` proves access
+   and routing; it does not prove that a webhook arrived or a model answered.
+
+A posting test, a saved subscription or a successful provider read cannot replace
+a real reply test. Do not announce a conversation as ready until a person sends
+a reply and receives the resulting Agent answer through the deployed ingress.
+For a shared app, keep the production channel-event guard and test workflow-only
+routing in place while qualifying this path.

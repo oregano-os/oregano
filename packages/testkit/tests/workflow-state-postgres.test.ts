@@ -49,7 +49,7 @@ test("Postgres workflow leases choose one winner and stale owners cannot overwri
 
 test("Postgres assignment conflict rolls back state and event together; private identity and cancellation are enforced", { skip: !enabled }, async () => {
   const first = await fixture(), second = await fixture();
-  const conversation = { surface: "slack", accountId: "T10001", channelId: "C10001", threadId: randomUUID(), subjectPrincipal: "slack:T10001:U10002" };
+  const conversation = { surface: "slack", accountId: "T10001", channelId: `C${randomUUID().replaceAll("-", "").slice(0, 20).toUpperCase()}`, threadId: randomUUID(), subjectPrincipal: "slack:T10001:U10002" };
   const key = workflowAssignmentKey(first.run.instanceId, conversation);
   const assign = async (f: typeof first) => {
     const claimed = (await f.store.claim(lease(f.run)))!;
@@ -63,9 +63,17 @@ test("Postgres assignment conflict rolls back state and event together; private 
   assert.equal((await second.control.listEvents(second.run.runId)).some((event) => event.event === "workflow.bound"), false);
   assert.ok(await first.store.assignment({ instanceId: first.run.instanceId, conversation, now }));
   assert.equal(await first.store.assignment({ instanceId: first.run.instanceId, conversation: { ...conversation, subjectPrincipal: "slack:T10001:U10003" }, now }), undefined);
+  const channel = { instanceId: first.run.instanceId, surface: conversation.surface, accountId: conversation.accountId,
+    channelId: conversation.channelId, subjectPrincipal: conversation.subjectPrincipal, now };
+  assert.equal((await first.store.channelAssignments(channel)).length, 1);
+  for (const change of [{ instanceId: "foreign-instance" }, { accountId: "T20002" }, { channelId: "C20002" },
+    { subjectPrincipal: "slack:T10001:U10003" }, { surface: "another-provider" }, { now: "2030-01-06T12:00:00.000Z" }]) {
+    assert.deepEqual(await first.store.channelAssignments({ ...channel, ...change }), []);
+  }
   await first.store.cancel({ instanceId: first.run.instanceId, runId: first.run.runId, principal: conversation.subjectPrincipal, now });
   assert.equal(await first.store.assignment({ instanceId: first.run.instanceId, conversation, now }), undefined);
   assert.equal((await first.control.getRun(first.run.runId))!.status, "cancelled");
+  assert.deepEqual(await first.store.channelAssignments(channel), []);
 });
 
 test("Postgres cancellation and dispatch share a lock; no new dispatch is possible after cancellation", { skip: !enabled }, async () => {

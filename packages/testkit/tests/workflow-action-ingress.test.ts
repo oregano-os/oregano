@@ -18,10 +18,12 @@ test("action-only ingress preserves original bytes for the SDK signature verifie
   }
 });
 
-test("thread-only ingress excludes direct chat, mentions, bot messages and non-thread events", async () => {
+test("workflow channel ingress accepts roots and replies while excluding direct chat, mentions and bots", async () => {
   const event = { type: "message", channel: "C10001", user: "U10001", ts: "20.000001", thread_ts: "10.000001", text: "The intended outcome" };
   const json = (value: unknown) => new Request("https://example.test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "event_callback", event: value }) });
+  assert.equal(await isWorkflowThreadRequest(json({ ...event, thread_ts: undefined })), true);
+  assert.equal(await isWorkflowThreadRequest(json({ ...event, thread_ts: event.ts })), true);
   const original = json(event), bytes = await original.clone().text();
   assert.equal(await isWorkflowThreadRequest(original), true); assert.equal(await original.text(), bytes);
-  for (const change of [{ channel: "D10001" }, { text: "<@U10001> hello" }, { thread_ts: undefined }, { bot_id: "B10001" }, { subtype: "message_changed" }, { thread_ts: event.ts }]) assert.equal(await isWorkflowThreadRequest(json({ ...event, ...change })), false);
+  for (const change of [{ channel: "D10001" }, { text: "<@U10001> hello" }, { bot_id: "B10001" }, { subtype: "message_changed" }, { ts: "invalid" }, { thread_ts: "invalid" }]) assert.equal(await isWorkflowThreadRequest(json({ ...event, ...change })), false);
 });

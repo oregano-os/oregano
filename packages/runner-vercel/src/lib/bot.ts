@@ -250,7 +250,14 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     try {
       const { createWorkflowHost } = await import("./workflow-host.ts");
       const host = await createWorkflowHost();
-      const received = await host.conversations.receive({ threadId: thread.id, messageId: message.id, authorId: message.author.userId });
+      const input = { threadId: thread.id, messageId: message.id, authorId: message.author.userId };
+      const received = thread.id.endsWith(`:${message.id}`) && process.env.COMPANYOS_WORKFLOW_ONLY === "true"
+        ? await host.conversations.receiveChannel(input) : await host.conversations.receive(input);
+      if (received.kind === "ambiguous") {
+        const links = received.conversations.map((c, index) => `<https://slack.com/archives/${c.channelId}/p${c.threadId.replace(".", "")}|Question ${index + 1}>`).join(" · ");
+        await thread.post(`Several questions are open for you. Which question does your answer belong to? Open the matching question and reply there: ${links}`);
+        return;
+      }
       if (received.kind === "unassigned" && process.env.COMPANYOS_WORKFLOW_ONLY === "true") return;
       if (received.kind === "decision") {
         if (await state.setIfNotExists(`workflow-response:${received.runId}:${message.id}`, true, 30 * DAY)) {
@@ -325,7 +332,8 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       return;
     }
   }
-  const conversationKey = `conversation:${thread.id}:${agent.id}`;
+  const historyThreadId = workflowSession ? `slack:${workflowSession.conversation.channelId}:${workflowSession.conversation.threadId}` : thread.id;
+  const conversationKey = `conversation:${historyThreadId}:${agent.id}`;
   await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
@@ -485,6 +493,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 function registerHandlers(bot: Chat) {
   bot.onNewMention(handleMessage);
   bot.onSubscribedMessage(handleMessage);
+  if (process.env.COMPANYOS_WORKFLOW_ONLY === "true") bot.onNewMessage(/[\s\S]*/, handleMessage);
   bot.onAgentSessionStopped(async (event) => {
     const bridgedLegacyConversation = await abortRememberedSlackAgentSessionConversation(
       bot,

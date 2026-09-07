@@ -18,6 +18,11 @@ audience:
 This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
+Channel answers can now join one exact recipient-bound fact collection in the
+experimental workflow-only host. Multiple open questions require clarification;
+channel answers never record a human decision. Live inbound delivery must be
+verified separately from message publication and provider read access.
+
 ## Implemented and tested
 
 - The hosted Slack capability publisher sends explicit Markdown for channel,

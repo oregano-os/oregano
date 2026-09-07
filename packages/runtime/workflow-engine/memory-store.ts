@@ -120,6 +120,13 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
     if (!assignment || (assignment.subjectPrincipal && assignment.subjectPrincipal !== args.conversation.subjectPrincipal)) return undefined;
     return structuredClone(assignment);
   }
+  async channelAssignments(args: Parameters<WorkflowExecutionStore["channelAssignments"]>[0]): Promise<WorkflowAssignment[]> {
+    workflowInstant(args.now);
+    return [...this.#assignments.values()].filter((a) => a.instanceId === args.instanceId && a.surface === args.surface
+      && a.accountId === args.accountId && a.channelId === args.channelId && a.subjectPrincipal === args.subjectPrincipal
+      && a.expiresAt > args.now && active(this.#runs.get(key(a.instanceId, a.runId))!))
+      .sort((a, b) => a.assignmentKey.localeCompare(b.assignmentKey)).slice(0, 21).map((a) => structuredClone(a));
+  }
   async assignment(args: Parameters<WorkflowExecutionStore["assignment"]>[0]): Promise<WorkflowAssignment | undefined> {
     workflowInstant(args.now);
     const assignment = this.#assignments.get(key(args.instanceId, workflowAssignmentKey(args.instanceId, args.conversation)));

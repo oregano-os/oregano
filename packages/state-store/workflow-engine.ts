@@ -112,5 +112,7 @@ export interface WorkflowExecutionStore {
   cancel(args: { instanceId: string; runId: string; principal: string; now: string }): Promise<boolean>;
   /** Retained delivery proof only; it never grants active conversational authority. */
   deliveredAssignment(args: { instanceId: string; conversation: WorkflowConversation }): Promise<WorkflowAssignment | undefined>;
+  /** At most 21 active exact-recipient candidates. A full page is ambiguous, never unique. */
+  channelAssignments(args: { instanceId: string; surface: string; accountId: string; channelId: string; subjectPrincipal: string; now: string }): Promise<WorkflowAssignment[]>;
   assignment(args: { instanceId: string; conversation: WorkflowConversation; now: string }): Promise<WorkflowAssignment | undefined>;
 }
