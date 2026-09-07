@@ -494,3 +494,16 @@ After these checks, use one real reply to verify delivery through the configured
 app. Local signed fixtures test the adapter, not Slack's event subscription or
 hosted forwarding. Preserve an existing human answer when delivery fails; do not
 repeatedly ask for the business content or treat an operator reread as live ingress.
+
+### Reject incomplete startup
+
+The health check constructs the chat runtime and validates its Connector
+configuration before reporting ready. This includes the exact Core, Workspace
+and Instance identity in an external Company Records configuration. Updating
+the Artifact alone leaves that configuration stale; prepare and deploy both
+together. A failed constructor must remain a failure on repeated requests.
+The runner caches the chat only after its runtime and handlers are ready.
+
+This check makes no provider calls and sends no messages. It does not prove
+that Slack forwards replies or that a model can answer. Complete the real
+reply test above before accepting the deployment.

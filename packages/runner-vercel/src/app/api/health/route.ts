@@ -1,5 +1,6 @@
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
+import { getBot } from "../../../lib/bot.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
 
@@ -19,6 +20,9 @@ export async function GET() {
       configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
     });
     const database = await qualifyCompanyDatabase();
+    // Construction checks Connector configuration and registers handlers. It
+    // does not initialize provider clients, send messages or invoke a model.
+    getBot();
     const workflowsEnabled = workflowHostingEnabled();
     const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
     const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
