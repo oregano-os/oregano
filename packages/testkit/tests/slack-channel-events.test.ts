@@ -21,3 +21,25 @@ test("the staging guard preserves mentions, direct messages and interactive requ
   assert.equal(await ignoreSlackChannelEvent(control, "ignore"), false);
   await assert.rejects(ignoreSlackChannelEvent(request({}), "typo"), /must be/);
 });
+
+test("an exact channel exclusion prevents a second shared-app mention response", async () => {
+  for (const type of ["message", "app_mention"]) {
+    const original = request({ type, channel: "C10001", text: "<@U90001> outcome", ts: "100.002" });
+    const bytes = await original.clone().text();
+    assert.equal(await ignoreSlackChannelEvent(original, "process", "C10001,G10001"), true);
+    assert.equal(await original.text(), bytes);
+    assert.equal(await ignoreSlackChannelEvent(request({ type, channel: "C20001" }), "process", "C10001"), false);
+  }
+  for (const event of [{ type: "app_mention", channel: "C20001" }, { type: "message", channel: "D10001", channel_type: "im" },
+    { type: "assistant_thread_started", channel: "C10001" }]) {
+    assert.equal(await ignoreSlackChannelEvent(request(event), "ignore", "C10001"), false);
+  }
+  const control = new Request("https://example.test", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: "payload=%7B%7D" });
+  assert.equal(await ignoreSlackChannelEvent(control, "ignore", "C10001"), false);
+});
+
+test("channel exclusions reject ambiguous or overly broad configuration", async () => {
+  for (const channels of ["", "*", "C10001,", "C10001,C10001", "D10001", "C10", Array.from({ length: 101 }, (_, i) => `C100${i}`).join(",")]) {
+    await assert.rejects(ignoreSlackChannelEvent(request({}), "process", channels), /SLACK_IGNORED_CHANNEL_IDS/);
+  }
+});

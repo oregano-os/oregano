@@ -33,6 +33,27 @@ previous deployment and setting. An outbound message receipt does not prove
 that an incoming reply will be delivered; test both directions with an authorized
 participant.
 
+## Assign a test channel to one destination
+
+The ordinary-message guard intentionally preserves `app_mention`. If a separate
+workflow destination accepts mentions too, both deployments could answer.
+Set `SLACK_IGNORED_CHANNEL_IDS` on the primary destination to a comma-separated
+list of exact channel IDs owned by the test destination. Deploy and verify this
+exclusion before enabling mention handling on the test destination.
+
+The primary webhook then drops both `message` and `app_mention` for those channels.
+Other mentions, direct messages and interactive controls retain their existing
+path. IDs must identify channels; empty entries, duplicate IDs, direct-message
+IDs and wildcards are rejected. Leave the variable unset to exclude no channels.
+Keep company-specific IDs in Instance configuration, outside Core source.
+
+This needs no new Slack subscription, scope or installation. The test destination
+still verifies provider signatures, human identity and the active conversation
+assignment. A general Agent response is not proof that the assigned workflow
+received the answer. Test the actual question-to-reply path and inspect which
+workflow handled it. On rollback, stop the test destination from accepting
+mentions before removing the primary destination's exclusion.
+
 ## Verify the full startup before promotion
 
 Prepare the Artifact and any external Company Records configuration together.
