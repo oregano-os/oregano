@@ -32,3 +32,17 @@ On rollback, remove the added channel subscription first, then restore the
 previous deployment and setting. An outbound message receipt does not prove
 that an incoming reply will be delivered; test both directions with an authorized
 participant.
+
+## Verify the full startup before promotion
+
+Prepare the Artifact and any external Company Records configuration together.
+Their Core, Workspace and Instance identities must match exactly, including when
+a deployment changes only the ingress guard. Reuse reviewed source declarations
+and permissions; a new Core commit is not a new source authorization.
+
+The health check constructs the chat runtime and validates its Connector
+configuration before reporting ready. This makes no provider calls and sends
+no messages. An initialization failure remains a failure on repeated requests;
+the runner never caches a chat before registering its handlers. After correcting
+configuration, deploy and verify the exact pairing again. Health alone does not
+prove incoming Slack delivery or a model response. Complete a real reply test.

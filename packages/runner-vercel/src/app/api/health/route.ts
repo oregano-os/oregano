@@ -1,4 +1,5 @@
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
+import { getBot } from "../../../lib/bot.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
@@ -17,6 +18,8 @@ export async function GET() {
       configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
     });
     const database = await qualifyCompanyDatabase();
+    // Validate Connector configuration without initializing provider clients.
+    getBot();
     const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
     if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
     const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {

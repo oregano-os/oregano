@@ -558,7 +558,7 @@ export function getBot(): Chat {
   });
   builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal });
   slackAgentExperience = resolveSlackAgentExperience();
-  botInstance = new Chat({
+  const candidateBot = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",
     adapters: {
       slack: createSlackAdapter({
@@ -579,13 +579,15 @@ export function getBot(): Chat {
     state: createPostgresStateStore(),
     connectors: createCompanyOSRuntimeConnectors(connectorAgentId, {
       artifact,
-      chat: () => botInstance!,
+      chat: () => candidateBot,
       beforeSlackDirectPublish: createSprintDirectAssignmentHook({ artifact, service: handoffService }),
     }),
     toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
-  registerHandlers(botInstance);
-  return botInstance;
+  registerHandlers(candidateBot);
+  // Publish only after runtime construction and handler registration succeed.
+  botInstance = candidateBot;
+  return candidateBot;
 }
 
 export function getCompanyOSRuntime(): CompanyOSRuntime {
