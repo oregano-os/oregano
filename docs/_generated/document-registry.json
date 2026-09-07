@@ -903,7 +903,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-06",
+    "updated": "2026-09-07",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -916,7 +916,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-06",
+    "updated": "2026-09-07",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}

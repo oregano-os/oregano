@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-06
+updated: 2026-09-07
 owners:
   - oregano-maintainers
 audience:
@@ -27,6 +27,24 @@ It defines the evidence required, independently of the hosting or chat provider.
 
 These guides describe the maintained reference implementation. Other adapters
 must provide equivalent identity, decision, persistence and effect checks.
+
+## Check startup before inviting a tester
+
+The deployed Artifact and any separately stored configuration must identify the
+same Core commit, Workspace commit and Instance. Prepare, deploy and roll back
+that set together. A successful build does not check the settings in a running
+Instance.
+
+The runtime must finish configuration validation and register its message
+handlers before it reports ready or stores a shared instance for later requests.
+A failed start must fail again on the next request, rather than return a partly
+initialized runtime. Automated tests must cover that failure and recovery after
+the configuration is corrected.
+
+Keep three results separate: the build passed, the deployed runtime is ready,
+and an actual person received an answer. Only the last result proves a working
+conversation on the tested route. Test each required route, such as a direct
+conversation and a shared-channel reply; success on one does not qualify another.
 
 ## What a successful decision means
 

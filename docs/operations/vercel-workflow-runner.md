@@ -11,7 +11,7 @@ providers:
   - slack
   - monday
   - postgres
-updated: 2026-09-06
+updated: 2026-09-07
 owners:
   - oregano-maintainers
 audience:
@@ -495,15 +495,51 @@ app. Local signed fixtures test the adapter, not Slack's event subscription or
 hosted forwarding. Preserve an existing human answer when delivery fails; do not
 repeatedly ask for the business content or treat an operator reread as live ingress.
 
-### Reject incomplete startup
+### A ready deployment that does not answer
 
-The health check constructs the chat runtime and validates its Connector
-configuration before reporting ready. This includes the exact Core, Workspace
-and Instance identity in an external Company Records configuration. Updating
-the Artifact alone leaves that configuration stale; prepare and deploy both
-together. A failed constructor must remain a failure on repeated requests.
-The runner caches the chat only after its runtime and handlers are ready.
+A Vercel deployment can build successfully while its runtime configuration is
+incompatible. One failure occurs when `COMPANYOS_ARTIFACT_GZIP_BASE64` identifies
+a new Core commit but `COMPANYOS_RECORDS_CONFIG_GZIP_BASE64` still identifies the
+previous commit. The runtime correctly rejects that pair with:
 
-This check makes no provider calls and sends no messages. It does not prove
-that Slack forwards replies or that a model can answer. Complete the real
-reply test above before accepting the deployment.
+```text
+Connector instance 'records' does not match the immutable Artifact identity.
+```
+
+An older runner could then cache the partly constructed Chat. Later requests
+received that object with no registered response handlers. HTTP acknowledgements
+and SDK deduplication could still succeed, while nobody received an answer.
+The earlier health check did not construct the chat, so it missed the failure.
+
+The corrected runner caches the Chat only after configuration validation and
+handler registration finish. Its `/api/health` check now constructs that runtime
+and returns HTTP 503 when configuration is invalid. This construction sends no
+messages and makes no model or chat-provider calls; the health route separately
+checks the database.
+
+To deploy or recover:
+
+1. Prepare the Artifact and Records configuration from the same reviewed Core,
+   Workspace and Instance. Do not weaken their identity check or copy unrelated
+   configuration just to make health pass.
+2. Deploy both values to the intended environment. Keep the project's saved
+   environment variables aligned with deployment overrides; otherwise the next
+   deployment can restore the mismatch. Secrets remain in the provider's secret
+   store. Updating project variables alone does not update an existing deployment.
+3. Check `/api/health` on the exact candidate before promoting it. Verify HTTP 200,
+   `ok: true`, and the expected `coreCommit`, `workspaceCommit` and `artifactHash`.
+   A login page or HTTP 200 from a webhook is not this readiness proof.
+4. Have an authorized tester send one real message and verify the response in
+   the same conversation. Repeat for each required route. A working DM does not
+   establish that private-channel events reach a separate workflow endpoint.
+
+`bot-initialization.test.ts` runs in `pnpm test` and therefore in PR CI. It uses
+synthetic configuration to prove repeated failure without a cached partial Chat,
+then successful recovery with the actual SDK handlers registered. It forbids
+network calls during construction. This regression test cannot prove a particular
+installation's credentials, subscriptions or forwarding; the deployed checks
+above cover those separately.
+
+If delivery still fails after startup is ready, follow [the reply trace](#trace-the-test-reply).
+Do not reinstall the app or blame a provider from missing log entries alone.
+For the general acceptance rules, see [workflow operations](workflow-engine.md).

@@ -15,6 +15,7 @@ files_expected:
   - packages/runner-vercel/src/lib/bot-initialization.test.ts
   - packages/runner-vercel/src/app/api/health/route.ts
   - docs/operations/vercel-workflow-runner.md
+  - docs/operations/workflow-engine.md
   - docs/_generated/**
 tests:
   - packages/runner-vercel/src/lib/bot-initialization.test.ts
@@ -22,6 +23,7 @@ documentation_impact:
   required: true
   affected_documents:
     - operations.vercel-workflow-runner
+    - operations.workflow-engine
 architecture:
   placement:
     core: Complete runtime construction and handler registration before publishing a cached Chat. Reject invalid Connector configuration during health checks.
