@@ -462,6 +462,14 @@ Core/Workspace pairing, then verify its health and exact source commits.
 
 Search its runtime logs for `slack.workflow.diagnostic`:
 
+```sh
+vercel --scope <team> logs --deployment <deployment-url> --no-branch --since 15m --json
+```
+
+Select the actual deployment's team explicitly. The CLI can otherwise search a
+personal team, and its default branch filter can hide the target requests.
+An unsuccessful log query is not evidence that a message never arrived.
+
 | Last observed stage | What it proves and what to check next |
 |---|---|
 | No `received` | No entry was observed in this deployment. Check the environment, log window and upstream forwarding; absence alone does not identify a provider defect. |
