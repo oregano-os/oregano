@@ -171,6 +171,7 @@ export interface CompiledCompanyTool {
 export interface CompiledAgent {
   id: string;
   instructions: string;
+  modelTask?: string;
   materials: Record<string, string>;
   toolSet: ResolvedToolSet;
   tools: CompiledCompanyTool[];

@@ -59,6 +59,7 @@ export function buildCompanyOSArtifact(args: {
     return {
       id: agent.id,
       instructions: agent.instructions,
+      ...(agent.modelTask === undefined ? {} : { modelTask: agent.modelTask }),
       materials: scopedMaterials(workspace, agent.scopeRead, {
         excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
       }),

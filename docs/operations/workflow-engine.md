@@ -20,6 +20,14 @@ availability: experimental
 Use this guide to check whether a hosted workflow is ready for human testing.
 It defines the evidence required, independently of the hosting or chat provider.
 
+Before inviting a human tester, verify the effective model task, model and
+provider route for each participating Agent. Compare them with the intended
+Instance configuration; a successful health response with the wrong model is
+not acceptance. Test conversation quality using the compiled instructions and
+Skills, including irrelevant, incomplete and contradictory answers. Preserve
+the actual response-model evidence. Schema checks and simulated collection
+objects prove structure, not the quality of a model conversation.
+
 ## Choose the provider guide
 
 - [Vercel Runner setup and recovery](vercel-workflow-runner.md)

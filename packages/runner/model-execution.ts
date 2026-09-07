@@ -68,6 +68,8 @@ export interface ModelRuntimeConfiguration {
 }
 
 export interface ModelExecutionSelection extends ModelBinding {
+  readonly profile?: ModelTaskProfile;
+  readonly task?: string;
   readonly provider: string;
   readonly transport: ModelTransport;
   readonly credentialRef: string | null;
@@ -551,5 +553,5 @@ export function resolveModelExecutionSelection(input: {
   const selectedRecipe = CORE_MODEL_RECIPE_REGISTRY.resolve(normalized.route);
   if (input.requiredCapability && !selectedRecipe.capabilities.includes(input.requiredCapability)) throw new Error(`Model recipe '${normalized.route}' does not support '${input.requiredCapability}'.`);
   const credentialRef = selectedRecipe.credentialRefs.find((entry) => Boolean(environment[entry])) ?? selectedRecipe.credentialRefs[0] ?? null;
-  return { ...normalized, credentialRef };
+  return { ...normalized, credentialRef, profile, ...(input.task === undefined ? {} : { task: input.task }) };
 }

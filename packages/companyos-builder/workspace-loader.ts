@@ -30,6 +30,7 @@ const requireSchema = (value: unknown, label: string): JsonSchema => {
 export interface LoadedAgent {
   id: string;
   instructions: string;
+  modelTask?: string;
   grants: string[];
   scopeRead: string[];
   handoffs: AgentHandoffRule[];
@@ -65,6 +66,10 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
     const id = path.split("/")[1];
     if (id === "builder" && !options.includeBuilder) continue;
     const document = parseDocument(path);
+    const modelTask = document.data.model_task_profile;
+    if (modelTask !== undefined && (typeof modelTask !== "string" || !/^[a-z][a-z0-9._-]{0,255}$/.test(modelTask))) {
+      throw new Error(`${path}: model_task_profile must be a valid logical model task ID.`);
+    }
     const grants = Array.isArray(document.data.tools) ? document.data.tools.map((entry: unknown) => requireString(entry, `${path} grant`)) : [];
     const scopeRead = Array.isArray(document.data.scope?.read) ? document.data.scope.read.map((entry: unknown) => requireString(entry, `${path} scope.read`)) : [];
     const handoffs = parseAgentHandoffs(document.data.handoffs, id, path);
@@ -78,6 +83,7 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
     agents.push({
       id,
       instructions: document.body,
+      ...(modelTask === undefined ? {} : { modelTask }),
       grants,
       scopeRead,
       handoffs,

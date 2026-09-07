@@ -4,8 +4,10 @@ import { authenticateWorkflowOperator, authenticateWorkflowScheduler, decodeWork
 import type { WorkflowWorkerKind } from "../../../runtime/workflow-engine/workers.ts";
 import type { WorkflowRun } from "../../../state-store/workflow-engine.ts";
 import { parseWorkflowVerificationRequirements, type WorkflowVerificationRequirement } from "../../../runtime/workflow-engine/verification-requirements.ts";
+import { parseConversationCheck, type ConversationCheck } from "./workflow-conversation-check.ts";
 
 export type WorkflowOperatorRequest =
+  | ConversationCheck
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel"; runId: string }
@@ -17,6 +19,7 @@ export type WorkflowOperatorRequest =
 export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Workflow operator request must be an object");
   const input = value as Record<string, unknown>;
+  if (input.action === "check-conversation") return parseConversationCheck(input);
   const exact = (allowed: string[]) => { if (Object.keys(input).some((key) => !["action", ...allowed].includes(key))) throw new Error("Unsupported workflow operator request field"); };
   const text = (key: string, pattern = /^[^\u0000-\u001f]{1,255}$/) => { if (typeof input[key] !== "string" || !pattern.test(input[key])) throw new Error(`Invalid workflow operator ${key}`); return input[key] as string; };
   if (input.action === "open" || input.action === "schedule") {
@@ -90,6 +93,10 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
     let action: WorkflowOperatorRequest;
     try { action = parseWorkflowOperatorRequest(await boundedRequest(request)); }
     catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : "Invalid request" }, { status: 400 }); }
+    if (action.action === "check-conversation") {
+      const { checkWorkflowConversation } = await import("./workflow-conversation-check.ts");
+      return Response.json(await checkWorkflowConversation(artifact, action));
+    }
     const { createWorkflowHost } = await import("./workflow-host.ts");
     const host = await createWorkflowHost();
     if (action.action === "open") return Response.json({ ok: true, run: summary(await host.engine.openOperator({ ...action, principal })) });

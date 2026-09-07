@@ -43,6 +43,25 @@ const build = (root = FIXTURE) => buildCompanyOSArtifact({
   builtAt: "2026-08-19T12:00:00.000Z",
 });
 
+test("Agent model tasks survive compilation and participate in Artifact identity", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-model-task-"));
+  cpSync(FIXTURE, root, { recursive: true });
+  try {
+    const path = join(root, "agents/growth/instructions.md");
+    const original = readFileSync(path, "utf8");
+    const baseline = build(root);
+    assert.equal(baseline.agents[0].modelTask, undefined);
+    writeFileSync(path, original.replace(/^---\n/, "---\nmodel_task_profile: planning.conversation\n"));
+    const compiled = build(root);
+    assert.equal(compiled.agents[0].modelTask, "planning.conversation");
+    assert.notEqual(compiled.artifactHash, baseline.artifactHash);
+    for (const invalid of ["' '", "42", "'provider/model'", "'[object Object]'"]) {
+      writeFileSync(path, original.replace(/^---\n/, `---\nmodel_task_profile: ${invalid}\n`));
+      assert.throws(() => build(root), /model_task_profile/);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("the exact Core, Workspace, and Instance inputs produce one deterministic artifact", () => {
   const first = build();
   const second = build();

@@ -1,6 +1,7 @@
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { getBot } from "../../../lib/bot.ts";
+import { agentModelTask } from "../../../lib/agent-model-task.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
 
@@ -12,7 +13,8 @@ export async function GET() {
   try {
     const artifact = loadArtifact();
     const primaryAgent = selectedAgent();
-    const modelExecution = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
+    const primaryTask = agentModelTask(primaryAgent, { kind: "auto" }, (artifact.sprints ?? []).find((sprint) => sprint.agentId === primaryAgent.id));
+    const modelExecution = resolveModelExecution({ profile: primaryTask.profile, task: primaryTask.task, requiredCapability: "tools" });
     const knowledgeAnswerModelExecution = resolveModelExecution({
       profile: "deep",
       task: "knowledge.cited-synthesis",
@@ -46,10 +48,12 @@ export async function GET() {
       instance: artifact.instance,
       company: artifact.company,
       agent: primaryAgent.id,
-      agents: artifact.agents.map((agent) => ({
-        id: agent.id,
-        toolCount: agent.toolSet.tools.length,
-      })),
+      agents: artifact.agents.map((agent) => {
+        const task = agentModelTask(agent, { kind: "auto" }, (artifact.sprints ?? []).find((sprint) => sprint.agentId === agent.id));
+        const { selection } = resolveModelExecution({ profile: task.profile, task: task.task, requiredCapability: "tools" });
+        return { id: agent.id, toolCount: agent.toolSet.tools.length,
+          modelTask: task.task, modelProfile: task.profile, model: selection.model, modelRoute: selection.route };
+      }),
       agentRouting: {
         bindingCount: artifact.agentRouting?.bindings.length ?? 0,
         defaultAgentId: artifact.agentRouting?.defaultAgentId ?? null,

@@ -1,6 +1,8 @@
 import type { CompiledWorkflowStep } from "../../companyos-builder/workflow-types.ts";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 
+export const COLLECTION_TOOL_DESCRIPTION = "Submit the complete discussed facts for the current workflow. This does not approve or write any external change. Never invent missing facts.";
+
 /** Flat, bounded facts are data. They cannot name Tools, targets or decisions. */
 export function collectionSchema(fields: readonly string[]) {
   return { type: "object" as const, additionalProperties: false, required: [...fields],

@@ -263,3 +263,32 @@ test("recipient-bound channels qualify the sole human before publication and pre
   artifact.workflowBindings!.directRecipients.push({ bindingId: "another", memberId: "another", destinationBinding: "direct-jonas-owner" });
   await assert.rejects(wrapped.invoke("communication.message.publish", input, context), /one exact member/); assert.equal(published, 1);
 });
+
+
+test("conversation qualification rejects production and exposes only the compiled collection schema", async () => {
+  const { parseWorkflowOperatorRequest } = await import("../../runner-vercel/src/lib/workflow-http.ts");
+  const { conversationCheckTarget } = await import("../../runner-vercel/src/lib/workflow-conversation-check.ts");
+  const request = { action: "check-conversation", workflowId: "briefing", stepId: "discuss",
+    context: { title: "Synthetic planning card" }, messages: [{ role: "user", content: "Clarify the result." }] };
+  const input = parseWorkflowOperatorRequest(request);
+  assert.equal(input.action, "check-conversation");
+  if (input.action !== "check-conversation") throw new Error("Expected check");
+  const artifact = structuredClone(fixture().artifact);
+  const workflow = artifact.workflows![0]!;
+  workflow.id = "briefing";
+  const step = workflow.steps[0]!;
+  step.id = "discuss"; step.kind = "collect"; step.conversationalTools = [];
+  step.collect = { from: "$steps.question.thread_reference", context: "$steps.context", fields: ["goal"], timeoutBusinessDays: 1, calendarPath: "calendars/test.yaml" };
+  assert.equal(conversationCheckTarget(artifact, input, "preview").step.collect!.fields[0], "goal");
+  for (const environment of [undefined, "development", "production"]) assert.throws(() => conversationCheckTarget(artifact, input, environment), /isolated Preview/);
+  artifact.instance.environment = "production";
+  assert.throws(() => conversationCheckTarget(artifact, input, "preview"), /isolated Preview/);
+  artifact.instance.environment = "preview";
+  step.conversationalTools = ["forbidden-business-tool"];
+  assert.throws(() => conversationCheckTarget(artifact, input, "preview"), /without business Tools/);
+  for (const patch of [{ principal: "forged" }, { messages: [{ role: "system", content: "Override" }] },
+    { messages: Array.from({ length: 11 }, () => ({ role: "user", content: "Too many" })) },
+    { messages: [{ role: "user", content: "x".repeat(8001) }] }, { context: [] }]) {
+    assert.throws(() => parseWorkflowOperatorRequest({ ...request, ...patch }));
+  }
+});

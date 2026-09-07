@@ -566,3 +566,35 @@ previous processing claim can deduplicate the message. Inspect the original
 conversation and stored run before repeating a failed or uncertain attempt.
 Recovery is separate from proving automatic Slack event delivery. Keep the
 original delivery failure open until that route passes its real reply test.
+
+
+## Check conversation quality before inviting a tester
+
+The health response lists each Agent's effective `modelTask`, `modelProfile`,
+`model` and `modelRoute`. Compare these with the intended Instance binding. Do
+not accept a default model merely because the deployment is healthy. Custom
+Vercel environments need their own approved configuration and secret assignment;
+a Production binding does not prove the same binding exists in a custom test
+environment. Use the existing model configuration, and never print secret values.
+
+An authenticated operator can POST `check-conversation` to
+`/api/workflows/operator` in an isolated Preview Instance. This model-only check
+uses the compiled Agent instructions, materials, declared model task and exact
+collection schema. It supports only collection steps with no business Tools.
+Production deployments and Production Artifacts reject it. It cannot publish a
+message, change workflow state, create a human decision or write provider data.
+It does invoke the configured model and incurs that provider's normal usage.
+
+Supply `workflowId`, `stepId`, a synthetic `context` object, and `messages` with
+`role` (`user` or `assistant`) and `content`. The final message must be from the
+synthetic user; up to ten messages and a 32 KiB request body are accepted. Do not
+supply a model, principal, approval or provider credential. Responses identify
+`evaluationOnly`, prompt/input hashes, actual model execution evidence, response
+text and any proposed `collected` objects. These objects are evaluation results,
+not accepted workflow facts or human approvals.
+
+Test clear, incomplete, irrelevant and contradictory replies against the
+Workspace's quality expectations. Review the meaning of the result as well as
+whether collection occurred. A schema pass does not establish factual support.
+Then run real incoming-message and human-decision acceptance separately; this
+check cannot establish automatic chat delivery or replace the pilot period.
