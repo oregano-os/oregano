@@ -669,3 +669,19 @@ An exact `yes` or `no` reply on a delivered subject-decision thread can record
 that decision; a German-language Workspace uses `ja` or `nein`. Other text stays
 conversation. A reply on the earlier discussion thread cannot approve the later
 proposal. Native buttons remain the unambiguous primary action.
+
+## Decisions inside an existing conversation
+
+A human step may declare `thread: $steps.ask.thread_reference`, where `ask` is
+an earlier private root publication to the same explicit `recipient`. The step
+must supply button labels. The Runtime checks that the captured publication
+receipt names the decision's exact destination. It retains both the parent
+conversation and the individual review message as decision identity. A reply
+to the conversation alone does not approve a threaded review message.
+
+Omitting `thread` keeps the existing root-delivery contract, including historical
+Artifacts. Conversation assignments remain intact when a review is delivered.
+Decision state and delivery receipts belong to the Instance, never the Workspace.
+A recorded decision makes the run runnable; the host resumes it after presenting
+the decision receipt. The steps worker recovers persisted runnable work after
+interruption. A decision receipt is not proof that the following effects finished.

@@ -5,6 +5,7 @@ import { feedbackDecisionCard, resolvedDecisionCard } from "./decision-cards.ts"
 export async function recordWorkflowButtonResponse(args: {
   decide: (onValidated: (language?: string) => Promise<void>) => Promise<{ runId: string; decision: "approved" | "rejected" }>;
   replace: (card: ReturnType<typeof resolvedDecisionCard>) => Promise<unknown>;
+  continueRun?: (runId: string) => Promise<unknown>;
   language?: string;
   observe?: (phase: "validated" | "processing" | "recorded" | "resolved", elapsedMs: number) => void;
 }) {
@@ -25,11 +26,16 @@ export async function recordWorkflowButtonResponse(args: {
     throw error;
   }
   mark("recorded");
+  let presentation: "updated" | "failed" = "updated", error: unknown;
   try {
     await args.replace(resolvedDecisionCard(recorded.decision, language));
     mark("resolved");
-    return { ...recorded, presentation: "updated" as const };
-  } catch (error) {
-    return { ...recorded, presentation: "failed" as const, error };
+  } catch (failure) { presentation = "failed"; error = failure; }
+  try {
+    if (args.continueRun) await args.continueRun(recorded.runId);
+    return { ...recorded, presentation, error, continuation: args.continueRun ? "attempted" as const : "not-requested" as const };
+  } catch (continuationError) {
+    // The persisted cursor remains available to the maintained steps worker.
+    return { ...recorded, presentation, error, continuation: "failed" as const, continuationError };
   }
 }

@@ -110,3 +110,17 @@ For a recurring intake, select eligible objects in a Company Tool, then use
 object. The exact input fields deduplicate repeated intake scans. The child must
 be an enabled operator workflow and cannot start further workflows. Keep the
 intake calendar blocked until its recipients and provider effects are tested.
+
+## Keep a review in the conversation
+
+On a human decision step, add `thread: $steps.ask.thread_reference` to put the
+review below an earlier private question named `ask`. Use the same explicit
+`recipient` on both steps and provide `labels.approve` and `labels.reject`.
+Keep `via` pointed at that recipient's qualified destination. The person reviews
+the proposed change and clicks a control on that review message. Plain replies
+to the original question do not approve the change.
+
+Leave out `thread` to send a separate review message. The Connector must support
+replies at the chosen destination; see its setup guide for supported surfaces.
+After acceptance, publish a separate completion message only after verifying
+the effect. Use the original question's thread for that message too.

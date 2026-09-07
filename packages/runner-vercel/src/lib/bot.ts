@@ -566,7 +566,9 @@ function registerHandlers(bot: Chat) {
         decide: (onValidated) => host.conversations.receiveAction({ actionId: event.actionId, value: event.value!,
           threadId: event.threadId, messageId: event.messageId, userId: event.user.userId, raw: event.raw }, onValidated),
         replace: (card) => event.adapter.editMessage(event.threadId, event.messageId, card),
+        continueRun: (runId) => host.engine.advance(runId, 32),
       });
+      if (result.continuation === "failed") console.error(JSON.stringify({ event: "workflow.button.continuation-failed", runId: result.runId, reference: sha256(String(result.continuationError)) }));
       if (result.presentation === "failed") {
         console.error(JSON.stringify({ event: "workflow.button.presentation-failed", runId: result.runId,
           reference: sha256(result.error instanceof Error ? result.error.message : String(result.error)) }));

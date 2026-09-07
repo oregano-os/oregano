@@ -625,3 +625,24 @@ Workspace's quality expectations. Review the meaning of the result as well as
 whether collection occurred. A schema pass does not establish factual support.
 Then run real incoming-message and human-decision acceptance separately; this
 check cannot establish automatic chat delivery or replace the pilot period.
+
+## Continuing a button decision
+
+The verified button handler first records the decision and replaces its controls.
+It then advances that exact persisted run with the normal engine, up to 32 steps
+and the engine time budget. It does this even if replacing the card fails.
+A continuation failure is logged separately from a decision failure. The stored
+cursor remains available to the steps worker; do not request another approval
+or create a replacement run merely to retry execution.
+
+Acceptance must include a real click followed by a verified effect and completion
+reply without a manual steps call. Also qualify the environment's recurring
+steps worker: a successful click does not prove recovery after process loss.
+A test environment without a recurring worker has a recovery limitation even
+when this immediate continuation succeeds.
+
+For a threaded review, Slack provides the parent `thread_ts` and review message
+`ts`. Both are checked against the persisted assignment. Existing direct-message
+destinations currently reject caller-supplied thread references; this extension
+can be used with qualified channel destinations and does not silently weaken
+that direct-message check.

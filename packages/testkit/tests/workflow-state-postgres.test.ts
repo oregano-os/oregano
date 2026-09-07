@@ -129,3 +129,16 @@ test("Postgres dispatch uses current database time even when a worker retained a
   assert.equal(await control.markEffectDispatched(effect.idempotencyKey, { instanceId: run.instanceId, runId: run.runId, stepId: run.state.cursor!, leaseToken: claimed.lease!.token, now: staleNow }), false);
   assert.equal((await control.getEffect(effect.idempotencyKey))!.status, "claimed");
 });
+
+test("Postgres retains parent conversation and separate review notices across restart", { skip: !enabled }, async () => {
+  const { store, run } = await fixture();
+  const claimed = (await store.claim(lease(run)))!;
+  const parent = { surface: "slack", accountId: "T10001", channelId: `C${randomUUID().replaceAll("-", "").toUpperCase()}`, threadId: "1.000001", subjectPrincipal: "slack:T10001:U10002" };
+  const notices = [parent, { ...parent, decisionMessageId: "2.000001" }, { ...parent, decisionMessageId: "3.000001" }];
+  const assignments = notices.map((conversation) => ({ ...conversation, instanceId: run.instanceId, assignmentKey: workflowAssignmentKey(run.instanceId, conversation), runId: run.runId, stepId: run.state.cursor!, artifactHash: run.artifactHash, expiresAt: "2030-01-05T12:00:00.000Z" }));
+  await store.commit({ instanceId: run.instanceId, runId: run.runId, expectedRevision: 0, leaseToken: claimed.lease!.token, now, state: run.state, event: { name: "workflow.test", stepId: run.state.cursor! }, assignments });
+  const restarted = createPostgresWorkflowExecutionStore();
+  for (const [i, conversation] of notices.entries()) assert.deepEqual(await restarted.deliveredAssignment({ instanceId: run.instanceId, conversation }), assignments[i]);
+  for (const changed of [{ ...notices[1]!, threadId: "9.000001" }, { ...notices[1]!, decisionMessageId: "9.000001" }, { ...notices[1]!, subjectPrincipal: "slack:T10001:U10003" }])
+    assert.equal(await restarted.deliveredAssignment({ instanceId: run.instanceId, conversation: changed }), undefined);
+});

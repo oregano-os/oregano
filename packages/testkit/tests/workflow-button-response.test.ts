@@ -61,3 +61,14 @@ test("failed persistence replaces processing with uncertainty, never success", a
   assert.equal(cards.length, 2); assert.match(cards[1]!, /could not be confirmed/);
   assert.ok(cards.every((card) => !card.includes("decision recorded")));
 });
+
+test("presentation failure still advances, while continuation failure preserves acceptance", async () => {
+  const calls: string[] = [];
+  const result = await recordWorkflowButtonResponse({
+    decide: async () => { calls.push("record"); return { runId: "run", decision: "approved" }; },
+    replace: async () => { calls.push("replace"); throw new Error("display unavailable"); },
+    continueRun: async (id) => { assert.equal(id, "run"); calls.push("continue"); throw new Error("worker unavailable"); },
+  });
+  assert.deepEqual(calls, ["record", "replace", "continue"]);
+  assert.equal(result.decision, "approved"); assert.equal(result.presentation, "failed"); assert.equal(result.continuation, "failed");
+});

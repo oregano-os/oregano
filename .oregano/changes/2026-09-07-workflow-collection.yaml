@@ -9,6 +9,17 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - .oregano/changes/2026-09-07-threaded-decisions.yaml
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
   - .oregano/changes/2026-09-07-slack-channel-ownership.yaml
   - .oregano/changes/2026-09-07-agent-model-parity.yaml
   - .oregano/changes/2026-09-07-chat-initialization.yaml

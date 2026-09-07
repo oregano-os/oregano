@@ -70,6 +70,8 @@ export interface WorkflowRun extends WorkflowRunIdentity {
   lease?: { owner: string; token: string; expiresAt: string };
 }
 export interface WorkflowConversation {
+  /** Exact review notice within a parent conversation; omitted for historical root deliveries. */
+  decisionMessageId?: string;
   surface: string;
   accountId: string;
   channelId: string;

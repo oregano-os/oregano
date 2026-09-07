@@ -23,6 +23,7 @@ export const workflowOriginDigest = (identity: WorkflowRunIdentity): string => s
   subjectPrincipal: identity.subjectPrincipal, trigger: identity.trigger, fields: identity.fields,
 });
 export const workflowAssignmentKey = (instanceId: string, conversation: WorkflowConversation): string => sha256({
+  ...(conversation.decisionMessageId === undefined ? {} : { decisionMessageId: conversation.decisionMessageId }),
   instanceId, surface: conversation.surface, accountId: conversation.accountId, channelId: conversation.channelId, threadId: conversation.threadId,
 });
 
@@ -129,7 +130,7 @@ export function validateWorkflowLease(args: { owner: string; token: string; now:
 
 export function validateWorkflowAssignment(assignment: WorkflowAssignment, identity: WorkflowRunIdentity, artifact: CompanyOSArtifact, now: string): void {
   identifier(assignment.surface);
-  for (const value of [assignment.accountId, assignment.channelId, assignment.threadId]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error("Invalid workflow conversation identifier");
+  for (const value of [assignment.accountId, assignment.channelId, assignment.threadId, ...(assignment.decisionMessageId === undefined ? [] : [assignment.decisionMessageId])]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error("Invalid workflow conversation identifier");
   if (assignment.subjectPrincipal) identifier(assignment.subjectPrincipal);
   workflowInstant(assignment.expiresAt);
   if (assignment.expiresAt <= now || !artifact.workflows?.find((workflow) => workflow.id === identity.workflowId)?.steps.some((step) => step.id === assignment.stepId)) throw new Error("Workflow assignment must bind a current deadline and compiled step");

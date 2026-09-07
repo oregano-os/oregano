@@ -287,10 +287,15 @@ export class WorkflowEngine {
     if (typeof destination !== "string" || (output as Record<string, JsonValue>)?.destination_binding !== destination) throw new Error("Publication receipt differs from its requested destination");
     if (Object.hasOwn(input as object, "thread_reference")) {
       if ((output as Record<string, JsonValue>)?.thread_reference !== (input as Record<string, JsonValue>).thread_reference) throw new Error("Publication receipt differs from its requested thread");
-      return [];
+      if (!step.decision) return [];
     }
     if (!step.decision && typeof (output as Record<string, JsonValue>)?.thread_reference !== "string") return [];
     const conversation = await this.#options.conversationForReceipt({ artifact, destinationBinding: destination, output });
+    if (step.decision?.thread !== undefined) {
+      const notice = (output as Record<string, JsonValue>).message_id;
+      if (typeof notice !== "string" || !notice) throw new Error("Threaded decision has no exact notice identity");
+      conversation.decisionMessageId = notice;
+    }
     const privateDelivery = !!step.decision || step.message?.recipient !== undefined;
     const recipientIds = [...new Set(artifact.workflowBindings?.directRecipients.filter((entry) => entry.destinationBinding === destination).map((entry) => entry.memberId) ?? [])];
     const memberId = step.decision ? itemKey : recipientIds.length === 1 ? recipientIds[0] : undefined;

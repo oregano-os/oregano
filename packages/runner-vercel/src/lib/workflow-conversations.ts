@@ -50,14 +50,14 @@ export class WorkflowConversationHost {
     const raw = args.raw as any;
     const option = args.actionId === "companyos.workflow.approve" ? "approved" : args.actionId === "companyos.workflow.reject" ? "rejected" : undefined;
     const actions = Array.isArray(raw?.actions) ? raw.actions.filter((action: any) => action.action_id === args.actionId && action.value === args.value) : [];
-    if (!option || !match || args.messageId !== match[2] || !/^[a-f0-9]{64}$/.test(args.value)
+    if (!option || !match || (raw?.message?.thread_ts ?? args.messageId) !== match[2] || !/^[a-f0-9]{64}$/.test(args.value)
       || raw?.type !== "block_actions" || raw.user?.id !== args.userId || raw.channel?.id !== match[1]
       || raw.message?.ts !== args.messageId || actions.length !== 1 || !/^\d+\.\d+$/.test(actions[0].action_ts ?? "")) throw new Error("Invalid workflow button event");
     return this.#args.slack(async (transport) => {
       const accountId = await transport.account();
       if (raw.team?.id !== accountId) throw new Error("Workflow button belongs to another installation");
       const principal = await transport.human(accountId, args.userId, await this.#args.roster());
-      const conversation: WorkflowConversation = { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]!, subjectPrincipal: principal };
+      const conversation: WorkflowConversation = { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]!, ...(args.messageId === match[2] ? {} : { decisionMessageId: args.messageId }), subjectPrincipal: principal };
       const run = await this.#args.engine.decide({ principal, conversation,
         eventId: `slack:${accountId}:${match[1]}:${args.messageId}:${actions[0].action_ts}`,
         requestId: args.value, decision: option }, onValidated);
