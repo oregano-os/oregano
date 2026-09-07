@@ -543,3 +543,26 @@ above cover those separately.
 If delivery still fails after startup is ready, follow [the reply trace](#trace-the-test-reply).
 Do not reinstall the app or blame a provider from missing log entries alone.
 For the general acceptance rules, see [workflow operations](workflow-engine.md).
+
+### Recover an already submitted conversation reply
+
+An authenticated operator can call `/api/workflows/operator` with
+`action: "recover-reply"`, `threadId` and `messageId`. Supply the exact existing
+thread and reply IDs. The endpoint accepts no text, author, approval or clock.
+It reads the original message from Slack and checks the current human identity,
+delivered assignment and historical workflow before invoking the normal Agent
+handler. Edited, missing or wrongly attributed replies fail verification.
+
+This action can invoke the model and post its response in that same conversation.
+It keeps normal duplicate claims, the waiting step's Tool allowlist and separate
+human write decisions. It cannot recover a button click from a caller's claim.
+`receive-reply` remains available for a provider reread without model dispatch.
+
+The response identifies `source: "operator-provider-reread"`. Logs use
+`workflow.reply-recovery.dispatch` and `workflow.reply-recovery.completed` with
+a hashed reference, without message content or credentials. `dispatchCompleted`
+means the normal handler returned; it does not prove a new response, because a
+previous processing claim can deduplicate the message. Inspect the original
+conversation and stored run before repeating a failed or uncertain attempt.
+Recovery is separate from proving automatic Slack event delivery. Keep the
+original delivery failure open until that route passes its real reply test.

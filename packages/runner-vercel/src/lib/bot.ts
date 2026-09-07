@@ -244,6 +244,29 @@ function resolvedTools(
   return output;
 }
 
+/** Explicit operator recovery of an existing reply; never a synthetic inbound webhook. */
+export async function recoverHostedWorkflowReply(reference: { threadId: string; messageId: string }) {
+  if (!workflowHostingEnabled()) throw new Error("Workflow recovery is disabled in this Instance");
+  const bot = getBot();
+  const { createWorkflowHost } = await import("./workflow-host.ts");
+  const { recoverWorkflowReply } = await import("./workflow-reply-recovery.ts");
+  const host = await createWorkflowHost();
+  const referenceDigest = sha256(reference);
+  const result = await recoverWorkflowReply(reference, {
+    receive: (input) => host.conversations.receive(input),
+    dispatch: async (message) => {
+      console.info(JSON.stringify({ event: "workflow.reply-recovery.dispatch", referenceDigest }));
+      await bot.initialize();
+      // Reuse verification, duplicate claims, historical Agent/Tool selection,
+      // collection and governed output from the ordinary conversation path.
+      await handleMessage(bot.thread(reference.threadId), message);
+    },
+  });
+  console.info(JSON.stringify({ event: "workflow.reply-recovery.completed", referenceDigest, kind: result.kind,
+    dispatchCompleted: result.dispatchCompleted }));
+  return result;
+}
+
 async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">) {
   const { workflowSlackMessageTrace } = await import("./workflow-slack-diagnostics.ts");
   const trace = workflowSlackMessageTrace(thread.id, message.id);

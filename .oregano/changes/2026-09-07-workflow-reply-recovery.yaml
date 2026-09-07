@@ -1,0 +1,44 @@
+version: 3
+plan_id: workflow-reply-recovery-2026-09-07
+created: "2026-09-07"
+title: Recover an existing human workflow reply through the normal conversation handler
+objective: Let an authenticated operator resume processing an exact provider-reread human reply without supplying message content, identity, decisions or a synthetic webhook.
+non_goals:
+  - Change subscriptions, reinstall an app or claim automatic delivery acceptance.
+  - Activate production workflows or bypass human write decisions.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-workflow-reply-recovery.yaml
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/workflow-reply-recovery.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - docs/operations/vercel-workflow-runner.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Reuse provider rereads, current human eligibility, persisted assignments and the normal conversation handler for explicit recovery.
+    packages: No Package or business mechanism.
+    workspace: Existing agent instructions, collection fields and human decisions remain unchanged.
+    instance: Authenticate the operator and record exact provider references; use existing resources and credentials.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Accept only provider references and authenticate the actual message author through the existing receiver.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse normal message claims, typed collection and separate actual human decisions; recovery cannot submit an approving principal.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reread original provider messages through the maintained transport, then use the existing Runner handler.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any assigned workflow may recover an already submitted human reply after a delivery outage without fabricating an inbound event.
+rollback: Remove the recovery operator action. Existing messages, workflow state and normal ingress remain unchanged.

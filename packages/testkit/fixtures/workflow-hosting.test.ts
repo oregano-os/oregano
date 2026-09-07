@@ -73,7 +73,12 @@ test("operator parser excludes approval impersonation, hidden schedule parameter
     { action: "open", workflowId: "monday-handoff", requestId: "test", fields: {}, principal: ENGINE_OPERATOR },
     { action: "schedule", workflowId: "weekday-digest", instant: "2030-01-07T08:00:00.000Z", fields: {}, params: { readiness: true } },
     { action: "receive-reply", threadId: "slack:D10001:100.001", messageId: "100.002", text: "APPROVE" },
+    ...["text", "authorId", "principal", "decision", "now"].map((field) => ({
+      action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002", [field]: "forged",
+    })),
   ]) assert.throws(() => parseWorkflowOperatorRequest(value));
+  assert.deepEqual(parseWorkflowOperatorRequest({ action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002" }),
+    { action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002" });
 });
 
 test("Slack qualification checks actual account, current human and exact DM root; publication rechecks the same credential scope", async () => {
@@ -147,11 +152,11 @@ test("hosted reply routing uses actual persisted execution and the historical Ar
   h.now = "2030-01-04T16:00:00.000Z"; await h.engine().timers(); run = (await h.engine().advance(run.runId))!;
   assert.equal(run.state.cursor, "approve-rollover", JSON.stringify(run.state));
   const decision = run.state.decisions[run.state.cursor!]!, root = `${(decision.deliveries["jonas-owner"] as any).message_id.replace("message-", "")}.000001`;
-  let text = "Please explain this review.", user = "U10002";
+  let text = "Please explain this review.", user = "U10002", edited = false;
   const scope: import("../../runner-vercel/src/lib/workflow-slack.ts").WorkflowSlackScope = async (operation) => operation(new WorkflowSlackTransport({ call: async (method, args) => {
     if (method === "auth.test") return { ok: true, team_id: "T10001" };
     if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted: false, is_bot: false } };
-    return { ok: true, messages: [{ type: "message", ts: "999.000002", thread_ts: root, user, text }], has_more: false };
+    return { ok: true, messages: [{ type: "message", ts: "999.000002", thread_ts: root, user, text, ...(edited ? { edited: { ts: "999.000003" } } : {}) }], has_more: false };
   } }));
   const latest = structuredClone(h.artifact); latest.agents[0]!.instructions = "Changed after opening";
   const host = new WorkflowConversationHost({ artifact: latest, engine: h.engine(), store: h.store, control: h.control, roster: async () => h.roster,
@@ -161,11 +166,36 @@ test("hosted reply routing uses actual persisted execution and the historical Ar
   if (session.kind !== "conversation") throw new Error("Missing conversation session");
   assert.deepEqual(session.session.artifact, h.artifact); assert.deepEqual(session.session.allowedTools, []);
   assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 0);
+  const { recoverWorkflowReply } = await import("../../runner-vercel/src/lib/workflow-reply-recovery.ts");
+  const reference = { threadId: input.threadId, messageId: input.messageId };
+  const recovered: import("../../runner-vercel/src/lib/workflow-reply-recovery.ts").RecoveredWorkflowMessage[] = [];
+  const recovery = { receive: (r: typeof reference) => host.receive(r), dispatch: async (message: typeof recovered[number]) => { recovered.push(message); } };
+  const replay = await recoverWorkflowReply(reference, recovery);
+  assert.equal(replay.dispatchCompleted, true);
+  assert.equal(recovered[0]!.text, text);
+  assert.equal(recovered[0]!.author.userId, user);
+  assert.equal(recovered[0]!.id, reference.messageId);
+  assert.equal(recovered[0]!.metadata.dateSent.getTime(), 999000);
+  assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 0);
+  edited = true; await assert.rejects(recoverWorkflowReply(reference, recovery), /original attributable/); edited = false;
+  user = "U10001";
+  const wrongRecipient = await recoverWorkflowReply(reference, recovery);
+  assert.equal(wrongRecipient.dispatchCompleted, false);
+  assert.equal(recovered.length, 1);
+  user = "U10002";
+  await assert.rejects(recoverWorkflowReply(reference, { ...recovery, receive: async () => ({ ...session, session: {
+    ...session.session, principal: "slack:T20002:U10002",
+  } }) }), /inconsistent provider identity/);
+  assert.equal(recovered.length, 1);
   text = `APPROVE ${workflowDecisionId(run.runId, decision.stepId, decision.boundDigest)}`;
   user = "U10001"; await assert.rejects(host.receive(input), /another private recipient/);
   user = "U10002";
   const accepted = await host.receive(input); assert.equal(accepted.kind, "decision");
   assert.deepEqual(await host.receive(input), accepted);
+  const recoveredDecision = await recoverWorkflowReply(reference, recovery);
+  assert.equal(recoveredDecision.kind, "decision");
+  assert.equal(recoveredDecision.dispatchCompleted, false);
+  assert.equal(recovered.length, 1);
   run = (await h.engine().advance(run.runId))!; assert.equal(run.state.status, "done");
   assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 1);
   assert.deepEqual(await host.receive(input), accepted);
