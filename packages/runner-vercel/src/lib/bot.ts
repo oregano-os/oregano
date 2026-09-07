@@ -59,7 +59,7 @@ import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "..
 import { createConfiguredRuntimeConnectors } from "./runtime-connectors.ts";
 import { isFridaySprintUpdate } from "../../../runtime/sprint-slack-submission.ts";
 import { workflowHostingEnabled } from "./workflow-configuration.ts";
-import type { WorkflowConversationSession } from "./workflow-conversations.ts";
+import { workflowReplyThreadId, type WorkflowConversationSession } from "./workflow-conversations.ts";
 import type { BeforeSlackDirectPublish } from "../../../connectors/slack/communication.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -237,7 +237,7 @@ function resolvedTools(
 }
 
 /** Explicit operator recovery of an existing reply; never a synthetic inbound webhook. */
-export async function recoverHostedWorkflowReply(reference: { threadId: string; messageId: string }) {
+export async function recoverHostedWorkflowReply(reference: { threadId: string; messageId: string; authorId?: string }) {
   if (!workflowHostingEnabled()) throw new Error("Workflow recovery is disabled in this Instance");
   const bot = getBot();
   const { createWorkflowHost } = await import("./workflow-host.ts");
@@ -245,7 +245,8 @@ export async function recoverHostedWorkflowReply(reference: { threadId: string; 
   const host = await createWorkflowHost();
   const referenceDigest = sha256(reference);
   const result = await recoverWorkflowReply(reference, {
-    receive: (input) => host.conversations.receive(input),
+    receive: (input) => input.authorId !== undefined && process.env.COMPANYOS_WORKFLOW_ONLY === "true"
+      ? host.conversations.receiveChannel(input) : host.conversations.receive(input),
     dispatch: async (message) => {
       console.info(JSON.stringify({ event: "workflow.reply-recovery.dispatch", referenceDigest }));
       await bot.initialize();
@@ -329,8 +330,10 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     assignmentStore,
   });
   const agent = conversation.agent;
-  const sessionThreadId = resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
+  const sessionThreadId = workflowSession ? workflowReplyThreadId(workflowSession)
+    : resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
   const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
+  if (workflowSession && deliveryThread !== thread) await deliveryThread.subscribe();
   await rememberSlackAgentSessionConversation(
     state,
     sessionThreadId,
@@ -365,7 +368,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       return;
     }
   }
-  const historyThreadId = workflowSession ? `slack:${workflowSession.conversation.channelId}:${workflowSession.conversation.threadId}` : thread.id;
+  const historyThreadId = workflowSession ? workflowReplyThreadId(workflowSession) : thread.id;
   const conversationKey = `conversation:${historyThreadId}:${agent.id}`;
   await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
     maxLength: 40,

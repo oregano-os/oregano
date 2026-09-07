@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { collectionFixture } from "../workflow-collection-fixture.ts";
 import { ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
-import { WorkflowConversationHost } from "../../runner-vercel/src/lib/workflow-conversations.ts";
+import { WorkflowConversationHost, workflowReplyThreadId } from "../../runner-vercel/src/lib/workflow-conversations.ts";
 import { WorkflowSlackTransport } from "../../connectors/slack/workflow-transport.ts";
+import { recoverWorkflowReply } from "../../runner-vercel/src/lib/workflow-reply-recovery.ts";
 
 async function setup(count = 1) {
   const h = collectionFixture({ conversationForReceipt: async ({ output }) => ({ surface: "slack", accountId: "T10001", channelId: "C10001",
@@ -21,7 +22,7 @@ async function setup(count = 1) {
       calls.push(method);
       if (method === "auth.test") return { ok: true, team_id: "T10001" };
       if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted: false, is_bot: false } };
-      assert.equal(method, "conversations.history");
+      assert.ok(["conversations.history", "conversations.replies"].includes(method));
       assert.equal(args.oldest, message.ts); assert.equal(args.latest, message.ts);
       return { ok: true, has_more: false, messages: [message] };
     } })) });
@@ -70,4 +71,34 @@ test("channel yes or an approval command remains conversation text and does not 
     const result = await host.receiveChannel(input); assert.equal(result.kind, "conversation");
     assert.deepEqual((await h.store.read(h.artifact.instance.id, runs[0]!.runId))!.state.decisions, {});
   }
+});
+
+test("a channel answer continues on its delivered question so the next thread reply keeps its assignment", async () => {
+  const { host, input, setMessage, runs } = await setup();
+  const result = await host.receiveChannel(input);
+  assert.equal(result.kind, "conversation"); if (result.kind !== "conversation") return;
+  const replyThreadId = workflowReplyThreadId(result.session);
+  assert.notEqual(replyThreadId, input.threadId);
+  setMessage({ ts: "999.000002", thread_ts: result.session.conversation.threadId, text: "Here is the missing detail" });
+  const followup = await host.receive({ threadId: replyThreadId, messageId: "999.000002", authorId: input.authorId });
+  assert.equal(followup.kind, "conversation"); if (followup.kind !== "conversation") return;
+  assert.equal(followup.session.runId, runs[0]!.runId);
+  assert.equal(followup.session.text, "Here is the missing detail");
+});
+
+test("operator recovery of a channel root rereads its actual author and never chooses between multiple questions", async () => {
+  const { host, input, calls, setMessage, h, runs } = await setup();
+  const dispatched: string[] = [];
+  const recovery = { receive: (ref: { threadId: string; messageId: string; authorId?: string }) => host.receiveChannel(ref), dispatch: async (message: { text: string }) => { dispatched.push(message.text); } };
+  assert.equal((await recoverWorkflowReply(input, recovery)).dispatchCompleted, true);
+  assert.deepEqual(dispatched, ["The agreed intended outcome"]);
+  assert.ok(calls.includes("conversations.history"));
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, runs[0]!.runId))!.state.decisions, {});
+  for (const patch of [{ user: "U10001" }, { user: "U10002", edited: { ts: "999.000002" } }]) {
+    setMessage(patch); await assert.rejects(recoverWorkflowReply(input, recovery));
+  }
+  assert.equal(dispatched.length, 1);
+  const multiple = await setup(2);
+  const ambiguous = await recoverWorkflowReply(multiple.input, { receive: (ref) => multiple.host.receiveChannel(ref), dispatch: async () => { assert.fail("Ambiguous root was dispatched"); } });
+  assert.equal(ambiguous.kind, "ambiguous"); assert.equal(ambiguous.dispatchCompleted, false);
 });

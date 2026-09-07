@@ -14,7 +14,7 @@ export type WorkflowOperatorRequest =
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
-  | { action: "receive-reply" | "recover-reply"; threadId: string; messageId: string };
+  | { action: "receive-reply" | "recover-reply"; threadId: string; messageId: string; authorId?: string };
 
 export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Workflow operator request must be an object");
@@ -46,7 +46,14 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     return { action: "review", runId: text("runId", /^workflow:[a-f0-9]{64}$/), ...(input.offset === undefined ? {} : { offset: input.offset as number }) };
   }
   if (input.action === "list") { exact(["afterRunId"]); return { action: "list", ...(input.afterRunId === undefined ? {} : { afterRunId: text("afterRunId", /^workflow:[a-f0-9]{64}$/) }) }; }
-  if (input.action === "receive-reply" || input.action === "recover-reply") { exact(["threadId", "messageId"]); return { action: input.action, threadId: text("threadId", /^slack:[A-Z0-9]{5,32}:\d+\.\d+$/), messageId: text("messageId", /^\d+\.\d+$/) }; }
+  if (input.action === "receive-reply" || input.action === "recover-reply") {
+    exact(["threadId", "messageId", ...(input.action === "recover-reply" ? ["authorId"] : [])]);
+    const reference = { action: input.action, threadId: text("threadId", /^slack:[A-Z0-9]{5,32}:\d+\.\d+$/), messageId: text("messageId", /^\d+\.\d+$/) };
+    if (input.authorId === undefined) return reference as WorkflowOperatorRequest;
+    const authorId = text("authorId", /^[UW][A-Z0-9]{4,31}$/);
+    if (!/^slack:[CG][A-Z0-9]{4,31}:/.test(reference.threadId) || !reference.threadId.endsWith(`:${reference.messageId}`)) throw new Error("A recovery author hint is only valid for an original channel-root message");
+    return { ...reference, authorId } as WorkflowOperatorRequest;
+  }
   throw new Error("Unsupported workflow operator action");
 }
 

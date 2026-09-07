@@ -1,0 +1,52 @@
+version: 3
+plan_id: slack-channel-ownership-2026-09-07
+created: "2026-09-07"
+title: Route explicit mentions to assigned workflow conversations
+objective: Let assigned workflow conversations receive explicit mentions while an exact channel exclusion prevents the other shared-app destination from also answering; recover an existing channel-root answer only after a provider reread verifies its author and unique active question.
+non_goals:
+  - Add provider events, scopes, credentials or business authority.
+  - Change direct-message routing or enable production workflows.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-slack-channel-ownership.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/runner-vercel/src/lib/workflow-reply-recovery.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - docs/operations/vercel-workflow-runner.md
+tests:
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Select Slack transport events without changing authentication, assignment, collection or decision authority.
+    packages: No new Package behavior.
+    workspace: Retain business conversations and human decisions in existing declarations.
+    instance: Own exact excluded channels and review disjoint event destinations before a shared-app test.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Preserve SDK verification and assigned-recipient checks when accepting explicit mentions; narrow the other destination by exact channel ID.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company sharing a Slack app across instances can assign channel-message handling without domain-specific routing or a second authorization mechanism.
+rollback: Restore previous ingress selectors and the corresponding environment configuration together. Preserve all conversations and decisions; never reopen a completed run.

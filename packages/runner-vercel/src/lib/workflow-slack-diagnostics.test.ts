@@ -25,7 +25,8 @@ async function adapterHarness() {
 }
 
 test("existing SDK and isolated ingress both dispatch signed channel roots and thread replies", async () => {
-  for (const value of [event, { ...event, thread_ts: "10.000001" }]) {
+  for (const value of [event, { ...event, thread_ts: "10.000001" },
+    { ...event, type: "app_mention", text: "<@U90001> The intended outcome", thread_ts: "10.000001" }]) {
     const original = await adapterHarness(), isolated = await adapterHarness();
     const entries: Record<string, unknown>[] = [];
     assert.equal((await original.handler(request(value), { waitUntil() {} })).status, 200);
@@ -58,9 +59,9 @@ test("diagnostics do not authenticate an unsigned message or bypass the existing
 
 test("filtered messages identify their reason and never initialize a general agent", async () => {
   for (const [patch, reason] of [
-    [{ channel: "D10001" }, "not-channel-message"], [{ text: "<@U90001> mention" }, "mention"],
+    [{ channel: "D10001" }, "not-channel-message"],
     [{ subtype: "message_changed" }, "bot-or-subtype"], [{ bot_id: "B10001" }, "bot-or-subtype"],
-    [{ thread_ts: "bad" }, "invalid-message"], [{ type: "app_mention" }, "other-event"],
+    [{ thread_ts: "bad" }, "invalid-message"], [{ type: "reaction_added" }, "other-event"],
   ] as const) {
     const entries: Record<string, unknown>[] = [];
     await dispatchWorkflowSlackRequest(request({ ...event, ...patch }), { workflowOnly: true, diagnostics: true,

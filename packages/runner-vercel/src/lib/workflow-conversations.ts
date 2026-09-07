@@ -29,6 +29,11 @@ export interface WorkflowConversationSession {
 export type WorkflowInboundResult = { kind: "unassigned" } | { kind: "decision"; runId: string; decision: "approved" | "rejected" }
   | { kind: "ambiguous"; conversations: WorkflowConversation[] } | { kind: "closed" } | { kind: "conversation"; session: WorkflowConversationSession };
 
+/** Keep follow-up replies on the delivered question, including after a channel-root answer. */
+export function workflowReplyThreadId(session: WorkflowConversationSession): string {
+  return `slack:${session.conversation.channelId}:${session.conversation.threadId}`;
+}
+
 /** Shared by verified webhook delivery and operator-triggered provider rereads. Neither can submit an approving principal. */
 interface WorkflowConversationHostOptions {
     artifact: CompanyOSArtifact; engine: WorkflowEngine; store: WorkflowExecutionStore; control: StateStore;

@@ -35,14 +35,13 @@ export async function inspectWorkflowSlackRequest(request: Request, workflowOnly
     }
     const event = payload?.event;
     const messageRef = slackMessageReference(event?.channel, event?.ts);
-    if (payload?.type !== "event_callback" || event?.type !== "message") return ignored("other-event", messageRef);
+    if (payload?.type !== "event_callback" || !["message", "app_mention"].includes(event?.type)) return ignored("other-event", messageRef);
     if (event.subtype || event.bot_id || event.app_id) return ignored("bot-or-subtype", messageRef);
     if (typeof event.channel !== "string" || !/^[CG][A-Z0-9]{4,31}$/.test(event.channel)) return ignored("not-channel-message", messageRef);
     if (typeof event.ts !== "string" || !/^\d+\.\d+$/.test(event.ts)
       || (event.thread_ts !== undefined && (typeof event.thread_ts !== "string" || !/^\d+\.\d+$/.test(event.thread_ts)))
       || typeof event.user !== "string" || !/^[UW][A-Z0-9]{4,31}$/.test(event.user)
       || typeof event.text !== "string") return ignored("invalid-message", messageRef);
-    if (event.text.includes("<@")) return ignored("mention", messageRef);
     return { kind: "message", reason: "workflow-message", ...(messageRef ? { messageRef } : {}) };
   } catch { return ignored("invalid-payload"); }
 }

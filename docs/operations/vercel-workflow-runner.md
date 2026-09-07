@@ -374,12 +374,13 @@ encoding fits, do not truncate the Artifact or remove its integrity checks.
 
 The action-only test endpoint does not receive normal conversations. Do not test
 a new conversation in the shared app's direct messages: the production bot may
-also process that reply. Use a new, unmentioned thread in the approved test
+also process that reply. Use a new thread in the approved test
 channel, with one recipient mapping and `COMPANYOS_WORKFLOW_ONLY=true` in the
 test environment. This enables original channel-thread events on the workflow
 endpoint. The SDK verifies the original event; only subscribed, assigned threads
 reach the workflow, and unassigned replies receive no general-agent fallback.
-Reply in that thread without mentioning the app. Do not reuse a production thread.
+Replies may include an explicit app mention when the channel has an exclusive
+destination as described below. Do not reuse a production thread.
 
 A recipient-bound channel remains visible to channel members; it is not a private
 message. The recipient restriction controls who may supply facts or confirm.
@@ -409,8 +410,8 @@ request, assigned conversation and Agent response before accepting the setup.
 Subscriptions apply to the shared app, not just the test deployment. Adding an
 event can deliver it to the production destination too. Inspect that handler and
 obtain any required production authorization before changing the subscription.
-Do not ask the tester to mention the app as a workaround: that can wake the
-production bot. Keep a failed test pending; do not copy the user's text into a
+Before testing mentions, exclude the exact test channel on the other destination;
+otherwise the production bot may answer too. Keep a failed test pending; do not copy the user's text into a
 fabricated webhook or count an operator-only replay as live delivery acceptance.
 
 See the [Vercel Slack setup instructions](https://vercel.com/kb/guide/build-a-slack-bot-with-vercel-connect)
@@ -425,6 +426,23 @@ controls keep their existing authenticated path. The workflow-only test endpoint
 is separate. The default `process` behavior is unchanged. This is an Instance
 rollout choice, not a Workspace business rule or permission to deploy production.
 Remove the guard only after channel conversation behavior is explicitly accepted.
+
+To give the workflow Instance exclusive ownership of an approved test channel,
+set `SLACK_IGNORED_CHANNEL_IDS` on the other Instance to the exact channel IDs,
+separated by commas. Omit the variable when no channels are excluded. Wildcards,
+duplicates, direct-message IDs and empty entries are rejected. On the ordinary
+Slack webhook this excludes both `message` and `app_mention` for those channels.
+Mentions elsewhere, DMs and interactive controls retain their existing paths.
+The existing `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` setting can remain in place.
+
+The workflow-only endpoint accepts signed ordinary messages and `app_mention`
+events, then checks the persisted conversation and its assigned recipient.
+Selection alone grants no authority; unassigned messages have no general-chat
+fallback. Test both destinations before inviting a person to reply: the excluded
+channel must not wake the ordinary Agent, while the assigned workflow must
+receive the mention through the unchanged SDK verifier. A reply from a general
+Agent does not prove that the workflow processed it. Retain separate evidence
+for ordinary, unmentioned reply delivery if that is also required.
 
 ### Channel replies and a silent conversation
 
@@ -473,7 +491,7 @@ An unsuccessful log query is not evidence that a message never arrived.
 | Last observed stage | What it proves and what to check next |
 |---|---|
 | No `received` | No entry was observed in this deployment. Check the environment, log window and upstream forwarding; absence alone does not identify a provider defect. |
-| `filtered` | The request reached the test endpoint but failed its selection rules. `outcome` names the rule, such as `conversations-disabled`, `mention` or `not-channel-message`. |
+| `filtered` | The request reached the test endpoint but failed its selection rules. `outcome` names the rule, such as `conversations-disabled` or `not-channel-message`. |
 | `sdk-dispatch` | The endpoint selected the request. Authentication and handler entry are still unproven. |
 | `sdk-returned` | The SDK returned an HTTP status. A 401 is rejected verification; a 200 alone does not prove a model response. |
 | `handler-entered` | The SDK dispatched a verified message to the existing conversation handler. |
@@ -548,12 +566,21 @@ For the general acceptance rules, see [workflow operations](workflow-engine.md).
 
 An authenticated operator can call `/api/workflows/operator` with
 `action: "recover-reply"`, `threadId` and `messageId`. Supply the exact existing
-thread and reply IDs. The endpoint accepts no text, author, approval or clock.
+thread and reply IDs. The endpoint accepts no text, approval or clock.
 It reads the original message from Slack and checks the current human identity,
 delivered assignment and historical workflow before invoking the normal Agent
 handler. Edited, missing or wrongly attributed replies fail verification.
 
-This action can invoke the model and post its response in that same conversation.
+For a reply posted as a new channel message, use that message's own thread ID
+and optionally supply `authorId` as a lookup hint. The operator uses it only to
+find the recipient's active question in that channel. It must then read the
+original message and verify its actual author. The hint grants no authority.
+There must be exactly one eligible open question; ambiguous matches do not
+dispatch a model. Direct-message and child-thread replies cannot use this hint.
+
+This action can invoke the model and post its response under the delivered
+question. A channel-root answer continues there too, so the next reply retains
+the question's assignment and history.
 It keeps normal duplicate claims, the waiting step's Tool allowlist and separate
 human write decisions. It cannot recover a button click from a caller's claim.
 `receive-reply` remains available for a provider reread without model dispatch.
