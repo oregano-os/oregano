@@ -359,3 +359,13 @@ reported separately and must not be represented as a failed decision. An exact
 provider redelivery can retry the projection through the engine's existing
 idempotent response path. Rejected or unverified requests never close a card.
 
+
+## Larger deployment artifacts
+
+When the compressed Artifact no longer fits a deployment environment variable,
+encode the same JSON with Brotli and set `COMPANYOS_ARTIFACT_BROTLI_BASE64`.
+Leave `COMPANYOS_ARTIFACT_GZIP_BASE64` empty. The runner accepts exactly one of
+the two payloads and still verifies the Artifact hash and deployment environment.
+This changes transport only; it does not change grants, bindings or workflow state.
+Check the encoded value and total environment size before deploying. If neither
+encoding fits, do not truncate the Artifact or remove its integrity checks.

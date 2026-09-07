@@ -1,4 +1,4 @@
-import { gunzipSync } from "node:zlib";
+import { decodeArtifactPayload } from "./artifact-payload.ts";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { resolveAgent } from "../../../runtime/agent-resolver.ts";
@@ -37,9 +37,7 @@ export function assertArtifactDeploymentEnvironment(
 
 export function loadArtifact(): CompanyOSArtifact {
   if (cachedArtifact) return cachedArtifact;
-  const encoded = process.env.COMPANYOS_ARTIFACT_GZIP_BASE64;
-  if (!encoded) throw new Error("COMPANYOS_ARTIFACT_GZIP_BASE64 is not configured.");
-  const parsed = JSON.parse(gunzipSync(Buffer.from(encoded, "base64")).toString("utf8")) as CompanyOSArtifact;
+  const parsed = decodeArtifactPayload(process.env) as CompanyOSArtifact;
   const { artifactHash, ...withoutHash } = parsed;
   const hashInput = {
     ...withoutHash,
