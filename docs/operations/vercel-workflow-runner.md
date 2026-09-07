@@ -452,3 +452,37 @@ a real reply test. Do not announce a conversation as ready until a person sends
 a reply and receives the resulting Agent answer through the deployed ingress.
 For a shared app, keep the production channel-event guard and test workflow-only
 routing in place while qualifying this path.
+
+### Trace the test reply
+
+Set `COMPANYOS_SLACK_DIAGNOSTICS=true` on the isolated test deployment to trace
+the existing Slack workflow path. It is off by default. This setting changes
+logging only; it grants no access and starts no workflow. Redeploy the checked
+Core/Workspace pairing, then verify its health and exact source commits.
+
+Search its runtime logs for `slack.workflow.diagnostic`:
+
+| Last observed stage | What it proves and what to check next |
+|---|---|
+| No `received` | No entry was observed in this deployment. Check the environment, log window and upstream forwarding; absence alone does not identify a provider defect. |
+| `filtered` | The request reached the test endpoint but failed its selection rules. `outcome` names the rule, such as `conversations-disabled`, `mention` or `not-channel-message`. |
+| `sdk-dispatch` | The endpoint selected the request. Authentication and handler entry are still unproven. |
+| `sdk-returned` | The SDK returned an HTTP status. A 401 is rejected verification; a 200 alone does not prove a model response. |
+| `handler-entered` | The SDK dispatched a verified message to the existing conversation handler. |
+| `assignment` | The workflow lookup finished. `conversation` can proceed; `unassigned`, `closed` or `ambiguous` explains another route. |
+| `deduplicated` | This message already has a processing claim. Inspect the earlier attempt before deciding on recovery. |
+| `model-started` / `model-finished` | The model call began / completed. This is separate from posting its response. |
+| `reply-posted` | The response publication call succeeded. Verify it in the original conversation. |
+| `ingress-failed`, `background-failed`, `handler-failed` or `verification-failed` | Processing failed at the named boundary. Do not count the HTTP acknowledgement as a successful conversation. |
+
+`traceId` groups one local attempt. `messageRef` joins ingress and handler records
+using a SHA-256 hash of `channel_id:message_ts`; it is correlation, not identity or
+approval evidence. The stream contains fixed stage names, elapsed milliseconds,
+HTTP status and hashes. It omits message text, raw payloads, headers, credentials,
+raw person/channel IDs and exception messages. Upstream log retention still
+applies. Disable the setting after diagnosis.
+
+After these checks, use one real reply to verify delivery through the configured
+app. Local signed fixtures test the adapter, not Slack's event subscription or
+hosted forwarding. Preserve an existing human answer when delivery fails; do not
+repeatedly ask for the business content or treat an operator reread as live ingress.

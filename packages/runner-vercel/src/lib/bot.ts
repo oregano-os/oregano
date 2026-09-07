@@ -245,6 +245,17 @@ function resolvedTools(
 }
 
 async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">) {
+  const { workflowSlackMessageTrace } = await import("./workflow-slack-diagnostics.ts");
+  const trace = workflowSlackMessageTrace(thread.id, message.id);
+  trace.emit("handler-entered");
+  try {
+    await processConversationMessage(thread, message, trace);
+    trace.emit("handler-finished");
+  } catch (error) { trace.emit("handler-failed"); throw error; }
+}
+
+async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">,
+  trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace) {
   let workflowSession: WorkflowConversationSession | undefined;
   if (workflowHostingEnabled()) {
     try {
@@ -253,19 +264,22 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       const input = { threadId: thread.id, messageId: message.id, authorId: message.author.userId };
       const received = thread.id.endsWith(`:${message.id}`) && process.env.COMPANYOS_WORKFLOW_ONLY === "true"
         ? await host.conversations.receiveChannel(input) : await host.conversations.receive(input);
+      trace.emit("assignment", received.kind);
       if (received.kind === "ambiguous") {
         const links = received.conversations.map((c, index) => `<https://slack.com/archives/${c.channelId}/p${c.threadId.replace(".", "")}|Question ${index + 1}>`).join(" · ");
         await thread.post(`Several questions are open for you. Which question does your answer belong to? Open the matching question and reply there: ${links}`);
+        trace.emit("reply-posted");
         return;
       }
       if (received.kind === "unassigned" && process.env.COMPANYOS_WORKFLOW_ONLY === "true") return;
       if (received.kind === "decision") {
         if (await state.setIfNotExists(`workflow-response:${received.runId}:${message.id}`, true, 30 * DAY)) {
           await thread.post(`Your workflow decision was recorded: ${received.decision}.`);
+          trace.emit("reply-posted");
         }
         return;
       }
-      if (received.kind === "closed") { await thread.post("This workflow conversation is closed."); return; }
+      if (received.kind === "closed") { await thread.post("This workflow conversation is closed."); trace.emit("reply-posted"); return; }
       if (received.kind === "conversation") {
         workflowSession = received.session;
         message = { ...message, text: workflowSession.text };
@@ -273,16 +287,20 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     } catch (error) {
       const reference = sha256(error instanceof Error ? error.message : String(error));
       console.error(JSON.stringify({ event: "workflow.conversation.failed", reference }));
+      trace.emit("verification-failed");
       await thread.post(`Your workflow message could not be verified or processed. No decision was inferred. Evidence reference: ${reference}`);
+      trace.emit("reply-posted");
       return;
     }
   }
   const member = workflowSession?.member ?? rosterMember(message.author);
   if (!member) {
+    trace.emit("identity-rejected");
     await thread.post("This Slack identity is not an active human in the Company Workspace roster. The message was blocked before model invocation.");
+    trace.emit("reply-posted");
     return;
   }
-  if (!await state.setIfNotExists(`message:${thread.id}:${message.id}`, true, 30 * DAY)) return;
+  if (!await state.setIfNotExists(`message:${thread.id}:${message.id}`, true, 30 * DAY)) { trace.emit("deduplicated"); return; }
   await thread.subscribe();
   const requester = workflowSession?.principal ?? principal(member);
   const conversation: ResolvedConversationAgent = workflowSession ? {
@@ -341,6 +359,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const verificationResponse = setupVerificationResponse(message.text);
   if (verificationResponse) {
     const resolved = resolveModelExecution({ profile: "utility", task: "setup.verification", requiredCapability: "language" });
+    trace.emit("model-started");
     const probe = await generateText({
       model: resolved.model,
       prompt: setupVerificationPrompt(verificationResponse),
@@ -349,6 +368,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
       abortSignal: resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs),
     });
+    trace.emit("model-finished");
     thread.signal.throwIfAborted();
     const generated = probe.text.trim();
     if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
@@ -357,6 +377,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       ttlMs: 30 * DAY,
     });
     await deliveryThread.post(generated);
+    trace.emit("reply-posted");
     return;
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
@@ -398,6 +419,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     knowledgeRouteKind: knowledgeRoute.kind,
     businessToolCount: visibleGrantIds.size,
   })) {
+    trace.emit("model-started");
     const result = await modelAgent.stream({ messages, abortSignal });
     await deliveryThread.post(result.fullStream);
     thread.signal.throwIfAborted();
@@ -408,6 +430,8 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       result.response,
       result.usage,
     ]);
+    trace.emit("model-finished");
+    trace.emit("reply-posted");
     const response = renderKnowledgeTurnResponse({
       route: knowledgeRoute,
       modelText,
@@ -433,6 +457,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   let waitingForHuman = false;
   let result: Awaited<ReturnType<typeof modelAgent.generate>>;
   try {
+    trace.emit("model-started");
     result = await modelAgent.generate({
       messages,
       abortSignal,
@@ -450,6 +475,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
         });
       },
     });
+    trace.emit("model-finished");
   } catch (error) {
     await toolProgress.fail();
     if (waitingForHuman && slackAgentExperience.streamingEnabled) {
@@ -482,11 +508,13 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     await deliveryThread.post(slackAgentExperience.streamingEnabled
       ? validatedSlackResponsePlan(presentation.visibleResponse, { suspended: waitingForHuman })
       : presentation.visibleResponse);
+    trace.emit("reply-posted");
   } else if (waitingForHuman && slackAgentExperience.streamingEnabled) {
     await deliveryThread.post(validatedSlackResponsePlan(
       "Waiting for your confirmation in the card above.",
       { suspended: true },
     ));
+    trace.emit("reply-posted");
   }
 }
 
