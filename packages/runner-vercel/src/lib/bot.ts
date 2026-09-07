@@ -251,6 +251,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       const { createWorkflowHost } = await import("./workflow-host.ts");
       const host = await createWorkflowHost();
       const received = await host.conversations.receive({ threadId: thread.id, messageId: message.id, authorId: message.author.userId });
+      if (received.kind === "unassigned" && process.env.COMPANYOS_WORKFLOW_ONLY === "true") return;
       if (received.kind === "decision") {
         if (await state.setIfNotExists(`workflow-response:${received.runId}:${message.id}`, true, 30 * DAY)) {
           await thread.post(`Your workflow decision was recorded: ${received.decision}.`);

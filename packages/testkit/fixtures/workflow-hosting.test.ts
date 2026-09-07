@@ -201,3 +201,35 @@ test("repair pagination survives a new worker beyond the first 200 actual execut
   assert.equal(cursors.length, 2); assert.equal(cursors[0], undefined); assert.match(cursors[1]!, /^workflow:/);
   assert.equal(h.calls.length, 0);
 });
+
+test("recipient-bound channels qualify the sole human before publication and preserve subject authority", async () => {
+  const { WorkflowSlackTransport } = await import("../../connectors/slack/workflow-transport.ts");
+  const { qualifyWorkflowSlackConnector } = await import("../../runner-vercel/src/lib/workflow-slack.ts");
+  const h = engineFixture(), artifact = structuredClone(h.artifact);
+  artifact.bindings = artifact.bindings.map((b) => b.capability === "communication.message.publish" ? { ...b, connector: "oregano/slack-communication", connectorVersion: "0.1.0" } : b);
+  artifact.connectors = [{ id: "slack", connector: "oregano/slack-communication", connectorVersion: "0.1.0", configuration: { destinations: [
+    { id: "direct-jonas-owner", account_id: "T10001", kind: "channel", channel_id: "C10001" },
+  ] } }];
+  let deleted = false, published = 0, replyUser = "U10002";
+  const transport = new WorkflowSlackTransport({ call: async (method, args) => {
+    if (method === "auth.test") return { ok: true, team_id: "T10001" };
+    if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted, is_bot: false } };
+    if (method === "conversations.replies") return { ok: true, messages: [{ type: "message", ts: "100.002", thread_ts: "100.001", text: "Facts", user: replyUser }] };
+    return { ok: true, channel: { id: args.channel, is_archived: false, is_im: false } };
+  } });
+  const wrapped = qualifyWorkflowSlackConnector({ artifact, scope: async (operation) => operation(transport), roster: async () => h.roster,
+    connector: { id: "oregano/slack-communication", version: "0.1.0", capabilities: ["communication.message.publish"], invoke: async () => {
+      published++; return { output: {}, evidence: {} };
+    } } });
+  const input = { destination_binding: "direct-jonas-owner", content: "Question" };
+  const context = { instanceId: artifact.instance.id, runId: "test", stepId: "message", agentId: "sprint", toolId: "publish", idempotencyKey: "test" };
+  deleted = true; await assert.rejects(wrapped.invoke("communication.message.publish", input, context), /human identity/);
+  assert.equal(published, 0);
+  deleted = false; await wrapped.invoke("communication.message.publish", input, context); assert.equal(published, 1);
+  const conversation = await transport.conversation(artifact, "direct-jonas-owner", { destination_binding: "direct-jonas-owner", thread_reference: "slack:C10001:100.001" }, h.roster);
+  assert.equal(conversation.subjectPrincipal, "slack:T10001:U10002");
+  assert.equal((await transport.reply({ conversation, messageId: "100.002", roster: h.roster })).principal, conversation.subjectPrincipal);
+  replyUser = "U10001"; await assert.rejects(transport.reply({ conversation, messageId: "100.002", roster: h.roster }), /another private recipient/);
+  artifact.workflowBindings!.directRecipients.push({ bindingId: "another", memberId: "another", destinationBinding: "direct-jonas-owner" });
+  await assert.rejects(wrapped.invoke("communication.message.publish", input, context), /one exact member/); assert.equal(published, 1);
+});

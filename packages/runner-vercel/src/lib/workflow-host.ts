@@ -34,7 +34,13 @@ export async function createWorkflowHost() {
   const engine = new WorkflowEngine({ artifact, store, control, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
     operatorPrincipals: configuration.operators.map((operator) => operator.principal), currentRoster: roster, connectors,
     qualifyMessageDestinations: (pinned, inputs) => qualifyWorkflowMessageInputs({ scope: slack, artifact: pinned, inputs, roster }),
-    conversationForReceipt: ({ artifact: pinned, destinationBinding, output }) => slack(async (transport) => transport.conversation(pinned, destinationBinding, output, await roster())) });
+    conversationForReceipt: ({ artifact: pinned, destinationBinding, output }) => slack(async (transport) => {
+      const conversation = await transport.conversation(pinned, destinationBinding, output, await roster());
+      if (conversation.subjectPrincipal && !conversation.channelId.startsWith("D")) {
+        await getBot().thread(`slack:${conversation.channelId}:${conversation.threadId}`).subscribe();
+      }
+      return conversation;
+    }) });
   const workers = new WorkflowWorkers({ artifact, engine, store, timers, configuration });
   const records = new WorkflowRecordWorkers({ artifact, store, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
     recordSync: configuration.recordSync, synchronizeSource: createWorkflowRecordSynchronizer() });

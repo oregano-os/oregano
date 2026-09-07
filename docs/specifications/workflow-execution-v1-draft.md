@@ -628,8 +628,10 @@ remain valid with the documented fallback.
 
 ## Assigned fact collection
 
-A `collect` step pauses for one private conversation. `from` references a prior
+A `collect` step pauses for one conversation bound to one recipient. `from` references a prior
 root message's `thread_reference`; that message must have one explicit recipient.
+A Connector may deliver it privately or in a channel; a channel remains visible
+to its members, but only the bound recipient may submit facts.
 `context` supplies the reviewed card or other business facts. `fields` names up
 to 30 required text fields, each at most 4,000 characters. `timeout.business_days`
 uses the workflow calendar. On timeout the run is cancelled without an effect.

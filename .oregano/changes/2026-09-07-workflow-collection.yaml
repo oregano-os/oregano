@@ -2,13 +2,19 @@ version: 3
 plan_id: workflow-collection-2026-09-07
 created: "2026-09-07"
 title: Collect typed facts in an assigned workflow conversation
-objective: Collect bounded fields from one assigned private conversation before a separate human decision and existing effect; start enabled leaf workflows from Workspace intake selections.
+objective: Collect bounded fields from one assigned recipient-bound conversation before a separate human decision and existing effect; start enabled leaf workflows from Workspace intake selections.
 non_goals:
   - Add business selection rules or a provider-specific conversation engine.
   - Infer consent from model output or activate production.
 placement: core
 change_class: security
 files_expected:
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
   - packages/runner-vercel/src/lib/artifact.ts
   - packages/runner-vercel/src/lib/artifact-payload.ts
   - packages/testkit/tests/artifact-payload.test.ts
@@ -44,7 +50,7 @@ architecture:
     instance: Bind exact authenticated conversations and isolated resources.
   mechanisms_extended:
     - mechanism: identity-and-authorization
-      reason: Permit bounded output submission only from the frozen private conversation.
+      reason: Permit bounded output submission only from the frozen recipient-bound conversation.
     - mechanism: approvals-effects-and-idempotency
       reason: Collecting facts advances to an ordinary decision without approving it.
   new_core_mechanisms: []

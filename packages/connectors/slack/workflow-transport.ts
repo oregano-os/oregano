@@ -53,6 +53,17 @@ export class WorkflowSlackTransport {
     if (c.subjectPrincipal && c.subjectPrincipal !== principal) throw new Error("Workflow reply belongs to another private recipient");
     return { principal, text: message.text, eventId: `slack:${c.accountId}:${c.channelId}:${messageId}` };
   }
+  private async channelRecipient(artifact: CompanyOSArtifact, destination: string, accountId: string, roster: RosterMember[]): Promise<string | undefined> {
+    const recipients = artifact.workflowBindings?.directRecipients.filter((entry) => entry.destinationBinding === destination) ?? [];
+    if (!recipients.length) return undefined;
+    const ids = [...new Set(recipients.map((entry) => entry.memberId))];
+    if (ids.length !== 1) throw new Error("Recipient-bound channel requires one exact member");
+    const members = roster.filter((entry) => entry.id === ids[0]);
+    if (members.length !== 1) throw new Error("Channel recipient has no exact member identity");
+    const principals = members[0]!.principals?.filter((value) => value.startsWith(`slack:${accountId}:`)) ?? [];
+    if (principals.length !== 1) throw new Error("Channel recipient has no exact account identity");
+    return this.human(accountId, principals[0]!.split(":")[2]!, roster);
+  }
   async qualify(artifact: CompanyOSArtifact, destination: string, roster: RosterMember[]): Promise<JsonValue> {
     const binding = workflowSlackDestination(artifact, destination), account = await this.account();
     if (account !== binding.accountId) throw new Error("Slack credential account differs from the pinned destination");
@@ -65,6 +76,7 @@ export class WorkflowSlackTransport {
     } else {
       const response = await this.#api.call("conversations.info", { channel: binding.channelId! }), channel = response.channel;
       if (response.ok !== true || channel?.id !== binding.channelId || channel.is_archived !== false || channel.is_im !== false || channel.is_mpim === true) throw new Error("Slack channel binding is unavailable or has the wrong kind");
+      principal = await this.channelRecipient(artifact, destination, account, roster);
     }
     return { provider: "slack", artifact_hash: artifact.artifactHash, destination_binding: destination, binding_digest: sha256(binding), account_id: account,
       ...(principal ? { principal } : { channel_id: binding.channelId! }), verified_at: new Date().toISOString() };
@@ -76,6 +88,8 @@ export class WorkflowSlackTransport {
     const channelId = match[1]!;
     if (binding.kind === "channel") {
       if (channelId !== binding.channelId) throw new Error("Workflow root receipt belongs to another channel");
+      const principal = await this.channelRecipient(artifact, destination, binding.accountId, roster);
+      if (principal) return { surface: "slack", accountId: binding.accountId, channelId, threadId: match[2]!, subjectPrincipal: principal };
       return { surface: "slack", accountId: binding.accountId, channelId, threadId: match[2]! };
     }
     const response = await this.#api.call("conversations.info", { channel: channelId });

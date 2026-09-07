@@ -369,3 +369,19 @@ the two payloads and still verifies the Artifact hash and deployment environment
 This changes transport only; it does not change grants, bindings or workflow state.
 Check the encoded value and total environment size before deploying. If neither
 encoding fits, do not truncate the Artifact or remove its integrity checks.
+
+## Conversation tests with a shared Slack app
+
+The action-only test endpoint does not receive normal conversations. Do not test
+a new conversation in the shared app's direct messages: the production bot may
+also process that reply. Use a new, unmentioned thread in the approved test
+channel, with one recipient mapping and `COMPANYOS_WORKFLOW_ONLY=true` in the
+test environment. This enables original channel-thread events on the workflow
+endpoint. The SDK verifies the original event; only subscribed, assigned threads
+reach the workflow, and unassigned replies receive no general-agent fallback.
+Reply in that thread without mentioning the app. Do not reuse a production thread.
+
+A recipient-bound channel remains visible to channel members; it is not a private
+message. The recipient restriction controls who may supply facts or confirm.
+For private tests, use a separately installed test app or an independently reviewed
+exclusive event route. Provider fan-out alone does not isolate normal DM replies.
