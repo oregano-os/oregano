@@ -43,3 +43,26 @@ test("channel exclusions reject ambiguous or overly broad configuration", async 
     await assert.rejects(ignoreSlackChannelEvent(request({}), "process", channels), /SLACK_IGNORED_CHANNEL_IDS/);
   }
 });
+
+
+test("a reviewed account and person reserves only that person's direct-message route", async () => {
+  const original = (user = "U10002", team_id = "T10001", channel = "D10001") => new Request("https://example.test", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "event_callback", team_id,
+      event: { type: "message", channel, user, ts: "100.002", text: "Synthetic answer" } }),
+  });
+  const recipients = ["T10001:U10002"];
+  const input = original(), bytes = await input.clone().text();
+  assert.equal(await ignoreSlackChannelEvent(input, "process", undefined, recipients), true);
+  assert.equal(await input.text(), bytes);
+  for (const input of [original("U10003"), original("U10002", "T20001"), original("U10002", "T10001", "C10001")]) {
+    assert.equal(await ignoreSlackChannelEvent(input, "process", undefined, recipients), false);
+  }
+  assert.equal(await ignoreSlackChannelEvent(original(), "process", undefined, []), false);
+});
+
+test("DM reservations reject broad or ambiguous configured identities", async () => {
+  const { workflowDmRecipients } = await import("../../runner-vercel/src/lib/slack-workflow-dm-routing.ts");
+  for (const value of ["", "*", "U10002", "T10001:*", "T10001:D10001", "T10001:U10002,", "T10001:U10002,T10001:U10002"]) {
+    assert.throws(() => workflowDmRecipients(value), /SLACK_WORKFLOW_DM_RECIPIENTS/);
+  }
+});

@@ -67,3 +67,21 @@ no messages. An initialization failure remains a failure on repeated requests;
 the runner never caches a chat before registering its handlers. After correcting
 configuration, deploy and verify the exact pairing again. Health alone does not
 prove incoming Slack delivery or a model response. Complete a real reply test.
+
+
+## Exclusive direct-message tests
+
+A shared Slack app can deliver a person's direct message to both deployments.
+Before testing a workflow in a DM, reserve its route on both destinations.
+Set `SLACK_WORKFLOW_DM_RECIPIENTS` to the same exact `account:user` list, for
+example `T10001:U10002`. This maintenance guard excludes those DM messages from
+the ordinary webhook. Other accounts, people, channels and controls retain
+their existing behavior. No credential, grant or workflow changes.
+
+The workflow destination must run a compatible receiver that accepts the same
+list and verifies its existing recipient-bound questions. Verify the exclusion
+before enabling that receiver. Test real root and thread replies and confirm
+exactly one assigned response. A working button does not prove text delivery.
+The reservation covers the person's whole DM during the test; ordinary chat
+there is temporarily unavailable. Remove the paired settings when the test ends.
+Never enable only one side or treat configuration as proof of actual delivery.
