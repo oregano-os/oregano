@@ -1,4 +1,5 @@
 import { subjectDecisionReply, workflowDecisionId } from "../../../runtime/workflow-engine/decision-notice.ts";
+import { collectionReviewDelivery } from "./workflow-conversation-presentation.ts";
 import { collectionSchema } from "../../../runtime/workflow-engine/collection.ts";
 import { resolveWorkflowValue } from "../../../runtime/workflow-engine/references.ts";
 import { workflowContext } from "../../../runtime/workflow-engine/readers.ts";
@@ -143,7 +144,11 @@ export class WorkflowConversationHost {
         ...(step.collect && run.state.status === "waiting" && !run.state.blocked ? { collection: {
           schema: collectionSchema(step.collect.fields), context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)),
           submit: async (output: JsonValue) => { const saved = await this.#args.engine.collect({ principal, conversation: qualifiedConversation, eventId: reply.eventId, output });
-            await this.#args.engine.advance(saved.runId); return { collected: true, authorized: false, message: "Facts recorded. A separate delivered human decision is required before any change." }; },
+            const advanced = await this.#args.engine.advance(saved.runId);
+            const reviewDelivery = collectionReviewDelivery(advanced, member.id!, String(resolveWorkflowValue(step.collect!.from, workflow, workflowContext(run, roster))));
+            return { collected: true, authorized: false, ...(reviewDelivery ? { reviewDelivery } : {}),
+              message: reviewDelivery ? "The review card is already delivered in this conversation. No additional reply is needed. Await the human decision."
+                : "Facts recorded. The workflow continues; no change has been authorized." }; },
         } } : {}) } };
     });
   }

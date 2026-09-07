@@ -646,3 +646,19 @@ For a threaded review, Slack provides the parent `thread_ts` and review message
 destinations currently reject caller-supplied thread references; this extension
 can be used with qualified channel destinations and does not silently weaken
 that direct-message check.
+
+## Working status and conversation replies
+
+Set `COMPANYOS_SLACK_AGENT_VIEW=true` in each environment that uses the existing
+Slack Agent View experience. The setting applies to assigned workflow Agents
+as well as the default chat Agent. A missing setting disables both the working
+indicator and native streaming presentation. Qualify it on the actual channel
+or DM; a successful test in one surface does not prove another surface works.
+
+Collection turns keep model text buffered until the Tool result is known, then
+use the existing validated streaming presentation for follow-up questions.
+They do not stream provisional review text. Once the workflow has delivered the
+review card in the same conversation, the model turn stops and emits no extra
+"review will be sent" message. Only the persisted pending decision's exact
+recipient and thread receipt can suppress that response. The native session is
+then marked as waiting for the person; this grants no approval.

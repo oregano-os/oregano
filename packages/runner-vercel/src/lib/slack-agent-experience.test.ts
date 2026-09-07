@@ -229,3 +229,7 @@ test("disabled presentation and provider status failures do not block a turn", a
   await assert.doesNotReject(showSlackAgentWorking(thread, { enabled: true, streamingEnabled: true, workingStatus: "Working" }));
   assert.equal(calls, 1);
 });
+
+test("collection controls cannot bypass buffered presentation when business grants are empty", () => {
+  assert.equal(shouldStreamSlackAgentResponse({ configuration: { enabled: true, streamingEnabled: true, workingStatus: "Working" }, agentId: "synthetic-agent", knowledgeRouteKind: "auto", businessToolCount: 0, hasCollectionControl: true }), false);
+});

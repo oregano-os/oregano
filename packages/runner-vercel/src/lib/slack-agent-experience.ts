@@ -174,11 +174,13 @@ export function shouldStreamSlackAgentResponse(input: {
   agentId: string;
   knowledgeRouteKind: "auto" | "required-search";
   businessToolCount: number;
+  hasCollectionControl?: boolean;
 }): boolean {
   return input.configuration.streamingEnabled
     && input.agentId !== "builder"
     && input.knowledgeRouteKind === "auto"
-    && input.businessToolCount === 0;
+    && input.businessToolCount === 0
+    && !input.hasCollectionControl;
 }
 
 /**

@@ -1,0 +1,44 @@
+version: 3
+plan_id: conversation-presentation-2026-09-07
+created: "2026-09-07"
+title: Use existing conversation progress and suppress redundant delivered-review prose
+objective: Reuse optional Slack progress and validated response streaming for workflow conversations; suppress final model prose only after a verified review delivery in the same thread.
+non_goals:
+  - Add provider events, scopes, credentials or business authority.
+  - Change direct-message routing or enable production workflows.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-conversation-presentation.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-presentation.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/testkit/tests/workflow-conversation-presentation.test.ts
+  - docs/operations/vercel-workflow-runner.md
+tests:
+  - packages/testkit/tests/workflow-conversation-presentation.test.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.vercel-workflow-runner]
+architecture:
+  placement:
+    core: Reuse the existing conversation presenter; suppress prose only on a verified review-delivery result.
+    packages: No new Package behavior.
+    workspace: Retain the declared conversation, field rules and review wording.
+    instance: Enable the existing Slack Agent View option in workflow-test and retain the active historical Artifact.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Reuse exact recipient and parent receipts when deciding whether the review is already visible.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Presentation never supplies consent or changes approval and effect state.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company workflow can place human review in its existing conversation and resume through maintained effect controls.
+rollback: Restore prior host and Workspace declarations together; retain stored Artifacts, decisions and receipts. Never reopen completed runs.

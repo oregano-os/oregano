@@ -4,7 +4,8 @@ import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
-import { ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
+import { hasDeliveredCollectionReview } from "./workflow-conversation-presentation.ts";
+import { stepCountIs, ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
 import { Actions, Button, Card, CardText, Chat, type Author, type Message, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
@@ -423,6 +424,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     instructions: agentInstructions(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context),
     tools,
     prepareStep: ({ stepNumber }) => knowledgeStepChoice(knowledgeRoute, stepNumber),
+    ...(workflowSession?.collection ? { stopWhen: [stepCountIs(20), ({ steps }: any) => hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? [])] } : {}),
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
@@ -433,6 +435,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     agentId: agent.id,
     knowledgeRouteKind: knowledgeRoute.kind,
     businessToolCount: visibleGrantIds.size,
+    hasCollectionControl: !!workflowSession?.collection,
   })) {
     trace.emit("model-started");
     const result = await modelAgent.stream({ messages, abortSignal });
@@ -468,7 +471,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     });
     return;
   }
-  const toolProgress = createSlackToolProgressReporter(deliveryThread, slackAgentExperience);
+  const toolProgress = createSlackToolProgressReporter(deliveryThread, workflowSession?.collection ? { ...slackAgentExperience, streamingEnabled: false } : slackAgentExperience);
   let waitingForHuman = false;
   let result: Awaited<ReturnType<typeof modelAgent.generate>>;
   try {
@@ -510,7 +513,10 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       .filter((part) => part.type === "tool-error")
       .map((part) => ({ toolName: part.toolName, error: part.error })),
   });
-  const presentation = agent.id === "builder"
+  const reviewDelivered = !!workflowSession?.collection && hasDeliveredCollectionReview(result.toolResults);
+  const presentation = reviewDelivered
+    ? { historyResponse: "Review card delivered in this conversation. Awaiting the human decision.", visibleResponse: "" }
+    : agent.id === "builder"
     ? builderChat.presentTurn(response, result.toolResults)
     : { historyResponse: response, visibleResponse: response };
   waitingForHuman ||= result.toolResults.some((entry) => toolResultNeedsHumanInput(entry.output));
@@ -519,6 +525,10 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
+  if (reviewDelivered) {
+    try { await deliveryThread.adapter.endTyping?.(deliveryThread.id, "suspended"); } catch { /* Presentation cannot veto delivery or consent. */ }
+    return;
+  }
   if (presentation.visibleResponse) {
     await deliveryThread.post(slackAgentExperience.streamingEnabled
       ? validatedSlackResponsePlan(presentation.visibleResponse, { suspended: waitingForHuman })
