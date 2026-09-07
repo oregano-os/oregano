@@ -385,3 +385,33 @@ A recipient-bound channel remains visible to channel members; it is not a privat
 message. The recipient restriction controls who may supply facts or confirm.
 For private tests, use a separately installed test app or an independently reviewed
 exclusive event route. Provider fan-out alone does not isolate normal DM replies.
+
+### Check incoming replies before opening a conversation
+
+Sending a message, reading history and receiving new replies are separate checks.
+An app that can post a question may still receive none of the answers. In Vercel
+Connect, inspect the bound connector's event subscriptions and trigger forwarding:
+
+| Conversation surface | Required message event |
+|---|---|
+| Direct message | `message.im` |
+| Private channel, including channels whose IDs start with `C` | `message.groups` |
+| Public channel | `message.channels` |
+
+`app_mention` alone does not deliver ordinary thread replies. Determine visibility
+from `conversations.info`, not the channel ID prefix. The host now checks the
+current connector metadata before publishing to a recipient-bound destination.
+Missing events or disabled forwarding fail qualification with the event name;
+they must not produce a question the user cannot answer. A metadata check still
+does not prove end-to-end delivery: send one real reply and verify its incoming
+request, assigned conversation and Agent response before accepting the setup.
+
+Subscriptions apply to the shared app, not just the test deployment. Adding an
+event can deliver it to the production destination too. Inspect that handler and
+obtain any required production authorization before changing the subscription.
+Do not ask the tester to mention the app as a workaround: that can wake the
+production bot. Keep a failed test pending; do not copy the user's text into a
+fabricated webhook or count an operator-only replay as live delivery acceptance.
+
+See the [Vercel Slack setup instructions](https://vercel.com/kb/guide/build-a-slack-bot-with-vercel-connect)
+and [Slack private-channel events](https://docs.slack.dev/reference/events/message.groups/).

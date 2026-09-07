@@ -4,7 +4,9 @@ import type { WorkflowConversation } from "../../state-store/workflow-engine.ts"
 import { findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "../../state-store/roster.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 
+export type WorkflowSlackChannelKind = "direct-message" | "private-channel" | "public-channel";
 export interface WorkflowSlackApi {
+  qualifyReplies?(kind: WorkflowSlackChannelKind): Promise<void>;
   call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies", args: Record<string, string>): Promise<Record<string, any>>;
 }
 export interface WorkflowSlackDestination { id: string; accountId: string; channelId?: string; userId?: string; kind: "channel" | "direct-message" }
@@ -68,6 +70,7 @@ export class WorkflowSlackTransport {
     const binding = workflowSlackDestination(artifact, destination), account = await this.account();
     if (account !== binding.accountId) throw new Error("Slack credential account differs from the pinned destination");
     let principal: string | undefined;
+    let kind: WorkflowSlackChannelKind = "direct-message";
     if (binding.kind === "direct-message") {
       principal = await this.human(account, binding.userId!, roster);
       const member = findByCanonicalPrincipal(roster, principal)!;
@@ -77,7 +80,10 @@ export class WorkflowSlackTransport {
       const response = await this.#api.call("conversations.info", { channel: binding.channelId! }), channel = response.channel;
       if (response.ok !== true || channel?.id !== binding.channelId || channel.is_archived !== false || channel.is_im !== false || channel.is_mpim === true) throw new Error("Slack channel binding is unavailable or has the wrong kind");
       principal = await this.channelRecipient(artifact, destination, account, roster);
+      if (principal && this.#api.qualifyReplies && typeof channel.is_private !== "boolean") throw new Error("Slack channel visibility could not be verified");
+      kind = channel.is_private ? "private-channel" : "public-channel";
     }
+    if (principal) await this.#api.qualifyReplies?.(kind);
     return { provider: "slack", artifact_hash: artifact.artifactHash, destination_binding: destination, binding_digest: sha256(binding), account_id: account,
       ...(principal ? { principal } : { channel_id: binding.channelId! }), verified_at: new Date().toISOString() };
   }

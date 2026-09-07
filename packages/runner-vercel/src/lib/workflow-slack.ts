@@ -1,4 +1,6 @@
 import type { SlackAdapter } from "@chat-adapter/slack";
+import { getConnectorMetadata } from "@vercel/connect";
+import { requireWorkflowSlackReplyEvents } from "./workflow-slack-events.ts";
 import { connectSlackAdapter } from "@vercel/connect/chat";
 import type { Chat } from "chat";
 import type { Connector, JsonValue } from "../../../capabilities/contracts.ts";
@@ -18,7 +20,10 @@ export function createWorkflowSlackScope(chat: () => Chat): WorkflowSlackScope {
     if (!token) throw new Error("Workflow Slack credential is unavailable");
     const adapter = chat().getAdapter("slack") as SlackAdapter;
     return adapter.withBotToken(token, async () => {
-      const api: WorkflowSlackApi = { call: (method, args) => adapter.webClient.apiCall(method, args) };
+      const api: WorkflowSlackApi = {
+        call: (method, args) => adapter.webClient.apiCall(method, args),
+        qualifyReplies: async (kind) => requireWorkflowSlackReplyEvents(await getConnectorMetadata(connector), kind),
+      };
       const transport = new WorkflowSlackTransport(api), account = await transport.account();
       return adapter.withBotToken(token, () => operation(transport), { installationId: account });
     });
