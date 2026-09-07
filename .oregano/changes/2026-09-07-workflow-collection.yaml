@@ -2,13 +2,42 @@ version: 3
 plan_id: workflow-collection-2026-09-07
 created: "2026-09-07"
 title: Collect typed facts in an assigned workflow conversation
-objective: Collect bounded fields from one assigned recipient-bound conversation before a separate human decision and existing effect; start enabled leaf workflows from Workspace intake selections.
+objective: Collect bounded facts with the declared Agent model, route authenticated conversation replies, qualify model responses without effects, and obtain a separate human decision before the existing effect; start enabled leaf workflows from Workspace intake selections.
 non_goals:
   - Add business selection rules or a provider-specific conversation engine.
   - Infer consent from model output or activate production.
 placement: core
 change_class: security
 files_expected:
+  - .oregano/changes/2026-09-07-agent-model-parity.yaml
+  - .oregano/changes/2026-09-07-chat-initialization.yaml
+  - .oregano/changes/2026-09-07-workflow-channel-replies.yaml
+  - .oregano/changes/2026-09-07-workflow-reply-recovery.yaml
+  - .oregano/changes/2026-09-07-workflow-slack-diagnostics.yaml
+  - docs/operations/workflow-engine.md
+  - docs/workbench/guides/author-an-agent.md
+  - package.json
+  - packages/cli/content/guides/author-an-agent.md
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/agent-model-task.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-check.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/workflow-reply-recovery.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.ts
+  - packages/runner/model-execution.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/testkit/tests/agent-model-task.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/workflow-collection-fixture.ts
   - packages/runner-vercel/src/app/api/webhooks/**
   - packages/runner-vercel/src/lib/slack-channel-events.ts
   - packages/testkit/tests/slack-channel-events.test.ts
@@ -41,6 +70,10 @@ files_expected:
 tests:
   - packages/testkit/tests/artifact-payload.test.ts
   - packages/testkit/tests/workflow-collection.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/agent-model-task.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
 documentation_impact:
   required: true
   affected_documents:
@@ -48,15 +81,19 @@ documentation_impact:
     - specification.workflow-execution-v1
     - guide.author-workflow
     - status.current
+    - operations.workflow-engine
+    - guide.author-agent
 architecture:
   placement:
-    core: Reuse delivered assignments, leases, typed outputs, decisions and effects.
+    core: Reuse delivered assignments, leases, typed outputs, decisions and effects; retain Agent model tasks and expose isolated qualification using the shared prompt.
     packages: No business package.
     workspace: Own eligible items, requested fields, questions and proposals.
     instance: Bind exact authenticated conversations and isolated resources.
   mechanisms_extended:
     - mechanism: identity-and-authorization
       reason: Permit bounded output submission only from the frozen recipient-bound conversation.
+    - mechanism: model-recipe-resolver
+      reason: Preserve declared Agent tasks across normal and workflow conversations and record the actual selection during qualification.
     - mechanism: approvals-effects-and-idempotency
       reason: Collecting facts advances to an ordinary decision without approving it.
   new_core_mechanisms: []
