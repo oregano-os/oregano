@@ -6,7 +6,9 @@ objective: >-
   Use the identity.basic Slack endpoint with the current CLI user subject, derive
   the Slack app entry link from validated connector metadata, and isolate
   provider-generated files from the immutable Core checkout. Keep the existing
-  exact-resource authorization and model-backed exchange completion proof.
+  exact-resource authorization and model-backed exchange completion proof. Check
+  the provider-reported production alias with exact deployment provenance rather
+  than following the protected unique deployment URL into a login page.
 non_goals:
   - Expand Slack scopes or enable development access to production connectors.
   - Change runtime behavior, resource ownership or setup authorization receipts.

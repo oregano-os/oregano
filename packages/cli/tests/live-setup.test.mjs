@@ -8,6 +8,7 @@ import {
   advanceLiveSetup,
   createVercelEnvironmentVariable,
   fetchHealth,
+  fetchVerifiedProductionHealth,
   initializeLiveSetup,
   LIVE_SETUP_PROVIDER_PROFILE,
   normalizeLiveSetupAnswers,
@@ -1519,3 +1520,25 @@ for (const fail of [false, true]) test(`provider scratch files are removed after
   assert.equal(existsSync(join(core, "skills-lock.json")), false);
   assert.equal(existsSync(join(core, ".env.local")), false);
 }));
+
+test("production health uses a provider-confirmed alias without following SSO redirects", async () => {
+  const state = { schema_version: 1, deployment: { id: "dpl_example" }, artifact: { hash: "a", core_commit: "c", workspace_commit: "w", resolved_toolset_hash: "t" } };
+  const health = { ok: true, status: "ready", deploymentId: "dpl_example", artifactHash: "a", coreCommit: "c", workspaceCommit: "w", resolvedToolSetHash: "t", agent: "oregano", tools: [] };
+  const inspected = { id: "dpl_example", target: "production", aliases: ["protected.example.test", "public.example.test"] };
+  const calls = [];
+  const checked = await fetchVerifiedProductionHealth(state, inspected, async (url, options) => {
+    calls.push(url); assert.equal(options.redirect, "manual");
+    if (url.includes("protected")) return { ok: false, status: 302, text: async () => "private-login-html" };
+    return { ok: true, status: 200, json: async () => health };
+  });
+  assert.equal(checked.url, "https://public.example.test"); assert.equal(calls.length, 2);
+  await assert.rejects(fetchVerifiedProductionHealth(state, inspected, async () => ({ ok: true, json: async () => ({ ...health, deploymentId: "dpl_other" }) })), /exact ready deployment/);
+  await assert.rejects(fetchVerifiedProductionHealth(state, { ...inspected, id: "dpl_other" }), /exact production deployment/);
+  await assert.rejects(fetchVerifiedProductionHealth(state, { ...inspected, target: "preview" }), /exact production deployment/);
+  await assert.rejects(fetchVerifiedProductionHealth(state, { ...inspected, aliases: ["https://untrusted.example.test/path", "localhost", "127.0.0.1"] }), /exact ready deployment/);
+});
+test("non-JSON health diagnostics do not expose login HTML", async () => {
+  await assert.rejects(fetchHealth("https://example.test", async () => ({ ok: false, status: 302, text: async () => "private-login-html" }), { attempts: 1 }), (error) => {
+    assert.match(error.message, /non-JSON.*302/); assert.doesNotMatch(error.message, /private-login-html/); return true;
+  });
+});

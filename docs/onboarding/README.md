@@ -48,6 +48,8 @@ The first ordinary Slack message supplies real model and persistence evidence.
 The CLI runs `companyos verify-live` before reporting completion. Slack identity
 consent verifies the human; the connector app link opens its Messages tab.
 Neither identity consent nor opening Slack proves that Oregano has replied.
+Production health uses an alias reported for the exact deployment; protected
+deployment URLs do not need to be made public.
 
 Existing Workspaces still use `companyos onboard /path/to/workspace` for local
 inspection. `companyos create workspace` and `companyos bootstrap verify` remain

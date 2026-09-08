@@ -101,6 +101,8 @@ Credentials stay in provider flows and secret processes, outside chat and Git.
 The Slack identity step uses the consenting CLI user with `identity.basic`;
 the app entry link comes from verified connector metadata. Opening that link
 is not completion evidence: the real reply and final verification must pass.
+The health check uses a provider-confirmed production alias and verifies the
+exact deployment ID; leave deployment protection enabled.
 
 The CLI generates the complete supervised, Tool-free operating Workspace as its
 first version. It checks the exact initial commit, prepares the database, builds

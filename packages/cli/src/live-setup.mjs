@@ -832,6 +832,7 @@ const buildAndConfigureArtifact = (executor, state, statePath, coreRoot) => {
 };
 
 const expectedHealth = (state, health) => health?.ok === true && health?.status === "ready" &&
+  (!state.deployment?.health_url || health?.deploymentId === state.deployment.id) &&
   health?.artifactHash === state.artifact.hash && health?.coreCommit === state.artifact.core_commit &&
   health?.workspaceCommit === state.artifact.workspace_commit && health?.agent === "oregano" &&
   (state.schema_version < 3 || (health?.modelRoute === modelExecutionForState(state).route && health?.model === modelExecutionForState(state).model)) &&
@@ -847,12 +848,12 @@ export const fetchHealth = async (url, fetchImpl = globalThis.fetch, {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await fetchImpl(`${url.replace(/\/$/, "")}/api/health`);
+      const response = await fetchImpl(`${url.replace(/\/$/, "")}/api/health`, { redirect: "manual" });
       let body;
       if (typeof response.text === "function") {
         const raw = await response.text();
         try { body = JSON.parse(raw); }
-        catch { throw new Error(`Company Instance health returned a temporary non-JSON response with HTTP ${response.status ?? "unknown"}: ${safeError(raw || "empty response")}`); }
+        catch { throw new Error(`Company Instance health returned a temporary non-JSON response with HTTP ${response.status ?? "unknown"}`); }
       } else body = await response.json();
       if (!response.ok) throw new Error(`Company Instance health failed with HTTP ${response.status}: ${safeError(body?.error ?? "not ready")}`);
       return body;
@@ -862,6 +863,19 @@ export const fetchHealth = async (url, fetchImpl = globalThis.fetch, {
     }
   }
   throw lastError ?? new Error("Company Instance health did not become ready.");
+};
+
+export const fetchVerifiedProductionHealth = async (state, inspected, fetchImpl = globalThis.fetch) => {
+  if (inspected?.id !== state.deployment.id || inspected.target !== "production" || !Array.isArray(inspected.aliases)) throw new Error("Vercel did not verify the exact production deployment and its aliases.");
+  const aliases = [...new Set(inspected.aliases.filter((alias) => typeof alias === "string" && /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$/i.test(alias)))].slice(0, 10);
+  for (const alias of aliases) {
+    const url = `https://${alias}`;
+    try {
+      const health = await fetchHealth(url, fetchImpl, { attempts: 1 });
+      if (health.deploymentId === state.deployment.id && expectedHealth(state, health)) return { url, health };
+    } catch { /* Another provider-confirmed alias may be public and ready. */ }
+  }
+  throw new Error("No provider-confirmed production alias currently serves the exact ready deployment and Artifact. Retry when alias provisioning finishes; deployment protection was left unchanged.");
 };
 
 export async function advanceLiveSetup({
@@ -1255,7 +1269,9 @@ export async function advanceLiveSetup({
         state.deployment.ready_state = readyState;
         state.deployment.ready_at = now();
         writeLiveSetupState(absoluteStatePath, state);
-        const health = await fetchHealth(url, fetchImpl);
+        const checked = isFreshSetup(state) ? await fetchVerifiedProductionHealth(state, inspected, fetchImpl) : { url, health: await fetchHealth(url, fetchImpl) };
+        const health = checked.health;
+        if (isFreshSetup(state)) state.deployment.health_url = checked.url;
         if (!expectedHealth(state, health)) throw new Error("Production health does not match the expected Artifact, Core, Workspace, ToolSet, and Agent provenance.");
         state.deployment.health = {
           artifact_hash: health.artifactHash,
@@ -1374,7 +1390,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
   if (state.verification?.database?.ok !== true) diagnostics.push(diagnostic("LIVE107", "error", "Persisted Slack round-trip evidence is missing."));
   if (state.deployment?.url) {
     try {
-      const health = await fetchHealth(state.deployment.url, fetchImpl);
+      const health = await fetchHealth(state.deployment.health_url ?? state.deployment.url, fetchImpl);
       if (!expectedHealth(state, health)) diagnostics.push(diagnostic("LIVE108", "error", "Current production health no longer matches the recorded release candidate."));
     } catch (error) { diagnostics.push(diagnostic("LIVE109", "error", safeError(error.message))); }
   } else diagnostics.push(diagnostic("LIVE110", "error", "Production deployment URL is missing."));

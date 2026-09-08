@@ -76,6 +76,9 @@ isolate provider-generated skills and transient OIDC files from the immutable
 Core checkout. Only validated non-secret project link fields survive that
 temporary context. Slack connector payloads remain private and are reduced to
 validated app/workspace identities; they are not general readiness evidence.
+Production aliases come from the exact provider deployment receipt, and current
+health must identify that deployment before the alias becomes verification input.
+Login redirects are not followed or interpreted as application health.
 The adapters must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
 runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and

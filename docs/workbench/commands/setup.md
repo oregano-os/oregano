@@ -55,6 +55,12 @@ app-subject token from the personal CLI. Project linking and Neon creation run
 in disposable private directories because the provider CLI can generate local
 OIDC and skill files even with environment pulling disabled.
 
+Vercel can protect a unique deployment URL even when its production domain is
+public. Setup retains the immutable deployment receipt, checks the aliases
+reported by its production inspection, and records a health URL only after
+its response matches that exact deployment ID and Artifact provenance. It does
+not follow login redirects, disable protection, or create bypass credentials.
+
 Events are `input`, `choice`, `review`, `action`, `recovery`, `complete`, and
 `cancelled`. Responses are `answer`, `edit`, `confirm`, `retry`, and `cancel`;
 see the release runbook for their JSON fields. Revision IDs are machine transport,

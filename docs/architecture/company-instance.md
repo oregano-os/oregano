@@ -30,7 +30,8 @@ During setup, Slack human identity comes from `users.identity` with
 installation workspace and Slack app ID before producing the app Messages link.
 Only non-secret identifiers enter Instance receipts. The deployed Connector
 uses runtime authorization; the local personal CLI does not request its app
-credential. Readiness still requires a persisted, delivered model-backed reply.
+credential. A production alias is a routing pointer, so health must match the
+recorded deployment ID as well as the complete Artifact provenance. Readiness still requires a persisted, delivered model-backed reply.
 
 ```mermaid
 flowchart LR

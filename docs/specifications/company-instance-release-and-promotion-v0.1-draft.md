@@ -429,7 +429,10 @@ metadata. Metadata MUST NOT substitute for runtime exchange evidence, expose
 provider credentials, or require production connector access from a local
 development identity. Provider CLI filesystem effects MUST remain outside
 the immutable Core; temporary contexts MUST be removed on failure as well as
-success.
+success. A standard fresh setup MUST inspect the exact production deployment,
+select only a provider-reported production alias, and require current health to
+match the deployment ID and complete Artifact provenance. It MUST NOT disable
+deployment protection or generate bypass credentials merely to check health.
 
 The first ordinary Slack exchange MUST bind the authorized principal, current
 Artifact, selected model, delivered response and durable conversation evidence.

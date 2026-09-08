@@ -186,11 +186,11 @@ function lifecycle(f) {
         if (args.includes('--exchange')) return proof ? ok({ok:true,conversation_entries:2,assistant_entries:1,model_evidence_entries:1,first_response_at:new Date().toISOString()}) : {status:2,stdout:'',stderr:''};
       }
       if (args[0] === 'deploy') return ok({id:'dpl_example',url:'oregano.example.test'});
-      if (args[0] === 'inspect') return ok({id:'dpl_example',readyState:'READY'});
+      if (args[0] === 'inspect') return ok({id:'dpl_example',readyState:'READY',target:'production',aliases:['oregano.production.example.test']});
     }
     return base.run(file,args,options);
   } };
-  const fetchImpl = async (url,options) => ({ok:true,status:200,json:async()=> url.includes('slack.com') ? {ok:true,team:{id:'T12345678',name:'Example'},user:{id:'U12345678'}} : {ok:true,status:'ready',artifactHash:hash,coreCommit:f.coreIdentity.ref,workspaceCommit:commit,resolvedToolSetHash:tools,agent:'oregano',tools:[],modelRoute:'vercel-ai-gateway',model:'openai/gpt-5.4-nano',databaseManifestDigest:manifestDigest}});
+  const fetchImpl = async (url,options) => { if (url === 'https://oregano.example.test/api/health') throw new Error('Deployment protection requires login'); return ({ok:true,status:200,json:async()=> url.includes('slack.com') ? {ok:true,team:{id:'T12345678',name:'Example'},user:{id:'U12345678'}} : {ok:true,status:'ready',artifactHash:hash,coreCommit:f.coreIdentity.ref,workspaceCommit:commit,resolvedToolSetHash:tools,agent:'oregano',tools:[],modelRoute:'vercel-ai-gateway',model:'openai/gpt-5.4-nano',databaseManifestDigest:manifestDigest,deploymentId:'dpl_example'}}); };
   return {executor,fetchImpl,calls,passCheck(){check=true;},respond(){proof=true;}};
 }
 

@@ -33,6 +33,9 @@ Legacy states retain their nonce proof; they cannot use the fresh exception.
 The `identity.basic` human receipt and connector-derived app Messages link are
 setup inputs only. They cannot replace the delivered response or model evidence,
 and verification does not request a bot credential through the personal CLI.
+For fresh setups with a recorded production health alias, its current response
+must also match the immutable deployment ID. An alias moved to another
+deployment fails verification even if it serves an otherwise identical Artifact.
 
 The default `starter` scope is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:

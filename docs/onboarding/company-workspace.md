@@ -45,7 +45,9 @@ an authoring-only Workspace; `bootstrap verify` remains its local checkpoint.
 The bundled release tools use exact versions without replacing global tooling.
 Provider-created skills and local OIDC files are contained in a private temporary
 CLI directory and removed after use, including failed commands. Only the
-non-secret project link is retained for deployment.
+non-secret project link is retained for deployment. The subsequent health
+check uses a provider-confirmed production alias and checks the exact deployment
+ID; it neither disables deployment protection nor creates bypass credentials.
 
 ### Candidate initialization
 
