@@ -1,0 +1,55 @@
+version: 3
+plan_id: builder-records-diagnostics-2026-09-08
+created: 2026-09-08
+title: Diagnose retained Records adoption before a Builder release
+objective: Make failed Records adoption actionable for authenticated operators
+  without exposing Instance credentials or changing data-source permissions.
+  Qualify the exact hosted Instance before any production promotion.
+non_goals:
+  - Expose diagnostics to unauthenticated callers or public health.
+  - Log provider error messages, credentials or record payloads.
+  - Broaden company resources or fabricate provider qualification.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-records-diagnostics.yaml
+  - package.json
+  - packages/runner-vercel/src/lib/company-records-diagnostic.ts
+  - packages/runner-vercel/src/lib/company-records-diagnostic.test.ts
+  - packages/runner-vercel/src/app/api/records/operations/route.ts
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - docs/status/current.md
+  - docs/workbench/commands/records.md
+  - docs/_generated/**
+tests:
+  - packages/runner-vercel/src/lib/company-records-diagnostic.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - command.records
+architecture:
+  placement:
+    core: Bound and redact diagnostics on the existing authenticated operator API.
+    packages: No new package or Workbench execution authority.
+    workspace: Company definitions and reviewed source access remain unchanged.
+    instance: The existing operator credential remains mandatory; raw messages
+      and provider data remain absent from public health and logs.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the existing Records operator and Connector failure boundary.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve the same exact operation plans, confirmations and receipts.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company can diagnose an existing Records operation
+    without a custom host, provider credential export or security bypass.
+rollback: Restore the preceding exact deployment. No schema or operating data
+  migration is introduced by the diagnostic response.
+open_decisions: []

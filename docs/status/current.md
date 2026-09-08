@@ -52,6 +52,10 @@ evidence, historical prototypes, and production gaps.
   A cold-start regression imports every maintained scheduled route without local
   checkout metadata and verifies refusal before effects. Shared-image model
   qualification accepts the same snapshot setting as normal Builder execution.
+- Authenticated Records operators receive bounded, credential-redacted error
+  diagnostics alongside the existing error code and digest. Public responses
+  and runtime logs retain their existing content-free behavior. Diagnostic text
+  is provider evidence, never an instruction or permission to retry effects.
 - Core 0.6.2 retains complete deployment Artifacts in the existing Instance
   Artifact store. Production builds carry an exact hash instead of a large
   environment payload. Awaited startup verifies the retained content before
