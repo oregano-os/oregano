@@ -15,8 +15,8 @@ export function resolveInstalledPackage(name, from) {
   }
   return null;
 }
-function packageForExecutable(name) {
-  for (const entry of (process.env.PATH ?? '').split(delimiter)) {
+export function packageForExecutable(name, searchPath = process.env.PATH ?? '') {
+  for (const entry of searchPath.split(delimiter)) {
     const path = join(entry, name);
     if (!existsSync(path)) continue;
     let candidate = dirname(realpathSync(path));
@@ -24,6 +24,10 @@ function packageForExecutable(name) {
       if (existsSync(join(candidate, 'package.json')) && metadata(candidate).name === name) return candidate;
       candidate = dirname(candidate);
     }
+    // pnpm/action-setup installs a shell shim in node_modules/.bin. It is
+    // not a symlink into the package, so walking its realpath misses pnpm.
+    const installed = resolveInstalledPackage(name, dirname(path));
+    if (installed && metadata(installed).name === name) return installed;
   }
   throw new Error(`The release builder needs the pinned ${name} package.`);
 }
