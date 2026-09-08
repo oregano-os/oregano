@@ -11,7 +11,7 @@ providers:
   - slack
   - monday
   - postgres
-updated: 2026-09-07
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -694,3 +694,28 @@ review card in the same conversation, the model turn stops and emits no extra
 "review will be sent" message. Only the persisted pending decision's exact
 recipient and thread receipt can suppress that response. The native session is
 then marked as waiting for the person; this grants no approval.
+
+## Bind text generation
+
+The optional `oregano/language-model` Connector version `1.0.0` implements
+`language.generate`. Its non-secret configuration is:
+
+```json
+{
+  "prompts": [
+    { "agent_id": "analyst", "path": "agents/analyst/skills/summary/SKILL.md" }
+  ]
+}
+```
+
+Use the existing `modelRecipe` and Agent task configuration, including the
+approved credential assignment for this deployment environment. The adapter
+uses the same model resolver as conversations; it does not add a provider key
+or switch routes. Generation has no Tools, no SDK retries, a maximum of 4,000
+output tokens and a 55-second deadline; a shorter configured limit wins. Its
+default output limit is 2,500 tokens. Truncated or empty output fails the step.
+
+Include this optional Connector and the frozen Skill in the exact deployed
+Artifact. Check the hosting environment's payload size limits again after the
+addition. A healthy conversation alone does not qualify this new workflow path;
+run a real generated step and verify its model evidence and final publication.

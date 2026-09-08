@@ -1,0 +1,54 @@
+version: 3
+plan_id: workflow-language-generation-2026-09-08
+created: "2026-09-08"
+title: Generate bounded text from a scoped Workspace Skill
+objective: Expose model generation to governed Tools using an exact frozen Skill, explicit evidence and the owning Agent model task, with no model-selected tools or effects.
+non_goals:
+  - Add business report rules, company identities, provider choices or credentials to Core.
+  - Change workflow control flow, human approval or production activation.
+placement: core
+change_class: security
+files_expected:
+  - package.json
+  - .oregano/changes/2026-09-08-workflow-language-generation.yaml
+  - packages/capabilities/catalog.ts
+  - packages/language/contracts.ts
+  - packages/connectors/language-model.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/cli/content/guides/author-a-company-tool.md
+  - docs/operations/workflow-engine.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/tool-sdk-security.test.ts
+  - packages/testkit/tests/workflow-company-tools.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [guide.author-company-tool, operations.workflow-engine, operations.vercel-workflow-runner, status.current]
+architecture:
+  placement:
+    core: Own bounded generation, scoped frozen prompt resolution, model adapter and evidence.
+    packages: No Package change; Company Tools may request the same contract.
+    workspace: Own the Skill prompt, evidence selection, output checks and downstream effects.
+    instance: Explicitly bind generation to existing model configuration without new provider authority.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Add one read Capability using ordinary Tool grants, exact Instance binding and trusted invocation context.
+    - mechanism: model-recipe-resolver
+      reason: Reuse owning Agent task selection for a bounded non-conversational call.
+  new_core_mechanisms:
+    - language.generate Capability with scoped Artifact Skill lookup and no delegated Tool authority.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can summarize or assess supplied evidence with a reviewed Skill, independent of business domain and model provider.
+rollback: Remove the optional grant/binding and restore the prior Artifact; retain model and publication evidence. No database migration.

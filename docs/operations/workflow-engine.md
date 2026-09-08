@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-07
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -115,3 +115,16 @@ The current system-message catalog supports English and German, including
 regional language tags. Older Artifacts without this field, unsupported languages
 and invalid tags fall back to English. Business explanations and button labels
 remain authored in the Workspace. Runtime decisions stay in the Instance store.
+
+## Check model-generated steps
+
+For a Tool using `language.generate`, verify the exact scoped Skill binding,
+Agent model task, evidence selection and output checks. Exercise the real model
+through the deployed workflow before accepting the result; a mocked response
+checks plumbing only. Confirm that model failure or rejected output stops
+publication and remains visible in the run. Save response-model evidence and
+the prompt, context and output digests with the run.
+
+Completed generation is retained with the step, so resuming a finished run must
+not generate or publish it again. An interrupted, uncommitted model call can be
+repeated and incur cost. Test any publication separately for duplicate effects.

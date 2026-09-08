@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -24,6 +24,13 @@ channel answers never record a human decision. Live inbound delivery must be
 verified separately from message publication and provider read access.
 
 ## Implemented and tested
+
+- Experimental `language.generate` lets a governed Company Tool request text
+  from an explicitly bound, scoped Skill and supplied evidence. The owning
+  Agent's model task applies. Tests cover scope, identity, bounds, model failure
+  and response evidence. Business assessment rules and output validation belong
+  to the Workspace; provider wiring is documented separately. Real model quality
+  and deployment acceptance remain Instance checks.
 
 - The hosted Slack capability publisher sends explicit Markdown for channel,
   thread and direct publications. Reports longer than 12,000 UTF-16 code units

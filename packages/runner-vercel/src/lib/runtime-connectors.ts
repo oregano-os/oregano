@@ -7,6 +7,8 @@ import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } f
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
 import { CompanyRecordsConnector } from "../../../connectors/company-records.ts";
 import { CompanyDirectoryConnector } from "../../../connectors/company-directory.ts";
+import { LanguageModelConnector, type LanguagePromptBinding } from "../../../connectors/language-model.ts";
+import { generateLanguage } from "./language-generation.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
 import { MondayWorkItemConnector } from "../../../connectors/monday/connector.ts";
 import { mondayCredentialIdentity, qualifyMondayWorkItemCredential } from "../../../connectors/monday/work-item-qualification.ts";
@@ -265,6 +267,12 @@ export function createConfiguredRuntimeConnectors(args: {
   for (const entry of args.artifact.connectors ?? []) {
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
+    if (entry.connector === "oregano/language-model" && entry.connectorVersion === "1.0.0") {
+      exactKeys(entry.configuration, ["prompts"], `Connector instance '${entry.id}'`);
+      connectors.push(new LanguageModelConnector({ artifact: args.artifact,
+        prompts: entry.configuration.prompts as unknown as LanguagePromptBinding[], generate: generateLanguage }));
+      continue;
+    }
     if (entry.connector === "oregano/company-directory" && entry.connectorVersion === "1.0.0") {
       exactKeys(entry.configuration, ["read_groups"], `Connector instance '${entry.id}'`);
       const groups = entry.configuration.read_groups;
