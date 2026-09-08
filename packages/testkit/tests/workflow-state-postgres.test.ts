@@ -9,6 +9,8 @@ import { CompanyOSRuntime } from "../../runtime/companyos-runtime.ts";
 import type { WorkflowInvocationContext } from "../../runtime/workflow-engine/context.ts";
 import { workflowToolInput } from "../../runtime/workflow-engine/guard.ts";
 import { workflowStateFixture, WORKFLOW_STATE_NOW as now } from "../workflow-state-fixture.ts";
+import { sha256 } from "../../runtime/canonical.ts";
+import { createPostgresDurableTimerStore } from "../../state-postgres/durable-timer-store.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required database configuration is missing.");
@@ -18,6 +20,30 @@ const fixture = async () => {
   return { args, store, control, run };
 };
 const lease = (run: { instanceId: string; runId: string }, token = randomUUID()) => ({ instanceId: run.instanceId, runId: run.runId, owner: "test-worker", token, now, expiresAt: "2030-01-04T12:05:00.000Z" });
+
+test("candidate execution namespaces isolate workflow state, dispatch fences and timers from production workers", { skip: !enabled }, async () => {
+  const args = workflowStateFixture(), executionNamespace = `builder-test-${sha256(randomUUID()).slice(0, 40)}`;
+  const store = createPostgresWorkflowExecutionStore({ executionNamespace }), production = createPostgresWorkflowExecutionStore();
+  const control = createPostgresStateStore({ executionNamespace });
+  await store.putArtifact(args.artifact);
+  const run = await store.create(args);
+  assert.equal(run.instanceId, args.artifact.instance.id, "the Artifact identity must stay unchanged");
+  assert.equal(await production.read(run.instanceId, run.runId), undefined);
+  assert.equal((await production.list({ instanceId: run.instanceId, limit: 200 })).some((entry) => entry.runId === run.runId), false);
+  const claimed = (await store.claim(lease(run)))!;
+  const effect = { runId: run.runId, stepId: run.state.cursor!, idempotencyKey: `${run.runId}:namespace-effect`, inputHash: "input" };
+  await control.claimEffect(effect);
+  const fence = { instanceId: run.instanceId, runId: run.runId, stepId: run.state.cursor!, leaseToken: claimed.lease!.token, now };
+  assert.equal(await createPostgresStateStore().markEffectDispatched(effect.idempotencyKey, fence), false);
+  assert.equal(await control.markEffectDispatched(effect.idempotencyKey, fence), true);
+  const timers = createPostgresDurableTimerStore({ executionNamespace }), timer = { instanceId: run.instanceId, timerId: randomUUID(), timerKind: "builder-test", dueAt: now, idempotencyKey: randomUUID(), payload: {} };
+  await timers.schedule(timer);
+  assert.equal((await createPostgresDurableTimerStore().list({ instanceId: run.instanceId })).some((entry) => entry.timerId === timer.timerId), false);
+  const due = await timers.claimDue({ instanceId: run.instanceId, now, owner: "test-worker", leaseToken: randomUUID(), leaseExpiresAt: "2030-01-04T12:10:00.000Z", limit: 10 });
+  assert.equal(due.length, 1); assert.equal(due[0]!.instanceId, run.instanceId);
+  assert.equal(await timers.complete({ instanceId: run.instanceId, timerId: timer.timerId, leaseToken: due[0]!.leaseToken, completedAt: now, evidence: { synthetic: true } }), true);
+  assert.equal((await createPostgresWorkflowExecutionStore({ executionNamespace }).read(run.instanceId, run.runId))?.lease?.token, claimed.lease!.token);
+});
 
 test("Postgres workflow create is atomic and redelivery survives JSONB reordering and store reconstruction", { skip: !enabled }, async () => {
   const { args, store, control, run } = await fixture();

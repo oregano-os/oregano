@@ -21,6 +21,7 @@ export function createBuilderReleaseIntegration(args: {
   coordinator: Pick<ReleaseCoordinator, "accept" | "rollback">;
   authenticatedPrincipal(author: Author): string | undefined;
   prepareCandidate(job: BuilderJob): Promise<ReleaseCandidate>;
+  beforeAccept?(candidate: ReleaseCandidate, actor: string, actionId: string): Promise<void>;
   fallback: BuilderTerminalNotifier;
 }) {
   const notifier: BuilderTerminalNotifier = {
@@ -57,6 +58,7 @@ export function createBuilderReleaseIntegration(args: {
         CardText(job.brief.brief.proposedBehavior),
         CardText(`Success criteria: ${job.brief.brief.acceptanceCriteria.join("; ")}`),
         CardText(`Production target: ${candidate.instanceId}. Candidate: ${candidate.candidateCommit.slice(0, 12)}.`),
+        ...(candidate.functionalTestDigest ? [CardText("Review the functional test result above. This one action accepts that exact tested result and authorizes merge and live adoption.")] : []),
         CardText("May I merge this exact checked change and make it live? Your confirmation authorizes the merge, production build, deployment and verification under your current company permissions."),
         ...(candidate.migration ? [CardText(`Includes migration ${candidate.migration.id}. Application rollback does not undo data changes.`)] : []),
         Actions([Button({ id: "companyos.builder.release", label: "Merge and make live", style: "primary", value: token })]),
@@ -83,6 +85,7 @@ export function createBuilderReleaseIntegration(args: {
         await event.thread.post("This result is unavailable in this conversation or this identity is not an active company member."); return;
       }
       try {
+        await args.beforeAccept?.(pending.candidate, actor, event.messageId);
         const run = await args.coordinator.accept(pending.candidate, actor, pending.digest);
         await event.adapter.editMessage(event.threadId, event.messageId, releaseStatusCard(run));
       } catch {

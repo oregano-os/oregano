@@ -1,3 +1,4 @@
+import { workflowStorageInstance } from "./workflow-store.ts";
 import { approvalExpiry } from "../state-store/approval-validity.ts";
 import { assertEventReadLimit } from "../state-store/interface.ts";
 // state-postgres — Neon/Postgres implementation of state-store/interface.ts
@@ -25,7 +26,7 @@ function sql() {
   return neon(url);
 }
 
-export function createPostgresStateStore(): StateStore {
+export function createPostgresStateStore(options: { executionNamespace?: string } = {}): StateStore {
   return {
     async ensureRun(meta: RunMeta): Promise<void> {
       await ensureCompanyOSSchema();
@@ -181,7 +182,7 @@ export function createPostgresStateStore(): StateStore {
           if (!Number.isSafeInteger(review.page) || review.page < 0 || review.page >= 256) return false;
           const rows = await sql()`with eligible as (
             select run_id, lease_expires_at from companyos.workflow_executions
-            where run_id = ${fence.runId} and instance_id = ${fence.instanceId}
+            where run_id = ${fence.runId} and instance_id = ${workflowStorageInstance(fence.instanceId, options.executionNamespace)}
               and lease_token = ${fence.leaseToken} and lease_expires_at > ${fence.now}
               and state_json->>'status' = 'waiting' and state_json->>'cursor' = ${fence.stepId}
               and state_json->'blocked'->>'stepId' = ${fence.stepId}
@@ -200,7 +201,7 @@ export function createPostgresStateStore(): StateStore {
         }
         const rows = await sql()`with eligible as (
           select run_id, lease_expires_at from companyos.workflow_executions
-          where run_id = ${fence.runId} and instance_id = ${fence.instanceId}
+          where run_id = ${fence.runId} and instance_id = ${workflowStorageInstance(fence.instanceId, options.executionNamespace)}
             and lease_token = ${fence.leaseToken} and lease_expires_at > ${fence.now}
             and state_json->>'status' = 'running' and state_json->>'cursor' = ${fence.stepId}
             and not (state_json ? 'blocked') for update

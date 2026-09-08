@@ -1,0 +1,51 @@
+version: 3
+plan_id: builder-release-provider-qualification-2026-09-08
+created: 2026-09-08
+title: Correct scoped repository comparison and trusted Git qualification
+objective: Admit GitHub's exact comparison separator within the repository-scoped
+  release client while rejecting path traversal, and validate the hosted trusted
+  Git qualification against the current Workspace document contracts.
+non_goals:
+  - Change human merge authority, provider scopes, or the release lifecycle.
+  - Merge or deploy diagnostic qualification proposals.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-release-provider-qualification.yaml
+  - package.json
+  - packages/connectors/github-repository.ts
+  - packages/testkit/tests/github-repository-provider.test.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.test.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/github-repository-provider.test.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Correct the existing scoped Connector and maintained qualification fixture.
+    packages: Preserve the current Workbench contract and distribution version.
+    workspace: Preserve company definitions, approval policy and change scope.
+    instance: Requalify the exact released Core with existing provider bindings.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the repository-scoped client with a correct path boundary.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies and coding profiles use the same scoped GitHub
+    release transport and current-contract qualification fixture.
+rollback: Restore the prior exact Core and deployment pairing. The preceding
+  client cannot inspect GitHub comparisons, so suspend automatic releases until
+  corrected. Close diagnostic drafts; retain evidence without merging them.
+open_decisions: []

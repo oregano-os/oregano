@@ -1,0 +1,99 @@
+version: 3
+plan_id: builder-functional-tests-2026-09-08
+created: 2026-09-08
+title: Add candidate-bound functional tests before Builder merge and live adoption
+objective: Run selected user tests against the exact checked Workspace proposal, retain isolated
+  execution and provider evidence, and require current human acceptance before merging and adopting
+  that candidate in production.
+non_goals:
+  - Install a second provider application or require a Preview for every change.
+  - Activate unrelated company workflows or claim synthetic decisions as human acceptance.
+  - Add a parallel workflow engine, secret store or provider permission catalog.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-functional-tests.yaml
+  - .oregano/changes/2026-09-08-builder-release-provider-qualification.yaml
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/workbench/guides/prepare-builder-change.md
+  - package.json
+  - packages/cli/content/guides/operate-builder.md
+  - packages/cli/content/guides/prepare-builder-change.md
+  - packages/cli/package.json
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/types.ts
+  - packages/connectors/github-repository.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.test.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.ts
+  - packages/runner-vercel/src/lib/builder/functional-test-execution.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.ts
+  - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
+  - packages/runner-vercel/src/lib/builder/live-release-functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.ts
+  - packages/runner-vercel/src/lib/builder/release-provider.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runtime/builder/brief.ts
+  - packages/runtime/builder/functional-tests.ts
+  - packages/runtime/release/contracts.ts
+  - packages/runtime/release/coordinator.ts
+  - packages/state-postgres/builder-test-store.ts
+  - packages/state-postgres/durable-timer-store.ts
+  - packages/state-postgres/store.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/testkit/builder-functional-fixture.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/testkit/tests/github-repository-provider.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+tests:
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/runner-vercel/src/lib/builder/live-release-functional-tests.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - guide.prepare-builder-change
+    - guide.operate-builder
+    - status.current
+architecture:
+  placement:
+    core: Generic candidate-bound test orchestration and release enforcement.
+    packages: Portable intake and operations guidance for all coding profiles.
+    workspace: Company definitions, test intent and existing acceptance policy.
+    instance: Qualified provider bindings, isolated state and retained evidence.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Select a retained candidate only for its assigned test conversation.
+    - mechanism: capability-contracts-and-connectors
+      reason: Discover current bindings and apply a narrower trusted test scope.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Persist candidate-bound tests and invalidate stale result acceptance.
+  new_core_mechanisms:
+    - A Builder test-session orchestration record linking existing compilation, execution and
+      release contracts.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies supply logical resources and policy. Claude Code and Codex share the
+    same source-grounded brief, checks and test lifecycle.
+rollback: Stop new test sessions, retain their evidence and restore the preceding exact Core and
+  Workspace pairing. Provider test effects remain visible and must not be represented as undone by
+  an application rollback.
+open_decisions: []

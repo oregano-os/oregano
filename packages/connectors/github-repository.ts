@@ -231,7 +231,12 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     return await this.#withInstallationToken(binding.installationId, binding.providerRepositoryId,
       { contents: "write", pull_requests: "write", checks: "read", administration: "read" }, async (token) => use({
         request: async <R>(method: "GET" | "PUT" | "PATCH", path: string, body?: unknown): Promise<R> => {
-          if (!path.startsWith("/") || path.includes("..") || path.includes("\\") || path.includes("#")) throw new Error("Invalid scoped release path.");
+          const pathname = decodeURIComponent(path.split("?")[0]!);
+          // GitHub comparisons contain `base...head`. Only actual path
+          // traversal is forbidden; encoded branch separators remain valid.
+          if (!path.startsWith("/") || path.startsWith("//") || path.includes("#")
+            || /[\\\\\u0000-\u0020]/.test(pathname)
+            || pathname.split("/").some((part) => part === "." || part === "..")) throw new Error("Invalid scoped release path.");
           return await this.#installationRequest<R>(token, method, `${prefix}${path}`, body);
         },
         readyForReview: async (nodeId) => {

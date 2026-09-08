@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
+import { parseBuilderTestResources } from "../runtime/builder/functional-tests.ts";
 import type { WorkflowInstanceBindings, InstanceBuildConfiguration } from "./types.ts";
 import { scanCredentialIndicators } from "../security/credential-scanner.ts";
 import type { AgentBinding } from "../runtime/agent-resolver.ts";
@@ -270,6 +271,7 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
   }
   return {
     enabled: true,
+    ...(builder.test_resources === undefined ? {} : { testResources: parseBuilderTestResources(builder.test_resources) }),
     execution: {
       adapter: requiredIdentifier(builder.execution?.adapter, `${path}: builder.execution.adapter`),
       profile: requiredIdentifier(builder.execution?.profile, `${path}: builder.execution.profile`),

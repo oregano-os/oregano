@@ -6,8 +6,10 @@ import type { AgentBinding, CompiledAgentRouting } from "../runtime/agent-resolv
 import type { BusinessCalendar } from "../domains/sprint/business-time.ts";
 import type { SprintDomainDeclaration, Weekday } from "../domains/sprint/contracts.ts";
 import type { WorkspaceReleasePolicy } from "../runtime/release/contracts.ts";
+import type { BuilderTestResource } from "../runtime/builder/functional-tests.ts";
 
 export interface BuilderInstanceConfiguration {
+  testResources?: BuilderTestResource[];
   /** Deprecated compatibility input. Workspace presence declares intent. */
   enabled?: true;
   execution: {

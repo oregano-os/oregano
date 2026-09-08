@@ -7,8 +7,9 @@ import { createPostgresRepositoryInstallationStore } from "../../../../state-pos
 import { getGitHubRepositoryProvider, getTrustedGitExecution } from "./provider-factory.ts";
 import { handleGitHubRepositoryOnboarding } from "./repository-onboarding.ts";
 
-const PLAN_PATH = ".companyos/changes/2026-08-26-builder-trusted-git-qualification.yaml";
-const EVIDENCE_PATH = "handbook/builder-trusted-git-qualification.md";
+const PLAN_PATH = ".companyos/changes/2026-09-08-builder-trusted-git-qualification.yaml";
+const EVIDENCE_PATH = "agents/builder/skills/trusted-git-qualification.md";
+const TEST_PATH = ".companyos/tests/builder-trusted-git-qualification.test.mjs";
 
 export async function qualifyDeployedTrustedGit(): Promise<Readonly<Record<string, unknown>>> {
   const configuration = qualificationConfiguration();
@@ -164,48 +165,44 @@ function qualificationConfiguration() {
 
 /** @internal Exported only for deterministic fixture verification. */
 export function qualificationDiff(): string {
-  const plan = `version: 1
-plan_id: builder-trusted-git-qualification-2026-08-26
-status: approved
-author: companyos-builder
-created: 2026-08-26
+  const plan = `version: 3
+plan_id: builder-trusted-git-qualification-2026-09-08
+created: 2026-09-08
 title: Record isolated trusted Git qualification
-objective: Record a bounded document proving the proposal-only trusted Git path.
+objective: Record bounded evidence for the proposal-only trusted Git path.
 non_goals:
   - Merge or deploy the qualification proposal.
   - Grant repository credentials to a coding agent.
 placement: workspace
-change_class: documentation
-vision_principles_affected:
-  - Human authority is explicit
-  - Evidence beats claims
+change_class: security
 files_expected:
   - ${PLAN_PATH}
   - ${EVIDENCE_PATH}
-required_approvals:
-  - workspace-steward
-approvals:
-  - role: workspace-steward
-    approver: supervised-operator
-    approved_at: 2026-08-26
-    evidence: explicit-supervised-builder-qualification
-validation:
-  - companyos validate .
-  - companyos inspect . --plan ${PLAN_PATH}
-  - companyos security .
-  - git diff --check
+  - ${TEST_PATH}
 tests:
-  - The draft is produced through a separate trusted Git execution boundary.
-  - The coding environment receives no repository credential.
+  - ${TEST_PATH}
 documentation_impact:
   required: true
   affected_documents:
-    - handbook.builder-trusted-git-qualification
-rollback: Close the unmerged draft proposal and delete its qualification branch.
+    - ${EVIDENCE_PATH}
+architecture:
+  placement:
+    core: Reuse the existing trusted source, validation and publication adapters.
+    packages: Use the pinned Workbench without changing package contracts.
+    workspace: Add only an unmerged diagnostic note and its Change Plan.
+    instance: Use the previously verified repository installation and isolated execution binding.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: not-applicable
+  core_reusability: No company-specific runtime logic or new Core mechanism.
+rollback: Close the unmerged draft and delete only its qualification branch.
 open_decisions: []
 `;
   const evidence = `---
-type: evidence
+type: note
 description: Bounded evidence for isolated trusted Git proposal execution.
 ---
 # Builder trusted Git qualification
@@ -214,7 +211,18 @@ This unmerged document proves only that source preparation, independent
 Workbench validation, and proposal publication can run outside the coding
 agent environment. It grants no merge or deployment authority.
 `;
-  return newFilePatch(PLAN_PATH, plan) + newFilePatch(EVIDENCE_PATH, evidence);
+  const test = `import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { test } from "node:test";
+
+test("trusted Git qualification has no operating or authority changes", () => {
+  const allowed = new Set(${JSON.stringify([PLAN_PATH, TEST_PATH, EVIDENCE_PATH])});
+  const paths = execFileSync("git", ["status", "--porcelain", "--untracked-files=all"], { encoding: "utf8" })
+    .trimEnd().split("\\n").filter(Boolean).map((line) => line.slice(3));
+  assert.ok(paths.every((path) => allowed.has(path)), "qualification must not change operating files");
+});
+`;
+  return newFilePatch(PLAN_PATH, plan) + newFilePatch(TEST_PATH, test) + newFilePatch(EVIDENCE_PATH, evidence);
 }
 
 function newFilePatch(path: string, content: string): string {

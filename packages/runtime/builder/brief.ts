@@ -1,4 +1,5 @@
 import { sha256 } from "../canonical.ts";
+import { parseBuilderTestExecution, type BuilderTestExecution } from "./functional-tests.ts";
 
 export interface BuilderDecision {
   readonly disposition: "preserve" | "change" | "not-applicable" | "unresolved";
@@ -26,6 +27,7 @@ export interface BuilderBrief {
     readonly strategy: "auto" | "simulate" | "test-resources" | "live-trial";
     readonly scenarios: readonly string[];
     readonly targetBindings: readonly string[];
+    readonly execution?: BuilderTestExecution;
   };
   readonly deploymentIntent: "prepare-only" | "after-acceptance";
   readonly openQuestions: readonly string[];
@@ -64,16 +66,20 @@ export const BUILDER_BRIEF_SCHEMA = {
     test: { type: "object", additionalProperties: false, required: ["strategy", "scenarios", "targetBindings"], properties: {
       strategy: { type: "string", enum: ["auto", "simulate", "test-resources", "live-trial"] },
       scenarios: { ...list, minItems: 1 }, targetBindings: list,
+      execution: { oneOf: [
+        { type: "object", additionalProperties: false, required: ["kind", "agentId", "prompt"], properties: { kind: { const: "agent" }, agentId: text, prompt: text } },
+        { type: "object", additionalProperties: false, required: ["kind", "workflowId", "fields"], properties: { kind: { const: "workflow" }, workflowId: text, fields: { type: "object", maxProperties: 30, additionalProperties: text } } },
+      ] },
     } },
     deploymentIntent: { type: "string", enum: ["prepare-only", "after-acceptance"] },
     openQuestions: list,
   },
 } as const;
 
-function object(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {
+function object(value: unknown, keys: readonly string[], label: string, optional: readonly string[] = []): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object.`);
   const record = value as Record<string, unknown>;
-  if (Object.keys(record).some((key) => !keys.includes(key)) || keys.some((key) => !(key in record))) {
+  if (Object.keys(record).some((key) => !keys.includes(key)) || keys.some((key) => !optional.includes(key) && !(key in record))) {
     throw new Error(`${label} must contain exactly: ${keys.join(", ")}.`);
   }
   return record;
@@ -102,7 +108,7 @@ export function parseBuilderBrief(input: unknown): BuilderBrief {
     if (!["preserve", "change", "not-applicable", "unresolved"].includes(String(entry.disposition))) throw new Error(`Decision '${key}' is invalid.`);
     return { disposition: entry.disposition as BuilderDecision["disposition"], detail: boundedText(entry.detail, key) };
   };
-  const rawTest = object(raw.test, ["strategy", "scenarios", "targetBindings"], "Builder test");
+  const rawTest = object(raw.test, ["strategy", "scenarios", "targetBindings", "execution"], "Builder test", ["execution"]);
   if (!["auto", "simulate", "test-resources", "live-trial"].includes(String(rawTest.strategy))) throw new Error("Builder test strategy is invalid.");
   if (!["prepare-only", "after-acceptance"].includes(String(raw.deploymentIntent))) throw new Error("Builder deployment intent is invalid.");
   const targetPaths = strings(raw.targetPaths, "targetPaths", 1);
@@ -117,7 +123,8 @@ export function parseBuilderBrief(input: unknown): BuilderBrief {
     acceptanceCriteria: strings(raw.acceptanceCriteria, "acceptanceCriteria", 1),
     constraints: strings(raw.constraints, "constraints"), contextRefs,
     decisions: { workflow: parseDecision("workflow"), approvals: parseDecision("approvals"), access: parseDecision("access") },
-    test: { strategy: rawTest.strategy as BuilderBrief["test"]["strategy"], scenarios: strings(rawTest.scenarios, "test.scenarios", 1), targetBindings: strings(rawTest.targetBindings, "test.targetBindings") },
+    test: { strategy: rawTest.strategy as BuilderBrief["test"]["strategy"], scenarios: strings(rawTest.scenarios, "test.scenarios", 1), targetBindings: strings(rawTest.targetBindings, "test.targetBindings"),
+      ...(rawTest.execution === undefined ? {} : { execution: parseBuilderTestExecution(rawTest.execution) }) },
     deploymentIntent: raw.deploymentIntent as BuilderBrief["deploymentIntent"],
     openQuestions: strings(raw.openQuestions, "openQuestions"),
   };
@@ -198,5 +205,7 @@ export const BUILDER_INTAKE_INSTRUCTIONS = [
   "Complete the versioned brief, including acceptance criteria, constraints, explicit workflow/approval/access decisions and a suitable test. Preserve an unchanged rule explicitly. Keep unresolved decisions in openQuestions or disposition=unresolved.",
   "Call builder_propose_change only after those questions are resolved. The tool verifies context-read evidence and refuses unresolved briefs before it can start a coding job. The human's unchanged-scope development request is sufficient; do not add a redundant start confirmation.",
   "Preview is optional. Tests can use simulation or exact existing company resource bindings; a live trial requires its actual scope and authorization. Selecting a test preference does not execute it or grant access.",
+  "Before selecting test-resources, call builder_instance_capabilities. Use only listed test resources and a supported concrete test.execution. Resolve missing Instance capabilities before coding; installing another provider app is not a default. A read-only Agent test uses kind=agent, agentId and prompt. The first workflow profile uses kind=workflow, workflowId and fields for an operator-opened graph without messages, timers or intermediate decisions.",
+  "When the human asks for a correction after a test, call builder_read_test_result. Retain the complete original requested change and apply the authenticated feedback in a fresh brief against the current source. Re-read affected definitions. A previous test or acceptance never approves the rebuilt candidate.",
   "The build brief never approves the eventual result or grants merge/deploy rights. Explain the final change for human acceptance; only the trusted release path can report verified live completion.",
 ].join("\n\n");

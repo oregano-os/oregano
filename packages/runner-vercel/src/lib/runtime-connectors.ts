@@ -239,11 +239,14 @@ export function createConfiguredRuntimeConnectors(args: {
   environment?: NodeJS.ProcessEnv;
   chat: () => Chat;
   beforeSlackDirectPublish?: BeforeSlackDirectPublish;
+  onlyCapabilities?: readonly string[];
 }): Connector[] {
   const environment = args.environment ?? process.env;
   const connectors: Connector[] = [];
   const instanceIds = new Set<string>();
   for (const entry of args.artifact.connectors ?? []) {
+    if (args.onlyCapabilities && !args.artifact.bindings.some((binding) => args.onlyCapabilities!.includes(binding.capability)
+      && binding.connector === entry.connector && binding.connectorVersion === entry.connectorVersion)) continue;
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
     if (entry.connector === "oregano/company-directory" && entry.connectorVersion === "1.0.0") {

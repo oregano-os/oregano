@@ -49,6 +49,10 @@ function providerFixture() {
     if (url.endsWith("/installation/token") && init?.method === "DELETE") {
       return new Response(null, { status: 204 });
     }
+    if (url.startsWith("https://api.github.test/repos/acme/workspace/compare/")) {
+      return Response.json({ status: "ahead" });
+    }
+    if (url.endsWith("/branches/codex%2Freviewed-workspace")) return Response.json({ protected: false });
     return new Response("not found", { status: 404 });
   };
   const installations = new InMemoryRepositoryInstallationStore();
@@ -65,6 +69,27 @@ function providerFixture() {
   });
   return { provider, installations, requests };
 }
+
+test("scoped release client admits GitHub comparisons and rejects repository traversal", async () => {
+  const fixture = providerFixture();
+  await fixture.provider.verifyInstallation({ bindingId: "github-workspace", instanceId: "acme-production",
+    installationId: "1001", repositoryId: "acme/workspace", providerRepositoryId: "2002", onboardingPrincipal: "companyos:user:1" });
+  const comparison = `/compare/${"a".repeat(40)}...${"b".repeat(40)}`;
+  await fixture.provider.withReleaseClient({ bindingId: "github-workspace", repositoryId: "acme/workspace", instanceId: "acme-production" }, async (client) => {
+    assert.deepEqual(await client.request("GET", comparison), { status: "ahead" });
+    assert.deepEqual(await client.request("GET", "/branches/codex%2Freviewed-workspace"), { protected: false });
+    const before = fixture.requests.length;
+    for (const path of ["/../other", "/./other", "/%2e%2e/other", "/heads/a%2F..%2Fother", "/heads/a%5c..%5cother", "//other", "/pulls/1#other", "/pulls/1\nother"]) {
+      await assert.rejects(client.request("GET", path), /Invalid scoped release path/);
+    }
+    assert.equal(fixture.requests.length, before, "invalid paths must not send credentials");
+  });
+  assert.ok(fixture.requests.some((request) => request.url === `https://api.github.test/repos/acme/workspace${comparison}`));
+  const tokenRequests = fixture.requests.filter((request) => request.url.endsWith("/access_tokens"));
+  assert.deepEqual(JSON.parse(tokenRequests.at(-1)!.body!), { repository_ids: [2002],
+    permissions: { contents: "write", pull_requests: "write", checks: "read", administration: "read" } });
+  assert.ok(fixture.requests.at(-1)!.url.endsWith("/installation/token"));
+});
 
 test("GitHub Git authentication uses the installation token as an HTTP Basic password", () => {
   const token = "short-lived-installation-token";

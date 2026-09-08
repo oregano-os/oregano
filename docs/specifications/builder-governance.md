@@ -346,8 +346,9 @@ It stages and verifies the exact Knowledge Bundle without changing the old live
 Handbook selection. A configured release Runner reads the snapshot pinned by its
 Artifact. Changes to Knowledge access policy, Records sources, connections or
 the Records identity roster require renewed Instance qualification.
-Requested simulations, connected tests, live trials, arbitrary migrations and
-optional Preview preparation require further qualified adapters. Selecting a
+General simulations, live trials, arbitrary migrations and optional Preview
+preparation require further qualified adapters. The bounded connected profile
+below has a maintained executor. Selecting a
 strategy in the brief never claims it was executed. Split-actor acceptance and
 release remain outside the combined-action implementation.
 
@@ -373,3 +374,58 @@ production database and not a claim that an unactivated hosted profile has
 already received this code. Runtime state and audit retention stay under the
 Instance's separate authority. Existing trusted Git profiles must use the
 updated inspector and pass their qualification gate before activation.
+
+
+## Connected functional tests before merge
+
+Core 0.8.0 supports `test.strategy: test-resources` with one explicit execution:
+
+- `kind: agent`, `agentId`, `prompt`: one actual reply from a compiled read-only
+  Agent using the existing model recipe. This does not test conversational Tools
+  or Agent handoffs.
+- `kind: workflow`, `workflowId`, `fields`: an actual operator-opened graph through
+  CompanyOSRuntime and WorkflowEngine. The initial qualified profile excludes
+  messages, timers and intermediate human decisions; its bounded work-item
+  effects use the maintained Connector and ordinary effect claims.
+
+The Instance's optional `builder.test_resources` selects existing capability
+bindings and exact input constraints. A work-item test must constrain both its
+logical resource binding and item. One selected communication binding receives
+an identifiable test thread in the existing app. The Builder reads current
+capabilities and test resources before coding; unavailable bindings or unsupported
+capabilities stop admission. Configured access is not proof of current provider
+availability; the executor performs the provider's actual qualification.
+
+The trusted compiler builds the published candidate commit, with the running
+Core and normalized Instance configuration. It verifies and retains the exact
+Artifact and Knowledge Bundle without changing the live selection. The coding
+worker neither runs connected tests nor receives provider credentials.
+
+A durable session binds the job, brief, base, candidate, Core, checks, scope,
+Artifact, conversation and result. A connected-test preference alone cannot
+create a release candidate. Workflow execution uses the maintained stores under
+a separate storage namespace; production workers, assignments, timers and
+workflow dispatch fences cannot consume that state. Artifact identity is retained.
+Unknown publication or execution outcomes stop rather than repeating effects.
+
+The result is delivered with a provider permalink. **Request changes** immediately
+invalidates its live action; the next authenticated requester message becomes
+feedback. Builder reads that feedback and original brief, then rebuilds the
+complete requested result against the current source. The new session retains
+its predecessor and must run its own tests. Test resources and company policy
+cannot be expanded by candidate-authored instructions.
+
+One **Merge and make live** action accepts the exact completed test and starts
+release when the current human has both company authorities. It atomically
+freezes the test result before release admission. Changed or concurrently
+invalidated results fail closed; another human cannot overwrite acceptance.
+The release candidate includes the test digest, which the maintained adapter
+checks before inspection and merge. Staged production health and final live
+health remain separate technical checks after the user's functional acceptance.
+They do not establish arbitrary end-to-end business correctness.
+
+`auto` retains technical checks and explicit human result acceptance without a
+connected test. Adding a test resource does not create another app or copy
+secrets into Preview. New provider access still follows the existing Instance
+setup/qualification boundary. Each pilot must retain real model/provider, human
+feedback, merge and deployment receipts before claiming its complete live proof.

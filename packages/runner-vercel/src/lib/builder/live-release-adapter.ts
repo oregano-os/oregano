@@ -6,6 +6,8 @@ import type { WorkflowExecutionStore } from "../../../../state-store/workflow-en
 import { parseInstanceBuildConfiguration } from "../../../../companyos-builder/instance-loader.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { releaseAuthorization } from "../../../../runtime/release/policy.ts";
+import { authorizeRelease } from "../../../../runtime/release/coordinator.ts";
+import { checkedBuilderProposal, type BuilderFunctionalTests } from "../../../../runtime/builder/functional-tests.ts";
 import { inspectGitHubCandidate, mergeGitHubCandidate, type GitHubCandidateInput } from "../../../../connectors/github-release.ts";
 import type { GitHubAppRepositoryProvider } from "../../../../connectors/github-repository.ts";
 import { VercelProductionReleaseHost, type ReleasePrivateState } from "../../../../connectors/vercel-release.ts";
@@ -18,7 +20,7 @@ import { rebindBuilderReleaseEnvironment } from "./release-environment.ts";
 import { assertKnowledgeBundleIntegrity } from "../../../../knowledge/okf.ts";
 import type { KnowledgeProvider } from "../../../../knowledge/contracts.ts";
 
-interface CandidateRecord { candidate: ReleaseCandidate; github: GitHubCandidateInput; previous: DeploymentReceipt; }
+interface CandidateRecord { candidate: ReleaseCandidate; github: GitHubCandidateInput; previous: DeploymentReceipt; job?: BuilderJob; }
 interface BuiltRecord { receipt: ProductionArtifactReceipt; encodedArtifact: string; environmentOverrides: Record<string, string>; deploymentId?: string; }
 
 /** Composition only: company policy and secret-free Instance binding plus maintained providers. */
@@ -32,6 +34,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     knowledge: Pick<KnowledgeProvider, "stage" | "verify">;
     artifacts: Pick<WorkflowExecutionStore, "putArtifact" | "getArtifact">;
     environment: NodeJS.ProcessEnv;
+    functionalTests?: BuilderFunctionalTests;
   };
   constructor(dependencies: HostedBuilderReleaseAdapter["dependencies"]) {
     this.dependencies = dependencies;
@@ -73,7 +76,9 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       || job.instanceId !== artifact.instance.id || job.repositoryId !== artifact.builder!.repository.repositoryId
       || job.baseCommit !== artifact.provenance.workspaceCommit || job.brief.artifactHash !== artifact.artifactHash
       || published.jobId !== job.jobId || published.baseCommit !== job.baseCommit || published.repositoryId !== job.repositoryId) throw new Error("Only the exact independently checked current Workspace proposal can be released.");
-    if (job.brief.brief.test.strategy !== "auto") throw new Error("This change requires its selected test evidence before automatic release.");
+    const functionalTest = job.brief.brief.test.strategy === "test-resources"
+      ? await this.dependencies.functionalTests?.releaseEvidence(job, false) : undefined;
+    if (job.brief.brief.test.strategy !== "auto" && !functionalTest) throw new Error("This change requires its selected test evidence before automatic release.");
     rebindBuilderReleaseEnvironment({ previous: artifact, next: artifact,
       changedPaths: checked.changedPaths, environment: this.dependencies.environment });
     const url = new URL(published.proposalUrl);
@@ -96,21 +101,81 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       diffDigest: inspection.diffDigest, changeClass: inspection.changeClass, requester: job.requesterPrincipal,
       sourceConversation: job.sourceConversationKey, requiredChecks: inspection.checks.map((check) => check.id),
       checksDigest: inspection.checksDigest, previousArtifactHash: previous.artifactHash,
+      ...(functionalTest ? { functionalTestDigest: functionalTest.digest } : {}),
     };
     const key = this.#key(candidate.id);
     const existing = await state.get<CandidateRecord>(key);
     if (existing && sha256(existing.candidate) !== sha256(candidate)) throw new Error("Candidate evidence changed; prepare a new proposal.");
-    await state.setIfNotExists(key, { candidate, github: input, previous } satisfies CandidateRecord);
+    await state.setIfNotExists(key, { candidate, github: input, previous, ...(functionalTest ? { job } : {}) } satisfies CandidateRecord);
     return candidate;
   }
   async inspect(candidate: ReleaseCandidate) {
     const record = await this.#record(candidate);
+    await this.#assertFunctionalTest(record);
     return await this.dependencies.github.withReleaseClient(this.#binding(), (client) => inspectGitHubCandidate(client, record.github));
   }
   async merge(context: ReleaseExecutionContext) {
     const record = await this.#record(context.candidate);
+    await this.#assertFunctionalTest(record);
     const receipt = await this.dependencies.github.withReleaseClient(this.#binding(), (client) => mergeGitHubCandidate(client, record.github, context.candidate));
     return receipt ? { state: "succeeded" as const, receipt } : { state: "pending" as const };
+  }
+  async #assertFunctionalTest(record: CandidateRecord) {
+    if (!record.candidate.functionalTestDigest) return;
+    if (!record.job || !this.dependencies.functionalTests) throw new Error("Functional test evidence is unavailable.");
+    const result = await this.dependencies.functionalTests.releaseEvidence(record.job, true);
+    if (result.digest !== record.candidate.functionalTestDigest) throw new Error("The accepted functional test changed.");
+  }
+  async acceptFunctionalTest(candidate: ReleaseCandidate, actor: string, actionId: string) {
+    if (!candidate.functionalTestDigest) return;
+    authorizeRelease(candidate, actor, await this.authorization(candidate.instanceId));
+    const record = await this.#record(candidate), tests = this.dependencies.functionalTests;
+    if (!record.job || !tests) throw new Error("Functional test evidence is unavailable.");
+    const { session, digest } = await tests.releaseEvidence(record.job, false);
+    if (digest !== candidate.functionalTestDigest) throw new Error("The displayed test result is stale.");
+    if (session.stage === "accepted") {
+      if (session.acceptance?.principal !== actor) throw new Error("The test was accepted by another human.");
+      return;
+    }
+    await tests.accept(session.id, { principal: actor, actionId, resultDigest: digest, acceptedAt: new Date().toISOString() });
+  }
+  async compileTestArtifact(job: BuilderJob): Promise<CompanyOSArtifact> {
+    const { artifact, github, compiler, instanceYaml, state } = this.dependencies;
+    const { proposal, checked, brief } = checkedBuilderProposal(job);
+    if (job.instanceId !== artifact.instance.id || job.repositoryId !== artifact.builder!.repository.repositoryId
+      || job.baseCommit !== artifact.provenance.workspaceCommit || brief.artifactHash !== artifact.artifactHash) throw new Error("Test source does not match the current Workspace.");
+    await this.authorization(job.instanceId);
+    const key = `builder:test-artifact:${sha256([job.jobId, proposal.proposalCommit, this.configurationDigest])}`;
+    const existing = await state.get<{ artifactHash: string }>(key);
+    if (existing) {
+      const retained = await this.dependencies.artifacts.getArtifact(existing.artifactHash);
+      if (!retained || retained.provenance.workspaceCommit !== proposal.proposalCommit || retained.provenance.coreCommit !== artifact.provenance.coreCommit
+        || retained.provenance.instanceConfigurationDigest !== this.configurationDigest) throw new Error("Retained test Artifact has different provenance.");
+      return retained;
+    }
+    const temp = await mkdtemp(join(tmpdir(), "companyos-test-compile-"));
+    try {
+      const source = await github.materialize({ schemaVersion: 1, requestId: `${job.jobId}:test`, instanceId: job.instanceId,
+        bindingId: artifact.builder!.repository.sourceBinding, repositoryId: job.repositoryId, baseCommit: proposal.proposalCommit, destinationPath: join(temp, "workspace") });
+      if (!source.transfer) throw new Error("Test compilation requires the credential-free source bundle.");
+      const { artifact: compiled, knowledgeBundle } = await compiler.compileArtifact({ operationId: `${job.jobId}:test`,
+        sourceBundlePath: source.transfer.path, workspaceCommit: proposal.proposalCommit, coreCommit: artifact.provenance.coreCommit,
+        instanceId: job.instanceId, instanceYaml });
+      const { artifactHash, ...content } = compiled;
+      if (sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } }) !== artifactHash
+        || compiled.provenance.workspaceCommit !== proposal.proposalCommit || compiled.provenance.coreCommit !== artifact.provenance.coreCommit
+        || compiled.instance.id !== artifact.instance.id || compiled.provenance.instanceConfigurationDigest !== this.configurationDigest) throw new Error("Test Artifact provenance is invalid.");
+      rebindBuilderReleaseEnvironment({ previous: artifact, next: compiled, changedPaths: checked.changedPaths, environment: this.dependencies.environment });
+      assertKnowledgeBundleIntegrity(knowledgeBundle);
+      if (!compiled.knowledge || knowledgeBundle.bundleHash !== compiled.knowledge.bundleHash
+        || knowledgeBundle.policyHash !== artifact.knowledge!.policyHash) throw new Error("Test Knowledge access differs from the qualified Instance.");
+      await this.dependencies.knowledge.stage(knowledgeBundle);
+      const verified = await this.dependencies.knowledge.verify(knowledgeBundle.bundleHash);
+      if (!verified.verifiedAt || verified.snapshotHash !== knowledgeBundle.bundleHash) throw new Error("Test Knowledge snapshot is unverified.");
+      await this.dependencies.artifacts.putArtifact(compiled);
+      await state.setIfNotExists(key, { artifactHash });
+      return compiled;
+    } finally { await rm(temp, { recursive: true, force: true }); }
   }
   #builtKey(candidate: ReleaseCandidate) { return `release:artifact:${sha256(candidate)}`; }
   async build(context: ReleaseExecutionContext & { merge: MergeReceipt }) {
