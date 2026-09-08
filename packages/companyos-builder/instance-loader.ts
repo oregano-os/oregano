@@ -257,7 +257,7 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
     throw new Error(`${path}: builder must be an object.`);
   }
   const builder = value as Record<string, any>;
-  if (builder.enabled !== true) throw new Error(`${path}: builder.enabled must be true when declared.`);
+  if (builder.enabled !== undefined && builder.enabled !== true) throw new Error(`${path}: builder.enabled is obsolete; declare or remove the Builder in the Workspace instead.`);
   if (builder.coding_agent?.protocol !== "acp-v1") {
     throw new Error(`${path}: builder.coding_agent.protocol must be 'acp-v1'.`);
   }

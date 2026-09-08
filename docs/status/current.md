@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,28 @@ This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
+
+- The unreleased Builder intake change adds scoped definition discovery and
+  reads, a versioned before/after brief, unresolved-decision admission checks,
+  original-message continuation through an allowlisted Builder handoff, and
+  automatic isolated job submission after clarification. Workspace Builder
+  presence now declares intent; Instance execution bindings remain separate
+  and `enabled: true` is no longer required. The generator supplies process
+  context for new Workspaces; existing read scope is not broadened.
+- Builder diff inspection now includes uncommitted and mixed changes, including
+  staged, new, renamed and deleted paths. Valid v3 evidence plans no longer
+  cause automatic security classification solely through `.companyos/**`;
+  actual governance and explicit protected-path rules remain protected.
+- The locally tested release foundation includes accepted Workspace policy
+  compilation, requester/Steward authorization, exact-candidate coordination,
+  one per-Instance lease, idempotent provider operation contracts, optional
+  Chat acceptance, and verified production/rollback receipts. Its Postgres
+  adapter reuses existing run/event/lease tables. The maintained hosted Runner
+  still ends at a draft: the GitHub/Vercel execution binding, Postgres integration
+  qualification and actual request-to-live proof are outstanding. No real
+  company was activated, migrated or deployed by this implementation. Complete
+  worker CLI/Guide packaging, connected tests and optional Preview orchestration
+  also remain outstanding.
 
 - Company Records v0.1 implements validated generic source and projection
   declarations, immutable deduplicated source events and object versions,

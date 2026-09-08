@@ -5,9 +5,11 @@ import type { RosterMember } from "../state-store/roster.ts";
 import type { AgentBinding, CompiledAgentRouting } from "../runtime/agent-resolver.ts";
 import type { BusinessCalendar } from "../domains/sprint/business-time.ts";
 import type { SprintDomainDeclaration, Weekday } from "../domains/sprint/contracts.ts";
+import type { WorkspaceReleasePolicy } from "../runtime/release/contracts.ts";
 
 export interface BuilderInstanceConfiguration {
-  enabled: true;
+  /** Deprecated compatibility input. Workspace presence declares intent. */
+  enabled?: true;
   execution: {
     adapter: string;
     profile: string;
@@ -166,11 +168,14 @@ export interface CompiledAgent {
   id: string;
   instructions: string;
   materials: Record<string, string>;
+  /** Builder-only existence inventory. Read scope still controls file content. */
+  sourcePaths?: readonly string[];
   toolSet: ResolvedToolSet;
   tools: CompiledCompanyTool[];
 }
 
 export interface CompanyOSArtifact {
+  builderReleasePolicy?: WorkspaceReleasePolicy;
   schemaVersion: 1;
   company: string;
   instance: { id: string; environment: string };

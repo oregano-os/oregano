@@ -237,3 +237,19 @@ builder:
 `, (path) => {
   assert.throws(() => loadInstanceBuildConfiguration(path), /bounded safe branch name/);
 }));
+
+test("Builder execution configuration no longer requires an enable flag", () => withFile(`
+version: 1
+instance_id: fixture-production
+environment: production
+bindings: []
+builder:
+  execution: { adapter: vercel-sandbox, profile: isolated-v1 }
+  coding_agent: { protocol: acp-v1, profile: claude-code }
+  repository:
+    repository_id: fixture/workspace
+    source_binding: workspace
+    proposal_publisher_binding: workspace
+`, (path) => {
+  assert.equal(loadInstanceBuildConfiguration(path).builder?.codingAgent.profile, "claude-code");
+}));

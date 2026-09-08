@@ -17,6 +17,8 @@ export interface AgentHandoffControlContext {
   readonly artifactHash: string;
   readonly messageId: string;
   readonly now?: () => string;
+  /** Runner may continue the original authenticated message in Builder immediately. */
+  readonly continueBuilderInTurn?: boolean;
 }
 
 export async function executeAgentHandoffControl(
@@ -63,9 +65,17 @@ export async function executeAgentHandoffControl(
   return {
     ok: true,
     outcome: result.outcome,
-    routeApplies: "next-turn",
+    routeApplies: context.continueBuilderInTurn && result.assignment?.agentId === "builder" ? "current-request" : "next-turn",
     activeAgent: result.assignment?.agentId,
     purpose: result.assignment?.purpose,
     expiresAt: result.assignment?.expiresAt,
   };
+}
+
+export function continuesInBuilder(results: readonly { readonly toolName: string; readonly output: unknown }[]): boolean {
+  return results.some(({ toolName, output }) => {
+    if (toolName !== "companyos_agent_handoff" || !output || typeof output !== "object") return false;
+    const result = output as Record<string, unknown>;
+    return result.ok === true && result.activeAgent === "builder" && result.routeApplies === "current-request";
+  });
 }

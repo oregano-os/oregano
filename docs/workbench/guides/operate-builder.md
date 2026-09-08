@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-27
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -43,7 +43,6 @@ agent_bindings:
     channel_id: C012345
 default_agent: oregano
 builder:
-  enabled: true
   execution:
     adapter: vercel-sandbox
     profile: isolated-v1
@@ -66,6 +65,62 @@ verified default branch. When a pilot Artifact is built from an exact reviewed
 but not-yet-default Workspace revision, bind that revision's branch explicitly;
 the target is copied into the immutable job, shown in the confirmation card,
 and independently verified by the proposal publisher.
+
+## Clarify the process before coding
+
+Follow [Prepare a Builder Change](prepare-builder-change.md). The Workspace
+Builder definition declares desired availability. It compiles for conversation
+without an Instance coding binding; actual job submission still needs that
+binding. Keep existing read scopes deliberate. To discuss process changes,
+include the relevant `workflows/**`, `agents/**`, `schedules/**` and connection
+definitions; governance and roster must be available for rights changes.
+
+The Builder reads the existing process, resolves ambiguous targets, asks only
+material unanswered questions and prepares a versioned before/after brief.
+The resolved request starts isolated coding without a redundant start click.
+The current human message continues through an authorized Builder handoff;
+private history and Tool grants do not transfer. Existing normal chat routing
+is preserved when the sole operating Agent gains a Builder alongside it.
+
+## Configure result acceptance
+
+The Core accepts this optional policy in `.companyos/governance.yaml`. Member
+and group ids must resolve to the roster. The names below are synthetic;
+choose each company's existing membership and actual deployment delegation.
+
+```yaml
+builder:
+  release:
+    version: 1
+    acceptance:
+      content:
+        mode: requester
+        eligible: { members: [], groups: [employees] }
+        independent: false
+      behavior:
+        mode: requester
+        eligible: { members: [], groups: [process-editors] }
+        independent: false
+      security:
+        mode: steward
+        eligible: { members: [workspace-steward], groups: [] }
+        independent: false
+    deployers: { members: [workspace-steward], groups: [process-editors] }
+```
+
+`workspace-steward` must be a roster member assigned Workspace Steward
+responsibility. With `review_mode: independent-review`, security's
+`independent` must be true. Do not change review mode to grant ordinary member
+self-acceptance. Eligibility applies to the actual change class. Production
+release also requires membership in `deployers`; writing the policy does not
+install a provider executor or give anyone repository credentials.
+
+The Core Release Coordinator and optional Chat integration can combine exact
+result acceptance and release in one action. The maintained Runner does not
+wire that action until a qualified trusted execution adapter is installed.
+It currently returns a reviewed draft. The new coordinator has no completed
+split-actor acceptance/deployment flow. A live trial, Preview preference or
+build request is never deployment authorization.
 
 ## Configure secrets and repository installation
 

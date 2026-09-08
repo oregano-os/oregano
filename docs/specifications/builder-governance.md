@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-27
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -46,10 +46,12 @@ implicit technical right.
 The Builder is selected like any other Company Agent: a deterministic
 `AgentResolver` evaluates exact trusted Agent Bindings. Merely selecting the
 Builder starts only a normal Runner conversation. A coding agent MUST NOT start
-until the authenticated requester confirms the exact objective, repository,
-and base revision through `builder.propose_change`.
+until the Builder has resolved the requested change and read the current
+affected process definitions. `builder.propose_change` admits a versioned
+source-grounded brief only after material questions are resolved. An explicit
+unchanged-scope development request requires no additional start click.
 
-Every confirmed request MUST create one idempotent durable Builder job.
+Every admitted request MUST create one idempotent durable Builder job.
 Duplicate delivery MUST NOT create a second execution or proposal. Jobs MUST
 support leases, recovery, timeout, requester-authorized cancellation, terminal
 evidence, and notification back to the source conversation.
@@ -204,11 +206,12 @@ provider integration as a workaround.
 
 ## 7. Pilot and graduation
 
-The initial Builder mode is proposal-only: a Human Contributor performs the
-merge and deployment after review. Increased automation requires 10–20 accurately
-predicted real changes and advances from content to behavior to security only
-through a separate approved decision. Production auto-merge is not part of
-this draft.
+The maintained hosted Builder remains proposal-only until its trusted release
+binding is implemented and qualified. Qualification must prove actual scope,
+current authority, exact candidate identity, retry behavior and production
+verification; an arbitrary count of prior changes is not a substitute.
+A separate Core Release Coordinator may merge and deploy after an authorized
+human accepts the exact result. The coding process remains proposal-only.
 
 ## 8. Required evidence and tests
 
@@ -262,9 +265,65 @@ trusted Git boundaries must hash the same globally ordered patch, and any
 trusted Git or Workbench validation change requires a rebuilt and rebound
 pinned snapshot before the gate is repeated.
 
-## 10. Open decisions
+## 10. Grounded intake, activation and release foundation
+
+A valid Workspace `agents/builder/instructions.md` declares desired Builder
+availability. The Instance supplies repository and coding execution bindings;
+`builder.enabled: true` is accepted only for compatibility and is no longer
+required. Missing execution bindings must allow scoped discovery and
+clarification while refusing coding submission. Removing the definition removes
+the compiled Builder; stale execution bindings then fail the build. Inclusion
+does not add handoff rules or divert the existing sole operating Agent's route.
+Existing scoped content is not expanded automatically. New generator output
+includes process, Agent, policy, schedule and connection definitions, plus the
+governance and roster needed for approval questions.
+
+The canonical intake procedure is [Prepare a Builder Change](../workbench/guides/prepare-builder-change.md).
+Core verifies current scoped reads for all existing targets and context
+references. Approval/access changes additionally require governance and roster
+reads. Unknown questions, unresolved decisions, unavailable context and a
+missing exact connected-test destination prevent admission. New-path claims
+are checked against the full source existence inventory without exposing
+out-of-scope file content. The employee reviews the finished result; source
+hashes alone do not establish semantic correctness.
+
+Actual-diff inspection includes uncommitted, staged, new, renamed and deleted
+files. A validated v3 plan under `.companyos/changes/` is evidence metadata and
+does not inherit security solely from the broad `.companyos/**` rule. Invalid,
+deleted or legacy plans, and explicit narrower protection rules, retain their
+normal classification. Core `.oregano/` plans are not exempted.
+
+An optional `builder.release` policy in `.companyos/governance.yaml` declares
+eligible named members/groups, requester or Steward acceptance by change
+class, independence, and production deployers. Security acceptance preserves
+Workspace Steward authority and the existing independent-review mode. Missing
+policy grants no automated release authority. The Artifact freezes the policy;
+release authorization must use the currently accepted policy and membership,
+not candidate-proposed permissions. One combined action may cover acceptance
+and deployment when the same human holds both authorities. A split-actor
+acceptance/deployment handoff is not yet implemented by the coordinator.
+
+The provider-neutral Release Coordinator and optional Chat binding implement
+exact-candidate admission, per-Instance leases, deterministic operation IDs,
+merge/build/migration/deploy/verify receipts, and verified live completion.
+Pending operations resume with the same ID; a provider adapter must reconcile
+ambiguous dispatch before retrying. Unknown errors stop the run without
+claiming live success. The optional Postgres store reuses existing runs,
+append-only events and lease tables, with no new DDL in the release path.
+Application rollback excludes migrations and does not undo external effects.
+
+This is a locally tested Core foundation. There is no maintained qualified
+GitHub/Vercel release execution adapter or automatic hosted wiring yet. The
+current default hosted worker still ends at a draft. Production readiness also
+requires provider conformance, durable-store integration evidence, pinned
+worker guidance, and the private Company's actual access/health proof.
+Optional Preview provisioning, shared-app test routing and migration
+qualification remain later capabilities; selecting them in a brief does not
+execute them.
+
+## 11. Remaining adoption work
 
 - appoint Process Stewards and Workspace Stewards for each pilot Workspace;
 - choose the isolated preview data and provider topology;
-- define authenticated external approval evidence for future automated merges;
-- approve the exact graduation metrics beyond proposal-only mode.
+- implement and qualify the trusted provider merge/release execution binding;
+- qualify durable release storage, hosted protection and actual production verification.
