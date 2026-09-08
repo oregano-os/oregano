@@ -16,6 +16,9 @@ import {
   resolveBuilderActionCard,
 } from "./action-cards.ts";
 import { runnerTurnPresentation } from "./presentation.ts";
+import { builderFeedbackKey } from "./functional-tests.ts";
+import type { BuilderTestSession } from "../../../../runtime/builder/functional-tests.ts";
+import { assertBuilderTestScope } from "./functional-test-execution.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -60,6 +63,25 @@ export function createBuilderChatIntegration(args: {
       const contextKey = `builder-context:${sha256({ artifact: args.artifact.artifactHash, requester, thread: thread.id })}`;
 
       const output: ToolSet = {};
+      output.builder_instance_capabilities = tool({
+        description: "Read currently configured Instance capabilities and designated test resources before choosing a connected test. Missing entries require Instance setup; never invent provider access.",
+        inputSchema: jsonSchema({ type: "object", properties: {}, additionalProperties: false }),
+        execute: async () => ({ capabilities: args.artifact.bindings.map((binding) => ({ capability: binding.capability, version: binding.contractVersion })),
+          testResources: builder?.testResources ?? [], supportedConnectedTests: ["read-only Agent reply", "operator workflow without messages, timers or intermediate decisions"],
+          providerAccess: "Configured bindings; actual provider access is independently verified during the test." }),
+      });
+      output.builder_read_test_result = tool({
+        description: "Read the previous candidate, its actual test summary and authenticated change request in this conversation. Rebuild the complete original change plus this feedback against the current Workspace source; re-read the affected definitions.",
+        inputSchema: jsonSchema({ type: "object", properties: {}, additionalProperties: false }),
+        execute: async () => {
+          const session = await args.state.get<BuilderTestSession>(builderFeedbackKey(thread.id, requester));
+          if (!session?.feedback || session.requester !== requester || session.sourceConversation !== thread.id) return { available: false };
+          const previous = await createJobs().get(session.jobId);
+          return { available: true, jobId: session.jobId, candidateCommit: session.candidateCommit,
+            previousBrief: previous?.brief?.brief, result: session.result?.summary, feedback: session.feedback,
+            liveActionInvalidated: session.stage === "changes-requested" };
+        },
+      });
       output.builder_list_context = tool({
         description: "Discover scoped Workspace files before discussing a change. Lists workflows, Agents, policies and structures actually available to this Builder. Search by name; read matching files before describing current behavior.",
         inputSchema: jsonSchema({ type: "object", additionalProperties: false, properties: { query: { type: "string", maxLength: 256 } } }),
@@ -95,6 +117,16 @@ export function createBuilderChatIntegration(args: {
           execute: async (input: unknown) => {
             if (!builder) throw new Error("Builder can clarify this change, but coding requires the Instance repository and execution bindings to be configured.");
             const parsed = parseBuilderBrief(input);
+            if (parsed.test.strategy === "test-resources") {
+              if (!parsed.test.execution || !parsed.test.targetBindings.length
+                || parsed.test.targetBindings.some((id) => !builder.testResources?.some((resource) => resource.id === id))) {
+                throw new Error("Before coding, choose a concrete supported Agent or workflow test and existing qualified Instance test resources. Missing capabilities require Instance setup.");
+              }
+              const selected = builder.testResources!.filter((resource) => parsed.test.targetBindings.includes(resource.id));
+              assertBuilderTestScope(args.artifact, selected);
+              if (selected.filter((resource) => resource.capability === "communication.message.publish").length !== 1
+                || selected.some((resource) => !args.artifact.bindings.some((binding) => binding.capability === resource.capability))) throw new Error("The selected test needs one configured test conversation and available capabilities.");
+            }
             const paths = [...new Set([...parsed.contextRefs, ...parsed.targetPaths, ".companyos/governance.yaml", "handbook/roster.md"])];
             const receipts = await Promise.all(paths.map((path) => args.state.get<BuilderContextRead>(`${contextKey}:${sha256(path)}`)));
             const brief = groundBuilderBrief({
@@ -116,6 +148,10 @@ export function createBuilderChatIntegration(args: {
               repositoryId: builder.repository.repositoryId,
               baseCommit: brief.workspaceCommit,
             }));
+            const feedback = await args.state.get<BuilderTestSession>(builderFeedbackKey(thread.id, requester));
+            if (feedback?.stage === "changes-requested" && feedback.requester === requester && feedback.sourceConversation === thread.id) {
+              await args.state.setIfNotExists(`builder:test-parent:${job.jobId}`, feedback.id);
+            }
             await thread.post(builderQueuedActionCard(job));
             return {
               ok: true,

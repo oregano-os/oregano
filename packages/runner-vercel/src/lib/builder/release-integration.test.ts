@@ -9,7 +9,7 @@ import { createBuilderReleaseIntegration, releaseStatusCard } from "./release-in
 
 const candidate: ReleaseCandidate = { version: 1, id: "change", instanceId: "acme", repositoryId: "acme/workspace", targetBranch: "main", baseCommit: "a".repeat(40), candidateCommit: "b".repeat(40), candidateTree: "c".repeat(40), coreCommit: "d".repeat(40), configurationDigest: "1".repeat(64), policyDigest: "2".repeat(64), diffDigest: "3".repeat(64), checksDigest: "4".repeat(64), previousArtifactHash: "5".repeat(64), requester: "slack:T1:U1", sourceConversation: "slack:C1:thread", requiredChecks: ["companyos"], changeClass: "behavior" };
 const job = { state: "published", instanceId: candidate.instanceId, repositoryId: candidate.repositoryId, baseCommit: candidate.baseCommit, requesterPrincipal: candidate.requester, sourceConversationKey: candidate.sourceConversation, brief: { brief: { deploymentIntent: "after-acceptance", proposedBehavior: "The report starts with a short summary.", acceptanceCriteria: ["Summary precedes tickets"] } }, evidence: { proposal: { proposalCommit: candidate.candidateCommit } } } as unknown as BuilderJob;
-function fixture(prepared: ReleaseCandidate | Error = candidate) {
+function fixture(prepared: ReleaseCandidate | Error = candidate, beforeAccept?: (candidate: ReleaseCandidate, actor: string, actionId: string) => Promise<void>) {
   const values = new Map<string, unknown>(); const messages: unknown[] = []; const accepted: unknown[] = []; const handlers = new Map<string, (event: any) => Promise<void>>();
   let fallbacks = 0;
   const thread = { id: candidate.sourceConversation, async post(card: unknown) { messages.push(card); }, adapter: { async editMessage(_thread: string, _id: string, card: unknown) { messages.push(card); } } };
@@ -20,6 +20,7 @@ function fixture(prepared: ReleaseCandidate | Error = candidate) {
     coordinator: { async accept(value, actor, digest) { accepted.push({ value, actor, digest }); return run; }, async rollback() { return run; } },
     authenticatedPrincipal: (author: Author) => author.userId === "U1" ? candidate.requester : undefined,
     async prepareCandidate() { if (prepared instanceof Error) throw prepared; return prepared; }, fallback: { async deliver() { fallbacks++; } },
+    beforeAccept,
   });
   const click = async (threadId = thread.id, userId = "U1") => {
     const key = [...values.keys()][0];
@@ -38,6 +39,28 @@ test("qualified Chat release binding accepts one exact published result under th
   assert.doesNotMatch(JSON.stringify(f.messages), /This exact change is live/);
   await f.integration.notify({ ...f.run, stage: "live" });
   assert.match(JSON.stringify(f.messages), /This exact change is live/);
+});
+
+test("the authenticated click must freeze its exact functional result before release acceptance", async () => {
+  let available = false;
+  const calls: unknown[] = [];
+  const tested = { ...candidate, functionalTestDigest: "6".repeat(64) };
+  const f = fixture(tested, async (value, actor, actionId) => {
+    calls.push({ value, actor, actionId });
+    assert.equal(f.accepted.length, 0, "release cannot begin before the test gate");
+    if (!available) throw new Error("private-stale-test-evidence");
+  });
+  f.integration.registerHandlers(); await f.integration.notifier.deliver(job);
+  assert.equal(calls.length, 0, "displaying a card is not human acceptance");
+  await f.click("another-conversation"); await f.click(candidate.sourceConversation, "unknown");
+  assert.equal(calls.length, 0);
+  await f.click();
+  assert.equal(f.accepted.length, 0, "failed or superseded tests cannot release");
+  assert.doesNotMatch(JSON.stringify(f.messages), /private-stale-test-evidence/);
+  available = true;
+  await f.click();
+  assert.deepEqual(calls.at(-1), { value: tested, actor: candidate.requester, actionId: "card" });
+  assert.deepEqual(f.accepted, [{ value: tested, actor: candidate.requester, digest: sha256(tested) }]);
 });
 
 test("a live action cannot cross conversations or use an unknown chat identity", async () => {

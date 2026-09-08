@@ -5,7 +5,7 @@ import { findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from
 import { sha256 } from "../../runtime/canonical.ts";
 
 export interface WorkflowSlackApi {
-  call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies", args: Record<string, string>): Promise<Record<string, any>>;
+  call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies" | "chat.getPermalink", args: Record<string, string>): Promise<Record<string, any>>;
 }
 export interface WorkflowSlackDestination { id: string; accountId: string; channelId?: string; userId?: string; kind: "channel" | "direct-message" }
 
@@ -26,6 +26,16 @@ export function workflowSlackDestination(artifact: CompanyOSArtifact, destinatio
 export class WorkflowSlackTransport {
   readonly #api: WorkflowSlackApi;
   constructor(api: WorkflowSlackApi) { this.#api = api; }
+  async permalink(threadReference: string): Promise<string> {
+    const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(threadReference);
+    if (!match) throw new Error("A permalink needs an exact Slack conversation.");
+    const response = await this.#api.call("chat.getPermalink", { channel: match[1]!, message_ts: match[2]! });
+    if (response.ok !== true || response.channel !== match[1] || typeof response.permalink !== "string") throw new Error("Slack returned no matching test permalink.");
+    const url = new URL(response.permalink);
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".slack.com") || url.username || url.password
+      || !url.pathname.startsWith(`/archives/${match[1]}/`)) throw new Error("Slack returned an invalid test permalink.");
+    return url.href;
+  }
   async account(): Promise<string> {
     const auth = await this.#api.call("auth.test", {});
     if (auth.ok !== true || typeof auth.team_id !== "string" || !/^[A-Z0-9]{5,32}$/.test(auth.team_id)) throw new Error("Slack token has no verified account");

@@ -9,6 +9,10 @@ import { createBuilderReleaseIntegration } from "./release-integration.ts";
 import { createBuilderChatNotifier } from "./chat-notifier.ts";
 import { createPostgresKnowledgeProvider } from "../../../../state-postgres/knowledge-store.ts";
 import { createPostgresWorkflowExecutionStore } from "../../../../state-postgres/workflow-store.ts";
+import { createPostgresBuilderTestStore } from "../../../../state-postgres/builder-test-store.ts";
+import { BuilderFunctionalTests } from "../../../../runtime/builder/functional-tests.ts";
+import { createBuilderFunctionalTestIntegration } from "./functional-tests.ts";
+import { executeBuilderFunctionalTest } from "./functional-test-execution.ts";
 
 export function builderInstanceYaml(environment: NodeJS.ProcessEnv = process.env): string | undefined {
   const encoded = environment.COMPANYOS_BUILDER_INSTANCE_YAML_BASE64;
@@ -30,15 +34,23 @@ export function createBuilderReleaseRuntime(args: {
   const instanceYaml = builderInstanceYaml();
   if (!instanceYaml) throw new Error("Builder production compilation needs the exact non-secret Instance definition.");
   const state = createPostgresReleasePrivateState();
+  const functionalTests = new BuilderFunctionalTests(createPostgresBuilderTestStore());
   const host = new VercelProductionReleaseHost({ binding, state, token: process.env.COMPANYOS_VERCEL_RELEASE_TOKEN ?? "",
     ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { healthHeaders: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET } } : {}) });
-  const execution = new HostedBuilderReleaseAdapter({ artifact, instanceYaml, state, host,
+  const execution = new HostedBuilderReleaseAdapter({ artifact, instanceYaml, state, host, functionalTests,
     knowledge: createPostgresKnowledgeProvider(), environment: process.env,
     artifacts: createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false }),
     github: getGitHubRepositoryProvider(), compiler: getTrustedGitExecution() });
   const coordinator = new ReleaseCoordinator({ store: createPostgresReleaseRunStore(), execution,
     leaseMs: 300000, notify: async (run) => integration.notify(run) });
   const integration = createBuilderReleaseIntegration({ ...args, coordinator,
-    prepareCandidate: (job) => execution.prepareCandidate(job), fallback: createBuilderChatNotifier(args.chat) });
-  return { ...integration, advance: (workerId: string) => coordinator.advance(artifact.instance.id, workerId) };
+    prepareCandidate: (job) => execution.prepareCandidate(job), beforeAccept: (candidate, actor, actionId) => execution.acceptFunctionalTest(candidate, actor, actionId),
+    fallback: createBuilderChatNotifier(args.chat) });
+  const tests = createBuilderFunctionalTestIntegration({ ...args, artifact, tests: functionalTests,
+    compile: (job) => execution.compileTestArtifact(job),
+    execute: (candidate, session) => executeBuilderFunctionalTest({ artifact: candidate, production: artifact, session, store: functionalTests.store, chat: args.chat }),
+    ready: integration.notifier, fallback: createBuilderChatNotifier(args.chat) });
+  return { ...integration, notifier: tests.notifier, receive: tests.receive,
+    registerHandlers() { integration.registerHandlers(); tests.registerHandlers(); },
+    advance: (workerId: string) => coordinator.advance(artifact.instance.id, workerId) };
 }

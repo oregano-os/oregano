@@ -15,6 +15,7 @@ export interface WorkspaceReleasePolicy {
   readonly deployers: ReleaseSelector;
 }
 export interface ReleaseCandidate {
+  readonly functionalTestDigest?: string;
   readonly version: 1;
   readonly id: string;
   readonly instanceId: string;

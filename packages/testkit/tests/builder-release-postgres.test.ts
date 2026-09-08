@@ -5,9 +5,35 @@ import { sha256 } from "../../runtime/canonical.ts";
 import { createPostgresReleasePrivateState, createPostgresReleaseRunStore } from "../../state-postgres/release-run-store.ts";
 import type { ReleaseCandidate } from "../../runtime/release/contracts.ts";
 import type { ReleaseRun } from "../../state-store/release-runs.ts";
+import { createPostgresBuilderTestStore } from "../../state-postgres/builder-test-store.ts";
+import { BuilderFunctionalTests, builderTestResultDigest } from "../../runtime/builder/functional-tests.ts";
+import { builderFunctionalFixture } from "../builder-functional-fixture.ts";
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required release database configuration is missing.");
+
+test("Postgres functional-test acceptance survives restart and races atomically with feedback", { skip: !enabled }, async () => {
+  const f = builderFunctionalFixture();
+  try {
+    const prepared = { ...f.session, id: `builder-test-${sha256(randomUUID()).slice(0, 40)}` };
+    const store = createPostgresBuilderTestStore(), service = new BuilderFunctionalTests(store);
+    await store.create(prepared);
+    await service.begin(prepared.id, f.candidate.artifactHash, "slack:C20002:2.0", "https://example.slack.com/archives/C20002/p2000000");
+    const reviewed = await service.recordResult(prepared.id, { artifactHash: f.candidate.artifactHash, candidateCommit: prepared.candidateCommit,
+      executionDigest: prepared.scopeDigest, summary: "Synthetic fixture result", completedAt: new Date().toISOString(), evidence: { synthetic: true } });
+    assert.equal((await createPostgresBuilderTestStore().create(prepared)).stage, "reviewable", "notification reconstruction must preserve the existing result");
+    const restarted = new BuilderFunctionalTests(createPostgresBuilderTestStore());
+    const results = await Promise.allSettled([
+      service.requestFeedback(prepared.id, prepared.requester),
+      restarted.accept(prepared.id, { principal: prepared.requester, actionId: "synthetic-action", resultDigest: builderTestResultDigest(reviewed), acceptedAt: new Date().toISOString() }),
+    ]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    const final = await createPostgresBuilderTestStore().get(prepared.id);
+    assert.equal(final?.revision, 3);
+    assert.ok(final?.stage === "feedback-pending" || final?.stage === "accepted");
+    await assert.rejects(store.create({ ...prepared, candidateCommit: "f".repeat(40) }), /conflicts/);
+  } finally { f.cleanup(); }
+});
 
 test("Postgres release snapshots retain exact acceptance, fence concurrent saves and recover expired leases", { skip: !enabled }, async () => {
   const id = randomUUID(), now = "2031-04-05T12:00:00.000Z";

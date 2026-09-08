@@ -124,9 +124,8 @@ A request, live-trial preference or Preview choice never grants release authorit
 The initial automatic release profile supports `test.strategy: auto`: independent
 Workbench validation, protected CI, human result acceptance, staged production
 health and final live verification. These checks do not claim functional simulation
-or provider test effects. A selected simulation, connected test, live trial or
-migration needs its own qualified evidence adapter and remains outside this
-initial automatic profile.
+or provider test effects. A general simulation, live trial or migration needs its own qualified evidence
+adapter. The connected profile below supplies its own exact test evidence.
 
 ## Bind trusted production release
 
@@ -145,12 +144,11 @@ Keep these values in the Company Instance, never in the Workspace:
 
 The GitHub App requires Contents and Pull requests write, plus Checks and
 Administration read for release inspection. Customers select the exact repository.
-The target branch must enforce strict up-to-date required checks pinned to their
-producer App, no force pushes/deletions/bypass, and enforcement for administrators.
-Existing review requirements still apply. A provider plan that cannot enforce
-these controls blocks automatic release; it does not justify a public repository
-or a bypass. The default branch is `main` for this release binding; explicitly
-bind another target when the company's verified default differs.
+Existing branch protection remains enforced. An unprotected private target uses
+Core's exact non-forcing fast-forward and human-confirmed merge path; it requires
+no paid hosting plan. The default target is `main`; explicitly bind a different
+verified company target where applicable. Company repository pushes must not
+independently activate a new production Artifact.
 
 The trusted host reuses the exact current Core deployment as the build source.
 It compiles the merged Workspace in a separate offline sandbox, builds with the
@@ -390,9 +388,9 @@ the exact new Workspace/Artifact while retaining qualified resources, enabled
 workflow IDs, schedules and operators. No credentials are copied. Changes to
 record sources, connections or the Records identity roster require renewed
 qualification; they remain reviewable proposals until that evidence is supplied.
-The live profile currently supports `auto` tests. Connected trials, new provider
-resources, data migrations and split acceptance/deployment actors require a
-separately qualified execution path and must not be presented as automatic.
+The live profile supports `auto` and the bounded connected test profile below.
+General live trials, new provider resources, data migrations and split
+acceptance/deployment actors still require a separately qualified path.
 
 If CI or Instance readiness is still pending, the chat delivers the built draft
 and a **Check readiness** action. This action only refreshes evidence; it never
@@ -422,3 +420,49 @@ Manual deployments must carry the current exact Artifact and rebound non-secret
 configurations forward. The Builder stores them durably with its release; it
 does not silently overwrite project-level environment variables. Production
 verification also compares Vercel's actual Git source commit with Core provenance.
+
+
+## Configure and prove a connected functional test
+
+Core 0.8.0 and Workbench 0.1.0-experimental.18 add a bounded connected profile.
+Place exact test scopes in the existing non-secret Instance definition:
+
+```yaml
+builder:
+  # Keep the existing execution, coding_agent and repository bindings.
+  test_resources:
+    - id: test-channel
+      capability: communication.message.publish
+      match: { destination_binding: existing-test-channel }
+    - id: test-report-item
+      capability: work-item.comment
+      match: { resource_binding: existing-test-board, work_item_id: "42" }
+```
+
+These are fictional values. Use already qualified resources for the company.
+The list grants no new provider scope and contains no credentials. The first
+profile requires one existing Slack channel for result delivery and supports
+read-only Agent replies and immediate operator workflow graphs with bounded
+work-item capabilities. It excludes workflow messages, timers, intermediate
+human decisions and automatic production-to-test resource remapping.
+
+1. Builder reads the current definitions and Instance capabilities, resolves the
+   test and starts coding from the grounded brief.
+2. Trusted Workbench checks publish a candidate. Core compiles that exact
+   unmerged candidate with the current Core and Instance configuration.
+3. Core runs the selected test and delivers its result and permalink. Workflow
+   state and timers use separate storage namespaces, with normal effect control.
+4. The requester reviews it. **Request changes** disables the old live action;
+   the following authenticated message supplies feedback for a fresh build/test.
+5. The authorized human uses one **Merge and make live** action for the accepted
+   test result. Current acceptance and deployment permissions both apply.
+6. Core merges, compiles production, stages without domain assignment, verifies
+   staged health, promotes and verifies the actual live identity. The test digest
+   and provider receipts remain associated with that release.
+
+A failed or ambiguous test never enables merge. Do not repeat provider writes to
+repair a lost test receipt. Inspect retained session and workflow evidence before
+a fresh attempt. An Agent reply test does not prove its handoff or Tool behavior;
+a short workflow test does not qualify a timed multi-party process. Complete
+pilot evidence includes actual human feedback and acceptance, not just synthetic
+fixtures, successful compilation or an operator's asserted principal.

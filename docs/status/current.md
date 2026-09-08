@@ -20,6 +20,19 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Core 0.8.0 adds a bounded connected Builder functional-test profile. It compiles
+  the exact unmerged proposal, executes a read-only Agent reply or an immediate
+  operator workflow, and retains exact resource scope, execution and delivery
+  evidence before presenting merge/live acceptance. Feedback invalidates the old
+  result; acceptance and feedback use a durable atomic revision. The same test
+  digest is checked again before merge. Test workflow state, dispatch fences and
+  timers have separate storage namespaces while retaining exact Artifact identity.
+  The employee uses the existing provider app and designated test resources.
+  Timed workflows, intermediate decisions, conversational Tools, general resource
+  remapping, live trials and migrations remain outside this initial test profile.
+  Synthetic compiler/engine/Chat tests and actual Postgres isolation tests do not
+  establish a customer's two requested human-feedback-to-live proofs.
+
 - Standard setup now requires an explicit choice of OpenAI or Anthropic and
   binds its direct recipe, maintained model and Sensitive Production key
   destination to the single resource/cost review. Other models/providers require
@@ -42,6 +55,12 @@ evidence, historical prototypes, and production gaps.
   Missing replies on retry now expose exact Slack URL-verification and Connect
   delivery recovery; explicit subscriptions without `message.im` are refused.
   Provider synchronization and URL challenges do not qualify a model reply.
+
+- The repository qualification correction fixes the repository-scoped release client to allow GitHub's
+  exact `base...head` comparison while rejecting literal or encoded path
+  traversal. The hosted trusted Git fixture uses the current Change Plan and
+  Workspace document contracts, explicitly governed paths and an executable scope test.
+  It is tested through actual Workspace validation and final release classification.
 
 - Core 0.7.0 adds explicit human-confirmed Builder merges for unprotected
   repositories. A non-forcing fast-forward adopts only the exact single-parent
@@ -75,7 +94,7 @@ evidence, historical prototypes, and production gaps.
   races pass in an isolated database. A shared image recipe packages pinned coding
   profiles, CLI and Guides for separate coding and trusted executions. Actual
   company provider access and request-to-live qualification are still required;
-  this source status does not claim a customer deployment. Connected simulations,
+  this source status does not claim a customer deployment. General simulations,
   live-trial execution, optional Preview orchestration, arbitrary migrations and
   split-actor acceptance/deployment remain outside the initial automatic profile.
 - The Core 0.6.1 hosting correction separates remote proposal validation from

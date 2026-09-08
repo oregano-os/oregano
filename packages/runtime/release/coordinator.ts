@@ -26,6 +26,7 @@ export function assertReleaseCandidate(candidate: ReleaseCandidate): void {
   if (!["content", "behavior", "security"].includes(candidate.changeClass)) throw new Error("Release change class is invalid.");
   if (!candidate.requiredChecks.length || new Set(candidate.requiredChecks).size !== candidate.requiredChecks.length) throw new Error("Release requires named unique checks.");
   if (JSON.stringify(candidate).length > 30000) throw new Error("Release candidate is too large.");
+  if (candidate.functionalTestDigest !== undefined) assertSha256(candidate.functionalTestDigest, "functional test digest");
   if (candidate.migration) { assertSha256(candidate.migration.digest, "migration digest"); if (!candidate.migration.id) throw new Error("Migration identity is required."); }
 }
 function assertArtifact(candidate: ReleaseCandidate, mergedCommit: string, receipt: ProductionArtifactReceipt): void {

@@ -1,0 +1,111 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { BuilderFunctionalTests, builderTestResultDigest, prepareBuilderTestSession, scopeBuilderTestConnector,
+  type BuilderTestSession, type BuilderTestStore } from "../../runtime/builder/functional-tests.ts";
+import type { BuilderJob } from "../../state-store/builder-jobs.ts";
+import { sha256 } from "../../runtime/canonical.ts";
+
+function fixture() {
+  const job = { jobId: "builder-example", instanceId: "example", repositoryId: "example/company", requesterPrincipal: "slack:TEAM:HUMAN",
+    sourceConversationKey: "slack:CHANNEL:1.0", baseCommit: "a".repeat(40), state: "published",
+    brief: { artifactHash: "d".repeat(64), digest: "e".repeat(64), brief: { test: { strategy: "test-resources", targetBindings: ["test-board"] } } },
+    evidence: { proposal: { jobId: "builder-example", repositoryId: "example/company", baseCommit: "a".repeat(40), proposalCommit: "b".repeat(40) },
+      validation: { validationPassed: true, releaseChangeClass: "behavior", checks: [{ id: "validate", evidenceDigest: "f".repeat(64) }] } },
+  } as unknown as BuilderJob;
+  const session = prepareBuilderTestSession({ job, coreCommit: "c".repeat(40), resources: [
+    { id: "test-board", capability: "work-item.comment", match: { resource_binding: "designated-test-board", work_item_id: "42" } },
+  ], execution: { kind: "workflow", workflowId: "example-workflow", fields: { report_id: "example" } } });
+  const values = new Map<string, BuilderTestSession>();
+  const store: BuilderTestStore = {
+    get: async (id) => structuredClone(values.get(id)),
+    create: async (value) => { if (!values.has(value.id)) values.set(value.id, structuredClone(value)); return structuredClone(values.get(value.id)!); },
+    replace: async (previous, next) => {
+      if (sha256(values.get(previous.id)) !== sha256(previous)) return false;
+      values.set(previous.id, structuredClone(next)); return true;
+    },
+  };
+  const service = new BuilderFunctionalTests(store);
+  const begin = async () => { await store.create(session); return service.begin(session.id, "1".repeat(64), "slack:TEST:2.0"); };
+  const complete = async () => {
+    await begin();
+    return service.recordResult(session.id, { artifactHash: "1".repeat(64), candidateCommit: job.evidence && (job.evidence as any).proposal.proposalCommit,
+      executionDigest: session.scopeDigest, completedAt: "2026-09-08T12:00:00Z", summary: "The changed workflow posted its revised report.",
+      evidence: { provider: "synthetic", commentId: "test-comment" } });
+  };
+  return { job, session, store, service, begin, complete };
+}
+
+test("selected resources require trusted Instance qualification before preparing a candidate test", () => {
+  const f = fixture();
+  assert.throws(() => prepareBuilderTestSession({ job: f.job, coreCommit: f.session.coreCommit, resources: [], execution: f.session.execution }), /not qualified/);
+});
+
+test("a selected test strategy or running test never satisfies the release gate", async () => {
+  const f = fixture();
+  await assert.rejects(() => f.service.releaseEvidence(f.job, false), /no current/);
+  await f.begin();
+  await assert.rejects(() => f.service.releaseEvidence(f.job, false), /no current/);
+  await assert.rejects(() => f.service.recordResult(f.session.id, { artifactHash: "2".repeat(64), candidateCommit: f.session.candidateCommit,
+    executionDigest: f.session.scopeDigest, completedAt: "2026-09-08T12:00:00Z", summary: "Wrong Artifact", evidence: {} }), /exact execution/);
+});
+
+test("real result precedes one candidate-bound acceptance; replay cannot change the accepting human", async () => {
+  const f = fixture(), reviewed = await f.complete();
+  const resultDigest = builderTestResultDigest(reviewed);
+  assert.equal((await f.service.releaseEvidence(f.job, false)).digest, resultDigest);
+  await assert.rejects(() => f.service.releaseEvidence(f.job, true), /no current/);
+  await assert.rejects(() => f.service.accept(f.session.id, { principal: f.session.requester, actionId: "action-1", resultDigest: "0".repeat(64), acceptedAt: "2026-09-08T12:01:00Z" }), /exact current/);
+  await f.service.accept(f.session.id, { principal: f.session.requester, actionId: "action-1", resultDigest, acceptedAt: "2026-09-08T12:01:00Z" });
+  assert.equal((await f.service.releaseEvidence(f.job, true)).session.acceptance?.principal, f.session.requester);
+  await assert.rejects(() => f.service.accept(f.session.id, { principal: "other", actionId: "action-2", resultDigest, acceptedAt: "2026-09-08T12:02:00Z" }));
+});
+
+test("feedback invalidates acceptance and cannot be attributed to another human", async () => {
+  const f = fixture(), reviewed = await f.complete(), resultDigest = builderTestResultDigest(reviewed);
+  const feedback = { principal: f.session.requester, messageId: "human-message", text: "Show the summary before the task list.", receivedAt: "2026-09-08T12:01:00Z" };
+  await assert.rejects(() => f.service.requestChanges(f.session.id, { ...feedback, principal: "other" }), /authenticated requester/);
+  await f.service.requestChanges(f.session.id, feedback);
+  await assert.rejects(() => f.service.releaseEvidence(f.job, false), /no current/);
+  await assert.rejects(() => f.service.accept(f.session.id, { principal: f.session.requester, actionId: "stale-card", resultDigest, acceptedAt: "2026-09-08T12:02:00Z" }));
+});
+
+test("changed source, checks or brief cannot reuse a functional-test receipt", async () => {
+  const f = fixture(); await f.complete();
+  for (const change of ["source", "checks", "brief"]) {
+    const changed = structuredClone(f.job) as any;
+    if (change === "source") changed.evidence.proposal.proposalCommit = "f".repeat(40);
+    if (change === "checks") changed.evidence.validation.checks = [];
+    if (change === "brief") changed.brief.digest = "0".repeat(64);
+    await assert.rejects(() => f.service.releaseEvidence(changed, false), /no current/);
+  }
+});
+
+test("simultaneous feedback and acceptance have exactly one winner", async () => {
+  const f = fixture(), reviewed = await f.complete();
+  const results = await Promise.allSettled([
+    f.service.requestChanges(f.session.id, { principal: f.session.requester, messageId: "feedback", text: "Please revise.", receivedAt: "2026-09-08T12:01:00Z" }),
+    f.service.accept(f.session.id, { principal: f.session.requester, actionId: "accept", resultDigest: builderTestResultDigest(reviewed), acceptedAt: "2026-09-08T12:01:00Z" }),
+  ]);
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const current = await f.store.get(f.session.id);
+  assert.ok(current?.feedback ? !current.acceptance : !!current?.acceptance);
+});
+
+test("test connector blocks live resources, foreign runs and inactive tests before provider dispatch", async () => {
+  const f = fixture(); let calls = 0, active = true;
+  const connector = scopeBuilderTestConnector({ id: "example", version: "1.0.0", capabilities: ["work-item.comment"],
+    invoke: async () => { calls++; return { output: { comment_id: "42" }, evidence: { synthetic: true } }; } }, {
+      instanceId: f.session.instanceId, runId: `${f.session.id}:run`, resources: f.session.resources,
+      assertActive: async () => { if (!active) throw new Error("Test is closed."); },
+    });
+  const context = { instanceId: f.session.instanceId, runId: `${f.session.id}:run`, stepId: "publish", agentId: "example", toolId: "comment" };
+  const input = { resource_binding: "designated-test-board", work_item_id: "42", body: "Test result" };
+  await connector.invoke("work-item.comment", input, context);
+  await assert.rejects(() => connector.invoke("work-item.comment", { ...input, resource_binding: "live-board" }, context));
+  await assert.rejects(() => connector.invoke("work-item.comment", { ...input, work_item_id: "99" }, context));
+  await assert.rejects(() => connector.invoke("work-item.comment", input, { ...context, runId: "production-run" }));
+  await assert.rejects(() => connector.invoke("work-item.update", input, context));
+  active = false;
+  await assert.rejects(() => connector.invoke("work-item.comment", input, context));
+  assert.equal(calls, 1);
+});

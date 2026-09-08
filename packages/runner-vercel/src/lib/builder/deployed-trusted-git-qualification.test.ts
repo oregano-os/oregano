@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { inspectProposalWorkspace, sha256 } from "../../../../runtime/repository/proposal-inspection.ts";
 import { qualificationDiff } from "./deployed-trusted-git-qualification.ts";
+import { classifyBuilderRelease } from "../../../../cli/src/builder-release-inspection.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -14,12 +15,11 @@ test("trusted Git qualification fixture matches the independently observed propo
   const fixture = await mkdtemp(join(tmpdir(), "companyos-trusted-git-fixture-"));
   const repository = join(fixture, "repository");
   try {
-    await mkdir(repository);
+    await cp(resolve(import.meta.dirname, "../../../../testkit/fixtures/acme-casas"), repository, { recursive: true });
     await git(repository, ["init", "--initial-branch=main"]);
     await git(repository, ["config", "user.name", "CompanyOS Test"]);
     await git(repository, ["config", "user.email", "companyos-test@example.invalid"]);
-    await writeFile(join(repository, "README.md"), "# Qualification fixture\n", "utf8");
-    await git(repository, ["add", "README.md"]);
+    await git(repository, ["add", "."]);
     await git(repository, ["commit", "-m", "Create fixture"]);
     const baseCommit = (await git(repository, ["rev-parse", "HEAD"])).trim();
     const diff = qualificationDiff();
@@ -31,12 +31,21 @@ test("trusted Git qualification fixture matches the independently observed propo
     await git(repository, ["add", "-N", "--all"]);
     const codingDiff = await git(repository, ["diff", "--binary", "--no-ext-diff", baseCommit, "--"]);
 
+    const cli = resolve(import.meta.dirname, "../../../../cli/src/cli.mjs");
+    for (const args of [["validate", repository], ["inspect", repository, "--base", baseCommit,
+      "--plan", ".companyos/changes/2026-09-08-builder-trusted-git-qualification.yaml"], ["security", repository]]) {
+      await execFileAsync(process.execPath, [cli, ...args], { cwd: repository, encoding: "utf8" });
+    }
+
     assert.equal(inspection.diff, diff);
     assert.equal(inspection.diffDigest, sha256(diff));
+    assert.equal(classifyBuilderRelease(repository, baseCommit, inspection.changedPaths), "security");
+    await execFileAsync(process.execPath, ["--test", ".companyos/tests/builder-trusted-git-qualification.test.mjs"], { cwd: repository });
     assert.equal(codingDiff, diff);
     assert.deepEqual(inspection.changedPaths, [
-      ".companyos/changes/2026-08-26-builder-trusted-git-qualification.yaml",
-      "handbook/builder-trusted-git-qualification.md",
+      ".companyos/changes/2026-09-08-builder-trusted-git-qualification.yaml",
+      ".companyos/tests/builder-trusted-git-qualification.test.mjs",
+      "agents/builder/skills/trusted-git-qualification.md",
     ]);
   } finally {
     await rm(fixture, { recursive: true, force: true });

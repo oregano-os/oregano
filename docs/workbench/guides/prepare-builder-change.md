@@ -125,13 +125,36 @@ files in its isolated worker. It must preserve the brief's decisions, verify
 source-read digests, create the required Change Plan and stop for a newly
 encountered material decision. Trusted Workbench inspection, validation and
 security checks run outside the coding process before draft publication.
-The current worker does not yet bundle the complete matching Workbench and
-Guide library for interactive coding use; packaging and worker-image
-qualification remain separate delivery work. Do not claim those commands
-already ran inside the coding worker.
+The shared worker image includes the exact matching Workbench and Guides.
+Coding and independent validation still run in separate isolated executions.
 
 Starting development never accepts the result, merges it or deploys production.
 A qualified release binding presents the checked result and one combined
 accept-and-live action when the same person has both authorities. The
 unconfigured maintained Runner continues to return a draft for review. It must
 not show a working live action without a real trusted execution adapter.
+
+
+## Connected test and correction loop
+
+Call `builder_instance_capabilities` before selecting `test-resources`. Reuse
+listed Instance test resources; a missing capability or destination needs setup
+before coding. Do not ask to install another provider app for an existing binding.
+Include one exact `test.execution` in the brief:
+
+```json
+{"strategy":"test-resources","scenarios":["Review the revised answer"],"targetBindings":["test-channel"],"execution":{"kind":"agent","agentId":"assistant","prompt":"Explain the weekly report."}}
+```
+
+For a workflow use `execution: {kind: "workflow", workflowId: "report", fields: {}}`
+and the selected test channel plus exact work-item test resource. Current support
+is a read-only Agent reply or an immediate operator workflow without messages,
+waits or intermediate decisions. Report unsupported cases explicitly.
+
+Core tests the unmerged candidate and posts its actual result before the final
+merge/live action. The requester uses **Request changes**, then explains the
+correction in the original Builder conversation. Call `builder_read_test_result`
+to retrieve the previous brief, actual summary and authenticated feedback. Re-read
+the current definitions and create a complete revised brief. The previous test
+and live action cannot approve this rebuilt candidate. No extra start click is
+needed for a resolved correction request.
