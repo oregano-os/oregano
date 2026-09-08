@@ -283,11 +283,18 @@ Workbench version, governance hash, resolved toolset hash, and build timestamp.
 A rollback points to an existing immutable artifact; it does not rebuild old
 sources with new dependencies.
 
-The reference Runner receives its immutable Artifact as a gzip-compressed
-deployment environment value. It recomputes the content hash before accepting
-traffic and refuses an Artifact whose declared environment is not
-`production`. The value is generated from clean exact checkouts and is never a
-source of editable operating truth.
+The reference Runner can receive `COMPANYOS_ARTIFACT_HASH`, an exact SHA-256
+reference to an immutable Artifact retained in the existing Instance Postgres
+Artifact store. Its awaited Node startup hook reads and verifies that exact
+content before serving requests. Startup does not prepare database schemas,
+select a latest version, or fall back after a missing or corrupt reference.
+The cache belongs to one server process and cannot switch references.
+
+The legacy gzip-compressed deployment environment value remains supported when
+no reference is configured. Both paths verify the content hash and declared
+deployment environment. Artifacts originate from clean exact checkouts and
+are never editable operating truth. Retention removes the hosting environment
+size limit from Workspace content without adding another database or app.
 
 ## Maintained supervised starter
 

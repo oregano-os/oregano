@@ -19,17 +19,17 @@ const runRow = (row: Record<string, any>): WorkflowRun => ({
 });
 
 /** Every state transition, associated event and delivered assignment is one SQL transaction boundary. */
-export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
+export function createPostgresWorkflowExecutionStore(options: { prepareArtifactSchema?: boolean } = {}): WorkflowExecutionStore {
   const store: WorkflowExecutionStore = {
     async putArtifact(artifact) {
       assertWorkflowArtifact(artifact);
-      await ensureWorkflowExecutionSchema();
+      if (options.prepareArtifactSchema !== false) await ensureWorkflowExecutionSchema();
       await connection()`insert into companyos.workflow_artifacts(artifact_hash, instance_id, artifact_json)
         values (${artifact.artifactHash}, ${artifact.instance.id}, ${JSON.stringify(artifact)}::jsonb)
         on conflict (artifact_hash) do nothing`;
     },
     async getArtifact(hash) {
-      await ensureWorkflowExecutionSchema();
+      if (options.prepareArtifactSchema !== false) await ensureWorkflowExecutionSchema();
       const rows = await connection()`select artifact_json from companyos.workflow_artifacts where artifact_hash = ${hash}`;
       if (!rows[0]) return undefined;
       const artifact = json<CompanyOSArtifact>(rows[0].artifact_json);

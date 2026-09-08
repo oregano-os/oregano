@@ -8,6 +8,7 @@ import { HostedBuilderReleaseAdapter } from "./live-release-adapter.ts";
 import { createBuilderReleaseIntegration } from "./release-integration.ts";
 import { createBuilderChatNotifier } from "./chat-notifier.ts";
 import { createPostgresKnowledgeProvider } from "../../../../state-postgres/knowledge-store.ts";
+import { createPostgresWorkflowExecutionStore } from "../../../../state-postgres/workflow-store.ts";
 
 export function builderInstanceYaml(environment: NodeJS.ProcessEnv = process.env): string | undefined {
   const encoded = environment.COMPANYOS_BUILDER_INSTANCE_YAML_BASE64;
@@ -33,6 +34,7 @@ export function createBuilderReleaseRuntime(args: {
     ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { healthHeaders: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET } } : {}) });
   const execution = new HostedBuilderReleaseAdapter({ artifact, instanceYaml, state, host,
     knowledge: createPostgresKnowledgeProvider(), environment: process.env,
+    artifacts: createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false }),
     github: getGitHubRepositoryProvider(), compiler: getTrustedGitExecution() });
   const coordinator = new ReleaseCoordinator({ store: createPostgresReleaseRunStore(), execution,
     leaseMs: 300000, notify: async (run) => integration.notify(run) });

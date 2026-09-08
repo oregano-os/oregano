@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
+import { neonConfig } from "@neondatabase/serverless";
 import { createPostgresWorkflowExecutionStore } from "../../state-postgres/workflow-store.ts";
 import { createPostgresStateStore } from "../../state-postgres/store.ts";
 import { createPostgresDurableTimerStore } from "../../state-postgres/durable-timer-store.ts";
@@ -224,4 +225,42 @@ test("Postgres unknown batch evidence remains reviewable after reconstructing bo
   await assert.rejects(restarted.engine().resume(run.runId, ENGINE_OPERATOR), /reconciliation/);
   await restarted.engine().advance(run.runId); assert.equal(restarted.calls.length, 0);
   assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 1);
+});
+
+
+test("Postgres deployment startup reads the exact immutable Artifact without schema preparation", { skip: !enabled }, async () => {
+  const h = fixture();
+  h.artifact.instance.environment = "production";
+  const { artifactHash: _, ...content } = h.artifact;
+  h.artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
+  await h.store.putArtifact(h.artifact);
+  const reader = createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false });
+  const originalFetch = neonConfig.fetchFunction, fetchSql = originalFetch ?? fetch;
+  const previous = Object.fromEntries(["NEXT_RUNTIME", "VERCEL_ENV", "COMPANYOS_ARTIFACT_HASH"].map((key) => [key, process.env[key]]));
+  let reads = 0;
+  neonConfig.fetchFunction = async (url: string | URL | Request, init?: RequestInit) => {
+    const payload = JSON.parse(String(init?.body));
+    assert.match(payload.query, /^select artifact_json from companyos\.workflow_artifacts /);
+    reads++;
+    return fetchSql(url, init);
+  };
+  try {
+    assert.deepEqual(await reader.getArtifact(h.artifact.artifactHash), JSON.parse(JSON.stringify(h.artifact)));
+    assert.equal(await reader.getArtifact(sha256(randomUUID())), undefined);
+    const corrupt = structuredClone(h.artifact); corrupt.instance.id = "another-instance";
+    await assert.rejects(reader.putArtifact(corrupt), /pinned hash/);
+    Object.assign(process.env, { NEXT_RUNTIME: "nodejs", VERCEL_ENV: "production", COMPANYOS_ARTIFACT_HASH: h.artifact.artifactHash });
+    const { register } = await import("../../runner-vercel/src/instrumentation.ts");
+    const { loadArtifact } = await import("../../runner-vercel/src/lib/artifact.ts");
+    assert.throws(loadArtifact, /verified startup/);
+    await register();
+    assert.deepEqual(loadArtifact(), JSON.parse(JSON.stringify(h.artifact)));
+    await register();
+    assert.equal(reads, 3, "only the first startup reads the exact retained Artifact");
+  } finally {
+    neonConfig.fetchFunction = originalFetch;
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
 });
