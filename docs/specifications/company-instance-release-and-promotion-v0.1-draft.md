@@ -270,14 +270,27 @@ provider does not grant business approval.
 Merge is a mechanical repository action after required checks and approvals.
 CompanyOS defines no separate Merger authority role. A Human Contributor MAY
 enable hosted auto-merge or an authorized human with ordinary merge permission
-MAY execute the merge. The Git host MUST perform it only after all protected
-conditions are satisfied.
+MAY execute the merge. Existing hosted protection MUST remain enforced. The
+confirmed Builder path also supports repositories without hosted protection.
 
 The merge initiator does not create missing approval by clicking merge. A
 Platform Administrator MUST NOT use administrative bypass as the normal merge
 path. The Builder coding process remains proposal-only and MUST NOT merge its own
 change. A separate trusted Core Release Coordinator may perform the mechanical
-merge under a verified human acceptance and enforced hosted protections.
+merge under verified human acceptance. Before it starts, Chat MUST explicitly
+ask permission to merge the exact checked result; the combined action also
+names production adoption. Confirmation is bound to the candidate, checks,
+current company authority and merge strategy. On an unprotected branch, the
+maintained adapter MUST use a non-forcing fast-forward to the exact single-parent
+candidate. It MUST NOT synthesize a merge with concurrent unreviewed changes.
+Moved divergent bases require refreshed validation and confirmation. A successful
+fast-forward may have the candidate commit itself as its merge receipt.
+On protected branches the maintained adapter keeps the strict hosted-check and
+expected-head merge path. Provider errors MUST NOT silently select another path.
+
+This Core-controlled release protects what the Builder merges and deploys; it
+does not prevent administrators making manual changes to an unprotected Git
+branch. Such pushes MUST NOT independently activate a production Instance.
 
 The accepted revision becomes a Release Candidate. Production remains pinned
 to its prior recorded revision until deployment is authorized. That
@@ -381,8 +394,9 @@ Implementation of this contract requires tests proving at least:
 ## 14. Implementation status and open decisions
 
 The maintained initial Builder release profile is implemented behind Workspace
-acceptance/deployer policy and exact Company Instance bindings. GitHub protects
-and merges the independently checked candidate. A separate trusted compiler builds
+acceptance/deployer policy and exact Company Instance bindings. After explicit
+human confirmation, GitHub advances to the independently checked candidate using
+an exact fast-forward or the existing protected merge path. A separate trusted compiler builds
 the exact merged Workspace with the running Core and normalized Instance digest.
 Vercel stages a production-target build using the existing production environment,
 checks readiness before promotion, and verifies the live deployment and Artifact.
@@ -397,7 +411,7 @@ Postgres stores immutable acceptance and append-only release snapshots, with a
 leased Instance queue and atomic revision pointer. Private operation intents retain
 ambiguous creates for provider reconciliation. Local tests exercise actual database
 restart and concurrency, provider receipt loss, stale checks and distinct staging
-and promotion. Target provider scopes, branch enforcement, worker image and a real
+and promotion. Target provider scopes, the selected merge strategy, worker image and a real
 human request-to-live proof must be qualified independently before an Instance is
 called ready.
 

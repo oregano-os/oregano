@@ -53,6 +53,8 @@ export interface RepositoryCandidateInspection {
   readonly checksDigest: string;
   readonly checks: readonly { readonly id: string; readonly status: "passed" | "pending" | "failed" }[];
   readonly protectionEnforced: boolean;
+  /** Trusted merge boundary; optional for older provider-enforced adapters. */
+  readonly mergeStrategy?: "protected-merge" | "exact-fast-forward";
 }
 export type ReleaseOperation<T> = { readonly state: "pending" } | { readonly state: "succeeded"; readonly receipt: T };
 export interface MergeReceipt {

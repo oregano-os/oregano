@@ -35,6 +35,16 @@ evidence, historical prototypes, and production gaps.
   delivery recovery; explicit subscriptions without `message.im` are refused.
   Provider synchronization and URL challenges do not qualify a model reply.
 
+- Core 0.7.0 adds explicit human-confirmed Builder merges for unprotected
+  repositories. A non-forcing fast-forward adopts only the exact single-parent
+  checked candidate; concurrent divergent changes stop rather than entering an
+  unchecked merge. Existing protected merges remain supported. Strategy and
+  checks are bound to confirmation, and showing the result grants no authority.
+  Lost responses reconcile from immutable branch/commit evidence. The coding
+  process still has no repository or release credential; production adoption
+  uses the same trusted compiler, staged health and explicit promotion path.
+  This capability does not prevent manual changes to an unprotected Git branch.
+
 - The Core 0.6.0 Builder release adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,
   original-message continuation through an allowlisted Builder handoff, and
@@ -67,6 +77,10 @@ evidence, historical prototypes, and production gaps.
   A cold-start regression imports every maintained scheduled route without local
   checkout metadata and verifies refusal before effects. Shared-image model
   qualification accepts the same snapshot setting as normal Builder execution.
+- Authenticated Records operators receive bounded, credential-redacted error
+  diagnostics alongside the existing error code and digest. Public responses
+  and runtime logs retain their existing content-free behavior. Diagnostic text
+  is provider evidence, never an instruction or permission to retry effects.
 - Core 0.6.2 retains complete deployment Artifacts in the existing Instance
   Artifact store. Production builds carry an exact hash instead of a large
   environment payload. Awaited startup verifies the retained content before
@@ -175,7 +189,7 @@ evidence, historical prototypes, and production gaps.
 
 - JSON Record mappings can declare a bounded, self-contained `value_schema`.
   Ingestion enforces it before consuming an event identity; compiler consumers
-  can use the actual structured contract. Slack Record Source `0.1.3` also
+  can use the actual structured contract. Slack Record Source `0.1.4` also
   emits the exact publication `thread_reference` for receipt-bound queries.
   Source coverage remains a separate, unfinished integration requirement.
 
@@ -1419,3 +1433,8 @@ The maintained database suite passed all 67 tests on disposable local PostgreSQL
 15.18 with zero skips. This is real database evidence, not a live Slack/Vercel
 setup or timing claim. See the
 [setup integration review](../plans/2026-09-08-setup-integration-review.md).
+
+Slack Record Source `0.1.4` accepts the provider's legacy system bot identity
+`B01` while preserving bot authorship and rejecting malformed identifiers.
+A synthetic inventory regression covers successful system-message ingestion
+and prevents its attribution to an authenticated human.

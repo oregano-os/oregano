@@ -121,8 +121,9 @@ migration behavior.
 
 1. **Workbench boundary:** normalized paths, governance class, forbidden
    imports, scope, and Change Plan are checked after model output.
-2. **Repository boundary:** CODEOWNERS, protected branches, the declared review
-   mode, no force push, and no Contributor bypass rights.
+2. **Repository boundary:** the declared human review mode, exact confirmed
+   content, no force push, and no Contributor bypass rights. Existing hosted
+   protection remains enforced; unprotected branches use exact fast-forward.
 3. **CI boundary:** the real diff is classified against the base revision;
    validation, inspection, tests, and documentation checks must pass.
 4. **Runtime boundary:** unattended enforcement mounts only compiled write
@@ -306,9 +307,22 @@ Application rollback excludes migrations and does not undo external effects.
 The maintained Runner now composes the GitHub release connector and Vercel
 production host when their Instance binding is present. Exact single-parent
 candidate commits, the full changed-path inventory, trusted Workbench evidence,
-producer-pinned hosted checks, protected up-to-date main and expected-head merge
-bind the accepted content. The class is the strictest classification under the
+producer-pinned hosted checks and an exact merge strategy bind the accepted
+content. On unprotected branches, Core uses a non-forcing fast-forward to the
+single-parent candidate; it does not request paid branch-protection APIs or
+compute a merge containing concurrent changes. On protected branches it retains
+the strict hosted-check and expected-head merge path without bypass. The class is the strictest classification under the
 base and proposed governance; a proposal cannot lower its own review class.
+
+Before any merge, the chat explicitly asks whether to merge the reviewed result
+and make it live. Only the authenticated human confirmation admits the release;
+showing the result, starting a coding job or requesting a readiness refresh does
+not. The strategy is included in the evidence digest, so a changed strategy or
+changed checks invalidates the pending confirmation. Workbench inspection,
+validation and security evidence remain mandatory; all observed hosted checks
+must also pass. Hosted protection is optional for this confirmed Builder path.
+GitHub itself does not prevent manual unreviewed changes on an unprotected
+branch; those changes cannot independently activate the production Instance.
 
 Vercel staging reuses the exact current Core deployment and its production
 environment, overriding the newly compiled Artifact and revalidated non-secret
@@ -324,7 +338,7 @@ The Postgres implementation is qualified against an isolated database for restar
 concurrent acceptance, same-revision save races and expired leases. A separate
 atomic revision pointer fences append-only snapshots; no runtime DDL is introduced.
 The shared image packages both coding profiles, CLI and Guides for separate coding
-and trusted executions. Actual per-Instance App rights, hosted enforcement, selected
+and trusted executions. Actual per-Instance App rights, merge strategy, selected
 profile and request-to-live proof remain mandatory deployment evidence.
 
 The first automatic profile supports structural checks and human result review.
@@ -342,7 +356,7 @@ release remain outside the combined-action implementation.
 - appoint Process Stewards and Workspace Stewards for each pilot Workspace;
 - choose test evidence and resources only where the change requires them;
 - qualify the maintained provider merge/release binding in the target Instance;
-- verify hosted protection, correct model/image bindings and actual production adoption.
+- verify the selected merge strategy, correct model/image bindings and actual production adoption.
 
 
 ## Operational state path enforcement

@@ -358,13 +358,13 @@ retain both redacted digests for diagnosis.
 ## Current qualification status
 
 Local tests cover grounded intake, both coding profile contracts, exact-candidate
-policy, protected provider inspection, ambiguous merge/deploy reconciliation,
+policy, protected and exact fast-forward inspection, ambiguous merge/deploy reconciliation,
 separate staging and promotion, and actual Postgres persistence, concurrent saves
 and expired leases. The initial Stage-0 Slack-to-draft tests predate this release
 path and do not qualify its new image or production executor.
 
-Each Company Instance still needs its selected App installation and scopes, hosted
-branch protection, model/worker qualification, staged production health access,
+Each Company Instance still needs its selected App installation and scopes, a
+qualified merge strategy, model/worker qualification, staged production health access,
 and a bounded request-to-live proof. Record those private receipts with exact Core,
 Workspace, image, Artifact and deployment identities. Local tests never substitute
 for these provider and human acceptance steps.
@@ -396,7 +396,27 @@ separately qualified execution path and must not be presented as automatic.
 
 If CI or Instance readiness is still pending, the chat delivers the built draft
 and a **Check readiness** action. This action only refreshes evidence; it never
-approves or releases the result. A ready result presents **Accept and make live**.
+approves or releases the result. A ready result asks permission to merge the
+exact checked change and presents **Merge and make live**. No merge starts until
+the authorized human confirms. The existing company policy decides whether that
+human is the requester or a Steward and whether they may also deploy.
+
+Core 0.7.0 and Workbench 0.1.0-experimental.17 support unprotected private
+repositories without a paid GitHub plan.
+The trusted coordinator advances the target only to the exact single-parent
+candidate with `force: false`. Concurrent divergent changes stop the operation
+and require refreshed checks and confirmation. A lost response is reconciled
+from the exact branch and commit even if GitHub's PR display has not caught up.
+Workbench inspection, validation and security checks remain mandatory, and every
+observed hosted check must pass. Existing branch protection is preserved through
+the protected merge path; permission errors do not trigger a fallback.
+
+The Core release controls Builder operations and production adoption. It does
+not prevent manual Git changes on an unprotected branch. Keep automatic
+production deployment from company-repository pushes disabled; deployment uses
+only the confirmed immutable Artifact. Rollback to an older Core requires
+stopping releases from unprotected repositories. Pending old confirmations must
+be refreshed because merge-strategy evidence is now part of their digest.
 
 Manual deployments must carry the current exact Artifact and rebound non-secret
 configurations forward. The Builder stores them durably with its release; it

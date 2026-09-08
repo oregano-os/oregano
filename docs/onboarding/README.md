@@ -68,6 +68,13 @@ installation on the client. This flow is experimental; see the
 [five-minute plan](../plans/2026-09-08-five-minute-setup.md) for pending live
 qualification and timing criteria.
 
+Core 0.7.0 also supports confirmed Builder releases with advisory repository
+protection. After independent checks, the authorized human explicitly confirms
+the exact merge and live adoption. Core uses a non-forcing fast-forward on an
+unprotected branch and preserves hosted rules on a protected branch. GitHub Free
+is sufficient for this path; the Instance still needs qualified repository,
+coding and release bindings. See [Operate the Builder](../workbench/guides/operate-builder.md).
+
 The maintained setup profile composes private typed adapters for four roles:
 source host, runtime host, state service, and communication provider. GitHub,
 Vercel, Neon/Postgres, and Slack are the maintained bindings, not Core runtime

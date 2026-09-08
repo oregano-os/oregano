@@ -96,13 +96,14 @@ external roster, name matching or Records-derived authorization is introduced.
 
 ### Maintained provider evidence
 
-Slack Record Source `0.1.3` emits `author_principal` in the exact qualified
+Slack Record Source `0.1.4` emits `author_principal` in the exact qualified
 conversation's team namespace (`slack:<team>:<user>`), and separate
 `slack-bot` or `slack-unknown` principals. A bot indicator takes precedence
 over a simultaneous `user` field. Original authorship remains separate from
 `editor_principal` and `content_author_principal`; an edit without an identified
 editor has an explicit unknown content principal. Editing a bot message does
-not turn it into human evidence. These fields follow Slack's documented
+not turn it into human evidence. The legacy system bot identity `B01` remains
+in the `slack-bot` namespace; other malformed short identifiers still fail. These fields follow Slack's documented
 [message edit metadata](https://docs.slack.dev/reference/events/message/).
 
 `thread_reference` uses `slack:<channel>:<root-ts>`, exactly matching the
@@ -309,7 +310,7 @@ the selected groups and typed columns. A rotated credential that identifies
 another account or actor fails before reading message/item data. Sync receipts
 retain the content-free provider evidence; this does not prove time coverage.
 
-Instance bindings must select Slack `0.1.3` or Monday `0.3.3`. Incomplete older
+Instance bindings must select Slack `0.1.4` or Monday `0.3.3`. Incomplete older
 qualification receipts need renewed metadata qualification. Rebuild the
 Artifact with the exact binding and synchronize its new source generation;
 retain earlier Artifacts and evidence through migration.

@@ -30,7 +30,9 @@ function fixture(prepared: ReleaseCandidate | Error = candidate) {
 
 test("qualified Chat release binding accepts one exact published result under the authenticated actor", async () => {
   const f = fixture(); f.integration.registerHandlers(); await f.integration.notifier.deliver(job);
-  assert.match(JSON.stringify(f.messages), /Accept and make live/);
+  assert.match(JSON.stringify(f.messages), /May I merge this exact checked change and make it live\?/);
+  assert.match(JSON.stringify(f.messages), /Merge and make live/);
+  assert.equal(f.accepted.length, 0, "showing a result never grants merge authority");
   await f.click();
   assert.deepEqual(f.accepted, [{ value: candidate, actor: candidate.requester, digest: sha256(candidate) }]);
   assert.doesNotMatch(JSON.stringify(f.messages), /This exact change is live/);
@@ -60,7 +62,7 @@ test("pending hosted checks deliver the proposal and an authenticated read-only 
   await f.integration.notifier.deliver(job);
   assert.equal(f.fallbacks(), 1);
   assert.match(JSON.stringify(f.messages), /Check readiness/);
-  assert.doesNotMatch(JSON.stringify(f.messages), /private-provider-token|Accept and make live/);
+  assert.doesNotMatch(JSON.stringify(f.messages), /private-provider-token|Merge and make live/);
   const token = [...f.values.keys()][0]!.slice("builder-release-readiness:".length);
   const event = { thread: f.thread, value: token, user: { userId: "U1" } };
   await f.handlers.get("companyos.builder.release.refresh")!({ ...event, thread: { ...f.thread, id: "another-conversation" } });

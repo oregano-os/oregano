@@ -96,6 +96,18 @@ test("members, Stewards, independent review and deployment authority are company
   await assert.rejects(h.make().accept(h.c, requester, sha256(h.c)), /active human/);
 });
 
+test("an exact fast-forward strategy still requires human acceptance before any merge", async () => {
+  const f = fixture();
+  Object.assign(f.inspection, { protectionEnforced: false, mergeStrategy: "exact-fast-forward" });
+  assert.equal(await f.make().advance(f.c.instanceId, "worker"), undefined);
+  assert.equal(f.effects.size, 0);
+  await assert.rejects(f.make().accept(f.c, "service:builder", sha256(f.c)), /active human/);
+  await f.make().accept(f.c, requester, sha256(f.c));
+  assert.equal(f.effects.size, 0);
+  await f.advanceUntil("live");
+  assert.equal(f.effects.size, 3);
+});
+
 test("stale candidate, base, checks, production or policy cannot be accepted", async () => {
   for (const mutation of [
     (f: ReturnType<typeof fixture>) => { f.inspection.currentBase = "f".repeat(40); },

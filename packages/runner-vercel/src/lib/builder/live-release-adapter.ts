@@ -84,7 +84,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       candidateCommit: published.proposalCommit, pullRequestNumber: Number(match[2]),
       changedPaths: checked.changedPaths, workbenchChecks: checked.checks, changeClass: checked.releaseChangeClass };
     const inspection = await github.withReleaseClient(this.#binding(), (client) => inspectGitHubCandidate(client, input));
-    if (!inspection.protectionEnforced || inspection.currentBase !== job.baseCommit || inspection.checks.some((check) => check.status !== "passed")) throw new Error("Hosted protection and all exact candidate checks must pass before acceptance.");
+    if ((!inspection.protectionEnforced && inspection.mergeStrategy !== "exact-fast-forward") || inspection.currentBase !== job.baseCommit || inspection.checks.some((check) => check.status !== "passed")) throw new Error("The exact merge strategy and all candidate checks must pass before acceptance.");
     const authority = await this.authorization(job.instanceId);
     const previous = await this.currentProduction(job.instanceId);
     if (previous.configurationDigest !== this.configurationDigest || previous.coreCommit !== artifact.provenance.coreCommit) throw new Error("Current production configuration differs from the compiled Instance.");
