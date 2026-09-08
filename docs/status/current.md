@@ -1397,10 +1397,10 @@ GitHub checks using the exact pushed source without a release lookup. Candidate
 timing cannot qualify the stable release installer. No live provider run or real
 database integration result is claimed by this implementation.
 
-The candidate integration branch now starts from Core `0.6.1` on current `main`.
+The candidate integration branch now starts from Core `0.6.2` on current `main`.
 It preserves the newer Builder release and Workflow behavior, resolves the setup
 conflicts, and automatically gives each candidate a separate Slack connector.
-The maintained database suite passed all 66 tests on disposable local PostgreSQL
+The maintained database suite passed all 67 tests on disposable local PostgreSQL
 15.18 with zero skips. This is real database evidence, not a live Slack/Vercel
 setup or timing claim. See the
 [setup integration review](../plans/2026-09-08-setup-integration-review.md).

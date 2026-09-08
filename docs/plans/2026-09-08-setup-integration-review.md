@@ -124,8 +124,10 @@ of independent product bugs. No branch was merged or reset.
 
 ## Integration outcome
 
-The dedicated `codex/standard-setup-candidate` branch starts at the inspected
-`main` commit above (Core `0.6.1`). It applies only the setup changes, excludes
+The dedicated `codex/standard-setup-candidate` branch was subsequently rebased
+without conflicts onto `05cb6b73d7be74d80a579f9843b7474b3e46a235` (Core `0.6.2`),
+including the Builder Artifact retention and startup fix that landed during
+verification. It applies only the setup changes, excludes
 unrelated local Google Meet and Builder proposals, and preserves `main`'s scanner
 implementation. The seven remaining conflicts in this scoped application were
 resolved by retaining the current Builder release and Workflow behavior alongside
@@ -140,11 +142,12 @@ trigger, environment and verification evidence. An ordinary `slack/oregano`
 connector can coexist in the selected team and cannot be adopted by this test.
 The release and legacy setup continue to use their existing connector contract.
 
-The isolated PostgreSQL 15.18 suite passed all 66 tests without skips. This covers
+The isolated PostgreSQL 15.18 suite passed all 67 tests without skips. This covers
 real transactions, durable restart/concurrency and schema preparation, using the
 maintained Neon-driver test transport and a disposable loopback database. It does
 not constitute Neon cloud availability or real Slack installation evidence.
-The full Core checks and production Runner build are required on this combined
-branch before publication. The next hosted run uses separately selected fresh
+The full Core checks and production Runner build passed on this combined
+branch: 1,014 ordinary tests passed; 50 database opt-in cases in the ordinary
+runner were covered by the separate required 67-test database run. The next hosted run uses separately selected fresh
 resources and the ordinary single setup decision; its human consent, live result
 and timing must be recorded independently. No public release is required.
