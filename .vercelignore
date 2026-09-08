@@ -21,5 +21,6 @@ private
 !packages/runtime-eve/agent/lib/company.generated.ts
 
 # Optional server-only Instance payload; never place it under public/.
+packages/runner-vercel/.companyos/**
 !packages/runner-vercel/.companyos
 !packages/runner-vercel/.companyos/artifact.br

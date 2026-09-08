@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   outputFileTracingIncludes: {
-    "/api/**": ["./.companyos/artifact.br"],
+    "/**": ["./.companyos/artifact.br"],
     "/api/builder/worker": [
       "../cli/src/**/*",
       "../capabilities/**/*",
