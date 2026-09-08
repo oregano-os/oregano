@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,11 @@ relations:
 ---
 
 # `companyos create workspace`
+
+For a fresh complete installation use `companyos setup`. Its CLI-owned session
+creates the operating starter directly after one setup decision and verifies it
+live. This command remains available for local authoring or inspection of an
+existing Workspace; it is not an additional standard-onboarding question.
 
 Interactive human use:
 

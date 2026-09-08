@@ -1,0 +1,133 @@
+version: 3
+plan_id: standard-setup-candidate-integration-2026-09-08
+created: 2026-09-08
+title: Integrate the standard installer into current Core and prepare an
+  isolated live candidate
+objective: Integrate the authorized standard setup and unpublished candidate
+  path on current main, preserve concurrent Builder and Workflow behavior,
+  resolve textual and behavioral conflicts, publish a dedicated test branch, and
+  execute the candidate setup on separately selected fresh test resources. Give
+  candidate sessions their own deterministic Slack connector names so tests can
+  coexist with an existing installation without adoption.
+non_goals:
+  - Merge or release Core to production.
+  - Change another worktree or its uncommitted work.
+  - Adopt or replace an existing company installation.
+  - Claim skipped database tests or simulated provider runs as live evidence.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-standard-setup-implementation.yaml
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/setup-entry.mjs
+  - packages/cli/src/setup/standard-setup.mjs
+  - packages/cli/src/setup/standard-contract.mjs
+  - packages/cli/src/setup/standard-defaults.mjs
+  - packages/cli/src/setup/release-defaults.mjs
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/operating-starter.mjs
+  - packages/cli/src/live-database-proof.mjs
+  - packages/cli/src/bootstrap.mjs
+  - packages/cli/tests/standard-setup.test.mjs
+  - packages/cli/tests/standard-release.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/runner-vercel/src/lib/setup-verification.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/runner-setup-verification.test.ts
+  - scripts/prepare-release-assets.mjs
+  - scripts/build-setup-bundle.mjs
+  - scripts/install-companyos.mjs
+  - scripts/qualify-standard-setup.mjs
+  - .github/workflows/release.yml
+  - release-manifest.json
+  - README.md
+  - INSTALL-COMPANYOS.md
+  - BOOTSTRAP_FOR_AGENTS.md
+  - docs/plans/2026-09-08-five-minute-setup.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/onboarding/setup-options.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/governance/agent-working-agreement.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/commands/create-workspace.md
+  - docs/workbench/commands/bootstrap.md
+  - docs/workbench/commands/onboard.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - .oregano/changes/2026-09-08-unpublished-setup-testing.yaml
+  - docs/plans/2026-09-08-setup-integration-review.md
+  - .oregano/changes/2026-09-08-standard-setup-candidate-integration.yaml
+  - .oregano/changes/2026-09-08-five-minute-setup-plan.yaml
+  - .oregano/changes/2026-09-08-setup-options-documentation.yaml
+  - .oregano/changes/2026-09-08-vercel-pro-setup-prerequisite.yaml
+tests:
+  - packages/cli/tests/standard-setup.test.mjs
+  - packages/cli/tests/standard-release.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/runner-setup-verification.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.five-minute-setup
+    - onboarding.index
+    - onboarding.company-workspace
+    - onboarding.setup-options
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - governance.agent-agreement
+    - command.setup
+    - command.verify-live
+    - command.create-workspace
+    - command.bootstrap
+    - command.onboard
+    - guide.prepare-instance
+    - status.current
+    - plan.setup-integration-review
+architecture:
+  placement:
+    core: Standard Workbench sessions, scoped setup decisions, deterministic
+      rendering, versioned fresh evidence, provider orchestration, and release
+      acquisition.
+    packages: Reuse existing starter, model recipes, and private provider adapters;
+      no new workflow engine or public plugin API.
+    workspace: Generated company identity, responsible human, Tool-free operating
+      starter, and future governance.
+    instance: Private account scope, credentials, resource and deployment receipts,
+      current provider checks, and qualification evidence.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Resolve provider identities and record one responsible human's exact
+        initial setup decision.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Bind first deployment to the reviewed setup scope and preserve intents,
+        receipts, and safe resume.
+    - mechanism: model-recipe-resolver
+      reason: Generate maintained model defaults and supported route metadata from one
+        recipe registry.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse provider lifecycle and secret transports with automatic discovery
+        and fresh initialization.
+  new_core_mechanisms:
+    - Versioned fresh-initialization evidence within existing setup state and
+      verification, separate from legacy PR-based installation.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: One standard flow serves any new company; exact identities and
+    costs remain private and initial setup authority cannot authorize later
+    production changes.
+rollback: Retain the original checkout and exact candidate receipts. Revert the
+  integration branch for future tests; do not delete hosted resources or alter
+  other installations. A later release and merge remain separate.

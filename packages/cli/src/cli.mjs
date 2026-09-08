@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { standardSetupMain } from "./setup-entry.mjs";
 import { inspectBootstrap, verifyBootstrap } from "./bootstrap.mjs";
 import { inspectCoreCheckout } from "./core-checkout.mjs";
 import { verifyLiveWorkflow } from "./workflow-verification.mjs";
@@ -108,6 +109,7 @@ Usage:
   companyos create workspace [--answers <yaml|json>] [--parent <directory>] [--preview|--confirm <hash>] [--format human|json]
   companyos bootstrap status [workspace] [--format human|json]
   companyos bootstrap verify [workspace] [--format human|json]
+  companyos setup [--directory <setup-folder>] [--reply <json>] [--format human|json]
   companyos setup --profile vercel-neon-slack --workspace <path> --answers <yaml|json> --plan [--state <file>] [--format human|json]
   companyos setup --profile vercel-neon-slack --workspace <path> --answers <yaml|json> --apply <hash> [--state <file>] [--format human|json]
   companyos setup --profile vercel-neon-slack --state <file> --resume [--operating-confirmation <hash>] [--merge-confirmation <hash>] [--production-confirmation <hash>] [--format human|json]
@@ -1119,6 +1121,8 @@ try {
         }
       }
     }
+  } else if (command === "setup" && !optionValue("--profile")) {
+    await standardSetupMain(args.slice(1), repoRoot);
   } else if (command === "setup") {
     const profile = optionValue("--profile");
     const statePath = optionValue("--state");

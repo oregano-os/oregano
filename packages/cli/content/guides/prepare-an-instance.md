@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -46,25 +46,30 @@ provenance, evidence, state guarantees, observability, and rollback. An
 
 ## Maintained first-installation profile
 
-For a company that explicitly requests the complete Slack starter, use
-`companyos setup --profile vercel-neon-slack` rather than assembling provider
-commands from this Guide. Its read-only plan names the exact GitHub owner and
-repository, Vercel scope and project, Neon resource, Slack connector, model,
-create-or-adopt choice, cost or consent boundary, and rollback responsibility.
-The plan hash must be confirmed before any provider mutation.
+For a fresh Slack starter, use the release installer and `companyos setup`.
+The CLI discovers accounts, requires the explicit OpenAI-or-Anthropic choice,
+and shows one editable resource, cost, region and responsible-person summary.
+It uses the selected direct recipe and its maintained agent model. Other models
+or providers are available only on request. The provider key is entered in
+Vercel Sensitive Production settings through the existing browser action. One decision covers creation and the
+first production deployment. Vercel Pro/Enterprise is detected automatically;
+Hobby needs a human billing action. Oregano manages schedules.
 
-The state machine pauses for browser login and provider consent, derives the
-consenting human's canonical Slack team and user IDs without retaining the
-short-lived credential, and moves the Workspace from `authoring-only` to one
-Tool-free supervised starter through a distinct preview and independently
-reviewed pull request. It then builds one immutable Artifact and requests a
-separate production-candidate confirmation before deployment.
+After provider consent and Slack identity resolution, the initializer creates a
+complete supervised operating Workspace at `0.1.0` and verifies its initial
+commit. No activation PR, authoring-only publication or second deployment
+confirmation belongs in this path. The same release payload supplies CI's
+Workbench, avoiding another developer dependency install for the initial check.
 
-Run `companyos verify-live --state <file>` after the human sends the requested
-nonce in Slack. Success proves the exact deployment health and the persisted
-human and assistant entries in Neon for scope `live-starter-instance`. It does
-not certify a generic Effect Lane, an unattended workflow, or `enforced`
-readiness.
+An ordinary first Slack message is correlated with the real model response and
+persisted conversation for the exact Artifact and human. The CLI invokes
+`companyos verify-live` before completion. It proves `live-starter-instance`,
+not general unattended authority. Fresh cold live timing remains to be qualified.
+
+For existing sessions, deliberate adoption or model selection, use the explicit
+`companyos setup --profile vercel-neon-slack` contract. Its versions 1–4 retain
+separate operating, merge and deployment decisions and nonce verification.
+Never reinterpret them as a new installation to remove a required approval.
 
 Before release, run `companyos build` against clean exact repository checkouts
 and a non-secret Instance declaration. The build records the Core and Workspace
@@ -313,10 +318,13 @@ a partial failure does not duplicate already successful messages. The action
 does not publish Retro and cannot select a live destination.
 
 The checked-in Vercel reference wakes the Sprint workers once per minute.
-Vercel currently supports that frequency only on plans with per-minute Cron;
-Hobby Cron is limited to once per day with hourly precision. A Company
+The maintained installer requires Vercel Pro or Enterprise for this frequency;
+Hobby Cron is limited to once per day with hourly precision. Outside this
+installer, a Company
 Instance whose hosting plan cannot support the reviewed wake-up frequency MUST
-either bind a separately authenticated scheduler or remain disabled. Verify
+either bind a separately authenticated scheduler or remain disabled. That
+requires separate configuration and qualification; the maintained installer
+does not offer it as a Hobby alternative. Verify
 the current host limits, usage price, and selected plan in the Instance change
 plan before Stage 5E; never silently weaken the company schedule to make a
 deployment pass. See Vercel's current

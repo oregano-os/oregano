@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -21,13 +21,17 @@ relations:
 
 # `companyos bootstrap`
 
+For a fresh complete installation use `companyos setup`. Its CLI-owned session
+creates the operating starter directly after one setup decision and verifies it
+live. This command remains available for local authoring or inspection of an
+existing Workspace; it is not an additional standard-onboarding question.
+
 ```bash
 companyos bootstrap status [workspace] [--format human|json]
 companyos bootstrap verify [workspace] [--format human|json]
 ```
 
-The command provides the deterministic local Workspace checkpoint used inside
-the shared Codex and Claude Code runbook. It derives progress from the selected
+The command provides the deterministic local Workspace checkpoint for the separate local-authoring path. It derives progress from the selected
 directory and existing Workspace checks, so the agent does not treat chat
 history as verification evidence.
 
@@ -47,7 +51,6 @@ authorize:
 - an operating Company Instance.
 
 Those external phases remain visible as `manual`, `deferred`, or
-`not-authorized` to this local command. The separate experimental
-`companyos setup --profile vercel-neon-slack` command owns provider contracts,
-confirmations, idempotent resume evidence, checked Steward merge, and deployment.
+`not-authorized` to this local command. The standard `companyos setup` session owns provider work and fresh initial
+authorization. The explicit `--profile` path retains legacy/adoption approvals.
 `companyos verify-live` is the final completion boundary for that full path.

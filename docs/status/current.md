@@ -20,6 +20,29 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Standard setup now requires an explicit choice of OpenAI or Anthropic and
+  binds its direct recipe, maintained model and Sensitive Production key
+  destination to the single resource/cost review. Other models/providers require
+  a request. Gateway is not selected automatically; existing installed sessions
+  retain their original binding. The provider-compatibility repairs are included.
+  The new choice is covered by synthetic lifecycles; fresh live qualification of
+  this revision is still outstanding.
+
+- The setup adapter corrects the `identity.basic` endpoint and personal CLI
+  token-subject mismatch. It validates connector metadata for the Slack Messages
+  link and isolates provider-generated OIDC/skill files from immutable source.
+  Synthetic regressions cover mismatched identities, secret reduction, cleanup
+  on failure and resumed setup without duplicate deployment. These checks do
+  not establish fresh external candidate qualification. A further regression
+  checks production aliases and exact deployment IDs while refusing login
+  redirects; deployment protection remains enabled. Slack creation now enables
+  incoming triggers explicitly; both the first-message gate and final verification
+  check forwarding plus the exact production attachment and webhook destination.
+  Regressions reject disabled forwarding and wrong project, route or environment.
+  Missing replies on retry now expose exact Slack URL-verification and Connect
+  delivery recovery; explicit subscriptions without `message.im` are refused.
+  Provider synchronization and URL challenges do not qualify a model reply.
+
 - Core 0.7.0 adds explicit human-confirmed Builder merges for unprotected
   repositories. A non-forcing fast-forward adopts only the exact single-parent
   checked candidate; concurrent divergent changes stop rather than entering an
@@ -1028,11 +1051,29 @@ evidence, historical prototypes, and production gaps.
   continues from that checkpoint through explicit create-or-adopt GitHub,
   Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a
   private GitHub repository, automatic best-effort hosted protection with no
-  paid-plan requirement, a separately confirmed operating-starter diff,
+  paid GitHub plan requirement, a separately confirmed operating-starter diff,
   required-check and Steward merge evidence, immutable Artifact injection, current
   health verification, and nonce-bound Slack plus Neon persistence proof.
   `companyos verify-live` reports only `live-starter-instance` with readiness
   `validated`.
+- The maintained setup now requires Vercel Pro or Enterprise. It detects the
+  selected team's plan before hosted resource creation, rechecks on resume
+  and before deployment, and verifies the current plan in `verify-live`.
+  Hobby receives a billing link and can resume after a human upgrade; missing
+  plan access receives a separate diagnostic. No cron-frequency question or
+  automatic billing change is introduced. Synthetic provider tests cover the
+  prerequisite and resume behavior; fresh external setup qualification remains
+  outstanding.
+- The [five-minute standard setup](../plans/2026-09-08-five-minute-setup.md)
+  is implemented in the working tree: CLI-owned account/default discovery,
+  one initial decision including deployment, direct operating initialization,
+  checked first commit, private resumable state and an ordinary first Slack
+  exchange with model/persistence evidence. Existing explicit states retain their
+  legacy approval process. Release CI builds checksummed platform payloads;
+  client setup and initial CI use bundled tools. Model metadata comes from one
+  registry. Local and simulated tests establish these contracts; publication
+  and fresh cold live qualification remain outstanding. A five-minute claim
+  requires five qualifying cold runs per harness and advertised platform.
 - Setup and the maintained Runner select Gateway, native Anthropic/OpenAI/Google,
   or a named compatible cloud recipe through the same resolver. Generic
   OpenAI-compatible and local/proxy recipes remain available to explicitly
@@ -1384,6 +1425,22 @@ in its generated runtime configuration and confirmation. Exact single-source
 multi-source view is not narrowed implicitly. Synthetic end-to-end setup cases
 prove hosted principal resolution, changed-roster confirmation invalidation,
 preserved old mappings and compatibility for sources without identity resolution.
+
+## Unpublished installer test path
+
+The working source supports local candidate bundles with exact commit/platform
+and checksum verification, pinned resume, a labeled setup review, and initial
+GitHub checks using the exact pushed source without a release lookup. Candidate
+timing cannot qualify the stable release installer. No live provider run or real
+database integration result is claimed by this implementation.
+
+The candidate integration branch includes Core `0.7.0` from `main`.
+It preserves the newer Builder release and Workflow behavior, resolves the setup
+conflicts, and automatically gives each candidate a separate Slack connector.
+The maintained database suite passed all 67 tests on disposable local PostgreSQL
+15.18 with zero skips. This is real database evidence, not a live Slack/Vercel
+setup or timing claim. See the
+[setup integration review](../plans/2026-09-08-setup-integration-review.md).
 
 Slack Record Source `0.1.4` accepts the provider's legacy system bot identity
 `B01` while preserving bot authorship and rejecting malformed identifiers.

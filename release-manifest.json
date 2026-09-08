@@ -13,11 +13,22 @@
     "claude-code"
   ],
   "default_profile": "vercel-neon-slack",
-  "default_model_route": "vercel-ai-gateway",
-  "default_model": "openai/gpt-5.4-nano",
+  "default_model_route": null,
+  "default_model": null,
   "supported_model_routes": [
+    "anthropic-direct",
+    "deepseek",
+    "google-direct",
+    "groq",
+    "minimax",
+    "mistral",
+    "moonshot",
+    "nvidia",
+    "openai-direct",
+    "openrouter",
+    "together",
     "vercel-ai-gateway",
-    "anthropic-direct"
+    "zhipu"
   ],
   "requirements": {
     "node": ">=24",
@@ -26,5 +37,22 @@
     "git": true
   },
   "checksums": {},
-  "note": "The tag-triggered release workflow replaces null values and checksums in the published release asset. Installers must reject this source template."
+  "note": "The tag-triggered release workflow replaces null values and checksums in the published release asset. Installers must reject this source template.",
+  "setup_bundles": {},
+  "setup_qualification": "pending-live-timing",
+  "model_provider_selection": "required",
+  "model_provider_options": [
+    {
+      "value": "openai",
+      "label": "OpenAI",
+      "route": "openai-direct",
+      "model": "openai/gpt-5.4-nano"
+    },
+    {
+      "value": "anthropic",
+      "label": "Anthropic",
+      "route": "anthropic-direct",
+      "model": "anthropic/claude-sonnet-4-6"
+    }
+  ]
 }

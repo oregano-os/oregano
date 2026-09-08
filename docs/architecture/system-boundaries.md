@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -17,6 +17,14 @@ relations:
 ---
 
 # System Boundaries and Placement
+
+The standard installation flow lives in the Workbench, not in a Codex/Claude
+prompt. Its session owns discovery, defaults, one initial setup decision and
+recovery; private provider adapters perform the effects. The fresh operating
+Workspace remains company-owned. Session decisions, resource receipts and live
+verification remain private Instance evidence. A release payload supplies exact
+Core and tooling without turning a harness into another setup implementation.
+This new path is experimental and its five-minute live qualification is pending.
 
 ## Oregano Core owns
 
@@ -64,13 +72,36 @@ provider. A separate typed model-execution selection binds a Runner-supported
 route and credential reference without making model SDKs part of Workspace or
 provider-neutral Tool contracts. These adapters translate provider commands and receipts into the
 provider-neutral Instance evidence above. They are not a public plugin API and
-must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
+isolate provider-generated skills and transient OIDC files from the immutable
+Core checkout. Only validated non-secret project link fields survive that
+temporary context. Slack connector payloads remain private and are reduced to
+validated app/workspace identities; they are not general readiness evidence.
+Production aliases come from the exact provider deployment receipt, and current
+health must identify that deployment before the alias becomes verification input.
+Login redirects are not followed or interpreted as application health.
+The Slack adapter explicitly enables incoming triggers at creation and checks
+current forwarding, production attachment and webhook destination before the
+first-message gate and final verification. Explicit event selections must include
+direct messages. The adapter exposes exact-resource delivery recovery when a
+reply remains missing; provider synchronization and Slack URL verification
+remain separate from runtime model evidence and cannot grant additional scopes.
+The adapters must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
 runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and
 profile, not a new Core execution model.
 
+Provider prerequisites belong to the concrete setup binding. The maintained
+Vercel binding declares Pro or Enterprise, checks the selected team's current
+plan automatically, and owns its background schedules. Team identity and plan
+receipts remain private Instance setup evidence; a Hobby upgrade is a human
+billing action. This does not make Vercel billing or cron frequency a generic
+Core runtime contract or a Company Workspace interview field.
+
 Core owns one model-recipe registry rather than a model installation role. The
-maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and
+standard setup exposes OpenAI and Anthropic as explicit direct-provider choices.
+Other providers and exact model overrides require a request; this selection
+reuses the recipe resolver and secret-entry adapter. Runtime defaults for
+existing installations remain separate. The maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and
 Google routes; named OpenAI-compatible cloud routes for OpenRouter, DeepSeek,
 Groq, Together AI, MiniMax, Zhipu AI, Moonshot AI, Mistral AI, and NVIDIA NIM;
 local or proxy routes for Ollama, llama-server, and LiteLLM; and one generic
@@ -228,3 +259,13 @@ parallel mechanism when the existing contract has the same responsibility.
 - The Workbench owns inspect, build, regression, review preview, source
   operation, observation lifecycle, stage, verify, rebuild, and activate
   commands. A Blueprint may suggest examples but grants no access or binding.
+
+## Candidate distribution boundary
+
+Packaging and verifying an unpublished installer belongs to Core. Candidate
+selection does not add authority: the existing single scoped setup decision
+still covers named fresh resources and first deployment. The Company Workspace
+records the source pin and candidate marker; the private acquisition receipt
+stays with the setup session, outside company Git. Core generates a separate
+Slack connector name for each candidate session; provider identity and trigger
+receipts must match that exact name throughout creation, resume and verification.

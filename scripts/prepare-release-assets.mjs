@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setupReleaseMetadata } from "../packages/cli/src/setup/release-defaults.mjs";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const output = resolve(process.argv[2] ?? join(root, "dist", "release"));
@@ -29,6 +30,21 @@ const releasedAt = git("show", "-s", "--format=%cI", "HEAD");
 const assetNames = ["INSTALL-COMPANYOS.md", "BOOTSTRAP_FOR_AGENTS.md"];
 for (const name of assetNames) copyFileSync(join(root, name), join(output, name));
 
+copyFileSync(join(root, 'scripts/install-companyos.mjs'), join(output, 'install-companyos.mjs'));
+assetNames.push('install-companyos.mjs');
+const bundleDirectory = resolve(process.argv[3] ?? join(root, 'dist/setup-bundles'));
+const setupBundles = {};
+if (!existsSync(bundleDirectory)) throw new Error('Build the platform installer bundles before preparing release assets.');
+for (const file of readdirSync(bundleDirectory).filter((name) => /^oregano-setup-[a-z0-9-]+\.json$/.test(name))) {
+  const receipt = JSON.parse(readFileSync(join(bundleDirectory, file), 'utf8'));
+  if (receipt.core_commit !== coreCommit || !/^[a-z0-9]+-[a-z0-9]+$/.test(receipt.platform)) throw new Error('Installer bundle does not match this release.');
+  if (receipt.archive !== `oregano-setup-${receipt.platform}.tar.gz` || sha256(join(bundleDirectory, receipt.archive)) !== receipt.sha256) throw new Error('Installer bundle checksum mismatch.');
+  copyFileSync(join(bundleDirectory, receipt.archive), join(output, receipt.archive));
+  setupBundles[receipt.platform] = { asset: receipt.archive, sha256: receipt.sha256 };
+  assetNames.push(receipt.archive);
+}
+if (Object.keys(setupBundles).length === 0) throw new Error('No platform installer bundles were supplied.');
+
 const manifest = {
   schema_version: 1,
   status: version.includes("-") ? "prerelease" : "stable",
@@ -40,10 +56,9 @@ const manifest = {
   released_at: releasedAt,
   install_runbook: "INSTALL-COMPANYOS.md",
   supported_agent_harnesses: ["codex", "claude-code"],
-  default_profile: "vercel-neon-slack",
-  default_model_route: "vercel-ai-gateway",
-  default_model: "openai/gpt-5.4-nano",
-  supported_model_routes: ["vercel-ai-gateway", "anthropic-direct"],
+  ...setupReleaseMetadata(),
+  setup_bundles: setupBundles,
+  setup_qualification: "pending-live-timing",
   requirements: { node: ">=24", pnpm: pnpmVersion, vercel_cli: "56.3.2", git: true },
   checksums: Object.fromEntries(assetNames.map((name) => [name, `sha256:${sha256(join(output, name))}`])),
 };
