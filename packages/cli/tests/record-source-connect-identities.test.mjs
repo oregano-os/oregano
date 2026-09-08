@@ -38,7 +38,7 @@ function fixture(t, { resolveIdentity = true } = {}) {
   writeFileSync(join(root, "qualification.json"), JSON.stringify(qualification));
   const bindingPath = join(root, "binding.yaml");
   writeFileSync(bindingPath, YAML.stringify({ schema_version: 1, instance_id: "fixture-preview", source_id: source.id,
-    resource_binding: source.resource_binding, connector: "oregano/slack-record-source", connector_version: "0.1.3",
+    resource_binding: source.resource_binding, connector: "oregano/slack-record-source", connector_version: "0.1.4",
     secret_ref: "env:FIXTURE_SLACK_TOKEN", qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
     configuration: { team_id: "T10001", channel_id: "C10001", conversation_kind: "private-channel", oldest_at: "2030-01-01T00:00:00.000Z" } }));
   const plan = () => planRecordSourceConnect({ workspaceRoot: workspace, sourceId: source.id, bindingPath,

@@ -7,7 +7,7 @@ import { SlackWebApiClient, type SlackFetch } from "./client.ts";
 import { qualifySlackRecordSource } from "./record-source-qualification.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.3";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.4";
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -115,7 +115,8 @@ const normalizeMessage = (args: {
   const userId = typeof args.message.user === "string" ? args.message.user : undefined;
   const botId = typeof args.message.bot_id === "string" ? args.message.bot_id : undefined;
   if (userId !== undefined && !/^[UW][A-Z0-9]{4,31}$/.test(userId)) throw new Error("Slack message has an invalid user identity");
-  if (botId !== undefined && !/^B[A-Z0-9]{4,31}$/.test(botId)) throw new Error("Slack message has an invalid bot identity");
+  // Slack's legacy system bot uses B01. It remains in the bot namespace below.
+  if (botId !== undefined && botId !== "B01" && !/^B[A-Z0-9]{4,31}$/.test(botId)) throw new Error("Slack message has an invalid bot identity");
   const subtype = typeof args.message.subtype === "string" ? args.message.subtype : "message";
   const isBot = botId !== undefined || subtype === "bot_message" || typeof args.message.app_id === "string";
   const authorKind = isBot ? "bot" : userId ? "user" : "unknown";
