@@ -723,3 +723,23 @@ Decision state and delivery receipts belong to the Instance, never the Workspace
 A recorded decision makes the run runnable; the host resumes it after presenting
 the decision receipt. The steps worker recovers persisted runnable work after
 interruption. A decision receipt is not proof that the following effects finished.
+
+
+## More than one scheduled run per day
+
+Daily workflows keep the default key `trigger_id` plus `run_date`. For repeated
+checks within one day, declare `trigger_instant` as an instance field and use it
+in the key:
+
+```yaml
+instance:
+  key: [trigger_id, trigger_instant]
+  fields: [trigger_instant]
+```
+
+Core fills this field from the validated scheduled occurrence. Different
+occurrences produce different runs; retrying the same occurrence reuses its run.
+Callers and child steps cannot supply or override this trusted field. Operator
+retries retain the first opening time. Existing workflows that do not declare
+it keep their prior fields and identity. Business period fields still require
+Workspace computation or explicitly reviewed inputs.

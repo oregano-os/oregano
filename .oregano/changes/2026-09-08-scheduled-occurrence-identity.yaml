@@ -1,0 +1,48 @@
+version: 3
+plan_id: scheduled-occurrence-identity-2026-09-08
+created: 2026-09-08
+title: Distinguish repeated scheduled occurrences within one day
+objective: Allow an explicitly declared trusted trigger instant in a workflow instance key while preserving daily defaults and exact occurrence retry identity.
+non_goals:
+  - Add company intake rules, communication providers or a new scheduler.
+  - Accept caller-supplied trusted trigger fields or change existing daily keys.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-scheduled-occurrence-identity.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-configuration.ts
+  - packages/testkit/tests/workflow-occurrence-identity.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-occurrence-identity.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+    - operations.vercel-workflow-runner
+    - guide.author-workflow
+architecture:
+  placement:
+    core: Derive an opt-in occurrence identity from the validated scheduler instant and reject attempts to supply it as business input.
+    packages: No Package change.
+    workspace: Declare occurrence-based identity only where repeated checks are intended.
+    instance: Keep existing exact Artifact, clock, scheduler and durable run boundaries.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Use the existing validated occurrence as a trusted key component for repeated same-day schedules.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company or communication channel can use repeated scheduled workflows; no business selection or provider delivery behavior is added.
+rollback: Restore the prior candidate for new openings. Existing runs keep their exact identities and artifacts; daily defaults remain unchanged.

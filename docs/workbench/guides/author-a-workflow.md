@@ -134,3 +134,23 @@ Leave out `thread` to send a separate review message. The Connector must support
 replies at the chosen destination; see its setup guide for supported surfaces.
 After acceptance, publish a separate completion message only after verifying
 the effect. Use the original question's thread for that message too.
+
+
+## More than one scheduled run per day
+
+Daily workflows keep the default key `trigger_id` plus `run_date`. For repeated
+checks within one day, declare `trigger_instant` as an instance field and use it
+in the key:
+
+```yaml
+instance:
+  key: [trigger_id, trigger_instant]
+  fields: [trigger_instant]
+```
+
+Core fills this field from the validated scheduled occurrence. Different
+occurrences produce different runs; retrying the same occurrence reuses its run.
+Callers and child steps cannot supply or override this trusted field. Operator
+retries retain the first opening time. Existing workflows that do not declare
+it keep their prior fields and identity. Business period fields still require
+Workspace computation or explicitly reviewed inputs.

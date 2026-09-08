@@ -14,6 +14,10 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - .oregano/changes/2026-09-08-scheduled-occurrence-identity.yaml
+  - packages/testkit/tests/workflow-occurrence-identity.test.ts
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
   - .oregano/changes/2026-09-08-published-conversation-context.yaml
   - packages/runtime/published-conversation-context.ts
   - packages/testkit/tests/published-conversation-context.test.ts
@@ -92,6 +96,7 @@ files_expected:
   - packages/testkit/fixtures/workflow-hosting.test.ts
   - packages/connectors/slack/workflow-transport.ts
   - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/src/lib/workflow-configuration.ts
   - packages/runner-vercel/src/lib/workflow-action-ingress.ts
   - packages/runner-vercel/src/app/api/workflows/slack/route.ts
   - packages/testkit/tests/workflow-action-ingress.test.ts

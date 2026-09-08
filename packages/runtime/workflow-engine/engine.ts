@@ -118,13 +118,15 @@ export class WorkflowEngine {
   /** Scheduler supplies exact reviewed opening fields; Core never invents business period identifiers. */
   async openScheduled(args: { workflowId: string; principal: string; fields: Record<string, string>; instant: string }): Promise<WorkflowRun> {
     await this.#operator(args.principal); this.#enabled(args.workflowId);
+    if (["trigger_id", "run_date", "trigger_instant"].some(field => Object.hasOwn(args.fields, field))) throw new Error("Opening fields cannot override trusted trigger identity");
     const workflow = this.#artifact.workflows?.find((candidate) => candidate.id === args.workflowId);
     if (!workflow || workflow.trigger.kind !== "schedule") throw new Error("Workflow has no declared schedule");
     const calendar = this.#calendar(workflow)!;
     if (calendar.activation !== "active") throw new Error("Workflow schedule activation is blocked");
     const occurrence = workflowNextTrigger(calendar, workflow.trigger.id, args.instant);
     if (occurrence.instant !== args.instant) throw new Error("Opening is not an exact declared schedule occurrence");
-    const fields = { ...args.fields, trigger_id: workflow.trigger.id, run_date: occurrence.localDate };
+    const fields = { ...args.fields, trigger_id: workflow.trigger.id, run_date: occurrence.localDate,
+      ...(workflow.instance.fields.includes("trigger_instant") ? { trigger_instant: occurrence.instant } : {}) };
     if (workflow.instance.key.some((key) => !fields[key as keyof typeof fields])) throw new Error("Scheduled opening is missing a declared instance key field");
     const originKey = `schedule:${sha256(workflow.instance.key.map((key) => [key, fields[key as keyof typeof fields]]))}`;
     return this.#open({ ...args, params: occurrence.params }, originKey);
@@ -135,8 +137,9 @@ export class WorkflowEngine {
     if (!workflow) throw new Error("Unknown workflow");
     const now = this.#now(), instant = args.instant ?? now; workflowInstant(instant);
     const calendar = this.#calendar(workflow);
-    if (Object.hasOwn(args.fields, "trigger_id") || Object.hasOwn(args.fields, "run_date")) throw new Error("Opening fields cannot override trusted trigger identity");
-    const fields = { trigger_id: workflow.trigger.kind === "schedule" ? workflow.trigger.id : "operator", run_date: localDateAt(instant, calendar?.timezone ?? "UTC"), ...structuredClone(args.fields) };
+    if (["trigger_id", "run_date", "trigger_instant"].some(field => Object.hasOwn(args.fields, field))) throw new Error("Opening fields cannot override trusted trigger identity");
+    const fields = { trigger_id: workflow.trigger.kind === "schedule" ? workflow.trigger.id : "operator", run_date: localDateAt(instant, calendar?.timezone ?? "UTC"),
+      ...(workflow.instance.fields.includes("trigger_instant") ? { trigger_instant: instant } : {}), ...structuredClone(args.fields) };
     const missing = workflowOpeningFields(workflow).filter((field) => !fields[field as keyof typeof fields]);
     if (missing.length) throw new Error(`Workflow opening requires reviewed fields: ${missing.join(", ")}`);
     const trigger = { id: fields.trigger_id, instant, params: structuredClone(args.params ?? {}) } as WorkflowRunIdentity["trigger"];
@@ -153,7 +156,12 @@ export class WorkflowEngine {
     const prior = await this.#options.store.findOrigin(identity.instanceId, identity.workflowId, identity.originKey);
     if (prior) {
       // A request without an explicit instant retains its original opening time on retry.
-      if (!args.instant) { identity.trigger.instant = prior.trigger.instant; identity.fields.run_date = prior.fields.run_date!; if (!args.previousInstant) identity.trigger.previous_instant = prior.trigger.previous_instant; identity.originDigest = workflowOriginDigest(identity); }
+      if (!args.instant) {
+        identity.trigger.instant = prior.trigger.instant; identity.fields.run_date = prior.fields.run_date!;
+        if (workflow.instance.fields.includes("trigger_instant")) identity.fields.trigger_instant = prior.trigger.instant;
+        if (!args.previousInstant) identity.trigger.previous_instant = prior.trigger.previous_instant;
+        identity.originDigest = workflowOriginDigest(identity);
+      }
       if (prior.originDigest !== identity.originDigest) throw new Error("Workflow opening identity conflicts with changed input");
       return prior;
     }
@@ -196,8 +204,8 @@ export class WorkflowEngine {
         const items = step.forEach ? workflowItems(step, workflow, ctx) : [{ key: "single", value: null }];
         const prepared = items.map((item) => {
           const fields = resolveWorkflowValue(step.start!.fields, workflow, { ...ctx, item: item.value }) as Record<string, string>;
-          if (Object.values(fields).some((value) => typeof value !== "string" || !value) || workflowOpeningFields(target).some((field) => !["trigger_id", "run_date"].includes(field) && !fields[field])
-            || Object.keys(fields).some((field) => !target.instance.fields.includes(field) || ["trigger_id", "run_date"].includes(field))) throw new Error("Child opening fields do not match the target contract");
+          if (Object.values(fields).some((value) => typeof value !== "string" || !value) || workflowOpeningFields(target).some((field) => !["trigger_id", "run_date", "trigger_instant"].includes(field) && !fields[field])
+            || Object.keys(fields).some((field) => !target.instance.fields.includes(field) || ["trigger_id", "run_date", "trigger_instant"].includes(field))) throw new Error("Child opening fields do not match the target contract");
           return { ...item, fields };
         });
         const prior = state.steps[step.id] ?? { status: "running" as const, startedAt: now, items: {} };

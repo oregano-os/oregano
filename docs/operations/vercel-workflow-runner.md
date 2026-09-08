@@ -110,7 +110,8 @@ Example shape; replace all illustrative IDs and the hash:
 Configuration pins the exact Artifact, Instance and deployment environment.
 Operators resolve to current active humans. The schedule principal identifies
 an accountable configured operator. Automatic opening allows only workflows
-whose required fields are supplied by trigger identity and run date. Otherwise
+whose required fields are supplied by trigger identity, run date and the
+explicitly declared trusted `trigger_instant`. Otherwise
 prepare exact future occurrences using `schedule` and explicit Workspace-defined
 fields. The engine persists a start wait; Core does not invent business periods.
 
@@ -771,3 +772,12 @@ for the file returns no Artifact. A test must load the exact expected hash.
 The hosting provider counts inherited settings in its environment limit too.
 A local estimate alone is insufficient. Prefer the bundle transport as a
 Workspace grows, instead of repeatedly trimming prompts to fit the limit.
+
+## Repeated scheduled checks
+
+For more than one opening per local day, use the occurrence-based instance key
+in [workflow operations](workflow-engine.md#more-than-one-scheduled-run-per-day).
+The hosted automatic-opening validator accepts the declared trusted instant;
+caller-supplied business keys are still refused. Preview still needs a separately
+scheduled protected worker driver. A manually invoked worker is not evidence
+that the hosting provider invokes it automatically.

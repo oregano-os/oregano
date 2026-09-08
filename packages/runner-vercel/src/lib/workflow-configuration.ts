@@ -58,7 +58,7 @@ export function decodeWorkflowHostingConfiguration(artifact: CompanyOSArtifact, 
   if (enabledWorkflowIds.some((id) => !artifact.workflows?.some((workflow) => workflow.id === id)) || autoOpenWorkflowIds.some((id) => !enabledWorkflowIds.includes(id))) throw new Error("Workflow configuration selects an absent or disabled workflow");
   for (const id of autoOpenWorkflowIds) {
     const workflow = artifact.workflows!.find((workflow) => workflow.id === id)!;
-    if (workflow.trigger.kind !== "schedule" || workflowOpeningFields(workflow).some((field) => !["trigger_id", "run_date"].includes(field))) {
+    if (workflow.trigger.kind !== "schedule" || workflowOpeningFields(workflow).some((field) => !["trigger_id", "run_date", "trigger_instant"].includes(field))) {
       throw new Error(`Automatic opening of '${id}' needs explicit business fields; prepare its scheduled occurrence through the operator instead`);
     }
   }
