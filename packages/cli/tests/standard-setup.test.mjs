@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { runStandardSetup } from '../src/setup/standard-setup.mjs';
+import { standardSetupModel } from '../src/setup/release-defaults.mjs';
 import { standardSetupScope } from '../src/setup/standard-defaults.mjs';
 import { createFreshSetupState, assertFreshSetupAuthority, assertFreshInitializationEvidence, setupDigest } from '../src/setup/standard-contract.mjs';
 import { advanceLiveSetup, readLiveSetupState, writeLiveSetupState, SUPPORTED_VERCEL_CLI_VERSION } from '../src/live-setup.mjs';
@@ -40,11 +41,18 @@ function discovery({ organizations = [], plan = 'pro', collide = false } = {}) {
   } };
 }
 
-test('standard setup asks one company field, then one concrete review and no technical fields', () => fixture(async (f) => {
+test('standard setup asks company and provider, then one concrete review without technical fields', () => fixture(async (f) => {
   const executor = discovery();
   const first = await runStandardSetup({ ...f, executor });
   assert.equal(first.type, 'input'); assert.equal(first.field, 'company_name');
-  const review = await runStandardSetup({ ...f, executor, reply: { action: 'answer', values: { company_name: 'Example Company' } } });
+  const choice = await runStandardSetup({ ...f, executor, reply: { action: 'answer', values: { company_name: 'Example Company' } } });
+  assert.equal(choice.type, 'choice'); assert.equal(choice.field, 'model_provider');
+  assert.deepEqual(choice.options, [{ value: 'openai', label: 'OpenAI' }, { value: 'anthropic', label: 'Anthropic' }]);
+  assert.equal((await runStandardSetup({ ...f, executor, reply: { action: 'retry' } })).field, 'model_provider');
+  assert.equal(existsSync(join(f.root, '.companyos-bootstrap/live-state.json')), false);
+  const review = await runStandardSetup({ ...f, executor, reply: { action: 'answer', values: { model_provider: 'openai' } } });
+  assert.equal(review.summary.costs.model.route, 'openai-direct');
+  assert.equal(review.summary.costs.model.credential.variable, 'OPENAI_API_KEY');
   assert.equal(review.type, 'review', JSON.stringify(review));
   assert.equal(review.summary.responsible_person, account.name);
   assert.equal(review.summary.github, 'anna-example/example-company-companyos');
@@ -59,13 +67,53 @@ test('standard setup asks one company field, then one concrete review and no tec
 test('multiple accounts are a real selection, defaults and edits remain one review', () => fixture(async (f) => {
   const executor = discovery({ organizations: [{ id: 222, login: 'example-org' }] });
   const selected = await runStandardSetup({ ...f, executor }); assert.equal(selected.type, 'choice'); assert.equal(selected.field, 'github_owner');
-  const review = await runStandardSetup({ ...f, executor, reply: { action: 'answer', values: { github_owner: 'example-org', company_name: 'Example', language: 'de', timezone: 'Europe/Berlin' } } });
+  const review = await runStandardSetup({ ...f, executor, reply: { action: 'answer', values: { model_route: 'vercel-ai-gateway', github_owner: 'example-org', company_name: 'Example', language: 'de', timezone: 'Europe/Berlin' } } });
   assert.equal(review.type, 'review');
-  const edited = await runStandardSetup({ ...f, executor, reply: { action: 'edit', values: { company_name: 'New Example' } } });
+  const edited = await runStandardSetup({ ...f, executor, reply: { action: 'edit', values: { model_route: 'vercel-ai-gateway', company_name: 'New Example' } } });
   assert.notEqual(edited.revision, review.revision);
   const stale = await runStandardSetup({ ...f, executor, reply: { action: 'confirm', revision: review.revision } });
   assert.equal(stale.type, 'recovery'); assert.match(stale.message, /summary/);
   assert.equal(existsSync(join(f.root, '.companyos-bootstrap/live-state.json')), false);
+}));
+
+test('provider edits replace old overrides, invalidate review, and retain selection on retry', () => fixture(async (f) => {
+  const options = { ...f, executor: discovery() };
+  const first = await runStandardSetup({ ...options, reply: { action: 'answer', values: { company_name: 'Example', model_provider: 'openai', model: 'openai/gpt-5.4-mini' } } });
+  assert.equal(first.type, 'review');
+  assert.equal(first.summary.costs.model.model, 'openai/gpt-5.4-mini');
+  const edited = await runStandardSetup({ ...options, reply: { action: 'edit', values: { model_provider: 'anthropic' } } });
+  assert.equal(edited.type, 'review', JSON.stringify(edited));
+  assert.equal(edited.summary.costs.model.route, 'anthropic-direct');
+  assert.equal(edited.summary.costs.model.model, 'anthropic/claude-sonnet-4-6');
+  assert.equal(edited.summary.costs.model.credential.variable, 'ANTHROPIC_API_KEY');
+  assert.notEqual(edited.revision, first.revision);
+  assert.equal((await runStandardSetup({ ...options, reply: { action: 'retry' } })).revision, edited.revision);
+  const stale = await runStandardSetup({ ...options, reply: { action: 'confirm', revision: first.revision } });
+  assert.equal(stale.type, 'recovery'); assert.match(stale.message, /summary/);
+  assert.equal(existsSync(join(f.root, '.companyos-bootstrap/live-state.json')), false);
+}));
+
+test('other recipes need explicit requests and invalid choices cannot replace a review', () => fixture(async (f) => {
+  const executor = discovery(); const options = { ...f, executor };
+  const first = await runStandardSetup({ ...options, reply: { action: 'answer', values: { company_name: 'Example', model_provider: 'openai' } } });
+  for (const values of [
+    { model_provider: 'unknown' }, { model_route: 'unknown' },
+    { model_provider: 'anthropic', model: 'openai/gpt-5.4-mini' },
+    { model_provider: 'openai', model_route: 'vercel-ai-gateway' },
+    { model_route: 'google-direct' },
+  ]) {
+    const rejected = await runStandardSetup({ ...options, reply: { action: 'edit', values } });
+    assert.equal(rejected.type, 'recovery', JSON.stringify(rejected));
+    assert.equal((await runStandardSetup({ ...options, reply: { action: 'retry' } })).revision, first.revision);
+  }
+  const custom = await runStandardSetup({ ...options, reply: { action: 'edit', values: { model_route: 'google-direct', model: 'google/gemini-fixture' } } });
+  assert.equal(custom.type, 'review'); assert.equal(custom.summary.costs.model.route, 'google-direct');
+  const gateway = await runStandardSetup({ ...options, reply: { action: 'edit', values: { model_route: 'vercel-ai-gateway' } } });
+  assert.equal(gateway.type, 'review'); assert.equal(gateway.summary.costs.model.route, 'vercel-ai-gateway');
+  assert.equal(gateway.summary.costs.model.credential, null);
+  assert.ok(!executor.calls.some(call => call.includes('create') || call.includes('deploy')));
+  assert.equal(standardSetupModel(), null);
+  assert.throws(() => standardSetupModel({ model: 'openai/gpt-5.4-mini' }), /Choose a model provider/);
 }));
 
 test('Hobby is detected before company intake or mutations', () => fixture(async (f) => {
@@ -92,7 +140,7 @@ test('candidate setup checks source availability before resources, labels its re
   assert.ok(!missingSource.calls.some((call) => call.includes('create') || call.includes('deploy')));
   const base = discovery();
   const executor = { run(file,args,opts) { return file === 'gh' && args[1]?.includes('/git/commits/') ? ok({ sha: candidate.core_commit }) : base.run(file,args,opts); } };
-  const review = await runStandardSetup({ ...options, executor, reply: { action: 'answer', values: { company_name: 'Candidate Company' } } });
+  const review = await runStandardSetup({ ...options, executor, reply: { action: 'answer', values: { model_route: 'vercel-ai-gateway', company_name: 'Candidate Company' } } });
   assert.equal(review.type, 'review', JSON.stringify(review)); assert.equal(review.summary.installation, 'Unpublished test candidate');
   assert.equal(review.summary.core_commit, candidate.core_commit);
   const session = JSON.parse(readFileSync(join(bootstrap, 'standard-setup.json')));
@@ -106,7 +154,7 @@ test('candidate setup checks source availability before resources, labels its re
 
 test('a changed setup or adoption cannot reuse fresh authority', () => fixture(async (f) => {
   const core = { root: f.coreRoot, repository: f.coreIdentity.repository, ref: f.coreIdentity.ref, version: f.coreIdentity.core_version, workbench_version: WORKBENCH_VERSION };
-  const scope = standardSetupScope({ root: f.root, core, account, owner: account, team, companyName: 'Example' });
+  const scope = standardSetupScope({ root: f.root, core, account, owner: account, team, settings: { model_provider: 'openai' }, companyName: 'Example' });
   const state = createFreshSetupState(scope, setupDigest(scope));
   assert.doesNotThrow(() => assertFreshSetupAuthority(state));
   state.answers = { ...state.answers, vercel_project_mode: 'adopt' };
@@ -116,7 +164,7 @@ test('a changed setup or adoption cannot reuse fresh authority', () => fixture(a
 
 for (const distribution of [{ kind: 'stable' }, { kind: 'candidate', manifest_sha256: 'e'.repeat(64) }]) test(`fresh ${distribution.kind} materialization creates one operating version and never opens an activation PR`, () => fixture(async (f) => {
   const core = { root: f.coreRoot, repository: f.coreIdentity.repository, ref: f.coreIdentity.ref, version: f.coreIdentity.core_version, workbench_version: WORKBENCH_VERSION };
-  const scope = standardSetupScope({ root: f.root, core, distribution, account, owner: account, team, companyName: 'Example' });
+  const scope = standardSetupScope({ root: f.root, core, distribution, account, owner: account, team, settings: { model_provider: 'openai' }, companyName: 'Example' });
   const state = createFreshSetupState(scope, setupDigest(scope)); state.phase = 'fresh-workspace';
   state.resources.slack = { team_id: 'T12345678', user_id: 'U12345678' };
   const statePath = join(f.root, 'state.json'); writeLiveSetupState(statePath, state);
@@ -148,7 +196,9 @@ for (const distribution of [{ kind: 'stable' }, { kind: 'candidate', manifest_sh
 
 const { COMPANY_DATABASE_MANIFEST: manifest, COMPANY_DATABASE_MANIFEST_DIGEST: manifestDigest } = await import('../../state-postgres/database-bootstrap.ts');
 const qualification = () => ({ receiptVersion: 1, status: 'qualified', manifestId: manifest.id, manifestVersion: manifest.version, manifestDigest, qualifiedAt: new Date().toISOString(), schemas: Object.fromEntries(Object.entries(manifest.schemas).map(([key,value]) => [{companyos_knowledge:'companyosKnowledge',companyos_records:'companyosRecords'}[key] ?? key, { tableCount: value.tables.length }])), corePageTypeCount: manifest.corePageTypes.length, features: { vector: false } });
-function lifecycle(f) {
+function lifecycle(f, provider = 'gateway') {
+  const selection = standardSetupModel(provider === 'gateway' ? { model_route: 'vercel-ai-gateway' } : { model_provider: provider });
+  let credentialPresent = false;
   const calls = []; const base = discovery(); let repository = false; let project = false; let proof = false; let check = false;
   const commit = 'b'.repeat(40); const hash = 'c'.repeat(64); const tools = 'd'.repeat(64);
   const executor = { run(file,args,options={}) {
@@ -181,26 +231,37 @@ function lifecycle(f) {
       if (args[0] === 'api' && args[1]?.includes('/projects/prj_example')) return ok({environments:['production']});
       if (args[0] === 'api' && args[1]?.startsWith('/v1/connect/connectors/')) return ok({triggers:{enabled:true},triggerDestinations:[{projectId:'prj_example',path:'/api/webhooks/slack'}],id:'scl_example',uid:decodeURIComponent(args[1].split('/').at(-1)),service:'slack',defaultInstallationId:'T12345678',data:{appId:'A12345678',slackTeam:{id:'T12345678'},clientSecret:'synthetic-secret-discarded'}});
       if (args[0] === 'env') {
-        if (args[1] === 'list') return ok([]);
+        if (args[1] === 'list') return ok(credentialPresent && selection.credential_ref ? [{ key: selection.credential_ref, target: ['production'], type: 'sensitive' }] : []);
         if (args[1] === 'add') return ok();
         if (args.includes('prepare')) return ok({ok:true,operation:'bootstrap',qualification:qualification()});
-        if (args.includes('--exchange')) return proof ? ok({ok:true,conversation_entries:2,assistant_entries:1,model_evidence_entries:1,first_response_at:new Date().toISOString()}) : {status:2,stdout:'',stderr:''};
+        if (args.includes('--exchange')) { const expected = JSON.parse(args[args.indexOf('--exchange') + 1]); assert.equal(expected.model_route, selection.route); assert.equal(expected.model, selection.model); return proof ? ok({ok:true,conversation_entries:2,assistant_entries:1,model_evidence_entries:1,first_response_at:new Date().toISOString()}) : {status:2,stdout:'',stderr:''}; }
       }
       if (args[0] === 'deploy') return ok({id:'dpl_example',url:'oregano.example.test'});
       if (args[0] === 'inspect') return ok({id:'dpl_example',readyState:'READY',target:'production',aliases:['oregano.production.example.test']});
     }
     return base.run(file,args,options);
   } };
-  const fetchImpl = async (url,options) => { if (url === 'https://oregano.example.test/api/health') throw new Error('Deployment protection requires login'); return ({ok:true,status:200,json:async()=> url.includes('slack.com') ? {ok:true,team:{id:'T12345678',name:'Example'},user:{id:'U12345678'}} : {ok:true,status:'ready',artifactHash:hash,coreCommit:f.coreIdentity.ref,workspaceCommit:commit,resolvedToolSetHash:tools,agent:'oregano',tools:[],modelRoute:'vercel-ai-gateway',model:'openai/gpt-5.4-nano',databaseManifestDigest:manifestDigest,deploymentId:'dpl_example'}}); };
-  return {executor,fetchImpl,calls,passCheck(){check=true;},respond(){proof=true;}};
+  const fetchImpl = async (url,options) => { if (url === 'https://oregano.example.test/api/health') throw new Error('Deployment protection requires login'); return ({ok:true,status:200,json:async()=> url.includes('slack.com') ? {ok:true,team:{id:'T12345678',name:'Example'},user:{id:'U12345678'}} : {ok:true,status:'ready',artifactHash:hash,coreCommit:f.coreIdentity.ref,workspaceCommit:commit,resolvedToolSetHash:tools,agent:'oregano',tools:[],modelRoute:selection.route,model:selection.model,databaseManifestDigest:manifestDigest,deploymentId:'dpl_example'}}); };
+  return {executor,fetchImpl,calls,selection,configureKey(){credentialPresent=true;},passCheck(){check=true;},respond(){proof=true;}};
 }
 
-for (const kind of ['stable', 'candidate']) test(`one ${kind} decision reaches production and a natural Slack exchange; repeated resume never deploys twice`, () => fixture(async (f) => {
+for (const kind of ['stable', 'candidate']) for (const provider of ['openai', 'anthropic', 'gateway']) test(`one ${kind} ${provider} decision reaches production and a natural Slack exchange; repeated resume never deploys twice`, () => fixture(async (f) => {
   if (kind === 'candidate') f = candidateFixture(f).options;
-  const live = lifecycle(f); const options={...f,...live};
-  const review = await runStandardSetup({...options,reply:{action:'answer',values:{company_name:'Example'}}});
+  const live = lifecycle(f, provider); const options={...f,...live};
+  const selection = provider === 'gateway' ? { model_route: 'vercel-ai-gateway' } : { model_provider: provider };
+  const review = await runStandardSetup({...options,reply:{action:'answer',values:{...selection,company_name:'Example'}}});
   assert.equal(review.type,'review',JSON.stringify(review));
-  const waiting = await runStandardSetup({...options,reply:{action:'confirm',revision:review.revision}});
+  let waiting = await runStandardSetup({...options,reply:{action:'confirm',revision:review.revision}});
+  if (provider !== 'gateway') {
+    assert.equal(waiting.action?.type, 'browser-secret-entry', JSON.stringify(waiting));
+    assert.equal(waiting.action.variable_name, live.selection.credential_ref);
+    assert.equal(waiting.action.environment, 'production');
+    assert.equal(live.calls.filter(call => call[1] === 'deploy').length, 0);
+    const missing = await runStandardSetup({...options,reply:{action:'retry'}});
+    assert.equal(missing.action?.type, 'browser-secret-entry', JSON.stringify(missing));
+    live.configureKey();
+    waiting = await runStandardSetup({...options,reply:{action:'retry'}});
+  }
   assert.equal(waiting.action?.type,'wait-for-required-check',JSON.stringify(waiting));
   assert.equal(live.calls.filter((call)=>call[1]==='deploy').length,0);
   live.passCheck();
@@ -226,6 +287,11 @@ for (const kind of ['stable', 'candidate']) test(`one ${kind} decision reaches p
   const state=readLiveSetupState(join(f.root,'.companyos-bootstrap/live-state.json'));
   assert.equal(state.fresh.initialization.check,'passed');assert.deepEqual(state.operating,{});
   assert.equal(state.schema_version,5);assert.equal(state.verification.database.ok,true);
+  assert.equal(state.answers.model_route, live.selection.route);
+  assert.equal(state.resources.model.model, live.selection.model);
+  if (provider !== 'gateway') assert.equal(state.resources.model.credential_status, 'present-sensitive');
+  const retarget = await runStandardSetup({...options,reply:{action:'edit',values:{model_provider:provider === 'openai' ? 'anthropic' : 'openai'}}});
+  assert.equal(retarget.type, 'recovery'); assert.match(retarget.message, /cannot be retargeted/);
   assert.doesNotMatch(JSON.stringify(state), /synthetic-secret-discarded|synthetic-human/);
   assert.equal(result.timing.distribution,kind);
   if (kind === 'candidate') {
@@ -237,7 +303,7 @@ for (const kind of ['stable', 'candidate']) test(`one ${kind} decision reaches p
 
 test('confirmation recovers its own atomic receipt after interruption without another decision', () => fixture(async (f) => {
   const executor=discovery();
-  const review=await runStandardSetup({...f,executor,reply:{action:'answer',values:{company_name:'Example'}}});
+  const review=await runStandardSetup({...f,executor,reply:{action:'answer',values:{model_route:'vercel-ai-gateway',company_name:'Example'}}});
   const session=JSON.parse(readFileSync(join(f.root,'.companyos-bootstrap/standard-setup.json')));
   writeLiveSetupState(join(f.root,'.companyos-bootstrap/live-state.json'),createFreshSetupState(session.scope,review.revision));
   const live=lifecycle(f);
@@ -248,7 +314,7 @@ test('confirmation recovers its own atomic receipt after interruption without an
 
 test('cancellation and changed provider identity cannot create or deploy', () => fixture(async (f) => {
   const live=lifecycle(f);const options={...f,...live};
-  const review=await runStandardSetup({...options,reply:{action:'answer',values:{company_name:'Example'}}});
+  const review=await runStandardSetup({...options,reply:{action:'answer',values:{model_route:'vercel-ai-gateway',company_name:'Example'}}});
   const changed={run(file,args,opts){if(file==='gh'&&args[1]==='user')return ok({...account,id:55555});return live.executor.run(file,args,opts);}};
   const refused=await runStandardSetup({...options,executor:changed,reply:{action:'confirm',revision:review.revision}});
   assert.equal(refused.type,'recovery');assert.match(refused.message,/person changed/);
@@ -265,7 +331,7 @@ test('an interrupted first deployment is recovered by session metadata without a
   return live.executor.run(file,args,options);
  }};
  const options={...f,...live,executor};
- const review=await runStandardSetup({...options,reply:{action:'answer',values:{company_name:'Example'}}});live.passCheck();
+ const review=await runStandardSetup({...options,reply:{action:'answer',values:{model_route:'vercel-ai-gateway',company_name:'Example'}}});live.passCheck();
  const interrupted=await runStandardSetup({...options,reply:{action:'confirm',revision:review.revision}});
  assert.equal(interrupted.type,'recovery');assert.match(interrupted.message,/connection lost/);
  const resumed=await runStandardSetup({...options,reply:{action:'retry'}});assert.equal(resumed.action?.type,'open-slack',JSON.stringify(resumed));
@@ -280,7 +346,7 @@ test('an interrupted create cannot adopt a resource merely because its name matc
   if(submitted&&file==='vercel'&&args[0]==='integration'&&args[1]==='list')return ok([{id:'store_other',uid:'neon/other',name:'example-companyos-db'}]);
   return live.executor.run(file,args,options);
  }};
- const options={...f,...live,executor};const review=await runStandardSetup({...options,reply:{action:'answer',values:{company_name:'Example'}}});
+ const options={...f,...live,executor};const review=await runStandardSetup({...options,reply:{action:'answer',values:{model_route:'vercel-ai-gateway',company_name:'Example'}}});
  assert.equal((await runStandardSetup({...options,reply:{action:'confirm',revision:review.revision}})).type,'recovery');
  const resumed=await runStandardSetup(options);assert.equal(resumed.action?.type,'reconcile-provider-receipt');assert.match(resumed.message,/matching name alone/);
  assert.equal(creates,1);assert.equal(live.calls.filter(call=>call[1]==='deploy').length,0);

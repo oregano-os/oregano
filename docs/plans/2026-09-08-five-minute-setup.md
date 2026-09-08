@@ -29,7 +29,7 @@ relations:
 ## 1. Decision and implementation status
 
 The selected product direction is one standard journey: **connect accounts,
-confirm one understandable summary, use Oregano in Slack**. Codex and Claude
+choose OpenAI or Anthropic, confirm one understandable summary, use Oregano in Slack**. Codex and Claude
 Code start the same installer and explain its output. The CLI owns the flow.
 
 This plan defines the implemented experimental standard journey. The coordinated
@@ -54,7 +54,7 @@ they have not been rewritten as if they shipped the entire simplification.
 | Technical names | Generate repository, project, database, directory, and internal IDs. Resolve name availability before presenting the summary. |
 | Accounts | Reuse valid logins. Choose automatically only when there is one eligible account/team or an exact saved selection. Ask only for actual ambiguity. |
 | Infrastructure | Default to GitHub, Vercel Pro or Enterprise, Neon/Postgres, and Slack. Keep supported overrides accessible under Advanced without an initial simple/advanced question. |
-| Model | Use the release-maintained Gateway route and exact standard model. Offer model changes or a dedicated provider key later or on explicit advanced request. |
+| Model | Ask OpenAI or Anthropic, without preselection; use the direct API and maintained recipe model. Offer other models/providers only on request. Guide the human through Sensitive Production key entry. |
 | Authorization | Show one summary covering resources, responsible person, region, possible charges, the starter, and the first production deployment. One human confirmation authorizes that scope. |
 | Progress | Use short user-language status messages. Show commands, internal phases, receipts, and debugging detail only on request or when useful for an error. |
 | Recovery | Retry transient failures and resume automatically. Involve the human only for missing authentication, required provider consent, an actual conflict, or a changed decision. |
@@ -85,7 +85,7 @@ Their underlying records remain available in technical details.
 | Separate starter activation confirmation | The starter is already described in the single summary. |
 | Initial activation PR and manual merge approval | A checked fresh-initialization receipt replaces this intermediate PR. Later Workspace changes retain their applicable governance. |
 | Additional first-deployment confirmation | Include the initial deployment in the same bounded setup decision. |
-| Model/provider consultation | A maintained Gateway default; no standard-path route or key interview. |
+| Full model/provider consultation | One OpenAI-or-Anthropic choice. Derive route and model; use the existing key-entry action. Other models/providers only on request. |
 | User-maintained YAML, state paths, and confirmation hashes | The CLI creates, locates, and resumes its private session state. The agent transports machine responses internally. |
 | Repeating checks of identical local inputs | Reuse a result bound to the exact release, template, configuration, and file digests. Recheck affected inputs when they change. |
 | Technical completion report | Say that Oregano is ready and provide its verified Slack link; keep detailed evidence available separately. |

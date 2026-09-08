@@ -11,6 +11,8 @@ https://github.com/oregano-os/oregano/releases/latest/download/INSTALL-COMPANYOS
 ```
 
 Use the verified release installer and let `companyos setup` own the session.
+Ask which model provider to use, offering OpenAI or Anthropic with no default.
+Other supported providers and models are available only on request.
 Show one editable setup decision, including the first deployment, and necessary
 provider actions. Do not add a configuration interview or permission requests
 for routine work. The CLI invokes `companyos verify-live` before reporting that

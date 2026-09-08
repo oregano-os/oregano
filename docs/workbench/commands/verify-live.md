@@ -27,6 +27,11 @@ companyos verify-live --state <file> [--scope starter|workflow] [--format human|
 ```
 
 The standard `companyos setup` session invokes this command automatically.
+Its chosen direct provider, exact model and Sensitive Production credential
+metadata must match the reviewed binding and real response evidence. OpenAI
+and Anthropic are ordinary choices; an explicitly requested alternative has
+the same exact-binding requirements. Existing Gateway sessions retain their
+original route and installer.
 Fresh setup proves an ordinary first Slack exchange, including delivered model
 response and persisted entries bound to the principal and exact Artifact.
 Legacy states retain their nonce proof; they cannot use the fresh exception.

@@ -47,8 +47,11 @@ provenance, evidence, state guarantees, observability, and rollback. An
 ## Maintained first-installation profile
 
 For a fresh Slack starter, use the release installer and `companyos setup`.
-The CLI discovers accounts and defaults and shows one editable resource, cost,
-region and responsible-person summary. One decision covers creation and the
+The CLI discovers accounts, requires the explicit OpenAI-or-Anthropic choice,
+and shows one editable resource, cost, region and responsible-person summary.
+It uses the selected direct recipe and its maintained agent model. Other models
+or providers are available only on request. The provider key is entered in
+Vercel Sensitive Production settings through the existing browser action. One decision covers creation and the
 first production deployment. Vercel Pro/Enterprise is detected automatically;
 Hobby needs a human billing action. Oregano manages schedules.
 

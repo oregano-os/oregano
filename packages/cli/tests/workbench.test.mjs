@@ -1264,7 +1264,10 @@ test("Codex and Claude Code share one plugin-free bootstrap runbook", () => {
   assert.doesNotMatch(install, /codex plugin (?:marketplace )?add|claude plugin (?:marketplace )?add/i);
   assert.equal(releaseManifest.status, "source-template");
   assert.equal(releaseManifest.default_profile, "vercel-neon-slack");
-  assert.equal(releaseManifest.default_model_route, "vercel-ai-gateway");
+  assert.equal(releaseManifest.default_model_route, null);
+  assert.equal(releaseManifest.default_model, null);
+  assert.equal(releaseManifest.model_provider_selection, "required");
+  assert.deepEqual(releaseManifest.model_provider_options, setupReleaseMetadata().model_provider_options);
   assert.deepEqual(releaseManifest.supported_model_routes, setupReleaseMetadata().supported_model_routes);
   assert.equal(releaseManifest.requirements.vercel_cli, "56.3.2");
   assert.equal(rootPackage.devDependencies.vercel, releaseManifest.requirements.vercel_cli);

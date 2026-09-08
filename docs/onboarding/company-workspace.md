@@ -26,8 +26,12 @@ relations:
 
 Codex and Claude Code share the verified release installer and the same
 `companyos setup` session. The human pastes the short prompt and sees connected
-accounts, one editable setup summary, necessary provider actions, and the Slack
-link. Technical defaults and evidence are managed by the CLI. One setup decision
+accounts, a required OpenAI-or-Anthropic choice, one editable setup summary,
+necessary provider actions, and the Slack
+link. Technical defaults and evidence are managed by the CLI. The chosen
+provider uses its direct API and recipe model; only an explicit request selects
+another model or provider. The single summary includes its cost and key
+destination, and direct keys stay in Vercel Sensitive Production variables. One setup decision
 includes the first deployment; the direct fresh initializer produces the whole
 operating Workspace at `0.1.0` with one named Steward and no business Tools.
 

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { inspectCoreCheckout } from '../core-checkout.mjs';
 import { advanceLiveSetup, createCommandExecutor, readLiveSetupState, writeLiveSetupState, verifyLiveSetup, safeProviderError, inspectVercelPlan } from '../live-setup.mjs';
 import { standardSetupScope, standardSetupSummary } from './standard-defaults.mjs';
+import { STANDARD_MODEL_PROVIDERS, standardSetupModel } from './release-defaults.mjs';
 import { createFreshSetupState, setupDigest, standardSlackConnectorName } from './standard-contract.mjs';
 import { readSetupDistribution } from '../../../../scripts/install-companyos.mjs';
 
@@ -85,10 +86,17 @@ export async function runStandardSetup({ root = process.cwd(), coreRoot, reply, 
     if (reply && !['confirm', 'answer', 'edit', 'retry', 'cancel'].includes(reply.action)) throw new Error('Unknown setup response.');
     if (['answer', 'edit'].includes(reply?.action)) {
       if (session.phase === 'install' || session.phase === 'complete') throw new Error('An authorized installation cannot be retargeted. Resume it or use a separate explicit change.');
-      const allowed = new Set(['company_name', 'language', 'timezone', 'responsible_name', 'github_owner', 'vercel_team']);
+      const allowed = new Set(['company_name', 'language', 'timezone', 'responsible_name', 'github_owner', 'vercel_team', 'model_provider', 'model_route', 'model']);
       if (!reply.values || Object.entries(reply.values).some(([key,value]) => !allowed.has(key) || typeof value !== 'string' || value.length > 160 || /[\u0000-\u001f]/.test(value))) throw new Error('Provide only the requested setup fields.');
       if (session.pending?.type === 'input' && reply.values.company_name) session.free_text_inputs += 1;
-      session.settings = { ...session.settings, ...reply.values }; session.scope = null; session.phase = 'connect';
+      const settings = { ...session.settings };
+      // A provider edit starts from that provider's recipe, not an old override.
+      if (['model_provider', 'model_route'].some((key) => reply.values[key] !== undefined && reply.values[key] !== settings[key])) {
+        for (const key of ['model_provider', 'model_route', 'model']) delete settings[key];
+      }
+      Object.assign(settings, reply.values);
+      standardSetupModel(settings); // Validate before changing the saved review.
+      session.settings = settings; session.scope = null; session.phase = 'connect';
     }
     // Recover a decision saved immediately before an interrupted session write.
     if (session.phase === 'review' && existsSync(livePath)) {
@@ -162,6 +170,9 @@ export async function runStandardSetup({ root = process.cwd(), coreRoot, reply, 
     // The maintained connector is created only after Review. A previously
     // selected name can be supplied by an authenticated host via this field.
     if (!companyName) return emit('input', 'What is your company called?', { field: 'company_name' });
+    if (!standardSetupModel(session.settings)) return emit('choice', 'Which model provider would you like to use?', {
+      field: 'model_provider', options: STANDARD_MODEL_PROVIDERS.map(({ value, label }) => ({ value, label })),
+    });
     const resources = (data) => Array.isArray(data) ? data : data.resources ?? data.connectors ?? data.data ?? [];
     const slack = resources(requireJson(await providerRead(executor, 'vercel', ['connect', 'list', '--all-projects', '--service', 'slack', '--search', 'oregano', '--format', 'json', '--scope', team.slug, '--cwd', coreRoot]), 'Slack connectors'));
     const connectorName = standardSlackConnectorName({ distribution, session_id: session.id });

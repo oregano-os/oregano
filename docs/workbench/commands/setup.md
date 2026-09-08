@@ -32,12 +32,26 @@ companyos setup --directory /absolute/setup --format json
 companyos setup --directory /absolute/setup --reply '<structured response>' --format json
 ```
 
-The default is GitHub + Vercel Pro/Enterprise + Neon + Slack, with the maintained
-release's Gateway model. The command discovers logins and account choices,
-derives names/language/timezone/responsibility, asks at most one company-name
-field with unambiguous accounts, and shows one editable cost/resource overview.
+The standard infrastructure is GitHub + Vercel Pro/Enterprise + Neon + Slack.
+The command discovers logins and account choices, derives names, language,
+timezone and responsibility, and asks at most one company-name field when
+accounts are unambiguous. It requires a model-provider choice: **OpenAI** or
+**Anthropic**, with neither preselected. Each uses its direct API and the
+existing recipe's agent model. One editable cost/resource overview follows.
 The `confirm` response to that exact review covers all new resources and the
 first production deployment. The session stores the decision privately.
+
+The response field is `model_provider: openai|anthropic`. The agent must ask
+when no provider has been explicitly selected; it must not infer the choice
+from its own model or an existing login. Only on request, accept `model` as an
+exact override, or `model_route` for another maintained route (with an exact
+model where the recipe has no default). Do not display a third menu option or
+the entire model catalog. Mismatched provider/model choices fail before writes.
+Changing provider before confirmation resets an earlier model override and
+invalidates the review. Retries keep the selection; confirmed sessions keep
+their exact binding. Gateway requires an explicit request and is never a fresh
+default. Direct keys use the existing Sensitive Production browser-entry step;
+there is no additional setup approval or credential-mode interview.
 
 The fresh state is schema `5`, flow `fresh-initialization`. It binds the session,
 verified installer, provider scopes, release/template/configuration and costs.
@@ -450,7 +464,7 @@ routes bypass AI Gateway; Vercel remains only the runtime host and secret store.
 For compatibility with setup answer files created before this selection
 existed, omitting both `model_route` and `model_credential_mode` preserves the
 former `vercel-ai-gateway` plus `platform` behavior. The explicit advanced flow records both fields. The standard flow derives them
-from the release defaults without asking a model question. Deployment
+from the explicit provider selection and the release-maintained recipe model. Deployment
 materializes that answer as the default binding in
 `COMPANYOS_MODEL_CONFIG_BASE64` and also retains the simple route/model
 variables for compatible Runners.

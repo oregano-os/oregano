@@ -355,7 +355,11 @@ production environment value. The Slack binding uses the fixed Connector UID
 `slack/oregano` and visible Agent name `Oregano`; provider-internal resource
 names may remain company-specific but do not become the Agent identity.
 
-Model execution resolves through the Core recipe registry. The maintained
+Model execution resolves through the Core recipe registry. A new standard
+installation requires OpenAI or Anthropic selection, resolves its direct recipe
+and agent model, and includes the provider and key destination in its single
+review. Other routes or models need an explicit request. Gateway is not a fresh
+setup default; existing instances retain their reviewed binding. The maintained
 setup binds Gateway, native Anthropic/OpenAI/Google, or a named compatible
 cloud recipe. The registry also supports explicitly configured LiteLLM,
 Ollama, llama-server, and generic OpenAI-compatible endpoints; those endpoints

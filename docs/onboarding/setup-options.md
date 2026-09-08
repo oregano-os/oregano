@@ -45,8 +45,8 @@ qualification remains outstanding; five minutes is not yet a measured promise.
 
 | Choice | What it sets up | Entry and completion | Availability |
 |---|---|---|---|
-| Standard live starter | Private GitHub Workspace, Vercel Runner, Neon/Postgres, Slack, and a model through Vercel AI Gateway | Shared Release runbook; `companyos setup`; the CLI invokes `companyos verify-live` before completion | Implemented, experimental; no separate model-provider key from the human |
-| Live starter with a direct model provider | The same four infrastructure providers, with direct model calls and a dedicated provider key in Vercel's Sensitive Production environment | Explicit advanced `--profile vercel-neon-slack` flow and verifier; select a release-supported `model_route` and exact model | Native Anthropic, OpenAI, and Google setup adapters exist; release metadata is generated from the shared recipe registry |
+| Standard live starter | Private GitHub Workspace, Vercel Runner, Neon/Postgres and Slack; required choice of OpenAI or Anthropic using its direct API | Shared Release runbook; `companyos setup`; one provider choice and one resource/cost review; `companyos verify-live` before completion | Implemented, experimental; the human supplies a provider API key in Vercel Sensitive Production settings |
+| Another model or provider on request | The same infrastructure with an explicitly requested, release-supported model recipe | Standard session accepts `model` or `model_route` on request; adoption retains the advanced flow | Maintained routes remain available, including Gateway; there is no automatic Gateway fallback |
 | Local authoring Workspace | Company files and local checks; no hosted runtime, database, or Slack assistant | `companyos create workspace`, then `companyos bootstrap verify` | Implemented, experimental; not a live installation |
 | Alternative infrastructure | For example a container host, another PostgreSQL service, or another communication surface | No selectable full setup profile or complete installation runbook exists | Requires implementation and qualification before it can be offered |
 
@@ -73,15 +73,18 @@ setup folder and use this prompt for the standard live starter:
 ```text
 Set up Oregano using the verified release installer described here:
 https://github.com/oregano-os/oregano/releases/latest/download/INSTALL-COMPANYOS.md
-Guide me in my language. Use the standard defaults, show one editable setup
+Guide me in my language. Ask whether I want OpenAI or Anthropic. Use the other
+standard defaults, show one editable setup
 summary, and handle routine work yourself. Finish after my first real Slack
 reply and successful verification.
 ```
 
-For deliberate model-provider selection or adoption, use the explicit
-[advanced setup contract](../workbench/commands/setup.md#explicit-advanced-and-legacy-flow).
-Its answers and separate activation/deployment decisions remain supported.
-This is an optional destination, never a preliminary simple/advanced question.
+OpenAI and Anthropic are the two ordinary choices; the recipe model is filled
+in automatically. Other models or providers require an explicit request, using
+`model` or `model_route` in the same session. Deliberate resource adoption uses
+the [advanced setup contract](../workbench/commands/setup.md#explicit-advanced-and-legacy-flow).
+Adoption answers and separate activation/deployment decisions remain supported.
+Adoption is an optional destination, never a preliminary simple/advanced question.
 Supported native and named compatible cloud routes are enumerated from the
 same recipe registry in `supported_model_routes`; individual provider/model
 availability and live qualification must be established for the chosen release.

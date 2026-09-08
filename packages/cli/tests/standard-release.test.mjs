@@ -55,7 +55,9 @@ test('an incomplete candidate argument cannot silently start the stable installe
 
 test('release defaults enumerate the same maintained model recipes as the CLI',()=>{
  const metadata=setupReleaseMetadata();assert.deepEqual(metadata.supported_model_routes,Object.keys(SETUP_MODEL_PROVIDERS).sort());
- assert.equal(metadata.default_profile,'vercel-neon-slack');assert.equal(metadata.default_model_route,'vercel-ai-gateway');
+ assert.equal(metadata.default_profile,'vercel-neon-slack');assert.equal(metadata.default_model_route,null);assert.equal(metadata.default_model,null);
+ assert.equal(metadata.model_provider_selection,'required');
+ assert.deepEqual(metadata.model_provider_options.map(({label,route})=>({label,route})),[{label:'OpenAI',route:'openai-direct'},{label:'Anthropic',route:'anthropic-direct'}]);
 });
 
 test('an unpublished bundle installs offline, binds resume, and never requests a release',()=>withTemp(async(root)=>{

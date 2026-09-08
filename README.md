@@ -28,7 +28,8 @@ Open Codex on a new, empty setup folder and paste:
 Set up Oregano using the verified release installer described here:
 https://github.com/oregano-os/oregano/releases/latest/download/INSTALL-COMPANYOS.md
 
-Guide me in my language. Use the standard defaults and show me the single
+Guide me in my language. Ask whether I want OpenAI or Anthropic, use the other
+standard defaults, and show me the single
 editable setup summary. Handle routine work yourself; ask me only for missing
 information, the setup decision, and necessary account actions. Finish when
 Oregano has replied to my first message in Slack and verification succeeds.
@@ -45,7 +46,8 @@ Open Claude Code on a new, empty setup folder and paste:
 Set up Oregano using the verified release installer described here:
 https://github.com/oregano-os/oregano/releases/latest/download/INSTALL-COMPANYOS.md
 
-Guide me in my language. Use the standard defaults and show me the single
+Guide me in my language. Ask whether I want OpenAI or Anthropic, use the other
+standard defaults, and show me the single
 editable setup summary. Handle routine work yourself; ask me only for missing
 information, the setup decision, and necessary account actions. Finish when
 Oregano has replied to my first message in Slack and verification succeeds.

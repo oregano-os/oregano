@@ -499,6 +499,15 @@ Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,
 and named compatible cloud recipes. Generic OpenAI-compatible, LiteLLM,
 Ollama, and llama-server recipes are available outside the bounded one-prompt
 profile when their endpoints are explicitly reachable from the runtime.
+Fresh standard setup MUST require an explicit provider selection. Its ordinary
+choices MUST be OpenAI and Anthropic, without preselection; each MUST use its
+direct recipe and maintained agent model. Another supported model or route MUST
+require an explicit request. Gateway MUST NOT be an automatic setup default.
+The single resource/cost review MUST bind route, exact model and credential
+destination. Provider edits MUST invalidate that review; confirmed sessions
+MUST retain their original binding. Reuse the existing Sensitive Production key
+entry and model-backed verification. This does not migrate existing sessions.
+
 This boundary is installation
 orchestration only; it is not a public plugin contract and does not alter the
 provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.

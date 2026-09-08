@@ -34,7 +34,8 @@ which remaining actions require a Platform Administrator with `repository` or
 
 For a new installation, Codex and Claude Code use the same release-matched
 `INSTALL-COMPANYOS.md` and `companyos setup` session. The CLI reuses account
-logins, proposes defaults, asks the company name only when needed, and shows
+logins, proposes defaults, asks the company name only when needed, requires an
+OpenAI-or-Anthropic choice, and shows
 one editable resource/cost/responsibility summary. That single decision covers
 new resources and the first production deployment. The human completes actual
 provider login and consent. Routine technical work proceeds automatically.
@@ -108,10 +109,10 @@ records. Unresolved policies and ACL mappings remain
 in quarantine. Schema qualification does not authorize retrieval; runtime
 subject and policy conformance remain separate gates.
 
-The standard release derives its Gateway model without a question. Explicit
-advanced setup can select another release-supported model recipe, including
-`anthropic-direct`, `openai-direct`, or `google-direct`. Gateway needs no
-provider key from the human. Direct recipes bypass AI Gateway and pause while
+The standard setup asks which provider to use: OpenAI or Anthropic. Neither is
+preselected; its exact agent model comes from the maintained recipe. Other
+models and providers, including Gateway, require an explicit request and are
+not displayed as ordinary choices. Direct recipes bypass AI Gateway and pause while
 the human enters a dedicated provider key only in the Vercel project UI under
 the documented Sensitive Production variable; setup records only its
 reference, presence, and Sensitive classification. Completion

@@ -20,6 +20,14 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Standard setup now requires an explicit choice of OpenAI or Anthropic and
+  binds its direct recipe, maintained model and Sensitive Production key
+  destination to the single resource/cost review. Other models/providers require
+  a request. Gateway is not selected automatically; existing installed sessions
+  retain their original binding. The provider-compatibility repairs are included.
+  The new choice is covered by synthetic lifecycles; fresh live qualification of
+  this revision is still outstanding.
+
 - The setup adapter corrects the `identity.basic` endpoint and personal CLI
   token-subject mismatch. It validates connector metadata for the Slack Messages
   link and isolates provider-generated OIDC/skill files from immutable source.
@@ -1426,7 +1434,7 @@ GitHub checks using the exact pushed source without a release lookup. Candidate
 timing cannot qualify the stable release installer. No live provider run or real
 database integration result is claimed by this implementation.
 
-The candidate integration branch now starts from Core `0.6.2` on current `main`.
+The candidate integration branch includes Core `0.7.0` from `main`.
 It preserves the newer Builder release and Workflow behavior, resolves the setup
 conflicts, and automatically gives each candidate a separate Slack connector.
 The maintained database suite passed all 67 tests on disposable local PostgreSQL

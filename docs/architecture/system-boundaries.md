@@ -98,7 +98,10 @@ billing action. This does not make Vercel billing or cron frequency a generic
 Core runtime contract or a Company Workspace interview field.
 
 Core owns one model-recipe registry rather than a model installation role. The
-maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and
+standard setup exposes OpenAI and Anthropic as explicit direct-provider choices.
+Other providers and exact model overrides require a request; this selection
+reuses the recipe resolver and secret-entry adapter. Runtime defaults for
+existing installations remain separate. The maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and
 Google routes; named OpenAI-compatible cloud routes for OpenRouter, DeepSeek,
 Groq, Together AI, MiniMax, Zhipu AI, Moonshot AI, Mistral AI, and NVIDIA NIM;
 local or proxy routes for Ollama, llama-server, and LiteLLM; and one generic

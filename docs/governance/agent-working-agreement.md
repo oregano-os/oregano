@@ -55,6 +55,10 @@ requires multiple confirmation hashes or human actions that are already known,
 present them together in one concise request. Never fabricate, bypass, or
 silently broaden a required confirmation.
 
+Fresh setup requires the human's model-provider choice, presenting OpenAI and
+Anthropic only. A supported alternative requires an explicit request. Do not
+infer a provider from the coding agent or substitute Gateway as a default.
+
 A fresh standard installation uses one concrete reviewed setup decision under
 the release/promotion specification. That decision includes the named new
 resources and first production deployment; do not add separate local, activation,

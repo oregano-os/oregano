@@ -65,7 +65,7 @@ use the same session and event contract:
 | Event | Agent action |
 |---|---|
 | `input` | Ask the company name, the only required free-text field when account selection is clear. |
-| `choice` | Show the actual account choices. Do not ask when the CLI selected a unique account. |
+| `choice` | Show actual account choices when ambiguous. For `model_provider`, ask **OpenAI or Anthropic** with no preselection, unless the human already explicitly supplied that choice. |
 | `review` | Show the complete editable company, responsible person, GitHub/Vercel destination, database region, model and costs summary. Offer **Set up**, **Edit**, or **Cancel**. The single decision includes creating the listed new resources and the first production deployment. |
 | `action` | Perform the returned routine action, open the required provider login/consent, or wait for the provider/check. Ask only for the human interaction that is actually necessary. |
 | `recovery` | Explain the concrete problem, resolve it within the approved scope and retry the same session. Do not delete resources or invent receipts. |
@@ -76,6 +76,16 @@ Return answers using the same downloaded installer and directory with
 `{"action":"edit","values":{...}}`, `{"action":"confirm","revision":"..."}`,
 `{"action":"retry"}`, or `{"action":"cancel"}`. Use a structured process
 argument or correct shell quoting; never concatenate an answer into shell code.
+For provider answers, use `values: {"model_provider":"openai"}` or
+`values: {"model_provider":"anthropic"}`. Use the returned recipe model without
+another question. Other models or providers are available only on explicit
+request through `model` and/or a maintained `model_route`; do not add an Other
+menu item or infer the provider from the coding agent or account logins. Gateway
+is never selected automatically. The summary binds the direct provider, exact
+model, pricing and Sensitive Production key destination. Handle the existing
+`browser-secret-entry` action by opening its provider key page and Vercel page;
+the human enters the API key there. Keep the key out of chat and local files.
+
 The agent passes the returned revision only after the human selects Set up.
 There is no unattended `yes` shortcut. Edit changes the review; a stale reply
 cannot authorize a different setup. Repeating a response resumes the same

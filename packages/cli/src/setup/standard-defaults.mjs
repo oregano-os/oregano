@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { suggestSlug, normalizeCreateWorkspaceInput } from '../workspace-generator.mjs';
-import { STANDARD_SETUP_DEFAULTS } from './release-defaults.mjs';
+import { STANDARD_SETUP_DEFAULTS, standardSetupModel } from './release-defaults.mjs';
 import { standardTemplateDigest, standardSlackConnectorName } from './standard-contract.mjs';
 
 export function standardSetupScope({ root, core, account, owner, team, companyName, settings = {}, suffix = '', sessionId = randomUUID(), distribution = { kind: 'stable' } }) {
+  const model = standardSetupModel(settings);
+  if (!model) throw new Error('Choose OpenAI or Anthropic before reviewing the setup.');
   const slug = suggestSlug(companyName).slice(0, 40) || 'company';
   const stem = `${slug}${suffix}`;
   const locale = Intl.DateTimeFormat().resolvedOptions();
@@ -27,12 +29,13 @@ export function standardSetupScope({ root, core, account, owner, team, companyNa
       vercel_scope: team.slug, vercel_project: `${stem}-companyos`, vercel_project_mode: 'create',
       neon_resource_name: `${stem}-companyos-db`, neon_resource_mode: 'create', neon_plan: STANDARD_SETUP_DEFAULTS.neon_plan, neon_region: STANDARD_SETUP_DEFAULTS.neon_region,
       slack_connector_name: standardSlackConnectorName({ distribution, session_id: sessionId }), slack_connector_mode: 'create', slack_channel_id: '',
-      model_route: STANDARD_SETUP_DEFAULTS.model_route, model_credential_mode: 'platform', model: STANDARD_SETUP_DEFAULTS.model,
+      model_route: model.route, model_credential_mode: model.credential_mode, model: model.model,
     },
     costs: {
       vercel: { plan: 'pro-or-enterprise', pricing: 'https://vercel.com/docs/plans/pro-plan' },
       database: { plan: STANDARD_SETUP_DEFAULTS.neon_plan, region: STANDARD_SETUP_DEFAULTS.neon_region, pricing: 'https://neon.com/pricing' },
-      model: { route: STANDARD_SETUP_DEFAULTS.model_route, model: STANDARD_SETUP_DEFAULTS.model, pricing: 'https://vercel.com/ai-gateway/models' },
+      model: { provider: model.provider, route: model.route, model: model.model, pricing: model.pricing,
+        credential: model.credential_ref ? { variable: model.credential_ref, destination: 'Vercel Sensitive Production environment' } : null },
       usage: 'Provider subscriptions and usage charges apply. No subscription upgrade is performed by Oregano.',
     },
     effect: 'Create these new resources, initialize the supervised Slack assistant, and deploy it to production once. No business Tools or unattended workflows.',
