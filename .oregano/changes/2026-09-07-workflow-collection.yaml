@@ -1,8 +1,13 @@
 version: 3
 plan_id: workflow-collection-2026-09-07
-created: "2026-09-07"
+created: 2026-09-07
 title: Collect typed facts in an assigned workflow conversation
-objective: Collect bounded facts with the declared Agent model, route authenticated conversation replies, qualify model responses without effects, and obtain a separate human decision before the existing effect; start enabled leaf workflows from Workspace intake selections.
+objective: Collect bounded facts with the declared Agent model, route
+  authenticated conversation replies, qualify model responses without effects,
+  and obtain a separate human decision before the existing effect; start enabled
+  leaf workflows from Workspace intake selections. Remove the retired domain
+  executor after preserving its reusable assertions in the declared-workflow
+  coverage.
 non_goals:
   - Add business selection rules or a provider-specific conversation engine.
   - Infer consent from model output or activate production.
@@ -107,6 +112,32 @@ files_expected:
   - docs/workbench/guides/author-a-workflow.md
   - docs/status/current.md
   - docs/_generated/**
+  - .oregano/changes/2026-09-08-retire-sprint-executor.yaml
+  - packages/domains/sprint/**
+  - packages/runtime/sprint-*.ts
+  - packages/runtime/memory-sprint-orchestration.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/sprint-loader.ts
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runner-vercel/src/lib/stage0-qualification.ts
+  - packages/runner-vercel/src/app/api/sprint/**
+  - packages/runner-vercel/src/app/api/stage0/**
+  - packages/state-store/sprint-orchestration.ts
+  - packages/state-postgres/sprint-orchestration-store.ts
+  - packages/state-postgres/records-schema.sql
+  - packages/state-postgres/records-migrate.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/schema/sprint-*.schema.json
+  - packages/schema/README.md
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/**
+  - packages/testkit/fixtures/**
+  - packages/runner-vercel/vercel.json
+  - vercel.json
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
 tests:
   - packages/testkit/tests/published-conversation-context.test.ts
   - packages/testkit/tests/artifact-payload.test.ts
@@ -124,17 +155,23 @@ documentation_impact:
     - status.current
     - operations.workflow-engine
     - guide.author-agent
+    - specification.company-records-sprint-v0.1
+    - guide.prepare-instance
 architecture:
   placement:
-    core: Reuse delivered assignments, leases, typed outputs, decisions and effects; retain Agent model tasks and expose isolated qualification using the shared prompt.
+    core: Reuse delivered assignments, leases, typed outputs, decisions and effects;
+      retain Agent model tasks and expose isolated qualification using the
+      shared prompt.
     packages: No business package.
     workspace: Own eligible items, requested fields, questions and proposals.
     instance: Bind exact authenticated conversations and isolated resources.
   mechanisms_extended:
     - mechanism: identity-and-authorization
-      reason: Permit bounded output submission only from the frozen recipient-bound conversation.
+      reason: Permit bounded output submission only from the frozen recipient-bound
+        conversation.
     - mechanism: model-recipe-resolver
-      reason: Preserve declared Agent tasks across normal and workflow conversations and record the actual selection during qualification.
+      reason: Preserve declared Agent tasks across normal and workflow conversations
+        and record the actual selection during qualification.
     - mechanism: approvals-effects-and-idempotency
       reason: Collecting facts advances to an ordinary decision without approving it.
   new_core_mechanisms: []
@@ -143,8 +180,5 @@ architecture:
     secrets_in_git: false
     public_fixtures: synthetic-only
   core_reusability: Any workflow can collect fields before its independently authorized effect.
-rollback: Disable new workflow openings and retain pinned artifacts and history for pending runs.
-
-# Bounded model generation follows the same governed Tool path.
-# See 2026-09-08-workflow-language-generation.yaml for its focused placement,
-# scoped Skill binding, model evidence, limits and acceptance plan.
+rollback: Disable new workflow openings and retain pinned artifacts and history
+  for pending runs.
