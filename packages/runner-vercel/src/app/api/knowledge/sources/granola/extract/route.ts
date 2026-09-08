@@ -1,3 +1,4 @@
+import { protectProductionWorker } from "../../../../../../lib/production-worker-gate.ts";
 import { createHash } from "node:crypto";
 import { GranolaKnowledgeExtractionRuntime } from "../../../../../../lib/knowledge-model-runtime.ts";
 import { authorizeScheduledKnowledgeRequest, classifyKnowledgeSourceRuntimeError, describeKnowledgeSourceRuntimeError } from "../../../../../../lib/knowledge-source-runtime.ts";
@@ -16,5 +17,5 @@ async function handle(request: Request) {
   }
 }
 
-export const GET = handle;
-export const POST = handle;
+export const GET = protectProductionWorker(handle);
+export const POST = GET;

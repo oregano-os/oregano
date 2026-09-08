@@ -34,7 +34,7 @@ export async function qualifyDeployedAcp(
   profileId: BuilderAcpProfileId,
 ): Promise<DeployedAcpQualificationEvidence> {
   const profile = resolveBuilderAcpProfile(profileId);
-  const snapshotId = process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID;
+  const snapshotId = process.env.COMPANYOS_BUILDER_SNAPSHOT_ID ?? process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID;
   const credential = profile.id === "claude-code"
     ? process.env.ANTHROPIC_API_KEY
     : process.env.OPENAI_API_KEY;

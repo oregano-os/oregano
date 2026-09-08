@@ -1,3 +1,4 @@
+import { protectProductionWorker } from "../../../../lib/production-worker-gate.ts";
 import { createHash } from "node:crypto";
 import { authorizeSprintScheduler, runSprintTimerWorker } from "../../../../lib/sprint-runtime.ts";
 
@@ -9,7 +10,7 @@ const digest = (error: unknown): string => createHash("sha256")
   .update(error instanceof Error ? error.message : String(error))
   .digest("hex");
 
-export async function GET(request: Request) {
+async function handleScheduledRequest(request: Request) {
   if (!authorizeSprintScheduler(request)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   try {
     const result = await runSprintTimerWorker();
@@ -20,3 +21,5 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "sprint-timer-worker-failed", errorDigest }, { status: 503 });
   }
 }
+
+export const GET = protectProductionWorker(handleScheduledRequest);

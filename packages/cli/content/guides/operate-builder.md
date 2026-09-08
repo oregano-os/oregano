@@ -161,6 +161,19 @@ probe complete the release. Preserve the final Artifact in Instance deployment
 configuration when an operator performs a later manual deployment; a Workspace
 merge alone never publishes it.
 
+Production-target staging may receive scheduled worker calls before domain
+promotion. Core workers therefore read the exact deployment identity from the
+primary production health endpoint before advancing any scheduled work. The
+release binding's `productionUrl` takes precedence; other hosted production
+workers use Vercel's `VERCEL_PROJECT_PRODUCTION_URL`. Unavailable identity fails
+closed, and staged or superseded deployments do no work. Qualification endpoints
+remain separate, protected, fixed-fixture operations. Verify the actual primary
+domain rather than inferring it from an automatically generated alias.
+
+Hosted provider orchestration must import only the remote validator. Local
+Workbench validation and checkout metadata stay inside their separate trusted
+execution; a successful build alone is not proof of hosted cold-start behavior.
+
 Create operations retain a durable intent before dispatch. After an ambiguous
 provider response, reconcile the same operation's deployment metadata; never
 create another deployment merely because a receipt was lost. Inspect unresolved

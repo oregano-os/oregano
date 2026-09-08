@@ -1,0 +1,67 @@
+version: 3
+plan_id: builder-hosted-startup-2026-09-08
+created: 2026-09-08
+title: Release Core 0.6.1 with isolated hosted imports and production worker gating
+objective: Correct a hosted cold-start failure caused by importing local Workbench
+  metadata into the trusted remote validator. Prevent scheduled production workers
+  from running on staged or superseded deployments. Qualify the selected model
+  against the shared image configuration and verify actual hosted startup.
+non_goals:
+  - Change company policy or grant new provider access.
+  - Replace protected release, copy secrets into Preview, or weaken human acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-hosted-startup.yaml
+  - package.json
+  - packages/runtime/builder/workbench-validator.ts
+  - packages/runtime/builder/trusted-proposal-validator.ts
+  - packages/runner-vercel/src/lib/builder/provider-factory.ts
+  - packages/runner-vercel/src/lib/builder/deployed-acp-qualification.ts
+  - packages/runner-vercel/src/lib/builder/deployed-acp-crash-qualification.ts
+  - packages/runner-vercel/src/lib/production-worker-gate.ts
+  - packages/runner-vercel/src/lib/production-worker-gate.test.ts
+  - packages/runner-vercel/src/app/api/**/route.ts
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - packages/cli/content/guides/operate-builder.md
+  - docs/_generated/**
+tests:
+  - packages/runner-vercel/src/lib/production-worker-gate.test.ts
+  - packages/testkit/tests/builder-execution.test.ts
+  - packages/testkit/tests/builder-live-adapters.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - guide.operate-builder
+    - specification.company-instance-release-promotion-v0.1
+architecture:
+  placement:
+    core: Separate local validation imports from hosted orchestration and verify
+      the exact deployment served by the production domain before scheduled work.
+    packages: Reuse the existing Workbench and shared image; no new package API.
+    workspace: Existing process definitions and acceptance rights remain authoritative.
+    instance: The trusted hosting binding supplies its production URL and provider
+      deployment identity; staged qualification has no company effect authority.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Domain promotion must precede production worker execution.
+    - mechanism: capability-contracts-and-connectors
+      reason: Keep local compiler metadata out of hosted provider imports.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies and coding profiles use the same separation and
+    live-deployment check. Hosting identity remains an Instance concern.
+rollback: Restore the preceding exact deployment and worker image, preserving
+  durable jobs and receipts. Never run a superseded deployment's scheduled workers
+  or claim application rollback reverses external effects.
+open_decisions: []

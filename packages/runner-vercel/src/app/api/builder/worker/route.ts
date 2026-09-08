@@ -1,3 +1,4 @@
+import { protectProductionWorker } from "../../../../lib/production-worker-gate.ts";
 import { getBuilderService } from "../../../../lib/builder/provider-factory.ts";
 import { getBuilderTerminalNotifier, advanceBuilderRelease } from "../../../../lib/bot.ts";
 import { handleBuilderWorkerRequest } from "../../../../lib/builder/worker-endpoint.ts";
@@ -7,7 +8,7 @@ import { createPostgresBuilderJobStore } from "../../../../../../state-postgres/
 
 export const maxDuration = 300;
 
-export async function GET(request: Request): Promise<Response> {
+async function handleScheduledRequest(request: Request): Promise<Response> {
   return handleBuilderWorkerRequest(request, {
     cronSecret: process.env.CRON_SECRET,
     loadArtifact,
@@ -27,4 +28,5 @@ export async function GET(request: Request): Promise<Response> {
   });
 }
 
+export const GET = protectProductionWorker(handleScheduledRequest);
 export const POST = GET;

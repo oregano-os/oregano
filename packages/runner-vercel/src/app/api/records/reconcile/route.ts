@@ -1,3 +1,4 @@
+import { protectProductionWorker } from "../../../../lib/production-worker-gate.ts";
 import { createHash } from "node:crypto";
 import { CompanyRecordsRehearsalError } from "../../../../lib/company-records-rehearsal.ts";
 import {
@@ -14,7 +15,7 @@ const errorDigest = (value: unknown): string => createHash("sha256")
   .update(value instanceof Error ? value.message : String(value))
   .digest("hex");
 
-export async function GET(request: Request) {
+async function handleScheduledRequest(request: Request) {
   if (!authorizeCompanyRecordsScheduler(request)) return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   try {
     const configuration = decodeCompanyRecordsProductionConfiguration();
@@ -29,3 +30,5 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: "records-reconciliation-failed", errorDigest: errorDigest(error) }, { status: 503 });
   }
 }
+
+export const GET = protectProductionWorker(handleScheduledRequest);

@@ -39,6 +39,14 @@ must not be presented as implementation of this complete contract.
 
 Normative requirements use stable `CIRP-*` identifiers.
 
+The maintained hosted Builder implementation gates scheduled production work on
+the exact deployment currently served by the configured primary production
+domain. A production-target build without domain promotion is insufficient
+authority to advance workers. Staged and superseded deployments must remain
+inactive for scheduled company effects, even when the provider invokes their
+cron routes. Unavailable live identity fails closed. Fixed-fixture qualification
+remains a separately authenticated operation and cannot authorize company work.
+
 ## 1. Outcomes and non-goals
 
 **CIRP-OUT-001 — Test before merge.** A change MUST receive the validation,
