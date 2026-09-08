@@ -714,6 +714,13 @@ uses the same model resolver as conversations; it does not add a provider key
 or switch routes. Generation has no Tools, no SDK retries, a maximum of 4,000
 output tokens and a 55-second deadline; a shorter configured limit wins. Its
 default output limit is 2,500 tokens. Truncated or empty output fails the step.
+The short generation call explicitly uses the SDK's portable `low` reasoning
+effort, recorded with its model evidence. This prevents an implicit provider
+reasoning default from taking the answer budget; it does not change ordinary
+conversation settings. An incomplete call emits `language.generation-incomplete`
+with its finish reason, token totals and character counts. It logs neither the
+prompt, evidence, draft nor reasoning text. Inspect these diagnostics before
+changing the model or retrying a repeatedly failing run.
 
 Include this optional Connector and the frozen Skill in the exact deployed
 Artifact. Check the hosting environment's payload size limits again after the

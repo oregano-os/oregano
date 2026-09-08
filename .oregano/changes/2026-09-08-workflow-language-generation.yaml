@@ -2,7 +2,7 @@ version: 3
 plan_id: workflow-language-generation-2026-09-08
 created: "2026-09-08"
 title: Generate bounded text from a scoped Workspace Skill
-objective: Expose model generation to governed Tools using an exact frozen Skill, explicit evidence and the owning Agent model task, with no model-selected tools or effects.
+objective: Expose model generation to governed Tools using an exact frozen Skill, explicit evidence and the owning Agent model task, with no model-selected tools or effects. Bound reasoning effort for the short host call and record content-free completion diagnostics.
 non_goals:
   - Add business report rules, company identities, provider choices or credentials to Core.
   - Change workflow control flow, human approval or production activation.
