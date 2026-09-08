@@ -4,7 +4,8 @@ import { test } from "node:test";
 import { neon } from "@neondatabase/serverless";
 import { createPostgresWorkflowExecutionStore } from "../../state-postgres/workflow-store.ts";
 import { createPostgresStateStore } from "../../state-postgres/store.ts";
-import { workflowAssignmentKey, workflowOriginDigest } from "../../runtime/workflow-engine/state-validation.ts";
+import { workflowAssignmentKey, workflowPublicationKey, workflowOriginDigest } from "../../runtime/workflow-engine/state-validation.ts";
+import { sha256 } from "../../runtime/canonical.ts";
 import { CompanyOSRuntime } from "../../runtime/companyos-runtime.ts";
 import type { WorkflowInvocationContext } from "../../runtime/workflow-engine/context.ts";
 import { workflowToolInput } from "../../runtime/workflow-engine/guard.ts";
@@ -18,6 +19,34 @@ const fixture = async () => {
   return { args, store, control, run };
 };
 const lease = (run: { instanceId: string; runId: string }, token = randomUUID()) => ({ instanceId: run.instanceId, runId: run.runId, owner: "test-worker", token, now, expiresAt: "2030-01-04T12:05:00.000Z" });
+
+test("Postgres publication context survives restart and cancellation without becoming an active assignment", { skip: !enabled }, async () => {
+  const { store, run } = await fixture(), claimed = (await store.claim(lease(run)))!;
+  const conversation = { surface: "mail", accountId: "example.test", channelId: `room-${randomUUID()}`, threadId: "<report@example.test>", subjectPrincipal: "mail:example.test:owner" };
+  const content = "Delivery finished. One dependency remains.", format = "plain-text" as const;
+  const publication = { messageId: "<outgoing@example.test>", content, format, publishedAt: now, sequence: 1, contentDigest: sha256({ content, format }) };
+  const assignment = { ...conversation, publication, instanceId: run.instanceId, assignmentKey: workflowPublicationKey(run.instanceId, conversation, publication.messageId),
+    runId: run.runId, stepId: "open-close-thread", artifactHash: run.artifactHash, expiresAt: "2030-01-05T12:00:00.000Z" };
+  const commit = { instanceId: run.instanceId, runId: run.runId, expectedRevision: 0, leaseToken: claimed.lease!.token, now, state: run.state,
+    event: { name: "workflow.publication", stepId: assignment.stepId }, assignments: [assignment] };
+  assert.ok(await store.commit(commit)); assert.equal(await store.commit(commit), undefined);
+  const restarted = createPostgresWorkflowExecutionStore();
+  assert.deepEqual(await restarted.publishedAssignments({ instanceId: run.instanceId, conversation, now }), [assignment]);
+  assert.equal(await restarted.deliveredAssignment({ instanceId: run.instanceId, conversation }), undefined);
+  assert.deepEqual(await restarted.channelAssignments({ instanceId: run.instanceId, ...conversation, now }), []);
+  for (const change of [{ surface: "other" }, { accountId: "other" }, { channelId: "other" }, { threadId: "other" }, { subjectPrincipal: "mail:example.test:other" }])
+    assert.deepEqual(await restarted.publishedAssignments({ instanceId: run.instanceId, conversation: { ...conversation, ...change }, now }), []);
+  assert.deepEqual(await restarted.publishedAssignments({ instanceId: "other", conversation, now }), []);
+  assert.deepEqual(await restarted.publishedAssignments({ instanceId: run.instanceId, conversation, now: "2030-01-06T12:00:00.000Z" }), []);
+  const next = (await store.claim(lease(run)))!;
+  const changedContent = "Changed after publication.";
+  await assert.rejects(store.commit({ ...commit, expectedRevision: next.revision, leaseToken: next.lease!.token,
+    assignments: [{ ...assignment, publication: { ...publication, content: changedContent, contentDigest: sha256({ content: changedContent, format }) } }] }));
+  assert.equal((await restarted.read(run.instanceId, run.runId))!.revision, 1);
+  assert.ok(await store.cancel({ instanceId: run.instanceId, runId: run.runId, principal: run.subjectPrincipal, now }));
+  assert.deepEqual(await restarted.publishedAssignments({ instanceId: run.instanceId, conversation, now }), [assignment]);
+  assert.equal(await restarted.assignment({ instanceId: run.instanceId, conversation, now }), undefined);
+});
 
 test("Postgres workflow create is atomic and redelivery survives JSONB reordering and store reconstruction", { skip: !enabled }, async () => {
   const { args, store, control, run } = await fixture();

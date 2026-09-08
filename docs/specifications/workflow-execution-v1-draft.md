@@ -322,6 +322,41 @@ account/channel/thread identity is required; private assignments additionally
 require the bound subject. Expired or terminal-run assignments do not authorize
 conversation context. The maintained host binds provider reads as described below.
 
+### Published conversation evidence
+
+Publication evidence is separate from the execution context above. After a
+successful message or decision delivery, the engine commits an optional
+`WorkflowAssignment.publication` with the exact sent content, format, message
+identity, publication time, commit sequence and content digest. Its key has a publication
+namespace. It cannot be returned as an active assignment or counted as an open
+fact collection. Root execution assignments keep their existing identity;
+threaded messages add evidence without replacing the parent assignment.
+
+The existing atomic state/event/assignment commit retains this evidence. If a
+worker stops after provider success, the ordinary effect receipt supports retry
+without a second send, followed by the same evidence commit. Unknown or failed
+outcomes do not create publication context. Memory and persistent stores share
+this contract; the optional entry requires no schema migration. Commit sequence
+preserves message order within a run when publication timestamps are equal.
+
+`PublishedConversationContextReader` accepts an authenticated principal and a
+provider-neutral `WorkflowConversation`. It reads only unexpired publications
+with the exact Instance, surface, account, channel and thread, and the bound
+subject for private deliveries. Current active human membership, enabled
+workflow, retained manifest ownership and the current owning Agent are required.
+Different eligible Agent owners are ambiguous and fail closed. Provider adapters
+authenticate input and supply normalized opaque identities; the reader never
+parses provider syntax or accesses a provider API.
+
+The resulting model context labels messages as untrusted, as-delivered evidence.
+It is bounded to 40 messages and 80,000 content characters, with an explicit
+truncation flag. Existing chat history supplies subsequent conversation turns.
+A terminal workflow remains terminal; the host gives this discussion no workflow
+Tools, collection control or handoff control. Active fact collection and decisions
+continue through their original guarded paths. Expired delivery context, removed
+owners and publications without retained text supply no report context. There is
+no implicit historical backfill or claim of current provider contents.
+
 Cancellation and the transition to provider dispatch lock the same execution
 row. A cancelled run, stale lease, changed step or blocked state cannot start a
 new Tool effect. The final check also uses current database time, so a worker

@@ -425,7 +425,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: agentInstructions(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context),
+    instructions: agentInstructions(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext),
     tools,
     prepareStep: ({ stepNumber }) => knowledgeStepChoice(knowledgeRoute, stepNumber),
     ...(workflowSession?.collection ? { stopWhen: [stepCountIs(20), ({ steps }: any) => hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? [])] } : {}),

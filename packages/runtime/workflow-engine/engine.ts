@@ -16,7 +16,7 @@ import { authorizeWorkflowDecisionPrincipal, workflowDecisionId, workflowDecisio
 import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, workflowToolInput } from "./guard.ts";
 import { assertWorkflowOutput, resolveWorkflowValue, workflowItems, workflowOpeningFields } from "./references.ts";
 import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader, WorkflowReviewContextReader } from "./readers.ts";
-import { workflowAssignmentKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
+import { workflowAssignmentKey, workflowPublicationKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
 import { workflowEffectReview } from "./effect-review.ts";
 import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 import { verifyCompletedWorkflow } from "./verification.ts";
@@ -287,7 +287,6 @@ export class WorkflowEngine {
     if (typeof destination !== "string" || (output as Record<string, JsonValue>)?.destination_binding !== destination) throw new Error("Publication receipt differs from its requested destination");
     if (Object.hasOwn(input as object, "thread_reference")) {
       if ((output as Record<string, JsonValue>)?.thread_reference !== (input as Record<string, JsonValue>).thread_reference) throw new Error("Publication receipt differs from its requested thread");
-      if (!step.decision) return [];
     }
     if (!step.decision && typeof (output as Record<string, JsonValue>)?.thread_reference !== "string") return [];
     const conversation = await this.#options.conversationForReceipt({ artifact, destinationBinding: destination, output });
@@ -304,8 +303,17 @@ export class WorkflowEngine {
       const member = conversation.subjectPrincipal ? findByCanonicalPrincipal(await this.#options.currentRoster(), conversation.subjectPrincipal) : undefined;
       if (!member || member.id !== memberId) throw new Error("Private publication receipt does not resolve to its exact human recipient");
     }
-    return [{ ...conversation, instanceId: run.instanceId, assignmentKey: workflowAssignmentKey(run.instanceId, conversation), runId: run.runId, stepId: step.id, artifactHash: run.artifactHash,
-      expiresAt: new Date(Date.parse(this.#now()) + (this.#options.assignmentLifetimeMs ?? 30 * 86_400_000)).toISOString() }];
+    const assignment: WorkflowAssignment = { ...conversation, instanceId: run.instanceId, assignmentKey: workflowAssignmentKey(run.instanceId, conversation), runId: run.runId, stepId: step.id, artifactHash: run.artifactHash,
+      expiresAt: new Date(Date.parse(this.#now()) + (this.#options.assignmentLifetimeMs ?? 30 * 86_400_000)).toISOString() };
+    const receipt = output as Record<string, JsonValue>, sent = input as Record<string, JsonValue>;
+    if (typeof receipt.message_id !== "string" || typeof receipt.published_at !== "string" || typeof sent.content !== "string") throw new Error("Publication has no exact delivered text and receipt");
+    const format = sent.format === "provider-markdown" ? "provider-markdown" : "plain-text";
+    const published: WorkflowAssignment = { ...assignment, assignmentKey: workflowPublicationKey(run.instanceId, conversation, receipt.message_id),
+      publication: { messageId: receipt.message_id, content: sent.content, format, publishedAt: receipt.published_at, sequence: run.revision + 1,
+        contentDigest: sha256({ content: sent.content, format }) } };
+    // Threaded messages contribute evidence without replacing their parent's
+    // execution assignment. Each provider message has its own immutable key.
+    return [...(!step.decision && Object.hasOwn(input as object, "thread_reference") ? [] : [assignment]), published];
   }
 
   async #decisionStep(run: WorkflowRun, artifact: CompanyOSArtifact, workflow: CompiledWorkflow, step: CompiledWorkflowStep, roster: RosterMember[]): Promise<WorkflowRun> {

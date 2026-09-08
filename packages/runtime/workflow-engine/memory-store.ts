@@ -122,10 +122,20 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
   }
   async channelAssignments(args: Parameters<WorkflowExecutionStore["channelAssignments"]>[0]): Promise<WorkflowAssignment[]> {
     workflowInstant(args.now);
-    return [...this.#assignments.values()].filter((a) => a.instanceId === args.instanceId && a.surface === args.surface
+    return [...this.#assignments.values()].filter((a) => !a.publication && a.instanceId === args.instanceId && a.surface === args.surface
       && a.accountId === args.accountId && a.channelId === args.channelId && a.subjectPrincipal === args.subjectPrincipal
       && a.expiresAt > args.now && active(this.#runs.get(key(a.instanceId, a.runId))!))
       .sort((a, b) => a.assignmentKey.localeCompare(b.assignmentKey)).slice(0, 21).map((a) => structuredClone(a));
+  }
+  async publishedAssignments(args: Parameters<WorkflowExecutionStore["publishedAssignments"]>[0]): Promise<WorkflowAssignment[]> {
+    workflowInstant(args.now);
+    const c = args.conversation;
+    return [...this.#assignments.values()].filter((a) => a.publication && a.instanceId === args.instanceId && a.surface === c.surface
+      && a.accountId === c.accountId && a.channelId === c.channelId && a.threadId === c.threadId && a.expiresAt > args.now
+      && (!a.subjectPrincipal || a.subjectPrincipal === c.subjectPrincipal))
+      .sort((a, b) => b.publication!.publishedAt.localeCompare(a.publication!.publishedAt) || a.runId.localeCompare(b.runId)
+        || b.publication!.sequence - a.publication!.sequence || a.assignmentKey.localeCompare(b.assignmentKey))
+      .slice(0, 41).map((a) => structuredClone(a));
   }
   async assignment(args: Parameters<WorkflowExecutionStore["assignment"]>[0]): Promise<WorkflowAssignment | undefined> {
     workflowInstant(args.now);

@@ -55,6 +55,15 @@ renderer supplies the actual publish input. Publish a root without a thread
 and use its persisted receipt for subsequent replies. Decisions bind the exact
 payload; an empty batch must end before approval.
 
+Replies to a delivered report can use its exact sent text after the workflow
+finishes. Put the desired explanation style in the owning Agent's instructions;
+no extra conversation Skill or artificial waiting step is needed. The host must
+support the shared publication-context contract. This read-only discussion does
+not grant Tools or reopen the workflow. Only publications with retained delivery
+text are available; older messages are not automatically backfilled. See
+[workflow operations](../../operations/workflow-engine.md#replies-to-delivered-reports)
+for limits and acceptance checks.
+
 `companyos validate` now checks executable authoring, including source-derived
 Record row types, grants, risk minima, markers, schedule references and control
 flow. `companyos build` also compiles the validated steps into frozen manifests in

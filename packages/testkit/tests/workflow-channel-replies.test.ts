@@ -1,14 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { collectionFixture } from "../workflow-collection-fixture.ts";
-import { ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
+import { engineFixture, ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
+import { sha256 } from "../../runtime/canonical.ts";
 import { WorkflowConversationHost, workflowReplyThreadId, workflowInboundThreadId } from "../../runner-vercel/src/lib/workflow-conversations.ts";
 import { WorkflowSlackTransport } from "../../connectors/slack/workflow-transport.ts";
 import { recoverWorkflowReply } from "../../runner-vercel/src/lib/workflow-reply-recovery.ts";
 
-async function setup(count = 1, channelId = "C10001") {
-  const h = collectionFixture({ conversationForReceipt: async ({ output }) => ({ surface: "slack", accountId: "T10001", channelId,
-    threadId: `${(output as any).message_id.replace("message-", "")}.000001`, subjectPrincipal: ENGINE_OWNER }) });
+async function setup(count = 1, channelId = "C10001", reportOnly = false) {
+  const artifact = collectionFixture().artifact;
+  if (reportOnly) {
+    const workflow = artifact.workflows!.find((w) => w.id === "monday-handoff")!;
+    workflow.steps = [workflow.steps[0]!]; workflow.steps[0]!.next = ["end"];
+    workflow.steps[0]!.message!.thread = "slack:C10001:50.000001";
+    const { manifestHash, ...manifest } = workflow; workflow.manifestHash = sha256(manifest);
+    const { artifactHash, ...content } = artifact; artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
+  }
+  const h = engineFixture({ artifact, conversationForReceipt: async ({ output }) => ({ surface: "slack", accountId: "T10001", channelId,
+    threadId: reportOnly ? "50.000001" : `${(output as any).message_id.replace("message-", "")}.000001`, subjectPrincipal: ENGINE_OWNER }) });
   const runs = [];
   for (let i = 0; i < count; i++) {
     const opened = await h.engine().openOperator({ workflowId: "monday-handoff", requestId: `collection-${i}`, principal: ENGINE_OPERATOR,
@@ -41,6 +50,18 @@ test("a channel answer reaches only its exact active collection, with original e
   assert.equal(run.state.status, "done"); assert.deepEqual(run.state.decisions, {});
   assert.ok(calls.includes("conversations.history"));
   await assert.rejects(result.session.collection!.submit({ summary: "Replacement" }));
+});
+
+test("a report published inside an existing thread needs no root execution assignment for follow-up", async () => {
+  const { h, host, input, setMessage, runs } = await setup(1, "C10001", true);
+  assert.equal(runs[0]!.state.status, "done");
+  const conversation = { surface: "slack", accountId: "T10001", channelId: "C10001", threadId: "50.000001", subjectPrincipal: ENGINE_OWNER };
+  assert.equal(await h.store.deliveredAssignment({ instanceId: h.artifact.instance.id, conversation }), undefined);
+  setMessage({ thread_ts: conversation.threadId, text: "Please explain this report" });
+  const received = await host.receive({ ...input, threadId: "slack:C10001:50.000001" });
+  assert.equal(received.kind, "conversation"); if (received.kind !== "conversation") return;
+  assert.deepEqual(received.session.allowedTools, []); assert.equal(received.session.runtime, undefined);
+  assert.equal(received.session.publishedContext!.messages[0]!.content, "Please explain the intended outcome.");
 });
 
 test("multiple open questions ask for clarification; cancelled or expired runs do not capture a channel answer", async () => {
@@ -84,6 +105,39 @@ test("a channel answer continues on its delivered question so the next thread re
   assert.equal(followup.kind, "conversation"); if (followup.kind !== "conversation") return;
   assert.equal(followup.session.runId, runs[0]!.runId);
   assert.equal(followup.session.text, "Here is the missing detail");
+});
+
+for (const channelId of ["C10001", "D10001"]) test(`a completed question remains explainable with no workflow Tools (${channelId})`, async () => {
+  const { h, host, input, setMessage, runs } = await setup(1, channelId);
+  const collecting = await host.receiveChannel(input);
+  assert.equal(collecting.kind, "conversation"); if (collecting.kind !== "conversation") return;
+  await collecting.session.collection!.submit({ summary: "The agreed outcome" });
+  const before = await h.store.read(h.artifact.instance.id, runs[0]!.runId);
+  setMessage({ ts: "999.000003", thread_ts: collecting.session.conversation.threadId, text: "Why did you ask this?" });
+  const discussed = await host.receive({ threadId: workflowReplyThreadId(collecting.session), messageId: "999.000003", authorId: input.authorId });
+  assert.equal(discussed.kind, "conversation"); if (discussed.kind !== "conversation") return;
+  assert.deepEqual(discussed.session.allowedTools, []);
+  assert.equal(discussed.session.collection, undefined); assert.equal(discussed.session.runtime, undefined);
+  assert.equal(discussed.session.publishedContext!.messages[0]!.content, "Please explain the intended outcome.");
+  assert.deepEqual(await h.store.read(h.artifact.instance.id, runs[0]!.runId), before);
+  setMessage({ user: "U10001" });
+  await assert.rejects(host.receive({ threadId: workflowReplyThreadId(collecting.session), messageId: "999.000003", authorId: input.authorId }));
+});
+
+test("cancellation permits explanation but an approval command still cannot execute", async () => {
+  const { h, host, input, setMessage, runs } = await setup();
+  const collecting = await host.receiveChannel(input);
+  assert.equal(collecting.kind, "conversation"); if (collecting.kind !== "conversation") return;
+  await h.store.cancel({ instanceId: h.artifact.instance.id, runId: runs[0]!.runId, principal: ENGINE_OPERATOR, now: h.now });
+  const before = await h.store.read(h.artifact.instance.id, runs[0]!.runId);
+  const ref = { threadId: workflowReplyThreadId(collecting.session), messageId: "999.000004", authorId: input.authorId };
+  setMessage({ ts: ref.messageId, thread_ts: collecting.session.conversation.threadId, text: "Explain the question" });
+  const discussed = await host.receive(ref);
+  assert.equal(discussed.kind, "conversation");
+  if (discussed.kind === "conversation") assert.deepEqual(discussed.session.allowedTools, []);
+  setMessage({ text: `APPROVE ${"a".repeat(64)}` });
+  await assert.rejects(host.receive(ref));
+  assert.deepEqual(await h.store.read(h.artifact.instance.id, runs[0]!.runId), before);
 });
 
 test("operator recovery of a channel root rereads its actual author and never chooses between multiple questions", async () => {

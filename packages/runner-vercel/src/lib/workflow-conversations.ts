@@ -13,11 +13,12 @@ import type { StateStore } from "../../../state-store/interface.ts";
 import { findByCanonicalPrincipal, type RosterMember } from "../../../state-store/roster.ts";
 import type { WorkflowConversation, WorkflowExecutionStore } from "../../../state-store/workflow-engine.ts";
 import type { WorkflowSlackScope } from "./workflow-slack.ts";
+import { PublishedConversationContextReader, type PublishedConversationContext } from "../../../runtime/published-conversation-context.ts";
 
 export interface WorkflowConversationSession {
   artifact: CompanyOSArtifact;
   agent: CompiledAgent;
-  runtime: CompanyOSRuntime;
+  runtime?: CompanyOSRuntime;
   principal: string;
   member: RosterMember;
   conversation: WorkflowConversation;
@@ -25,6 +26,7 @@ export interface WorkflowConversationSession {
   stepId: string;
   allowedTools: readonly string[];
   text: string;
+  publishedContext?: PublishedConversationContext["evidence"];
   collection?: { schema: ReturnType<typeof collectionSchema>; context: JsonValue; submit: (output: JsonValue) => Promise<unknown> };
 }
 export type WorkflowInboundResult = { kind: "unassigned" } | { kind: "decision"; runId: string; decision: "approved" | "rejected" }
@@ -51,6 +53,16 @@ interface WorkflowConversationHostOptions {
 export class WorkflowConversationHost {
   readonly #args: WorkflowConversationHostOptions;
   constructor(args: WorkflowConversationHostOptions) { this.#args = args; }
+  #published() {
+    return new PublishedConversationContextReader({ ...this.#args, clock: () => this.#args.clock?.() ?? new Date().toISOString() });
+  }
+  async #discussion(conversation: WorkflowConversation, principal: string, text: string): Promise<WorkflowInboundResult> {
+    const context = await this.#published().read(conversation, principal);
+    if (!context) return { kind: "closed" };
+    const latest = context.evidence.messages.at(-1)!;
+    return { kind: "conversation", session: { artifact: this.#args.artifact, agent: context.agent, principal, member: context.member,
+      conversation, runId: latest.runId, stepId: latest.stepId, allowedTools: [], text, publishedContext: context.evidence } };
+  }
   /** Only the Chat SDK's signature-verified action handler may call this entrypoint.
    * It is deliberately not exposed by the bearer-authenticated operator API. */
   async receiveAction(args: { actionId: string; value: string; threadId: string; messageId: string; userId: string; raw: unknown }, onValidated?: (language?: string) => Promise<void>): Promise<Extract<WorkflowInboundResult, { kind: "decision" }>> {
@@ -115,9 +127,10 @@ export class WorkflowConversationHost {
       const principal = initial?.principal ?? `slack:${accountId}:${args.authorId}`;
       const qualifiedConversation = { ...conversation, subjectPrincipal: principal };
       const delivered = await store.deliveredAssignment({ instanceId: artifact.instance.id, conversation: qualifiedConversation });
-      if (!delivered) return { kind: "unassigned" };
+      if (!delivered && !(await store.publishedAssignments({ instanceId: artifact.instance.id, conversation: qualifiedConversation, now })).length) return { kind: "unassigned" };
       const reply = initial ?? await transport.reply({ conversation: qualifiedConversation, messageId: args.messageId, roster, channelReply });
       if (reply.principal !== principal) throw new Error("Workflow reply author differs from the candidate delivery identity");
+      if (!delivered) return this.#discussion(qualifiedConversation, principal, reply.text);
       const run = await store.read(artifact.instance.id, delivered.runId);
       if (!run) throw new Error("Delivered workflow run is unavailable");
       if (!this.#args.enabledWorkflowIds.includes(run.workflowId)) throw new Error("Workflow conversation is disabled in this Instance");
@@ -135,7 +148,7 @@ export class WorkflowConversationHost {
         return { kind: "decision", runId: result.runId, decision: subjectReply };
       }
       const active = await store.assignment({ instanceId: artifact.instance.id, conversation: qualifiedConversation, now });
-      if (!active) return { kind: "closed" };
+      if (!active) return this.#discussion(qualifiedConversation, principal, reply.text);
       const pinned = await store.getArtifact(active.artifactHash), member = findByCanonicalPrincipal(roster, principal);
       const workflow = pinned?.workflows?.find((workflow) => workflow.id === run.workflowId), step = workflow?.steps.find((step) => step.id === run.state.cursor);
       const agent = pinned?.agents.find((agent) => agent.id === workflow?.agentId);
@@ -146,8 +159,10 @@ export class WorkflowConversationHost {
       const runtime = new CompanyOSRuntime({ artifact: pinned, state: this.#args.control, connectors: await this.#args.connectors(pinned),
         workflowContext: new WorkflowConversationContextReader({ store, instanceId: artifact.instance.id, conversation, subjectPrincipal: principal,
           roster: this.#args.roster, clock: () => this.#args.clock?.() ?? new Date().toISOString() }) });
+      const published = await this.#published().read(qualifiedConversation, principal);
       return { kind: "conversation", session: { artifact: pinned, agent, runtime, principal, member, conversation, runId: run.runId, stepId: step.id,
         allowedTools: run.state.status === "waiting" ? step.conversationalTools : [], text: reply.text,
+        ...(published ? { publishedContext: published.evidence } : {}),
         ...(step.collect && run.state.status === "waiting" && !run.state.blocked ? { collection: {
           schema: collectionSchema(step.collect.fields), context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)),
           submit: async (output: JsonValue) => { const saved = await this.#args.engine.collect({ principal, conversation: qualifiedConversation, eventId: reply.eventId, output });

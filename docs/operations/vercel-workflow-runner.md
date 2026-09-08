@@ -22,6 +22,26 @@ availability: experimental
 
 # Hosted Workflow Engine Operations
 
+## Follow-up questions on workflow messages
+
+The Slack receiver verifies the actual reply and its author, then passes the
+normalized conversation identity to Core's shared publication-context reader.
+Replies in a channel thread or a direct-message thread can therefore discuss a
+newly delivered report after the workflow ends. This path exposes no workflow
+Tools, fact-collection control or handoff control. Active collection and exact
+button decisions keep their existing handling.
+
+Deploy a matching Core/Artifact pair, publish a new test report, and reply in its
+thread. Verify both channel and private-message cases, a restart, and a foreign
+recipient. Ordinary incoming message delivery must already be qualified; this
+change does not add subscriptions, reinstall the app or fix missing inbound
+events. A new top-level message still follows the existing unambiguous active
+collection rule; it does not guess which completed report was meant.
+
+Older messages without retained publication text are not backfilled. The generic
+contract, retention and read-only boundary are described in
+[workflow operations](workflow-engine.md#replies-to-delivered-reports).
+
 The Vercel host runs compiled Workspace workflows through the generic durable
 engine. Configuration, calendar activation, operator authentication, human
 decisions and provider effects remain separate controls. These endpoints do not

@@ -20,6 +20,43 @@ availability: experimental
 Use this guide to check whether a hosted workflow is ready for human testing.
 It defines the evidence required, independently of the hosting or chat provider.
 
+## Replies to delivered reports
+
+When a workflow publishes an addressable message, Core retains the exact sent
+text alongside its verified receipt and conversation address. A later reply can use that text
+even after the workflow finishes or is cancelled. This is evidence for an
+explanation, not permission to resume work or execute a Tool.
+
+The context reader accepts opaque surface, account, conversation and thread
+identities from an authenticated adapter. It contains no provider address parser
+or SDK. The maintained host passes the resulting evidence to the owning Agent
+alongside ordinary chat history. Another communication adapter must authenticate
+its own inbound messages and normalize its receipts to the same contract. A
+receipt's `thread_reference` is an opaque conversation reference; it need not
+represent a threaded user interface. Without a stable reply reference, a
+successful send alone cannot establish follow-up context.
+
+Check these cases before inviting a tester:
+
+- Reply to a newly delivered message after its workflow completes. The Agent
+  should explain the message without asking the person to paste it again.
+- Repeat the question after a host restart. The sent text must still be available.
+- Verify that another private recipient, account or conversation cannot read it.
+- Verify that discussion does not record a decision, reopen a run or grant Tools.
+
+Context uses at most 40 messages and 80,000 content characters and reports
+truncation. It expires with its delivery assignment, which defaults to 30 days.
+The reader uses the current active human roster, enabled workflow list and
+current Agent definition; it rejects conflicting Agent ownership. Text is a
+snapshot of what was sent, not a claim about later external edits. Existing
+publications from before this correction lack the retained text and are not
+silently reconstructed from changed business data. Publish a new report through
+the normal authorized workflow to test the complete path.
+
+Provider-specific setup is described in the
+[maintained runner guide](vercel-workflow-runner.md). Synthetic adapter tests
+prove the shared contract; they do not qualify an additional live provider.
+
 Before inviting a human tester, verify the effective model task, model and
 provider route for each participating Agent. Compare them with the intended
 Instance configuration; a successful health response with the wrong model is

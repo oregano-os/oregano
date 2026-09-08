@@ -25,6 +25,15 @@ verified separately from message publication and provider read access.
 
 ## Implemented and tested
 
+- Workflow publications retain their exact sent text for bounded, read-only
+  follow-up context after completion or cancellation. The generic reader uses
+  opaque provider identities and existing delivery state. Synthetic mail and
+  messenger adapters cover private/shared isolation; the
+  [maintained host](../operations/vercel-workflow-runner.md#follow-up-questions-on-workflow-messages)
+  supplies this context for thread replies. Additional live providers remain
+  unqualified. Older publications without retained text are not backfilled, and
+  discussion never grants execution authority.
+
 - Experimental `language.generate` lets a governed Company Tool request text
   from an explicitly bound, scoped Skill and supplied evidence. The owning
   Agent's model task applies. Tests cover scope, identity, bounds, model failure
