@@ -11,7 +11,7 @@ const exec = promisify(execFile);
 const BASE_IMAGE = "vercel/sandbox/node@sha256:07bbba46c01fc02c9cd7e2e1962fda825ff733c099212ade7f893966df949b78";
 
 /** One source-pinned image, reused in separate coding and trusted sandboxes. */
-export async function createQualifiedBuilderSnapshot(repositoryRoot = process.cwd()) {
+export async function createQualifiedBuilderSnapshot(repositoryRoot = process.cwd(), authentication?: { teamId: string; projectId: string; token: string }) {
   const git = async (...args: string[]) => (await exec("git", args, { cwd: repositoryRoot })).stdout.trim();
   if (await git("status", "--porcelain")) throw new Error("Commit the exact Core before qualifying its Builder image.");
   const coreCommit = await git("rev-parse", "HEAD");
@@ -21,7 +21,7 @@ export async function createQualifiedBuilderSnapshot(repositoryRoot = process.cw
   let sandbox: Sandbox | undefined;
   try {
     await exec("git", ["archive", "--format=tar", "--output", join(temp, "core.tar"), coreCommit], { cwd: repositoryRoot });
-    sandbox = await Sandbox.create({ name: `companyos-builder-image-${randomUUID()}`, image: BASE_IMAGE,
+    sandbox = await Sandbox.create({ ...authentication, name: `companyos-builder-image-${randomUUID()}`, image: BASE_IMAGE,
       timeout: 600000, resources: { vcpus: 2 }, ports: [], networkPolicy: "deny-all", persistent: false,
       tags: { component: "builder-qualified-image", core: coreVersion, commit: coreCommit, workbench: workbenchVersion } });
     const run = async (cmd: string, args: string[], timeoutMs = 60000) => {
