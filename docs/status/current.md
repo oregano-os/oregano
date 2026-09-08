@@ -293,112 +293,23 @@ verified separately from message publication and provider read access.
   performs only due complete-inventory reconciliation under the existing lease.
   Exact production deployment, Artifact, Core, Workspace, and Instance identity
   must agree; mutations and the scheduler have independent kill switches. The
-  database manifest is now `1.9.0` and qualifies `companyos_records` alongside
+  database manifest is now `2.1.0` and qualifies `companyos_records` alongside
   the existing schemas. Synthetic tests do not claim a real production
   migration, provider read, schedule activation, provider event, provider
   write, or message.
 - Workspace inspection now rejects projection and selection paths that are not
   materialized by the exact selected Record Source set, preventing a declared
   field from silently remaining empty at runtime.
-- The provider-neutral Sprint domain implements validated policy, append-only
-  event reduction, controlled-clock business-time and holiday calculation,
-  frozen-participant Friday completeness, actual-effort and open-work read
-  models, deterministic shared-thread reminder/chase/report/retro/Rollover
-  intents, and durable timer
-  interfaces with in-memory and Postgres implementations. The reusable
-  orchestration library now atomically persists one normalized event, its
-  monotonic resulting state, decision evidence, and intents; consumes due
-  timers through the same event path; leases bounded intent work; and enters
-  provider execution only through an exact `CompanyOSRuntime`-backed adapter.
-  Workbench now compiles reviewed Sprint policy, schedule and template digests,
-  participant identity namespace, logical Agent and service principal, and
-  exact destination/resource bindings into the immutable Artifact. The
-  maintained Vercel Runner hosts authenticated inspect/open actions, bounded
-  timer and intent workers, fresh projection resolution through
-  `records.query`, Slack Friday-update normalization after roster and Agent
-  resolution, a generic template renderer, and `disabled`, `shadow`, and
-  `active` modes. The hosted Friday path creates one shared Close thread,
-  accepts submissions only in that exact thread, and orders chase, report,
-  retro, then Rollover preparation using provider-delivery events. Timer kinds
-  are isolated per Sprint definition. Shadow mode stores digest evidence
-  without effects; active messages still cross the standard Tool boundary. An
-  explicit `shadow-only` Instance runtime can compile exact destination
-  metadata without granting provider-effect Tools, and the hosted Runner
-  rejects active startup for that Artifact.
-  The authenticated Stage-0 Preview surface can invoke those same hosted
-  workers at one exact controlled timestamp, allowing schedule, leasing, and
-  duplicate behavior to be qualified without waiting for wall-clock time; the
-  action is unavailable outside Vercel Preview.
-  Weekly Monday handoff, weekday movement digest, configured readiness
-  questions, derived reversible readiness-field maintenance, and structured
-  `NEXT WEEK` carry-forward use the same hosted
-  timer and intent path. Before each due weekly timer, the Runner resolves one
-  twice-stabilized current work-item projection while retaining the Sprint's
-  frozen participant scope. The immutable source version identifies an exact
-  replay, while the resulting refresh event uses the hosted refresh clock so
-  a valid source observation from before Sprint opening cannot regress durable
-  event chronology. Replaying the same source version is a no-op.
-  Briefing updates use an exact active-human subject confirmation and the
-  dedicated confirmed-update Tool. Rollover remains proposal-only until one
-  frozen batch passes the ordinary R3 approval path; the maintained batch Tool
-  preflights every item before the first write and treats a partial provider
-  dispatch as an unknown outcome rather than retrying it. The initial profile
-  uses Monday polling and Slack interaction; Monday board-change webhooks and
-  card chat remain deferred. No real Company Instance runtime, schedule,
-  message, work-item effect, or production activation is claimed. Public
-  fixtures are synthetic and contain no company people, resources, policy, or
-  credentials.
-- The hosted Sprint surface now makes the reviewed weekly and Friday Close
-  paths executable in controlled tests. This is implementation evidence, not
-  Company rollout evidence: the final candidate still requires full Stage-0
-  qualification with exact test bindings, and each Company must then complete
-  Shadow, Pilot, and Team-rhythm gates over the periods declared by its rollout
-  policy before production completion may be claimed.
-- The hosted Sprint operator can now run a proof-only historical replay when
-  an Instance compiles one exact `communication-message` projection. The
-  Sprint Domain recognizes template-shaped Friday submissions, resolves the
-  author only through a tenant-scoped roster principal, links exact card URLs
-  only to already authorized work-item records, and stores source-version
-  lineage on durable Sprint events. The replay uses an isolated definition,
-  controlled clock, and deterministic replay-specific timer namespace, so an
-  exact retry is idempotent and independent replays of one historical period
-  cannot conflict in a shared Instance timer store. It reports
-  current-snapshot limitations and refuses every
-  compiled live Slack and work-item binding. A separately authenticated,
-  digest-bound `publish-replay` action can render one Workspace-owned report
-  and deliver it through an exact test Slack channel plus an exact test-board
-  report item. Workbench rejects a conversational publisher Agent and rejects
-  any logical or physical test/live target equality. Both effects use the
-  ordinary CompanyOS Capability, idempotency, receipt, and System-of-Proof
-  boundaries; a changed digest fails before the first provider effect.
-- The authenticated Sprint operator also has a proof-only `simulate` action.
-  It freezes the same current Company Records projections, derives an isolated
-  definition and timer namespace, and runs the real hosted weekly and Friday
-  lifecycle with a controlled clock while forcibly remaining in Shadow mode.
-  Its content-free report covers Monday handoff, weekday digest, readiness,
-  Friday Close, Retro, and an optional Rollover proposal, including durable
-  event, intent, timer, binding-readiness, and source-version evidence. The
-  catalog explicitly marks Triage, Briefing, inactivity nudging, and blocker
-  follow-up unavailable until their durable conversational runtime exists.
-  Simulation cannot accept a destination, Tool, grant, template, arbitrary
-  event, or provider payload and cannot call Slack or a work-item provider.
-  A separate digest-bound `publish-simulation` action may publish one stored
-  Monday hand-off intent through the actual compiled Sprint Agent and exact
-  test-only Slack binding. It reruns the scenario, rejects changed output,
-  derives the Workspace template and content from durable state, and records
-  the ordinary provider receipt. Workbench rejects a live-channel alias and
-  requires the runtime itself to remain `shadow-only`. The Slack adapter hides
-  that operator-only publication grant from conversational model turns. A
-  companion `publish-friday-close-simulation` action accepts no intent id and
-  publishes only the fixed succeeded reminder, chase, and report sequence from
-  the reviewed scenario. The real reminder receipt becomes the one Slack
-  thread reference for both replies, and deterministic per-message effect
-  identities make partial retries non-duplicating. Content and destination
-  still come only from the compiled Workspace and Instance; Retro and live
-  targets remain ineligible.
-- Weekly Sprint declarations now compile independently. Monday hand-off can be
-  enabled without also enabling daily digest and readiness; readiness retains
-  its stricter planning, template, Tool, and direct-destination prerequisites.
+- The retired Sprint executor, dedicated state stores, loader, workers,
+  operator, simulation/replay and Stage-0 routes have been removed. Declared
+  Workflows use the general engine, Company Tools, Records, calendars,
+  conversations and human-decision controls. Old Instance declarations and
+  active legacy Artifacts fail with an explicit migration message. New builds
+  omit the legacy runtime list.
+- Database manifest `2.1.0` retains workflow execution and all general Records
+  requirements. New databases create no legacy Sprint tables; existing audit
+  rows and immutable `1.9.0` / `2.0.0` manifest digests remain untouched.
+  Test and production activation still require exact Instance evidence.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts
@@ -412,17 +323,10 @@ verified separately from message publication and provider read access.
   only from those entries. It verifies the Records configuration against the
   Artifact identity, resolves Monday credentials
   only through an environment SecretRef, and restricts provider calls to exact
-  board/field or channel/DM bindings. The protected Preview-only Stage-0 surface
-  adds digest-bound reversible Monday and exact Slack delivery qualification,
-  including read-after-write, duplicate, echo, restoration, unbound-resource,
-  provider-receipt, signature, and replay evidence. Repository tests prove the
-  generic contracts. One supervised non-production Instance additionally
-  produced real Slack `app_mention` and `message.im` deliveries with HTTP 200,
-  exact `sprint` and `oregano` routing, visible single responses under provider
-  retries, exact outbound channel and direct-message receipts, and one
-  reversible Monday test-board write with read-after-write and restoration.
-  This is Instance qualification evidence, not Core authority or production
-  activation.
+  board/field or channel/DM bindings. The retired Stage-0 test routes are no longer available. Repository tests
+  continue to prove the general Connector, identity, version, idempotency and
+  receipt contracts. Actual delivery and reversible-write qualification remain
+  separate Instance acceptance checks.
 - The maintained Monday work-item adapter uses explicit API versioning, exact
   resource and field bindings, minimum permissions, optimistic version checks,
   read-after-write evidence, durable echo suppression, raw-body callback
@@ -432,9 +336,8 @@ verified separately from message publication and provider read access.
   conformance, or production activation.
 - Monday Record Source inventory normalizes both populated and empty People
   cells to stable provider-id lists while retaining the raw provider value as
-  evidence. Hosted Sprint snapshots preserve mirrored work items with an empty
-  provider status as an empty canonical status; they do not invent a status or
-  drop the item.
+  evidence. Generic Records retain empty statuses; Workspace interpretation must not
+  invent a provider state or silently omit those items.
 - The maintained Vercel Runner now has an optional fail-closed Monday
   external-Agent ingress. It verifies the raw callback body, timestamp,
   signature, configured Agent identity, and digest-only durable replay claim
@@ -471,7 +374,7 @@ verified separately from message publication and provider read access.
   Its first published Workspace surface keeps shared operational declarations
   under `records/sources/` and `records/projections/`, places company Sprint
   policy at `workflows/sprint/config.yaml`, and introduces no top-level
-  Workspace `domains/` directory. Executable Sprint Domain code remains in Core.
+  Workspace `domains/` directory. Business execution now uses declared Workflows.
 
 - Company Knowledge Phase 3A publishes the provider-neutral Source Connector
   `2.0.0` contract for repository, meeting, messaging, email, document,
@@ -840,8 +743,9 @@ verified separately from message publication and provider read access.
   prepares `companyos`, `companyos_knowledge`, and `companyos_records`, records an immutable
   non-secret ledger entry, verifies required tables, indexes, integrity
   constraints, the 19 Core Page types, and optional vector availability, and
-  returns a bounded qualification receipt. The records schema contains 14
-  required Record Source and Sprint tables. The maintained Vercel profile wraps
+  returns a bounded qualification receipt. Current manifest `2.1.0` requires 11
+  general Records tables and preserves existing retired-domain audit tables.
+  The maintained runtime-host profile wraps
   this operation with `vercel env run`; the typed runtime-host contract also has
   a non-Vercel conformance fixture. Production health now verifies the schema
   read-only. A clean local PostgreSQL 14 database produced 12 control tables,
@@ -882,24 +786,10 @@ verified separately from message publication and provider read access.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.14` as the prepared patch candidate
-  that extends the isolated Sprint scenario runner with a digest-bound, fixed,
-  single-thread Friday Close test sequence. `v0.5.13` is the latest published
-  release; `v0.5.14` becomes release authority only
-  after its exact immutable tag and protected release commit pass the release
-  workflow. The
-  current release line covers the experimental Sprint and Company Records
-  lifecycle, declarative Sprint
-  Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
-  external-Agent ingress, resumable source connection, and separately guarded
-  production records operator and scheduler runtime, including reuse of an
-  existing app-scoped Slack Vercel Connect installation for a governed Slack
-  Record Source, plus isolated durable timer identities for independent
-  historical Sprint replays, plus proof-only full-week Sprint simulation using
-  the compiled Agent, templates, schedules, records, and durable evidence.
-  Existing consumers may remain on `v0.5.13` until they adopt the new exact Core
-  authority, and publishing the Core does not activate a Company Workspace or
-  Company Instance.
+- The source package version remains `0.5.14`; the declared-workflow migration
+  and executor removal are unreleased changes pinned by exact commit. Earlier
+  published releases keep their historical contents. Publishing new Core
+  source does not activate a Company Workspace or Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
@@ -922,10 +812,6 @@ verified separately from message publication and provider read access.
   deployment, live handoff, or live return evidence exists. Publishing Core
   v0.5.4 supplies this reusable behavior but does not deploy it to a Company
   Instance.
-- Sprint close read models now distinguish unavailable effort from zero and
-  calculate only the explicitly declared actual-hours or planned-effort basis.
-  An absent required observation makes the derived participant and total metric
-  unavailable instead of silently substituting zero or another metric.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent

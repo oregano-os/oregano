@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const artifact = loadArtifact();
     const primaryAgent = selectedAgent();
-    const primaryTask = agentModelTask(primaryAgent, { kind: "auto" }, (artifact.sprints ?? []).find((sprint) => sprint.agentId === primaryAgent.id));
+    const primaryTask = agentModelTask(primaryAgent, { kind: "auto" });
     const modelExecution = resolveModelExecution({ profile: primaryTask.profile, task: primaryTask.task, requiredCapability: "tools" });
     const knowledgeAnswerModelExecution = resolveModelExecution({
       profile: "deep",
@@ -27,21 +27,6 @@ export async function GET() {
     getBot();
     const workflowsEnabled = workflowHostingEnabled();
     const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
-    const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
-    if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
-    const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {
-      const model = resolveModelExecution({ profile: "reasoning", task: sprint.modelTask, requiredCapability: "tools" });
-      return {
-        definitionId: sprint.definitionId,
-        agentId: sprint.agentId,
-        modelTask: sprint.modelTask,
-        modelRoute: model.selection.route,
-        modelProvider: model.selection.provider,
-        model: model.selection.model,
-        scheduleActivation: sprint.schedule.activation,
-        scheduleDigest: sprint.schedule.sourceDigest,
-      };
-    });
     return Response.json({
       ok: true,
       status: "ready",
@@ -49,7 +34,7 @@ export async function GET() {
       company: artifact.company,
       agent: primaryAgent.id,
       agents: artifact.agents.map((agent) => {
-        const task = agentModelTask(agent, { kind: "auto" }, (artifact.sprints ?? []).find((sprint) => sprint.agentId === agent.id));
+        const task = agentModelTask(agent, { kind: "auto" });
         const { selection } = resolveModelExecution({ profile: task.profile, task: task.task, requiredCapability: "tools" });
         return { id: agent.id, toolCount: agent.toolSet.tools.length,
           modelTask: task.task, modelProfile: task.profile, model: selection.model, modelRoute: selection.route };
@@ -87,11 +72,6 @@ export async function GET() {
         autoOpenWorkflowIds: workflowConfig?.autoOpenWorkflowIds ?? [],
         compiledCount: artifact.workflows?.length ?? 0,
         activatedAt: workflowConfig?.activatedAt ?? null,
-      },
-      sprint: {
-        mode: sprintMode,
-        runtimeCount: sprintRuntimes.length,
-        runtimes: sprintRuntimes,
       },
       meta: "disabled-until-real-connector-binding",
     });

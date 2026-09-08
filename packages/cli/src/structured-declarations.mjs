@@ -11,8 +11,6 @@ const schema = (name) => JSON.parse(readFileSync(new URL(`../../schema/${name}`,
 
 const RECORD_SOURCE_SCHEMA = schema("company-record-source-v1.schema.json");
 const RECORD_PROJECTION_SCHEMA = schema("company-record-projection-v1.schema.json");
-const SPRINT_CONFIGURATION_SCHEMA = schema("sprint-configuration-v1.schema.json");
-const SPRINT_SCHEDULE_SCHEMA = schema("sprint-schedule-v1.schema.json");
 
 const declarationFiles = (root, prefix) => walkFiles(root, {
   include: (path) => {
@@ -49,7 +47,7 @@ const safeWorkspaceTarget = (target) => {
   return !normalized.startsWith("../") && normalized !== ".." && !normalized.startsWith(".companyos/");
 };
 
-/** Validate optional Company Records and Sprint declarations without making them baseline requirements. */
+/** Validate optional Company Records declarations without making them baseline requirements. */
 export function inspectStructuredDeclarations(root) {
   const diagnostics = [];
   const sources = declarationFiles(root, "records/sources/")
@@ -61,18 +59,15 @@ export function inspectStructuredDeclarations(root) {
     diagnostics.push(diagnostic(
       "WS052",
       "error",
-      "Sprint configuration must use 'workflows/sprint/config.yaml'; the unreleased 'domains/sprint.yaml' path is not supported.",
+      "The retired Sprint domain declaration is not supported; use generic workflow configuration and declared steps.",
       { file: relativePath(root, legacySprintPath) },
     ));
   }
-  const sprintPath = join(root, "workflows", "sprint", "config.yaml");
-  // Config v2 is a generic workflow configuration, even at a legacy path.
-  // Keep the v1 validator until migration and full legacy removal pass.
-  let sprint = null;
-  if (existsSync(sprintPath)) {
+  const retiredPath = join(root, "workflows", "sprint", "config.yaml");
+  if (existsSync(retiredPath)) {
     try {
-      if (YAML.parse(readFileSync(sprintPath, "utf8"))?.schema_version !== 2) sprint = readDeclaration(root, sprintPath, SPRINT_CONFIGURATION_SCHEMA, diagnostics);
-    } catch { sprint = readDeclaration(root, sprintPath, SPRINT_CONFIGURATION_SCHEMA, diagnostics); }
+      if (YAML.parse(readFileSync(retiredPath, "utf8"))?.schema_version !== 2) diagnostics.push(diagnostic("WS061", "error", "Sprint configuration v1 is retired; migrate to generic workflow configuration v2 and declared steps.", { file: relativePath(root, retiredPath) }));
+    } catch (error) { diagnostics.push(diagnostic("WS042", "error", `Structured declaration is not valid YAML: ${error.message.split("\n")[0]}`, { file: relativePath(root, retiredPath) })); }
   }
 
   for (const id of duplicates(sources)) {
@@ -154,58 +149,15 @@ export function inspectStructuredDeclarations(root) {
     }
   }
 
-  if (sprint) {
-    const projectionIds = new Set(projections.map((item) => item.value.id));
-    for (const [field, id] of [
-      ["participants.projection", sprint.value.participants?.projection],
-      ["work_items.projection", sprint.value.work_items?.projection],
-    ]) {
-      if (id && !projectionIds.has(id)) diagnostics.push(diagnostic("WS049", "error", `Sprint declaration ${field} references unknown record projection '${id}'.`, { file: sprint.path }));
-    }
-    const { reminder_time: reminder, complete_by: complete, chase_time: chase = complete, report_at: report } = sprint.value.close ?? {};
-    if (reminder && complete && chase && report && !(reminder < complete && complete <= chase && chase <= report)) {
-      diagnostics.push(diagnostic("WS050", "error", "Sprint close times must satisfy reminder_time < complete_by <= chase_time <= report_at.", { file: sprint.path }));
-    }
-    if (sprint.value.rollover?.eligible === "selected-states" && !(sprint.value.rollover.states?.length > 0)) {
-      diagnostics.push(diagnostic("WS051", "error", "Sprint rollover selected-states requires at least one state.", { file: sprint.path }));
-    }
-    const scheduleRef = sprint.value.calendar?.business_calendar_ref;
-    if (typeof scheduleRef === "string") {
-      const normalizedRef = normalize(scheduleRef).replaceAll("\\", "/");
-      const schedulePath = join(root, scheduleRef);
-      if (!scheduleRef.startsWith("schedules/") || normalizedRef !== scheduleRef || !existsSync(schedulePath)) {
-        diagnostics.push(diagnostic("WS056", "error", `Sprint business calendar must reference an existing safe file under schedules/: '${scheduleRef}'.`, { file: sprint.path }));
-      } else {
-        const schedule = readDeclaration(root, schedulePath, SPRINT_SCHEDULE_SCHEMA, diagnostics);
-        if (schedule && schedule.value.timezone !== sprint.value.calendar?.timezone) {
-          diagnostics.push(diagnostic("WS057", "error", "Sprint schedule timezone must match the Sprint declaration timezone.", { file: schedule.path }));
-        }
-        if (schedule && !(schedule.value.delivery_window?.opens_at < schedule.value.delivery_window?.closes_at)) {
-          diagnostics.push(diagnostic("WS058", "error", "Sprint delivery window must open before it closes.", { file: schedule.path }));
-        }
-        if (schedule && new Set((schedule.value.triggers ?? []).map((trigger) => trigger.id)).size !== (schedule.value.triggers ?? []).length) {
-          diagnostics.push(diagnostic("WS059", "error", "Sprint schedule trigger ids must be unique.", { file: schedule.path }));
-        }
-      }
-    }
-    for (const template of Object.values(sprint.value.rendering ?? {})) {
-      if (typeof template !== "string" || !safeWorkspaceTarget(template) || !existsSync(join(root, template))) {
-        diagnostics.push(diagnostic("WS060", "error", `Sprint rendering must reference an existing safe Workspace Markdown file: '${String(template)}'.`, { file: sprint.path }));
-      }
-    }
-  }
-
   return {
     diagnostics,
     declarations: {
       sources: sources.map((item) => item.value),
       projections: projections.map((item) => item.value),
-      sprint: sprint?.value ?? null,
     },
     summary: {
       record_sources: sources.length,
       record_projections: projections.length,
-      sprint_configurations: sprint ? 1 : 0,
     },
   };
 }

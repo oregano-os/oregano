@@ -506,8 +506,6 @@ test("the maintained Vercel adapters preserve Knowledge order and declare guarde
     { path: "/api/knowledge/compounding", schedule: "0 2-5 * * *" },
     { path: "/api/builder/worker", schedule: "* * * * *" },
     { path: "/api/records/reconcile", schedule: "*/15 * * * *" },
-    { path: "/api/sprint/timers", schedule: "* * * * *" },
-    { path: "/api/sprint/intents", schedule: "* * * * *" },
     { path: "/api/workflows/timers", schedule: "* * * * *" },
     { path: "/api/workflows/steps", schedule: "* * * * *" },
     { path: "/api/workflows/records", schedule: "* * * * *" },

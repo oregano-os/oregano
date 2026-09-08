@@ -1,4 +1,4 @@
-import type { CompiledAgent, CompiledSprintRuntime } from "../../../companyos-builder/types.ts";
+import type { CompiledAgent } from "../../../companyos-builder/types.ts";
 import type { ModelTaskProfile } from "../../../runner/model-execution.ts";
 import { knowledgeTurnModelTask, type KnowledgeTurnRoute } from "./knowledge-turn-routing.ts";
 
@@ -12,11 +12,9 @@ export interface AgentModelTask {
 export function agentModelTask(
   agent: Pick<CompiledAgent, "modelTask">,
   knowledgeRoute: KnowledgeTurnRoute = { kind: "auto" },
-  legacyRuntime?: Pick<CompiledSprintRuntime, "modelTask">,
 ): AgentModelTask {
   if (agent.modelTask !== undefined) {
     return { profile: "agent", task: agent.modelTask, configuration: "shared" };
   }
-  if (legacyRuntime) return { profile: "reasoning", task: legacyRuntime.modelTask, configuration: "shared" };
   return knowledgeTurnModelTask(knowledgeRoute);
 }

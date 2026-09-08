@@ -26,6 +26,8 @@ import {
   COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST,
   COMPANY_DATABASE_MANIFEST_PHASE_NINE,
   COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST,
+  COMPANY_DATABASE_MANIFEST_PHASE_TEN,
+  COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST,
   COMPANY_DATABASE_MANIFEST_V1,
   COMPANY_DATABASE_MANIFEST_V1_DIGEST,
   qualifyCompanyDatabase,
@@ -52,8 +54,8 @@ const qualification = (vector = false) => ({
 test("the Company Instance database manifest is deterministic and credential-free", () => {
   assert.equal(COMPANY_DATABASE_MANIFEST.schemaVersion, 1);
   assert.equal(COMPANY_DATABASE_MANIFEST.id, "companyos-postgres");
-  assert.equal(COMPANY_DATABASE_MANIFEST.version, "2.0.0");
-  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_NINE.version);
+  assert.equal(COMPANY_DATABASE_MANIFEST.version, "2.1.0");
+  assert.equal(COMPANY_DATABASE_MANIFEST.predecessorVersion, COMPANY_DATABASE_MANIFEST_PHASE_TEN.version);
   assert.equal(COMPANY_DATABASE_MANIFEST.migrationMode, "additive");
   assert.equal(COMPANY_DATABASE_MANIFEST_V1.version, "1.0.0");
   assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_ONE.version, "1.1.0");
@@ -79,12 +81,12 @@ test("the Company Instance database manifest is deterministic and credential-fre
   assert.match(COMPANY_DATABASE_MANIFEST_DIGEST, /^[0-9a-f]{64}$/);
   assert.equal(COMPANY_DATABASE_MANIFEST.corePageTypes.length, 19);
   assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length, 67);
-  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length, 14);
+  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length, 11);
   const recordsTables = new Set<string>(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables);
-  for (const requiredTable of ["sprint_events", "sprint_intents", "sprint_states"]) assert.equal(recordsTables.has(requiredTable), true);
+  for (const retiredTable of ["sprint_events", "sprint_intents", "sprint_states"]) assert.equal(recordsTables.has(retiredTable), false);
   for (const requiredIndex of [
-    "companyos_records.records_sprint_events_sequence_idx",
-    "companyos_records.records_sprint_intents_due_idx",
+    "companyos.workflow_executions_status_idx",
+    "companyos.workflow_thread_assignments_run_idx",
   ]) assert.equal(new Set<string>(COMPANY_DATABASE_MANIFEST.requiredIndexes).has(requiredIndex), true);
   const knowledgeTables = new Set<string>(COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables);
   for (const requiredTable of ["acl_policies", "raw_assets", "timeline_events", "synthesis_versions", "extraction_runs", "brain_export_ledger", "principal_groups", "principal_group_members", "access_decision_events", "source_events", "source_acl_snapshots", "source_pipeline_receipts", "source_watermarks", "source_sync_leases", "source_lifecycle_requests", "session_lifecycle_receipts", "knowledge_change_stream", "compounding_leases", "compounding_receipts", "claim_pair_proposals", "claim_grading_requests", "model_task_results", "model_spend_reservations", "model_execution_ledger", "retrieval_projection_runs", "retrieval_units", "knowledge_benchmark_runs", "knowledge_shadow_comparisons", "knowledge_productization_receipts"]) {
@@ -120,9 +122,9 @@ test("the Company Instance database manifest is deterministic and credential-fre
     "companyos_knowledge.knowledge_syntheses_current_version_parent_fk",
     "companyos_knowledge.knowledge_source_events_event_fk",
     "companyos_knowledge.knowledge_source_object_payload_state_check",
-    "companyos_records.records_sprint_intents_completion_check",
-    "companyos_records.records_sprint_intents_event_fk",
-    "companyos_records.records_sprint_intents_lease_check",
+    "companyos.workflow_execution_origin_unique",
+    "companyos.workflow_execution_revision_check",
+    "companyos.workflow_execution_lease_check",
   ]) assert.equal(new Set<string>(COMPANY_DATABASE_MANIFEST.requiredConstraints).has(requiredConstraint), true);
   assert.deepEqual([...COMPANY_DATABASE_MANIFEST.corePageTypes].sort(), [...COMPANY_DATABASE_MANIFEST.corePageTypes]);
   assert.doesNotMatch(JSON.stringify(COMPANY_DATABASE_MANIFEST), /DATABASE_URL|postgres(?:ql)?:\/\//i);
@@ -151,8 +153,9 @@ test("database preparation rejects unknown or conflicting manifest history befor
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_NINE.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST },
+    { manifest_version: COMPANY_DATABASE_MANIFEST_PHASE_TEN.version, manifest_digest: COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST },
     { manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: COMPANY_DATABASE_MANIFEST_DIGEST },
-  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0", "1.9.0", "2.0.0"]);
+  ]), ["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0", "1.7.0", "1.8.0", "1.9.0", "2.0.0", "2.1.0"]);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: "9.0.0", manifest_digest: "0".repeat(64) }]), /unsupported manifest version/i);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: COMPANY_DATABASE_MANIFEST.version, manifest_digest: "0".repeat(64) }]), /conflicting content/i);
 });
@@ -196,4 +199,19 @@ test("Postgres bootstrap is idempotent and qualification reads the same manifest
   const stable = (receipt: typeof first) => ({ ...receipt, qualifiedAt: undefined });
   assert.deepEqual(stable(second), stable(first));
   assert.deepEqual(stable(verified), stable(first));
+});
+
+test("retirement upgrades a known manifest without deleting historical domain audit rows", { skip: !runDatabaseTests }, async () => {
+  const { neon } = await import("@neondatabase/serverless");
+  const sql = neon(process.env.DATABASE_URL!);
+  await bootstrapCompanyDatabase();
+  // A minimal historical audit relation is enough to detect destructive cleanup.
+  await sql`create table if not exists companyos_records.sprint_events (id text primary key, payload jsonb not null)`;
+  await sql`insert into companyos_records.sprint_events (id, payload) values ('retained-audit-fixture', '{"historical":true}'::jsonb) on conflict (id) do nothing`;
+  await sql`insert into companyos.schema_manifests (manifest_id, manifest_version, manifest_digest, features) values (${COMPANY_DATABASE_MANIFEST_PHASE_TEN.id}, ${COMPANY_DATABASE_MANIFEST_PHASE_TEN.version}, ${COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST}, '{"vector":false}'::jsonb) on conflict do nothing`;
+  const upgraded = await bootstrapCompanyDatabase();
+  assert.equal(upgraded.manifestVersion, "2.1.0");
+  assertCompanyDatabaseQualificationReceipt(await qualifyCompanyDatabase());
+  const rows = await sql`select payload from companyos_records.sprint_events where id = 'retained-audit-fixture'`;
+  assert.deepEqual(rows[0]?.payload, { historical: true });
 });

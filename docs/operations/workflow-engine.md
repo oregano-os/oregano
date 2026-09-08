@@ -20,6 +20,27 @@ availability: experimental
 Use this guide to check whether a hosted workflow is ready for human testing.
 It defines the evidence required, independently of the hosting or chat provider.
 
+## Migrating from the retired domain executor
+
+Core now runs declared Workflows only. Remove `sprint_runtimes` from the
+Instance declaration and replace old version-1 Sprint configuration with the
+Workspace's declared Workflows and version-2 workflow configuration. The
+builder rejects the retired declaration instead of silently disabling it.
+Artifacts containing active legacy definitions are also rejected. An older
+Artifact with an empty legacy list remains readable for retained workflow
+receipts; new builds omit the list entirely.
+
+Prepare and qualify database manifest `2.1.0` before deployment. It retains all
+general workflow and Records tables. New databases do not create the three
+retired Sprint tables; existing audit data and historical manifest identities
+are preserved. No table is dropped and no old worker is kept as a fallback.
+
+Rebuild from clean pinned Core and Workspace commits. Check conversation
+routing, decisions, scheduled opening, message intake, and recovery on that
+exact candidate before activation. Hosting steps belong in the linked provider
+guide below. Do not delete installations or credentials as part of source
+cleanup.
+
 ## Replies to delivered reports
 
 When a workflow publishes an addressable message, Core retains the exact sent

@@ -1,0 +1,77 @@
+version: 3
+plan_id: retire-sprint-executor-2026-09-08
+created: "2026-09-08"
+title: Remove the retired domain executor and preserve declared workflow execution
+objective: Remove all retired Sprint execution paths while preserving general runtime guarantees and portable Workspace workflows.
+non_goals:
+  - Delete historical database audit data or activate production.
+  - Remove generic Records, work-item, communication, decision, calendar or conversation contracts.
+  - Put company-specific operating rules or test identities in Core.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-retire-sprint-executor.yaml
+  - packages/domains/sprint/**
+  - packages/runtime/sprint-*.ts
+  - packages/runtime/memory-sprint-orchestration.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/sprint-loader.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/cli/src/workspace-validator.mjs
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/agent-model-task.ts
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runner-vercel/src/lib/stage0-qualification.ts
+  - packages/runner-vercel/src/app/api/sprint/**
+  - packages/runner-vercel/src/app/api/stage0/**
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/state-store/sprint-orchestration.ts
+  - packages/state-postgres/sprint-orchestration-store.ts
+  - packages/state-postgres/records-schema.sql
+  - packages/state-postgres/records-migrate.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/schema/sprint-*.schema.json
+  - packages/schema/README.md
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/**
+  - packages/testkit/fixtures/**
+  - packages/runner-vercel/vercel.json
+  - vercel.json
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/retired-executor-removal.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/published-conversation-context.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.company-records-sprint-v0.1, specification.workflow-execution-v1, operations.workflow-engine, operations.vercel-workflow-runner, guide.prepare-instance, status.current]
+architecture:
+  placement:
+    core: Remove the obsolete executor and retain the company-neutral workflow engine and its controls.
+    packages: Preserve portable Agent materials and synthetic workflow fixtures without executor dependencies.
+    workspace: Own business interpretation, schedules and authored workflows.
+    instance: Retain audit history and exact rollback pair; deploy and qualify only the reviewed test candidate.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Remove retired model and direct-conversation special cases while retaining generic Agent routing.
+    - mechanism: timers-and-business-time
+      reason: Remove obsolete worker registration while preserving general durable timers and calendars.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company may run declared workflows without a domain-specific execution branch or provider-specific business logic.
+rollback: Restore the retained exact Core and Workspace pair; historical database rows and publication receipts are not deleted or rewritten.

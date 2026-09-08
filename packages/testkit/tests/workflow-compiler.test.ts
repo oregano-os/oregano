@@ -91,7 +91,7 @@ test("competing calendar triggers and unreadable discovery candidates fail close
 
 test("complete fixture builds four workflows; full close manifest matches reviewed expectation", () => {
   assert.equal(artifact.workflows!.length, 4);
-  assert.deepEqual(artifact.sprints, []);
+  assert.equal(Object.hasOwn(artifact, "sprints"), false);
   const close = artifact.workflows!.find((workflow) => workflow.id === "friday-close")!;
   assert.deepEqual(JSON.parse(JSON.stringify(close)), JSON.parse(readFileSync(join(fixture, "compiler-expectations/friday-close.json"), "utf8")));
   assert.equal(close.steps.length, 20);

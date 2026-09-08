@@ -242,7 +242,6 @@ export function validateWorkspace(root) {
       knowledge_fragments: knowledge.bundle?.fragmentCount ?? 0,
       record_sources: structured.summary.record_sources,
       record_projections: structured.summary.record_projections,
-      sprint_configurations: structured.summary.sprint_configurations,
     },
   };
 }

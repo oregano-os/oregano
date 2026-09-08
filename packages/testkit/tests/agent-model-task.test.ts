@@ -7,7 +7,7 @@ import { resolveModelExecutionSelection } from "../../runner/model-execution.ts"
 test("a workflow-assigned Agent uses its declared task without a legacy runtime", () => {
   const agent = { modelTask: "planning.conversation" };
   const task = agentModelTask(agent);
-  const normal = agentModelTask(agent, { kind: "auto" }, { modelTask: "legacy.task" });
+  const normal = agentModelTask(agent, { kind: "auto" });
   assert.deepEqual(normal, task);
   const selected = resolveModelExecutionSelection({
     profile: task.profile, task: task.task, environment: {},
@@ -21,12 +21,11 @@ test("a workflow-assigned Agent uses its declared task without a legacy runtime"
   assert.equal(selected.profile, "agent");
 });
 
-test("absent declarations retain chat, knowledge and legacy model routing", () => {
+test("absent declarations retain general chat and knowledge model routing", () => {
   assert.deepEqual(agentModelTask({}), { profile: "agent", task: "agent.chat", configuration: "shared" });
   const knowledge = { kind: "required-search" as const, grantId: "oregano:knowledge/search" as const,
     toolName: "knowledge_search", reason: "explicit-search" as const };
   assert.deepEqual(agentModelTask({}, knowledge), { profile: "deep", task: "knowledge.cited-synthesis", configuration: "knowledge" });
-  assert.deepEqual(agentModelTask({}, knowledge, { modelTask: "legacy.task" }), { profile: "reasoning", task: "legacy.task", configuration: "shared" });
   assert.equal(agentModelTask({ modelTask: "review.conversation" }, knowledge).task, "review.conversation");
 });
 

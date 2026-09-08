@@ -45,6 +45,10 @@ export function loadArtifact(): CompanyOSArtifact {
   };
   const actualHash = sha256(hashInput);
   if (actualHash !== artifactHash) throw new Error(`Artifact integrity failure: expected ${artifactHash}, got ${actualHash}.`);
+  const retired = (parsed as unknown as { sprints?: unknown }).sprints;
+  if (retired !== undefined && (!Array.isArray(retired) || retired.length > 0)) {
+    throw new Error("Artifact contains retired Sprint execution; rebuild with declared workflows before activation.");
+  }
   assertArtifactDeploymentEnvironment(parsed.instance.environment);
   cachedArtifact = parsed;
   return parsed;

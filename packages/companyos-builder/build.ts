@@ -14,7 +14,6 @@ import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 import { validateAgentRouting } from "../runtime/agent-resolver.ts";
 import { validateWorkflowInstanceBindings } from "./instance-loader.ts";
 import { compileWorkflows } from "./workflow-compiler.ts";
-import { compileSprintRuntimes } from "./sprint-loader.ts";
 
 export function buildCompanyOSArtifact(args: {
   workspaceRoot: string;
@@ -26,6 +25,7 @@ export function buildCompanyOSArtifact(args: {
   builtAt?: string;
 }): CompanyOSArtifact {
   args = { ...args, instance: structuredClone(args.instance) };
+  if (Object.hasOwn(args.instance, "sprintRuntimes")) throw new Error("Retired sprintRuntimes configuration: migrate to declared workflows and workflowBindings.");
   if (args.instance.workflowBindings) validateWorkflowInstanceBindings(args.instance.workflowBindings);
   const standardTools = [
     ...STANDARD_KNOWLEDGE_TOOLS,
@@ -74,13 +74,6 @@ export function buildCompanyOSArtifact(args: {
     defaultAgentId: args.instance.defaultAgentId,
   };
   validateAgentRouting(agentRouting, agents.map((agent) => agent.id));
-  const sprints = compileSprintRuntimes({
-    workspace,
-    instance: args.instance,
-    coreCommit: args.coreCommit,
-    workspaceCommit: args.workspaceCommit,
-    workbenchVersion,
-  });
   const withoutHash = {
     schemaVersion: 1 as const,
     company: workspace.company,
@@ -111,7 +104,6 @@ export function buildCompanyOSArtifact(args: {
     roster: workspace.roster,
     agents,
     agentRouting,
-    sprints,
     ...(args.instance.workflowBindings ? { workflowBindings: args.instance.workflowBindings } : {}),
     workflows: compileWorkflows({ files: workspace.allFiles, agents, provenance: { coreCommit: args.coreCommit, workspaceCommit: args.workspaceCommit, workbenchVersion, instanceId: args.instance.instanceId } }),
     builder: args.instance.builder,

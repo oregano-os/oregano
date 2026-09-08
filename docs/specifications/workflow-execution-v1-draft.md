@@ -365,7 +365,9 @@ won the lock remains in flight and keeps its receipt; cancellation cannot undo
 an external call that has begun. Subsequent dispatch is refused. Historical
 rows, receipts and assignments are retained.
 
-Database manifest `2.0.0` adds these control tables, indexes and constraints.
+Database manifest `2.0.0` introduced these control tables, indexes and constraints.
+Manifest `2.1.0` retains them and stops requiring retired domain tables, without
+dropping existing audit data or changing historical manifest digests.
 The `1.9.0` manifest retains its exact old digest. Mandatory Postgres tests
 exercise concurrent leases, JSONB redelivery, atomic assignment refusal,
 cancellation/dispatch races and the actual Runtime's refusal when cancellation

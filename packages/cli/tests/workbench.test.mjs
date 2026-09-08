@@ -217,7 +217,7 @@ test("the neutral Company Workspace fixture passes validation", () => {
   assert.equal(result.summary.company_tools, 1);
 });
 
-test("Workspace validation accepts provider-neutral Company Records and Sprint declarations", () => withFixture((workspace) => {
+test("Workspace validation accepts provider-neutral Company Records and workflow declarations", () => withFixture((workspace) => {
   mkdirSync(join(workspace, "records", "sources"), { recursive: true });
   mkdirSync(join(workspace, "records", "projections"), { recursive: true });
   mkdirSync(join(workspace, "workflows", "sprint"), { recursive: true });
@@ -258,7 +258,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     materialization: { mode: "database-view" },
   }));
   writeFileSync(join(workspace, "workflows", "sprint", "config.yaml"), YAML.stringify({
-    schema_version: 1,
+    schema_version: 2,
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
     work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready", closed_statuses: ["done"] },
@@ -285,7 +285,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
   assert.equal(result.summary.record_sources, 2);
   assert.equal(result.summary.record_projections, 2);
-  assert.equal(result.summary.sprint_configurations, 1);
+  assert.equal(Object.hasOwn(result.summary, "sprint_configurations"), false);
 }));
 
 test("Workspace validation rejects unsafe or unresolved structured declarations", () => withFixture((workspace) => {
@@ -315,9 +315,7 @@ test("Workspace validation rejects unsafe or unresolved structured declarations"
 
   const codes = new Set(validateWorkspace(workspace).diagnostics.filter((item) => item.severity === "error").map((item) => item.code));
   assert.ok(codes.has("WS047"));
-  assert.ok(codes.has("WS049"));
-  assert.ok(codes.has("WS050"));
-  assert.ok(codes.has("WS051"));
+  assert.ok(codes.has("WS061"));
 }));
 
 test("Workspace validation rejects the unreleased top-level Sprint domain path", () => withFixture((workspace) => {
@@ -326,7 +324,7 @@ test("Workspace validation rejects the unreleased top-level Sprint domain path",
 
   const result = validateWorkspace(workspace);
   assert.ok(result.diagnostics.some((item) => item.code === "WS052" && item.severity === "error"));
-  assert.equal(result.summary.sprint_configurations, 0);
+  assert.equal(Object.hasOwn(result.summary, "sprint_configurations"), false);
 }));
 
 test("Core and Workspace versions are exact SemVer and visible through the Workbench", () => withFixture((workspace) => {
