@@ -1465,3 +1465,12 @@ Slack Record Source `0.1.4` accepts the provider's legacy system bot identity
 `B01` while preserving bot authorship and rejecting malformed identifiers.
 A synthetic inventory regression covers successful system-message ingestion
 and prevents its attribution to an authenticated human.
+
+## Hosted readiness correction
+
+Core 0.8.1 resolves hosted Connector dependencies from enabled workflow owners
+and their retained Tool grants. An unrelated Company Records Connector no longer
+blocks a comment-only workflow. Workflows that use Records still require an
+immutable, correctly paired configuration snapshot. The installer also resolves
+the pinned pnpm package behind the shell shims used by CI. Neither correction
+changes provider authority or replaces actual functional acceptance evidence.

@@ -13,6 +13,7 @@ import { createPostgresWorkflowExecutionStore } from "../../../state-postgres/wo
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import { qualifyCompanyDatabase } from "../../../state-postgres/database-bootstrap.ts";
 import type { CompanyOSArtifact } from "../../../companyos-builder/types.ts";
+import { createHostedWorkflowConnectors } from "./workflow-connectors.ts";
 
 export async function createWorkflowHost() {
   if (!workflowHostingEnabled()) throw new Error("Workflow hosting is disabled");
@@ -23,10 +24,8 @@ export async function createWorkflowHost() {
   const timers = new DurableTimerService({ store: createPostgresDurableTimerStore(), instanceId: artifact.instance.id });
   const roster = async () => structuredClone(loadArtifact().roster), slack = createWorkflowSlackScope(getBot);
   const connectors = async (pinned: CompanyOSArtifact) => {
-    for (const entry of pinned.connectors ?? []) if (entry.connector === "oregano/company-records" && !entry.configuration.configuration_snapshot) {
-      throw new Error("Hosted workflows require a non-secret Company Records configuration_snapshot retained in their Artifact");
-    }
-    return createCompanyOSRuntimeConnectors(undefined, { artifact: pinned, chat: getBot })
+    return createHostedWorkflowConnectors({ artifact: pinned, enabledWorkflowIds: configuration.enabledWorkflowIds,
+      create: (onlyCapabilities) => createCompanyOSRuntimeConnectors(undefined, { artifact: pinned, chat: getBot, onlyCapabilities }) })
       .map((connector) => qualifyWorkflowSlackConnector({ connector, artifact: pinned, scope: slack, roster }));
   };
   // Validate required bindings and non-secret snapshots before persisting any opening.

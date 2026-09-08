@@ -591,7 +591,7 @@ let botInstance: Chat | undefined;
 
 export function createCompanyOSRuntimeConnectors(
   selectedAgentId = process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent",
-  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish },
+  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish; onlyCapabilities?: readonly string[] },
 ) {
   const baseline = createUnifiedKnowledgeProvider({
     handbook: createPostgresKnowledgeProvider(process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && options?.artifact?.knowledge
@@ -607,7 +607,7 @@ export function createCompanyOSRuntimeConnectors(
     new ArtifactPostgresConnector(),
     new KnowledgeProviderConnector(knowledge),
     ...(options?.artifact && options.chat
-      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat, beforeSlackDirectPublish: options.beforeSlackDirectPublish })
+      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat, beforeSlackDirectPublish: options.beforeSlackDirectPublish, onlyCapabilities: options.onlyCapabilities })
       : []),
   ];
 }
