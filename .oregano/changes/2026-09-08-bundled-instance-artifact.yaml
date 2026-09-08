@@ -1,0 +1,41 @@
+version: 3
+plan_id: bundled-instance-artifact-2026-09-08
+created: "2026-09-08"
+title: Load an exact server-only Artifact bundle without environment size growth
+objective: Let the reference host load the same integrity-checked Artifact from a fixed private deployment file when environment transport exceeds hosting limits.
+non_goals:
+  - Fetch arbitrary remote files, change Artifact authority or relax integrity checks.
+  - Publish Company data in Core Git or a public web directory.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-bundled-instance-artifact.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - .vercelignore
+  - packages/runner-vercel/next.config.ts
+  - packages/runner-vercel/src/lib/artifact-payload.ts
+  - packages/testkit/tests/artifact-payload.test.ts
+  - docs/operations/vercel-workflow-runner.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/artifact-payload.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.vercel-workflow-runner]
+architecture:
+  placement:
+    core: Reference-host transport decoding and tracing; existing hash and environment checks apply.
+    packages: No Package change.
+    workspace: No change to business policy or generated content.
+    instance: Own the private compressed Artifact file, exact upload inventory and mode flag.
+  mechanisms_extended:
+    - mechanism: artifact-payload
+      reason: Add a fixed local server-only file as a third mutually exclusive transport.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Instance can use the same transport without company or model-provider assumptions.
+rollback: Restore the previous deployment or environment transport; retain original artifact and workflow receipts.

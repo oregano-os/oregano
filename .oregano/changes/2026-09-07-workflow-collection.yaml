@@ -9,6 +9,9 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - .oregano/changes/2026-09-08-bundled-instance-artifact.yaml
+  - .vercelignore
+  - packages/runner-vercel/next.config.ts
   - .oregano/changes/2026-09-08-workflow-language-generation.yaml
   - docs/workbench/guides/author-a-company-tool.md
   - packages/capabilities/catalog.ts

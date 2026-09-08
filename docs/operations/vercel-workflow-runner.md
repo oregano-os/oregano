@@ -719,3 +719,28 @@ Include this optional Connector and the frozen Skill in the exact deployed
 Artifact. Check the hosting environment's payload size limits again after the
 addition. A healthy conversation alone does not qualify this new workflow path;
 run a real generated step and verify its model evidence and final publication.
+
+## Keep large Artifacts out of environment variables
+
+A deployment may use `COMPANYOS_ARTIFACT_BUNDLED=true` instead of either encoded
+Artifact environment variable. Place the exact Brotli-compressed Artifact at
+`packages/runner-vercel/.companyos/artifact.br` before upload. Next.js traces
+this file into API functions; it is outside `public/` and has no download route.
+The loader reads this fixed path relative to the runner's working directory,
+then applies the same Artifact hash and deployment-environment checks.
+
+Use exactly one transport. Missing, corrupt, oversized or conflicting payloads
+fail startup; there is no fallback to a different Artifact. Compressed payloads
+are limited to 16 MiB and decoded payloads to 64 MiB. The path is fixed and cannot
+be changed through a request or environment variable.
+
+Keep this Instance file out of Core Git. It is already gitignored; the deployment
+ignore file permits only this exact payload path. Review its digest alongside
+the tracked Core upload inventory. Do not include other private files or put the
+payload under a static/public directory. Check the build traces for the workflow
+endpoints, verify protected health, and confirm that an unauthenticated request
+for the file returns no Artifact. A test must load the exact expected hash.
+
+The hosting provider counts inherited settings in its environment limit too.
+A local estimate alone is insufficient. Prefer the bundle transport as a
+Workspace grows, instead of repeatedly trimming prompts to fit the limit.
