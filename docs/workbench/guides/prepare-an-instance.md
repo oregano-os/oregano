@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-05
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -91,7 +91,12 @@ connectors:
     configuration:
       token_ref: env:MONDAY_API_TOKEN
       api_version: dev
-      actor_id: external-agent-member-id
+      actor_id: "700007"
+      credential_identity:
+        account_id: "300003"
+        member_id: "700007"
+        kind: external_agent_member
+        external_agent_id: "900001"
       resources:
         - id: sprint-test-board
           board_id: "10000000001"
@@ -146,6 +151,14 @@ sprint_runtimes:
 The declaration must never contain a token, signing secret, database URL, or
 other resolved credential. A Capability binding and Agent grant are still
 required independently; Connector configuration alone grants no authority.
+For hosted Monday access, populate `credential_identity` from the completed
+external-Agent qualification receipt, using the authenticated member ID for
+`actor_id`. These fictional IDs are examples, not defaults. The host requires
+this identity on every retained Artifact and rechecks the same credential's
+account, Agent subject, active board, minimum access and mapped columns before
+each call. Missing or changed identity blocks access; it is never inferred from
+the token. Alternative hosts must install equivalent qualification at their
+trusted Connector construction boundary.
 An active Sprint Agent that performs briefings needs both the normal
 `oregano:work-items/update` Tool and the
 `oregano:work-items/confirmed-update` Tool. The latter accepts only the exact
@@ -289,6 +302,15 @@ grant. First call `simulate`; then pass only its exact output digest
 and stored Monday hand-off intent id to `publish-simulation`. The host derives
 the Agent, Tool, template, message content, and test destination from the
 compiled Artifact and rejects any changed digest or live-channel alias.
+
+To test Friday Close communication from the same reviewed proof, call
+`publish-friday-close-simulation` with the identical scenario input and exact
+output digest. Do not pass intent ids, content, destination, or thread data.
+The host resolves the succeeded reminder, chase, and report intents, publishes
+the reminder as the root message, and forces chase and report to reuse its real
+Slack thread receipt. Each step is independently idempotent, so retrying after
+a partial failure does not duplicate already successful messages. The action
+does not publish Retro and cannot select a live destination.
 
 The checked-in Vercel reference wakes the Sprint workers once per minute.
 Vercel currently supports that frequency only on plans with per-minute Cron;
@@ -489,3 +511,12 @@ the exact R3 request passes Core authorization and approval consumption. The
 route applies a restrictive content-security policy. Paid-provider effects are
 not inferred from a successful Runner deployment; each requires an exact real
 Connector binding.
+
+
+For generic executable workflows, follow
+[Hosted Workflow Engine Operations](../../operations/workflow-engine.md).
+The Instance Administrator verifies exact activation, non-secret historical
+Records snapshots, provider account/recipient checks, source cutoff coverage and
+real human decision evidence. `companyos onboard` keeps these as external
+Instance verification; passing local validation or the Tool-free starter check
+cannot establish workflow execution readiness.

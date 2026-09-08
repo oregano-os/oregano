@@ -453,7 +453,7 @@ export class PostgresBrainStore implements BrainStore {
         select ${claim.claimId}, ${claim.memoryClass}, ${claim.claimKind}, ${claim.claimText}, ${claim.ownerPrincipalId ?? null},
           ${claim.scope ? JSON.stringify(claim.scope) : null}, ${holder?.holderId ?? null}, ${claim.derivation}, ${claim.status},
           ${claim.observedAt}, ${claim.validFrom ?? null}, ${claim.validUntil ?? null}, ${claim.extractionConfidence},
-          ${claim.epistemicWeight}, ${claim.accessPolicyId}, ${claim.createdBy}, ${JSON.stringify(claim.modelProvenance ?? null)},
+          ${claim.epistemicWeight}, ${claim.accessPolicyId}, ${claim.createdBy}, ${claim.modelProvenance ? JSON.stringify(claim.modelProvenance) : null},
           ${claim.unresolvedEvidenceReason ?? null}, ${claim.consolidationReceiptId ?? null}, ${claim.activationReceiptId ?? null}
         where ${claim.memoryClass === "fact"} or exists (
           select 1 from companyos_knowledge.holders where holder_id = ${holder?.holderId ?? null}
@@ -474,7 +474,8 @@ export class PostgresBrainStore implements BrainStore {
           and companyos_knowledge.claims.epistemic_weight = excluded.epistemic_weight
           and companyos_knowledge.claims.access_policy_id = excluded.access_policy_id
           and companyos_knowledge.claims.created_by = excluded.created_by
-          and companyos_knowledge.claims.model_provenance is not distinct from excluded.model_provenance
+          and nullif(companyos_knowledge.claims.model_provenance, 'null'::jsonb)
+            is not distinct from nullif(excluded.model_provenance, 'null'::jsonb)
           and companyos_knowledge.claims.unresolved_evidence_reason is not distinct from excluded.unresolved_evidence_reason
           and companyos_knowledge.claims.consolidation_receipt_id is not distinct from excluded.consolidation_receipt_id
           and companyos_knowledge.claims.activation_receipt_id is not distinct from excluded.activation_receipt_id
@@ -509,7 +510,7 @@ export class PostgresBrainStore implements BrainStore {
     const rows = await sql`select c.*, h.holder_type, h.display_name from companyos_knowledge.claims c
       left join companyos_knowledge.holders h on h.holder_id = c.primary_holder_id
       where c.claim_id = ${claimId}
-        and (c.model_provenance is null or (
+        and (c.model_provenance is null or c.model_provenance = 'null'::jsonb or (
           exists (select 1 from companyos_knowledge.extraction_runs r
             where r.run_id = c.model_provenance->>'extractionRunId' and r.status = 'succeeded')
           and exists (select 1 from companyos_knowledge.claim_evidence current_evidence

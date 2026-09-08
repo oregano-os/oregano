@@ -45,7 +45,7 @@ export const STANDARD_WORK_ITEM_TOOLS: readonly CompiledCompanyTool[] = [
   }, call("work-item.comment")),
   create({
     grantId: "oregano:work-items/batch-update", runtimeId: "oregano:work-items/batch-update", agentId: "*", toolId: "work-item-batch-update", version: "1.0.0",
-    description: "Apply one frozen homogeneous work-item update set only after an R3 human approval.", risk: "R3", dataClass: "business", idempotency: "input-hash",
+    description: "Apply one exact frozen work-item update array, including each item's target values, only after an R3 human approval.", risk: "R3", dataClass: "business", idempotency: "input-hash",
     capabilities: ["work-item.batch-update"],
     inputSchema: { type: "object", required: ["resource_binding", "updates"], additionalProperties: false, properties: { resource_binding: { type: "string", minLength: 1, maxLength: 63 }, updates: { type: "array", minItems: 1, maxItems: 1_000, items: { type: "object", required: ["work_item_id", "changes", "expected_version"], additionalProperties: false, properties: { work_item_id: { type: "string", minLength: 1, maxLength: 255 }, changes: { type: "object" }, expected_version: { type: "string", minLength: 1, maxLength: 255 } } } } } },
     outputSchema: { type: "object" }, evidence: ["resource_binding", "work_item_ids", "previous_versions", "provider_versions", "changed_fields"],

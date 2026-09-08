@@ -13,7 +13,9 @@ objective: >-
   with a template literal is rejected as missing its default export, and a
   forbidden identifier placed after such a literal is not scanned and passes
   static inspection. Track substitution depth and rescan the template token so
-  every token is inspected.
+  every token is inspected. Parser-confirmed regular-expression spans are
+  masked at preserved source offsets so regexp punctuation cannot confuse
+  template scanning and division cannot conceal executable identifiers.
 non_goals:
   - Change the forbidden-identifier list, the import allowlist, or the isolated runner.
   - Weaken the isolated runner; it remains the second layer and already denies process and network access.
@@ -27,6 +29,8 @@ files_expected:
   - docs/status/current.md
   - packages/testkit/tests/tool-sdk-security.test.ts
   - packages/tool-sdk/source-inspector.ts
+  - package.json
+  - pnpm-lock.yaml
 required_approvals:
   - oregano-maintainer
 approvals:
@@ -43,6 +47,7 @@ tests:
   - A valid Company Tool that uses template literals with substitutions, including a nested template, compiles without diagnostics.
   - A forbidden identifier placed after a template literal with a substitution is reported and the Tool is not compiled.
   - All existing rejection cases (Node import, provider import, environment access, network access, dynamic import, constructor escape) still fail closed.
+  - Regular-expression backticks cannot hide forbidden identifiers; division and type-only imports remain inspected.
 documentation_impact:
   required: true
   affected_documents:

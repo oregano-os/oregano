@@ -8,7 +8,10 @@ import YAML from "yaml";
 import { MondayClient } from "../../connectors/monday/client.ts";
 import { MondayRecordSourceConnector } from "../../connectors/monday/records-source.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
-import { RecordSourceConnectorRegistry } from "../../records/source-connector.ts";
+import { CompanyRecordsRegistry } from "../../records/registry.ts";
+import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
+import { parseRoster } from "../../state-store/roster.ts";
+import { RecordSourceConnectorRegistry, recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { writeMondayAgentQualificationState } from "../src/monday-agent-qualification.mjs";
 import {
   applyRecordSourceMaterialization,
@@ -17,9 +20,18 @@ import {
   planRecordSourceMaterialization,
   planRecordSourceOperation,
   runRecordSourceOperation,
+  inspectRecordSourceStatus,
 } from "../src/records-operations.mjs";
 
 const REPO = new URL("../../..", import.meta.url).pathname;
+
+const operationStore = (plan, store) => {
+  const registry = new CompanyRecordsRegistry(plan.rosterMarkdown ? { identities: new RecordIdentityDirectory(parseRoster(plan.rosterMarkdown)) } : {});
+  for (const source of plan.inspected.declarations.sources) registry.registerSource(source);
+  for (const projection of plan.inspected.declarations.projections) registry.registerProjection(projection);
+  registry.bindSource(plan.binding, plan.qualification);
+  return registry.scopeStore(store);
+};
 
 const temporaryWorkspace = () => {
   const root = mkdtempSync(join(tmpdir(), "companyos-records-cli-"));
@@ -79,6 +91,53 @@ const writeBinding = (root, overrides = {}) => {
   return { path, binding, qualificationPath };
 };
 
+test("Slack credential provider selection is non-secret exact adapter configuration", () => {
+  const root = mkdtempSync(join(tmpdir(), "record-credential-choice-"));
+  try {
+    for (const credential_provider of ["direct-env", "vercel-connect-app"]) {
+      const { path, binding } = writeBinding(root, { connector: "oregano/slack-record-source", connector_version: "0.1.3",
+        configuration: { credential_provider, team_id: "T10001", channel_id: "C10001" } });
+      assert.deepEqual(loadRecordSourceBinding(path), binding);
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("credential selectors cannot conceal values or bypass another binding secret check", () => {
+  const root = mkdtempSync(join(tmpdir(), "record-credential-negatives-"));
+  try {
+    const configurations = [
+      { credential_provider: "unreviewed-provider" }, { credential_provider: "synthetic-inline-credential" },
+      { credential_provider: ["direct-env"] }, { credential_provider: { secret: "synthetic-value" } },
+      { nested: { credential_provider: "direct-env" } },
+      { credential_provider: "direct-env", access_token: "synthetic-value" },
+      { credential_provider: "vercel-connect-app", nested: { secret_ref: "env:UNREVIEWED" } },
+    ];
+    for (const configuration of configurations) {
+      const { path } = writeBinding(root, { connector: "oregano/slack-record-source", connector_version: "0.1.3", configuration });
+      assert.throws(() => loadRecordSourceBinding(path), (error) => error.diagnostics.some((entry) => entry.code === "REC004"));
+    }
+    const { path } = writeBinding(root, { configuration: { credential_provider: "direct-env" } });
+    assert.throws(() => loadRecordSourceBinding(path), (error) => error.diagnostics.some((entry) => entry.code === "REC004"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("records inspection validates exact source selection and exposed filter paths", () => {
+  const { root, workspace, source, projection } = temporaryWorkspace();
+  try {
+    writeFileSync(join(workspace, "records", "sources", "items.yaml"), YAML.stringify(source));
+    const file = join(workspace, "records", "projections", "items.yaml");
+    const inspect = (overrides) => {
+      writeFileSync(file, YAML.stringify({ ...projection, source_ids: [source.id], ...overrides }));
+      return inspectRecordWorkspace({ workspaceRoot: workspace });
+    };
+    assert.equal(inspect({ filters: { status_in: { operator: "in", path: "status" } } }).diagnostics.length, 0);
+    assert.ok(inspect({ source_ids: ["unknown-source"] }).diagnostics.some((entry) => entry.code === "WS053"));
+    assert.ok(inspect({ record_type: "other-type" }).diagnostics.some((entry) => entry.code === "WS054"));
+    assert.ok(inspect({ filters: { secret: { operator: "equals", path: "unexposed" } } }).diagnostics.some((entry) => entry.code === "WS061"));
+    assert.ok(inspect({ filters: { missing: { operator: "missing-any", path: "status" } } }).diagnostics.some((entry) => entry.code === "WS061"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("records inspection reports only validated Workspace declarations", () => {
   const fixture = temporaryWorkspace();
   try {
@@ -88,6 +147,25 @@ test("records inspection reports only validated Workspace declarations", () => {
     assert.equal(result.sources[0].id, "fixture-items");
     assert.equal(result.projections[0].id, "fixture-active-items");
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test("records inspection rejects invalid parser mappings and incomplete list contracts", () => {
+  const { root, workspace, projection } = temporaryWorkspace();
+  try {
+    const source = JSON.parse(readFileSync(new URL("../../testkit/fixtures/record-normalization/source.json", import.meta.url), "utf8"));
+    source.connection = "connections/monday.md";
+    const path = join(workspace, "records", "sources", "messages.yaml");
+    writeFileSync(join(workspace, "records", "projections", "items.yaml"), YAML.stringify({ ...projection, record_type: source.record_type, source_ids: [source.id], fields: [{ name: "matched", path: "matched" }] }));
+    writeFileSync(path, YAML.stringify(source));
+    assert.deepEqual(inspectRecordWorkspace({ workspaceRoot: workspace }).diagnostics, []);
+    source.fields[0].source = "parsed.unknown_identity";
+    writeFileSync(path, YAML.stringify(source));
+    assert.ok(inspectRecordWorkspace({ workspaceRoot: workspace }).diagnostics.some((entry) => entry.code === "WS062"));
+    source.fields[0].source = "author_id";
+    delete source.fields.find((field) => field.value_type === "json_list").item_schema;
+    writeFileSync(path, YAML.stringify(source));
+    assert.ok(inspectRecordWorkspace({ workspaceRoot: workspace }).diagnostics.some((entry) => entry.code === "WS043"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test("records inspection rejects projection paths absent from the selected source", () => {
@@ -179,9 +257,10 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
         { id: "item-1", name: "First", column_text: { status_col: "Working" } },
         { id: "item-2", name: "Second", column_text: { status_col: "Done" } },
       ],
-      async readCompleteInventory() {
+      async readCompleteInventory({ binding, qualification }) {
         return {
           complete: true,
+          binding_digest: recordSourceBindingDigest(binding, qualification),
           observed_at: "2030-02-01T10:00:00.000Z",
           objects: structuredClone(this.inventory),
           watermark: `fixture:${this.inventory.map((item) => item.id).join(",")}`,
@@ -190,7 +269,7 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
       },
     };
     const connectorRegistry = new RecordSourceConnectorRegistry([connector]);
-    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.13", workbench_version: "0.1.0-experimental.15", clean: true };
+    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.14", workbench_version: "0.1.0-experimental.15", clean: true };
     const syncPlan = planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "sync", coreIdentity, connectorRegistry });
     assert.deepEqual(syncPlan.diagnostics, []);
     assert.doesNotMatch(JSON.stringify(syncPlan.plan), /fixture-provider-value|DATABASE_URL=/);
@@ -205,13 +284,46 @@ test("sync and reconcile reuse one provider-neutral Connector and preserve absen
     assert.equal(invoked, false);
     const synced = await runRecordSourceOperation({ planResult: syncPlan, confirmationHash: syncPlan.plan.confirmation_hash, connectorRegistry, store, now: () => new Date("2030-02-01T10:00:00.000Z") });
     assert.equal(synced.receipt.inserted, 2);
-    assert.equal((await store.getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, false);
+    assert.equal((await operationStore(syncPlan, store).getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, false);
+    const status = await inspectRecordSourceStatus({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, connectorRegistry,
+      inspectStatus: async (instanceId, sourceId) => ({ source_id: sourceId, current_objects: (await store.listCurrentObjectIds(instanceId, sourceId)).length }),
+    });
+    assert.equal(status.status.current_objects, 2);
+    assert.equal(status.status.source_id, fixture.source.id, "CLI hides storage identities behind logical source IDs");
 
     connector.inventory = [{ id: "item-1", name: "First", column_text: { status_col: "Done" } }];
     const reconcilePlan = planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "reconcile", coreIdentity, connectorRegistry });
     const reconciled = await runRecordSourceOperation({ planResult: reconcilePlan, confirmationHash: reconcilePlan.plan.confirmation_hash, connectorRegistry, store, now: () => new Date("2030-02-01T11:00:00.000Z") });
     assert.equal(reconciled.receipt.missing_from_provider, 1);
-    assert.equal((await store.getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, true);
+    assert.equal((await operationStore(reconcilePlan, store).getCurrentObjectVersion("fixture-production", "fixture-items", "item-2"))?.deleted, true);
+  } finally { rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test("source operation confirmation freezes the exact roster used for identity resolution", async () => {
+  const fixture = temporaryWorkspace();
+  try {
+    fixture.source.fields.push({ target: "person", source: "principal", value_type: "identity", resolve_identity: true, required: true });
+    writeFileSync(join(fixture.workspace, "records", "sources", "items.yaml"), YAML.stringify(fixture.source));
+    const { path: bindingPath } = writeBinding(fixture.root);
+    const roster = (id) => `---\nmembers:\n  - id: ${id}\n    name: Example Person\n    role: contributor\n    identities:\n      board:\n        principal: board:account-1:user-1\n---\n`;
+    const connectorRegistry = new RecordSourceConnectorRegistry([{
+      id: "fixture/record-source", version: "1.0.0", validateBinding() {},
+      async readCompleteInventory({ binding, qualification }) { return { complete: true, binding_digest: recordSourceBindingDigest(binding, qualification), observed_at: "2030-02-01T10:00:00.000Z", objects: [{ id: "item-1", name: "First", principal: "board:account-1:user-1" }], watermark: "fixture", receipt: {} }; },
+    }]);
+    const coreIdentity = { repository: "example/core", ref: "a".repeat(40), core_version: "0.5.14", workbench_version: "0.1.0-experimental.15", clean: true };
+    const plan = () => planRecordSourceOperation({ workspaceRoot: fixture.workspace, sourceId: fixture.source.id, bindingPath, operation: "sync", coreIdentity, connectorRegistry });
+    assert.ok(plan().diagnostics.some((entry) => entry.code === "REC026"));
+    mkdirSync(join(fixture.workspace, "handbook"));
+    const path = join(fixture.workspace, "handbook", "roster.md");
+    writeFileSync(path, roster("member-1"));
+    const first = plan();
+    assert.deepEqual(first.diagnostics, []);
+    writeFileSync(path, roster("member-2"));
+    assert.notEqual(plan().plan.confirmation_hash, first.plan.confirmation_hash);
+    const store = new InMemoryCompanyRecordsStore();
+    await runRecordSourceOperation({ planResult: first, confirmationHash: first.plan.confirmation_hash, connectorRegistry, store });
+    assert.equal((await operationStore(first, store).getCurrentObjectVersion("fixture-production", fixture.source.id, "item-1")).values.person, "member-1");
+    await assert.rejects(runRecordSourceOperation({ planResult: { ...first, rosterMarkdown: roster("member-2") }, confirmationHash: first.plan.confirmation_hash, connectorRegistry, store }), /differs from its confirmed/);
   } finally { rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
@@ -222,6 +334,8 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
     headers: { "api-version": "dev", "x-request-id": requestId },
   });
   const queue = [
+    response({ me: { id: "700007", name: "Fixture Agent", kind: "external_agent_member", email: "agent-800001@agent.monday.com", account: { id: "300003", name: "Fixture Account" } },
+      boards: [{ id: "100001", groups: [{ id: "ready", title: "Ready", archived: false, deleted: false }], columns: [{ id: "status_col", title: "Status", type: "status", archived: false }] }] }, "request-identity"),
     response({ boards: [{ id: "100001", items_page: { cursor: "cursor-2", items: [
       { id: "item-2", name: "Excluded", updated_at: "2030-02-01T09:00:00Z", board: { id: "100001" }, group: { id: "other" }, column_values: [{ id: "status_col", text: "Done", value: "{\"index\":1}" }] },
       { id: "item-1", name: "Included", updated_at: "2030-02-01T09:30:00Z", board: { id: "100001" }, group: { id: "ready" }, column_values: [{ id: "status_col", text: "Working", value: "{\"index\":2}" }] },
@@ -261,7 +375,7 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
       source_id: "fixture-items",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.3.0",
+      connector_version: "0.3.3",
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "c".repeat(64) },
       configuration: { api_version: "dev", agent_id: "700001", board_id: "100001", permission: "read", group_ids: ["ready"], page_size: 2, max_pages: 5 },
@@ -276,7 +390,8 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
           authentication_mode: "external-agent",
           configured_agent_id: "700001",
           identity_mapping_status: "administrator-confirmed",
-          identity: { externalAgentId: "800001" },
+          identity: { memberId: "700007", kind: "external_agent_member", externalAgentId: "800001" },
+          account: { id: "300003" },
           resources: [{ id: "100001", scope: "board", permission: "read" }],
           boards: [{
             id: "100001",
@@ -289,7 +404,7 @@ test("the maintained Monday source adapter uses bounded complete pagination and 
   });
   assert.deepEqual(inventory.objects.map((item) => item.id), ["item-1", "item-3"]);
   assert.equal(inventory.receipt.pages, 2);
-  assert.deepEqual(inventory.receipt.request_ids, ["request-1", "request-2"]);
+  assert.deepEqual(inventory.receipt.request_ids, ["request-identity", "request-1", "request-2"]);
   assert.ok(requests.every((request) => request.headers.get("authorization") === "fixture-provider-value"));
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /fixture-provider-value|Included/);
 });
@@ -301,6 +416,11 @@ test("the maintained Monday source adapter mirrors a complete table surface with
     headers: { "api-version": "dev", "x-request-id": requestId },
   });
   const queue = [
+    response({ me: { id: "700007", name: "Fixture Agent", kind: "external_agent_member", email: "agent-800001@agent.monday.com", account: { id: "300003", name: "Fixture Account" } },
+      boards: [{ id: "100001", groups: [{ id: "backlog", title: "Backlog", archived: false, deleted: false }], columns: [
+        { id: "name", title: "Name", type: "name", archived: false }, { id: "status_col", title: "Status", type: "status", archived: false },
+        { id: "subtasks", title: "Subitems", type: "subtasks", archived: false, settings: { boardIds: [100002] } },
+      ] }] }, "request-identity"),
     response({ boards: [{
       id: "100001", name: "Synthetic Sprint", board_kind: "public", state: "active",
       groups: [{ id: "backlog", title: "Backlog", archived: false, deleted: false }],
@@ -357,7 +477,7 @@ test("the maintained Monday source adapter mirrors a complete table surface with
       source_id: "fixture-table",
       resource_binding: "fixture-board",
       connector: "oregano/monday-record-source",
-      connector_version: "0.3.0",
+      connector_version: "0.3.3",
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
       configuration: {
@@ -371,7 +491,8 @@ test("the maintained Monday source adapter mirrors a complete table surface with
       evidence: { discovery: {
         discovery_hash: "d".repeat(64), credentials_retained: false, authentication_mode: "external-agent",
         configured_agent_id: "700001", identity_mapping_status: "administrator-confirmed",
-        identity: { externalAgentId: "800001" },
+        identity: { memberId: "700007", kind: "external_agent_member", externalAgentId: "800001" },
+        account: { id: "300003" },
         resources: [{ id: "100001", scope: "board", permission: "read-write" }],
         boards: [{ id: "100001", groups: [{ id: "backlog", archived: false, deleted: false }], columns: [
           { id: "name", archived: false }, { id: "status_col", archived: false },
@@ -394,7 +515,7 @@ test("the maintained Monday source adapter mirrors a complete table surface with
     ] },
     { board_id: "100002", columns: [{ id: "hours", title: "Hours", type: "numbers" }] },
   ]);
-  assert.deepEqual(inventory.receipt.request_ids, ["request-root", "request-child"]);
+  assert.deepEqual(inventory.receipt.request_ids, ["request-identity", "request-root", "request-child"]);
   assert.equal(requests[0].query.includes("updates"), false);
   assert.equal(requests[0].query.includes("assets"), false);
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /Parent|Child|Working|fixture-provider-value/);

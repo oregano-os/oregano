@@ -1,0 +1,19 @@
+version: 1
+provider: github
+target:
+  branch: main
+rules:
+  require_pull_request: true
+  required_approvals: 0
+  require_code_owner_review: false
+  dismiss_stale_approvals: true
+  require_conversation_resolution: true
+  required_status_checks:
+    - check
+  block_force_pushes: true
+  block_deletions: true
+  bypass: none
+verification:
+  status: pending
+  checked_at: null
+  checked_by: null

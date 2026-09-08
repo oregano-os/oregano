@@ -1,0 +1,56 @@
+version: 3
+plan_id: workflow-current-scan-guards-2026-09-06
+created: "2026-09-06"
+title: Compile and verify explicit current-scan workflow requirements
+objective: >-
+  Carry an explicit Records scan-start requirement from reviewed workflow files
+  through compilation, trusted Tool input and retrospective verification.
+  Preserve the logical deadline and reject missing, stale or contradictory
+  scan evidence without weakening historical completeness requirements.
+non_goals:
+  - Change company policy, provider permissions or operating data.
+  - Claim real-provider acceptance or remove legacy execution before its gate.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-current-scan-guards.yaml
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/companyos-builder/workflow-types.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/runtime/workflow-engine/guard.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/tests/workflow-current-scans.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/company-records-query-v1.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-current-scans.test.ts
+  - packages/testkit/tests/workflow-verification.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - specification.company-records-query-v1
+    - status.current
+architecture:
+  placement:
+    core: Extend existing schema, compiler, workflow guard and retained-evidence verifier.
+    packages: No Package or Blueprint changes.
+    workspace: Reviewed steps choose a current-scan deadline rather than historical coverage.
+    instance: Actual Records workers supply evidence; synthetic fixtures cannot become live acceptance.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Carry the existing current-scan query requirement through the compiled workflow contract.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Verify retained scan provenance alongside the same journal, human decision and effect receipts.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any workflow may require complete current facts after its declared logical deadline.
+rollback: Revert this additive authoring option and rebuild affected Artifacts; preserve all historical run evidence.

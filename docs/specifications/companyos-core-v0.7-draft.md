@@ -259,6 +259,31 @@ approval. Approval consumption and effect claiming MUST be atomic for every
 unattended effect and for any supervised effect whose failure could duplicate a
 material external action.
 
+New Core approval requests always receive finite expiry. A caller without a
+workflow deadline uses the Core safety default of 24 hours; workflow decisions
+supply the exact deadline derived from their declared business-day timeout.
+Historical requests without expiry remain in the audit record but cannot
+authorize a new effect. Expiry never silently renews an old approval.
+
+The atomic approval/effect claim verifies the granted, unconsumed decision;
+its exact run, step and payload hash; a finite future expiry; and that the
+request is still the latest for the action. It creates neither a claimed
+effect nor a consumed signature on refusal. A newer expired draft cannot
+reactivate an older request. Equally timestamped competing drafts fail closed
+as ambiguous. The caller must request a fresh approval.
+
+
+R4 execution additionally requires two distinct active human roster identities.
+The Runtime records `approval.requested` with the exact request ID, action,
+payload hash, risk, authenticated requester principal and stable member ID.
+R4 request creation fails without that human identity. Approval authorization
+reads this retained request evidence rather than trusting the requesting
+subject on the approving turn. A second principal belonging to the same
+member is still self-approval. Missing, conflicting or remapped requester
+evidence fails closed; a new request is required. R3 authorization continues
+to use its existing human permission checks without requiring two people.
+
+
 ## 7. Tool and Capability architecture
 
 A **Tool** is an agent-callable operation with a stable ID, contract, risk

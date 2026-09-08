@@ -7,7 +7,7 @@
 export interface RunMeta {
   runId: string;
   workflow: string;
-  workflowVersion: string; // CORE git SHA (real, no placeholder)
+  workflowVersion: string; // Compiled workflow version, or exact Core SHA for a standalone Tool invocation.
   companyCommit?: string; // COMPANY repo git SHA (§10a provenance pair)
   companySnapshotHash: string;
   agentDefinitionHash: string;
@@ -36,6 +36,7 @@ export interface ApprovalRequestInput {
   action: string; // exactly ONE action per request
   inputHash: string;
   maxSpend?: number; // R4 budget approvals carry the limit
+  /** Defaults to the finite Core approval TTL when the caller has no workflow deadline. */
   expiresAt?: Date;
 }
 
@@ -46,6 +47,8 @@ export interface ApprovalRequestRow {
   action: string;
   inputHash: string;
   createdAt: Date;
+  /** Undefined only for retained historical requests; these cannot authorize effects. */
+  expiresAt?: Date;
 }
 
 export interface DecisionInput {
@@ -55,11 +58,41 @@ export interface DecisionInput {
   decision: "approved" | "rejected";
 }
 
+/** Retrospective evidence only; reading it cannot consume or authorize an effect. */
+export interface EffectApprovalReceipt {
+  approvalId: string;
+  requestId: string;
+  runId: string;
+  stepId: string;
+  action: string;
+  inputHash: string;
+  subjectPrincipal: string;
+  role: string;
+  decision: "approved" | "rejected";
+  consumed: boolean;
+  expiresAt: string | null;
+}
+
+export function assertEventReadLimit(limit: number | undefined): void {
+  if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1 || limit > 10001)) throw new Error("Event read limit must be between 1 and 10001");
+}
+
+/** Trusted workflow lease checked atomically with the transition to provider dispatch. */
+export interface WorkflowDispatchFence {
+  instanceId: string;
+  runId: string;
+  stepId: string;
+  leaseToken: string;
+  now: string;
+  /** Exact frozen control-notice page; never permits the stopped business effect. */
+  review?: { digest: string; page: number; inputDigest: string; executionStepId: string };
+}
+
 export interface StateStore {
   ensureRun(meta: RunMeta): Promise<void>;
   getRun(runId: string): Promise<Record<string, unknown> | undefined>;
   appendEvent(e: EventInput): Promise<string>;
-  listEvents(runId: string): Promise<Record<string, unknown>[]>;
+  listEvents(runId: string, limit?: number): Promise<Record<string, unknown>[]>;
 
   createApprovalRequest(r: ApprovalRequestInput): Promise<string>;
   /**
@@ -105,9 +138,10 @@ export interface StateStore {
     inputHash: string;
   }): Promise<boolean>;
 
-  markEffectDispatched(idempotencyKey: string): Promise<boolean>;
+  markEffectDispatched(idempotencyKey: string, fence?: WorkflowDispatchFence): Promise<boolean>;
   completeEffect(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectFailed(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectUnknown(idempotencyKey: string, evidence: unknown): Promise<void>;
   getEffect(idempotencyKey: string): Promise<Record<string, unknown> | undefined>;
+  getEffectApproval(idempotencyKey: string): Promise<EffectApprovalReceipt | undefined>;
 }

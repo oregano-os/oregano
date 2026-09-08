@@ -44,6 +44,7 @@ export async function qualifySlackRecordSource(args: {
   if (identity.data.team_id !== args.teamId) throw new Error(`Slack qualification authenticated team '${identity.data.team_id}', not '${args.teamId}'`);
   const channel = conversation.data.channel;
   if (String(channel.id ?? "") !== args.channelId) throw new Error(`Slack qualification did not return exact channel '${args.channelId}'`);
+  if (channel.is_im === true || channel.is_mpim === true) throw new Error("Slack channel qualification cannot use a direct conversation");
   const kind: "private-channel" | "public-channel" = channel.is_private === true ? "private-channel" : "public-channel";
   if (channel.is_member !== true) throw new Error(`Slack bot is not a member of channel '${args.channelId}'`);
   const scopes = [...new Set([...identity.scopes, ...conversation.scopes])].sort();

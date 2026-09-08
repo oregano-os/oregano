@@ -1,0 +1,50 @@
+schema_version: 1
+id: studio-sprint-rhythm
+activation: blocked
+timezone: Europe/Berlin
+business_days: [monday, tuesday, wednesday, thursday, friday]
+holiday_calendar:
+  jurisdiction: DE
+  scope: nationwide
+  missing_year_policy: assume-no-holidays
+  years:
+    "2026":
+      - "2026-01-01"
+      - "2026-04-03"
+      - "2026-04-06"
+      - "2026-05-01"
+      - "2026-05-14"
+      - "2026-05-25"
+      - "2026-10-03"
+      - "2026-12-25"
+      - "2026-12-26"
+delivery_window:
+  opens_at: "08:00"
+  closes_at: "19:00"
+triggers:
+  - id: monday-sprint-post
+    weekdays: [monday]
+    at: "09:30"
+  - id: weekday-activity-digest
+    weekdays: [monday, tuesday, thursday, friday]
+    at: "17:30"
+    params: { readiness: false }
+  - id: weekday-activity-digest
+    weekdays: [wednesday]
+    at: "17:30"
+    params: { readiness: true }
+  - id: friday-close-reminder
+    weekdays: [friday]
+    at: "15:30"
+    holiday_shift: previous-business-day
+  - id: friday-close-chase
+    weekdays: [friday]
+    at: "16:20"
+    holiday_shift: previous-business-day
+  - id: friday-close-finalize
+    weekdays: [friday]
+    at: "17:00"
+    holiday_shift: previous-business-day
+  - id: board-hygiene-weekly
+    weekdays: [tuesday]
+    at: "10:00"

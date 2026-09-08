@@ -1,0 +1,61 @@
+version: 3
+plan_id: workflow-review-delivery-2026-09-06
+created: "2026-09-06"
+title: Deliver stopped effect evidence to the recorded human approver
+objective: >-
+  Route bounded per-item outcome pages through the ordinary publication Tool
+  to the exact approved decision conversation. Preserve stopped business
+  execution, current human eligibility, durable receipts and cancellation fences.
+non_goals:
+  - Authorize retries, compensation or approval impersonation.
+  - Select a new recipient or destination when the recorded approver is unavailable.
+  - Claim real provider acceptance from synthetic regression tests.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-review-delivery.yaml
+  - packages/runtime/workflow-engine/**
+  - packages/runtime/companyos-runtime.ts
+  - packages/runtime/memory-state.ts
+  - packages/state-store/interface.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/state-postgres/store.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/fixtures/workflow-review-delivery.test.ts
+  - packages/testkit/tests/workflow-review-delivery.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/workflow-effect-review.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-review-delivery.test.ts
+  - packages/testkit/tests/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/workflow-effect-review.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Extends the existing engine with one bounded control-notice delivery purpose.
+    packages: Existing standard publication Tool and qualified Connector remain the effect boundary.
+    workspace: The workflow's existing decision role and delivery binding remain authoritative.
+    instance: Historical delivery receipts and current roster qualify the exact human and conversation.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Persist notification pages separately from the stopped business effect and reuse ordinary claims.
+    - mechanism: identity-and-authorization
+      reason: Recheck the original human approver before every notice without widening the audience.
+    - mechanism: timers-and-business-time
+      reason: Existing bounded workers drain durable notice pages and preserve cancellation and delivery windows.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any approval-bound workflow can report an uncertain outcome without a business-specific recovery executor.
+rollback: Disable workflow execution or return to the preceding deployment; preserve all effects and notice receipts for review.

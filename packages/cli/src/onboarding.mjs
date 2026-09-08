@@ -89,7 +89,7 @@ export function inspectWorkspaceOnboarding(root) {
         id: "company-instance",
         status: workspaceMode === "operating" ? "manual" : "deferred",
         next: workspaceMode === "operating"
-          ? "A Platform Administrator must verify runtime-host and state-provider accounts, projects, environment isolation, secrets, deployment identity, and rollback. The reference setup is Vercel plus Neon/Postgres; conforming alternatives are allowed."
+          ? "A Platform Administrator must verify runtime-host and state-provider accounts, projects, environment isolation, secrets, deployment identity, and rollback. The reference setup is Vercel plus Neon/Postgres; conforming alternatives are allowed. Hosted Monday access requires reviewed credential_identity on every retained Artifact and current same-client account/Agent/resource qualification. For executable workflows, also verify exact hosted activation, retained Records configuration, provider account/recipient qualification, source cutoff coverage and real human-decision evidence; a local validation does not establish these controls."
           : "No Vercel or Neon account is required in authoring-only mode. Provision reference or conforming alternative providers before an operating Instance is approved.",
       },
     ],

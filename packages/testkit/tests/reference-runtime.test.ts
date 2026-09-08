@@ -134,7 +134,7 @@ test("Artifact building resolves the provider-neutral Sprint standard Tools when
           ...instance.bindings,
           ...sprintCapabilities.map((capability) => ({
             capability,
-            contractVersion: "1.0.0",
+            contractVersion: capability === "records.query" ? "2.0.0" : "1.0.0",
             connector: "oregano/synthetic-sprint-connector",
             connectorVersion: "1.0.0",
           })),
@@ -322,7 +322,7 @@ test("the property campaign runs end to end through Tool SDK, resolved grants, C
     days: 5,
     assets: ["listing-42-landing-page", "creative-a", "creative-b"],
   };
-  await runtime.requestApproval({ runId: "run-reference", stepId: "launch", agentId: "growth", grantId: "company:launch-campaign", input: launchInput });
+  await runtime.requestApproval({ runId: "run-reference", stepId: "launch", agentId: "growth", grantId: "company:launch-campaign", input: launchInput, subjectPrincipal: "test:solstice:morgan" });
   const launched: any = await runtime.execute({
     runId: "run-reference",
     stepId: "launch",
@@ -527,7 +527,7 @@ test("an approved provider effect with an unverifiable receipt is recorded as un
   const effect = [...state.effects.values()][0];
   assert.equal(effect?.status, "unknown");
   assert.deepEqual((effect?.evidence as any).partial_evidence, {
-    capability_effects: [{ provider_id: "possibly-created" }],
+    capability_effects: [{ connector: "oregano/artifact-sandbox", connector_version: "1.0.0", capability: "artifact.publish", contract_version: "1.0.0", provider_evidence: { provider_id: "possibly-created" } }],
   });
 });
 
@@ -542,4 +542,56 @@ test("Workspace Builder presence declares conversation intent independently of c
     assert.ok(!build(root).agents.some((agent) => agent.id === "builder"));
     assert.throws(() => buildCompanyOSArtifact({ workspaceRoot: root, instance: { ...instance, builder: { execution: { adapter: "testkit-memory", profile: "isolated-v1" }, codingAgent: { protocol: "acp-v1", profile: "codex" }, repository: { repositoryId: "fixture/workspace", sourceBinding: "workspace", proposalPublisherBinding: "workspace" } } }, coreCommit: CORE_COMMIT, workspaceCommit: WORKSPACE_COMMIT, coreVersion: "0.5.13", workbenchVersion: "0.1.0-experimental.15" }), /Workspace Builder definition/);
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("runtime approval requests preserve an explicit workflow deadline and reject expiry", async () => {
+  const state = new InMemoryStateStore();
+  const runtime = new CompanyOSRuntime({ artifact: build(), state, connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
+  const request = { runId: "run-deadline", stepId: "publish", agentId: "growth", grantId: "company:publish-asset", input: { artifact_id: "bounded", content: "reviewed", content_type: "text/plain" } };
+  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+  await runtime.requestApproval(request, { expiresAt });
+  assert.equal(state.requests[0]!.expiresAt!.getTime(), expiresAt.getTime());
+  state.requests[0]!.expiresAt = new Date(0);
+  const result: any = await runtime.execute({ ...request, approvingPrincipal: "test:solstice:avery" });
+  assert.equal(result.rejected, true);
+  assert.match(result.reason, /expired/);
+  assert.equal(state.effects.size, 0);
+});
+
+for (const scenario of ["self", "alias", "changed-subject", "missing-request-evidence"] as const) {
+  test(`R4 runtime refuses ${scenario} approval before dispatch`, async () => {
+    const artifact = build();
+    const roster = structuredClone(artifact.roster);
+    roster.find((member) => member.id === "avery")!.principals!.push("test:solstice:avery-alias");
+    const state = new InMemoryStateStore();
+    const marketing = new MarketingSandboxConnector();
+    const runtime = new CompanyOSRuntime({ artifact, state, roster, connectors: [new ArtifactSandboxConnector(), marketing] });
+    const request = { runId: `run-r4-${scenario}`, stepId: "launch", agentId: "growth", grantId: "company:launch-campaign",
+      input: { campaign_key: "separation", daily_budget: 20, days: 5, assets: ["asset"] }, subjectPrincipal: "test:solstice:avery" };
+    await runtime.requestApproval(request);
+    if (scenario === "missing-request-evidence") state.events.splice(0);
+    const result: any = await runtime.execute({ ...request,
+      subjectPrincipal: scenario === "changed-subject" ? "test:solstice:morgan" : request.subjectPrincipal,
+      approvingPrincipal: scenario === "alias" ? "test:solstice:avery-alias" : "test:solstice:avery" });
+    assert.equal(result.rejected, true);
+    assert.match(result.reason, /different active human/);
+    assert.equal(state.effects.size, 0);
+    assert.equal(state.approvals.size, 0);
+  });
+}
+
+test("R4 request creation requires a known active human with a stable ID", async () => {
+  const artifact = build();
+  const request = { runId: "run-r4-requester", stepId: "launch", agentId: "growth", grantId: "company:launch-campaign",
+    input: { campaign_key: "separation", daily_budget: 20, days: 5, assets: ["asset"] } };
+  for (const subjectPrincipal of [undefined, "test:unknown", "test:solstice:growth-agent"]) {
+    const state = new InMemoryStateStore();
+    const runtime = new CompanyOSRuntime({ artifact, state, connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
+    await assert.rejects(() => runtime.requestApproval({ ...request, subjectPrincipal }), /active human requester/);
+    assert.equal(state.requests.length, 0);
+  }
+  const roster = structuredClone(artifact.roster);
+  delete roster.find((member) => member.id === "morgan")!.id;
+  const runtime = new CompanyOSRuntime({ artifact, roster, state: new InMemoryStateStore(), connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
+  await assert.rejects(() => runtime.requestApproval({ ...request, subjectPrincipal: "test:solstice:morgan" }), /stable roster id/);
 });

@@ -6,11 +6,14 @@ import { requireExactSemanticVersion } from "../runtime/semantic-version.ts";
 import { buildKnowledgeBundle } from "../knowledge/okf.ts";
 import { STANDARD_KNOWLEDGE_TOOLS } from "../standard-tools/knowledge.ts";
 import { STANDARD_RECORDS_TOOLS } from "../standard-tools/records.ts";
+import { STANDARD_DIRECTORY_TOOLS } from "../standard-tools/directory.ts";
 import { STANDARD_WORK_ITEM_TOOLS } from "../standard-tools/work-items.ts";
 import { STANDARD_COMMUNICATION_TOOLS } from "../standard-tools/communication.ts";
 import type { CompanyOSArtifact, InstanceBuildConfiguration } from "./types.ts";
 import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 import { validateAgentRouting } from "../runtime/agent-resolver.ts";
+import { validateWorkflowInstanceBindings } from "./instance-loader.ts";
+import { compileWorkflows } from "./workflow-compiler.ts";
 import { compileSprintRuntimes } from "./sprint-loader.ts";
 import YAML from "yaml";
 import { compileWorkspaceReleasePolicy } from "../runtime/release/policy.ts";
@@ -24,9 +27,12 @@ export function buildCompanyOSArtifact(args: {
   workbenchVersion: string;
   builtAt?: string;
 }): CompanyOSArtifact {
+  args = { ...args, instance: structuredClone(args.instance) };
+  if (args.instance.workflowBindings) validateWorkflowInstanceBindings(args.instance.workflowBindings);
   const standardTools = [
     ...STANDARD_KNOWLEDGE_TOOLS,
     ...STANDARD_RECORDS_TOOLS,
+    ...STANDARD_DIRECTORY_TOOLS,
     ...STANDARD_WORK_ITEM_TOOLS,
     ...STANDARD_COMMUNICATION_TOOLS,
   ];
@@ -113,6 +119,8 @@ export function buildCompanyOSArtifact(args: {
     agents,
     agentRouting,
     sprints,
+    ...(args.instance.workflowBindings ? { workflowBindings: args.instance.workflowBindings } : {}),
+    workflows: compileWorkflows({ files: workspace.allFiles, agents, provenance: { coreCommit: args.coreCommit, workspaceCommit: args.workspaceCommit, workbenchVersion, instanceId: args.instance.instanceId } }),
     builder: args.instance.builder,
     builderReleasePolicy: compileWorkspaceReleasePolicy(YAML.parse(workspace.allFiles[".companyos/governance.yaml"] ?? ""), workspace.roster),
   };

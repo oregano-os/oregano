@@ -1,3 +1,5 @@
+import { approvalExpiry } from "../state-store/approval-validity.ts";
+import { assertEventReadLimit } from "../state-store/interface.ts";
 // state-postgres — Neon/Postgres implementation of state-store/interface.ts
 // against schema.sql (v2). claimEffect = INSERT on UNIQUE key; consumeApproval
 // = UPDATE … WHERE consumed_at IS NULL. The ONE-transaction rule
@@ -14,6 +16,7 @@ import type {
   RunMeta,
   StateStore,
 } from "../state-store/interface.js";
+import { ensureWorkflowExecutionSchema } from "./workflow-migrate.ts";
 import { ensureCompanyOSSchema } from "./migrate.ts";
 
 function sql() {
@@ -55,14 +58,15 @@ export function createPostgresStateStore(): StateStore {
       return rows[0].event_id as string;
     },
 
-    async listEvents(runId) {
-      return await sql()`select * from companyos.events where run_id = ${runId} order by ts`;
+    async listEvents(runId, limit) {
+      assertEventReadLimit(limit);
+      return await sql()`select * from companyos.events where run_id = ${runId} order by ts, event_id limit ${limit ?? null}`;
     },
 
     async createApprovalRequest(r: ApprovalRequestInput): Promise<string> {
       const rows = await sql()`
         insert into companyos.approval_requests (run_id, step_id, action, input_hash, max_spend, expires_at)
-        values (${r.runId}, ${r.stepId}, ${r.action}, ${r.inputHash}, ${r.maxSpend ?? null}, ${r.expiresAt ?? null})
+        values (${r.runId}, ${r.stepId}, ${r.action}, ${r.inputHash}, ${r.maxSpend ?? null}, ${approvalExpiry(r.expiresAt)})
         returning request_id`;
       return rows[0].request_id as string;
     },
@@ -78,11 +82,18 @@ export function createPostgresStateStore(): StateStore {
 
     async getLatestApprovalRequest(runId, stepId, action): Promise<ApprovalRequestRow | undefined> {
       const rows = await sql()`
-        select request_id, run_id, step_id, action, input_hash, created_at
-        from companyos.approval_requests
-        where run_id = ${runId} and step_id = ${stepId} and action = ${action}
-          and (expires_at is null or expires_at > now())
-        order by created_at desc limit 1`;
+        with latest as (
+          select request_id, run_id, step_id, action, input_hash, created_at, expires_at
+          from companyos.approval_requests
+          where run_id = ${runId} and step_id = ${stepId} and action = ${action}
+          order by created_at desc limit 1
+        )
+        select * from latest
+        where not exists (
+          select 1 from companyos.approval_requests other
+          where other.run_id = ${runId} and other.step_id = ${stepId} and other.action = ${action}
+            and other.request_id <> latest.request_id and other.created_at >= latest.created_at
+        )`;
       const r = rows[0];
       if (!r) return undefined;
       return {
@@ -92,6 +103,7 @@ export function createPostgresStateStore(): StateStore {
         action: r.action as string,
         inputHash: r.input_hash as string,
         createdAt: new Date(r.created_at as string),
+        expiresAt: r.expires_at ? new Date(r.expires_at as string) : undefined,
       };
     },
 
@@ -118,7 +130,18 @@ export function createPostgresStateStore(): StateStore {
         const rows = await sql()`
           with claimed as (
             insert into companyos.effects (idempotency_key, run_id, step_id, approval_id, input_hash)
-            values (${idempotencyKey}, ${runId}, ${stepId}, ${approvalId}, ${inputHash})
+            select ${idempotencyKey}, ${runId}, ${stepId}, ${approvalId}, ${inputHash}
+            from companyos.approvals approval
+            join companyos.approval_requests request on request.request_id = approval.request_id
+            where approval.approval_id = ${approvalId} and approval.decision = 'approved'
+              and approval.consumed_at is null
+              and request.run_id = ${runId} and request.step_id = ${stepId} and request.input_hash = ${inputHash}
+              and request.expires_at is not null and request.expires_at > now()
+              and not exists (
+                select 1 from companyos.approval_requests newer
+                where newer.run_id = request.run_id and newer.step_id = request.step_id and newer.action = request.action
+                  and newer.request_id <> request.request_id and newer.created_at >= request.created_at
+              )
             on conflict (idempotency_key) do nothing
             returning idempotency_key
           ),
@@ -150,7 +173,43 @@ export function createPostgresStateStore(): StateStore {
       return rows.length === 1;
     },
 
-    async markEffectDispatched(idempotencyKey) {
+    async markEffectDispatched(idempotencyKey, fence) {
+      if (fence) {
+        await ensureWorkflowExecutionSchema();
+        if (fence.review) {
+          const review = fence.review;
+          if (!Number.isSafeInteger(review.page) || review.page < 0 || review.page >= 256) return false;
+          const rows = await sql()`with eligible as (
+            select run_id, lease_expires_at from companyos.workflow_executions
+            where run_id = ${fence.runId} and instance_id = ${fence.instanceId}
+              and lease_token = ${fence.leaseToken} and lease_expires_at > ${fence.now}
+              and state_json->>'status' = 'waiting' and state_json->>'cursor' = ${fence.stepId}
+              and state_json->'blocked'->>'stepId' = ${fence.stepId}
+              and state_json->'reviewDelivery'->>'blockedStepId' = ${fence.stepId}
+              and state_json->'reviewDelivery'->>'digest' = ${review.digest}
+              and not (state_json->'reviewDelivery' ? 'blocked')
+              and jsonb_array_length(state_json->'reviewDelivery'->'outputs') = ${review.page}
+              and state_json->'reviewDelivery'->'pages'->${review.page}::int->>'inputDigest' = ${review.inputDigest}
+              and ${review.executionStepId} = 'review:' || ${fence.stepId} || ':' || ${String(review.page)}
+              for update
+          ) update companyos.effects effects set status = 'dispatched', updated_at = ${fence.now}
+            from eligible where effects.run_id = eligible.run_id and effects.idempotency_key = ${idempotencyKey}
+              and effects.step_id = ${review.executionStepId} and effects.input_hash = ${review.inputDigest} and effects.status = 'claimed'
+              and eligible.lease_expires_at > greatest(${fence.now}::timestamptz, clock_timestamp()) returning effects.idempotency_key`;
+          return rows.length === 1;
+        }
+        const rows = await sql()`with eligible as (
+          select run_id, lease_expires_at from companyos.workflow_executions
+          where run_id = ${fence.runId} and instance_id = ${fence.instanceId}
+            and lease_token = ${fence.leaseToken} and lease_expires_at > ${fence.now}
+            and state_json->>'status' = 'running' and state_json->>'cursor' = ${fence.stepId}
+            and not (state_json ? 'blocked') for update
+        ) update companyos.effects effects set status = 'dispatched', updated_at = ${fence.now}
+          from eligible where effects.run_id = eligible.run_id and effects.idempotency_key = ${idempotencyKey}
+            and effects.status = 'claimed'
+            and eligible.lease_expires_at > greatest(${fence.now}::timestamptz, clock_timestamp()) returning effects.idempotency_key`;
+        return rows.length === 1;
+      }
       const rows = await sql()`
         update companyos.effects set status = 'dispatched', updated_at = now()
         where idempotency_key = ${idempotencyKey} and status = 'claimed'
@@ -182,6 +241,21 @@ export function createPostgresStateStore(): StateStore {
     async getEffect(idempotencyKey) {
       const rows = await sql()`select * from companyos.effects where idempotency_key = ${idempotencyKey}`;
       return rows[0];
+    },
+    async getEffectApproval(idempotencyKey) {
+      const rows = await sql()`
+        select a.approval_id, a.request_id, a.subject_principal, a.role, a.decision, a.consumed_at,
+          r.run_id, r.step_id, r.action, r.input_hash, r.expires_at
+        from companyos.effects e
+        join companyos.approvals a on a.approval_id = e.approval_id
+        join companyos.approval_requests r on r.request_id = a.request_id
+        where e.idempotency_key = ${idempotencyKey}`;
+      const row = rows[0];
+      if (!row) return undefined;
+      return { approvalId: String(row.approval_id), requestId: String(row.request_id), runId: String(row.run_id), stepId: String(row.step_id),
+        action: String(row.action), inputHash: String(row.input_hash), subjectPrincipal: String(row.subject_principal), role: String(row.role),
+        decision: row.decision as "approved" | "rejected", consumed: row.consumed_at != null,
+        expiresAt: row.expires_at == null ? null : (row.expires_at instanceof Date ? row.expires_at : new Date(String(row.expires_at))).toISOString() };
     },
   };
 }

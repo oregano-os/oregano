@@ -1,0 +1,41 @@
+schema_version: 2
+id: studio-sprint
+participants:
+  roles_projection: sprint-roles
+  roster_group: sprint-participant
+  communication_prefix: "slack:T10001:"
+  excluded_ids: []
+work_items:
+  projection: sprint-work-items
+  resource_binding: sprint-board
+  master_group: in_sprint
+  planning_group: planned
+  ready_status: Ready for Sprint
+  planned_status: Planned
+  closed_statuses:
+    - Done
+  required_fields:
+    - outcome
+    - definition_of_done
+    - planned_effort
+submissions:
+  projection: sprint-close-submissions
+calendar:
+  timezone: Europe/Berlin
+  business_calendar_ref: schedules/sprint-rhythm.yaml
+  holiday_shift: previous-business-day
+close:
+  weekday: friday
+  reminder_time: 15:30
+  complete_by: 16:15
+  report_at: 17:00
+  submission_cutoff_rule: provider-accepted-timestamp
+effort: unavailable
+rollover:
+  eligible: all-open
+delivery:
+  shared_thread: true
+  channel_binding: studio-sprints
+  direct_binding: sprint-direct
+  decision_binding: sprint-direct
+model_task_profile: sprint.coordination

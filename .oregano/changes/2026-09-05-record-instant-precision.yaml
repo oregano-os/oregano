@@ -1,0 +1,48 @@
+version: 3
+plan_id: record-instant-precision-2026-09-05
+created: "2026-09-05"
+title: Preserve exact Record cutoff and completeness instants
+objective: >-
+  Compare and order declared Record timestamps without millisecond or database
+  microsecond rounding. Reject invalid calendar dates and retain exact source
+  proof instants across memory and Postgres snapshots.
+non_goals:
+  - Claim provider completeness, activate sources or deploy an Instance.
+  - Change company cutoffs or workflow policy.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-record-instant-precision.yaml
+  - packages/records/instant.ts
+  - packages/records/query.ts
+  - packages/records/memory-store.ts
+  - packages/records/source-validation.ts
+  - packages/state-postgres/records-store.ts
+  - packages/testkit/tests/record-query.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - docs/specifications/company-records-query-v1.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/record-query.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-query-v1
+    - status.current
+architecture:
+  placement:
+    core: Validates and compares generic Record instants at their declared precision.
+    packages: No Package changes.
+    workspace: Continues to declare cutoff values and timestamp fields.
+    instance: Preserves exact proof strings in JSONB without a state migration.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Make filter, completeness and source receipt ordering honor the existing nanosecond timestamp contract.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Exact cutoffs and trustworthy completion evidence apply to every company source and workflow.
+rollback: Revert the comparison correction without deleting historical proof; do not use rounded cutoffs for completeness-sensitive runs.

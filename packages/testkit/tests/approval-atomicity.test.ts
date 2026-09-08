@@ -1,7 +1,7 @@
 // The heart of the governance layer: one approval = exactly one effect, even
 // under concurrent clicks. Runs against a real Postgres (Neon) because the
-// guarantee IS the SQL — a mock would only prove the mock. Skipped when no
-// DATABASE_URL is configured (CI without DB secrets still runs everything else).
+// guarantee IS the SQL — a mock would only prove the mock. The mandatory
+// test:database gate supplies an isolated Postgres through the Neon HTTP driver.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,6 +17,7 @@ function databaseUrl(): string | undefined {
 }
 
 const url = databaseUrl();
+if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && !url) throw new Error("Required approval database configuration is missing.");
 const skip = url ? false : "no database configured or explicitly disabled";
 if (url) process.env.DATABASE_URL = url;
 
@@ -174,3 +175,76 @@ test("events are append-only and carry the deciding principal", { skip }, async 
   assert.equal(events[0].event, "approval.granted");
   assert.equal(events[0].actor, "human:founder");
 });
+
+for (const mismatch of ["runId", "stepId", "inputHash"] as const) {
+  test(`unconsumed Postgres approval rejects different ${mismatch} without a partial claim`, { skip }, async () => {
+    const s = await stage(`unconsumed_${mismatch}`);
+    const claim = { approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash };
+    assert.equal(await store!.consumeApprovalAndClaimEffect({ ...claim, [mismatch]: "different" }), false);
+    assert.equal(await store!.getEffect(s.key), undefined);
+    assert.equal(await store!.consumeApprovalAndClaimEffect(claim), true);
+  });
+}
+
+test("Postgres refuses rejected decisions before claiming any effect", { skip }, async () => {
+  const s = await stage("rejected_decision");
+  const approvalId = await store!.recordDecision({ requestId: s.requestId, subjectPrincipal: principal, role: "founder", decision: "rejected" });
+  assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+  assert.equal(await store!.getEffect(s.key), undefined);
+});
+
+for (const expiry of ["expired", "missing"] as const) {
+  test(`Postgres refuses ${expiry} expiry at atomic consumption`, { skip }, async () => {
+    const s = await stage(`expiry_${expiry}`);
+    const { neon } = await import("@neondatabase/serverless");
+    const sql = neon(url!);
+    // Preserve a historical request, then exercise the actual atomic boundary.
+    await sql`update companyos.approval_requests set expires_at = ${expiry === "expired" ? new Date(0) : null} where request_id = ${s.requestId}`;
+    assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+    assert.equal(await store!.getEffect(s.key), undefined);
+    const rows = await sql`select consumed_at from companyos.approvals where approval_id = ${s.approvalId}`;
+    assert.equal(rows[0]!.consumed_at, null);
+  });
+}
+
+test("Postgres latest expired draft cannot reactivate an older unexpired request", { skip }, async () => {
+  const s = await stage("latest_expired");
+  const latest = await store!.createApprovalRequest({ runId: s.runId, stepId: "step-1", action: "fixture_send", inputHash: "new-hash", expiresAt: new Date(0) });
+  assert.equal((await store!.getLatestApprovalRequest(s.runId, "step-1", "fixture_send"))!.requestId, latest);
+  assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+  assert.equal(await store!.getEffect(s.key), undefined);
+});
+
+test("equally timestamped Postgres drafts are ambiguous and cannot authorize effects", { skip }, async () => {
+  const s = await stage("equal_creation_time");
+  const second = await store!.createApprovalRequest({ runId: s.runId, stepId: "step-1", action: "fixture_send", inputHash: "different" });
+  const { neon } = await import("@neondatabase/serverless");
+  const sql = neon(url!);
+  await sql`update companyos.approval_requests set created_at = (select created_at from companyos.approval_requests where request_id = ${s.requestId}) where request_id = ${second}`;
+  assert.equal(await store!.getLatestApprovalRequest(s.runId, "step-1", "fixture_send"), undefined);
+  assert.equal(await store!.consumeApprovalAndClaimEffect({ approvalId: s.approvalId, idempotencyKey: s.key, runId: s.runId, stepId: "step-1", inputHash: s.inputHash }), false);
+});
+
+for (const separate of [false, true]) {
+  test(`Postgres-backed R4 action ${separate ? "accepts distinct humans" : "rejects the recorded requester"}`, { skip }, async () => {
+    const { executeApprovedAction } = await import("../../state-store/action-approval.ts");
+    const s = await stage(`r4_separate_${separate}`);
+    const requesterPrincipal = separate ? "test:requester" : principal;
+    await store!.appendEvent({
+      runId: s.runId, stepId: "step-1", actor: "human:owner", subjectPrincipal: requesterPrincipal,
+      event: "approval.requested", status: "succeeded",
+      payload: { request_id: s.requestId, action: "fixture_send", input_hash: s.inputHash, risk: "R4", requester_member_id: separate ? "requester" : "approver" },
+    });
+    let calls = 0;
+    const result = await executeApprovedAction({
+      store: store!, roster: [
+        { id: "requester", name: "Requester", role: "owner", status: "active", principals: ["test:requester"], mayApprove: [] },
+        { id: "approver", name: "Approver", role: "owner", status: "active", principals: [principal], mayApprove: ["R4"] },
+      ], runId: s.runId, stepId: "step-1", action: "fixture_send", inputHash: s.inputHash, principal, level: "R4", eventName: "fixture.sent",
+      effect: async () => { calls++; return { receipt: "test-only" }; },
+    });
+    assert.equal(result.ok, separate);
+    assert.equal(calls, separate ? 1 : 0);
+    assert.equal((await store!.getEffect(s.key))?.status, separate ? "succeeded" : undefined);
+  });
+}

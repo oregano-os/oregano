@@ -146,6 +146,17 @@ compiled Agent owns the grant for proof attribution, the Slack conversational
 adapter removes that operator-only grant from the model-visible ToolSet while
 the runtime remains `shadow-only`.
 
+A second authenticated action, `publish-friday-close-simulation`, publishes a
+fixed Friday Close test set from the same reviewed scenario. It accepts no
+intent id: Core resolves exactly one succeeded reminder, chase, and report
+intent from durable proof and publishes them in that order. The reminder's
+real provider receipt opens the Slack thread; chase and report are forced to
+reuse that thread reference. Each message retains its own deterministic Tool
+effect identity and receipt, so a partial retry resumes without duplicating an
+already successful publication. Workspace templates and the Instance test
+binding remain the only sources of content and destination, while Retro and
+all live outputs remain ineligible.
+
 Weekly features compile independently: a Workspace may enable only Monday
 hand-off without inventing weekday-readiness policy. Readiness still requires
 its weekday digest trigger, planning states, required fields, direct-question

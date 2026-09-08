@@ -1,3 +1,4 @@
+import { canonicalJson } from "./canonical.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { ClaimedDurableTimer, DurableTimer, DurableTimerStore, StoredDurableTimer } from "../state-store/durable-timers.ts";
 
@@ -20,7 +21,7 @@ export class InMemoryDurableTimerStore implements DurableTimerStore {
     const timerKey = key(timer.instanceId, timer.timerId);
     const existing = this.rows.get(timerKey);
     if (existing) {
-      if (existing.idempotencyKey !== timer.idempotencyKey || JSON.stringify(existing.payload) !== JSON.stringify(timer.payload) || existing.dueAt !== timer.dueAt) {
+      if (existing.timerKind !== timer.timerKind || existing.idempotencyKey !== timer.idempotencyKey || canonicalJson(existing.payload) !== canonicalJson(timer.payload) || existing.dueAt !== timer.dueAt) {
         throw new Error(`Durable timer '${timer.timerId}' conflicts with its existing identity`);
       }
       return false;
@@ -62,6 +63,11 @@ export class InMemoryDurableTimerStore implements DurableTimerStore {
     });
   }
 
+  async readClaim(args: { instanceId: string; timerId: string; leaseToken: string; now: string }): Promise<ClaimedDurableTimer | undefined> {
+    const row = this.rows.get(key(args.instanceId, args.timerId));
+    if (!row || row.state !== "leased" || row.leaseToken !== args.leaseToken || Date.parse(row.leaseExpiresAt!) <= Math.max(Date.parse(args.now), Date.now())) return undefined;
+    return { ...structuredClone(row), leaseOwner: row.leaseOwner!, leaseToken: row.leaseToken!, leaseExpiresAt: row.leaseExpiresAt! };
+  }
   async complete(args: { instanceId: string; timerId: string; leaseToken: string; evidence: JsonValue; completedAt: string }): Promise<boolean> {
     return this.transition(args, "completed", args.completedAt);
   }

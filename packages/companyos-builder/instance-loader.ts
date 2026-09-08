@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
-import type { InstanceBuildConfiguration } from "./types.ts";
+import type { WorkflowInstanceBindings, InstanceBuildConfiguration } from "./types.ts";
 import { scanCredentialIndicators } from "../security/credential-scanner.ts";
 import type { AgentBinding } from "../runtime/agent-resolver.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
@@ -45,6 +45,7 @@ export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfi
     agentBindings,
     defaultAgentId,
     sprintRuntimes,
+    ...(data.workflow_bindings === undefined ? {} : { workflowBindings: parseWorkflowBindings(data.workflow_bindings) }),
     builder,
   };
 }
@@ -326,4 +327,32 @@ function requiredPrincipal(value: unknown, label: string): string {
     throw new Error(`${label} must be a canonical surface:account:subject principal.`);
   }
   return value;
+}
+
+
+function parseWorkflowBindings(value: unknown): WorkflowInstanceBindings {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((key) => key !== "direct_recipients")) throw new Error("workflow_bindings must contain only direct_recipients");
+  const entries = (value as Record<string, unknown>).direct_recipients;
+  if (!Array.isArray(entries)) throw new Error("workflow_bindings.direct_recipients must be a list");
+  const binding = { directRecipients: entries.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || Object.keys(entry).some((key) => !["binding", "member_id", "destination_binding"].includes(key))) throw new Error("Unsupported workflow direct recipient field");
+    return { bindingId: entry.binding, memberId: entry.member_id, destinationBinding: entry.destination_binding };
+  }) };
+  validateWorkflowInstanceBindings(binding);
+  return binding;
+}
+
+export function validateWorkflowInstanceBindings(value: WorkflowInstanceBindings): void {
+  if (!value || typeof value !== "object" || Object.keys(value).some((key) => key !== "directRecipients") || !Array.isArray(value.directRecipients) || value.directRecipients.length > 10000) throw new Error("Invalid workflow Instance bindings");
+  const seen = new Set<string>(); const destinations = new Map<string, string>();
+  for (const entry of value.directRecipients) {
+    if (!entry || typeof entry !== "object" || Object.keys(entry).sort().join(",") !== "bindingId,destinationBinding,memberId"
+      || typeof entry.bindingId !== "string" || typeof entry.memberId !== "string" || typeof entry.destinationBinding !== "string"
+      || !/^[a-z][a-z0-9-]{0,62}$/.test(entry.bindingId) || !/^[a-z][a-z0-9-]{0,62}$/.test(entry.destinationBinding)
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(entry.memberId)) throw new Error("Workflow direct recipients require exact binding and member IDs");
+    const key = JSON.stringify([entry.bindingId, entry.memberId]);
+    if (seen.has(key)) throw new Error("Duplicate workflow recipient binding");
+    if (destinations.has(entry.destinationBinding) && destinations.get(entry.destinationBinding) !== entry.memberId) throw new Error("One direct destination cannot represent different members");
+    seen.add(key); destinations.set(entry.destinationBinding, entry.memberId);
+  }
 }

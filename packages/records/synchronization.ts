@@ -2,11 +2,12 @@ import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordsStore } from "../state-store/records.ts";
 import type { CompanyRecordSourceDeclaration } from "./contracts.ts";
 import { projectionRecordId } from "./identity.ts";
-import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import type { CompanyRecordsRegistry } from "./registry.ts";
 import { CompanyRecordsService } from "./service.ts";
 import type { RecordSourceInventory } from "./source-connector.ts";
+import { sha256 } from "../runtime/canonical.ts";
+import { MAX_RECORD_QUERY_ROWS, recordQueryInstant } from "./query.ts";
 
 export const DEFAULT_RECORD_SNAPSHOT_CONCURRENCY = 8;
 export const MAX_RECORD_SNAPSHOT_CONCURRENCY = 32;
@@ -50,7 +51,31 @@ export async function synchronizeRecordSnapshot(args: {
   leaseExpiresAt: string;
   concurrency?: number;
 }) {
-  const { instanceId, source, inventory, registry, store, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
+  const { instanceId, source, inventory, registry, runId, leaseOwner, leaseToken, leaseExpiresAt } = args;
+  const store = registry.scopeStore(args.store);
+  if (inventory.complete !== true) throw new Error("A partial inventory cannot be synchronized as complete");
+  if (sha256(source) !== sha256(registry.source(source.id))) throw new Error("Synchronization source differs from its registered declaration");
+  const sourceDigest = registry.sourceDigest(source.id);
+  registry.assertSourceInstance(source.id, instanceId);
+  const bindingDigest = registry.sourceBindingDigest(source.id);
+  if (bindingDigest && inventory.binding_digest !== bindingDigest) throw new Error("Record inventory does not prove the registered Instance binding");
+  const observedAt = recordQueryInstant(inventory.observed_at, "Inventory observation");
+  if (inventory.synced_through !== undefined && recordQueryInstant(inventory.synced_through, "Source completeness") > observedAt) {
+    throw new Error("Source completeness must be an instant no later than the inventory observation");
+  }
+  if (inventory.scan_started_at !== undefined) {
+    if (recordQueryInstant(inventory.scan_started_at, "Scan start") > observedAt) throw new Error("Scan start cannot exceed inventory observation");
+    if (!inventory.watermark) throw new Error("Current scan requires a non-empty inventory watermark");
+  }
+  const versionIds: string[] = [];
+  // Reject conflicting/repeated identities before any source event or projection mutation.
+  const objectIds = new Set<string>();
+  for (const raw of inventory.objects) {
+    const version = registry.normalize({ instanceId, source, raw, observedAt: inventory.observed_at });
+    if (objectIds.has(version.object_id)) throw new Error("Record inventory contains a repeated object identity");
+    objectIds.add(version.object_id);
+    versionIds.push(version.version_id);
+  }
   const concurrency = args.concurrency ?? DEFAULT_RECORD_SNAPSHOT_CONCURRENCY;
   const claimed = await store.claimSyncLease({
     instanceId,
@@ -65,7 +90,7 @@ export async function synchronizeRecordSnapshot(args: {
   try {
     const outcomes = await mapRecordSnapshotWithBoundedConcurrency(inventory.objects, concurrency, async (raw) => {
       const receipt: Record<string, JsonValue> = { operation: "sync", run_id: runId, inventory_digest: inventory.receipt.inventory_digest ?? "unavailable" };
-      const normalized = normalizeRecordObject({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
+      const normalized = registry.normalize({ instanceId, source, raw, observedAt: inventory.observed_at, receipt });
       const current = await store.getCurrentObjectVersion(instanceId, source.id, normalized.object_id);
       const ingested = await service.ingest({
         event: {
@@ -106,6 +131,14 @@ export async function synchronizeRecordSnapshot(args: {
       started_at: inventory.observed_at,
       completed_at: inventory.observed_at,
       watermark: inventory.watermark,
+      ...(inventory.synced_through ? { synced_through: inventory.synced_through } : {}),
+      source_digest: sourceDigest,
+      ...(inventory.scan_started_at ? { scan_started_at: inventory.scan_started_at,
+        ...(versionIds.length <= MAX_RECORD_QUERY_ROWS ? { scan_version_ids: versionIds.sort() } : {}),
+      } : {}),
+      projection_digests: Object.fromEntries(registry.projectionsForRecordType(source.record_type)
+        .map((projection) => [projection.id, sha256(projection)])),
+      provider_evidence: structuredClone(inventory.receipt),
       observed: inventory.objects.length,
       inserted,
       unchanged,

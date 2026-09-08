@@ -1,0 +1,52 @@
+version: 3
+plan_id: approval-expiry-atomicity-2026-09-05
+created: "2026-09-05"
+title: Enforce current approval expiry and exact effect identity atomically
+objective: >-
+  Give new approval requests finite expiry and enforce current request, expiry,
+  granted decision, run, step and input at the atomic effect claim boundary.
+non_goals:
+  - Activate workflows or deploy database changes to a production Instance.
+  - Complete workflow role routing, R4 requester separation or business-day scheduling in this slice.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-approval-expiry-atomicity.yaml
+  - packages/state-store/approval-validity.ts
+  - packages/state-store/interface.ts
+  - packages/state-store/action-approval.ts
+  - packages/state-postgres/store.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/testkit/adapter/in-memory-state.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/approval-validity.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/approval-validity.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.companyos-core-v0.7
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Owns finite approval validity and the atomic approval-to-effect binding.
+    packages: Existing Tools continue to use the generic approval boundary.
+    workspace: Owns declared human decisions and business-day timeout values.
+    instance: Supplies the current clock and durable store; retained historical requests are not rewritten.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse the existing atomic claim and decision records while enforcing exact current authorization at consumption.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every effect requiring approval gets the same identity and expiry protections, regardless of provider or business process.
+rollback: Disable affected effect dispatch before rollback; retain approval and effect history and request fresh finite approvals after upgrade.

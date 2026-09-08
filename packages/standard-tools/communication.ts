@@ -1,6 +1,7 @@
 import { sha256 } from "../runtime/canonical.ts";
 import type { CompiledCompanyTool } from "../companyos-builder/types.ts";
 import type { CompanyToolContract } from "../tool-sdk/contracts.ts";
+import { CORE_CAPABILITY_CATALOG } from "../capabilities/catalog.ts";
 
 const source = `import { defineCompanyTool } from "@companyos/tool-sdk";
 export default defineCompanyTool({
@@ -31,7 +32,7 @@ const contract: CompanyToolContract = {
       format: { type: "string", enum: ["plain-text", "provider-markdown"] },
     },
   },
-  outputSchema: { type: "object" },
+  outputSchema: CORE_CAPABILITY_CATALOG.find((capability) => capability.id === "communication.message.publish")!.outputSchema,
   evidence: ["destination_binding", "message_id", "thread_reference", "published_at", "connector"],
   failure: "Fail closed for unbound destinations, ambiguous provider receipts, or missing idempotency claims; never broaden the configured audience.",
 };

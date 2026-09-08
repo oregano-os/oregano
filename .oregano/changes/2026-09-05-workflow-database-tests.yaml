@@ -1,0 +1,69 @@
+version: 3
+plan_id: workflow-database-tests-2026-09-05
+created: "2026-09-05"
+title: Require isolated Postgres proofs for workflow control primitives
+objective: >-
+  Run real approval, effect, durable-timer and database integration checks in
+  every PR and release without optional repository secrets. The maintained
+  Neon HTTP driver and production stores execute their actual SQL through a
+  loopback-only test bridge into an isolated PostgreSQL service. Missing
+  configuration or skipped required tests fail the database acceptance gate.
+  Correct the revealed Brain-store defect where absent model provenance was
+  written as JSON null but read as SQL NULL, hiding source facts after storage.
+  Preserve readable and idempotent legacy JSON-null rows without bypassing
+  extraction/current-evidence checks on actual model provenance.
+non_goals:
+  - Connect tests to any Company Instance or production database.
+  - Change the production StateStore transport or claim hosted Neon qualification.
+  - Replace workflow-engine or human acceptance with database primitive tests.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-database-tests.yaml
+  - .github/workflows/check.yml
+  - .github/workflows/release.yml
+  - package.json
+  - pnpm-lock.yaml
+  - scripts/test-database.mjs
+  - packages/testkit/postgres-test-bridge.mjs
+  - packages/testkit/postgres-test-preload.mjs
+  - packages/testkit/tests/database-transport.test.ts
+  - packages/cli/tests/database-harness.test.mjs
+  - packages/testkit/tests/durable-state-postgres.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/company-brain-persistence.test.ts
+  - packages/state-postgres/brain-store.ts
+  - docs/status/current.md
+  - docs/testing/postgres.md
+  - docs/_generated/architecture-index.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests:
+  - packages/cli/tests/database-harness.test.mjs
+  - packages/testkit/tests/database-transport.test.ts
+  - packages/testkit/tests/durable-state-postgres.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/company-brain-persistence.test.ts
+  - packages/testkit/tests/company-brain-entity-identity.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [status.current, testing.postgres]
+architecture:
+  placement:
+    core: Owns SQL semantics, isolated test transport and mandatory CI evidence.
+    packages: No portable Package changes; the bridge is testkit infrastructure.
+    workspace: No company data, policy or provider access is introduced.
+    instance: Production configuration is unchanged; CI uses an ephemeral database.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every workflow relies on the same atomic SQL and timer primitives. The
+    bridge exercises those contracts without a company account or secret.
+rollback: >-
+  Revert the test-harness change without touching production schemas or data.
+  Do not accept workflow-engine release evidence while required tests are skipped.

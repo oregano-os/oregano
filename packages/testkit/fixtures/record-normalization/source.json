@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "id": "team-updates",
+  "record_type": "communication-message",
+  "connection": "connections/chat.md",
+  "resource_binding": "team-channel",
+  "delivery": "poll",
+  "identity": {
+    "source_field": "id"
+  },
+  "parser": {
+    "kind": "sectioned-text",
+    "version": 1,
+    "source": "text",
+    "starts_with": "DELIVERY UPDATE",
+    "sections": [
+      {
+        "id": "current",
+        "heading": "CURRENT WORK",
+        "required": true,
+        "fields": [
+          {
+            "id": "obstacle",
+            "prefixes": [
+              "Obstacle:"
+            ],
+            "required": true
+          }
+        ],
+        "links": {
+          "hosts": [
+            "boards.example.test"
+          ],
+          "path": "/boards/*/items/{id}",
+          "id_field": "item_id",
+          "required": false
+        }
+      },
+      {
+        "id": "planned",
+        "heading": "PLANNED WORK",
+        "required": true,
+        "fields": [
+          {
+            "id": "goal",
+            "prefixes": [
+              "Goal:"
+            ],
+            "required": true
+          },
+          {
+            "id": "outcome",
+            "prefixes": [
+              "Outcome:"
+            ],
+            "required": true
+          }
+        ],
+        "links": {
+          "hosts": [
+            "boards.example.test"
+          ],
+          "path": "/boards/*/items/{id}",
+          "id_field": "item_id",
+          "required": false
+        }
+      }
+    ]
+  },
+  "fields": [
+    {
+      "target": "author_id",
+      "source": "author_id",
+      "value_type": "identity",
+      "required": true
+    },
+    {
+      "target": "accepted_at",
+      "source": "occurred_at",
+      "value_type": "timestamp",
+      "required": true
+    },
+    {
+      "target": "thread",
+      "source": "thread_id",
+      "value_type": "string",
+      "required": true
+    },
+    {
+      "target": "matched",
+      "source": "parsed.matched",
+      "value_type": "boolean",
+      "required": true
+    },
+    {
+      "target": "well_formed",
+      "source": "parsed.well_formed",
+      "value_type": "boolean",
+      "required": true
+    },
+    {
+      "target": "item_ids",
+      "source": "parsed.sections.current.ids",
+      "value_type": "string_list",
+      "required": true
+    },
+    {
+      "target": "planned",
+      "source": "parsed.sections.planned.items",
+      "value_type": "json_list",
+      "required": true,
+      "item_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "url",
+          "text"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "target": "parse_issues",
+      "source": "parsed.issues",
+      "value_type": "string_list",
+      "required": true
+    }
+  ],
+  "access": {
+    "read_groups": [
+      "delivery"
+    ],
+    "write_roles": []
+  }
+}

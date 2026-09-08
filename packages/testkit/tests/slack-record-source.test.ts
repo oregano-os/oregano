@@ -90,7 +90,7 @@ const binding = (qualificationDigest: string): CompanyRecordSourceBinding => ({
   source_id: source.id,
   resource_binding: source.resource_binding,
   connector: "oregano/slack-record-source",
-  connector_version: "0.1.0",
+  connector_version: "0.1.3",
   secret_ref: "env:SLACK_BOT_TOKEN",
   qualification: { receipt_ref: "instance:fixture/slack", digest: qualificationDigest },
   configuration: {
@@ -131,17 +131,97 @@ test("Slack Record Source returns a complete, ordered, threaded communication in
     qualification: qualification as unknown as Record<string, unknown>,
   });
   assert.equal(inventory.complete, true);
+  assert.equal(inventory.scan_started_at, "2030-01-02T01:00:00.000Z");
+  assert.equal(inventory.synced_through, undefined, "a current scan is not historical coverage");
   assert.deepEqual(inventory.objects.map((message) => message.message_id), [
     "1893456000.000100",
     "1893456001.000100",
     "1893456002.000200",
   ]);
   assert.equal(inventory.objects[2]?.thread_id, "1893456001.000100");
+  assert.equal(inventory.objects[2]?.thread_reference, "slack:C12345:1893456001.000100");
   assert.equal(inventory.objects[2]?.author_id, "U22222");
+  assert.equal(inventory.objects[2]?.author_principal, "slack:T12345:U22222");
+  assert.equal(inventory.objects[2]?.occurred_at, "2030-01-01T00:00:02.000200Z");
+  assert.equal(inventory.objects[2]?.accepted_at, "2030-01-01T00:00:02.000200Z");
   assert.equal(calls.filter((url) => url.pathname.endsWith("/conversations.history")).length, 2);
   assert.equal(calls.filter((url) => url.pathname.endsWith("/conversations.replies")).length, 1);
   assert.doesNotMatch(JSON.stringify(inventory.receipt), /Synthetic/);
   assert.match(inventory.watermark, /^slack:[a-f0-9]{64}$/);
+  assert.equal(inventory.receipt.authenticated_bot_user_id, "U99999");
+  assert.equal(inventory.receipt.identity_checked_at, "2030-01-02T01:00:00.000Z");
+});
+
+test("Slack current scan interval begins before provider requests and ends after pagination", async () => {
+  const fixtureTransport = fixture();
+  const qualification = await qualified(fixtureTransport.fetcher as typeof fetch);
+  const start = Date.parse("2030-01-02T01:00:00.000Z");
+  let current = start;
+  const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", now: () => new Date(current),
+    fetcher: async (input) => { const result = await fixtureTransport.fetcher(input); current += 1_000; return result; } });
+  const inventory = await connector.readCompleteInventory({ source, binding: binding(qualification.evidence.discovery.discovery_hash),
+    qualification: qualification as unknown as Record<string, unknown> });
+  assert.equal(inventory.scan_started_at, new Date(start).toISOString());
+  assert.equal(inventory.observed_at, new Date(current).toISOString());
+  assert.ok(current > start);
+  assert.equal(inventory.synced_through, undefined);
+});
+
+test("Slack rereads current account, actor, conversation and scopes before any message inventory", async () => {
+  for (const changed of ["team", "actor", "channel", "membership", "scope"]) {
+    const base = fixture(); const qualification = await qualified(base.fetcher as typeof fetch);
+    let messageReads = 0;
+    const connector = new SlackRecordSourceConnector({ resolveSecret: () => "rotated-fixture-token", fetcher: async (input) => {
+      const url = new URL(String(input));
+      if (/conversations\.(history|replies)$/.test(url.pathname)) messageReads += 1;
+      if (url.pathname.endsWith("auth.test")) return jsonResponse({ ok: true, team_id: changed === "team" ? "T54321" : "T12345", user_id: changed === "actor" ? "U77777" : "U99999" }, "new-auth");
+      if (url.pathname.endsWith("conversations.info")) {
+        const response = jsonResponse({ ok: true, channel: { id: changed === "channel" ? "C54321" : "C12345", is_private: false, is_member: changed !== "membership" } }, "new-info");
+        if (changed === "scope") response.headers.delete("x-oauth-scopes");
+        return response;
+      }
+      return base.fetcher(input);
+    } });
+    // Remove scope headers from both metadata responses for this counterexample.
+    const fetcher = connector.fetcher!;
+    const checked = changed === "scope" ? new SlackRecordSourceConnector({ resolveSecret: () => "rotated-fixture-token", fetcher: async (input, init) => {
+      const response = await fetcher(input, init); response.headers.delete("x-oauth-scopes"); return response;
+    } }) : connector;
+    await assert.rejects(checked.readCompleteInventory({ source, binding: binding(qualification.evidence.discovery.discovery_hash),
+      qualification: qualification as unknown as Record<string, unknown> }), /authenticated team|reviewed qualification|exact channel|not a member|lacks required scope/);
+    assert.equal(messageReads, 0, changed);
+  }
+});
+
+test("Slack content versions retain precise edit times and distinguish bots from human authors", async () => {
+  const base = fixture();
+  const messages = [
+    { ts: "1893456000.123456789", user: "U11111", text: "Initial", edited: { ts: "1893456002.000001", user: "U22222" } },
+    { ts: "1893456001.000001", user: "U11111", bot_id: "B11111", text: "Bot with user", edited: { ts: "1893456002.000002", user: "U11111" } },
+    { ts: "1893456001.000002", user: "U11111", subtype: "bot_message", text: "Bot subtype" },
+    { ts: "1893456001.000003", user: "U11111", text: "Missing editor", edited: { ts: "1893456002.000003" } },
+  ];
+  const fetcher = async (input: string | URL | Request) => String(input).includes("conversations.history")
+    ? jsonResponse({ ok: true, messages, has_more: false }, "req-versions") : base.fetcher(input);
+  const qualification = await qualified(fetcher as typeof fetch);
+  const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher: fetcher as typeof fetch });
+  const args = { source, binding: binding(qualification.evidence.discovery.discovery_hash), qualification: qualification as unknown as Record<string, unknown> };
+  const inventory = await connector.readCompleteInventory(args);
+  const [human, bot, subtypeBot, unknownEditor] = inventory.objects;
+  assert.equal(human!.occurred_at, "2030-01-01T00:00:00.123456789Z");
+  assert.equal(human!.accepted_at, "2030-01-01T00:00:02.000001Z");
+  assert.equal(human!.author_principal, "slack:T12345:U11111");
+  assert.equal(human!.editor_principal, "slack:T12345:U22222");
+  assert.equal(human!.content_author_principal, "slack:T12345:U22222");
+  assert.equal(bot!.author_kind, "bot");
+  assert.equal(bot!.content_author_principal, "slack-bot:T12345:B11111");
+  assert.equal(subtypeBot!.author_kind, "bot");
+  assert.equal(unknownEditor!.content_author_principal, "slack-unknown:T12345:editor");
+  assert.equal(inventory.synced_through, undefined, "precise message times are not a source coverage proof");
+  messages[0]!.edited!.ts = "1893456000.123456788";
+  await assert.rejects(() => connector.readCompleteInventory(args), /edit timestamp precedes/);
+  messages[0]!.edited!.ts = "9999999999999999.1";
+  await assert.rejects(() => connector.readCompleteInventory(args), /timestamp.*invalid/);
 });
 
 test("Slack Record Source fails closed when provider retention hides history", async () => {
@@ -191,4 +271,39 @@ test("Slack Record Source does not count replies beyond a bounded latest timesta
     "1893456000.000100",
     "1893456001.000100",
   ]);
+});
+
+test("Slack rejects repeated history and per-thread cursors before another provider request", async () => {
+  for (const method of ["conversations.history", "conversations.replies"]) {
+    const original = fixture(), calls: URL[] = [];
+    const fetcher = async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      calls.push(url);
+      const response = await original.fetcher(input);
+      if (!url.pathname.endsWith(`/${method}`)) return response;
+      const value = await response.json();
+      value.has_more = true; value.response_metadata = { next_cursor: "repeated-page" };
+      return jsonResponse(value, "repeated-cursor-receipt");
+    };
+    const qualification = await qualified(fetcher as typeof fetch), selected = binding(qualification.evidence.discovery.discovery_hash);
+    selected.configuration.max_pages = 10; selected.configuration.max_thread_pages = 10;
+    const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher });
+    await assert.rejects(connector.readCompleteInventory({ source, binding: selected, qualification: { ...qualification } }), /repeated continuation cursor/);
+    assert.equal(calls.filter((url) => url.pathname.endsWith(`/${method}`)).length, 2);
+  }
+});
+
+test("Slack refuses replies naming a foreign root or an invalid thread timestamp", async () => {
+  for (const threadTs of ["1893455999.000001", "not-a-provider-timestamp"]) {
+    const original = fixture();
+    const fetcher = async (input: string | URL | Request) => {
+      const url = new URL(input instanceof Request ? input.url : input), response = await original.fetcher(input);
+      if (!url.pathname.endsWith("/conversations.replies")) return response;
+      const value = await response.json(); value.messages[1].thread_ts = threadTs;
+      return jsonResponse(value, "wrong-root-receipt");
+    };
+    const qualification = await qualified(fetcher as typeof fetch);
+    const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher });
+    await assert.rejects(connector.readCompleteInventory({ source, binding: binding(qualification.evidence.discovery.discovery_hash), qualification: { ...qualification } }), /different thread|timestamp.*invalid/);
+  }
 });

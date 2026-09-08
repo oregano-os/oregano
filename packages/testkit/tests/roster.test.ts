@@ -139,3 +139,9 @@ members:
   assert.equal(result.ok, false);
   assert.match(result.reason, /services never approve/);
 });
+
+test("ambiguous canonical principals and unknown identity kinds cannot approve", () => {
+  const human = { id: "one", role: "owner", name: "One", status: "active", mayApprove: ["R4"], principals: ["test:shared"] };
+  assert.equal(authorizePrincipalApproval([human, { ...human, id: "two" }], "test:shared", "R4").ok, false);
+  assert.equal(authorizePrincipalApproval([{ ...human, type: "unknown-bot" }], "test:shared", "R4").ok, false);
+});

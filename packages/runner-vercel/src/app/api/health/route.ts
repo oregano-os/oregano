@@ -3,6 +3,8 @@ import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
 
+import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "../../../lib/workflow-configuration.ts";
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -17,6 +19,8 @@ export async function GET() {
       configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
     });
     const database = await qualifyCompanyDatabase();
+    const workflowsEnabled = workflowHostingEnabled();
+    const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
     const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
     if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
     const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {
@@ -68,6 +72,13 @@ export async function GET() {
         enabled: process.env.COMPANYOS_RECORDS_ENABLED === "true",
         schedulerEnabled: process.env.COMPANYOS_RECORDS_SCHEDULER_ENABLED === "true",
         schemaTableCount: database.schemas.companyosRecords.tableCount,
+      },
+      workflows: {
+        enabled: workflowsEnabled,
+        enabledWorkflowIds: workflowConfig?.enabledWorkflowIds ?? [],
+        autoOpenWorkflowIds: workflowConfig?.autoOpenWorkflowIds ?? [],
+        compiledCount: artifact.workflows?.length ?? 0,
+        activatedAt: workflowConfig?.activatedAt ?? null,
       },
       sprint: {
         mode: sprintMode,

@@ -69,6 +69,11 @@ export interface SprintRuntimeInstanceConfiguration {
   };
 }
 
+export interface WorkflowInstanceBindings {
+  /** Exact member-to-destination pairs; provider identity qualification is required before activation. */
+  directRecipients: Array<{ bindingId: string; memberId: string; destinationBinding: string }>;
+}
+
 export interface InstanceBuildConfiguration {
   version: 1;
   instanceId: string;
@@ -78,6 +83,7 @@ export interface InstanceBuildConfiguration {
   agentBindings: AgentBinding[];
   defaultAgentId?: string;
   sprintRuntimes?: SprintRuntimeInstanceConfiguration[];
+  workflowBindings?: WorkflowInstanceBindings;
   builder?: BuilderInstanceConfiguration;
 }
 
@@ -205,6 +211,8 @@ export interface CompanyOSArtifact {
   agents: CompiledAgent[];
   agentRouting: CompiledAgentRouting;
   sprints?: CompiledSprintRuntime[];
+  workflows?: import("./workflow-types.ts").CompiledWorkflow[];
+  workflowBindings?: WorkflowInstanceBindings;
   builder?: BuilderInstanceConfiguration;
   artifactHash: string;
 }

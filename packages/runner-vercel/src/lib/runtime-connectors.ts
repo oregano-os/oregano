@@ -1,9 +1,12 @@
 import type { Chat } from "chat";
+import { gzipSync } from "node:zlib";
 import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } from "../../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
 import { CompanyRecordsConnector } from "../../../connectors/company-records.ts";
+import { CompanyDirectoryConnector } from "../../../connectors/company-directory.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
 import { MondayWorkItemConnector } from "../../../connectors/monday/connector.ts";
+import { mondayCredentialIdentity, qualifyMondayWorkItemCredential } from "../../../connectors/monday/work-item-qualification.ts";
 import type { MondayResourceBinding } from "../../../connectors/monday/contracts.ts";
 import {
   SlackCommunicationConnector,
@@ -19,6 +22,7 @@ import {
   decodeCompanyRecordsRehearsalConfiguration,
   decodeCompanyRecordsRuntimeConfiguration,
   validatedCompanyRecordsSelection,
+  type CompanyRecordsRuntimeConfiguration,
 } from "./company-records-rehearsal.ts";
 
 type JsonObject = Record<string, JsonValue>;
@@ -46,14 +50,18 @@ function resolveEnvironmentSecretRef(value: JsonValue | undefined, environment: 
   return resolved;
 }
 
-function parseCompanyRecordsConfiguration(
+export function resolveCompanyRecordsConfiguration(
   entry: RuntimeConnectorConfiguration,
   artifact: CompanyOSArtifact,
   environment: NodeJS.ProcessEnv,
-): CompanyRecordsConnector {
+): CompanyRecordsRuntimeConfiguration {
   const configuration = entry.configuration;
-  exactKeys(configuration, ["configuration_ref"], `Connector instance '${entry.id}'`);
-  const encoded = resolveEnvironmentSecretRef(configuration.configuration_ref, environment, `Connector instance '${entry.id}'.configuration_ref`);
+  exactKeys(configuration, ["configuration_ref", "configuration_snapshot"], `Connector instance '${entry.id}'`);
+  if ((configuration.configuration_ref === undefined) === (configuration.configuration_snapshot === undefined)) throw new Error("Company Records requires exactly one configuration reference or immutable snapshot");
+  const snapshot = configuration.configuration_snapshot === undefined ? undefined : object(configuration.configuration_snapshot, "Company Records snapshot");
+  if (snapshot && JSON.stringify(snapshot).length > 2_000_000) throw new Error("Company Records snapshot exceeds its size bound");
+  const encoded = snapshot ? gzipSync(JSON.stringify(snapshot)).toString("base64")
+    : resolveEnvironmentSecretRef(configuration.configuration_ref, environment, `Connector instance '${entry.id}'.configuration_ref`);
   const recordsConfiguration = artifact.instance.environment === "preview"
     ? decodeCompanyRecordsRehearsalConfiguration(encoded)
     : artifact.instance.environment === "production"
@@ -64,6 +72,11 @@ function parseCompanyRecordsConfiguration(
     || recordsConfiguration.workspace.ref !== artifact.provenance.workspaceCommit) {
     throw new Error(`Connector instance '${entry.id}' does not match the immutable Artifact identity.`);
   }
+  return recordsConfiguration;
+}
+
+function parseCompanyRecordsConfiguration(entry: RuntimeConnectorConfiguration, artifact: CompanyOSArtifact, environment: NodeJS.ProcessEnv): CompanyRecordsConnector {
+  const recordsConfiguration = resolveCompanyRecordsConfiguration(entry, artifact, environment);
   let registry;
   for (const source of recordsConfiguration.sources) {
     const selected = validatedCompanyRecordsSelection(recordsConfiguration, String(source.id));
@@ -84,7 +97,9 @@ function parseMondayConfiguration(
   environment: NodeJS.ProcessEnv,
 ): MondayWorkItemConnector {
   const configuration = entry.configuration;
-  exactKeys(configuration, ["token_ref", "api_version", "actor_id", "resources"], `Connector instance '${entry.id}'`);
+  exactKeys(configuration, ["token_ref", "api_version", "actor_id", "credential_identity", "resources"], `Connector instance '${entry.id}'`);
+  const actorId = text(configuration.actor_id, `Connector instance '${entry.id}'.actor_id`, /^\d{1,20}$/);
+  const expected = mondayCredentialIdentity(configuration.credential_identity, actorId);
   if (!Array.isArray(configuration.resources) || configuration.resources.length === 0 || configuration.resources.length > 20) {
     throw new Error(`Connector instance '${entry.id}' requires between one and twenty Monday resources.`);
   }
@@ -107,15 +122,17 @@ function parseMondayConfiguration(
       fields,
     };
   });
+  const client = new MondayClient({
+    token: resolveEnvironmentSecretRef(configuration.token_ref, environment, `Connector instance '${entry.id}'.token_ref`),
+    apiVersion: text(configuration.api_version, `Connector instance '${entry.id}'.api_version`, /^[A-Za-z0-9._-]{1,32}$/),
+  });
   return new MondayWorkItemConnector({
-    client: new MondayClient({
-      token: resolveEnvironmentSecretRef(configuration.token_ref, environment, `Connector instance '${entry.id}'.token_ref`),
-      apiVersion: text(configuration.api_version, `Connector instance '${entry.id}'.api_version`, /^[A-Za-z0-9._-]{1,32}$/),
-    }),
+    client,
     bindings: resources,
-    actorId: text(configuration.actor_id, `Connector instance '${entry.id}'.actor_id`, /^[A-Za-z0-9._:-]{1,128}$/),
+    actorId,
     instanceId: artifact.instance.id,
     echoStore: createPostgresMondayEchoStore(),
+    qualifyCredential: (binding) => qualifyMondayWorkItemCredential({ client, expected, binding }),
   });
 }
 
@@ -165,7 +182,23 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
         threadReference: thread.id,
         async publish(content: string) {
           const message = await thread.post(content);
-          return { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
+          // Chat SDK openDM targets `slack:<channel>:`. Its post receipt keeps
+          // that conversation-wide ID; use Slack's returned message timestamp
+          // to bind each new root and its replies independently.
+          const match = /^slack:(D[A-Z0-9]+):$/.exec(thread.id);
+          if (!match || message.threadId !== thread.id || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
+            "Slack published a direct message without a verifiable root identity.",
+            { provider: "slack", message_id: message.id, thread_reference: message.threadId },
+          );
+          const root = `slack:${match[1]}:${message.id}`;
+          const receipt = { messageId: message.id, threadReference: root, publishedAt: message.metadata.dateSent.toISOString() };
+          try { await chat().thread(root).subscribe(); }
+          catch (error) {
+            throw new CapabilityEffectOutcomeUnknownError("Slack direct message was published but its reply subscription is unverified.",
+              { provider: "slack", message_id: receipt.messageId, thread_reference: root, published_at: receipt.publishedAt,
+                subscription_error_digest: sha256(error instanceof Error ? error.message : String(error)) });
+          }
+          return receipt;
         },
       };
     },
@@ -213,6 +246,13 @@ export function createConfiguredRuntimeConnectors(args: {
   for (const entry of args.artifact.connectors ?? []) {
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
+    if (entry.connector === "oregano/company-directory" && entry.connectorVersion === "1.0.0") {
+      exactKeys(entry.configuration, ["read_groups"], `Connector instance '${entry.id}'`);
+      const groups = entry.configuration.read_groups;
+      if (!Array.isArray(groups) || groups.some((group) => typeof group !== "string")) throw new Error(`Connector instance '${entry.id}' requires explicit read_groups`);
+      connectors.push(new CompanyDirectoryConnector({ instanceId: args.artifact.instance.id, roster: args.artifact.roster, readGroups: groups as string[] }));
+      continue;
+    }
     if (entry.connector === "oregano/company-records" && entry.connectorVersion === "0.1.0") {
       connectors.push(parseCompanyRecordsConfiguration(entry, args.artifact, environment));
       continue;

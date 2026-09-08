@@ -1,0 +1,1277 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "baseline_core": "c4f1860dadd57ba77fa8e1be1d6c3af30a2c4274",
+    "source": "packages/testkit/tests/sprint-domain.test.ts",
+    "scope": "Synthetic close classification, all-open rollover and readiness comparisons; unavailable effort policy. Not complete domain or engine parity.",
+    "oracle_comparisons": [
+      "actual legacy close oracle matches the Workspace Tool on retained fixture semantics",
+      "legacy all-open rollover membership and expected versions survive Workspace batch preparation",
+      "actual legacy Wednesday intents match readiness questions and proposed batch changes"
+    ]
+  },
+  "cases": [
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [
+                "item-a"
+              ],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "complete",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
+        "chase_text": "Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "missing",
+          "person-b": "missing"
+        },
+        "incomplete": [
+          "person-a",
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: not posted\n- Blair: not posted",
+        "chase_text": "Alex, Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [
+                "item-a",
+                "item-extra"
+              ],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "needs-reformat",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-a",
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
+        "chase_text": "Alex, Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "needs-reformat",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-a",
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
+        "chase_text": "Alex, Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [
+                "item-a",
+                "item-a"
+              ],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "complete",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
+        "chase_text": "Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [
+                "item-a"
+              ],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "correction",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T17:00:00.000Z",
+              "task_ids": [
+                "item-a"
+              ],
+              "well_formed": false
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "needs-reformat",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-a",
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
+        "chase_text": "Alex, Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [
+                "item-a"
+              ],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "late",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T17:00:01.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "complete",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
+        "chase_text": "Blair",
+        "open_items_text": "- item-a\n- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "complete",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: complete\n- Blair: please correct the format or task list",
+        "chase_text": "Blair",
+        "open_items_text": "- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "close-classification",
+      "input": {
+        "participants": [
+          {
+            "record_id": "person-a",
+            "values": {
+              "participant_id": "person-a",
+              "display_name": "Alex",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-b",
+            "values": {
+              "participant_id": "person-b",
+              "display_name": "Blair",
+              "included": true
+            }
+          },
+          {
+            "record_id": "person-c",
+            "values": {
+              "participant_id": "person-c",
+              "display_name": "Casey",
+              "included": false
+            }
+          }
+        ],
+        "work_items": [
+          {
+            "record_id": "item-a",
+            "values": {
+              "work_item_id": "item-a",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-b",
+            "values": {
+              "work_item_id": "item-b",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "status": "done",
+              "provider_version": "v1"
+            }
+          },
+          {
+            "record_id": "item-c",
+            "values": {
+              "work_item_id": "item-c",
+              "assignee_ids": [
+                "person-c",
+                "person-a"
+              ],
+              "status": "working",
+              "provider_version": "v1"
+            }
+          }
+        ],
+        "submissions": [
+          {
+            "record_id": "submission-a",
+            "values": {
+              "participant_id": "person-a",
+              "content_participant_id": "person-a",
+              "accepted_at": "2030-02-01T16:30:00.000Z",
+              "task_ids": [
+                "item-a"
+              ],
+              "well_formed": true
+            }
+          },
+          {
+            "record_id": "submission-b",
+            "values": {
+              "participant_id": "person-b",
+              "content_participant_id": "person-b",
+              "accepted_at": "2030-02-01T16:10:00.000Z",
+              "task_ids": [],
+              "well_formed": false
+            }
+          }
+        ],
+        "closed_statuses": [
+          "done"
+        ],
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root"
+      },
+      "expected": {
+        "outcome": "incomplete",
+        "cutoff": "2030-02-01T17:00:00.000Z",
+        "thread_reference": "chat:fixture:thread-root",
+        "states": {
+          "person-a": "needs-reformat",
+          "person-b": "needs-reformat"
+        },
+        "incomplete": [
+          "person-a",
+          "person-b"
+        ],
+        "open_work_items": [
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "report_text": "- Alex: please correct the format or task list\n- Blair: please correct the format or task list",
+        "chase_text": "Alex, Blair",
+        "open_items_text": "- item-c",
+        "effort_basis": "unavailable",
+        "participant_effort_hours": {
+          "person-a": null,
+          "person-b": null,
+          "person-c": null
+        },
+        "total_effort_hours": null,
+        "effort_text": "unavailable"
+      }
+    },
+    {
+      "tool_id": "rollover-changes",
+      "input": {
+        "open_work_items": [
+          {
+            "work_item_id": "item-a",
+            "provider_version": "v1"
+          },
+          {
+            "work_item_id": "item-c",
+            "provider_version": "v1"
+          }
+        ],
+        "target_sprint_id": "sprint-6"
+      },
+      "expected": {
+        "outcome": "some",
+        "updates": [
+          {
+            "work_item_id": "item-a",
+            "expected_version": "v1",
+            "changes": {
+              "sprint": "sprint-6"
+            }
+          },
+          {
+            "work_item_id": "item-c",
+            "expected_version": "v1",
+            "changes": {
+              "sprint": "sprint-6"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "tool_id": "readiness-view",
+      "input": {
+        "work_items": [
+          {
+            "record_id": "item-d",
+            "values": {
+              "work_item_id": "item-d",
+              "title": "Delta",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "group": "backlog",
+              "status": "working",
+              "actual_hours": 5,
+              "provider_version": "v1",
+              "fields": {}
+            }
+          },
+          {
+            "record_id": "item-e",
+            "values": {
+              "work_item_id": "item-e",
+              "title": "Ready candidate",
+              "assignee_ids": [
+                "person-b"
+              ],
+              "group": "backlog",
+              "status": "working",
+              "provider_version": "v1",
+              "fields": {
+                "brief": "Complete"
+              }
+            }
+          },
+          {
+            "record_id": "item-f",
+            "values": {
+              "work_item_id": "item-f",
+              "title": "Invalidated candidate",
+              "assignee_ids": [
+                "person-a"
+              ],
+              "group": "backlog",
+              "status": "ready",
+              "provider_version": "v2",
+              "fields": {}
+            }
+          }
+        ],
+        "required_fields": [
+          "brief"
+        ],
+        "ready_status": "ready",
+        "planned_status": "working"
+      },
+      "expected": {
+        "outcome": "some",
+        "summary": {
+          "candidate_count": 3,
+          "ready_count": 1,
+          "missing_count": 2
+        },
+        "questions": [
+          {
+            "participant_id": "person-a",
+            "work_item_id": "item-d",
+            "missing_fields": [
+              "brief"
+            ],
+            "question": "Please complete item item-d: brief."
+          }
+        ],
+        "updates": [
+          {
+            "work_item_id": "item-e",
+            "expected_version": "v1",
+            "changes": {
+              "status": "ready"
+            }
+          },
+          {
+            "work_item_id": "item-f",
+            "expected_version": "v2",
+            "changes": {
+              "status": "working"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

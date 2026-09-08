@@ -1,5 +1,6 @@
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordSourceDeclaration } from "./contracts.ts";
+import { sha256 } from "../runtime/canonical.ts";
 
 /** Non-secret Company Instance configuration. Credentials stay behind secret_ref. */
 export interface CompanyRecordSourceBinding {
@@ -20,9 +21,19 @@ export interface CompanyRecordSourceBinding {
 export interface RecordSourceInventory {
   complete: true;
   observed_at: string;
+  /** Actual start of a complete current inventory read; never historical coverage. */
+  scan_started_at?: string;
   objects: Array<Record<string, JsonValue>>;
   watermark: string;
+  /** Exact non-secret Instance binding and qualification used by this read. */
+  binding_digest?: string;
+  /** Qualified complete coverage through this instant; read completion is not a substitute. */
+  synced_through?: string;
   receipt: Record<string, JsonValue>;
+}
+
+export function recordSourceBindingDigest(binding: CompanyRecordSourceBinding, qualification: Record<string, unknown>): string {
+  return sha256({ binding, qualification });
 }
 
 /**

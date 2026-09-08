@@ -27,7 +27,7 @@ create table if not exists companyos.schema_manifests (
 create table if not exists companyos.workflow_runs (
   run_id                 text primary key,
   workflow               text not null,
-  workflow_version       text not null,      -- CORE git SHA (real, no placeholder)
+  workflow_version       text not null,      -- compiled Workflow version; exact Core SHA for standalone Tool invocation
   company_commit         text,               -- COMPANY repo git SHA (§10a provenance pair)
   company_snapshot_hash  text not null,      -- immutable Company Workspace content hash
   agent_definition_hash  text not null,      -- compiled instructions and scoped-material hash
@@ -230,3 +230,48 @@ create table if not exists companyos.repository_installations (
   provider_receipt       jsonb not null,
   unique (instance_id, provider_id, service_environment, provider_repository_id)
 );
+
+-- Generic workflow execution and retained Artifact/assignment evidence.
+create table if not exists companyos.workflow_artifacts (
+  artifact_hash text primary key,
+  instance_id text not null,
+  artifact_json jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists companyos.workflow_executions (
+  run_id text primary key references companyos.workflow_runs(run_id),
+  instance_id text not null,
+  workflow_id text not null,
+  artifact_hash text not null references companyos.workflow_artifacts(artifact_hash),
+  manifest_hash text not null,
+  origin_key text not null,
+  origin_digest text not null,
+  identity_json jsonb not null,
+  state_json jsonb not null,
+  revision bigint not null default 0,
+  lease_owner text,
+  lease_token text,
+  lease_expires_at timestamptz,
+  updated_at timestamptz not null,
+  constraint workflow_execution_origin_unique unique(instance_id, workflow_id, origin_key),
+  constraint workflow_execution_revision_check check(revision >= 0),
+  constraint workflow_execution_lease_check check(
+    (lease_owner is null and lease_token is null and lease_expires_at is null)
+    or (lease_owner is not null and lease_token is not null and lease_expires_at is not null))
+);
+
+create index if not exists workflow_executions_status_idx
+  on companyos.workflow_executions(instance_id, (state_json->>'status'), updated_at, run_id);
+
+create table if not exists companyos.workflow_thread_assignments (
+  instance_id text not null,
+  assignment_key text not null,
+  run_id text not null references companyos.workflow_executions(run_id),
+  assignment_json jsonb not null,
+  expires_at timestamptz not null,
+  primary key(instance_id, assignment_key)
+);
+
+create index if not exists workflow_thread_assignments_run_idx
+  on companyos.workflow_thread_assignments(instance_id, run_id);

@@ -18,3 +18,8 @@ export function sha256(value: unknown): string {
   const input = typeof value === "string" ? value : canonicalJson(value);
   return createHash("sha256").update(input).digest("hex");
 }
+
+/** Hash a JSON value without conflating a string's bytes with another JSON type. */
+export function jsonDigest(value: unknown): string {
+  return sha256(canonicalJson(value));
+}

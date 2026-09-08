@@ -1,0 +1,47 @@
+version: 3
+plan_id: workflow-lifecycle-parity-2026-09-06
+created: "2026-09-06"
+title: Preserve scheduler and restart guarantees in ordinary workflow fixtures
+objective: >-
+  Place existing company-example engine and calendar cases under fictional
+  fixture assets and add actual-engine proofs for holiday-shifted deadlines,
+  a complete repeatable weekly schedule and independent run timer identities.
+non_goals:
+  - Change runtime behavior, source cutoff semantics or company policy.
+  - Remove legacy execution before full parity and actual Instance acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-lifecycle-parity.yaml
+  - packages/testkit/fixtures/workflow-engine.test.ts
+  - packages/testkit/fixtures/workflow-calendar.test.ts
+  - packages/testkit/fixtures/workflow-lifecycle-conformance.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-calendar.test.ts
+  - packages/testkit/tests/workflow-lifecycle-conformance.test.ts
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-calendar.test.ts
+  - packages/testkit/tests/workflow-lifecycle-conformance.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Reuse the maintained engine, calendar evaluator, timer store and Runtime.
+    packages: No Package or Connector changes.
+    workspace: All example schedules and expected company behavior remain synthetic fixture assets.
+    instance: In-memory stores retain actual run and timer identities with synthetic providers.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Verify existing generic scheduling and durable waits through the actual compiled workflow.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Test entrypoints import fictional fixture cases without adding a business executor or scenario publisher.
+rollback: Revert fixture placement and cases; preserve historical evidence and the legacy comparison oracle until migration acceptance.

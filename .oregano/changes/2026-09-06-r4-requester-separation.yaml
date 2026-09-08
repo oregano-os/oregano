@@ -1,0 +1,56 @@
+version: 3
+plan_id: r4-requester-separation-2026-09-06
+created: "2026-09-06"
+title: Bind R4 requester evidence and require distinct approving humans
+objective: >-
+  Record the authenticated requester with the exact approval request and require
+  a different active human with a distinct stable roster identity for R4 effects.
+non_goals:
+  - Infer identity from names or accept a requester supplied on the approving turn.
+  - Activate a workflow or replace the pending workflow conversation guard.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-r4-requester-separation.yaml
+  - packages/state-store/roster.ts
+  - packages/state-store/action-approval.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/roster.test.ts
+  - packages/testkit/fixtures/reference-company/handbook/roster.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/identity-access-and-offboarding.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/architecture/system-of-proof.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+  - packages/testkit/tests/roster.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.companyos-core-v0.7
+    - specification.identity-access-offboarding
+    - specification.workflow-execution-v1
+    - architecture.system-of-proof
+    - status.current
+architecture:
+  placement:
+    core: Owns identity resolution, attributable request evidence and non-bypassable R4 separation.
+    packages: Existing Tools use the same generic approval orchestration.
+    workspace: Owns stable roster identities and the human roles authorized to approve each risk.
+    instance: Supplies authenticated principals and durable audit records; no provider grants change.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Reject ambiguous principal mappings and compare stable human identities across surfaces.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse the exact approval request and append-only event evidence to bind its original requester.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: R4 separation applies to any governed high-impact effect independently of company or provider.
+rollback: Disable R4 dispatch before rollback; preserve request evidence and require fresh approvals after upgrade.

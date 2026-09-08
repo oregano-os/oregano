@@ -2,10 +2,12 @@ import { createHash } from "node:crypto";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts";
 import type { CompanyRecordSourceBinding, RecordSourceConnector, RecordSourceInventory } from "../../records/source-connector.ts";
+import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { SlackWebApiClient, type SlackFetch } from "./client.ts";
+import { qualifySlackRecordSource } from "./record-source-qualification.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.0";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.3";
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -39,10 +41,16 @@ const slackTimestamp = (iso: string): string => `${Date.parse(iso) / 1000}`;
 const timestampIso = (value: string): string => {
   const match = /^(\d{1,16})(?:\.(\d{1,9}))?$/.exec(value);
   if (!match) throw new Error(`Slack message timestamp '${value}' is invalid`);
-  const milliseconds = Number(match[1]) * 1_000 + Number((match[2] ?? "").padEnd(3, "0").slice(0, 3));
-  const result = new Date(milliseconds).toISOString();
-  if (result === "Invalid Date") throw new Error(`Slack message timestamp '${value}' is invalid`);
-  return result;
+  const seconds = Number(match[1]);
+  if (!Number.isSafeInteger(seconds) || seconds > 253_402_300_799) throw new Error(`Slack message timestamp '${value}' is invalid`);
+  // Date stores only milliseconds. Format the whole seconds separately so no
+  // provider fractional digit is lost before deadline or ordering decisions.
+  return new Date(seconds * 1_000).toISOString().slice(0, -5) + `.${(match[2] ?? "").padEnd(3, "0")}Z`;
+};
+const timestampNanos = (value: string): bigint => {
+  timestampIso(value);
+  const [seconds, fraction = ""] = value.split(".");
+  return BigInt(seconds!) * 1_000_000_000n + BigInt(fraction.padEnd(9, "0"));
 };
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value)) as JsonValue;
 
@@ -79,6 +87,7 @@ const configuration = (
     throw new Error("Slack qualification does not prove bot-token authentication without retained credentials");
   }
   if (discovery.team_id !== teamId) throw new Error(`Slack qualification does not identify team '${teamId}'`);
+  if (typeof discovery.bot_user_id !== "string" || !/^[UW][A-Z0-9]{4,31}$/.test(discovery.bot_user_id)) throw new Error("Slack qualification requires an exact authenticated bot user identity");
   if (discovery.channel?.id !== channelId || discovery.channel?.kind !== conversationKind || discovery.channel?.is_member !== true) {
     throw new Error(`Slack qualification does not prove membership in exact ${conversationKind} '${channelId}'`);
   }
@@ -88,7 +97,7 @@ const configuration = (
   const scopes = new Set(Array.isArray(discovery.scopes) ? discovery.scopes.map(String) : []);
   const missingScope = requiredScopes.find((scope) => !scopes.has(scope));
   if (missingScope) throw new Error(`Slack qualification lacks required scope '${missingScope}'`);
-  return { teamId, channelId, conversationKind, oldestAt, latestAt, includeThreads, pageSize, maxPages, maxThreadPages, maxMessages };
+  return { teamId, channelId, conversationKind, botUserId: discovery.bot_user_id as string, oldestAt, latestAt, includeThreads, pageSize, maxPages, maxThreadPages, maxMessages };
 };
 
 const normalizeMessage = (args: {
@@ -101,12 +110,24 @@ const normalizeMessage = (args: {
   const ts = String(args.message.ts ?? args.message.deleted_ts ?? "");
   if (!ts) throw new Error("Slack message has no stable timestamp identity");
   const threadTs = String(args.message.thread_ts ?? args.rootTs ?? ts);
+  timestampIso(threadTs);
+  if (args.rootTs && threadTs !== args.rootTs) throw new Error("Slack reply belongs to a different thread than the requested root");
   const userId = typeof args.message.user === "string" ? args.message.user : undefined;
   const botId = typeof args.message.bot_id === "string" ? args.message.bot_id : undefined;
+  if (userId !== undefined && !/^[UW][A-Z0-9]{4,31}$/.test(userId)) throw new Error("Slack message has an invalid user identity");
+  if (botId !== undefined && !/^B[A-Z0-9]{4,31}$/.test(botId)) throw new Error("Slack message has an invalid bot identity");
   const subtype = typeof args.message.subtype === "string" ? args.message.subtype : "message";
-  const edited = args.message.edited && typeof args.message.edited === "object" && !Array.isArray(args.message.edited)
-    ? String((args.message.edited as Record<string, unknown>).ts ?? "")
-    : "";
+  const isBot = botId !== undefined || subtype === "bot_message" || typeof args.message.app_id === "string";
+  const authorKind = isBot ? "bot" : userId ? "user" : "unknown";
+  const authorId = (isBot ? botId ?? userId : userId) ?? "unknown";
+  const authorPrincipal = authorKind === "user"
+    ? `slack:${args.teamId}:${authorId}`
+    : `slack-${authorKind}:${args.teamId}:${authorId}`;
+  const edit = args.message.edited === undefined ? undefined : object(json(args.message.edited), "Slack edited metadata");
+  const edited = edit ? string(edit.ts, "Slack edited timestamp") : undefined;
+  if (edited && timestampNanos(edited) < timestampNanos(ts)) throw new Error("Slack edit timestamp precedes message creation");
+  const editorPrincipal = edit && typeof edit.user === "string" && /^[UW][A-Z0-9]{4,31}$/.test(edit.user)
+    ? `slack:${args.teamId}:${edit.user}` : null;
   return {
     id: `${args.channelId}:${ts}`,
     source_id: args.sourceId,
@@ -115,11 +136,16 @@ const normalizeMessage = (args: {
     team_id: args.teamId,
     conversation_id: args.channelId,
     thread_id: threadTs,
+    thread_reference: `slack:${args.channelId}:${threadTs}`,
     is_thread_root: threadTs === ts,
-    author_id: userId ?? botId ?? "unknown",
-    author_kind: userId ? "user" : botId ? "bot" : "unknown",
+    author_id: authorId,
+    author_kind: authorKind,
+    author_principal: authorPrincipal,
+    editor_principal: editorPrincipal,
+    content_author_principal: edited && !isBot ? editorPrincipal ?? `slack-unknown:${args.teamId}:editor` : authorPrincipal,
     text: typeof args.message.text === "string" ? args.message.text : "",
     occurred_at: timestampIso(ts),
+    accepted_at: timestampIso(edited ?? ts),
     subtype,
     is_deleted: subtype === "message_deleted" || Boolean(args.message.deleted_ts),
     reply_count: typeof args.message.reply_count === "number" ? args.message.reply_count : 0,
@@ -152,11 +178,17 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     qualification: Record<string, unknown>;
   }): Promise<RecordSourceInventory> {
     const config = configuration(args.source, args.binding, args.qualification);
+    const scanStartedAt = this.now().toISOString();
     const token = await this.resolveSecret(args.binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${args.binding.secret_ref}' is unavailable`);
+    const current = (await qualifySlackRecordSource({ token, teamId: config.teamId, channelId: config.channelId,
+      now: this.now, ...(this.fetcher ? { fetcher: this.fetcher } : {}) })).evidence.discovery;
+    if (current.bot_user_id !== config.botUserId || current.channel.kind !== config.conversationKind) {
+      throw new Error("Slack source credential or conversation differs from its reviewed qualification");
+    }
     const client = new SlackWebApiClient({ token, ...(this.fetcher ? { fetcher: this.fetcher } : {}) });
-    const requestIds: string[] = [];
-    const scopes = new Set<string>();
+    const requestIds: string[] = [...current.request_ids];
+    const scopes = new Set<string>(current.scopes);
     let historyPages = 0;
     let threadPages = 0;
     const messages = new Map<string, Record<string, JsonValue>>();
@@ -173,6 +205,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
       if (messages.size > config.maxMessages) throw new Error(`Slack record inventory exceeded the configured ${config.maxMessages}-message bound`);
     };
     let cursor: string | undefined;
+    const historyCursors = new Set<string>();
     const roots: Array<Record<string, unknown>> = [];
     do {
       if (historyPages >= config.maxPages) throw new Error(`Slack record inventory exceeded the configured ${config.maxPages}-page bound`);
@@ -192,6 +225,8 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
       }
       const next = result.data.response_metadata?.next_cursor?.trim() || undefined;
       if (result.data.has_more && !next) throw new Error("Slack history reported more messages without a continuation cursor");
+      if (next && historyCursors.has(next)) throw new Error("Slack history returned a repeated continuation cursor");
+      if (next) historyCursors.add(next);
       cursor = next;
     } while (cursor);
 
@@ -203,6 +238,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
         const expectedReplies = root.reply_count;
         const observedReplies = new Set<string>();
         let threadCursor: string | undefined;
+        const threadCursors = new Set<string>();
         let pagesForThread = 0;
         do {
           if (pagesForThread >= config.maxThreadPages) throw new Error(`Slack thread '${rootTs}' exceeded the configured ${config.maxThreadPages}-page bound`);
@@ -228,6 +264,8 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
           }
           const next = result.data.response_metadata?.next_cursor?.trim() || undefined;
           if (result.data.has_more && !next) throw new Error(`Slack thread '${rootTs}' reported more messages without a continuation cursor`);
+          if (next && threadCursors.has(next)) throw new Error("Slack thread returned a repeated continuation cursor");
+          if (next) threadCursors.add(next);
           threadCursor = next;
         } while (threadCursor);
         // `reply_count` describes the complete live thread, not the selected
@@ -242,13 +280,17 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     const inventoryDigest = digest(objects);
     return {
       complete: true,
+      scan_started_at: scanStartedAt,
       observed_at: this.now().toISOString(),
       objects,
       watermark: `slack:${inventoryDigest}`,
+      binding_digest: recordSourceBindingDigest(args.binding, args.qualification),
       receipt: {
         connector: this.id,
         connector_version: this.version,
         authentication_mode: "bot-token",
+        authenticated_bot_user_id: current.bot_user_id,
+        identity_checked_at: current.observed_at,
         resource_binding: args.binding.resource_binding,
         team_id: config.teamId,
         conversation_id: config.channelId,

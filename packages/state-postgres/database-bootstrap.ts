@@ -1,3 +1,4 @@
+import { ensureWorkflowExecutionSchema } from "./workflow-migrate.ts";
 import { createHash } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 import { BASE_BRAIN_PAGE_TYPES } from "../knowledge/brain-contracts.ts";
@@ -451,7 +452,7 @@ export const COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST = createHash("sha256")
   .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_EIGHT))
   .digest("hex");
 
-export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+export const COMPANY_DATABASE_MANIFEST_PHASE_NINE = Object.freeze({
   schemaVersion: 1,
   id: "companyos-postgres",
   version: "1.9.0",
@@ -468,9 +469,25 @@ export const COMPANY_DATABASE_MANIFEST = Object.freeze({
   optionalFeatures: Object.freeze(["vector"]),
 });
 
-export const COMPANY_DATABASE_MANIFEST_DIGEST = createHash("sha256")
-  .update(JSON.stringify(COMPANY_DATABASE_MANIFEST))
+export const COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST = createHash("sha256")
+  .update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_NINE))
   .digest("hex");
+
+const WORKFLOW_CONTROL_TABLES = Object.freeze([...CONTROL_TABLES, "workflow_artifacts", "workflow_executions", "workflow_thread_assignments"].sort());
+export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+  ...COMPANY_DATABASE_MANIFEST_PHASE_NINE,
+  version: "2.0.0",
+  predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_NINE.version,
+  schemas: Object.freeze({
+    ...COMPANY_DATABASE_MANIFEST_PHASE_NINE.schemas,
+    companyos: Object.freeze({ tables: WORKFLOW_CONTROL_TABLES }),
+  }),
+  requiredIndexes: Object.freeze([...COMPANY_DATABASE_MANIFEST_PHASE_NINE.requiredIndexes,
+    "companyos.workflow_executions_status_idx", "companyos.workflow_thread_assignments_run_idx"]),
+  requiredConstraints: Object.freeze([...COMPANY_DATABASE_MANIFEST_PHASE_NINE.requiredConstraints,
+    "companyos.workflow_execution_origin_unique", "companyos.workflow_execution_revision_check", "companyos.workflow_execution_lease_check"]),
+});
+export const COMPANY_DATABASE_MANIFEST_DIGEST = createHash("sha256").update(JSON.stringify(COMPANY_DATABASE_MANIFEST)).digest("hex");
 
 export interface CompanyDatabaseQualificationReceipt {
   receiptVersion: 1;
@@ -542,6 +559,7 @@ const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_PHASE_SIX.version, COMPANY_DATABASE_MANIFEST_PHASE_SIX_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version, COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version, COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST],
+  [COMPANY_DATABASE_MANIFEST_PHASE_NINE.version, COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST],
   [COMPANY_DATABASE_MANIFEST.version, COMPANY_DATABASE_MANIFEST_DIGEST],
 ]);
 
@@ -613,7 +631,7 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
   }
   if (receipt.manifestDigest !== COMPANY_DATABASE_MANIFEST_DIGEST) throw new Error("Database qualification receipt has the wrong manifest digest.");
   if (!receipt.qualifiedAt || Number.isNaN(Date.parse(receipt.qualifiedAt))) throw new Error("Database qualification receipt requires an ISO timestamp.");
-  if (receipt.schemas?.companyos?.tableCount !== CONTROL_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos table count.");
+  if (receipt.schemas?.companyos?.tableCount !== WORKFLOW_CONTROL_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos table count.");
   const expectedKnowledgeTables = KNOWLEDGE_TABLES.length + (receipt.features?.vector ? 2 : 0);
   if (receipt.schemas?.companyosKnowledge?.tableCount !== expectedKnowledgeTables) throw new Error("Database qualification receipt has the wrong companyos_knowledge table count.");
   if (receipt.schemas?.companyosRecords?.tableCount !== RECORDS_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos_records table count.");
@@ -641,7 +659,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
     where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = ${COMPANY_DATABASE_MANIFEST.version} limit 1`;
 
   const expectedTables = [
-    ...CONTROL_TABLES.map((name) => `companyos.${name}`),
+    ...WORKFLOW_CONTROL_TABLES.map((name) => `companyos.${name}`),
     ...KNOWLEDGE_TABLES.map((name) => `companyos_knowledge.${name}`),
     ...RECORDS_TABLES.map((name) => `companyos_records.${name}`),
     ...(vector ? ["companyos_knowledge.fragment_embeddings", "companyos_knowledge.retrieval_unit_embeddings"] : []),
@@ -669,7 +687,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
     manifestDigest: COMPANY_DATABASE_MANIFEST_DIGEST,
     qualifiedAt: new Date().toISOString(),
     schemas: {
-      companyos: { tableCount: CONTROL_TABLES.length },
+      companyos: { tableCount: WORKFLOW_CONTROL_TABLES.length },
       companyosKnowledge: { tableCount: KNOWLEDGE_TABLES.length + (vector ? 2 : 0) },
       companyosRecords: { tableCount: RECORDS_TABLES.length },
     },
@@ -682,6 +700,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
 
 export async function bootstrapCompanyDatabase(): Promise<CompanyDatabaseQualificationReceipt> {
   await ensureCompanyOSSchema();
+  await ensureWorkflowExecutionSchema();
   const features = await ensureCompanyKnowledgeSchema();
   await ensureCompanyRecordsSchema();
   const sql = neon(databaseUrl());

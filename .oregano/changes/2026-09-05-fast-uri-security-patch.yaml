@@ -1,0 +1,44 @@
+version: 3
+plan_id: fast-uri-security-patch-2026-09-05
+created: "2026-09-05"
+title: Pin patched transitive URI and query parsers
+objective: >-
+  Replace the vulnerable fast-uri 3.1.5 dependency used by JSON Schema
+  validation and development tooling with patched 3.1.6, and qs 6.15.3 with
+  patched 6.16.0 in the Builder SDK HTTP dependencies, before the next Core
+  release. Keep unrelated package versions and runtime contracts unchanged.
+non_goals:
+  - Upgrade unrelated dependencies or activate a Company Instance.
+  - Claim an observed exploit or alter provider URL policy.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-fast-uri-security-patch.yaml
+  - pnpm-workspace.yaml
+  - pnpm-lock.yaml
+  - packages/cli/tests/workbench.test.mjs
+  - docs/status/current.md
+tests:
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/json-schema-enforcement.test.ts
+  - packages/testkit/tests/toolset-resolver.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Owns the exact dependency override and reproducible lockfile.
+    packages: No public Package contract changes.
+    workspace: No Company Workspace changes.
+    instance: No deployment or binding changes.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The dependency correction applies to the shared validator and toolchain for every company.
+rollback: >-
+  Revert only if a validated compatibility regression requires it, then hold
+  the technical release until the vulnerable dependency has a reviewed remedy.

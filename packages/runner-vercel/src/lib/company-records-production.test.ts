@@ -89,7 +89,8 @@ const configuration = (): CompanyRecordsProductionConfiguration => ({
           authentication_mode: "external-agent",
           configured_agent_id: "700001",
           identity_mapping_status: "administrator-confirmed",
-          identity: { externalAgentId: "800001" },
+          identity: { memberId: "700007", kind: "external_agent_member", externalAgentId: "800001" },
+          account: { id: "300003" },
           resources: [{ id: "100001", scope: "board", permission: "read" }],
           boards: [{ id: "100001", groups: [], columns: [] }],
         },
@@ -181,7 +182,7 @@ test("confirmed initial synchronization is applied once and then reuses its rece
   let providerRuns = 0;
   let prior: any;
   const deps = dependencies({
-    inspectReceipt: async () => prior,
+    inspectReceipt: async (_instanceId, sourceId) => { assert.match(sourceId, /^records-source:v1:[a-f0-9]{64}$/); return prior; },
     runSourceOperation: async ({ sourceId, runId }) => {
       providerRuns += 1;
       prior = { source_id: sourceId, run_id: runId, observed: 2, inserted: 2, unchanged: 0, deleted: 0, errors: 0 };

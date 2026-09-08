@@ -239,8 +239,8 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-The current additive database manifest is `companyos-postgres@1.9.0`. It
-retains the immutable `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
+The current additive database manifest is `companyos-postgres@2.0.0`. It
+retains the immutable `1.9.0`, `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
 contains 67 required `companyos_knowledge` tables, and contains 14 required
 `companyos_records` tables for provider-neutral Record Source and Sprint state. Phase 3 adds durable Source
 Events, provider ACL snapshots, bounded pipeline receipts, completed
@@ -256,7 +256,11 @@ is available, the two optional vector tables retain Handbook-fragment and
 Retrieval-Unit embeddings; neither is durable company authority.
 Phase 8 adds provider-neutral Record Source state. Phase 9 adds atomic Sprint
 event, monotonic state, decision, and intent persistence plus a bounded leased
-intent queue. Installing or qualifying these relations does not start a Sprint,
+intent queue. Manifest 2.0.0 adds retained workflow Artifacts, generic execution
+snapshots with leases, and exact conversation assignments in the control
+schema. Atomic dispatch fencing shares the execution lock with cancellation.
+The step interpreter and hosted assignment integration remain pending.
+Installing or qualifying these relations does not start a Sprint,
 schedule a timer, dispatch a message, or enable a provider effect.
 The reusable activation path qualifies a fully isolated non-production
 Instance. Oregano HQ also has one explicit internal-dogfood production-canary
@@ -501,7 +505,7 @@ an Agent Tool, or turns a conversational callback into a board event.
 
 The maintained Company Instance database manifest includes Record Source
 relations from version `1.8.0` and Sprint orchestration relations from version
-`1.9.0`. Production migration remains an
+`1.9.0`, plus generic workflow control state from `2.0.0`. Production migration remains an
 explicit exact-plan Instance effect; deploying Core alone does not apply it.
 Database qualification and `/api/health` then prove the exact records table and
 index set along with the control and knowledge schemas.
@@ -613,3 +617,25 @@ events, deletion requests, legal holds, and activation receipts are durable
 Instance evidence. Rollback explicitly reactivates a prior verified snapshot.
 `pgvector` creation is optional and its absence keeps lexical retrieval active
 with a recorded degradation.
+
+
+## Generic workflow hosting
+
+The maintained Vercel adapter runs generic compiled workflows through bounded
+timer/step workers and authenticated operator controls. Instance configuration
+pins the exact Artifact, environment, explicit enablement, accountable schedule
+operator and distinct human credentials. Workspace files own calendars, business
+fields, templates and process steps. Automatic opening never invents business
+period values. Workflow control stays in the existing Company database.
+
+Running workflows retain their starting Artifact and non-secret Records
+configuration snapshot. The host uses the current deployed roster for human
+eligibility and provider-qualified account/recipient facts for Slack delivery.
+It rereads exact human replies before recording decisions; an operator can
+request this reread without acquiring business approval authority. Individual
+DM roots and exact persisted assignments route conversations to their historical
+agent and waiting-step Tool allowlist. Recipient proof and worker health are
+separate from source completeness, real human acceptance and production readiness.
+
+See [Hosted Workflow Engine Operations](../operations/workflow-engine.md) for
+configuration, recovery, existing-app test ingress and rollout limitations.

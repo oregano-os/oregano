@@ -1,0 +1,49 @@
+version: 3
+plan_id: workspace-effort-parity-2026-09-06
+created: "2026-09-06"
+title: Preserve explicit effort computation in the synthetic Workspace
+objective: >-
+  Preserve actual-hours, planned-effort and unavailable computation as reviewed
+  Workspace Tool code, with explicit unknown totals and no inferred substitution.
+non_goals:
+  - Enable effort collection in a real company or add business arithmetic to Core.
+  - Claim full legacy parity or live provider acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workspace-effort-parity.yaml
+  - packages/testkit/fixtures/lindenhof-studio/agents/sprint/tools/close-classification/execute.ts
+  - packages/testkit/fixtures/lindenhof-studio/agents/sprint/tools/close-classification/TOOL.md
+  - packages/testkit/fixtures/lindenhof-studio/workflows/friday-close.compact.md
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/fixtures/workflow-computations.test.ts
+  - packages/testkit/fixtures/workflow-computation-regressions.json
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-company-tools.test.ts
+  - packages/testkit/tests/workflow-sequencing.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Existing compiler, schemas, isolated Tool runner and effect controls remain unchanged.
+    packages: Existing Company Tool schema and execution contracts carry explicit inputs and outputs.
+    workspace: Selects the effort basis and computes known or unknown totals from its Records inputs.
+    instance: Current fictional bindings remain synthetic; no new source or live data is enabled.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Exercise the existing isolated Company Tool contract with explicit typed effort inputs and schema-checked outputs.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The engine remains company-independent; the synthetic Workspace owns every calculation.
+rollback: Retain the prior Workspace Artifact and legacy oracle until all migration and acceptance gates pass.

@@ -11,6 +11,18 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15.18
+        env:
+          POSTGRES_USER: companyos_test
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: companyos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U companyos_test -d companyos_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     environment: core-release
     steps:
       - uses: actions/checkout@v4
@@ -31,8 +43,11 @@ jobs:
         run: |
           pnpm check
           pnpm runner:build
+
+      - name: Required Postgres integration proofs (no skips)
+        run: pnpm test:database
         env:
-          COMPANYOS_SKIP_DATABASE_TESTS: "1"
+          COMPANYOS_TEST_DATABASE_URL: postgresql://companyos_test:local-test-only@127.0.0.1:5432/companyos_test
 
       - name: Prepare versioned agent-install assets
         run: node scripts/prepare-release-assets.mjs dist/release

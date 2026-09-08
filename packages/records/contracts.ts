@@ -1,13 +1,39 @@
-import type { JsonValue } from "../capabilities/contracts.ts";
+import type { JsonSchema, JsonValue } from "../capabilities/contracts.ts";
 
 export type RecordDeliveryMode = "poll" | "webhook" | "hybrid";
-export type RecordValueType = "string" | "number" | "boolean" | "timestamp" | "status" | "identity" | "url" | "json";
+export type RecordValueType = "string" | "number" | "boolean" | "timestamp" | "status" | "identity" | "url" | "json" | "string_list" | "identity_list" | "json_list";
 
 export interface RecordFieldMapping {
   target: string;
   source: string;
   value_type: RecordValueType;
   required?: boolean;
+  /** Required for json_list; other list types already have a fixed item type. */
+  item_schema?: JsonSchema;
+  /** Optional self-contained refinement for a JSON value. */
+  value_schema?: JsonSchema;
+  /** Resolve a qualified provider principal against the frozen reviewed roster. */
+  resolve_identity?: boolean;
+}
+
+/** Literal form structure. Text never supplies identity, time or authority. */
+export interface RecordTextParserDeclaration {
+  kind: "sectioned-text";
+  version: 1;
+  source: string;
+  starts_with: string;
+  sections: Array<{
+    id: string;
+    heading: string;
+    required: boolean;
+    fields?: Array<{ id: string; prefixes: string[]; required: boolean }>;
+    links?: {
+      hosts: string[];
+      path: string;
+      id_field: string;
+      required: boolean;
+    };
+  }>;
 }
 
 export interface RecordAccessPolicy {
@@ -25,6 +51,7 @@ export interface CompanyRecordSourceDeclaration {
   delivery: RecordDeliveryMode;
   reconcile_schedule?: string;
   identity: { source_field: string };
+  parser?: RecordTextParserDeclaration;
   fields: RecordFieldMapping[];
   access: RecordAccessPolicy;
 }
@@ -33,7 +60,9 @@ export interface CompanyRecordProjectionDeclaration {
   schema_version: 1;
   id: string;
   record_type: string;
+  source_ids?: string[];
   selection?: Record<string, JsonValue>;
+  filters?: Record<string, RecordFilterDeclaration>;
   fields: Array<{ name: string; path: string }>;
   freshness: { max_age_minutes: number };
   access: { read_groups: string[] };
@@ -41,6 +70,13 @@ export interface CompanyRecordProjectionDeclaration {
     mode: "database-view" | "workspace-proposal";
     target?: string;
   };
+}
+
+/** Names and paths are Workspace data; operators are generic Core behavior. */
+export interface RecordFilterDeclaration {
+  operator: "equals" | "in" | "after" | "missing-any";
+  path: string;
+  fields?: string[];
 }
 
 export type RecordSourceEventKind = "created" | "updated" | "deleted" | "access-changed" | "reconcile";
@@ -104,6 +140,16 @@ export interface RecordSyncReceipt {
   started_at: string;
   completed_at: string;
   watermark?: string;
+  /** Explicit source completeness, never inferred from a cursor or freshness. */
+  synced_through?: string;
+  source_digest?: string;
+  /** Actual provider-read start and exact immutable membership of a successful current scan. */
+  scan_started_at?: string;
+  scan_version_ids?: string[];
+  /** Projection definitions materialized successfully by this source scan. */
+  projection_digests?: Record<string, string>;
+  /** Content-free inventory/identity receipt retained with this completed scan. */
+  provider_evidence?: Record<string, JsonValue>;
   observed: number;
   inserted: number;
   unchanged: number;
@@ -121,6 +167,27 @@ export interface RecordQuery {
   filters?: Record<string, JsonValue>;
   limit?: number;
   cursor?: string;
+  all_pages?: boolean;
+  require_synced_through?: string;
+  require_scan_started_after?: string;
+}
+
+export interface RecordSourceScanProof {
+  source_id: string;
+  source_digest: string;
+  run_id: string;
+  scan_started_at: string;
+  scan_completed_at: string;
+  inventory_digest: string;
+  watermark: string;
+}
+
+export interface RecordSourceProof {
+  source_id: string;
+  source_digest: string;
+  run_id: string;
+  synced_through: string;
+  watermark: string;
 }
 
 export interface RecordQueryResult {
@@ -129,5 +196,10 @@ export interface RecordQueryResult {
   next_cursor?: string;
   observed_at: string;
   fresh_until: string;
+  snapshot_id: string;
+  source_proofs: RecordSourceProof[];
+  synced_through?: string;
+  scan_started_at?: string;
+  source_scan_proofs?: RecordSourceScanProof[];
   access_decision: RecordAccessDecision;
 }

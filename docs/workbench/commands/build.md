@@ -50,3 +50,9 @@ a new source of operating truth. A successful build establishes reproducible
 build evidence; it does not activate the Knowledge Bundle and does not prove a
 provider deployment or `enforced` Instance
 readiness.
+
+For executable `steps:` workflows, the control Artifact also contains validated,
+content-addressed workflow manifests with exact resolved Tools, literal config,
+Skill templates, calendars and execution constraints. Compilation does not yet
+provide the pending generic runtime guard or durable engine. See the
+[workflow contract](../../specifications/workflow-execution-v1-draft.md).

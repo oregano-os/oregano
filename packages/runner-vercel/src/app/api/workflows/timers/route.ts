@@ -1,0 +1,5 @@
+import { handleWorkflowWorker } from "../../../../lib/workflow-http.ts";
+export const runtime = "nodejs";
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+export const GET = (request: Request) => handleWorkflowWorker(request, "timers");

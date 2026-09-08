@@ -1,0 +1,75 @@
+version: 3
+plan_id: workflow-durable-state-2026-09-06
+created: "2026-09-06"
+title: Persist pinned workflow runs, leases and assignments
+objective: >-
+  Add generic workflow persistence in the existing control schema, reuse Core
+  run metadata and event evidence, and fence provider dispatch against current
+  execution leases and cancellation. Qualify additive database manifest 2.0.0.
+non_goals:
+  - Activate schedules or operating Workspaces, deploy or use production state.
+  - Claim complete engine, parity, real human acceptance or legacy removal.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-durable-state.yaml
+  - packages/state-store/workflow-engine.ts
+  - packages/state-store/interface.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/runtime/workflow-engine/memory-store.ts
+  - packages/runtime/workflow-engine/context.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/runtime/memory-state.ts
+  - packages/state-store/action-approval.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/state-postgres/workflow-migrate.ts
+  - packages/state-postgres/schema.sql
+  - packages/state-postgres/store.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/testkit/adapter/in-memory-state.ts
+  - packages/testkit/tests/workflow-state.test.ts
+  - packages/testkit/workflow-state-fixture.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/cli/tests/database-harness.test.mjs
+  - scripts/test-database.mjs
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-of-proof.md
+  - docs/status/current.md
+  - docs/testing/postgres.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/workflow-state.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/approval-atomicity.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - architecture.company-instance
+    - architecture.system-of-proof
+    - status.current
+    - testing.postgres
+architecture:
+  placement:
+    core: Owns immutable Artifact identities, generic run state, leases, assignments and cancellation fencing.
+    packages: No business execution or new Package authority is introduced.
+    workspace: Supplies the compiled process and policy; cannot mutate execution state.
+    instance: Holds retained run data, exact authenticated assignments and the additive database migration.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse workflow_runs, events and effect claims; fence actual dispatch against execution state.
+    - mechanism: timers-and-business-time
+      reason: Persist generic waits for the existing durable timer service without a second scheduler.
+    - mechanism: identity-and-authorization
+      reason: Resolve workflow conversation context from exact persisted assignments rather than model input.
+  new_core_mechanisms:
+    - Generic workflow execution snapshots with optimistic revisions and expiring worker leases.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Generic control state supports every compiled process; no domain reducer or company field is encoded.
+rollback: Disable generic dispatch and cancel open runs before reverting callers; retain additive tables, Artifacts, approvals and effect evidence.

@@ -10,6 +10,8 @@ import {
   planCompanyRecordsPreviewMigration,
   planCompanyRecordsPreviewMondayQualification,
   planCompanyRecordsPreviewSlackQualification,
+  planCompanyRecordsPreviewSync,
+  validatedCompanyRecordsSelection,
   type CompanyRecordsRehearsalConfiguration,
 } from "./company-records-rehearsal.ts";
 import { createMondayExternalAgentQualificationEvidence } from "../../../connectors/monday/external-agent-qualification.ts";
@@ -113,7 +115,7 @@ const slackConfiguration = (): CompanyRecordsRehearsalConfiguration => {
       source_id: "fixture-conversation",
       resource_binding: "fixture-channel",
       connector: "oregano/slack-record-source",
-      connector_version: "0.1.0",
+      connector_version: "0.1.3",
       secret_ref: "env:SLACK_BOT_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
       configuration: {
@@ -159,6 +161,32 @@ test("rehearsal configuration is gzip-bound and rejects unconfirmed sources", ()
   credential.bindings[0].qualification.note = ["xoxb", "1234567890", "abcdefghijklmnop"].join("-");
   const credentialEncoded = gzipSync(Buffer.from(JSON.stringify(credential))).toString("base64");
   assert.throws(() => decodeCompanyRecordsRehearsalConfiguration(credentialEncoded), /SecretRefs, never resolved credentials/);
+});
+
+test("hosted Records freezes roster evidence and selects projections by explicit source IDs", () => {
+  const value = structuredClone(slackConfiguration()) as any;
+  value.roster_markdown = "---\nmembers:\n  - id: member-1\n    name: Example Person\n    role: contributor\n    identities:\n      slack:\n        principal: slack:T12345:U12345\n---\n";
+  value.sources[0].fields.find((field: any) => field.target === "author_id").resolve_identity = true;
+  delete value.projections[0].selection;
+  value.projections[0].source_ids = ["fixture-conversation"];
+  value.bindings[0].qualification = { kind: "slack-record-source-qualification", phase: "complete", evidence: { discovery: {
+    discovery_hash: "d".repeat(64), authentication_mode: "bot-token", credentials_retained: false,
+    team_id: "T12345", bot_user_id: "U99999", channel: { id: "C12345", kind: "public-channel", is_member: true }, scopes: ["channels:history", "channels:read"],
+  } } };
+  const decoded = decodeCompanyRecordsRehearsalConfiguration(gzipSync(Buffer.from(JSON.stringify(value))).toString("base64"));
+  assert.equal(decoded.roster_markdown, value.roster_markdown);
+  const selected = validatedCompanyRecordsSelection(decoded, "fixture-conversation");
+  assert.equal(selected.projections.length, 1);
+  assert.equal(selected.registry.identities!.resolve("slack:T12345:U12345"), "member-1");
+  assert.ok(selected.registry.sourceBindingDigest("fixture-conversation"));
+  const rebound = structuredClone(decoded) as any;
+  rebound.bindings[0].binding.configuration.channel_id = "C98765";
+  rebound.bindings[0].qualification.evidence.discovery.channel.id = "C98765";
+  assert.notEqual(validatedCompanyRecordsSelection(rebound, "fixture-conversation").registry.sourceDigest("fixture-conversation"), selected.registry.sourceDigest("fixture-conversation"));
+  const plan = planCompanyRecordsPreviewSync(decoded, "fixture-conversation").plan;
+  const changed = { ...decoded, roster_markdown: value.roster_markdown.replace("member-1", "member-2") };
+  assert.notEqual(plan.confirmation_hash, planCompanyRecordsPreviewSync(changed, "fixture-conversation").plan.confirmation_hash);
+  assert.throws(() => validatedCompanyRecordsSelection({ ...decoded, roster_markdown: undefined }, "fixture-conversation"), /frozen roster/);
 });
 
 test("preview migration requires its exact independent confirmation", async () => {
@@ -371,4 +399,22 @@ test("protected Preview Slack qualification proves one exact conversation withou
   assert.equal(JSON.stringify(applied).includes("message"), false);
   assert.deepEqual(applied.provider_effects, []);
   assert.deepEqual(applied.database_effects, []);
+});
+
+test("workflow Records snapshots retain their old exact provenance across redeploy and never retain credentials", async () => {
+  const { resolveCompanyRecordsConfiguration } = await import("./runtime-connectors.ts");
+  const { engineArtifact } = await import("../../../testkit/workflow-engine-fixture.ts");
+  const value = configuration(), artifact = engineArtifact(value.instance_id);
+  artifact.instance.environment = "preview";
+  artifact.provenance.coreCommit = value.core.ref; artifact.provenance.workspaceCommit = value.workspace.ref;
+  const entry: import("../../../companyos-builder/types.ts").RuntimeConnectorConfiguration = {
+    id: "records", connector: "oregano/company-records", connectorVersion: "0.1.0", configuration: { configuration_snapshot: JSON.parse(JSON.stringify(value)) },
+  };
+  const updated = { ...value, workspace: { ...value.workspace, ref: "e".repeat(40) } };
+  const env = { NODE_ENV: "test" as const, COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64: gzipSync(JSON.stringify(updated)).toString("base64") };
+  assert.deepEqual(resolveCompanyRecordsConfiguration(entry, artifact, env), value);
+  assert.throws(() => resolveCompanyRecordsConfiguration({ ...entry, configuration: { configuration_ref: "env:COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64" } }, artifact, env), /immutable Artifact/);
+  assert.throws(() => resolveCompanyRecordsConfiguration({ ...entry, configuration: { ...entry.configuration, configuration_ref: "env:COMPANYOS_RECORDS_REHEARSAL_CONFIG_GZIP_BASE64" } }, artifact, env), /exactly one/);
+  const secret = JSON.parse(JSON.stringify(value)); secret.bindings[0].binding.configuration.token = "synthetic-credential";
+  assert.throws(() => resolveCompanyRecordsConfiguration({ ...entry, configuration: { configuration_snapshot: secret } }, artifact, env), /never resolved credentials/);
 });

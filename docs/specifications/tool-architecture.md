@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-25
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -222,3 +222,89 @@ path without fuzzy widening; traversal follows only validated bundle links and
 enforces hard depth/node limits. The Knowledge Connector fails closed when the
 trusted subject is absent or inactive, and the Provider filters protected
 candidates before rank, hydration, traversal, citation, or model output.
+
+## 10. Workflow Tool authority
+
+A compiled workflow uses the same CompanyOSRuntime, Tool isolation, Capability
+registry and approval/effect store as any other Tool execution. Its additional
+[workflow guard](workflow-execution-v1-draft.md#implemented-runtime-guard)
+intersects the resolved ToolSet with a trusted current step and exact resolved
+inputs. A model cannot omit an assignment to recover reserved effect authority.
+Constructor-injected host context carries assignment and current authorization;
+Tool input carries business data only. The durable host adapter remains pending.
+
+The Runtime derives stable workflow effect identities independently of input
+hashes. Changed input cannot create a new send for the same run/step/item.
+Schema-invalid effect receipts retain an unknown outcome with partial provider
+evidence. Successful receipts remain completed even if a workflow-required
+output field or later audit append fails. Recovery reads the retained effect;
+it does not ask a Connector to implement the Runtime's deduplication guarantee.
+
+
+The durable interpreter supplies Tool context by rereading its actual current
+lease, pinned run and current roster. Human decision notices compile to the
+same granted communication Tool below R3; they cannot recurse into an approval
+for their own delivery. A request's complete payload is shown before its
+response may authorize the bound consumer. Notice and foreach deliveries use
+separate stable item identities and retained receipts. The conversation reader
+uses authenticated account/channel/thread/subject assignments; a model cannot
+choose a run or step through Tool arguments. Hosted transport wiring and
+provider binding qualification remain separate from this Core implementation.
+
+## Partial effect review evidence
+
+An outcome-unknown Capability exception retains its original provider evidence
+inside a Registry envelope with the exact bound Connector, Connector version,
+Capability and contract version. Provider fields cannot replace that identity.
+The optional `effect_review` v1 contains at most 1,000 unique bounded item IDs,
+each with `verified`, `unknown` or `not-attempted`, and an optional bounded
+provider version. This is privileged Connector receipt evidence, never a Tool
+or model authorization. Operator reports expose only these allowed fields and
+evidence digests; raw provider errors and payloads stay in the existing store.
+
+For `work-item.batch-update`, the Registry rejects duplicate request IDs before
+dispatch. Each entry may contain distinct target values: the human decision
+binds the complete ordered array, including item IDs, expected versions, fields
+and values, on one independently bound resource. A provider adapter must not
+require identical changes across entries. Every mapped field and expected
+version is preflighted before the first mutation. This corrects the maintained
+adapter's extra restriction within the existing `1.0.0` Capability input shape;
+it adds no grant or approval authority. A successful result must say
+`complete: true` and account for exactly
+every requested item once. A partial result or an incomplete identity set becomes
+outcome-unknown even when the output satisfies its JSON schema. An optional item
+review must match the complete requested sequence; invalid or absent evidence
+cannot prove an item was unattempted. The effect remains claimed and cannot be
+retried automatically.
+
+The maintained Monday batch adapter records its completed prefix, the current
+uncertain item and the remaining unattempted suffix. `verified` means its write
+returned and its subsequent read receipt and echo evidence were retained. It
+does not establish provider-side atomicity or the absence of later changes.
+Readback or receipt-persistence failure leaves the current item uncertain.
+This report performs no reconciliation and grants no retry or new approval.
+
+Hosted Monday Connector configuration requires an exact
+`credential_identity` (account, authenticated member, external-Agent kind and
+provider Agent subject); `actor_id` must equal that authenticated member ID.
+The hosted factory always installs the trusted qualification hook. Before each
+Capability invocation, the same client checks current identity, active board,
+minimum access and active mapped columns. Duplicate or unexpected board results
+and field aliases fail. Successful and uncertain receipts retain content-free
+qualification metadata separately from write evidence. Low-level adapter
+construction remains a trusted integration boundary; an alternative host must
+supply equivalent qualification and cannot delegate it to a Company Tool.
+
+The maintained Monday work-item client requires exactly one matching item in
+preflight and readback responses, and its update mutation acknowledgement must
+identify that same requested item. A wrong or ambiguous read before dispatch
+is refused; a missing/wrong acknowledgement or readback after dispatch remains
+outcome-unknown. Single updates and comments also preserve unknown evidence if
+their post-write receipt or echo persistence fails. A comment acknowledgement
+needs a stable comment identity. These checks do not establish provider-side
+atomicity or replace current credential and resource qualification.
+
+Allowed, non-empty mapped changes are validated for the entire batch before
+the first mutation. Known local field/permission failures do not start provider
+writes. Uncertain single-item effects use the same content-free item-review
+shape and existing Runtime claim/evidence lifecycle as batches.

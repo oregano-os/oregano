@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-04
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -34,6 +34,15 @@ dates, effort, and governed conversation messages. Company Knowledge ingests doc
 retrieval and review. Neither database projection becomes Handbook authority,
 provider authority, or an authorization roster.
 
+For typed arrays and reviewed message forms, follow the
+[Record normalization contract](../../specifications/company-record-normalization-v1.md).
+Declare literal parser structure in the source, map its actual `parsed.*`
+outputs, and keep authenticated sender and provider time in separate fields.
+A message template path alone does not define an executable parser. Preserve
+malformed answers for workflow evaluation; do not silently discard extra links
+or infer identity from a name inside the answer. Provider qualification,
+source synchronization and activation still follow the lifecycle below.
+
 The lifecycle is always:
 
 ```text
@@ -51,6 +60,11 @@ The maintained providers in this release are Monday for operational board
 objects and Slack for allowlisted conversations. A future Notion, ClickUp,
 Teams, or other adapter must preserve this lifecycle behind the same Record
 Source Connector contract; it does not get a parallel synchronization command.
+
+For a structured provider object such as `column_text`, use `value_type: json`
+with a reviewed `value_schema` (for example an object of strings). This gives
+workflow validation an actual value contract and rejects malformed data during
+ingestion; plain untyped JSON cannot promise an object shape.
 
 ## 1. Interview the company values
 
@@ -164,8 +178,9 @@ fields:
     source: column_text.status_col
     value_type: status
   - target: owner
-    source: columns.people_col
-    value_type: identity
+    source: people_principals.people_col
+    value_type: identity_list
+    resolve_identity: true
 access:
   read_groups:
     - delivery
@@ -178,6 +193,22 @@ Monday selected-item inventory exposes the stable item fields `id`, `name`, `upd
 `column_text.<column-id>`. Choose the representation deliberately. The
 Workbench verifies that every named column exists on the qualified board but
 does not infer what it means.
+
+The principal mapping above requires Monday Record Source `0.3.3`, qualified
+account evidence and the frozen reviewed roster. It resolves exact people to
+stable roster IDs; unmatched identities and teams stay explicit. For raw
+provider IDs, use `columns.people_col` with `identity_list` and no resolution.
+People columns contain arrays, even when only one person is assigned.
+
+Slack Record Source `0.1.3` exposes `thread_reference` matching a published
+root receipt, plus `author_principal`, `editor_principal`,
+`content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
+evaluation map `accepted_at`: it reflects the current content version, including
+edits. Keep original authorship, current content authorship and `author_kind`
+so the Workspace can reject another editor's content or a bot response. Do not
+resolve the unqualified `author_id`. Updating either Connector requires an
+explicit Instance version pin and a new synchronization of adopted fields;
+it does not activate the source or prove synchronization through a cutoff.
 
 For a reviewed complete table surface, map the built-in fields `object_kind`,
 `provider_id`, `provider_payload`, `root_board_id`, `board_id`, `group_id`, and
@@ -309,7 +340,7 @@ instance_id: example-staging
 source_id: coordination-conversation
 resource_binding: coordination-conversation
 connector: oregano/slack-record-source
-connector_version: 0.1.0
+connector_version: 0.1.3
 secret_ref: env:SLACK_BOT_TOKEN
 qualification:
   receipt_ref: ./slack-source-qualification.json
@@ -345,6 +376,11 @@ configuration:
 contract. The Runner exchanges its trusted Vercel deployment identity for a
 fresh app token at the provider boundary; the token is never written into the
 Instance configuration, Artifact, Workspace, database, receipt, or logs.
+
+Workbench binding inspection accepts only `direct-env` and `vercel-connect-app`
+at the maintained Slack binding's exact `configuration.credential_provider`
+field. It remains ordinary non-secret configuration. Arbitrary values, nested
+selectors, inline tokens and a selector on another Connector are rejected.
 
 `oldest_at` and optional `latest_at` are explicit collection boundaries.
 Every pass reads one bounded complete inventory, including thread replies,
@@ -418,6 +454,20 @@ companyos records source connect \
   --state <outside-workspace-state-file> \
   --plan
 ```
+
+The single-source connect command accepts a projection whose `source_ids`
+contains exactly the selected source, or whose legacy `selection.source_id`
+selects it. It does not silently narrow a multi-source projection into a
+single-source completeness claim. Configure all sources through the reviewed
+Instance configuration before using a combined projection.
+
+For an identity-aware source, the generated configuration retains the exact
+reviewed `handbook/roster.md` snapshot used by local planning. The source
+confirmation and configuration digest bind that snapshot. A later roster change
+requires a new plan and configuration; previously frozen configurations keep
+the original principal mapping. Sources without identity resolution need no
+roster. Keep this non-secret company material in protected Instance state;
+it is not public fixture content or an approval decision.
 
 Review the exact Core and Workspace commits, source and projection selection,
 binding and qualification evidence, runtime target, costs, and effects. Use
@@ -592,6 +642,15 @@ is the production freshness path.
 
 ## 9. Add another provider
 
+The maintained source bindings now select Slack `0.1.3` and Monday `0.3.3`.
+Each inventory rereads the actual credential account/actor and exact resource
+metadata before content. The archived Slack qualification must name its bot
+user; Monday must name its account, member ID, member kind and confirmed
+external-Agent mapping. Renew incomplete qualification with the maintained
+metadata-read flow, update the exact Instance binding version, rebuild the
+Artifact and synchronize that source generation. Do not overwrite historical
+Artifacts or evidence. A current identity check is not a time-coverage proof.
+
 Do not copy this command into `companyos notion sync` or
 `companyos clickup sync`. A maintained provider contribution implements the
 generic Record Source Connector contract, validates its own non-secret
@@ -599,3 +658,10 @@ configuration, proves bounded complete inventory and minimum read permission,
 emits payload-free evidence, passes synthetic conformance tests, and documents
 its qualification and costs. The shared `companyos records` lifecycle remains
 unchanged.
+
+A repeated history/thread continuation or a reply with the wrong root now fails
+source inventory explicitly. Inspect the provider response and retry a complete
+inventory through the same maintained source path; do not treat that failure as
+an empty channel or increase bounds to hide it. The selected history window and
+older-root discovery constraints are unchanged, and these checks create no
+historical synchronization watermark.

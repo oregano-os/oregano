@@ -7,7 +7,7 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../../connectors/monday/records-source.ts";
-import { SlackRecordSourceConnector } from "../../../connectors/slack/records-source.ts";
+import { SlackRecordSourceConnector, SLACK_RECORD_SOURCE_CONNECTOR_ID, SLACK_RECORD_SOURCE_CONNECTOR_VERSION } from "../../../connectors/slack/records-source.ts";
 import {
   qualifySlackRecordSource,
   type SlackRecordSourceQualification,
@@ -23,6 +23,8 @@ import type {
   CompanyRecordSourceDeclaration,
 } from "../../../records/contracts.ts";
 import { CompanyRecordsRegistry } from "../../../records/registry.ts";
+import { RecordIdentityDirectory } from "../../../records/identity-directory.ts";
+import { parseRoster } from "../../../state-store/roster.ts";
 import type { CompanyRecordSourceBinding } from "../../../records/source-connector.ts";
 import { RecordSourceConnectorRegistry } from "../../../records/source-connector.ts";
 import { synchronizeRecordSnapshot } from "../../../records/synchronization.ts";
@@ -68,6 +70,8 @@ export interface CompanyRecordsRuntimeConfiguration<Environment extends CompanyR
   readonly source_confirmations: Readonly<Record<string, string>>;
   readonly sources: readonly JsonObject[];
   readonly projections: readonly JsonObject[];
+  /** Reviewed content from the exact Workspace, frozen with this configuration. */
+  readonly roster_markdown?: string;
   readonly bindings: readonly {
     readonly source_id: string;
     readonly binding: JsonObject;
@@ -164,7 +168,11 @@ export function decodeCompanyRecordsRuntimeConfiguration<Environment extends Com
   if (credentialPath || scanCredentialIndicators(JSON.stringify(value)).length > 0) {
     throw new CompanyRecordsRehearsalError("credential-in-configuration", "Company Records runtime configuration must contain SecretRefs, never resolved credentials", 503);
   }
-  exactKeys(value, ["version", "environment", "instance_id", "core", "workspace", "source_confirmations", "sources", "projections", "bindings", "reconciliation"], "Company Records runtime configuration");
+  exactKeys(value, ["version", "environment", "instance_id", "core", "workspace", "source_confirmations", "sources", "projections", "bindings", "reconciliation", "roster_markdown"], "Company Records runtime configuration");
+  if (value.roster_markdown !== undefined) {
+    if (typeof value.roster_markdown !== "string" || !value.roster_markdown || value.roster_markdown.length > 262_144) throw new CompanyRecordsRehearsalError("invalid-configuration", "roster_markdown must be bounded reviewed Workspace content", 503);
+    new RecordIdentityDirectory(parseRoster(value.roster_markdown));
+  }
   if (value.version !== 1 || value.environment !== expectedEnvironment) throw new CompanyRecordsRehearsalError("invalid-configuration", `Company Records runtime configuration must select version 1 and ${expectedEnvironment}`, 503);
   const instanceId = string(value.instance_id, "instance_id", /^[a-z][a-z0-9-]{1,62}$/);
   const core = object(value.core, "core");
@@ -259,6 +267,7 @@ export function decodeCompanyRecordsRuntimeConfiguration<Environment extends Com
     sources,
     projections,
     bindings,
+    ...(typeof value.roster_markdown === "string" ? { roster_markdown: value.roster_markdown } : {}),
     ...(reconciliation ? { reconciliation } : {}),
   };
 }
@@ -389,7 +398,7 @@ function selectedSlackQualificationBinding(configuration: CompanyRecordsRehearsa
   if (binding.instance_id !== configuration.instance_id || binding.source_id !== source.id || binding.resource_binding !== source.resource_binding) {
     throw new CompanyRecordsRehearsalError("binding-mismatch", `Binding for source '${sourceId}' does not match the rehearsal Instance and declaration`, 503);
   }
-  if (binding.connector !== "oregano/slack-record-source" || binding.connector_version !== "0.1.0") {
+  if (binding.connector !== SLACK_RECORD_SOURCE_CONNECTOR_ID || binding.connector_version !== SLACK_RECORD_SOURCE_CONNECTOR_VERSION) {
     throw new CompanyRecordsRehearsalError("invalid-declaration", `Source '${sourceId}' does not select the maintained Slack Record Source Connector`, 503);
   }
   const provider = object(binding.configuration, `binding '${sourceId}'.configuration`);
@@ -452,7 +461,9 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
   const sourceValue = configuration.sources.find((candidate) => candidate.id === sourceId);
   const bindingEntry = configuration.bindings.find((candidate) => candidate.source_id === sourceId);
   if (!sourceValue || !bindingEntry || !configuration.source_confirmations[sourceId]) throw new CompanyRecordsRehearsalError("unknown-source", `Unknown confirmed source '${sourceId}'`, 404);
-  const projectionValues = configuration.projections.filter((candidate) => candidate.record_type === sourceValue.record_type && (candidate.selection as JsonObject | undefined)?.source_id === sourceId);
+  const projectionValues = configuration.projections.filter((candidate) => candidate.record_type === sourceValue.record_type
+    && (Array.isArray(candidate.source_ids) ? candidate.source_ids.includes(sourceId)
+      : !(candidate.selection as JsonObject | undefined)?.source_id || (candidate.selection as JsonObject).source_id === sourceId));
   const messages = [
     ...schemaErrors(SOURCE_SCHEMA, sourceValue, `source '${sourceId}'`),
     ...schemaErrors(BINDING_SCHEMA, bindingEntry.binding, `binding '${sourceId}'`),
@@ -469,7 +480,7 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
       if (!targets.has(path.split(".")[0]!)) throw new CompanyRecordsRehearsalError("invalid-declaration", `Projection '${projection.id}' path '${path}' is not materialized by source '${source.id}'`, 503);
     }
   }
-  const registry = new CompanyRecordsRegistry();
+  const registry = new CompanyRecordsRegistry(configuration.roster_markdown === undefined ? {} : { identities: new RecordIdentityDirectory(parseRoster(configuration.roster_markdown)) });
   for (const candidate of configuration.sources) {
     const candidateMessages = schemaErrors(SOURCE_SCHEMA, candidate, `source '${String(candidate.id)}'`);
     if (candidateMessages.length > 0) throw new CompanyRecordsRehearsalError("invalid-declaration", candidateMessages[0]!, 503);
@@ -484,7 +495,19 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
     new MondayRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
     new SlackRecordSourceConnector({ resolveSecret: async () => await resolveRecordSourceCredential(binding) }),
   ]);
-  connectors.validate(source, binding, bindingEntry.qualification);
+  for (const candidate of configuration.sources) {
+    const candidateSource = registry.source(String(candidate.id));
+    const entries = configuration.bindings.filter((entry) => entry.source_id === candidateSource.id);
+    if (entries.length !== 1) throw new CompanyRecordsRehearsalError("binding-mismatch", `Source '${candidateSource.id}' requires one exact binding`, 503);
+    const entry = entries[0]!;
+    const errors = schemaErrors(BINDING_SCHEMA, entry.binding, `binding '${candidateSource.id}'`);
+    if (errors.length) throw new CompanyRecordsRehearsalError("invalid-declaration", errors[0]!, 503);
+    const candidateBinding = entry.binding as unknown as CompanyRecordSourceBinding;
+    if (candidateBinding.instance_id !== configuration.instance_id) throw new CompanyRecordsRehearsalError("binding-mismatch", "Record source is bound to another Instance", 503);
+    connectors.validate(candidateSource, candidateBinding, entry.qualification);
+    registry.bindSource(candidateBinding, entry.qualification);
+    registry.sourceDigest(candidateSource.id);
+  }
   return { source, binding, qualification: bindingEntry.qualification, projections, registry, connectors };
 }
 
@@ -568,10 +591,13 @@ const defaultDependencies: RehearsalDependencies = {
   async inspectStatus(configuration, sourceId) {
     const selected = validatedCompanyRecordsSelection(configuration, sourceId);
     const [status, projections] = await Promise.all([
-      inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, sourceId),
-      inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => projection.id)),
+      inspectPostgresCompanyRecordSourceStatus(configuration.instance_id, selected.registry.sourceStorageId(sourceId)),
+      inspectPostgresCompanyRecordProjectionStatus(configuration.instance_id, selected.projections.map((projection) => selected.registry.projectionStorageId(projection.id)),
+        Object.fromEntries(selected.projections.map((projection) => [selected.registry.projectionStorageId(projection.id), selected.registry.projectionSourceIds(projection.id).map((id) => selected.registry.sourceStorageId(id))]))),
     ]);
-    return { status, projections, binding: { instance_id: configuration.instance_id, connector: `${selected.binding.connector}@${selected.binding.connector_version}`, resource_binding: selected.binding.resource_binding } };
+    return { status: { ...status, source_id: sourceId },
+      projections: projections.map((value, index) => ({ ...value, projection_id: selected.projections[index]!.id })),
+      binding: { instance_id: configuration.instance_id, connector: `${selected.binding.connector}@${selected.binding.connector_version}`, resource_binding: selected.binding.resource_binding } };
   },
   async inspectIdentities(configuration, sourceId) {
     const selected = validatedCompanyRecordsSelection(configuration, sourceId);

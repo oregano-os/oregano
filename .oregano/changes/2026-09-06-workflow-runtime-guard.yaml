@@ -1,0 +1,69 @@
+version: 3
+plan_id: workflow-runtime-guard-2026-09-06
+created: "2026-09-06"
+title: Enforce compiled workflow authority at the Runtime Tool boundary
+objective: >-
+  Require trusted run or conversation context for workflow Artifacts and enforce
+  exact step, Tool, input, binding, risk and decision authority. Preserve pinned
+  evidence and successful effects when downstream receipt requirements fail.
+non_goals:
+  - Activate schedules, claim durable engine acceptance or deploy an Instance.
+  - Infer run assignments, recipients or human approvals from model arguments.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-runtime-guard.yaml
+  - packages/runtime/workflow-engine/**
+  - packages/runtime/canonical.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/state-store/action-approval.ts
+  - packages/state-store/interface.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/connectors/registry.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/**
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/tool-architecture.md
+  - docs/architecture/system-of-proof.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - specification.tool-architecture
+    - architecture.system-of-proof
+    - status.current
+architecture:
+  placement:
+    core: Owns trusted execution context, reference resolution, guard enforcement and effect evidence.
+    packages: Existing restricted Company Tools continue through the same Runtime boundary.
+    workspace: Owns step inputs, templates, decisions and declared process; cannot override trusted context.
+    instance: Owns authenticated conversation assignments, current roster and exact qualified recipient bindings.
+  mechanisms_extended:
+    - mechanism: toolset-resolver
+      reason: Intersect compiled Tool grants with the current workflow or conversational step.
+    - mechanism: identity-and-authorization
+      reason: Read run assignment and human decision authority from trusted host state rather than model arguments.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Bind effects to workflow run, step and item while checking payload digests independently.
+    - mechanism: capability-contracts-and-connectors
+      reason: Preserve unknown outcomes when a provider effect returns an invalid receipt.
+  new_core_mechanisms:
+    - A workflow Tool guard with a host-owned context reader and deterministic reference resolution.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every compiled process receives the same authority and recovery boundary without business-specific Runtime code.
+rollback: Do not activate generic workflows until engine acceptance; revert the guard only with workflow execution disabled and all retained effects preserved.

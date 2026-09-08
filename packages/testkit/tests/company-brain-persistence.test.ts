@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { neon } from "@neondatabase/serverless";
 import {
   createBrainClaim,
   createBrainPageVersion,
@@ -285,6 +286,13 @@ test("PostgresBrainStore round-trips the provider-neutral persistence contract",
   });
   assert.equal(await store.putClaim(claim), "inserted");
   assert.deepEqual(await store.getClaim(claim.claimId), claim);
+  const sql = neon(process.env.DATABASE_URL!);
+  assert.equal((await sql`select model_provenance is null as absent from companyos_knowledge.claims where claim_id = ${claim.claimId}`)[0].absent, true);
+  // Previous versions stored JSON null instead of SQL NULL. Those source
+  // facts must remain readable without pretending they have model provenance.
+  await sql`update companyos_knowledge.claims set model_provenance = 'null'::jsonb where claim_id = ${claim.claimId}`;
+  assert.deepEqual(await store.getClaim(claim.claimId), claim);
+  assert.equal(await store.putClaim(claim), "unchanged");
 
   const take = createBrainClaim({
     memoryClass: "take",

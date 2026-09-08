@@ -1,0 +1,53 @@
+version: 3
+plan_id: workflow-verification-requirements-2026-09-06
+created: "2026-09-06"
+title: Verify explicit workflow evidence requirements
+objective: >-
+  Bind a bounded explicit set of required evidence controls to each verification
+  request and receipt, preserving strict defaults and all executed-step checks.
+  Accept qualified current-scan receipts through the maintained live CLI.
+non_goals:
+  - Waive human approval, provider qualification or final acceptance gates.
+  - Change workflow execution, provider data or company policy.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-verification-requirements.yaml
+  - packages/runtime/workflow-engine/verification-requirements.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/cli/src/workflow-verification.mjs
+  - packages/testkit/tests/workflow-verification-requirements.test.ts
+  - packages/cli/tests/workflow-verification.test.mjs
+  - docs/workbench/commands/verify-live.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-verification-requirements.test.ts
+  - packages/testkit/tests/workflow-verification.test.ts
+  - packages/testkit/tests/workflow-current-scans.test.ts
+  - packages/cli/tests/workflow-verification.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - command.verify-live
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Extend the existing read-only verifier and authenticated operator API.
+    packages: No Package changes; public tests remain fictional.
+    workspace: Defines actual workflow steps and acceptance needs without weakening execution guards.
+    instance: Pins exact candidate and requested proof set; retains separate provider and human evidence.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Verify selected required evidence while checking every executed approval and effect.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Read-only review workflows and approved batch workflows can prove their distinct controls without artificial steps.
+rollback: Restore strict all-control verification requests; keep all retained execution evidence and candidate pins.

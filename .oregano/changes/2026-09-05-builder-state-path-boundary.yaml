@@ -1,0 +1,41 @@
+version: 3
+plan_id: builder-state-path-boundary-2026-09-05
+created: "2026-09-05"
+title: Reject operational state paths throughout the actual Builder proposal diff
+objective: >-
+  Reject root state paths before Workbench acceptance and include committed,
+  staged, unstaged, deleted and renamed paths when inspecting a proposal.
+non_goals:
+  - Change runtime database access, activate a Builder profile or deploy an Instance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-builder-state-path-boundary.yaml
+  - packages/runtime/repository/proposal-inspection.ts
+  - packages/testkit/tests/repository-adapters.test.ts
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/repository-adapters.test.ts
+  - packages/testkit/tests/builder-service.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - status.current
+architecture:
+  placement:
+    core: Owns independent diff inspection and immutable proposal safety boundaries.
+    packages: No Package or new extension contract is introduced.
+    workspace: Owns reviewed operating files and may not grant Builder authority over runtime state.
+    instance: Owns retained operational state and separately qualified Builder execution profiles.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the shared independently inspected diff boundary consumed by the local and hosted repository publication Connectors.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every Company Workspace receives the same protection independent of its business processes or Builder harness.
+rollback: Revert the code only with the Builder profile disabled; retain all existing state and audit history.

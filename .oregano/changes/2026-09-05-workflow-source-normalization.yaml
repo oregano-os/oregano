@@ -1,0 +1,72 @@
+version: 3
+plan_id: workflow-source-normalization-2026-09-05
+created: "2026-09-05"
+title: Normalize typed records and reviewed sectioned messages
+objective: >-
+  Execute bounded Workspace-declared message parsing in the maintained Records
+  normalization path. Preserve provider identity and time independently of text,
+  reject invalid typed source values, and expose actual parser output contracts.
+  Malformed matching messages remain evidence; extra links are never discarded.
+non_goals:
+  - Activate provider access, change production sources, or send messages.
+  - Introduce company-specific parsing, arbitrary expressions, regexes, or Tool code.
+  - Claim source completeness or workflow acceptance from parser unit tests.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-05-workflow-source-normalization.yaml
+  - packages/records/contracts.ts
+  - packages/records/normalize.ts
+  - packages/records/source-validation.ts
+  - packages/records/text-parser.ts
+  - packages/records/registry.ts
+  - packages/records/service.ts
+  - packages/schema/company-record-source-v1.schema.json
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/tests/records.test.mjs
+  - packages/testkit/tests/record-normalization.test.ts
+  - packages/testkit/fixtures/record-normalization/**
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/status/current.md
+  - docs/_generated/architecture-index.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests:
+  - packages/testkit/tests/record-normalization.test.ts
+  - packages/testkit/tests/company-records-foundation.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/cli/tests/records.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-record-normalization-v1
+    - guide.connect-company-record-source
+    - status.current
+architecture:
+  placement:
+    core: Owns bounded typed normalization, literal section parsing, and diagnostics.
+    packages: No Package or Blueprint changes.
+    workspace: Owns section headings, field labels, URL patterns and output mappings.
+    instance: Retains exact qualified provider bindings and authenticated source facts.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: >-
+        Extend source declarations with a bounded literal parser and explicit
+        typed arrays. Reuse normalization, ingestion, projections and source
+        delivery qualification. Parsing never authenticates, chooses an Agent,
+        grants permission, reads a provider, or proves synchronization coverage.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Companies can map reviewed sectioned forms and typed operational fields
+    without adding business logic to Core or provider access to Company Tools.
+rollback: >-
+  Revert before adopting new source declarations. Existing source mappings
+  retain their shape but values that violated declared types now fail closed.
+  Re-sync from retained provider evidence after correcting invalid mappings;
+  retain historical versions and never rewrite audit evidence.

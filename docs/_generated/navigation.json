@@ -448,6 +448,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.workflow-engine",
+    "title": "Hosted Workflow Engine Operations",
+    "path": "docs/operations/workflow-engine.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
     "document_id": "plan.builder-acp-mvp-implementation",
     "title": "Builder ACP MVP Architecture and Delivery Plan",
     "path": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
@@ -520,6 +528,22 @@
     "availability": null
   },
   {
+    "document_id": "specification.company-record-normalization-v1",
+    "title": "Company Record Normalization v1",
+    "path": "docs/specifications/company-record-normalization-v1.md",
+    "kind": "specification",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "specification.company-records-query-v1",
+    "title": "Company Records Workflow Query Contract",
+    "path": "docs/specifications/company-records-query-v1.md",
+    "kind": "specification",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "specification.company-records-sprint-v0.1",
     "title": "Company Records and Sprint Foundation v0.1",
     "path": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
@@ -568,6 +592,14 @@
     "availability": null
   },
   {
+    "document_id": "specification.workflow-execution-v1",
+    "title": "Workflow Execution v1",
+    "path": "docs/specifications/workflow-execution-v1-draft.md",
+    "kind": "specification",
+    "status": "draft",
+    "availability": null
+  },
+  {
     "document_id": "specification.workspace-generator-v0.1",
     "title": "Company Workspace Generator v0.1",
     "path": "docs/specifications/workspace-generator-v0.1-draft.md",
@@ -588,6 +620,14 @@
     "title": "Current System Status",
     "path": "docs/status/current.md",
     "kind": "status",
+    "status": "approved",
+    "availability": null
+  },
+  {
+    "document_id": "testing.postgres",
+    "title": "Isolated PostgreSQL Integration Tests",
+    "path": "docs/testing/postgres.md",
+    "kind": "guide",
     "status": "approved",
     "availability": null
   },

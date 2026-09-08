@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-06
 owners:
   - oregano-maintainers
 audience:
@@ -219,3 +219,48 @@ identifiers, credentials, backups, and enforcement receipts belong to the
 Company Instance. A new schema is justified only when an independent data
 boundary cannot be represented safely in the three existing schemas; the name
 “System of Proof” alone is never sufficient reason.
+
+
+An `approval.requested` event binds the original authenticated requester to an
+exact request ID, action, risk and payload hash, with its stable member ID and
+Artifact identity. R4 authorization consumes this durable request evidence to
+check separation from the approving human. Missing or conflicting request
+evidence cannot authorize an effect; a later approving turn cannot replace
+the original requester. Request and effect history remain retained on refusal.
+
+Compiled workflow Tool evidence carries the exact workflow/version, manifest,
+Artifact, Workspace commit, Instance, run, step and typed item identity. Runtime
+run metadata uses the actual workflow identity and version; standalone Tool
+invocations identify their Core revision. The effect claim has a stable identity
+and compares its input digest separately, so changed content cannot mint a new
+send. A valid completed effect retains its receipt even when a downstream
+workflow output requirement or audit append fails. Unknown provider outcomes
+retain partial evidence and require reconciliation. The guard's synthetic
+Runtime tests are not durable engine or hosted human-acceptance evidence.
+
+Generic workflow execution state and complete historical Artifacts now reside
+in the `companyos` control schema. Every optimistic state commit records its
+revision and state digest alongside Artifact/manifest identity in the existing
+run event chain. Completed outputs, item receipts and decided bindings cannot
+be overwritten through the store. Conversation binding conflicts roll back
+state and event together. Cancellation keeps historical assignments and all
+effects; active lookup refuses a terminal run. A dispatch that began before
+cancellation retains its outcome instead of being erased. The interpreter now records preparation, completion, waiting, human-response
+and timer transitions in this chain. A human-response event identifies the
+actual authorized principal and provider event and retains the exact bound
+payload digest. Decision notices themselves have ordinary Tool/effect receipts.
+Memory and Postgres execution tests use synthetic provider responses and human
+identities; live approval delivery and acceptance remain separate proof gates.
+
+Completed-run verification reads the retained Artifact, the complete bounded
+revision journal, durable waits, human-response events, source completeness
+claims, effect receipts and the actual consumed-approval join. It compares
+effect inputs with the frozen workflow and decision notice, and checks batch
+item identities and provider versions. It returns only identifiers, checks and
+digests; it neither fills missing evidence nor invokes a provider effect.
+Source proof references include the logical source, its digest, synchronization
+run, coverage instant and query snapshot; raw watermark/cursor values stay hashed.
+Synthetic receipt markers prevent the live CLI scope from treating an automated
+fixture as acceptance. Exact deployment identity, source qualification and
+human participation remain essential: a checksum is not a provider signature
+or proof that an arbitrary untrusted server ran the maintained Core.

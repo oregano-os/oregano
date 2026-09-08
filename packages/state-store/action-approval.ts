@@ -1,8 +1,9 @@
+import { approvalIsUnexpired } from "./approval-validity.ts";
 // Generic R-gated action orchestration. Presentation surfaces transport a
 // decision, while this Core path owns identity, authorization, stale-input
 // protection, atomic approval consumption, effect claiming, and evidence.
-import type { StateStore } from "./interface.ts";
-import { authorizeApproval, authorizePrincipalApproval, type RosterMember } from "./roster.ts";
+import type { StateStore, WorkflowDispatchFence } from "./interface.ts";
+import { authorizeApproval, authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "./roster.ts";
 import { CapabilityEffectOutcomeUnknownError } from "../capabilities/contracts.ts";
 
 export type ActionResult =
@@ -22,6 +23,9 @@ export async function executeApprovedAction(args: {
   /** Backward-compatible Slack surface input; new callers pass principal. */
   clicker?: { teamId: string; userId: string };
   inputHash: string;
+  /** Trusted caller may provide the stable workflow run/step/item identity. */
+  idempotencyKey?: string;
+  dispatchFence?: WorkflowDispatchFence;
   eventName: string; // e.g. 'lp.published'
   payload?: unknown;
   /** Runs exactly once after the atomic claim; returns the evidence. */
@@ -71,6 +75,35 @@ export async function executeApprovedAction(args: {
     };
   }
 
+  if (!approvalIsUnexpired(request)) {
+    await store.appendEvent({
+      runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+      event: "approval.expired", status: "failed", payload: { action, request_id: request.requestId },
+    });
+    return { ok: false, rejected: true, reason: "This approval request has expired or has no expiry — request a fresh approval.", reRequest: true };
+  }
+
+  if (level === "R4") {
+    const requests = (await store.listEvents(runId)).filter((event) => {
+      const evidence = event.payload as Record<string, unknown> | undefined;
+      return event.event === "approval.requested" && (event.stepId ?? event.step_id) === stepId
+        && typeof event.actor === "string" && event.actor.startsWith("human:") && evidence?.request_id === request.requestId
+        && evidence.action === action && evidence.input_hash === inputHash && evidence.risk === "R4";
+    });
+    const evidence = requests[0]?.payload as Record<string, unknown> | undefined;
+    const requesterPrincipal = requests[0]?.subjectPrincipal ?? requests[0]?.subject_principal;
+    const requester = typeof requesterPrincipal === "string" ? findByCanonicalPrincipal(roster, requesterPrincipal) : undefined;
+    const validRequester = requests.length === 1 && requester?.id && requester.id === evidence?.requester_member_id
+      && isHumanRosterMember(requester) && /^(active|aktiv)$/i.test(requester.status);
+    if (!validRequester || !auth.member?.id || requester!.id === auth.member.id) {
+      await store.appendEvent({
+        runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+        event: "approval.separation-refused", status: "failed", payload: { action, request_id: request.requestId },
+      });
+      return { ok: false, rejected: true, reason: "R4 requires a recorded active human requester and a different active human approver with distinct stable roster identities.", reRequest: true };
+    }
+  }
+
   const approvalId = await store.recordDecision({
     requestId: request.requestId,
     subjectPrincipal: auth.principal,
@@ -83,11 +116,19 @@ export async function executeApprovedAction(args: {
     payload: { action, level, approval_id: approvalId, request_id: request.requestId, input_hash: inputHash },
   });
 
-  const idempotencyKey = `${action}:${runId}:${inputHash}`;
+  const idempotencyKey = args.idempotencyKey ?? `${action}:${runId}:${inputHash}`;
   const claimed = await store.consumeApprovalAndClaimEffect({
     approvalId, idempotencyKey, runId, stepId, inputHash,
   });
   if (!claimed) {
+    if (!await store.getEffect(idempotencyKey)) {
+      await store.appendEvent({
+        runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+        event: "approval.claim-refused", status: "failed", idempotencyKey,
+        payload: { action, request_id: request.requestId },
+      });
+      return { ok: false, rejected: true, reason: "The approval is no longer valid for this effect — request a fresh approval.", reRequest: true };
+    }
     await store.appendEvent({
       runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
       event: "effect.duplicate-suppressed", status: "succeeded", idempotencyKey,
@@ -95,15 +136,10 @@ export async function executeApprovedAction(args: {
     return { ok: false, duplicate: true, reason: "This action was already executed (idempotency key held)." };
   }
 
-  await store.markEffectDispatched(idempotencyKey);
+  if (!await store.markEffectDispatched(idempotencyKey, args.dispatchFence)) throw new Error("Effect dispatch claim is no longer eligible.");
+  let evidence: unknown;
   try {
-    const evidence = await effect({ approvalId, idempotencyKey, principal: auth.principal });
-    await store.completeEffect(idempotencyKey, evidence);
-    await store.appendEvent({
-      runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
-      event: eventName, status: "succeeded", idempotencyKey, evidence, payload,
-    });
-    return { ok: true, evidence, approvedBy: `${auth.member!.name} (${auth.member!.role})` };
+    evidence = await effect({ approvalId, idempotencyKey, principal: auth.principal });
   } catch (error) {
     const unknown = error instanceof CapabilityEffectOutcomeUnknownError;
     const evidence = unknown
@@ -119,4 +155,11 @@ export async function executeApprovedAction(args: {
     });
     throw error;
   }
+  await store.completeEffect(idempotencyKey, evidence);
+  await store.appendEvent({
+    runId, stepId, actor: "agent", subjectPrincipal: auth.principal,
+    event: eventName, status: "succeeded", idempotencyKey, evidence, payload,
+  });
+  return { ok: true, evidence, approvedBy: `${auth.member!.name} (${auth.member!.role})` };
+
 }

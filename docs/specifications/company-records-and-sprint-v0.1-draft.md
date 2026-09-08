@@ -295,15 +295,22 @@ live Sprint destination's exact provider channel id MUST appear in the
 Instance's forbidden set, and Workbench MUST reject logical or physical
 test/live equality. A separate authenticated operator action MUST rerun the
 same scenario and match an exact reviewed output digest before any effect. It
-MUST select an existing durable intent by id and, in the first maintained
-slice, MUST accept only `message.monday-handoff`. Agent id, service principal,
-Tool grant, template, rendered content, and destination MUST come exclusively
-from the immutable Artifact and durable intent; none may be supplied by the
-operator. The effect MUST cross the ordinary
-`communication.message.publish` Capability boundary with a deterministic
-identity and retain the provider receipt in System of Proof. While the runtime
-is `shadow-only`, this publication grant MUST NOT be exposed in a
-conversational model ToolSet. Optional weekly
+MAY select one existing durable `message.monday-handoff` intent by id. A
+separate Friday Close publication action MUST accept no intent id and MUST
+resolve exactly one succeeded `message.close-reminder`,
+`message.close-chase`, and `message.close-report` intent from the reviewed
+durable scenario. It MUST publish them in that order, use the reminder's
+provider thread receipt for both replies, and fail closed on a missing,
+duplicate, non-succeeded, unproved, or thread-mismatched intent. Agent id,
+service principal, Tool grant, templates, rendered content, destination, and
+thread reference MUST come exclusively from the immutable Artifact, durable
+intents, and provider receipt; none may be supplied by the operator. Every
+effect MUST cross the ordinary `communication.message.publish` Capability
+boundary with its own deterministic identity and retain the provider receipt
+in System of Proof. A retry MUST reuse successful effect identities rather
+than duplicate messages. Retro and all non-test destinations MUST remain
+ineligible. While the runtime is `shadow-only`, this publication grant MUST NOT
+be exposed in a conversational model ToolSet. Optional weekly
 features MUST compile independently; enabling Monday hand-off MUST NOT require
 a Company to invent weekday digest or readiness policy.
 

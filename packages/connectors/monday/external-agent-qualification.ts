@@ -19,7 +19,7 @@ const sha256 = (value: unknown): string => createHash("sha256")
   .update(typeof value === "string" ? value : JSON.stringify(value))
   .digest("hex");
 
-const normalizeEffectiveAccess = (value: string): string => value === "view"
+export const normalizeMondayEffectiveAccess = (value: string): string => value === "view"
   ? "read"
   : value === "edit"
     ? "read-write"
@@ -46,7 +46,7 @@ export function createMondayExternalAgentQualificationEvidence(args: {
   if (JSON.stringify(returnedBoards) !== JSON.stringify(expectedBoards)) {
     throw new Error("Monday did not return exactly the confirmed boards for the external Agent.");
   }
-  const accessByBoard = new Map(result.data.boards.map((board) => [String(board.id), normalizeEffectiveAccess(board.accessLevel)]));
+  const accessByBoard = new Map(result.data.boards.map((board) => [String(board.id), normalizeMondayEffectiveAccess(board.accessLevel)]));
   const effectiveAccess = boards.map((board) => ({
     id: board.id,
     scope: "board",

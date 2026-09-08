@@ -1,0 +1,59 @@
+schema_version: 1
+id: monday-sprint-board
+record_type: work-item
+resource_binding: sprint-board
+connection: connections/monday.md
+delivery: poll
+identity:
+  source_field: id
+fields:
+  - target: work_item_id
+    source: provider_id
+    value_type: string
+    required: true
+  - target: title
+    source: name
+    value_type: string
+    required: true
+  - target: assignee_ids
+    source: people_principals.person
+    value_type: identity_list
+    required: true
+    resolve_identity: true
+  - target: group
+    source: group_id
+    value_type: string
+    required: true
+  - target: status
+    source: column_text.status
+    value_type: status
+    required: true
+  - target: fields
+    source: column_text
+    value_type: json
+    required: true
+    value_schema:
+      type: object
+      additionalProperties:
+        type: string
+  - target: url
+    source: url
+    value_type: url
+    required: true
+  - target: provider_version
+    source: updated_at
+    value_type: timestamp
+    required: true
+  - target: changed_at
+    source: updated_at
+    value_type: timestamp
+    required: true
+  - target: lifecycle_state
+    source: state
+    value_type: status
+    required: true
+access:
+  read_groups:
+    - sprint-participant
+    - sprint-process-steward
+  write_roles: []

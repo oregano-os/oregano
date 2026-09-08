@@ -36,3 +36,41 @@ owning agent.
 Before review, run `companyos validate` and `companyos inspect --plan <file>`.
 Include at least one happy-path, rejection, retry, and unauthorized-action test
 when the workflow can produce effects.
+
+## Executable steps (validation and compilation available)
+
+A workflow may declare `type: workflow`, a stable `id`, a `version`, its
+`owner`, `execution_mode`, one schedule trigger (or `operator`) and `steps:`.
+Each list entry starts with its step ID mapped to a Tool, `wait`, `route` or
+`human:<role>`. The remaining fields are that construct's options. Mirror each
+step once in the prose with an owner/risk marker and `<!-- step:id -->`, in
+the same order. The full fictional example is
+`packages/testkit/fixtures/lindenhof-studio/workflows/friday-close.compact.md`.
+
+Put literal parameters in a referenced config v2 file. Use `$config`,
+`$steps`, `$trigger`, `$instance` and `$item` references, with computations in
+Company Tools. A referenced output must be produced on every path reaching
+its consumer. For messages, use a Skill `template` and scalar `vars`; the
+renderer supplies the actual publish input. Publish a root without a thread
+and use its persisted receipt for subsequent replies. Decisions bind the exact
+payload; an empty batch must end before approval.
+
+`companyos validate` now checks executable authoring, including source-derived
+Record row types, grants, risk minima, markers, schedule references and control
+flow. `companyos build` also compiles the validated steps into frozen manifests in
+the Artifact. The generic runtime guard and durable engine are implemented;
+executing a workflow requires separately verified Instance controls and explicit
+activation. Consult the
+[Workflow Execution specification](../../specifications/workflow-execution-v1-draft.md)
+for the available validation, compilation and remaining execution gates.
+
+Scheduled workflows use the originating schedule for business-day timeouts.
+For an operator workflow with timed waits or decisions, add
+`calendar: schedules/<file>.yaml`. Keep company parameters in literal config;
+the compiler does not infer a calendar from business parameter names.
+
+Opening triggers, wait triggers and explicit calendar paths select the files
+that must satisfy the executable calendar contract. Independent scheduling
+metadata may coexist in `schedules/`; it is not added to workflow manifests.
+Keep all candidate YAML readable and avoid competing trigger IDs. Invalid or
+missing referenced calendars still block validation and compilation.

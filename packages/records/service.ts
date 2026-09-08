@@ -10,9 +10,11 @@ import type {
 } from "./contracts.ts";
 import { decideProjectionAccess } from "./access.ts";
 import { projectionRecordId } from "./identity.ts";
-import { normalizeRecordObject } from "./normalize.ts";
 import { projectRecord } from "./projection.ts";
 import { CompanyRecordsRegistry } from "./registry.ts";
+import { MAX_RECORD_QUERY_ROWS, queryRecordSnapshot } from "./query.ts";
+import { compareRecordInstants } from "./instant.ts";
+import { sha256 } from "../runtime/canonical.ts";
 
 export class RecordAccessDeniedError extends Error {
   readonly decision: RecordAccessDecision;
@@ -37,7 +39,7 @@ export class CompanyRecordsService {
     store: CompanyRecordsStore;
     now: () => Date;
   }) {
-    this.dependencies = dependencies;
+    this.dependencies = { ...dependencies, store: dependencies.registry.scopeStore(dependencies.store) };
   }
 
   async ingest(args: {
@@ -48,10 +50,8 @@ export class CompanyRecordsService {
   }): Promise<{ duplicate: boolean; version?: RecordObjectVersion; projected: string[] }> {
     const { instanceId, registry, store, now } = this.dependencies;
     const event: RecordSourceEvent = { ...args.event, instance_id: instanceId };
-    if (!await store.appendSourceEvent(event)) return { duplicate: true, projected: [] };
-
     const source = registry.source(event.source_id);
-    const version = normalizeRecordObject({
+    const version = registry.normalize({
       instanceId,
       source,
       raw: args.raw,
@@ -59,6 +59,9 @@ export class CompanyRecordsService {
       deleted: args.deleted,
       receipt: args.receipt,
     });
+    if (version.object_id !== event.object_id) throw new Error("Record event identity does not match the provider object");
+    // Invalid input must not consume the deduplication identity before a retry.
+    if (!await store.appendSourceEvent(event)) return { duplicate: true, projected: [] };
     await store.putObjectVersion(version);
 
     const projected: string[] = [];
@@ -86,19 +89,33 @@ export class CompanyRecordsService {
     const accessDecision = decideProjectionAccess({ projection, subject: args.subject, decidedAt });
     await store.appendAccessDecision(accessDecision);
     if (!accessDecision.allowed) throw new RecordAccessDeniedError(accessDecision);
-    const page = await store.queryProjectionRows({
+    const sourceIds = projection.source_ids ?? registry.sourceForRecordType(projection.record_type).map((source) => source.id);
+    if (sourceIds.some((sourceId) => registry.source(sourceId).record_type !== projection.record_type)) {
+      throw new Error(`Projection '${projection.id}' names a source of another record type`);
+    }
+    for (const sourceId of sourceIds) registry.assertSourceInstance(sourceId, instanceId);
+    const sourceDigests = Object.fromEntries(sourceIds.map((sourceId) => [sourceId, registry.sourceDigest(sourceId)]));
+    const boundSourceIds = sourceIds.filter((sourceId) => registry.sourceBindingDigest(sourceId) !== undefined);
+    const snapshot = await store.readProjectionSnapshot({
       instanceId,
       projectionId: projection.id,
-      filters: args.query.filters,
-      limit: Math.min(Math.max(args.query.limit ?? 50, 1), 200),
-      cursor: args.query.cursor,
+      sourceIds,
+      sourceDigests,
+      ...(boundSourceIds.length ? { projectionDigest: sha256(projection) } : {}),
+      ...(args.query.require_scan_started_after !== undefined ? { currentScan: true, projectionDigest: sha256(projection) } : {}),
+      limit: MAX_RECORD_QUERY_ROWS,
     });
-    const observedAt = page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
+    if (snapshot.rows.some((row) => row.instance_id !== instanceId)
+      || snapshot.sourceReceipts.some((receipt) => receipt.instance_id !== instanceId)) {
+      throw new Error("Record snapshot belongs to another Company Instance");
+    }
+    const page = await queryRecordSnapshot({ snapshot, projection, sourceIds, sourceDigests, boundSourceIds, query: args.query });
+    const observedAt = page.source_scan_proofs?.map((proof) => proof.scan_completed_at).sort(compareRecordInstants).at(-1)
+      ?? page.rows.map((row) => row.projected_at).sort().at(-1) ?? decidedAt;
     const freshUntil = new Date(new Date(observedAt).getTime() + projection.freshness.max_age_minutes * 60_000).toISOString();
     return {
       projection_id: projection.id,
-      rows: page.rows,
-      ...(page.nextCursor ? { next_cursor: page.nextCursor } : {}),
+      ...page,
       observed_at: observedAt,
       fresh_until: freshUntil,
       access_decision: accessDecision,

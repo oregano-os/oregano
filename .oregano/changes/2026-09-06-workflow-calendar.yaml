@@ -1,0 +1,50 @@
+version: 3
+plan_id: workflow-calendar-2026-09-06
+created: "2026-09-06"
+title: Generalize business calendars and workflow timer identity
+objective: >-
+  Reuse the existing calendar primitives for generic workflow schedule
+  occurrences, business-day deadlines and delivery windows. Align timer
+  identity checks across memory and Postgres without activating scheduling.
+non_goals:
+  - Activate a schedule, deploy an Instance or claim durable engine acceptance.
+  - Remove the legacy execution oracle before parity and real acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-06-workflow-calendar.yaml
+  - packages/runtime/business-time.ts
+  - packages/runtime/workflow-engine/calendar.ts
+  - packages/runtime/memory-durable-timers.ts
+  - packages/domains/sprint/business-time.ts
+  - packages/testkit/tests/workflow-calendar.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/workflow-calendar.test.ts
+  - packages/testkit/tests/sprint-domain.test.ts
+  - packages/testkit/tests/sprint-orchestration.test.ts
+  - packages/testkit/tests/durable-state-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Owns timezone conversion, business-day arithmetic, schedule evaluation and timer identity.
+    packages: No new Package mechanism is introduced.
+    workspace: Owns calendar dates, business days, trigger parameters and delivery window.
+    instance: Owns actual clock, timer storage and explicit schedule activation.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Extract the existing generic calendar helpers and reuse the durable timer stores.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Compute finite business-day deadlines and compare timer payloads canonically.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every workflow uses the same calendar rules with opaque Workspace trigger data.
+rollback: Leave schedule activation disabled; revert calendar integration while retaining existing timer and effect history.

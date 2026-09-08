@@ -103,6 +103,7 @@ export async function inspectPostgresCompanyRecordSyncReceipt(
 export async function inspectPostgresCompanyRecordProjectionStatus(
   instanceId: string,
   projectionIds: readonly string[],
+  sourceScopeByProjection?: Record<string, string[]>,
 ): Promise<PostgresCompanyRecordProjectionStatus[]> {
   if (projectionIds.length > 100) throw new Error("Company Records status supports at most one hundred projections");
   const sql = connection();
@@ -110,7 +111,11 @@ export async function inspectPostgresCompanyRecordProjectionStatus(
   if (!present[0]?.projection_rows) return projectionIds.map((projectionId) => ({ available: false, projection_id: projectionId, rows: 0 }));
   return Promise.all(projectionIds.map(async (projectionId) => {
     const rows = await sql`select count(*) as count from companyos_records.projection_rows
-      where instance_id = ${instanceId} and projection_id = ${projectionId}`;
+      where instance_id = ${instanceId} and projection_id = ${projectionId}
+        and (${sourceScopeByProjection === undefined} or source_version_id in (
+          select version_id from companyos_records.object_versions
+          where instance_id = ${instanceId} and source_id = any(${sourceScopeByProjection?.[projectionId] ?? []}::text[])
+        ))`;
     return { available: true, projection_id: projectionId, rows: Number(rows[0]?.count ?? 0) };
   }));
 }
@@ -280,6 +285,57 @@ export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
         (projection_id, principal_id, allowed, policy_digest, reason, decided_at)
         values (${decision.projection_id}, ${decision.principal_id}, ${decision.allowed},
           ${decision.policy_digest}, ${decision.reason}, ${decision.decided_at})`;
+    },
+
+    async readProjectionSnapshot(args) {
+      await ensureCompanyRecordsSchema();
+      const sourceDigests = args.sourceDigests ? JSON.stringify(args.sourceDigests) : null;
+      // One SQL statement gives rows and completion receipts the same MVCC snapshot.
+      // No connection or mutable read cursor survives beyond this request.
+      // Sort integral seconds and fractional text separately: timestamptz rounds
+      // beyond microseconds and would choose the wrong proof within one microsecond.
+      const currentScan = args.currentScan === true;
+      const result = await connection()`with selected_receipts as materialized (
+          select distinct on (source_id) source_id, summary from companyos_records.sync_receipts
+          where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
+            and (case when ${currentScan} then summary->>'scan_started_at' else summary->>'synced_through' end) is not null
+            and watermark is not null and summary->>'errors' = '0'
+            and (${sourceDigests}::jsonb is null or summary->>'source_digest' = (${sourceDigests}::jsonb)->>source_id)
+            and (${args.projectionDigest ?? null}::text is null or summary->'projection_digests'->>${args.projectionId} = ${args.projectionDigest ?? null})
+          order by source_id,
+            regexp_replace(case when ${currentScan} then summary->>'scan_started_at' else summary->>'synced_through' end, '[.][0-9]+', '')::timestamptz desc,
+            rpad(coalesce(substring(case when ${currentScan} then summary->>'scan_started_at' else summary->>'synced_through' end from '[.]([0-9]+)'), ''), 9, '0') desc,
+            run_id desc
+        ), selected_rows as materialized (
+          select * from companyos_records.projection_rows
+          where ${currentScan} = false and instance_id = ${args.instanceId} and projection_id = ${args.projectionId}
+            and (${args.strictSourceScope === true} = false or source_version_id in (
+              select version_id from companyos_records.object_versions
+              where instance_id = ${args.instanceId} and source_id = any(${args.sourceIds}::text[])
+            ) or source_version_id not in (
+              select version_id from companyos_records.object_versions where instance_id = ${args.instanceId}
+            ))
+          order by record_id collate "C" limit ${args.limit + 1}
+        ), scan_versions as materialized (
+          select v.* from companyos_records.object_versions v
+          join selected_receipts r on r.source_id = v.source_id and (r.summary->'scan_version_ids') ? v.version_id
+          where ${currentScan} = true and v.instance_id = ${args.instanceId}
+          order by v.version_id collate "C" limit ${args.limit + 1}
+        ) select
+        coalesce((select jsonb_agg(to_jsonb(r) order by r.record_id) from selected_rows r), '[]'::jsonb) as rows,
+        coalesce((select jsonb_agg(jsonb_build_object('version_id', v.version_id,
+          'source_id', v.source_id, 'source_digest', v.source_receipt->>'source_digest'))
+          from companyos_records.object_versions v
+          where v.instance_id = ${args.instanceId}
+            and v.version_id in (select source_version_id from selected_rows)), '[]'::jsonb) as row_sources,
+        coalesce((select jsonb_agg(s.summary) from selected_receipts s), '[]'::jsonb) as receipts,
+        coalesce((select jsonb_agg(to_jsonb(v) order by v.version_id) from scan_versions v), '[]'::jsonb) as scan_versions`;
+      return {
+        rows: (json(result[0]?.rows) as Array<Record<string, any>>).map(projectionRow),
+        sourceReceipts: json(result[0]?.receipts),
+        rowSources: json(result[0]?.row_sources),
+        ...(currentScan ? { scanVersions: (json(result[0]?.scan_versions) as Array<Record<string, any>>).map(objectVersion) } : {}),
+      };
     },
 
     async appendSyncReceipt(receipt) {
