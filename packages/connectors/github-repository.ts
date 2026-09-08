@@ -230,7 +230,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     const prefix = `/repos/${encodeURIComponent(binding.owner)}/${encodeURIComponent(binding.name)}`;
     return await this.#withInstallationToken(binding.installationId, binding.providerRepositoryId,
       { contents: "write", pull_requests: "write", checks: "read", administration: "read" }, async (token) => use({
-        request: async <R>(method: "GET" | "PUT", path: string, body?: unknown): Promise<R> => {
+        request: async <R>(method: "GET" | "PUT" | "PATCH", path: string, body?: unknown): Promise<R> => {
           if (!path.startsWith("/") || path.includes("..") || path.includes("\\") || path.includes("#")) throw new Error("Invalid scoped release path.");
           return await this.#installationRequest<R>(token, method, `${prefix}${path}`, body);
         },

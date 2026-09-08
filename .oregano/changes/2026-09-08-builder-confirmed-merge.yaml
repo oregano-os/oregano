@@ -1,0 +1,66 @@
+version: 3
+plan_id: builder-confirmed-merge-2026-09-08
+created: 2026-09-08
+title: Release Core 0.7.0 with human-confirmed Builder merges
+objective: Let the trusted Builder coordinator merge the exact checked result
+  after explicit human confirmation without requiring paid hosted branch
+  protection. Preserve existing hosted rules, current company authority,
+  independent validation, exact production provenance and retry reconciliation.
+non_goals:
+  - Give the coding process repository credentials or approval authority.
+  - Bypass existing hosted protection or deploy arbitrary Git pushes.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-confirmed-merge.yaml
+  - package.json
+  - packages/connectors/github-release.ts
+  - packages/connectors/github-repository.ts
+  - packages/runtime/release/**
+  - packages/runner-vercel/src/lib/builder/*release*
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/tests/builder-release.test.ts
+  - packages/cli/**
+  - packages/testkit/fixtures/**
+  - docs/onboarding/README.md
+  - docs/specifications/builder-governance.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/tests/builder-release.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - specification.company-instance-release-promotion-v0.1
+    - guide.operate-builder
+    - status.current
+    - onboarding.index
+architecture:
+  placement:
+    core: Confirmed exact-candidate merge strategies, authorization and release evidence.
+    packages: Distribute the updated maintained Builder operating guide.
+    workspace: Retain each company's acceptance and deployment policy and readable change scope.
+    instance: Bind the existing repository installation and production host; retain current hosted protections when present.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse human acceptance, exact candidate digests and durable release reconciliation.
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing repository release adapter with a non-forcing exact fast-forward path.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company and coding profile uses the same confirmation
+    and release coordinator. Private repositories do not need a paid protection
+    feature; existing provider rules remain enforced through the protected path.
+rollback: Stop new releases, reconcile any in-flight merge, and restore the
+  prior exact deployment. Repositories without hosted protection must stop
+  automatic releases on the preceding Core. Retain accepted candidates and
+  receipts; application rollback does not undo repository or data changes.
+open_decisions: []

@@ -60,6 +60,13 @@ machine then attempts hosted protection automatically and records `enforced` or
 `advisory` alongside the other provider and runtime evidence without placing
 credentials in the Workspace or state file.
 
+Core 0.7.0 also supports confirmed Builder releases with advisory repository
+protection. After independent checks, the authorized human explicitly confirms
+the exact merge and live adoption. Core uses a non-forcing fast-forward on an
+unprotected branch and preserves hosted rules on a protected branch. GitHub Free
+is sufficient for this path; the Instance still needs qualified repository,
+coding and release bindings. See [Operate the Builder](../workbench/guides/operate-builder.md).
+
 The maintained setup profile composes private typed adapters for four roles:
 source host, runtime host, state service, and communication provider. GitHub,
 Vercel, Neon/Postgres, and Slack are the maintained bindings, not Core runtime

@@ -15,18 +15,28 @@ function githubFixture() {
   const protection = { required_status_checks: { strict: true, checks: [{ context: "check", app_id: 15368 }] }, enforce_admins: { enabled: true }, allow_force_pushes: { enabled: false } };
   const runs = { total_count: 1, check_runs: [{ id: 12, name: "check", head_sha: commit, status: "completed", conclusion: "success", app: { id: 15368 } }] };
   let branch = base, writes = 0, ready = 0, ambiguous = false;
+  let protectedBranch = true, protectionReads = 0, moveDuringMerge = false, rejectWrite = false;
   const client: GitHubReleaseClient = {
     async readyForReview() { ready++; pull.draft = false; },
     async request<T>(method: string, path: string, body?: unknown): Promise<T> {
       let response: unknown;
-      if (method === "PUT") {
+      if (method === "PATCH") {
+        assert.equal(protectedBranch, false);
+        assert.equal(path, "/git/refs/heads/main"); assert.deepEqual(body, { sha: commit, force: false });
+        if (moveDuringMerge) branch = "f".repeat(40);
+        if (rejectWrite || branch !== base) throw new Error("Non-fast-forward or rejected reference update");
+        writes++; branch = commit;
+        // Deliberately leave PR metadata behind the successful reference write.
+        if (ambiguous) throw new Error("connection lost after fast-forward");
+        response = { object: { sha: commit } };
+      } else if (method === "PUT") {
         assert.equal(path, "/pulls/3/merge"); assert.deepEqual(body, { sha: commit, merge_method: "merge" });
         writes++; pull.merged = true; pull.merge_commit_sha = merged; branch = merged;
         if (ambiguous) throw new Error("connection lost after merge");
         response = { merged: true };
       } else if (path === "/pulls/3") response = pull;
-      else if (path.endsWith("/protection")) response = protection;
-      else if (path.startsWith("/branches/")) response = { commit: { sha: branch } };
+      else if (path.endsWith("/protection")) { protectionReads++; assert.equal(protectedBranch, true); response = protection; }
+      else if (path.startsWith("/branches/")) response = { commit: { sha: branch }, protected: protectedBranch };
       else if (path.includes("/check-runs")) response = runs;
       else if (path.startsWith("/compare/")) response = { status: "ahead", total_commits: 1, files: [{ filename: input.changedPaths[0], sha: "f".repeat(40), status: "modified" }] };
       else if (path === `/commits/${commit}`) response = { sha: commit, commit: { tree: { sha: tree } }, parents: [{ sha: base }] };
@@ -35,7 +45,9 @@ function githubFixture() {
       return structuredClone(response) as T;
     },
   };
-  return { input, client, protection, runs, pull, move: () => { branch = "f".repeat(40); }, ambiguous: () => { ambiguous = true; }, counts: () => ({ writes, ready }) };
+  return { input, client, protection, runs, pull, move: () => { branch = "f".repeat(40); }, ambiguous: () => { ambiguous = true; }, counts: () => ({ writes, ready }),
+    unprotected: () => { protectedBranch = false; }, protect: () => { protectedBranch = true; }, protectionReads: () => protectionReads,
+    race: () => { moveDuringMerge = true; }, reject: () => { rejectWrite = true; } };
 }
 async function candidate(f: ReturnType<typeof githubFixture>): Promise<ReleaseCandidate> {
   const inspection = await inspectGitHubCandidate(f.client, f.input);
@@ -53,6 +65,10 @@ test("GitHub release pins the check producer, full path inventory and protected 
   assert.equal((await inspectGitHubCandidate(f.client, f.input)).protectionEnforced, false);
   await assert.rejects(inspectGitHubCandidate(f.client, { ...f.input, changedPaths: ["policies/hidden.yaml"] }), /paths differ/);
   assert.deepEqual(f.counts(), { writes: 0, ready: 0 });
+  const missing = githubFixture();
+  Reflect.deleteProperty(missing.protection.required_status_checks, "checks");
+  assert.equal((await inspectGitHubCandidate(missing.client, missing.input)).protectionEnforced, false,
+    "observed CI is not evidence that GitHub enforces required checks");
 });
 test("GitHub merge reconciles a lost response without a duplicate write and refuses moved bases", async () => {
   const f = githubFixture(); const accepted = await candidate(f); f.ambiguous();
@@ -63,6 +79,52 @@ test("GitHub merge reconciles a lost response without a duplicate write and refu
   const stale = githubFixture(); const old = await candidate(stale); stale.move();
   await assert.rejects(mergeGitHubCandidate(stale.client, stale.input, old), /prerequisites changed/);
   assert.deepEqual(stale.counts(), { writes: 0, ready: 0 });
+});
+
+test("unprotected repositories use exact fast-forward without querying paid protection", async () => {
+  const f = githubFixture(); f.unprotected();
+  const inspection = await inspectGitHubCandidate(f.client, f.input);
+  assert.equal(inspection.protectionEnforced, false);
+  assert.equal(inspection.mergeStrategy, "exact-fast-forward");
+  const accepted = await candidate(f); f.ambiguous();
+  const receipt = await mergeGitHubCandidate(f.client, f.input, accepted);
+  assert.equal(receipt?.mergedCommit, commit); assert.equal(receipt?.mergedTree, tree);
+  assert.equal(f.pull.merged, false, "receipt recovery does not depend on delayed PR metadata");
+  assert.deepEqual(await mergeGitHubCandidate(f.client, f.input, accepted), receipt);
+  assert.deepEqual(f.counts(), { writes: 1, ready: 1 }); assert.equal(f.protectionReads(), 0);
+});
+
+test("fast-forward refuses a main change at dispatch and never overwrites or incorporates it", async () => {
+  const f = githubFixture(); f.unprotected(); const accepted = await candidate(f); f.race();
+  await assert.rejects(mergeGitHubCandidate(f.client, f.input, accepted), /Target advanced/);
+  assert.equal(f.counts().writes, 0);
+  const rejected = githubFixture(); rejected.unprotected(); const next = await candidate(rejected); rejected.reject();
+  assert.equal(await mergeGitHubCandidate(rejected.client, rejected.input, next), undefined);
+  assert.equal(rejected.counts().writes, 0);
+});
+
+test("fast-forward requires independent checks and reapproval after hosted check or strategy changes", async () => {
+  const f = githubFixture(); f.unprotected(); const accepted = await candidate(f);
+  f.runs.check_runs[0]!.conclusion = "failure";
+  await assert.rejects(mergeGitHubCandidate(f.client, f.input, accepted), /prerequisites changed/);
+  f.runs.check_runs[0]!.conclusion = "success"; f.protect();
+  await assert.rejects(mergeGitHubCandidate(f.client, f.input, accepted), /prerequisites changed/);
+  assert.equal(f.counts().writes, 0);
+  f.unprotected();
+  await assert.rejects(inspectGitHubCandidate(f.client, { ...f.input, workbenchChecks: [] }), /evidence is incomplete/);
+  f.runs.check_runs = [];
+  f.runs.total_count = 0;
+  const withoutOptionalCI = await inspectGitHubCandidate(f.client, f.input);
+  assert.equal(withoutOptionalCI.checks.length, 3);
+  assert.ok(withoutOptionalCI.checks.every((check) => check.status === "passed"));
+});
+
+test("observed check enumeration order does not invalidate the same confirmed result", async () => {
+  const f = githubFixture(); f.unprotected();
+  f.runs.check_runs.push({ ...f.runs.check_runs[0]!, id: 13, name: "lint" }); f.runs.total_count = 2;
+  const before = await inspectGitHubCandidate(f.client, f.input);
+  f.runs.check_runs.reverse();
+  assert.equal((await inspectGitHubCandidate(f.client, f.input)).checksDigest, before.checksDigest);
 });
 function vercelFixture(reference = false) {
   const values = new Map<string, unknown>();
