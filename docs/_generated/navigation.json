@@ -448,6 +448,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.vercel-slack-event-staging",
+    "title": "Stage Slack channel events on a shared app",
+    "path": "docs/operations/vercel-slack-event-staging.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "operations.workflow-engine",
     "title": "Hosted Workflow Engine Operations",
     "path": "docs/operations/workflow-engine.md",
