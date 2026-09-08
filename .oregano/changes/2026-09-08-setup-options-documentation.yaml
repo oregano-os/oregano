@@ -1,0 +1,54 @@
+version: 3
+plan_id: setup-options-documentation-2026-09-08
+created: "2026-09-08"
+title: Explain available setup choices and the limits of provider portability
+objective: >-
+  Give humans and coding agents one accurate setup-choice page that separates
+  the implemented Vercel, Neon, and Slack profile, its model variants, local
+  authoring, and unimplemented provider combinations. Document the observed
+  release metadata and Vercel scheduling limitations without claiming a new
+  profile, a fresh live qualification, or a changed installation workflow.
+non_goals:
+  - Implement another provider profile or change setup confirmations.
+  - Deploy, inspect, or change a real Company Instance or provider resource.
+  - Publish a release or alter model-route or scheduling behavior.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-setup-options-documentation.yaml
+  - docs/onboarding/README.md
+  - docs/onboarding/setup-options.md
+  - docs/workbench/commands/setup.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests:
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/tests/runner-setup-verification.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.index
+    - onboarding.setup-options
+    - command.setup
+  reason_if_none: ""
+architecture:
+  placement:
+    core: Document existing Workbench capabilities and observable implementation gaps; no executable mechanism changes.
+    packages: No Package or Blueprint changes and no new provider plugin contract.
+    workspace: No Company Workspace changes; real company identities and operating choices remain outside Core.
+    instance: No live inspection, provisioning, credential access, migration, or deployment; qualification remains Instance-specific.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The selection guidance applies to every company and reuses the existing
+    four-role setup boundary and separate model-recipe selection. It exposes
+    current implementation limits without adding company-specific values or
+    another source of installation authority.
+rollback: >-
+  Revert the setup-choice page and its links, then regenerate documentation
+  indexes. No runtime, provider, database, or compatibility migration is involved.

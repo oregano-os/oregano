@@ -129,6 +129,7 @@ In `review_mode: independent-review`, a security-change author MUST NOT provide
 the independent approval. Acceptance, merge and deployment retain separate authority checks. A single
 explicit result-acceptance action MAY authorize the exact merge and deployment
 when the same human holds both authorities and sees the candidate and target.
+The fresh-only initialization exception below has no prior operating version to merge.
 
 ## 4. Change lanes
 
@@ -405,3 +406,119 @@ release authority. Connected test execution, optional Preview preparation,
 arbitrary migration adapters and split-actor handoff remain future extensions.
 A failed deployment must retain its exact evidence; application recovery does not
 undo database changes or already completed business effects.
+
+### Standard fresh initialization and advanced setup
+
+The standard `companyos setup` command implements the fresh-only exception:
+one reviewed decision authorizes the listed new resources and their first
+production deployment. Schema `5` and flow `fresh-initialization` bind session,
+authenticated human, selected scopes, exact release/template/configuration,
+model, region, names and disclosed costs. All resource modes MUST be `create`.
+Changed scope MUST NOT reuse the decision. Provider consent remains separate.
+
+The initializer MUST produce one valid operating `0.1.0` Workspace, a private
+repository with an exact checked first commit, attempted hosted protection,
+resource ownership receipts, qualified database and exact Artifact. It MUST NOT
+fabricate an activation PR, merge commit or approval record. The verifier uses
+this evidence variant only for fresh initialization; existing states, adoption
+and later changes retain their applicable review and deployment requirements.
+The first ordinary Slack exchange MUST bind the authorized principal, current
+Artifact, selected model, delivered response and durable conversation evidence.
+
+The standard implementation is experimental. Its release-built platform payloads
+and local/simulated regression tests do not establish cold live timing.
+
+The experimental `companyos setup --profile vercel-neon-slack` command
+retains the explicit advanced and legacy initial-installation subset:
+
+- exact clean Core and Workspace identity plus an immutable Artifact;
+- a concrete Vercel Pro-or-Enterprise prerequisite, checked automatically
+  before hosted resource creation, on resume, before production deployment,
+  and during final verification; Hobby returns a resumable human billing
+  action, with no automatic subscription change or cron-frequency question;
+- a private GitHub repository, an automatic hosted-protection attempt recorded
+  as `enforced` or `advisory`, a required CompanyOS check, and explicit
+  Workspace Steward merge authorization for the authoring-to-operating change;
+- explicit create-or-adopt choices for one Vercel project, Neon resource, and
+  Slack connection;
+- database preparation that detects first bootstrap, additive upgrade, or
+  already-current verification for both maintained schemas, an immutable
+  versioned manifest, and a non-secret read-only qualification receipt before
+  runtime deployment;
+- an explicit `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
+  `google-direct` model execution recipe, with direct credentials confined to
+  the runtime host secret store;
+- separate hash-bound confirmations for the setup plan, operating Workspace
+  content, checked merge, and exact production candidate;
+- current deployment health plus one nonce-bound, model-backed Slack response,
+  non-secret route/model response evidence, and Neon persistence proof; and
+- a supervised Oregano Agent with no business Tool grants.
+
+The Workbench implements this subset through a private typed setup-provider
+boundary with four roles: source host, runtime host, state service, and
+communication provider, plus a typed Runner model-execution selection. The
+maintained profile currently binds those roles to GitHub, Vercel,
+Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,
+and named compatible cloud recipes. Generic OpenAI-compatible, LiteLLM,
+Ollama, and llama-server recipes are available outside the bounded one-prompt
+profile when their endpoints are explicitly reachable from the runtime.
+This boundary is installation
+orchestration only; it is not a public plugin contract and does not alter the
+provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.
+Provider creates require write-ahead intents and immutable receipts so resume
+does not depend on eventually consistent name searches.
+
+For this subset, StateStore provisioning and schema preparation are distinct
+operations. A new Instance MUST create or explicitly adopt exactly one
+PostgreSQL StateStore, bind its `DATABASE_URL` only through the selected
+runtime host's secret environment, and successfully run the provider-neutral
+database prepare operation before setup advances. Prepare MUST inspect the
+catalog and immutable ledger, select `bootstrap` for an empty database,
+`upgrade` for a supported predecessor, or read-only `verify` for the current
+manifest, and fail closed for an unknown or conflicting state. Bootstrap MUST
+remain the empty-database primitive. Preparation MUST cover `companyos`,
+`companyos_knowledge`, and `companyos_records`, record the exact immutable manifest, be idempotent,
+and fail closed if the same manifest version has different content. Setup state
+MUST retain only the selected operation, previous manifest versions, provider
+resource identity, and bounded non-secret qualification receipt.
+Runtime health and completion verification MUST use read-only qualification,
+MUST match the receipt's manifest digest, and MUST NOT perform schema DDL. The
+maintained Vercel profile's `vercel env run` transport is one adapter binding,
+not a requirement on a conforming alternative runtime host.
+
+The current bounded subset targets additive manifest
+`companyos-postgres@1.9.0`, which preserves predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,
+`1.1.0`, and `1.0.0`, qualifies 67 required Knowledge relations plus 14 Record
+Source and Sprint relations, and assigns unresolved
+existing access-policy identities to quarantine. The successor adds durable
+Source Events, provider ACL snapshots, pipeline receipts, completed watermarks,
+synchronization leases, lifecycle requests, an integrity-linked change stream,
+and rebuildable Retrieval V3 projection and qualification evidence plus atomic
+Sprint event, state, decision, and intent persistence. Deployment
+qualification proves schema readiness only. Runtime authorization and
+provider-ACL mapping conformance are separate release evidence and MUST pass
+before a sensitive Source is enabled.
+
+This subset records readiness as `validated`. It has no reusable Preview or
+Effect Lane, no generic pre-production provider-test topology, no unattended
+promotion, and no claim of `enforced` readiness. It is therefore suitable only
+for the documented Tool-free supervised starter. Later behavior, integration,
+scope, state, or effect changes remain subject to every applicable requirement
+in this draft, including isolated pre-merge evidence where safely testable.
+Hosted GitHub protection is defense in depth for this bounded starter rather
+than a readiness gate. It becomes mandatory before a future unattended agent
+receives repository write, merge, or deployment authority.
+
+## Explicit unpublished installer candidates
+
+A fresh standard setup MAY acquire a local unpublished bundle when explicitly
+selected. Acquisition MUST verify the platform, archive SHA-256 and exact Core
+commit and MUST retain that identity on resume. Candidate identity MUST be part
+of the reviewed scope and generated initialization receipt. Its initial GitHub
+check MUST use the same exact source with frozen dependencies without requiring
+a release tag. Candidate checks do not relax identity, initial-commit validation,
+resource-creation, deployment or Slack evidence requirements. Candidate timing
+MUST be labeled separately and MUST NOT qualify the stable release installer.
+A candidate session MUST create its own deterministic test connector and bind
+that name into its reviewed scope, provider receipt, trigger, deployment and
+verification. It MUST NOT reuse the ordinary Oregano connector in the same team.

@@ -47,6 +47,23 @@ import {
   COMPANY_DATABASE_MANIFEST_DIGEST,
 } from "../../state-postgres/database-bootstrap.ts";
 
+const jsonResult = (value) => ({ status: 0, stdout: JSON.stringify(value), stderr: "" });
+const syntheticVercelTeam = (plan = "pro") => ({ id: "team_example", slug: "example-company", billing: { plan } });
+
+// Existing lifecycle tests supply their provider behavior after a Pro preflight.
+// Prerequisite tests below call the real entrypoints with explicit plan fixtures.
+const withProTeam = (executor) => ({
+  run(file, args, options) {
+    if (file === "vercel" && args[0] === "api" && args[1].startsWith("/v2/teams")) {
+      const team = { ...syntheticVercelTeam(), slug: args[args.indexOf("--scope") + 1] };
+      return jsonResult(args[1].includes("?") ? { teams: [team], pagination: { next: null } } : team);
+    }
+    return executor.run(file, args, options);
+  },
+});
+const advanceWithProTeam = (options) => advanceLiveSetup({ ...options, executor: withProTeam(options.executor) });
+const verifyWithProTeam = (options) => verifyLiveSetup({ ...options, executor: withProTeam(options.executor) });
+
 const CORE_REF = "1234567890abcdef1234567890abcdef12345678";
 
 const workspaceInput = {
@@ -488,7 +505,7 @@ test("preflight refuses an unreviewed Vercel CLI version", async () => withSetup
     verification: {},
     history: [],
   });
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file) {
@@ -521,7 +538,7 @@ test("preflight refuses a package manager version other than the repository pin"
     verification: {},
     history: [],
   });
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file) {
@@ -556,7 +573,7 @@ test("live setup records hosted GitHub protection when the provider enforces it"
   });
   let protectionReads = 0;
   let protectionWrites = 0;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -604,7 +621,7 @@ test("existing stronger organization protection is accepted without being overwr
     history: [],
   });
   let protectionWrites = 0;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -651,7 +668,7 @@ test("GitHub Free continues through the same setup path with advisory protection
     verification: {},
     history: [],
   });
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file) {
@@ -691,7 +708,7 @@ test("the create path explicitly adds the Vercel project before linking it", asy
   writeLiveSetupState(statePath, state);
   const calls = [];
   let projectConfiguration = { rootDirectory: null, framework: null, sourceFilesOutsideRootDirectory: true };
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -752,7 +769,7 @@ test("direct Anthropic pauses for browser-only secret entry and records presence
       return { status: 0, stdout: "{}", stderr: "" };
     },
   };
-  const waiting = await advanceLiveSetup({ statePath, executor });
+  const waiting = await advanceWithProTeam({ statePath, executor });
   assert.equal(waiting.status, "waiting");
   assert.equal(waiting.state.phase, "model-credential");
   assert.equal(waiting.next_action.type, "browser-secret-entry");
@@ -764,13 +781,13 @@ test("direct Anthropic pauses for browser-only secret entry and records presence
 
   credentialPresent = true;
   credentialType = "encrypted";
-  const unsafeVariable = await advanceLiveSetup({ statePath, executor });
+  const unsafeVariable = await advanceWithProTeam({ statePath, executor });
   assert.equal(unsafeVariable.status, "blocked");
   assert.equal(unsafeVariable.state.phase, "model-credential");
   assert.match(unsafeVariable.message, /not classified as Sensitive/);
 
   credentialType = "sensitive";
-  const resumed = await advanceLiveSetup({ statePath, executor });
+  const resumed = await advanceWithProTeam({ statePath, executor });
   assert.equal(resumed.status, "blocked");
   assert.equal(resumed.state.phase, "neon");
   assert.equal(resumed.state.resources.model.route, "anthropic-direct");
@@ -794,7 +811,7 @@ test("an adopted Vercel project with a conflicting runner root is left unchanged
     resources: {}, intents: {}, operating: {}, artifact: {}, deployment: {}, verification: {}, history: [],
   });
   let patches = 0;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -836,7 +853,7 @@ test("Neon creation persists the authoritative create receipt without a name-lis
   });
   let neonLists = 0;
   let neonCreates = 0;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -883,7 +900,7 @@ test("a pending Neon create intent reconciles by identity and never creates a du
     operating: {}, artifact: {}, deployment: {}, verification: {}, history: [],
   });
   let neonCreates = 0;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -933,7 +950,7 @@ test("database preparation uses the profile secret process and records only qual
       return { status: 0, stdout: "{}", stderr: "" };
     },
   };
-  const result = await advanceLiveSetup({ statePath, executor });
+  const result = await advanceWithProTeam({ statePath, executor });
   assert.equal(result.status, "blocked");
   assert.equal(result.state.phase, "slack");
   assert.equal(bootstrapCommands, 1);
@@ -970,7 +987,7 @@ test("a pending legacy database intent safely resumes through idempotent prepara
     operating: {}, artifact: {}, deployment: {}, verification: {}, history: [],
   });
   let bootstrapCommands = 0;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -1007,7 +1024,7 @@ test("Slack creation trusts its exact receipt, attaches one explicit route, and 
   let connectorLists = 0;
   let createArgs;
   let attachArgs;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -1064,7 +1081,7 @@ test("production deployment stores a structured ready receipt before health and 
   });
   let deployArgs;
   let inspectArgs;
-  const result = await advanceLiveSetup({
+  const result = await advanceWithProTeam({
     statePath,
     executor: {
       run(file, args) {
@@ -1103,7 +1120,7 @@ test("live verification proves only the exact supervised starter scope", async (
     profile: "vercel-neon-slack",
     phase: "complete",
     history: [],
-    answers: {},
+    answers: { vercel_scope: "example-company" },
     resources: {
       github: { repository: "example-company/companyos", visibility: "PRIVATE", protection: { status: "enforced", checked_at: "2026-08-21T09:00:00.000Z" }, authenticated_login: "anna-example" },
       vercel: { project: "example-companyos", configuration: { root_directory: "packages/runner-vercel", framework: "nextjs", source_files_outside_root_directory: true } },
@@ -1117,7 +1134,7 @@ test("live verification proves only the exact supervised starter scope", async (
     verification: { database: { ok: true } },
   };
   writeLiveSetupState(statePath, state);
-  const result = await verifyLiveSetup({
+  const result = await verifyWithProTeam({
     statePath,
     executor: {
       run(_file, args) {
@@ -1136,7 +1153,7 @@ test("live verification proves only the exact supervised starter scope", async (
   assert.equal(result.verification.github_protection, "enforced");
   assert.match(result.verification.statement, /does not authorize business Tools/);
 
-  const enforcementLost = await verifyLiveSetup({
+  const enforcementLost = await verifyWithProTeam({
     statePath,
     executor: {
       run(_file, args) {
@@ -1155,7 +1172,7 @@ test("live verification proves only the exact supervised starter scope", async (
 
   state.resources.github.protection = { status: "advisory", checked_at: "2026-08-21T09:00:00.000Z", reason: "github-did-not-accept-hosted-protection" };
   writeLiveSetupState(statePath, state);
-  const freePlan = await verifyLiveSetup({
+  const freePlan = await verifyWithProTeam({
     statePath,
     executor: {
       run(_file, args) {
@@ -1173,7 +1190,7 @@ test("live verification proves only the exact supervised starter scope", async (
   assert.equal(freePlan.verification.github_protection, "advisory");
   assert.ok(freePlan.diagnostics.some((item) => item.code === "LIVE113" && item.severity === "info"));
 
-  const mismatched = await verifyLiveSetup({
+  const mismatched = await verifyWithProTeam({
     statePath,
     executor: {
       run(_file, args) {
@@ -1191,7 +1208,7 @@ test("live verification proves only the exact supervised starter scope", async (
 
   state.intents = { "provider-create": { status: "pending", target: { provider: "synthetic" } } };
   writeLiveSetupState(statePath, state);
-  const unresolvedReceipt = await verifyLiveSetup({
+  const unresolvedReceipt = await verifyWithProTeam({
     statePath,
     executor: {
       run(_file, args) {
@@ -1255,19 +1272,183 @@ test("new live verification binds database qualification, direct model credentia
       databaseManifestDigest: COMPANY_DATABASE_MANIFEST_DIGEST,
     }),
   });
-  const verified = await verifyLiveSetup({ statePath, executor, fetchImpl });
+  const verified = await verifyWithProTeam({ statePath, executor, fetchImpl });
   assert.equal(verified.verification.ok, true);
 
   state.verification.database.model_evidence_entries = 0;
   writeLiveSetupState(statePath, state);
-  const missingEvidence = await verifyLiveSetup({ statePath, executor, fetchImpl });
+  const missingEvidence = await verifyWithProTeam({ statePath, executor, fetchImpl });
   assert.equal(missingEvidence.verification.ok, false);
   assert.ok(missingEvidence.diagnostics.some((item) => item.code === "LIVE121"));
 
   state.verification.database.model_evidence_entries = 1;
   delete state.verification.database_schema;
   writeLiveSetupState(statePath, state);
-  const missingDatabaseQualification = await verifyLiveSetup({ statePath, executor, fetchImpl });
+  const missingDatabaseQualification = await verifyWithProTeam({ statePath, executor, fetchImpl });
   assert.equal(missingDatabaseQualification.verification.ok, false);
   assert.ok(missingDatabaseQualification.diagnostics.some((item) => item.code === "LIVE122"));
+}));
+
+const initializePlanFixture = ({ temporary, workspace, core }, phase = "preflight") => {
+  const planResult = planLiveSetup({ workspaceRoot: workspace, rawAnswers: liveAnswers(), coreIdentity: coreIdentity(core), statePath: join(temporary, "plan-state.json") });
+  assert.deepEqual(planResult.diagnostics.filter((item) => item.severity === "error"), []);
+  assert.deepEqual(planResult.plan.prerequisites, { vercel_plan: "pro", accepted_vercel_plans: ["pro", "enterprise"], background_scheduling: "managed-by-oregano" });
+  const initialized = initializeLiveSetup({ planResult, confirmationHash: planResult.plan.confirmation_hash });
+  initialized.state.phase = phase;
+  writeLiveSetupState(initialized.statePath, initialized.state);
+  return initialized;
+};
+
+const planExecutor = ({ plan = "pro", authenticated = true, list, detail, failure = false } = {}) => {
+  const calls = [];
+  return {
+    calls,
+    run(file, args, options) {
+      calls.push([file, ...args]);
+      if (args[0] === "--version") return { status: 0, stdout: file === "pnpm" ? PNPM_VERSION : file === "vercel" ? SUPPORTED_VERCEL_CLI_VERSION : "ok", stderr: "" };
+      if (file === "vercel" && args[0] === "whoami") return { status: authenticated ? 0 : 1, stdout: "", stderr: "" };
+      if (file === "vercel" && args[0] === "api") {
+        assert.equal(args[args.indexOf("--method") + 1], "GET");
+        assert.equal(args[args.indexOf("--scope") + 1], "example-company");
+        assert.equal(options.sensitiveOutput, true);
+        if (failure) return { status: 1, stdout: "", stderr: "403 private-billing-detail@example.com" };
+        if (args[1].startsWith("/v2/teams?")) return jsonResult(list ? list(args[1]) : { teams: [syntheticVercelTeam(plan)], pagination: { next: null } });
+        assert.equal(args[1], "/v2/teams/team_example");
+        return jsonResult(detail ?? syntheticVercelTeam(plan));
+      }
+      if (file === "gh" && args[0] === "auth") return { status: 1, stdout: "", stderr: "login required" };
+      throw new Error(`Unexpected provider operation: ${file} ${args.join(" ")}`);
+    },
+  };
+};
+
+for (const plan of ["pro", "enterprise"]) {
+  test(`Vercel ${plan} passes automatically before GitHub resource creation`, async () => withSetup(async (fixture) => {
+    const { statePath } = initializePlanFixture(fixture);
+    const executor = planExecutor({ plan });
+    const result = await advanceLiveSetup({ statePath, executor });
+    assert.equal(result.status, "waiting");
+    assert.equal(result.state.phase, "github-auth");
+    assert.deepEqual(result.next_action.command, ["gh", "auth", "login", "--web"]);
+    assert.equal(result.state.resources.vercel_plan.plan, plan);
+    assert.equal(executor.calls.filter((call) => call[1] === "api").length, 2);
+  }));
+}
+
+test("Hobby stops before external resources and resumes the same setup after upgrade", async () => withSetup(async (fixture) => {
+  const { statePath } = initializePlanFixture(fixture);
+  const executor = planExecutor({ plan: "hobby" });
+  const result = await advanceLiveSetup({ statePath, executor });
+  assert.equal(result.status, "waiting");
+  assert.equal(result.state.phase, "vercel-plan");
+  assert.equal(result.next_action.type, "upgrade-vercel-plan");
+  assert.equal(result.next_action.url, "https://vercel.com/example-company/~/settings/billing");
+  assert.deepEqual(result.state.intents, {});
+  assert.deepEqual(Object.keys(result.state.resources), ["vercel_plan"]);
+  assert.ok(executor.calls.every((call) => call[1] === "--version" || (call[0] === "vercel" && ["whoami", "api"].includes(call[1]))));
+  const resumedExecutor = planExecutor();
+  const resumed = await advanceLiveSetup({ statePath, executor: resumedExecutor });
+  assert.equal(resumed.state.plan_hash, result.state.plan_hash);
+  assert.equal(resumed.state.phase, "github-auth");
+  assert.equal(resumed.state.resources.vercel_plan.plan, "pro");
+  assert.equal(resumedExecutor.calls.filter((call) => call[1] === "api").length, 1);
+}));
+
+test("Vercel login is requested before reading the plan", async () => withSetup(async (fixture) => {
+  const { statePath } = initializePlanFixture(fixture);
+  const executor = planExecutor({ authenticated: false });
+  const result = await advanceLiveSetup({ statePath, executor });
+  assert.equal(result.state.phase, "vercel-plan");
+  assert.deepEqual(result.next_action.command, ["vercel", "login"]);
+  assert.ok(!executor.calls.some((call) => call[1] === "api"));
+}));
+
+test("team resolution follows pagination and stores only selected team plan evidence", async () => withSetup(async (fixture) => {
+  const { statePath } = initializePlanFixture(fixture);
+  const executor = planExecutor({
+    list: (endpoint) => endpoint.includes("until=123")
+      ? { teams: [syntheticVercelTeam()], pagination: { next: null } }
+      : { teams: [{ id: "team_other", slug: "other-team", billing: { plan: "enterprise" } }], pagination: { next: 123 } },
+    detail: { ...syntheticVercelTeam(), billing: { plan: "pro", email: "billing-private@example.com", customerId: "billing-private-customer" }, members: ["billing-private-member"] },
+  });
+  const result = await advanceLiveSetup({ statePath, executor });
+  assert.equal(result.state.phase, "github-auth");
+  assert.deepEqual(Object.keys(result.state.resources.vercel_plan).sort(), ["checked_at", "plan", "team_id", "team_slug"]);
+  assert.doesNotMatch(readFileSync(statePath, "utf8"), /billing-private|team_other/);
+  assert.ok(executor.calls.some((call) => call[2] === "/v2/teams?limit=100&until=123"));
+}));
+
+for (const [label, options] of [
+  ["missing billing", { detail: { id: "team_example", slug: "example-company" } }],
+  ["unknown plan", { plan: "future-plan" }],
+  ["inaccessible billing", { failure: true }],
+  ["different team response", { detail: { ...syntheticVercelTeam(), id: "team_other" } }],
+  ["selected team absent", { list: () => ({ teams: [{ id: "team_other", slug: "other-team", billing: { plan: "pro" } }], pagination: { next: null } }) }],
+]) {
+  test(`${label} cannot be mistaken for a qualified Vercel plan`, async () => withSetup(async (fixture) => {
+    const { statePath } = initializePlanFixture(fixture);
+    const result = await advanceLiveSetup({ statePath, executor: planExecutor(options) });
+    assert.equal(result.status, "waiting");
+    assert.equal(result.state.phase, "vercel-plan");
+    assert.equal(result.next_action.type, "verify-vercel-plan");
+    assert.deepEqual(result.state.intents, {});
+    assert.doesNotMatch(JSON.stringify(result), /private-billing-detail/);
+  }));
+}
+
+for (const phase of ["github-repository", "vercel-project", "neon", "production-deployment", "complete"]) {
+  test(`resuming ${phase} rechecks the Vercel plan before continuing`, async () => withSetup(async (fixture) => {
+    const { statePath, state } = initializePlanFixture(fixture, phase);
+    state.resources.vercel_plan = { team_id: "team_example", team_slug: "example-company", plan: "pro", checked_at: "2026-01-01T00:00:00.000Z" };
+    writeLiveSetupState(statePath, state);
+    const executor = planExecutor({ plan: "hobby" });
+    const result = await advanceLiveSetup({ statePath, executor });
+    assert.equal(result.status, "waiting");
+    assert.equal(result.state.phase, phase);
+    assert.equal(result.next_action.type, "upgrade-vercel-plan");
+    assert.equal(result.state.resources.vercel_plan.plan, "hobby");
+    assert.equal(executor.calls.length, 1);
+    assert.deepEqual(result.state.intents, {});
+  }));
+}
+
+test("an unreadable plan clears prior success and live verification does not trust cached Pro", async () => withSetup(async (fixture) => {
+  const { statePath, state } = initializePlanFixture(fixture, "complete");
+  state.resources.vercel_plan = { team_id: "team_example", team_slug: "example-company", plan: "pro" };
+  writeLiveSetupState(statePath, state);
+  const unreadable = await advanceLiveSetup({ statePath, executor: planExecutor({ failure: true }) });
+  assert.equal(unreadable.next_action.type, "verify-vercel-plan");
+  assert.equal(unreadable.state.resources.vercel_plan, undefined);
+  writeLiveSetupState(statePath, state);
+  const before = readFileSync(statePath, "utf8");
+  const verified = await verifyLiveSetup({ statePath, executor: planExecutor({ plan: "hobby" }) });
+  assert.equal(verified.verification.ok, false);
+  assert.equal(verified.verification.vercel_plan.plan, "hobby");
+  assert.ok(verified.diagnostics.some((item) => item.code === "LIVE124"));
+  assert.equal(readFileSync(statePath, "utf8"), before);
+}));
+
+test("production confirmation does not bypass a plan downgrade before deployment", async () => withSetup(async (fixture) => {
+  const { statePath, state } = initializePlanFixture(fixture, "production-confirmation");
+  state.resources.vercel = { project: "example-companyos" };
+  state.artifact = { hash: "a".repeat(64), core_commit: CORE_REF, workspace_commit: "b".repeat(40) };
+  writeLiveSetupState(statePath, state);
+  const preview = await advanceLiveSetup({ statePath, executor: planExecutor() });
+  assert.equal(preview.next_action.type, "confirm-production");
+  let reads = 0;
+  const executor = planExecutor({ plan: "hobby" });
+  const result = await advanceLiveSetup({
+    statePath,
+    productionConfirmation: preview.next_action.confirmation_hash,
+    executor: {
+      run(file, args, options) {
+        if (file === "vercel" && args[1] === "/v2/teams/team_example" && reads++ === 0) return jsonResult(syntheticVercelTeam());
+        return executor.run(file, args, options);
+      },
+    },
+  });
+  assert.equal(result.state.phase, "production-deployment");
+  assert.equal(result.next_action.type, "upgrade-vercel-plan");
+  assert.deepEqual(result.state.intents, {});
+  assert.ok(!executor.calls.some((call) => call[1] === "deploy"));
 }));

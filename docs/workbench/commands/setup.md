@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-30
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -22,6 +22,128 @@ relations:
 ---
 
 # `companyos setup`
+
+`companyos setup` starts or resumes the standard fresh installation in the
+current setup directory. Codex and Claude Code invoke the same entry and render
+its events. No required profile, answers, Workspace, or state argument is needed.
+
+```bash
+companyos setup --directory /absolute/setup --format json
+companyos setup --directory /absolute/setup --reply '<structured response>' --format json
+```
+
+The default is GitHub + Vercel Pro/Enterprise + Neon + Slack, with the maintained
+release's Gateway model. The command discovers logins and account choices,
+derives names/language/timezone/responsibility, asks at most one company-name
+field with unambiguous accounts, and shows one editable cost/resource overview.
+The `confirm` response to that exact review covers all new resources and the
+first production deployment. The session stores the decision privately.
+
+The fresh state is schema `5`, flow `fresh-initialization`. It binds the session,
+verified installer, provider scopes, release/template/configuration and costs.
+After provider consent, setup creates a complete operating Workspace at version
+`0.1.0`, checks its initial commit and attempts hosted protection, then builds,
+deploys and verifies. It does not publish an authoring-only baseline or create
+an activation PR. A normal first Slack message supplies model-backed persistence
+evidence; there is no visible test nonce. Completion includes `verify-live`.
+
+Events are `input`, `choice`, `review`, `action`, `recovery`, `complete`, and
+`cancelled`. Responses are `answer`, `edit`, `confirm`, `retry`, and `cancel`;
+see the release runbook for their JSON fields. Revision IDs are machine transport,
+not human questions. Ordinary retries reuse the decision; changed scope cannot.
+Existing same-name resources are inspected before the review. A later race or
+ambiguous creation needs provider evidence, never silent adoption.
+
+The directory's private `.companyos-bootstrap` session is the resume handle.
+The same installed release is required. Keep the directory after interruptions.
+Local validation is reused only when the generated file digest is unchanged;
+live plan, account and deployment evidence is checked at effect boundaries.
+For a qualification run, the direct entry also accepts `--started-at <ISO>`,
+`--timing-report <file>`, `--harness codex|claude-code`, and `--cache cold|warm`.
+A report is written only after live completion. These are maintainer options.
+
+See [Choose a setup](../../onboarding/setup-options.md) for source/release status,
+explicit adoption, model variants, and local authoring. The new path is
+experimental; live timing qualification is outstanding.
+
+## Test an unpublished candidate
+
+A public release is not required to test a new installer. This explicit maintainer
+path uses the same standard setup session, resource review, provider lifecycle,
+and first Slack-message verification. The ordinary install prompt still selects
+an immutable stable release.
+
+1. Commit the candidate in a clean Core checkout. Push that exact commit to a
+   branch in `oregano-os/oregano` before attempting a hosted test: the generated
+   Company Workspace check needs to check out that source. No tag, merge, or
+   GitHub Release is required. Setup checks source availability before resources
+   are created.
+2. In that checkout, install its locked dependencies with `pnpm install
+   --frozen-lockfile`, using its pinned pnpm. Build on the tester's platform:
+
+   ```bash
+   node scripts/build-setup-bundle.mjs /absolute/new-candidate-bundle
+   ```
+
+   Keep the resulting `oregano-setup-<platform>.tar.gz` and matching `.json`
+   receipt together. The receipt fixes the source commit, platform, archive
+   basename and SHA-256. Acquire the installer script from the same trusted
+   checkout; a local checksum establishes consistency, not publisher identity.
+3. Have Codex or Claude Code start it in a new setup folder:
+
+   ```bash
+   node /absolute/exact-core/scripts/install-companyos.mjs \
+     --candidate /absolute/new-candidate-bundle/oregano-setup-<platform>.json \
+     --directory /absolute/new-test-setup \
+     --started-at <prompt-received-ISO-time>
+   ```
+
+   Both harnesses can use this prompt with the concrete paths filled in:
+
+   ```text
+   Test this unpublished Oregano candidate using the candidate instructions in
+   docs/workbench/commands/setup.md from its exact Core checkout. Use the supplied
+   bundle receipt and a new setup directory. Follow the standard setup events,
+   show the single resource-and-cost review, then finish after my first real Slack
+   reply and successful verification. Keep the candidate identity on resume.
+   ```
+
+The review labels the installation **Unpublished test candidate**. Use fresh test
+resources and an appropriate Slack workspace. Each candidate session generates
+its own `oregano-test-<session-digest>` connector, so it can coexist with the
+ordinary `slack/oregano` installation in the same Vercel team. The reviewed name
+is bound to creation, trigger attachment, deployment variables and verification.
+It never attaches the test deployment to the existing Oregano connector. A
+candidate is not a parallel Preview environment inside an existing production
+project. Provider subscriptions,
+usage charges, identity consent and the single setup decision still apply.
+
+On subsequent calls, use the same installer and `--directory` with the ordinary
+`--reply` response; `--candidate` is optional after acquisition. Its private receipt
+pins the original candidate even if a newer release appears. Switching commit,
+archive, platform, or distribution requires a new setup directory. Keep the bundle
+for recovery if the installed payload is lost.
+
+The generated GitHub workflow checks out the exact candidate commit and installs
+its frozen dependency lock. It performs the same Workspace validation, inspection,
+security and onboarding checks on the initial `main` push and subsequent PRs,
+without looking up a release tag. The client still uses bundled dependencies.
+Candidate CI's dependency installation is an intentional test-path difference;
+its timing report records `distribution: candidate` and cannot satisfy stable
+release timing qualification. Test results do not turn into release evidence by
+renaming the report. Promotion to a released Core is a later ordinary change.
+
+Local installer tests need no database. The real database integration suite needs
+an isolated test database with its required bootstrap permissions; this candidate
+path does not automatically run those tests or convert skipped tests into passes.
+
+## Explicit advanced and legacy flow
+
+The following contract is retained for existing states, deliberate adoption,
+and explicit model choices. It is not part of the standard setup interview.
+State versions 1–4 keep their existing authorization requirements; `setup`
+never converts them to the fresh variant. Other infrastructure combinations
+are not executable profiles yet.
 
 The first maintained live profile extends the plugin-free Codex and Claude Code
 runbook from a locally verified authoring Workspace to one supervised starter
@@ -67,7 +189,8 @@ placement. The returned hash binds the complete plan.
 `--apply` creates a mode-0600 non-secret state file and advances until a browser
 login, provider consent, exact operating-Workspace
 confirmation, merge authorization, production confirmation, or Slack test is
-required. `--resume` uses that same evidence rather than chat history. A failed
+required. A Hobby team first requires an upgrade in Vercel. `--resume` uses
+that same evidence rather than chat history. A failed
 or interrupted command does not delete resources and must not be replaced by a
 second setup state.
 
@@ -87,13 +210,15 @@ entry and never requests, creates, or invites a second reviewer.
 
 1. verify Git, GitHub CLI, the repository-pinned exact pnpm, Vercel CLI, and the
    maintained Vercel Runner;
-2. authenticate GitHub in the browser;
+2. authenticate Vercel when needed and automatically verify Pro or Enterprise
+   on the selected team before any hosted resource creation, then authenticate
+   GitHub in the browser;
 3. initialize and push a private Company Workspace repository;
 4. detect and preserve protection on an adopted GitHub repository, or
    automatically apply the solo-Steward protected `main` baseline to a new
    repository when available, recording either `enforced` or `advisory`
    without an upgrade prompt;
-5. authenticate Vercel, create or adopt the exact project, and verify the
+5. create or adopt the exact Vercel project and verify the
    maintained `packages/runner-vercel` Next.js root without changing a
    conflicting adopted project;
 6. bind one explicit model recipe: use Vercel AI Gateway without a provider
@@ -118,7 +243,8 @@ entry and never requests, creates, or invites a second reviewer.
 13. build one immutable production Artifact from clean exact Core and Workspace
     commits and create its Vercel environment values without `--force` or
     overwriting pre-existing production configuration;
-14. deploy only after the exact production-candidate confirmation, retain the
+14. recheck the Vercel plan and deploy only after the exact production-candidate
+    confirmation, retain the
     structured deployment receipt, wait for provider readiness, and poll the
     provenance health endpoint through temporary non-JSON responses; and
 15. require a nonce-bound Slack message, a real selected-model response,
@@ -193,6 +319,28 @@ controls remain unchanged. Hosted enforcement must be established separately
 before a later capability grants an unattended agent repository write, merge,
 or deployment authority.
 
+## Vercel plan prerequisite
+
+The concrete profile requires Pro and also accepts Enterprise. The read-only
+plan reports this prerequisite without reading a provider account. Execution
+resolves the exact selected team via the Vercel API and reads `billing.plan`.
+It records only team ID, slug, plan, and check time under
+`resources.vercel_plan`. API response bodies and billing details are not
+stored or printed. Resuming setup rechecks the plan before further resource
+work; production deployment checks again, and `verify-live` uses fresh evidence.
+
+Pro and Enterprise introduce no human gate. Hobby returns
+`next_action.type: upgrade-vercel-plan` with that team's billing URL. The
+human upgrades in Vercel and resumes the same state; Oregano never changes a
+subscription. Unreadable, missing, or unknown plan evidence returns
+`verify-vercel-plan` for access/plan correction, without assuming Hobby. The
+phase and confirmed setup plan are preserved while waiting.
+
+This also applies when resuming older setup states or verifying an older
+completed state. An old success receipt does not bypass the current check.
+There is no `vercel_plan` answer or cron-frequency question. Oregano owns the
+profile's schedules; the maintained flow offers no Hobby scheduler fallback.
+
 ## Answer contract
 
 The answers file contains non-secret company and resource-selection data only:
@@ -223,8 +371,10 @@ The example is a schema illustration, not default company data. Passwords,
 provider credentials, database URLs, private keys, resolved Artifact content,
 and short-lived Slack tokens are rejected from setup state.
 
-`model_route` is `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
-`google-direct`. Gateway requires `model_credential_mode: platform`. A direct
+Supported `model_route` values are generated from the maintained recipe registry
+into the release manifest. Native recipes include `vercel-ai-gateway`,
+`anthropic-direct`, `openai-direct`, and `google-direct`; named compatible cloud
+recipes require their own exact release/provider qualification. Gateway requires `model_credential_mode: platform`. A direct
 route requires a matching `provider/<model>` value and either `configure` or
 `adopt`. In `configure` mode, setup opens the provider's key page and the
 Vercel Environment Variables page, then waits while the human enters the key
@@ -234,8 +384,8 @@ routes bypass AI Gateway; Vercel remains only the runtime host and secret store.
 
 For compatibility with setup answer files created before this selection
 existed, omitting both `model_route` and `model_credential_mode` preserves the
-former `vercel-ai-gateway` plus `platform` behavior. The maintained runbook
-still asks every new installation to record both fields explicitly. Deployment
+former `vercel-ai-gateway` plus `platform` behavior. The explicit advanced flow records both fields. The standard flow derives them
+from the release defaults without asking a model question. Deployment
 materializes that answer as the default binding in
 `COMPANYOS_MODEL_CONFIG_BASE64` and also retains the simple route/model
 variables for compatible Runners.

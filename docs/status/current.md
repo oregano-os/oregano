@@ -1014,11 +1014,29 @@ evidence, historical prototypes, and production gaps.
   continues from that checkpoint through explicit create-or-adopt GitHub,
   Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a
   private GitHub repository, automatic best-effort hosted protection with no
-  paid-plan requirement, a separately confirmed operating-starter diff,
+  paid GitHub plan requirement, a separately confirmed operating-starter diff,
   required-check and Steward merge evidence, immutable Artifact injection, current
   health verification, and nonce-bound Slack plus Neon persistence proof.
   `companyos verify-live` reports only `live-starter-instance` with readiness
   `validated`.
+- The maintained setup now requires Vercel Pro or Enterprise. It detects the
+  selected team's plan before hosted resource creation, rechecks on resume
+  and before deployment, and verifies the current plan in `verify-live`.
+  Hobby receives a billing link and can resume after a human upgrade; missing
+  plan access receives a separate diagnostic. No cron-frequency question or
+  automatic billing change is introduced. Synthetic provider tests cover the
+  prerequisite and resume behavior; fresh external setup qualification remains
+  outstanding.
+- The [five-minute standard setup](../plans/2026-09-08-five-minute-setup.md)
+  is implemented in the working tree: CLI-owned account/default discovery,
+  one initial decision including deployment, direct operating initialization,
+  checked first commit, private resumable state and an ordinary first Slack
+  exchange with model/persistence evidence. Existing explicit states retain their
+  legacy approval process. Release CI builds checksummed platform payloads;
+  client setup and initial CI use bundled tools. Model metadata comes from one
+  registry. Local and simulated tests establish these contracts; publication
+  and fresh cold live qualification remain outstanding. A five-minute claim
+  requires five qualifying cold runs per harness and advertised platform.
 - Setup and the maintained Runner select Gateway, native Anthropic/OpenAI/Google,
   or a named compatible cloud recipe through the same resolver. Generic
   OpenAI-compatible and local/proxy recipes remain available to explicitly
@@ -1370,3 +1388,19 @@ in its generated runtime configuration and confirmation. Exact single-source
 multi-source view is not narrowed implicitly. Synthetic end-to-end setup cases
 prove hosted principal resolution, changed-roster confirmation invalidation,
 preserved old mappings and compatibility for sources without identity resolution.
+
+## Unpublished installer test path
+
+The working source supports local candidate bundles with exact commit/platform
+and checksum verification, pinned resume, a labeled setup review, and initial
+GitHub checks using the exact pushed source without a release lookup. Candidate
+timing cannot qualify the stable release installer. No live provider run or real
+database integration result is claimed by this implementation.
+
+The candidate integration branch now starts from Core `0.6.1` on current `main`.
+It preserves the newer Builder release and Workflow behavior, resolves the setup
+conflicts, and automatically gives each candidate a separate Slack connector.
+The maintained database suite passed all 66 tests on disposable local PostgreSQL
+15.18 with zero skips. This is real database evidence, not a live Slack/Vercel
+setup or timing claim. See the
+[setup integration review](../plans/2026-09-08-setup-integration-review.md).

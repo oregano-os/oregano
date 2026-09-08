@@ -21,7 +21,7 @@ export function inspectBootstrap(target = process.cwd()) {
           id: "workspace",
           status: "next",
           explanation: "Create one authoring-only Company Workspace from confirmed human answers.",
-          next: "Run `companyos create workspace` or use its agent answers-file mode.",
+          next: "For a complete new installation run `companyos setup`; for local authoring run `companyos create workspace`.",
         },
         {
           id: "hosted-repository",

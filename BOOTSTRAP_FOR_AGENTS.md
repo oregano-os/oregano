@@ -1,23 +1,17 @@
 # Oregano bootstrap for Codex and Claude Code
 
 This compatibility entrypoint supports Codex and Claude Code without a plugin,
-MCP server, hook, or OpenClaw component.
+MCP server, hook, or OpenClaw component. Read the exact Release's
+`INSTALL-COMPANYOS.md` and verify its `release-manifest.json`.
 
-The maintained bootstrap now includes the complete live starter path rather
-than stopping at a local authoring Workspace. Read and follow every step of the
-release-matched `INSTALL-COMPANYOS.md`. When this file was obtained from a
-GitHub Release, use `release-manifest.json` from the same exact Release to
-verify the runbook, tag, Core commit, Workbench version, and checksums before
-installing.
-
-Public stable runbook:
+The public discovery URL is:
 
 ```text
 https://github.com/oregano-os/oregano/releases/latest/download/INSTALL-COMPANYOS.md
 ```
 
-The `latest` redirect is discovery only. Resolve it to one exact non-prerelease
-tag and commit, then keep those pins for the entire installation. Completion
-requires `companyos verify-live --state <file>` with scope
-`live-starter-instance`; `companyos bootstrap verify` remains only the local
-authoring checkpoint.
+Use the verified release installer and let `companyos setup` own the session.
+Show one editable setup decision, including the first deployment, and necessary
+provider actions. Do not add a configuration interview or permission requests
+for routine work. The CLI invokes `companyos verify-live` before reporting that
+Oregano is ready in Slack. Local authoring verification alone is not completion.

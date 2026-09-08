@@ -39,6 +39,8 @@ export const VERCEL_NEON_SLACK_PROFILE = defineSetupProviderProfile({
     role: "runtime-host",
     provider: "vercel",
     cliVersion: "56.3.2",
+    requiredPlan: "pro",
+    acceptedPlans: ["pro", "enterprise"] as const,
     projectRoot: "packages/runner-vercel",
     framework: "nextjs",
     sourceFilesOutsideRootDirectory: true,

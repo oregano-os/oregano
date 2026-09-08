@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -21,44 +21,43 @@ relations:
 
 # CompanyOS Onboarding
 
+Start with [Choose a setup](setup-options.md) to distinguish the available
+live profile and model variants from local authoring and future provider
+combinations. There is currently one implemented infrastructure profile;
+the provider-adapter boundary does not make every combination installable.
+
 Onboarding is a maintained product contract, not a one-time setup note. A Human
 Contributor or Agent Contributor must be able to enter a Company Workspace,
 discover the correct path, establish a deterministic local baseline, and see
 which remaining actions require a Platform Administrator with `repository` or
 `instance` scope.
 
-For a new Workspace, Codex and Claude Code use the same plugin-free Release
-runbook, `INSTALL-COMPANYOS.md`, reached through the compatibility entrypoint
-`BOOTSTRAP_FOR_AGENTS.md`. It collects confirmed non-secret answers in chat,
-routes them through `companyos create workspace`, and treats
-`companyos bootstrap verify` as an internal local checkpoint. The maintained
-live path then uses `companyos setup --profile vercel-neon-slack` and finishes
-only when `companyos verify-live` proves the narrow supervised starter scope.
-The agent pauses for the human's browser authentication, provider consent,
-hash-bound Steward merge authorization, and production confirmation; it does
-not obtain those authorities from the chat prompt. One confirmed setup plan
-covers all unchanged-scope inspection, local work, retries, resume operations,
-branch publication, and pull-request preparation. The agent does not ask for
-separate conversational permission for those steps. It groups all currently
-available human actions or confirmation hashes into one concise request and
-continues until the next actual authority boundary.
+For a new installation, Codex and Claude Code use the same release-matched
+`INSTALL-COMPANYOS.md` and `companyos setup` session. The CLI reuses account
+logins, proposes defaults, asks the company name only when needed, and shows
+one editable resource/cost/responsibility summary. That single decision covers
+new resources and the first production deployment. The human completes actual
+provider login and consent. Routine technical work proceeds automatically.
 
-Start with [Onboard a Company Workspace](company-workspace.md), then run:
+The selected Vercel team must use Pro or Enterprise, detected automatically.
+Hobby gets a resumable billing action; Oregano never changes a subscription or
+asks about cron frequency. After consent, the fresh initializer generates one
+complete operating Workspace and checks its first commit. It does not publish
+an authoring-only intermediate version or request an activation PR/merge.
+The first ordinary Slack message supplies real model and persistence evidence.
+The CLI runs `companyos verify-live` before reporting completion.
 
-```bash
-companyos onboard /path/to/company-workspace
-companyos bootstrap verify /path/to/company-workspace
-companyos setup --profile vercel-neon-slack --workspace /path/to/company-workspace --answers /path/to/live-answers.yaml --state /path/to/setup-state.json --plan
-companyos verify-live --state /path/to/setup-state.json
-```
+Existing Workspaces still use `companyos onboard /path/to/workspace` for local
+inspection. `companyos create workspace` and `companyos bootstrap verify` remain
+local authoring commands; they are not extra steps in the standard installer.
+The explicit `setup --profile vercel-neon-slack` contract remains available for
+legacy sessions and deliberate resource adoption. Its separate approvals are
+not silently reused as fresh-installation authority.
 
-The first two commands check the local Workspace contract, immutable Core and
-Workbench pin, governance, CODEOWNERS, CI, and the declared
-repository-protection baseline. They deliberately report hosted facts as
-manual because repository files cannot prove external state. The setup state
-machine then attempts hosted protection automatically and records `enforced` or
-`advisory` alongside the other provider and runtime evidence without placing
-credentials in the Workspace or state file.
+The release includes checksummed platform tooling instead of a full developer
+installation on the client. This flow is experimental; see the
+[five-minute plan](../plans/2026-09-08-five-minute-setup.md) for pending live
+qualification and timing criteria.
 
 The maintained setup profile composes private typed adapters for four roles:
 source host, runtime host, state service, and communication provider. GitHub,
@@ -93,7 +92,8 @@ records. Unresolved policies and ACL mappings remain
 in quarantine. Schema qualification does not authorize retrieval; runtime
 subject and policy conformance remain separate gates.
 
-Model execution is selected separately as `vercel-ai-gateway`,
+The standard release derives its Gateway model without a question. Explicit
+advanced setup can select another release-supported model recipe, including
 `anthropic-direct`, `openai-direct`, or `google-direct`. Gateway needs no
 provider key from the human. Direct recipes bypass AI Gateway and pause while
 the human enters a dedicated provider key only in the Vercel project UI under
@@ -103,15 +103,14 @@ proves the exact route and model through a real model-backed Slack response.
 
 The maintained communication binding always uses the logical Connector UID
 `slack/oregano` and the visible Slack Agent name `Oregano`, independently of
-the Company Workspace name. Live acceptance requires the human's
-nonce-bearing Slack message and the exact Agent reply
-`Setup-Test <nonce> successful.` in the same conversation, both persisted in
-the Instance StateStore.
+the Company Workspace name. Fresh live acceptance requires an ordinary authorized Slack message and a
+real model reply, both persisted and correlated to the exact deployment.
+Legacy states retain the nonce-bound `Setup-Test` exchange.
 
 An authoring-only Workspace is valid with no operating agents and no executable
-workflows. It must not invent automation merely to pass onboarding. The live
-starter makes the move to `operating` as a separate hash-bound, checked, and
-Steward-confirmed change: one supervised Oregano Agent, one Slack workflow, one
+workflows. It must not invent automation merely to pass onboarding. The standard initializer produces `operating` directly. Existing authoring
+Workspaces use the explicit checked and Steward-confirmed activation change.
+Both result in one supervised Oregano Agent, one Slack workflow, one
 non-secret connection declaration, and no business Tool grants.
 
 ## Maintenance contract
@@ -169,3 +168,11 @@ human acceptance, staged production health and exact live verification. Other te
 strategies and data migrations require qualified evidence/execution before automatic
 release. Missing hosted enforcement or provider rights must be reported explicitly;
 neither a Workspace declaration nor a passing local test supplies those rights.
+
+## Unpublished installer tests
+
+A maintainer can test a packaged exact commit before publishing a release.
+Follow [the candidate setup path](../workbench/commands/setup.md#test-an-unpublished-candidate)
+with fresh resources and an automatically named test Slack connector; both agent
+harnesses use the same session and one review. Existing company connectors stay
+bound to their original deployments.

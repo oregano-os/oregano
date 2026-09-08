@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -298,14 +298,30 @@ size limit from Workspace content without adding another database or app.
 
 ## Maintained supervised starter
 
-The experimental `vercel-neon-slack` setup profile is the first bounded
-deployment path for a new company. It starts from the release-matched Codex or
-Claude Code runbook, creates or adopts one explicitly named private GitHub
-repository, Vercel project, Neon Marketplace resource, and Slack Vercel Connect
-resource, and converts the local baseline through a separately confirmed
-operating Workspace change. The change contains one supervised `oregano`
-Agent, one Slack workflow, a non-secret connection declaration, and an empty
-business ToolSet.
+The experimental standard `companyos setup` journey uses GitHub, Vercel,
+Neon and Slack. Its private session owns account discovery, defaults, one
+editable scope/cost/responsibility decision and the first deployment. Schema
+`5` identifies `fresh-initialization`: the decision binds the session, verified
+human, provider scopes, release/template/configuration and create-only targets.
+It renders one complete operating Workspace at `0.1.0`, records the checked
+initial commit and resource receipts, and deploys the exact resulting Artifact.
+No activation PR or merge receipt is invented for a first commit.
+
+The explicit `--profile vercel-neon-slack` flow retains versions 1–4 and their
+separate authoring-to-operating, merge and deployment confirmations for legacy
+sessions or adoption. Both flows produce one supervised `oregano` Agent, one
+Slack workflow and no business Tool grants. The standard release payload ships
+tooling for its declared platforms; fresh five-minute live qualification remains
+outstanding.
+
+The concrete Vercel profile requires Pro or Enterprise because its deployed
+configuration includes frequent background schedules. Setup reads the exact
+selected team's plan before hosted resource creation, on resume, and before
+production deployment; final verification also reads the current plan. Hobby
+returns a resumable billing action for the human. Unknown or unreadable plans
+require access/plan correction. Oregano does not change subscriptions or ask
+for cron frequencies. Only team identity, plan, and check time are retained
+as Instance setup evidence.
 
 Provider browser authentication and consent remain human actions. The setup
 state contains versioned write-ahead intents, immutable provider receipts,
@@ -352,17 +368,25 @@ deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus
 4.7. Embeddings and cross-encoder reranking remain separately configured
 capabilities.
 
-The path creates an immutable Artifact only from clean exact Core and Workspace
-commits, deploys only after an exact candidate confirmation, verifies current
-health, and requires one nonce-bound Slack input plus a real selected-model call
-that returns the exact reply `Setup-Test <nonce> successful.`. Both entries and
-non-secret model response evidence are persisted in the same Neon conversation. Live
-verification ties that proof to the immutable provider and deployment receipts
-and fails closed on unresolved setup intents. Its completion scope is
-`live-starter-instance` with derived readiness `validated`. This is not a
-general deployment or promotion orchestrator and does not prove `enforced`
-readiness, unattended eligibility, arbitrary Tool grants, or future provider
-effects.
+Both paths build immutable Artifacts from exact clean commits and verify
+current health. Fresh setup uses its single initial decision and correlates an
+ordinary authorized Slack message, a delivered selected-model response and both
+persisted entries to the exact Artifact, Core, Workspace, principal and model.
+Legacy states retain their nonce-bound test and separate deployment decision.
+The verifier recognizes the fresh checked-initialization evidence or the legacy
+checked-merge evidence explicitly, and rejects unresolved mutation receipts.
+Completion remains `live-starter-instance` with readiness `validated`; it is not
+general promotion, unattended operation, or business-Tool authority.
+
+### Unpublished setup provenance
+
+An explicit candidate installation binds the local bundle receipt digest and
+exact Core commit into the fresh setup scope. The Instance still uses the same
+resource, identity, artifact and deployment evidence. Candidate provenance is
+retained on resume and in timing reports; it cannot establish stable release
+qualification or an isolated Preview environment. Candidate connector names derive
+from the setup session and are bound into its reviewed scope, trigger attachment
+and runtime environment; they never reuse an existing company connector.
 
 ## Event-driven runtime and Gateway boundary
 

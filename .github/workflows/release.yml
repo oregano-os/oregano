@@ -9,7 +9,38 @@ permissions:
   contents: write
 
 jobs:
+  setup-bundle:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build relocatable standard installer
+        run: node scripts/build-setup-bundle.mjs "$RUNNER_TEMP/oregano-setup-bundle"
+      - name: Smoke-test packaged Workbench
+        run: |
+          node "$RUNNER_TEMP/oregano-setup-bundle/oregano/packages/cli/src/cli.mjs" --version
+          "$RUNNER_TEMP/oregano-setup-bundle/oregano/node_modules/.bin/vercel" --version
+          "$RUNNER_TEMP/oregano-setup-bundle/oregano/node_modules/.bin/pnpm" --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: setup-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/oregano-setup-bundle/oregano-setup-*.tar.gz
+            ${{ runner.temp }}/oregano-setup-bundle/oregano-setup-*.json
   release:
+    needs: setup-bundle
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -49,6 +80,12 @@ jobs:
         env:
           COMPANYOS_TEST_DATABASE_URL: postgresql://companyos_test:local-test-only@127.0.0.1:5432/companyos_test
 
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: setup-*
+          merge-multiple: true
+          path: dist/setup-bundles
+
       - name: Prepare versioned agent-install assets
         run: node scripts/prepare-release-assets.mjs dist/release
 
@@ -60,9 +97,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            dist/release/INSTALL-COMPANYOS.md \
-            dist/release/BOOTSTRAP_FOR_AGENTS.md \
-            dist/release/release-manifest.json \
+            dist/release/* \
             --verify-tag \
             --title "Oregano $GITHUB_REF_NAME" \
             --generate-notes \

@@ -41,7 +41,7 @@ import {
   resolveKnowledgeTurnRoute,
   type KnowledgeTurnRoute,
 } from "./knowledge-turn-routing.ts";
-import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
+import { setupVerificationPrompt, setupVerificationResponse, setupExchangeKey, type SetupExchange } from "./setup-verification.ts";
 import {
   abortRememberedSlackAgentSessionConversation,
   createSlackToolProgressReporter,
@@ -83,6 +83,10 @@ interface ConversationEntry {
   role: "user" | "assistant";
   content: string;
   model_execution?: ModelExecutionEvidence;
+  message_id?: string;
+  in_reply_to?: string;
+  principal?: string;
+  artifact_hash?: string;
 }
 
 interface PendingApproval extends ExecuteToolRequest {
@@ -334,7 +338,17 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     }
   }
   const conversationKey = `conversation:${thread.id}:${agent.id}`;
-  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
+  const recordSetupExchange = async (evidence: ModelExecutionEvidence) => {
+    if (agent.id !== 'oregano' || agent.toolSet.tools.length !== 0 || !evidence.responseId) return;
+    const receipt: SetupExchange = {
+      version: 1, artifact_hash: artifact.artifactHash, core_commit: artifact.provenance.coreCommit,
+      workspace_commit: artifact.provenance.workspaceCommit, principal: requester,
+      message_id: message.id, conversation_key: conversationKey, response_id: evidence.responseId,
+      model_route: evidence.route, model: evidence.model, delivered_at: new Date().toISOString(),
+    };
+    await state.setIfNotExists(setupExchangeKey(artifact.artifactHash, requester), receipt, 30 * DAY);
+  };
+  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}`, message_id: message.id, principal: requester, artifact_hash: artifact.artifactHash } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
@@ -352,11 +366,12 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     thread.signal.throwIfAborted();
     const generated = probe.text.trim();
     if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
-    await state.appendToList(conversationKey, { role: "assistant", content: generated, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
+    await state.appendToList(conversationKey, { role: "assistant", content: generated, in_reply_to: message.id, artifact_hash: artifact.artifactHash, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
     await deliveryThread.post(generated);
+    await recordSetupExchange(modelExecutionEvidence(resolved.selection, probe));
     return;
   }
   const history = await state.getList<ConversationEntry>(conversationKey);
@@ -422,11 +437,13 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     await state.appendToList(conversationKey, {
       role: "assistant",
       content: response,
+      in_reply_to: message.id, artifact_hash: artifact.artifactHash,
       model_execution: modelExecutionEvidence(resolved.selection, { response: responseMetadata, usage }),
     } satisfies ConversationEntry, {
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
+    await recordSetupExchange(modelExecutionEvidence(resolved.selection, { response: responseMetadata, usage }));
     return;
   }
   const toolProgress = createSlackToolProgressReporter(deliveryThread, slackAgentExperience);
@@ -485,7 +502,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     : { historyResponse: response, visibleResponse: response };
   waitingForHuman ||= result.toolResults.some((entry) => toolResultNeedsHumanInput(entry.output));
   await toolProgress.complete({ waitingForHuman });
-  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
+  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, in_reply_to: message.id, artifact_hash: artifact.artifactHash, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
@@ -493,6 +510,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     await deliveryThread.post(slackAgentExperience.streamingEnabled
       ? validatedSlackResponsePlan(presentation.visibleResponse, { suspended: waitingForHuman })
       : presentation.visibleResponse);
+    await recordSetupExchange(modelExecutionEvidence(resolved.selection, result));
   } else if (waitingForHuman && slackAgentExperience.streamingEnabled) {
     await deliveryThread.post(validatedSlackResponsePlan(
       "Waiting for your confirmation in the card above.",
@@ -502,6 +520,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 }
 
 function registerHandlers(bot: Chat) {
+  bot.onDirectMessage((thread, message) => handleMessage(thread, message));
   bot.onNewMention((thread, message) => handleMessage(thread, message));
   bot.onSubscribedMessage((thread, message) => handleMessage(thread, message));
   bot.onAgentSessionStopped(async (event) => {

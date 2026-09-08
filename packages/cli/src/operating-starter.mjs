@@ -87,7 +87,7 @@ const readWorkspaceSource = (root) => {
   return { company, roster, governance, repositoryProtection };
 };
 
-export function renderOperatingStarter(root, rawInput) {
+export function renderOperatingStarter(root, rawInput, { initialization } = {}) {
   const normalized = normalizeOperatingStarterInput(rawInput);
   const diagnostics = [...normalized.diagnostics];
   const files = new Map();
@@ -111,7 +111,7 @@ export function renderOperatingStarter(root, rawInput) {
   }
   if (hasErrors(diagnostics)) return { input: normalized.input, files, deletions, diagnostics, workspaceVersion: null };
 
-  const workspaceVersion = nextMinorVersion(source.company.data.workspace_version);
+  const workspaceVersion = initialization ? source.company.data.workspace_version : nextMinorVersion(source.company.data.workspace_version);
   const companyData = { ...source.company.data, workspace_version: workspaceVersion, workspace_mode: "operating" };
   files.set("company.md", document(companyData, `${source.company.body.trim()}\n\nIts first operating capability is the supervised Oregano Slack assistant.`));
 
@@ -202,6 +202,50 @@ export function renderOperatingStarter(root, rawInput) {
     rollback: "Promote the previously recorded immutable Vercel deployment and detach the new Slack trigger. Do not delete Slack, Neon, or GitHub resources without separate approval.",
     open_decisions: ["Add business Tools only through a later approved operating-model change."],
   }));
+
+  if (initialization) {
+    if (!/^[0-9a-f]{64}$/.test(initialization.scope_hash ?? '') || !initialization.actor_login) throw new Error('Fresh initialization requires its exact setup decision.');
+    files.delete(planPath);
+    const corePin = YAML.parse(readFileSync(join(root, '.companyos/compatibility.yaml'), 'utf8')).core;
+    const template = readFileSync(join(root, '.github/workflows/check.yml'), 'utf8')
+      .replace('on: [pull_request]', 'on:\n  pull_request:\n  push:\n    branches: [main]')
+      .replace('\njobs:', '\npermissions:\n  contents: read\n\njobs:');
+    let workflow = template
+      .replace('on: [pull_request]', 'on:\n  pull_request:\n  push:\n    branches: [main]')
+      .replace(/      - name: Install pnpm[\s\S]*?      - name: Validate and inspect Company Workspace/, `      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Acquire verified release Workbench
+        working-directory: .companyos-core
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { installCompanyOS } from './scripts/install-companyos.mjs';
+          const response = await fetch('https://api.github.com/repos/${corePin.repository}/releases/tags/v${corePin.version}');
+          if (!response.ok) throw new Error('The pinned release is unavailable.');
+          const release = await response.json();
+          const installed = await installCompanyOS({ directory: join(process.env.RUNNER_TEMP, 'oregano-check'), releaseId: release.id, launch: false });
+          if (installed.installation.core_commit !== '${corePin.ref}') throw new Error('The release does not match the pinned Core.');
+          appendFileSync(process.env.GITHUB_ENV, 'COMPANYOS_CHECK_CLI=' + join(installed.coreRoot, 'packages/cli/src/cli.mjs') + '\\n');
+          JS
+      - name: Validate and inspect Company Workspace`)
+      .replaceAll('pnpm companyos ', 'companyos ')
+      .replace('          companyos validate', '          companyos() { node "$COMPANYOS_CHECK_CLI" "$@"; }\n          companyos validate');
+    if (initialization.distribution?.kind === 'candidate') {
+      if (!/^[0-9a-f]{64}$/.test(initialization.distribution.manifest_sha256 ?? '')) throw new Error('Candidate initialization requires its acquisition receipt.');
+      workflow = template.replace('Install pinned Workbench checkout', 'Install exact unpublished candidate Workbench')
+        .replace('run: pnpm install --frozen-lockfile', `run: |\n          test "$(git rev-parse HEAD)" = "${corePin.ref}"\n          pnpm install --frozen-lockfile`);
+    }
+    files.set('.github/workflows/check.yml', workflow);
+    files.set('.companyos/initialization.json', `${JSON.stringify({
+      version: 1, kind: 'fresh-initialization', scope_hash: initialization.scope_hash,
+      responsible_person: steward.id, github_login: initialization.actor_login,
+      accepted_at: initialization.accepted_at, initial_workspace_version: workspaceVersion,
+      distribution: initialization.distribution ?? { kind: 'stable' },
+    }, null, 2)}\n`);
+  }
 
   return { input: normalized.input, files, deletions, diagnostics, workspaceVersion, planPath };
 }

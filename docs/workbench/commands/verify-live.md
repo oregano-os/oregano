@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -26,13 +26,23 @@ relations:
 companyos verify-live --state <file> [--scope starter|workflow] [--format human|json]
 ```
 
+The standard `companyos setup` session invokes this command automatically.
+Fresh setup proves an ordinary first Slack exchange, including delivered model
+response and persisted entries bound to the principal and exact Artifact.
+Legacy states retain their nonce proof; they cannot use the fresh exception.
+
 The default `starter` scope is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:
 
 - the GitHub Workspace repository is private and one hosted-protection attempt
   was recorded as `enforced` or `advisory`;
-- the operating change passed the required check and the Workspace Steward authorized its merge;
+- fresh schema-5 initialization has its single scoped setup decision, create
+  receipts, responsible human and exact checked initial commit; or the legacy
+  operating change has its required check and Steward-authorized merge;
 - the named Vercel, Neon, and Slack resources are present in setup evidence;
+- a fresh Vercel API read confirms Pro or Enterprise for the exact selected
+  team; Hobby, an unknown plan, or inaccessible plan evidence fails
+  verification even if a previous setup receipt recorded Pro;
 - the selected StateStore has a valid non-secret database qualification
   receipt, and current read-only health reports the same immutable schema
   manifest digest and required feature set without running schema DDL;
@@ -46,10 +56,10 @@ runbook. It fails unless fresh or recorded evidence proves:
 - direct-provider credential-presence and Sensitive-classification evidence
   exists when a direct recipe is selected, without a credential value in setup
   state; and
-- the nonce-bound human Slack message and Oregano's exact
-  `Setup-Test <nonce> successful.` response were persisted in the same Neon
-  conversation with a non-secret response ID, response model, and token-count
-  evidence from a real selected-model call.
+- the authorized human message and a delivered model-backed Oregano reply
+  have matching persisted conversation and model-response evidence. Fresh setup
+  binds the ordinary exchange to exact identity and deployment; legacy states
+  retain `Setup-Test <nonce> successful.` verification.
 
 The current Core target receipt identifies additive manifest
 `companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14
@@ -72,8 +82,13 @@ authorize business Tools, provider effects, unattended execution, or a general
 claim that every Company Instance enforcement control has been exercised.
 Hosted GitHub protection is returned separately from readiness. Losing
 previously verified protection produces a warning; unavailable protection on a
-free plan produces informational evidence and does not fail this Tool-free
+free GitHub plan produces informational evidence and does not fail this Tool-free
 supervised scope.
+
+The result returns current team/plan evidence as `verification.vercel_plan`;
+`LIVE124` identifies a failed plan prerequisite. This read does not change
+billing, schedules, or the setup state, and applies to older state versions
+as well.
 
 `companyos bootstrap verify` remains the earlier `authoring-only-local`
 checkpoint. It is intentionally insufficient for the live runbook.
@@ -162,3 +177,13 @@ It does not independently prove provider history, replace actual source
 qualification and manual comparison, establish restart/rollback behavior, or
 complete the pilot weeks and production authorization. Preserve those separate
 receipts alongside this verification result.
+
+## Verifying unpublished candidates
+
+The same `verify-live` checks apply to an explicitly installed unpublished
+candidate. A successful result proves the recorded candidate Instance and Slack
+exchange. It does not prove publication, stable-release timing qualification,
+or execution of the separate database integration suite. The private setup scope
+and generated initialization receipt retain the candidate distribution identity.
+Verification also requires the exact session-named test connector; a receipt
+from the ordinary Oregano connector cannot complete a candidate installation.

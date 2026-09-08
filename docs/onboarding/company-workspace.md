@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -24,32 +24,35 @@ relations:
 
 ## Agent-guided complete starter setup
 
-Codex and Claude Code share the Release-matched `INSTALL-COMPANYOS.md` runbook;
-`BOOTSTRAP_FOR_AGENTS.md` is its compatibility entrypoint. No harness plugin,
-MCP server, hook, or OpenClaw component is required. The human pastes one
-prompt into the ordinary coding-agent chat. The agent asks one bounded question
-at a time only while collecting missing company facts, explains each grouped
-provider decision, shows complete plans, and waits for the human only at actual
-authority boundaries. After a plan is confirmed, unchanged-scope inspection,
-local changes, tests, retries, branch publication, and pull-request preparation
-continue without another conversational approval. Required hashes and browser
-actions that are known together are presented together.
+Codex and Claude Code share the verified release installer and the same
+`companyos setup` session. The human pastes the short prompt and sees connected
+accounts, one editable setup summary, necessary provider actions, and the Slack
+link. Technical defaults and evidence are managed by the CLI. One setup decision
+includes the first deployment; the direct fresh initializer produces the whole
+operating Workspace at `0.1.0` with one named Steward and no business Tools.
 
-The generated Workspace is deliberately `authoring-only`;
-`companyos bootstrap verify <workspace>` is only the local checkpoint. The
-maintained `vercel-neon-slack` setup profile then creates or adopts explicitly
-named resources, moves the Workspace to one supervised operating starter
-through a checked, Steward-confirmed pull request, deploys an immutable Artifact,
-and requires a real Slack round trip persisted in Neon. Completion is
-`companyos verify-live`, not local generation.
+The installer does not publish an authoring-only intermediate version or ask
+for an activation PR, merge, or second deployment decision. Required checks
+still run on the initial commit. A real first Slack reply and Neon persistence
+must pass before `complete`. The source implementation is experimental and
+awaits fresh cold-run qualification; see [setup choices](setup-options.md).
 
-The release manifest and root `package.json` pin the exact pnpm version. The
-agent invokes that version through npm's temporary package cache and verifies
-it before the first locked dependency installation. It does not install,
-replace, unlink, or force-link a global pnpm executable. The setup root,
-Oregano checkout, Workspace, answers, and state file are resolved to absolute
-paths before Workbench commands run, so changing pnpm's working directory
-cannot redirect an input.
+The reference checklist below describes the resulting account, Workspace and
+governance contract. It is not a questionnaire to repeat during standard setup.
+For an existing Workspace or explicit adoption use the advanced profile and
+its existing change process. Local authoring via `create workspace` still yields
+an authoring-only Workspace; `bootstrap verify` remains its local checkpoint.
+The bundled release tools use exact versions without replacing global tooling.
+
+### Candidate initialization
+
+An explicitly selected unpublished installer candidate initializes the same
+operating Workspace and records its candidate identity in the setup decision
+and initialization receipt. A candidate creates its own session-named Slack
+connector, allowing a separate test alongside an existing company installation.
+Its first GitHub check uses pinned source and a
+frozen dependency install; it does not depend on a release tag. See
+[testing before release](../workbench/commands/setup.md#test-an-unpublished-candidate).
 
 ## 1. Verify external account prerequisites
 
@@ -62,7 +65,7 @@ personal account.
 |---|---|---|---|
 | Git hosting and review | One GitHub user account and private repository | Every Workspace | The human creates a GitHub user account if they do not already have one. They select their own username for a personal repository or an existing organization only when their company already uses one. The setup never requires a new organization or paid GitHub plan. GitHub Free is sufficient for the supervised starter. A Platform Administrator with `repository` scope retains admin and recovery access. The setup applies hosted protection when available and reports whether GitHub enforces it. |
 | Core checkout | GitHub credential or deploy key with read access to Oregano Core | Current co-checkout mode | CI can fetch the immutable Core commit without giving the Company Workspace write access to Core. |
-| Runtime hosting | Vercel account/team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |
+| Runtime hosting | Vercel Pro or Enterprise team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |
 | Model execution | Gateway access, a supported cloud-provider account and dedicated key, or an explicitly reachable compatible endpoint | Before deploying a model-backed Instance | The explicit recipe and exact route-prefixed model are selected, billing and data terms are accepted, and a deployed model-backed smoke test succeeds. A required key is entered only in the runtime host secret UI. |
 | Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |
 | Connected systems | For example Slack or Monday provider connections | Only when declared by an approved connection or Tool grant | Each connection has a named owner, minimum access, revocation path, and no secrets in Git. |
@@ -77,9 +80,13 @@ invocation. This external check remains `manual` in local onboarding and does
 not make the Workspace a credential or provider-identity authority.
 
 Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider
-account. The maintained complete starter does require a Vercel account, consent
+account. The maintained complete starter requires a Vercel Pro or Enterprise
+team, detected automatically before hosted resource creation, and consent
 to create or adopt a Neon Marketplace resource, permission to install the Slack
 app in a selected Slack workspace, and access to the selected model route.
+Oregano manages background scheduling. Hobby requires a human upgrade through
+the returned billing link followed by resume; no cron-frequency selection is
+part of onboarding.
 Gateway uses the Vercel deployment identity. Direct recipes bypass Gateway;
 the human enters the provider key only under its documented Sensitive
 Production variable in the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the
@@ -98,6 +105,9 @@ that later want separation of duties may explicitly select
 not an installation prerequisite.
 
 ## 3. Establish the Workspace contract
+
+The standard initializer fills this contract and its operating starter together.
+The empty authoring-only baseline below applies to the separate local generator.
 
 Create the Spec-defined directory tree and the required entrypoints. The
 minimum governed repository includes `company.md` with an exact
@@ -152,18 +162,18 @@ provide the feature, setup records `advisory` and continues. This is detected
 state, not a user-selected installation mode, and the agent never asks for a
 GitHub upgrade.
 
-In both outcomes the installer creates the operating change through a pull
-request, waits for the `check`, and requires the Workspace Steward's exact
-merge confirmation. GitHub enforcement adds protection against accidental
+Fresh setup waits for the initial commit's `check` under its single setup
+decision. The explicit legacy/adoption flow creates an operating pull request
+and retains the Workspace Steward's exact merge confirmation. GitHub enforcement adds protection against accidental
 direct pushes, force pushes, and deletion. It becomes a prerequisite only
 before an unattended agent receives repository write, merge, or deployment
 authority. Follow the version-matched [repository protection
 Guide](../workbench/guides/configure-repository-protection.md) for the recorded
 status and professional organization controls.
 
-## 7. Run the maintained live starter when requested
+## 7. Complete an existing authoring Workspace when requested
 
-An authoring-only request stops here. For the complete starter runbook, plan and
+An authoring-only request stops here. To activate an existing authoring Workspace, plan and
 execute `companyos setup --profile vercel-neon-slack` with its non-secret
 answers file and ignored, mode-0600 state file. The profile performs GitHub,
 Vercel, Neon, and Slack setup only after explicit create-or-adopt selection,
@@ -241,12 +251,11 @@ contract](../specifications/company-instance-release-and-promotion-v0.1-draft.md
 
 Onboarding is locally ready when `companyos onboard` has no errors. The complete
 starter is ready only when `companyos verify-live --state <file>` succeeds with
-scope `live-starter-instance`: the repository is private, the required check
-and explicit Steward merge authorization are recorded, current Vercel health
-matches the exact Artifact and version pair, and a nonce-bound human Slack
-message plus the exact model-backed Oregano reply
-`Setup-Test <nonce> successful.` and non-secret selected-route response evidence
-are persisted in Neon in the same conversation. Verification also requires the
+scope `live-starter-instance`: the repository is private, the exact initial
+commit and fresh setup decision (or legacy checked merge) are recorded, current
+Vercel health matches the exact Artifact and version pair, and an authorized
+Slack exchange has model-response and persistence evidence. Fresh setup uses
+an ordinary first message; legacy states retain their exact nonce-bound reply. Verification also requires the
 immutable receipts for the exact provider resources used by the deployment and
 fails closed on an unresolved setup intent. Hosted GitHub protection is
 reported separately as `enforced` or `advisory`; either status is valid for
