@@ -64,7 +64,7 @@ test("GitHub merge reconciles a lost response without a duplicate write and refu
   await assert.rejects(mergeGitHubCandidate(stale.client, stale.input, old), /prerequisites changed/);
   assert.deepEqual(stale.counts(), { writes: 0, ready: 0 });
 });
-function vercelFixture() {
+function vercelFixture(reference = false) {
   const values = new Map<string, unknown>();
   const state: ReleasePrivateState = { get: async <T>(key: string) => structuredClone(values.get(key)) as T,
     set: async (key, value) => { values.set(key, structuredClone(value)); },
@@ -92,7 +92,9 @@ function vercelFixture() {
         creates++; const body = JSON.parse(String(init.body));
         assert.equal(body.deploymentId, previous.deploymentId); assert.equal(body.withLatestCommit, false);
         assert.equal(body.target, "production"); assert.equal(body.autoAssignCustomDomains, false);
-        assert.deepEqual(body.env, { COMPANYOS_ARTIFACT_GZIP_BASE64: "encoded-artifact" });
+        assert.deepEqual(body.env, reference
+          ? { COMPANYOS_ARTIFACT_HASH: nextHash, COMPANYOS_ARTIFACT_GZIP_BASE64: "" }
+          : { COMPANYOS_ARTIFACT_HASH: "", COMPANYOS_ARTIFACT_GZIP_BASE64: "encoded-artifact" });
         assert.deepEqual(body.build.env, body.env);
         assert.equal(JSON.stringify(body).includes("service-secret"), false);
         staged = { id: "dpl_next", name: "synthetic", projectId: "prj_synthetic", target: "production", readyState: "READY", url: "staged.vercel.app", meta: body.meta };
@@ -136,5 +138,17 @@ test("a failed preflight can recover while a wrong staged build never reaches pr
   f.unavailable(false); assert.equal((await f.host().stage(args))?.id, "dpl_next");
   f.badHealth();
   await assert.rejects(f.host().promote({ deploymentId: "dpl_next", artifact: f.artifact, previousArtifactHash: hash }), /exact accepted/);
+  assert.deepEqual(f.counts(), { creates: 1, promotions: 0 });
+});
+
+
+test("Vercel binds an exact retained Artifact without carrying its bytes through the environment", async () => {
+  const f = vercelFixture(true); f.loseResponse();
+  const args = { operationId: "reference:building", previous: f.previous, artifact: f.artifact,
+    encodedArtifact: "x".repeat(100_000), retainedArtifactHash: nextHash };
+  assert.equal(await f.host().stage(args), undefined);
+  assert.equal((await f.host().stage(args))?.id, "dpl_next");
+  await assert.rejects(f.host().stage({ ...args, retainedArtifactHash: hash }), /differs from the checked/);
+  await assert.rejects(f.host().stage({ ...args, retainedArtifactHash: undefined }), /different content/);
   assert.deepEqual(f.counts(), { creates: 1, promotions: 0 });
 });

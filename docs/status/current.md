@@ -45,7 +45,6 @@ evidence, historical prototypes, and production gaps.
   this source status does not claim a customer deployment. Connected simulations,
   live-trial execution, optional Preview orchestration, arbitrary migrations and
   split-actor acceptance/deployment remain outside the initial automatic profile.
-- Manual hosted openings accept an optional bounded `triggerVariant` index.
 - The Core 0.6.1 hosting correction separates remote proposal validation from
   local Workbench metadata imports. Scheduled production workers verify that
   the production domain serves their exact deployment before executing; staged
@@ -53,6 +52,13 @@ evidence, historical prototypes, and production gaps.
   A cold-start regression imports every maintained scheduled route without local
   checkout metadata and verifies refusal before effects. Shared-image model
   qualification accepts the same snapshot setting as normal Builder execution.
+- Core 0.6.2 retains complete deployment Artifacts in the existing Instance
+  Artifact store. Production builds carry an exact hash instead of a large
+  environment payload. Awaited startup verifies the retained content before
+  requests, with no schema preparation, floating latest version, or fallback.
+  Legacy inline configuration remains supported. This removes the hosting
+  environment size limit from company context without introducing another app.
+- Manual hosted openings accept an optional bounded `triggerVariant` index.
   It selects only parameters from an existing matching trigger in the retained
   Workspace calendar. Tests exercise both branches through the request parser
   and actual engine, changed-input retries, unauthorized callers, invalid

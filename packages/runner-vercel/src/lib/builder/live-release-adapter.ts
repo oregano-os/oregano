@@ -1,7 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { gzipSync } from "node:zlib";
+import { gzipSync, gunzipSync } from "node:zlib";
+import type { WorkflowExecutionStore } from "../../../../state-store/workflow-engine.ts";
 import { parseInstanceBuildConfiguration } from "../../../../companyos-builder/instance-loader.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { releaseAuthorization } from "../../../../runtime/release/policy.ts";
@@ -29,6 +30,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     github: GitHubAppRepositoryProvider; compiler: VercelSandboxTrustedGitExecutionAdapter;
     host: VercelProductionReleaseHost;
     knowledge: Pick<KnowledgeProvider, "stage" | "verify">;
+    artifacts: Pick<WorkflowExecutionStore, "putArtifact" | "getArtifact">;
     environment: NodeJS.ProcessEnv;
   };
   constructor(dependencies: HostedBuilderReleaseAdapter["dependencies"]) {
@@ -150,7 +152,13 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       } finally { await rm(temp, { recursive: true, force: true }); }
     }
     if (built.receipt.workspaceCommit !== context.merge.mergedCommit) throw new Error("Stored build does not match the merged Workspace.");
-    const staged = await host.stage({ operationId: context.operationId, previous: record.previous, artifact: built.receipt, encodedArtifact: built.encodedArtifact, environmentOverrides: built.environmentOverrides });
+    const retained = JSON.parse(gunzipSync(Buffer.from(built.encodedArtifact, "base64")).toString("utf8")) as CompanyOSArtifact;
+    if (retained.artifactHash !== built.receipt.artifactHash) throw new Error("Retained Artifact differs from its release receipt.");
+    await this.dependencies.artifacts.putArtifact(retained);
+    const verifiedArtifact = await this.dependencies.artifacts.getArtifact(retained.artifactHash);
+    if (!verifiedArtifact || verifiedArtifact.artifactHash !== built.receipt.artifactHash) throw new Error("Release Artifact was not durably retained.");
+    const staged = await host.stage({ operationId: context.operationId, previous: record.previous, artifact: built.receipt, encodedArtifact: built.encodedArtifact,
+      retainedArtifactHash: retained.artifactHash, environmentOverrides: built.environmentOverrides });
     if (!staged) return { state: "pending" as const };
     await state.set(key, { ...built, deploymentId: staged.id });
     return { state: "succeeded" as const, receipt: built.receipt };

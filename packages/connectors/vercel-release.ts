@@ -62,13 +62,16 @@ export class VercelProductionReleaseHost {
   }
 
   /** Creates a production-target build without assigning live domains. */
-  async stage(args: { operationId: string; previous: DeploymentReceipt; artifact: ProductionArtifactReceipt; encodedArtifact: string; environmentOverrides?: Record<string, string> }): Promise<Deployment | undefined> {
+  async stage(args: { operationId: string; previous: DeploymentReceipt; artifact: ProductionArtifactReceipt; encodedArtifact: string; retainedArtifactHash?: string; environmentOverrides?: Record<string, string> }): Promise<Deployment | undefined> {
     const { projectId } = this.dependencies.binding;
     const key = `release:vercel:stage:${sha256([projectId, args.operationId])}`;
     const operation = sha256(args.operationId);
     const overrides = args.environmentOverrides ?? {};
     if (Object.keys(overrides).some((key) => !["COMPANYOS_RECORDS_CONFIG_GZIP_BASE64", "COMPANYOS_WORKFLOW_CONFIG_GZIP_BASE64"].includes(key))) throw new Error("Release may only rebind maintained non-secret production configurations.");
-    const environment = { ...overrides, COMPANYOS_ARTIFACT_GZIP_BASE64: args.encodedArtifact };
+    if (args.retainedArtifactHash !== undefined && args.retainedArtifactHash !== args.artifact.artifactHash) throw new Error("Retained Artifact reference differs from the checked release.");
+    const environment = args.retainedArtifactHash
+      ? { ...overrides, COMPANYOS_ARTIFACT_HASH: args.retainedArtifactHash, COMPANYOS_ARTIFACT_GZIP_BASE64: "" }
+      : { ...overrides, COMPANYOS_ARTIFACT_HASH: "", COMPANYOS_ARTIFACT_GZIP_BASE64: args.encodedArtifact };
     const fingerprint = sha256({ previous: args.previous, artifact: args.artifact, environment });
     let intent = await this.dependencies.state.get<StagingIntent>(key);
     // Read-only failures must not reserve an operation that never reached the

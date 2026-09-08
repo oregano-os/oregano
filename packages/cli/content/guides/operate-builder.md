@@ -154,11 +154,16 @@ bind another target when the company's verified default differs.
 
 The trusted host reuses the exact current Core deployment as the build source.
 It compiles the merged Workspace in a separate offline sandbox, builds with the
-existing production environment and only overrides the compiled Artifact, then
-checks staged health before promoting. It creates no Preview app and copies no
+existing production environment and rebinds the exact Artifact and retained
+non-secret Records/Workflow configurations, then checks staged health before
+promoting. The compiler retains the complete Artifact in the existing prepared
+Instance database and verifies it before staging `COMPANYOS_ARTIFACT_HASH`.
+It clears the old inline Artifact environment value so full company context
+does not consume the hosting environment budget. Startup awaits that exact
+Artifact and verifies content and environment before handling requests. It creates no Preview app and copies no
 production secrets into Preview. Domain promotion and a second exact live health
-probe complete the release. Preserve the final Artifact in Instance deployment
-configuration when an operator performs a later manual deployment; a Workspace
+probe complete the release. Preserve the final Artifact hash in Instance deployment
+configuration and retain its database content when an operator performs a later manual deployment; a Workspace
 merge alone never publishes it.
 
 Production-target staging may receive scheduled worker calls before domain

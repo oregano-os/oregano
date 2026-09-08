@@ -385,6 +385,11 @@ and merges the independently checked candidate. A separate trusted compiler buil
 the exact merged Workspace with the running Core and normalized Instance digest.
 Vercel stages a production-target build using the existing production environment,
 checks readiness before promotion, and verifies the live deployment and Artifact.
+Before staging, the full Artifact is retained and read back by exact hash in the
+existing Instance Artifact store. The deployment carries that hash and clears
+its legacy inline payload. The Runner awaits verified initialization before
+requests; missing or corrupt content cannot select another version. This path
+requires an already prepared database and adds no schema or second runtime.
 The coding worker receives none of this execution authority or its credentials.
 
 Postgres stores immutable acceptance and append-only release snapshots, with a

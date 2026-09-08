@@ -2,6 +2,7 @@ import { gunzipSync } from "node:zlib";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { resolveAgent } from "../../../runtime/agent-resolver.ts";
+import { ArtifactReferenceCache } from "./artifact-reference.ts";
 import type { AgentResolution } from "../../../runtime/agent-resolver.ts";
 import type {
   ConversationAssignmentKey,
@@ -9,6 +10,9 @@ import type {
 } from "../../../state-store/conversation-assignments.ts";
 
 let cachedArtifact: CompanyOSArtifact | undefined;
+const referenceSymbol = Symbol.for("companyos.verified-deployment-artifact");
+const processState = globalThis as typeof globalThis & { [referenceSymbol]?: ArtifactReferenceCache };
+const referencedArtifact = () => processState[referenceSymbol] ??= new ArtifactReferenceCache(verifyArtifact);
 
 const VERCEL_ENVIRONMENTS = new Set(["production", "preview", "development"]);
 
@@ -36,10 +40,26 @@ export function assertArtifactDeploymentEnvironment(
 }
 
 export function loadArtifact(): CompanyOSArtifact {
+  const reference = process.env.COMPANYOS_ARTIFACT_HASH;
+  if (reference) return referencedArtifact().get(reference);
   if (cachedArtifact) return cachedArtifact;
   const encoded = process.env.COMPANYOS_ARTIFACT_GZIP_BASE64;
   if (!encoded) throw new Error("COMPANYOS_ARTIFACT_GZIP_BASE64 is not configured.");
   const parsed = JSON.parse(gunzipSync(Buffer.from(encoded, "base64")).toString("utf8")) as CompanyOSArtifact;
+  verifyArtifact(parsed);
+  cachedArtifact = parsed;
+  return parsed;
+}
+
+export async function initializeHostedArtifact(): Promise<void> {
+  const reference = process.env.COMPANYOS_ARTIFACT_HASH;
+  if (!reference) return;
+  const { createPostgresWorkflowExecutionStore } = await import("../../../state-postgres/workflow-store.ts");
+  const store = createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false });
+  await referencedArtifact().initialize(reference, (hash) => store.getArtifact(hash));
+}
+
+function verifyArtifact(parsed: CompanyOSArtifact): void {
   const { artifactHash, ...withoutHash } = parsed;
   const hashInput = {
     ...withoutHash,
@@ -48,8 +68,6 @@ export function loadArtifact(): CompanyOSArtifact {
   const actualHash = sha256(hashInput);
   if (actualHash !== artifactHash) throw new Error(`Artifact integrity failure: expected ${artifactHash}, got ${actualHash}.`);
   assertArtifactDeploymentEnvironment(parsed.instance.environment);
-  cachedArtifact = parsed;
-  return parsed;
 }
 
 export function selectedAgent(): CompiledAgent {
