@@ -8,6 +8,7 @@ import type { BuilderJob } from "../../../../state-store/builder-jobs.ts";
 import type { BuilderTerminalNotifier } from "../../../../runtime/builder/notifications.ts";
 
 interface PendingRelease { candidate: ReleaseCandidate; digest: string; }
+interface PendingReadiness { job: BuilderJob; }
 
 /**
  * Optional trusted Runner binding. Do not expose this as an LLM Tool. Hosts
@@ -27,7 +28,21 @@ export function createBuilderReleaseIntegration(args: {
       if (job.state !== "published" || !job.brief || job.brief.brief.deploymentIntent !== "after-acceptance") {
         await args.fallback.deliver(job); return;
       }
-      const candidate = await args.prepareCandidate(job);
+      let candidate: ReleaseCandidate;
+      try { candidate = await args.prepareCandidate(job); }
+      catch {
+        // CI and provider readiness can lag behind draft publication. Deliver
+        // the actual result now, with a read-only retry rather than losing the
+        // terminal notification or pretending the change is ready to accept.
+        await args.fallback.deliver(job);
+        const token = randomUUID();
+        await args.state.set(`builder-release-readiness:${token}`, { job } satisfies PendingReadiness, 24 * 60 * 60 * 1000);
+        await args.chat.thread(job.sourceConversationKey).post(Card({ title: "Change built; live adoption pending", children: [
+          CardText("The proposal is available. Required checks, production access or the selected test evidence are not yet ready. No live adoption has started."),
+          Actions([Button({ id: "companyos.builder.release.refresh", label: "Check readiness", value: token })]),
+        ] }));
+        return;
+      }
       assertReleaseCandidate(candidate);
       const published = (job.evidence as { proposal?: { proposalCommit?: string } } | undefined)?.proposal?.proposalCommit;
       if (candidate.instanceId !== job.instanceId || candidate.repositoryId !== job.repositoryId
@@ -52,6 +67,14 @@ export function createBuilderReleaseIntegration(args: {
     },
   };
   const registerHandlers = () => {
+    args.chat.onAction("companyos.builder.release.refresh", async (event) => {
+      if (!event.thread || !event.value) return;
+      const pending = await args.state.get<PendingReadiness>(`builder-release-readiness:${event.value}`);
+      if (!pending || !args.authenticatedPrincipal(event.user) || pending.job.sourceConversationKey !== event.thread.id) {
+        await event.thread.post("This result is unavailable in this conversation or this identity is not an active company member."); return;
+      }
+      await notifier.deliver(pending.job);
+    });
     args.chat.onAction("companyos.builder.release", async (event) => {
       if (!event.thread || !event.value) return;
       const pending = await args.state.get<PendingRelease>(`builder-release-candidate:${event.value}`);

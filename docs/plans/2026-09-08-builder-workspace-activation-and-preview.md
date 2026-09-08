@@ -567,3 +567,12 @@ and actual request-to-live qualification. Split-actor acceptance/deployment,
 bounded correction loops, Preview dependency preparation, connected test
 execution and shared-app test routing also remain unimplemented. Do not turn
 local conformance evidence into a customer production-readiness claim.
+
+## 14. Maintained executor checkpoint
+
+The follow-on Change Plan is `.oregano/changes/2026-09-08-builder-live-execution.yaml`.
+It implements the real maintained GitHub/Vercel ports, default Runner integration,
+shared image with CLI and Guides, and qualified Postgres persistence/concurrency.
+Source implementation and local conformance are distinct from target-Instance
+qualification. Optional connected tests, Preview preparation, arbitrary migrations
+and separate acceptance/deployment actors are not implied by the initial profile.

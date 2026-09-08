@@ -96,6 +96,8 @@ export interface ReleaseExecutionAdapter {
   build(context: ReleaseExecutionContext & { readonly merge: MergeReceipt }): Promise<ReleaseOperation<ProductionArtifactReceipt>>;
   migrate?(context: ReleaseExecutionContext & { readonly artifact: ProductionArtifactReceipt }): Promise<ReleaseOperation<{ readonly digest: string }>>;
   deploy(context: ReleaseExecutionContext & { readonly artifact: ProductionArtifactReceipt; readonly previousArtifactHash: string }): Promise<ReleaseOperation<DeploymentReceipt>>;
+  /** Read-only receipt recovery, before authority checks that this deployment may itself have changed. */
+  reconcileDeployment?(context: ReleaseExecutionContext & { readonly artifact: ProductionArtifactReceipt }): Promise<DeploymentReceipt | undefined>;
   verify(context: ReleaseExecutionContext & { readonly deployment: DeploymentReceipt }): Promise<ReleaseOperation<ProductionVerification>>;
   rollback?(context: ReleaseExecutionContext & { readonly deployment: DeploymentReceipt; readonly previousArtifactHash: string }): Promise<ReleaseOperation<ProductionVerification>>;
 }

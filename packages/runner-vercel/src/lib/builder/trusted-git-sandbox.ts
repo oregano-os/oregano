@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Sandbox, type NetworkPolicy } from "@vercel/sandbox";
+import type { CompanyOSArtifact } from "../../../../companyos-builder/types.ts";
+import type { KnowledgeBundle } from "../../../../knowledge/contracts.ts";
 import type { CheckedProposal } from "../../../../runtime/repository/contracts.ts";
 import { sha256, type ProposalInspection } from "../../../../runtime/repository/proposal-inspection.ts";
 import {
@@ -35,7 +37,7 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
   readonly #snapshotId: string;
 
   constructor(configuration: VercelSandboxTrustedGitConfiguration = {
-    snapshotId: process.env.COMPANYOS_BUILDER_TRUSTED_GIT_SNAPSHOT_ID,
+    snapshotId: process.env.COMPANYOS_BUILDER_SNAPSHOT_ID ?? process.env.COMPANYOS_BUILDER_TRUSTED_GIT_SNAPSHOT_ID,
   }) {
     if (!configuration.snapshotId?.startsWith("snap_")) {
       throw new Error("COMPANYOS_BUILDER_TRUSTED_GIT_SNAPSHOT_ID is required for trusted Git execution.");
@@ -164,9 +166,37 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
     }
   }
 
+  async compileArtifact(request: {
+    operationId: string; sourceBundlePath: string; workspaceCommit: string;
+    coreCommit: string; instanceId: string; instanceYaml: string;
+  }): Promise<{ artifact: CompanyOSArtifact; knowledgeBundle: KnowledgeBundle }> {
+    assertOperationId(request.operationId);
+    assertCommit(request.workspaceCommit); assertCommit(request.coreCommit);
+    assertTrustedGitBundlePath(request.sourceBundlePath, "Production build bundle");
+    const bundle = await readFile(request.sourceBundlePath);
+    if (!bundle.length || bundle.length > MAX_BUNDLE_BYTES) throw new Error("Production source bundle exceeds its bound.");
+    const sandbox = await this.#createSandbox(request.operationId, "build", "deny-all");
+    try {
+      await sandbox.fs.mkdir(INPUT_ROOT, { recursive: true });
+      await sandbox.writeFiles([
+        { path: SOURCE_BUNDLE_PATH, content: bundle, mode: 0o600 },
+        { path: `${INPUT_ROOT}/instance.yaml`, content: request.instanceYaml, mode: 0o600 },
+        { path: `${INPUT_ROOT}/build.json`, content: JSON.stringify({ coreCommit: request.coreCommit,
+          workspaceCommit: request.workspaceCommit, instanceId: request.instanceId }), mode: 0o600 },
+      ]);
+      await requireSuccess(await sandbox.runCommand({ cmd: "git", args: ["clone", "--no-checkout", SOURCE_BUNDLE_PATH, WORKSPACE_PATH], timeoutMs: 60000 }), "Production source checkout");
+      await runGit(sandbox, ["checkout", "--detach", request.workspaceCommit]);
+      await sanitizeWorkspace(sandbox);
+      await requireSuccess(await sandbox.runCommand({ cmd: "node", args: [`${CORE_ROOT}/packages/runtime/builder/build-artifact-worker.ts`], cwd: CORE_ROOT, timeoutMs: 120000 }), "Production artifact compilation");
+      const data = await sandbox.fs.readFile(`${INPUT_ROOT}/artifact.json`);
+      if (data.byteLength > 16 * 1024 * 1024) throw new Error("Production Artifact exceeds its transfer bound.");
+      return JSON.parse(Buffer.from(data).toString("utf8"));
+    } finally { await sandbox.stop().catch(() => undefined); }
+  }
+
   async #createSandbox(
     operationId: string,
-    phase: "source" | "validate" | "publish",
+    phase: "source" | "validate" | "publish" | "build",
     networkPolicy: NetworkPolicy,
   ): Promise<Sandbox> {
     return await Sandbox.create({

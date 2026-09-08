@@ -28,6 +28,8 @@ import {
   createBuilderChatIntegration,
   type BuilderChatIntegration,
 } from "./builder/chat-integration.ts";
+import { createBuilderReleaseRuntime } from "./builder/release-provider.ts";
+import { createBuilderChatNotifier } from "./builder/chat-notifier.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
@@ -66,6 +68,7 @@ let state: StateAdapter;
 let artifact: CompanyOSArtifact;
 let runtime: CompanyOSRuntime;
 let builderChat: BuilderChatIntegration;
+let builderRelease: ReturnType<typeof createBuilderReleaseRuntime>;
 let assignmentStore: ConversationAssignmentStore;
 let handoffService: AgentHandoffService;
 let slackAgentExperience: SlackAgentExperienceConfiguration;
@@ -580,7 +583,8 @@ export function createCompanyOSRuntimeConnectors(
   options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish },
 ) {
   const baseline = createUnifiedKnowledgeProvider({
-    handbook: createPostgresKnowledgeProvider(),
+    handbook: createPostgresKnowledgeProvider(process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && options?.artifact?.knowledge
+      ? { snapshotHash: options.artifact.knowledge.bundleHash } : {}),
     brain: new PostgresBrainKnowledgeProjectionStore(),
     accessAuditor: new PostgresKnowledgeAccessAuditor(),
   });
@@ -639,6 +643,9 @@ export function getBot(): Chat {
     toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
   registerHandlers(candidateBot);
+  builderRelease = createBuilderReleaseRuntime({ chat: candidateBot, state,
+    authenticatedPrincipal: (author) => { const member = rosterMember(author); return member ? principal(member) : undefined; } });
+  builderRelease?.registerHandlers();
   // Publish only after runtime construction and handler registration succeed.
   botInstance = candidateBot;
   return candidateBot;
@@ -647,6 +654,15 @@ export function getBot(): Chat {
 export function getCompanyOSRuntime(): CompanyOSRuntime {
   getBot();
   return runtime;
+}
+
+export function getBuilderTerminalNotifier() {
+  const chat = getBot();
+  return builderRelease?.notifier ?? createBuilderChatNotifier(chat);
+}
+export async function advanceBuilderRelease(workerId: string) {
+  getBot();
+  return builderRelease ? await builderRelease.advance(workerId) : { state: "idle", reason: "release-unconfigured" };
 }
 
 export function createSprintDirectAssignmentHook(args: {

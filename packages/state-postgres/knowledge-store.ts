@@ -61,7 +61,8 @@ export async function activateVerifiedKnowledgeSnapshot(
   return results[1]?.[0];
 }
 
-export function createPostgresKnowledgeProvider(options: { embeddingAdapter?: EmbeddingAdapter; embeddingPolicy?: EmbeddingPolicy } = {}): KnowledgeProvider {
+export function createPostgresKnowledgeProvider(options: { embeddingAdapter?: EmbeddingAdapter; embeddingPolicy?: EmbeddingPolicy; snapshotHash?: string } = {}): KnowledgeProvider {
+  if (options.snapshotHash !== undefined && !/^[a-f0-9]{64}$/.test(options.snapshotHash)) throw new Error("Knowledge selection requires an exact snapshot digest.");
   const policy = options.embeddingPolicy ?? { mode: "local", allowExternalDataEgress: false };
   const embedding = authorizeEmbeddingAdapter(options.embeddingAdapter ?? new LocalHashEmbeddingAdapter(), policy);
   return {
@@ -173,7 +174,10 @@ export function createPostgresKnowledgeProvider(options: { embeddingAdapter?: Em
 
     async activeSnapshot(): Promise<KnowledgeSnapshot | undefined> {
       await ensureCompanyKnowledgeSchema();
-      const rows = await connection()`select * from companyos_knowledge.snapshots where status = 'active' limit 1`;
+      const selected = options.snapshotHash ?? null;
+      const rows = await connection()`select * from companyos_knowledge.snapshots
+        where (${selected}::text is null and status = 'active')
+          or (snapshot_hash = ${selected} and verified_at is not null) limit 1`;
       return rows[0] ? mapSnapshot(rows[0] as Record<string, unknown>) : undefined;
     },
 
@@ -183,7 +187,10 @@ export function createPostgresKnowledgeProvider(options: { embeddingAdapter?: Em
       const limit = Math.max(1, Math.min(input.limit ?? 5, 20));
       const requestedMode = input.mode ?? "hybrid";
       const sql = connection();
-      const active = await sql`select snapshot_hash, bundle from companyos_knowledge.snapshots where status = 'active' limit 1`;
+      const selected = options.snapshotHash ?? null;
+      const active = await sql`select snapshot_hash, bundle from companyos_knowledge.snapshots
+        where (${selected}::text is null and status = 'active')
+          or (snapshot_hash = ${selected} and verified_at is not null) limit 1`;
       if (!active[0]) return { query, snapshotHash: null, hits: [], gaps: ["no-active-snapshot"], mode: "lexical", degradations: [] };
       const snapshotHash = String(active[0].snapshot_hash);
       const bundle = active[0].bundle as unknown as KnowledgeBundle;
@@ -265,10 +272,12 @@ export function createPostgresKnowledgeProvider(options: { embeddingAdapter?: Em
     async get(input: { path: string; subject?: KnowledgeAccessSubject }): Promise<KnowledgeGetResult | undefined> {
       await ensureCompanyKnowledgeSchema();
       const sql = connection();
+      const selected = options.snapshotHash ?? null;
       const policyRows = await sql`select s.snapshot_hash, s.bundle, d.access_policy_id
         from companyos_knowledge.snapshots s
         join companyos_knowledge.documents d on d.snapshot_hash = s.snapshot_hash
-        where s.status = 'active' and d.path = ${input.path} limit 1`;
+        where ((${selected}::text is null and s.status = 'active')
+          or (s.snapshot_hash = ${selected} and s.verified_at is not null)) and d.path = ${input.path} limit 1`;
       if (!policyRows[0]) return undefined;
       const bundle = policyRows[0].bundle as unknown as KnowledgeBundle;
       const subject = await enrichPostgresKnowledgeSubject(input.subject);

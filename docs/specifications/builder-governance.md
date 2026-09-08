@@ -63,42 +63,33 @@ Chat-provider failures with bounded backoff. Retrying a notification MUST NOT
 make a terminal job executable again. Successful delivery MUST be persisted so
 the notification is not reclaimed.
 
-After an authorized confirmation or cancellation succeeds, the Runner MUST
-replace the original interactive confirmation message through its neutral Chat
-adapter. A queued replacement MUST remove the confirmation actions and MAY
-retain only the authenticated job-cancellation action; a cancelled replacement
-MUST contain no actions. The pending confirmation MUST be consumed only after
-that replacement succeeds, so a transient Chat-provider failure remains safely
-retryable while durable job idempotency prevents duplicate execution.
+A newly admitted brief produces one queued acknowledgement and a durable job.
+The Runner MUST retain deterministic conversation history identifying the
+submitted job and MUST NOT ask for another start confirmation. Its terminal
+result is delivered to the original conversation; release readiness and
+acceptance are separate from execution completion.
 
-For new jobs, the immutable input MUST retain the neutral Chat message identity
-of the queued card. Terminal notification delivery MUST replace that card with
-the final `published`, `failed`, or `cancelled` outcome and no actions. A legacy
-job without a retained message identity MAY receive a fallback post in the same
-source thread; fallback delivery is at-least-once when persistence fails after
-the provider accepted the post.
-
-When `builder.propose_change` successfully posts the confirmation card, that
-card MUST be the sole visible Runner acknowledgement for the turn. The Runner
-MUST NOT also post model-generated confirmation prose. It MUST retain a
-deterministic internal conversation-history entry so subsequent turns know that
-the card is awaiting the requester's explicit action. If card creation fails,
-normal error or model communication MUST remain visible.
+Legacy confirmation cards remain consumable during migration. Their handlers
+MUST authenticate the original requester and conversation, remove consumed
+actions, and preserve job idempotency across message-edit failures. Legacy jobs
+with a retained card identity may replace that card; new jobs receive a result
+in the original thread. Delivery remains at-least-once if persistence fails
+after the provider accepts a post.
 
 The Instance MAY bind one safe proposal target branch. The target MUST be
-compiled into the Artifact, visible in the human confirmation, immutable in the
-job, and verified with the exact base commit before publication. The model and
-requester MUST NOT choose or alter it during a job. Without that binding, the
-Repository Provider's verified default branch is the target.
+compiled into the Artifact, retained in the brief/job evidence, and verified
+with the exact base commit before publication. The model and requester MUST NOT
+choose or alter it during a job. Without that binding, the Repository Provider's
+verified default branch is the target.
 
 ## 2. Change matrix
 
 | Change | Minimum class | Required authority |
 |---|---|---|
-| Handbook or non-behavioral operational content | content | assigned Process Steward |
-| Existing SOP/Skill behavior | behavior | assigned Process Steward |
+| Handbook or non-behavioral operational content | content | configured requester or Steward acceptance |
+| Existing SOP/Skill behavior | behavior | configured requester or Steward acceptance |
 | Workflow steps, criteria, order, or schedule | behavior; security if authority/effect changes | Process Steward plus Workspace Steward where security applies |
-| New workflow | security | Workspace Steward and responsible Process Steward |
+| New workflow | declared class; security when authority/data expands | configured acceptance; Workspace Steward for security |
 | Agent scope or instructions | behavior; security when authority/data expands | Process Steward or Workspace Steward by effect |
 | Company Tool, grant, connection, roster, or policy | security | Workspace Steward; plus independent review only when Workspace policy requires it |
 | Builder, governance, CODEOWNERS, CI, or protected paths | security | Workspace Steward under the declared review mode |
@@ -229,7 +220,7 @@ human accepts the exact result. The coding process remains proposal-only.
 - merge/deploy uses the exact reviewed commit pair;
 - rollback restores definition and separately tracks compensation for effects.
 
-## 9. Implemented proposal-only profile
+## 9. Historical Stage-0 proposal profile
 
 The experimental implementation currently includes:
 
@@ -265,7 +256,7 @@ trusted Git boundaries must hash the same globally ordered patch, and any
 trusted Git or Workbench validation change requires a rebuilt and rebound
 pinned snapshot before the gate is repeated.
 
-## 10. Grounded intake, activation and release foundation
+## 10. Grounded intake, activation and release
 
 A valid Workspace `agents/builder/instructions.md` declares desired Builder
 availability. The Instance supplies repository and coding execution bindings;
@@ -312,21 +303,46 @@ claiming live success. The optional Postgres store reuses existing runs,
 append-only events and lease tables, with no new DDL in the release path.
 Application rollback excludes migrations and does not undo external effects.
 
-This is a locally tested Core foundation. There is no maintained qualified
-GitHub/Vercel release execution adapter or automatic hosted wiring yet. The
-current default hosted worker still ends at a draft. Production readiness also
-requires provider conformance, durable-store integration evidence, pinned
-worker guidance, and the private Company's actual access/health proof.
-Optional Preview provisioning, shared-app test routing and migration
-qualification remain later capabilities; selecting them in a brief does not
-execute them.
+The maintained Runner now composes the GitHub release connector and Vercel
+production host when their Instance binding is present. Exact single-parent
+candidate commits, the full changed-path inventory, trusted Workbench evidence,
+producer-pinned hosted checks, protected up-to-date main and expected-head merge
+bind the accepted content. The class is the strictest classification under the
+base and proposed governance; a proposal cannot lower its own review class.
+
+Vercel staging reuses the exact current Core deployment and its production
+environment, overriding the newly compiled Artifact and revalidated non-secret
+Records/Workflow pairing references. Offline compilation
+requires the exact normalized Instance digest from running Artifact provenance.
+Staged health precedes domain promotion; live health must prove deployment ID,
+Core/Workspace commits, Artifact and configuration. Ambiguous creation is retained
+as a durable intent and reconciled through provider metadata without a blind retry.
+Read-only recovery can recognize a deployment that changed its own acceptance
+policy before the previous worker saved its receipt.
+
+The Postgres implementation is qualified against an isolated database for restart,
+concurrent acceptance, same-revision save races and expired leases. A separate
+atomic revision pointer fences append-only snapshots; no runtime DDL is introduced.
+The shared image packages both coding profiles, CLI and Guides for separate coding
+and trusted executions. Actual per-Instance App rights, hosted enforcement, selected
+profile and request-to-live proof remain mandatory deployment evidence.
+
+The first automatic profile supports structural checks and human result review.
+It stages and verifies the exact Knowledge Bundle without changing the old live
+Handbook selection. A configured release Runner reads the snapshot pinned by its
+Artifact. Changes to Knowledge access policy, Records sources, connections or
+the Records identity roster require renewed Instance qualification.
+Requested simulations, connected tests, live trials, arbitrary migrations and
+optional Preview preparation require further qualified adapters. Selecting a
+strategy in the brief never claims it was executed. Split-actor acceptance and
+release remain outside the combined-action implementation.
 
 ## 11. Remaining adoption work
 
 - appoint Process Stewards and Workspace Stewards for each pilot Workspace;
-- choose the isolated preview data and provider topology;
-- implement and qualify the trusted provider merge/release execution binding;
-- qualify durable release storage, hosted protection and actual production verification.
+- choose test evidence and resources only where the change requires them;
+- qualify the maintained provider merge/release binding in the target Instance;
+- verify hosted protection, correct model/image bindings and actual production adoption.
 
 
 ## Operational state path enforcement

@@ -94,6 +94,7 @@ export function buildCompanyOSArtifact(args: {
     company: workspace.company,
     instance: { id: args.instance.instanceId, environment: args.instance.environment },
     provenance: {
+      instanceConfigurationDigest: sha256(args.instance),
       coreVersion,
       coreCommit: args.coreCommit,
       workspaceVersion: workspace.version,

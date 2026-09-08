@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, renameSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -31,4 +31,22 @@ test("plan metadata exemption is narrow and cannot exempt explicit governance pr
   assert.equal(classifyFiles([".companyos/governance.yaml", plan], governance, { planMetadataPaths: new Set([plan]) }).effective, "security");
   governance.change_classes.security.paths.push(".companyos/changes/**");
   assert.equal(classifyFiles([plan], governance, { planMetadataPaths: new Set([plan]) }).effective, "security");
+});
+
+
+test("release classification uses accepted governance even when a proposal weakens its own rules", async () => {
+  const { classifyBuilderRelease } = await import("../src/builder-release-inspection.mjs");
+  const root = mkdtempSync(join(tmpdir(), "builder-classify-"));
+  const git = (...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8" }).trim();
+  try {
+    mkdirSync(join(root, ".companyos")); git("init", "-q");
+    const path = join(root, ".companyos/governance.yaml");
+    writeFileSync(path, "change_classes:\n  security:\n    paths: ['.companyos/**', 'policies/**']\n  behavior:\n    paths: ['workflows/**']\n");
+    git("add", "."); git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "base");
+    const base = git("rev-parse", "HEAD");
+    writeFileSync(path, "change_classes:\n  content:\n    paths: ['.companyos/**', 'policies/**', 'workflows/**']\n");
+    assert.equal(classifyBuilderRelease(root, base, [".companyos/governance.yaml", "policies/rights.md"]), "security");
+    assert.equal(classifyBuilderRelease(root, base, ["workflows/example.md"]), "behavior");
+    assert.throws(() => classifyBuilderRelease(root, base, ["unmapped.txt"]), /every path/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

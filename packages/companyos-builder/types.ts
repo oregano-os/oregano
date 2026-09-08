@@ -186,6 +186,7 @@ export interface CompanyOSArtifact {
   company: string;
   instance: { id: string; environment: string };
   provenance: {
+    instanceConfigurationDigest?: string;
     coreVersion: string;
     coreCommit: string;
     workspaceVersion: string;

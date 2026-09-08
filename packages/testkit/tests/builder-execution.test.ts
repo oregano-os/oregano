@@ -317,3 +317,20 @@ test("ACP client records unavailable cost instead of inventing a price when the 
     await rm(cwd, { recursive: true, force: true });
   }
 });
+
+
+test("Claude shell access is limited to the maintained isolated worker and Core references stay read-only", async () => {
+  const root = await mkdtemp(join(tmpdir(), "builder-permission-"));
+  try {
+    const workspace = join(root, "workspace"), references = join(root, "core");
+    await mkdir(workspace); await mkdir(references);
+    const request = (kind: string, path?: string) => ({ toolCall: { toolCallId: "test", kind, ...(path ? { locations: [{ path }] } : {}) }, options: [{ optionId: "once", name: "Allow once", kind: "allow_once" }] }) as any;
+    const ordinary = createBuilderAcpPermissionPolicy(BUILDER_ACP_PROFILES["claude-code"], workspace);
+    assert.equal(await ordinary(request("execute")), undefined);
+    const isolated = createBuilderAcpPermissionPolicy(BUILDER_ACP_PROFILES["claude-code"], workspace, { isolatedSandbox: true, referenceRoot: references });
+    assert.equal(await isolated(request("execute")), "once");
+    assert.equal(await isolated(request("read", join(references, "guide.md"))), "once");
+    assert.equal(await isolated(request("edit", join(references, "guide.md"))), undefined);
+    assert.equal(await isolated(request("read", join(root, "secret"))), undefined);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});

@@ -144,38 +144,28 @@ maximum-three human review queue. Hybrid retrieval requires no external
 credential: the default adapter is local, and optional vector-index failure is
 reported while lexical retrieval stays available.
 
-## Optional proposal-only Builder activation
+## Builder availability and live adoption
 
-The normal starter does not activate the Builder. Activation is a separate,
-explicit Instance decision and requires all of the following together:
+A valid Workspace Builder definition expresses desired availability. The Instance
+supplies the actual coding and repository access; a redundant `builder.enabled`
+flag is unnecessary. Route conversations with an explicit binding or an authorized
+handoff from the normal company Agent. Reading and clarification remain possible
+before coding access is ready.
 
-- an exact Agent Binding for the `builder` Agent and one trusted channel;
-- an enabled non-secret Builder declaration in the immutable Artifact;
-- a verified repository installation and exact source/publisher bindings;
-- qualified isolated coding and trusted Git snapshots;
-- the general `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in the Instance secret
-  store; and
-- successful checks from the version-matched [Operate the
-  Builder](../workbench/guides/operate-builder.md) Guide.
+Configure each company's requester or Steward acceptance rules and deployment
+delegation in `.companyos/governance.yaml`. Preserve security and independent-review
+requirements. A resolved implementation request starts isolated coding without a
+second start confirmation. A checked result needs its authorized acceptance before
+release; the same human may accept and release in one action when holding both roles.
 
-Selecting the Builder opens a normal Runner conversation. The coding agent
-starts only after the authenticated requester confirms the exact objective,
-repository, and base commit. A successful job creates a checked draft proposal;
-human review, merge, and deployment remain outside Builder authority. Removing
-the Agent Binding and Builder declaration returns the Instance to normal Agent
-operation without a Core migration or database rollback.
+Use the version-matched [Operate the Builder](../workbench/guides/operate-builder.md)
+Guide to bind the shared qualified image, selected coding profile, service App,
+repository installation and production executor. One image contains CLI and Guides;
+coding and trusted operations use separate executions. Reuse existing production
+apps and connections. No Preview or second app is required for simple changes.
 
-
-For generic executable workflows, follow
-[Hosted Workflow Engine Operations](../operations/workflow-engine.md).
-The Instance Administrator verifies exact activation, non-secret historical
-Records snapshots, provider account/recipient checks, source cutoff coverage and
-real human decision evidence. `companyos onboard` keeps these as external
-Instance verification; passing local validation or the Tool-free starter check
-cannot establish workflow execution readiness.
-Hosted Monday access additionally requires the reviewed `credential_identity`
-in each retained Artifact's Instance configuration, with the authenticated
-member as `actor_id`. The host rechecks account, external-Agent identity, active
-board, minimum access and mapped columns using the actual client credential.
-Local onboarding reports this as an external Instance check; it cannot verify a
-token or infer missing provider identities from Workspace files.
+The maintained initial release profile combines Workbench checks, protected CI,
+human acceptance, staged production health and exact live verification. Other test
+strategies and data migrations require qualified evidence/execution before automatic
+release. Missing hosted enforcement or provider rights must be reported explicitly;
+neither a Workspace declaration nor a passing local test supplies those rights.

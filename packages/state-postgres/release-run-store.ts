@@ -2,6 +2,28 @@ import { randomUUID } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 import { type ReleaseLease, type ReleaseRun, type ReleaseRunStore } from "../state-store/release-runs.ts";
 
+/** Private non-expiring operation/artifact storage; schema must already be qualified. */
+export function createPostgresReleasePrivateState(databaseUrl = process.env.DATABASE_URL) {
+  if (!databaseUrl) throw new Error("Release private state is not configured.");
+  const sql = neon(databaseUrl);
+  const keyFor = (key: string) => `builder-private:${key}`;
+  return {
+    async get<T>(key: string): Promise<T | undefined> {
+      const rows = await sql`select value from companyos.chat_values where key = ${keyFor(key)} and expires_at is null`;
+      return rows[0] ? (typeof rows[0].value === "string" ? JSON.parse(rows[0].value) : rows[0].value) as T : undefined;
+    },
+    async set<T>(key: string, value: T): Promise<void> {
+      await sql`insert into companyos.chat_values (key, value, expires_at) values (${keyFor(key)}, ${JSON.stringify(value)}::jsonb, null)
+        on conflict (key) do update set value = excluded.value, expires_at = null`;
+    },
+    async setIfNotExists(key: string, value: unknown): Promise<boolean> {
+      const rows = await sql`insert into companyos.chat_values (key, value, expires_at) values (${keyFor(key)}, ${JSON.stringify(value)}::jsonb, null)
+        on conflict (key) do nothing returning key`;
+      return rows.length === 1;
+    },
+  };
+}
+
 /**
  * Reuses existing control-plane runs/events and the existing atomic lease
  * relation. Release snapshots are append-only events, never expiring chat state.
@@ -28,8 +50,12 @@ export function createPostgresReleaseRunStore(databaseUrl = process.env.DATABASE
         insert into companyos.workflow_runs (run_id, workflow, workflow_version, company_commit, company_snapshot_hash, agent_definition_hash, agent_adapter)
         values (${run.id}, ${workflow(run.candidate.instanceId)}, ${run.candidate.coreCommit}, ${run.candidate.candidateCommit}, ${run.candidateDigest}, ${run.candidate.policyDigest}, 'release-coordinator')
         on conflict (run_id) do nothing returning run_id
+      ), revision as (
+        insert into companyos.chat_values (key, value, expires_at)
+        select ${`builder.release-revision:${run.id}`}, ${JSON.stringify({ revision: run.revision })}::jsonb, null from created returning key
       ) insert into companyos.events (run_id, step_id, actor, subject_principal, event, payload)
-        select run_id, 'accept', 'human', ${run.acceptedBy}, 'release.snapshot', ${JSON.stringify(run)}::jsonb from created`;
+        select run_id, 'accept', 'human', ${run.acceptedBy}, 'release.snapshot', ${JSON.stringify(run)}::jsonb from created
+        where exists (select 1 from revision)`;
       const existing = await get(run.id);
       if (!existing || existing.candidateDigest !== run.candidateDigest) throw new Error("Release identity conflicts with stored content.");
       return existing;
@@ -58,10 +84,13 @@ export function createPostgresReleaseRunStore(databaseUrl = process.env.DATABASE
       const rows = await sql`with owned as (
         select thread_id from companyos.chat_locks where thread_id = ${lockKey(run.candidate.instanceId)}
           and token = ${lease.token} and expires_at > ${now} for update
+      ), advanced as (
+        update companyos.chat_values set value = ${JSON.stringify({ revision: run.revision })}::jsonb
+        where key = ${`builder.release-revision:${run.id}`} and (value->>'revision')::int = ${lease.run.revision}
+          and exists (select 1 from owned) returning key
       ), appended as (
         insert into companyos.events (run_id, step_id, actor, event, payload)
-        select ${run.id}, ${run.stage}, 'release-coordinator', 'release.snapshot', ${JSON.stringify(run)}::jsonb from owned
-        where (select max((payload->>'revision')::int) from companyos.events where run_id = ${run.id} and event = 'release.snapshot') = ${lease.run.revision}
+        select ${run.id}, ${run.stage}, 'release-coordinator', 'release.snapshot', ${JSON.stringify(run)}::jsonb from advanced
         returning event_id
       ) select event_id from appended`;
       if (!rows.length) throw new Error("Release lease or revision is stale.");

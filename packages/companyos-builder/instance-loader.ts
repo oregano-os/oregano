@@ -8,7 +8,10 @@ import type { BuilderInstanceConfiguration, RuntimeConnectorConfiguration } from
 import type { SprintRuntimeInstanceConfiguration } from "./types.ts";
 
 export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfiguration {
-  const raw = readFileSync(path, "utf8");
+  return parseInstanceBuildConfiguration(readFileSync(path, "utf8"), path);
+}
+
+export function parseInstanceBuildConfiguration(raw: string, path = "Instance binding"): InstanceBuildConfiguration {
   if (/\b(?:token|password|secret|private_key)\s*:/i.test(raw)) {
     throw new Error(`${path}: Instance build declarations contain SecretRefs and bindings, never resolved secret values.`);
   }

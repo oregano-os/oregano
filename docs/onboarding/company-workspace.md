@@ -285,23 +285,28 @@ or prompt text as access control. A sensitive Source Connector remains disabled
 until its external-principal and provider-ACL mappings pass negative conformance
 tests, even when the Core authorization tests pass.
 
-## 10. Activate the proposal-only Builder when approved
+## Builder availability and live adoption
 
-Do not add the Builder merely to complete onboarding. When a Workspace Steward
-approves an experimental pilot, retain `agents/builder/` as ordinary company
-behavior and bind it through one exact Instance Agent Binding. Separately bind
-the isolated execution profile, one `claude-code` or `codex` ACP profile, the
-verified repository source and proposal publisher, and the optional fixed
-proposal target branch.
+A valid Workspace Builder definition expresses desired availability. The Instance
+supplies the actual coding and repository access; a redundant `builder.enabled`
+flag is unnecessary. Route conversations with an explicit binding or an authorized
+handoff from the normal company Agent. Reading and clarification remain possible
+before coding access is ready.
 
-Follow the version-matched [Operate the
-Builder](../workbench/guides/operate-builder.md) Guide. Qualify the coding and
-trusted Git snapshots, repository installation, model accounting, crash
-recovery, independent diff digest, Workbench validation, terminal Slack card,
-and idempotent draft publication before activating the channel. Keep model and
-repository credentials only in the Instance secret and provider boundaries.
+Configure each company's requester or Steward acceptance rules and deployment
+delegation in `.companyos/governance.yaml`. Preserve security and independent-review
+requirements. A resolved implementation request starts isolated coding without a
+second start confirmation. A checked result needs its authorized acceptance before
+release; the same human may accept and release in one action when holding both roles.
 
-The first pilot remains proposal-only. The requester confirms execution in
-Slack, but reviews and merges the resulting draft in the Git host. Deployment
-uses the ordinary exact-pair Instance release process and is never implied by
-the Builder confirmation or draft proposal.
+Use the version-matched [Operate the Builder](../workbench/guides/operate-builder.md)
+Guide to bind the shared qualified image, selected coding profile, service App,
+repository installation and production executor. One image contains CLI and Guides;
+coding and trusted operations use separate executions. Reuse existing production
+apps and connections. No Preview or second app is required for simple changes.
+
+The maintained initial release profile combines Workbench checks, protected CI,
+human acceptance, staged production health and exact live verification. Other test
+strategies and data migrations require qualified evidence/execution before automatic
+release. Missing hosted enforcement or provider rights must be reported explicitly;
+neither a Workspace declaration nor a passing local test supplies those rights.

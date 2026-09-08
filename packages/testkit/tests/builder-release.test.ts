@@ -234,3 +234,21 @@ test("requester acceptance and independent review use the human identity across 
   g.setAuthority({ ...authority, roster: f.getAuthority().roster, policy: { ...authority.policy, acceptance: { ...authority.policy.acceptance, behavior: { mode: "steward", eligible: { members: ["member", "steward"], groups: [] }, independent: true } } } });
   await assert.rejects(g.make().accept(g.c, alias, sha256(g.c)), /required acceptor/);
 });
+
+
+test("lost promotion receipt is reconciled read-only after the release changes its own policy", async () => {
+  const f = fixture();
+  await f.make().accept(f.c, requester, sha256(f.c));
+  await f.advanceUntil("deploying");
+  const original = f.execution.deploy;
+  f.execution.deploy = async (context) => {
+    await original(context);
+    f.setAuthority({ ...f.getAuthority(), policyDigest: "0".repeat(64) });
+    return { state: "pending" };
+  };
+  await f.make().advance(f.c.instanceId, "promoting");
+  f.execution.reconcileDeployment = async () => f.getProduction();
+  f.execution.authorization = async () => { throw new Error("old policy is no longer active"); };
+  assert.equal((await f.advanceUntil("live")).stage, "live");
+  assert.equal(f.effects.size, 3);
+});

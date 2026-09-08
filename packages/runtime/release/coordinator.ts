@@ -92,6 +92,14 @@ export class ReleaseCoordinator {
         const candidate = run.candidate;
         assertReleaseCandidate(candidate);
         if (sha256(candidate) !== run.candidateDigest) throw new Error("Stored release candidate was changed.");
+        if (run.stage === "deploying" && run.artifact && this.dependencies.execution.reconcileDeployment) {
+          const recovered = await this.dependencies.execution.reconcileDeployment({ candidate, operationId: `${run.id}:deploying`, artifact: run.artifact });
+          if (recovered) {
+            assertArtifact(candidate, run.merge!.mergedCommit, recovered);
+            if (!recovered.deploymentId || recovered.artifactHash !== run.artifact.artifactHash) throw new Error("Recovered deployment differs from the accepted build.");
+            await save({ stage: "deployed", deployment: recovered });
+          }
+        }
         // Verification is read-only and must still run after a release changes
         // its own policy. Rollback uses current deployment authority, not the old
         // acceptance policy. Every forward mutation rechecks the accepted policy.

@@ -20,7 +20,7 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
-- The unreleased Builder intake change adds scoped definition discovery and
+- The Core 0.6.0 Builder release candidate adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,
   original-message continuation through an allowlisted Builder handoff, and
   automatic isolated job submission after clarification. Workspace Builder
@@ -31,16 +31,20 @@ evidence, historical prototypes, and production gaps.
   staged, new, renamed and deleted paths. Valid v3 evidence plans no longer
   cause automatic security classification solely through `.companyos/**`;
   actual governance and explicit protected-path rules remain protected.
-- The locally tested release foundation includes accepted Workspace policy
-  compilation, requester/Steward authorization, exact-candidate coordination,
-  one per-Instance lease, idempotent provider operation contracts, optional
-  Chat acceptance, and verified production/rollback receipts. Its Postgres
-  adapter reuses existing run/event/lease tables. The maintained hosted Runner
-  still ends at a draft: the GitHub/Vercel execution binding, Postgres integration
-  qualification and actual request-to-live proof are outstanding. No real
-  company was activated, migrated or deployed by this implementation. Complete
-  worker CLI/Guide packaging, connected tests and optional Preview orchestration
-  also remain outstanding.
+- The Builder release path now has maintained GitHub/Vercel adapters and default
+  Runner wiring behind explicit company policy and Instance bindings. It checks
+  exact candidate/base/tree, producer-pinned protected CI, current human authority,
+  offline Artifact compilation, staged production health, domain promotion and
+  exact live health. Exact Knowledge snapshots and retained Records/Workflow
+  bindings follow the new pairing; changed provider or knowledge access policy
+  needs renewed Instance qualification. Lost provider create responses retain an intent rather than
+  repeating deployment. Postgres restart, lease expiry and concurrent revision
+  races pass in an isolated database. A shared image recipe packages pinned coding
+  profiles, CLI and Guides for separate coding and trusted executions. Actual
+  company provider access and request-to-live qualification are still required;
+  this source status does not claim a customer deployment. Connected simulations,
+  live-trial execution, optional Preview orchestration, arbitrary migrations and
+  split-actor acceptance/deployment remain outside the initial automatic profile.
 - Manual hosted openings accept an optional bounded `triggerVariant` index.
   It selects only parameters from an existing matching trigger in the retained
   Workspace calendar. Tests exercise both branches through the request parser

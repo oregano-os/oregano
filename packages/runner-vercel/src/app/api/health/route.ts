@@ -1,8 +1,10 @@
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
+import { builderConfigurationDigest } from "../../../lib/builder/release-provider.ts";
 import { getBot } from "../../../lib/bot.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
+import { createPostgresKnowledgeProvider } from "../../../../../state-postgres/knowledge-store.ts";
 
 import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "../../../lib/workflow-configuration.ts";
 
@@ -24,6 +26,10 @@ export async function GET() {
     const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
     // Validate Connector configuration without initializing provider clients.
     getBot();
+    const knowledgeSnapshot = process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64
+      ? await createPostgresKnowledgeProvider({ snapshotHash: artifact.knowledge!.bundleHash }).activeSnapshot() : undefined;
+    if (process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && (!knowledgeSnapshot
+      || knowledgeSnapshot.bundle.workspaceCommit !== artifact.provenance.workspaceCommit)) throw new Error("The release Knowledge snapshot is not available for the exact Workspace.");
     const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
     if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
     const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {
@@ -54,6 +60,15 @@ export async function GET() {
         defaultAgentId: artifact.agentRouting?.defaultAgentId ?? null,
       },
       artifactHash: artifact.artifactHash,
+      deploymentId: process.env.VERCEL_DEPLOYMENT_ID ?? null,
+      sourceCoreCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      configurationDigest: builderConfigurationDigest() ?? null,
+      knowledgeSnapshotHash: knowledgeSnapshot?.snapshotHash ?? null,
+      builder: {
+        desired: artifact.agents.some((agent) => agent.id === "builder"),
+        codingConfigured: Boolean(artifact.builder),
+        releaseConfigured: Boolean(artifact.builderReleasePolicy && process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64),
+      },
       coreVersion: artifact.provenance.coreVersion,
       coreCommit: artifact.provenance.coreCommit,
       workspaceVersion: artifact.provenance.workspaceVersion,
