@@ -3,7 +3,7 @@ import {
   createGitHubAppConfigurationFromEnvironment,
 } from "../../../../connectors/github-repository.ts";
 import { BuilderService } from "../../../../runtime/builder/service.ts";
-import { TrustedGitProposalValidator } from "../../../../runtime/builder/workbench-validator.ts";
+import { TrustedGitProposalValidator } from "../../../../runtime/builder/trusted-proposal-validator.ts";
 import { createPostgresBuilderJobStore } from "../../../../state-postgres/builder-job-store.ts";
 import { createPostgresRepositoryInstallationStore } from "../../../../state-postgres/repository-installation-store.ts";
 import { loadArtifact } from "../artifact.ts";

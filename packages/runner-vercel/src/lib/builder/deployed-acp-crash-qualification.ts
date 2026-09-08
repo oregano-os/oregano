@@ -42,7 +42,7 @@ export interface DeployedAcpCrashRecoveryEvidence {
 export async function qualifyDeployedAcpCrashRecovery(): Promise<DeployedAcpCrashRecoveryEvidence> {
   const profile = resolveBuilderAcpProfile("claude-code");
   const configuration: VercelSandboxBuilderConfiguration = {
-    workerSnapshotId: process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID,
+    workerSnapshotId: process.env.COMPANYOS_BUILDER_SNAPSHOT_ID ?? process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   };
   if (!configuration.workerSnapshotId || !configuration.anthropicApiKey) {
