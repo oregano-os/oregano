@@ -48,6 +48,9 @@ CLI directory and removed after use, including failed commands. Only the
 non-secret project link is retained for deployment. The subsequent health
 check uses a provider-confirmed production alias and checks the exact deployment
 ID; it neither disables deployment protection nor creates bypass credentials.
+The Slack connector is created with incoming triggers enabled. Registering a
+trigger destination alone does not enable forwarding; the current source flag,
+project, production environment and route are checked before the message gate.
 
 ### Candidate initialization
 

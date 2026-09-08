@@ -27,7 +27,10 @@ evidence, historical prototypes, and production gaps.
   on failure and resumed setup without duplicate deployment. These checks do
   not establish fresh external candidate qualification. A further regression
   checks production aliases and exact deployment IDs while refusing login
-  redirects; deployment protection remains enabled.
+  redirects; deployment protection remains enabled. Slack creation now enables
+  incoming triggers explicitly; both the first-message gate and final verification
+  check forwarding plus the exact production attachment and webhook destination.
+  Regressions reject disabled forwarding and wrong project, route or environment.
 
 - The Core 0.6.0 Builder release adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,

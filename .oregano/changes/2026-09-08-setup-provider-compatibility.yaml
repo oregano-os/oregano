@@ -8,7 +8,9 @@ objective: >-
   provider-generated files from the immutable Core checkout. Keep the existing
   exact-resource authorization and model-backed exchange completion proof. Check
   the provider-reported production alias with exact deployment provenance rather
-  than following the protected unique deployment URL into a login page.
+  than following the protected unique deployment URL into a login page. Enable
+  incoming Slack triggers on creation and verify current forwarding, production
+  attachment and exact destination before requesting a message or completing.
 non_goals:
   - Expand Slack scopes or enable development access to production connectors.
   - Change runtime behavior, resource ownership or setup authorization receipts.

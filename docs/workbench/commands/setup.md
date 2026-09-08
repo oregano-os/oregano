@@ -61,6 +61,13 @@ reported by its production inspection, and records a health URL only after
 its response matches that exact deployment ID and Artifact provenance. It does
 not follow login redirects, disable protection, or create bypass credentials.
 
+Slack creation passes `--triggers` as well as attaching the trigger destination.
+These are separate provider operations: attaching a destination cannot enable a
+connector created without incoming events. The message gate and final verification
+re-read forwarding, app identity, production-only attachment and exact route. An
+older disabled connector needs explicit repair of its existing configuration;
+registering the same destination again or repeating a Slack message cannot fix it.
+
 Events are `input`, `choice`, `review`, `action`, `recovery`, `complete`, and
 `cancelled`. Responses are `answer`, `edit`, `confirm`, `retry`, and `cancel`;
 see the release runbook for their JSON fields. Revision IDs are machine transport,

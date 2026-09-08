@@ -433,6 +433,11 @@ success. A standard fresh setup MUST inspect the exact production deployment,
 select only a provider-reported production alias, and require current health to
 match the deployment ID and complete Artifact provenance. It MUST NOT disable
 deployment protection or generate bypass credentials merely to check health.
+The maintained Slack connector MUST be created with incoming triggers enabled.
+Before requesting the first message and during final verification, setup MUST
+check current source forwarding, the exact production webhook destination,
+and a production-only project attachment. A destination receipt alone MUST NOT
+be treated as evidence that incoming forwarding is enabled.
 
 The first ordinary Slack exchange MUST bind the authorized principal, current
 Artifact, selected model, delivered response and durable conversation evidence.

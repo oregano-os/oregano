@@ -79,6 +79,9 @@ validated app/workspace identities; they are not general readiness evidence.
 Production aliases come from the exact provider deployment receipt, and current
 health must identify that deployment before the alias becomes verification input.
 Login redirects are not followed or interpreted as application health.
+The Slack adapter explicitly enables incoming triggers at creation and checks
+current forwarding, production attachment and webhook destination before the
+first-message gate and final verification.
 The adapters must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
 runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and

@@ -31,7 +31,11 @@ installation workspace and Slack app ID before producing the app Messages link.
 Only non-secret identifiers enter Instance receipts. The deployed Connector
 uses runtime authorization; the local personal CLI does not request its app
 credential. A production alias is a routing pointer, so health must match the
-recorded deployment ID as well as the complete Artifact provenance. Readiness still requires a persisted, delivered model-backed reply.
+recorded deployment ID as well as the complete Artifact provenance. Slack
+forwarding enablement is separate from its trigger destination. Instance checks
+require both the enabled source and an exact production-only project attachment
+and webhook destination; neither connector authentication nor health implies
+that incoming messages are delivered. Readiness still requires a persisted, delivered model-backed reply.
 
 ```mermaid
 flowchart LR

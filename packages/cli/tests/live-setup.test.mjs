@@ -1067,7 +1067,7 @@ test("Slack creation trusts its exact receipt, attaches one explicit route, and 
   assert.equal(result.next_action.type, "browser-authorization");
   assert.ok(result.next_action.command.includes("identity.basic"));
   assert.equal(connectorLists, 1);
-  assert.equal(createArgs.includes("--triggers"), false);
+  assert.equal(createArgs.includes("--triggers"), true);
   assert.equal(attachArgs[attachArgs.indexOf("--trigger-path") + 1], "/api/webhooks/slack");
   assert.equal(result.state.resources.slack.uid, "slack/oregano");
   assert.equal(result.state.resources.slack.expected_display_name, "oregano");
@@ -1482,14 +1482,15 @@ for (const identity of [
   }), /Slack identity verification failed/);
 });
 
-const syntheticSlackConnector = () => ({ id: "scl_example", uid: "slack/example", service: "slack", defaultInstallationId: "T12345678", data: { appId: "A12345678", slackTeam: { id: "T12345678" }, clientSecret: "synthetic-secret" } });
+const syntheticSlackConnector = () => ({ triggers: { enabled: true }, triggerDestinations: [{ projectId: "prj_example", path: "/api/webhooks/slack" }], id: "scl_example", uid: "slack/example", service: "slack", defaultInstallationId: "T12345678", data: { appId: "A12345678", slackTeam: { id: "T12345678" }, clientSecret: "synthetic-secret" } });
 test("Slack app metadata is scoped and reduced to non-secret app entry evidence", () => {
   const app = resolveSlackApp({ run(file, args, options) {
     assert.equal(file, "vercel");
+    if (args.some(arg => arg.endsWith("/projects/prj_example"))) return { status: 0, stdout: JSON.stringify({ environments: ["production"] }), stderr: "" };
     assert.ok(args.includes("/v1/connect/connectors/slack%2Fexample"));
     assert.equal(options.sensitiveOutput, true);
     return { status: 0, stdout: JSON.stringify(syntheticSlackConnector()), stderr: "" };
-  } }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678");
+  } }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678", "prj_example");
   assert.deepEqual(app, { app_id: "A12345678", team_id: "T12345678", open_url: "slack://app?team=T12345678&id=A12345678&tab=messages" });
   assert.doesNotMatch(JSON.stringify(app), /secret/);
 });
@@ -1499,7 +1500,7 @@ for (const change of [
   { data: { appId: "A12345678", slackTeam: { id: "T99999999" } } },
   { data: { appId: "malformed", slackTeam: { id: "T12345678" } } },
 ]) test(`Slack app rejects mismatched connector metadata: ${JSON.stringify(change)}`, () => {
-  assert.throws(() => resolveSlackApp({ run: () => ({ status: 0, stdout: JSON.stringify({ ...syntheticSlackConnector(), ...change }), stderr: "" }) }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678"), /do not match/);
+  assert.throws(() => resolveSlackApp({ run: () => ({ status: 0, stdout: JSON.stringify({ ...syntheticSlackConnector(), ...change }), stderr: "" }) }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678", "prj_example"), /do not match/);
 });
 for (const fail of [false, true]) test(`provider scratch files are removed after ${fail ? "failure" : "success"}`, () => withSetup(({ core }) => {
   let scratch;
@@ -1541,4 +1542,17 @@ test("non-JSON health diagnostics do not expose login HTML", async () => {
   await assert.rejects(fetchHealth("https://example.test", async () => ({ ok: false, status: 302, text: async () => "private-login-html" }), { attempts: 1 }), (error) => {
     assert.match(error.message, /non-JSON.*302/); assert.doesNotMatch(error.message, /private-login-html/); return true;
   });
+});
+
+for (const change of [
+  { triggers: undefined }, { triggers: { enabled: false } }, { triggerDestinations: [] },
+  { triggerDestinations: [{ projectId: "prj_other", path: "/api/webhooks/slack" }] },
+  { triggerDestinations: [{ projectId: "prj_example", path: "/wrong" }] },
+  { triggerDestinations: [{ projectId: "prj_example", path: "/api/webhooks/slack", branch: "preview" }] },
+  { triggerDestinations: [{ projectId: "prj_example", path: "/api/webhooks/slack", customEnvironmentId: "env_example" }] },
+]) test(`Slack app refuses unverified incoming delivery: ${JSON.stringify(change)}`, () => {
+  assert.throws(() => resolveSlackApp({ run: () => ({ status: 0, stdout: JSON.stringify({ ...syntheticSlackConnector(), ...change }), stderr: "" }) }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678", "prj_example"), /trigger forwarding/);
+});
+test("Slack app refuses a connector attached outside production", () => {
+  assert.throws(() => resolveSlackApp({ run: (_file, args) => ({ status: 0, stdout: JSON.stringify(args.some(arg => arg.endsWith("/projects/prj_example")) ? { environments: ["development"] } : syntheticSlackConnector()), stderr: "" }) }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678", "prj_example"), /production environment/);
 });

@@ -175,10 +175,11 @@ function lifecycle(f) {
       if (args[1]?.startsWith('/v9/projects/') && project) return ok({rootDirectory:'packages/runner-vercel',framework:'nextjs',sourceFilesOutsideRootDirectory:true});
       if (args[0] === 'integration' && args[1] === 'add') return ok({resource:{id:'store_example',uid:'neon/store-example',name:'example-companyos-db'}});
       if (f.candidate && args[0] === 'connect' && args[1] === 'list') return ok([{ id: 'scl_existing', uid: 'slack/oregano', name: 'Oregano-slack' }]);
-      if (args[0] === 'connect' && args[1] === 'create') { const name=args[args.indexOf('--name')+1]; return ok({connector:{id:'scl_example',uid:`slack/${name}`,name}}); }
+      if (args[0] === 'connect' && args[1] === 'create') { assert.ok(args.includes('--triggers')); const name=args[args.indexOf('--name')+1]; return ok({connector:{id:'scl_example',uid:`slack/${name}`,name}}); }
       if (args[0] === 'connect' && args[1] === 'attach') return ok({id:'destination_example',path:'/api/webhooks/slack'});
       if (args[0] === 'connect' && args[1] === 'token') { assert.equal(args.includes('--subject'), false); return ok({token:'synthetic-human'}); }
-      if (args[0] === 'api' && args[1]?.startsWith('/v1/connect/connectors/')) return ok({id:'scl_example',uid:decodeURIComponent(args[1].split('/').at(-1)),service:'slack',defaultInstallationId:'T12345678',data:{appId:'A12345678',slackTeam:{id:'T12345678'},clientSecret:'synthetic-secret-discarded'}});
+      if (args[0] === 'api' && args[1]?.includes('/projects/prj_example')) return ok({environments:['production']});
+      if (args[0] === 'api' && args[1]?.startsWith('/v1/connect/connectors/')) return ok({triggers:{enabled:true},triggerDestinations:[{projectId:'prj_example',path:'/api/webhooks/slack'}],id:'scl_example',uid:decodeURIComponent(args[1].split('/').at(-1)),service:'slack',defaultInstallationId:'T12345678',data:{appId:'A12345678',slackTeam:{id:'T12345678'},clientSecret:'synthetic-secret-discarded'}});
       if (args[0] === 'env') {
         if (args[1] === 'list') return ok([]);
         if (args[1] === 'add') return ok();

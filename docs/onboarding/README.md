@@ -49,7 +49,9 @@ The CLI runs `companyos verify-live` before reporting completion. Slack identity
 consent verifies the human; the connector app link opens its Messages tab.
 Neither identity consent nor opening Slack proves that Oregano has replied.
 Production health uses an alias reported for the exact deployment; protected
-deployment URLs do not need to be made public.
+deployment URLs do not need to be made public. A healthy application alone does
+not prove Slack delivery: setup also checks enabled incoming trigger forwarding
+and the exact production attachment before requesting the first message.
 
 Existing Workspaces still use `companyos onboard /path/to/workspace` for local
 inspection. `companyos create workspace` and `companyos bootstrap verify` remain

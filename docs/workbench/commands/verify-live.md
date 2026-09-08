@@ -36,6 +36,9 @@ and verification does not request a bot credential through the personal CLI.
 For fresh setups with a recorded production health alias, its current response
 must also match the immutable deployment ID. An alias moved to another
 deployment fails verification even if it serves an otherwise identical Artifact.
+A current provider read must also confirm the same Slack app, enabled incoming
+trigger forwarding, the production-only project attachment and exact webhook
+route. Historical attachment receipts do not replace this check.
 
 The default `starter` scope is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:

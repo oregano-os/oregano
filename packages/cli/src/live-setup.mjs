@@ -617,13 +617,16 @@ export async function resolveSlackPrincipal(connector, { executor = createComman
   }
 }
 
-export const resolveSlackApp = (executor, coreRoot, scope, connector, expectedTeamId) => {
+export const resolveSlackApp = (executor, coreRoot, scope, connector, expectedTeamId, expectedProjectId) => {
   // Connector responses can contain provider credentials: retain only the
   // validated app/workspace IDs, never persist or expose the raw response.
   const payload = vercelApi(executor, coreRoot, scope, `/v1/connect/connectors/${encodeURIComponent(connector.uid)}`, { sensitiveOutput: true });
   if (payload.id !== connector.id || payload.uid !== connector.uid || payload.service !== "slack"
     || payload.defaultInstallationId !== expectedTeamId || payload.data?.slackTeam?.id !== expectedTeamId
     || !/^A[A-Z0-9]{5,31}$/.test(payload.data?.appId ?? "")) throw new Error("Slack connector app and human authorization do not match the recorded workspace and connector.");
+  if (!expectedProjectId || payload.triggers?.enabled !== true || !payload.triggerDestinations?.some((item) => item.projectId === expectedProjectId && item.path === VERCEL_NEON_SLACK_PROFILE.communication.triggerPath && !item.branch && !item.customEnvironmentId)) throw new Error("Slack trigger forwarding is not enabled for the recorded production destination. Enable incoming triggers on the existing connector, then retry.");
+  const attachment = vercelApi(executor, coreRoot, scope, `/v1/connect/connectors/${encodeURIComponent(connector.id)}/projects/${encodeURIComponent(expectedProjectId)}`, { sensitiveOutput: true });
+  if (!Array.isArray(attachment.environments) || attachment.environments.length !== 1 || attachment.environments[0] !== "production") throw new Error("The Slack connector is not attached exclusively to the recorded production environment.");
   return { app_id: payload.data.appId, team_id: expectedTeamId,
     open_url: `slack://app?team=${encodeURIComponent(expectedTeamId)}&id=${encodeURIComponent(payload.data.appId)}&tab=messages` };
 };
@@ -1130,7 +1133,7 @@ export async function advanceLiveSetup({
         if (!connector) {
           if (hasPendingMutation(state, createIntentKey)) return wait(absoluteStatePath, state, "The Slack connector create request was recorded but its immutable receipt is not available yet. Wait for installation, then resume; Oregano will not create a duplicate.", { type: "wait-for-provider-receipt", provider: "slack", connector_name: state.answers.slack_connector_name });
           beginMutation(absoluteStatePath, state, createIntentKey, { provider: "slack", operation: "create-connector", name: state.answers.slack_connector_name });
-          const createdIdentity = VERCEL_NEON_SLACK_PROFILE.communication.normalizeCreateReceipt(parseJson(vercel(executor, coreRoot, ["connect", "create", "slack", "--name", state.answers.slack_connector_name, "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Slack connector creation"));
+          const createdIdentity = VERCEL_NEON_SLACK_PROFILE.communication.normalizeCreateReceipt(parseJson(vercel(executor, coreRoot, ["connect", "create", "slack", "--name", state.answers.slack_connector_name, "--triggers", "--format", "json"], { scope: state.answers.vercel_scope }).stdout, "Slack connector creation"));
           if (!createdIdentity.id && !createdIdentity.uid) throw new Error("Slack connector creation did not return an immutable connector receipt.");
           connector = createdIdentity;
           state.resources.slack = { ...createdIdentity, mode: state.answers.slack_connector_mode, expected_display_name: setupSlackName(state) };
@@ -1160,7 +1163,7 @@ export async function advanceLiveSetup({
         state.resources.slack.user_id = identity.user_id;
         state.resources.slack.team = identity.team;
         if (isFreshSetup(state)) {
-          const app = resolveSlackApp(executor, coreRoot, state.answers.vercel_scope, state.resources.slack, identity.team_id);
+          const app = resolveSlackApp(executor, coreRoot, state.answers.vercel_scope, state.resources.slack, identity.team_id, state.resources.vercel.id);
           state.resources.slack.app_id = app.app_id;
           state.resources.slack.open_url = app.open_url;
         }
@@ -1287,6 +1290,8 @@ export async function advanceLiveSetup({
         savePhase(absoluteStatePath, state, "slack-verification");
       } else if (state.phase === "slack-verification") {
         if (isFreshSetup(state)) {
+          const app = resolveSlackApp(executor, coreRoot, state.answers.vercel_scope, state.resources.slack, state.resources.slack.team_id, state.resources.vercel.id);
+          if (app.app_id !== state.resources.slack.app_id) throw new Error("The recorded Slack app identity changed before verification.");
           const selection = modelExecutionForState(state);
           const expected = { artifact_hash: state.artifact.hash, core_commit: state.artifact.core_commit, workspace_commit: state.artifact.workspace_commit, principal: `slack:${state.resources.slack.team_id}:${state.resources.slack.user_id}`, model_route: selection.route, model: selection.model, since: state.fresh.authorization.accepted_at };
           const command = VERCEL_NEON_SLACK_PROFILE.runtimeHost.secretBoundCommand({ environment: 'production', project: state.resources.vercel.project, scope: state.answers.vercel_scope, cwd: coreRoot, command: ['node', join(coreRoot, 'packages/cli/src/live-database-proof.mjs'), '--exchange', JSON.stringify(expected)] });
@@ -1385,6 +1390,10 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
   if (isFreshSetup(state)) {
     try { assertFreshInitializationEvidence(state); }
     catch (error) { diagnostics.push(diagnostic("LIVE125", "error", safeError(error.message))); }
+    try {
+      const app = resolveSlackApp(executor, liveSetupCoreRoot(state), state.answers.vercel_scope, state.resources.slack, state.resources.slack.team_id, state.resources.vercel.id);
+      if (app.app_id !== state.resources.slack.app_id) throw new Error("The recorded Slack app identity changed.");
+    } catch (error) { diagnostics.push(diagnostic("LIVE126", "error", safeError(error.message))); }
   }
   if (!isFreshSetup(state) && (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.merge_authorized_by !== state.resources.github?.authenticated_login || !/^\d{4}-\d{2}-\d{2}T/.test(state.operating?.merge_authorized_at ?? "") || state.operating?.required_check !== "passed")) diagnostics.push(diagnostic("LIVE106", "error", "Workspace Steward merge authorization, required check, or immutable merge evidence is missing."));
   if (state.verification?.database?.ok !== true) diagnostics.push(diagnostic("LIVE107", "error", "Persisted Slack round-trip evidence is missing."));
