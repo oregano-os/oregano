@@ -127,7 +127,7 @@ inventory must carry the matching `binding_digest` supplied by its Connector;
 a missing or changed digest fails before database writes. Duplicate object
 identities also fail before synchronization begins.
 
-Maintained Slack `0.1.3` and Monday `0.3.3` source Connectors reread the actual
+Maintained Slack `0.1.4` and Monday `0.3.3` source Connectors reread the actual
 credential identity and selected resource metadata before inventory data.
 Slack requires the reviewed team, bot user, conversation kind/membership and
 history/read scopes. Monday requires the reviewed account, member identity,

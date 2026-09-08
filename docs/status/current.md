@@ -164,7 +164,7 @@ evidence, historical prototypes, and production gaps.
 
 - JSON Record mappings can declare a bounded, self-contained `value_schema`.
   Ingestion enforces it before consuming an event identity; compiler consumers
-  can use the actual structured contract. Slack Record Source `0.1.3` also
+  can use the actual structured contract. Slack Record Source `0.1.4` also
   emits the exact publication `thread_reference` for receipt-bound queries.
   Source coverage remains a separate, unfinished integration requirement.
 
@@ -1374,3 +1374,8 @@ in its generated runtime configuration and confirmation. Exact single-source
 multi-source view is not narrowed implicitly. Synthetic end-to-end setup cases
 prove hosted principal resolution, changed-roster confirmation invalidation,
 preserved old mappings and compatibility for sources without identity resolution.
+
+Slack Record Source `0.1.4` accepts the provider's legacy system bot identity
+`B01` while preserving bot authorship and rejecting malformed identifiers.
+A synthetic inventory regression covers successful system-message ingestion
+and prevents its attribution to an authenticated human.

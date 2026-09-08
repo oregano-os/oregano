@@ -1,10 +1,11 @@
 version: 3
 plan_id: builder-records-diagnostics-2026-09-08
 created: 2026-09-08
-title: Diagnose retained Records adoption before a Builder release
+title: Correct retained Records adoption before a Builder release
 objective: Make failed Records adoption actionable for authenticated operators
   without exposing Instance credentials or changing data-source permissions.
-  Qualify the exact hosted Instance before any production promotion.
+  Preserve valid legacy Slack system bot messages as bot evidence and qualify
+  the exact hosted Instance before any production promotion.
 non_goals:
   - Expose diagnostics to unauthenticated callers or public health.
   - Log provider error messages, credentials or record payloads.
@@ -17,23 +18,36 @@ files_expected:
   - packages/runner-vercel/src/lib/company-records-diagnostic.ts
   - packages/runner-vercel/src/lib/company-records-diagnostic.test.ts
   - packages/runner-vercel/src/app/api/records/operations/route.ts
+  - packages/connectors/slack/records-source.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
   - packages/cli/tests/workbench.test.mjs
   - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/record-source-connect-identities.test.mjs
+  - packages/cli/content/guides/connect-company-record-source.md
   - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
   - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
   - docs/status/current.md
   - docs/workbench/commands/records.md
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/specifications/company-records-query-v1.md
+  - docs/workbench/guides/connect-company-record-source.md
   - docs/_generated/**
 tests:
   - packages/runner-vercel/src/lib/company-records-diagnostic.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
 documentation_impact:
   required: true
   affected_documents:
     - status.current
     - command.records
+    - specification.company-record-normalization-v1
+    - specification.company-records-query-v1
+    - guide.connect-company-record-source
 architecture:
   placement:
-    core: Bound and redact diagnostics on the existing authenticated operator API.
+    core: Bound and redact diagnostics on the existing authenticated operator API;
+      accept the provider's legacy system bot identity without human attribution.
     packages: No new package or Workbench execution authority.
     workspace: Company definitions and reviewed source access remain unchanged.
     instance: The existing operator credential remains mandatory; raw messages

@@ -200,7 +200,7 @@ stable roster IDs; unmatched identities and teams stay explicit. For raw
 provider IDs, use `columns.people_col` with `identity_list` and no resolution.
 People columns contain arrays, even when only one person is assigned.
 
-Slack Record Source `0.1.3` exposes `thread_reference` matching a published
+Slack Record Source `0.1.4` exposes `thread_reference` matching a published
 root receipt, plus `author_principal`, `editor_principal`,
 `content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
 evaluation map `accepted_at`: it reflects the current content version, including
@@ -340,7 +340,7 @@ instance_id: example-staging
 source_id: coordination-conversation
 resource_binding: coordination-conversation
 connector: oregano/slack-record-source
-connector_version: 0.1.3
+connector_version: 0.1.4
 secret_ref: env:SLACK_BOT_TOKEN
 qualification:
   receipt_ref: ./slack-source-qualification.json
@@ -642,7 +642,7 @@ is the production freshness path.
 
 ## 9. Add another provider
 
-The maintained source bindings now select Slack `0.1.3` and Monday `0.3.3`.
+The maintained source bindings now select Slack `0.1.4` and Monday `0.3.3`.
 Each inventory rereads the actual credential account/actor and exact resource
 metadata before content. The archived Slack qualification must name its bot
 user; Monday must name its account, member ID, member kind and confirmed

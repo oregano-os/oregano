@@ -90,7 +90,7 @@ const binding = (qualificationDigest: string): CompanyRecordSourceBinding => ({
   source_id: source.id,
   resource_binding: source.resource_binding,
   connector: "oregano/slack-record-source",
-  connector_version: "0.1.3",
+  connector_version: "0.1.4",
   secret_ref: "env:SLACK_BOT_TOKEN",
   qualification: { receipt_ref: "instance:fixture/slack", digest: qualificationDigest },
   configuration: {
@@ -222,6 +222,27 @@ test("Slack content versions retain precise edit times and distinguish bots from
   await assert.rejects(() => connector.readCompleteInventory(args), /edit timestamp precedes/);
   messages[0]!.edited!.ts = "9999999999999999.1";
   await assert.rejects(() => connector.readCompleteInventory(args), /timestamp.*invalid/);
+});
+
+test("Slack accepts its legacy system bot identity without attributing it to a human", async () => {
+  const base = fixture();
+  const message = { ts: "1893456001.000001", user: "USLACKBOT", bot_id: "B01", text: "Synthetic reminder" };
+  const fetcher = async (input: string | URL | Request) => String(input).includes("conversations.history")
+    ? jsonResponse({ ok: true, messages: [message], has_more: false }, "req-system-bot") : base.fetcher(input);
+  const qualification = await qualified(fetcher as typeof fetch);
+  const connector = new SlackRecordSourceConnector({ resolveSecret: () => "fixture-secret", fetcher });
+  const args = { source, binding: binding(qualification.evidence.discovery.discovery_hash), qualification: { ...qualification } };
+  const inventory = await connector.readCompleteInventory(args);
+  assert.equal(inventory.complete, true);
+  assert.equal(inventory.objects.length, 1);
+  assert.equal(inventory.objects[0]!.author_id, "B01");
+  assert.equal(inventory.objects[0]!.author_kind, "bot");
+  assert.equal(inventory.objects[0]!.author_principal, "slack-bot:T12345:B01");
+  assert.equal(inventory.objects[0]!.content_author_principal, "slack-bot:T12345:B01");
+  for (const invalid of ["B", "B02", "B01:U11111", "B01\n", "b01", "U11111", "B".repeat(34)]) {
+    message.bot_id = invalid;
+    await assert.rejects(connector.readCompleteInventory(args), /invalid bot identity/);
+  }
 });
 
 test("Slack Record Source fails closed when provider retention hides history", async () => {
