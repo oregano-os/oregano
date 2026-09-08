@@ -422,6 +422,15 @@ resource ownership receipts, qualified database and exact Artifact. It MUST NOT
 fabricate an activation PR, merge commit or approval record. The verifier uses
 this evidence variant only for fresh initialization; existing states, adoption
 and later changes retain their applicable review and deployment requirements.
+The maintained Slack identity adapter MUST use the `identity.basic` identity
+contract and the current CLI requester. The app Messages link MUST bind the
+recorded connector and consenting human workspace using authenticated provider
+metadata. Metadata MUST NOT substitute for runtime exchange evidence, expose
+provider credentials, or require production connector access from a local
+development identity. Provider CLI filesystem effects MUST remain outside
+the immutable Core; temporary contexts MUST be removed on failure as well as
+success.
+
 The first ordinary Slack exchange MUST bind the authorized principal, current
 Artifact, selected model, delivered response and durable conversation evidence.
 

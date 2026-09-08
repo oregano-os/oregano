@@ -72,7 +72,11 @@ provider. A separate typed model-execution selection binds a Runner-supported
 route and credential reference without making model SDKs part of Workspace or
 provider-neutral Tool contracts. These adapters translate provider commands and receipts into the
 provider-neutral Instance evidence above. They are not a public plugin API and
-must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
+isolate provider-generated skills and transient OIDC files from the immutable
+Core checkout. Only validated non-secret project link fields survive that
+temporary context. Slack connector payloads remain private and are reduced to
+validated app/workspace identities; they are not general readiness evidence.
+The adapters must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
 runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and
 profile, not a new Core execution model.

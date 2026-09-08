@@ -20,6 +20,13 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- The setup adapter corrects the `identity.basic` endpoint and personal CLI
+  token-subject mismatch. It validates connector metadata for the Slack Messages
+  link and isolates provider-generated OIDC/skill files from immutable source.
+  Synthetic regressions cover mismatched identities, secret reduction, cleanup
+  on failure and resumed setup without duplicate deployment. These checks do
+  not establish fresh external candidate qualification.
+
 - The Core 0.6.0 Builder release adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,
   original-message continuation through an allowlisted Builder handoff, and

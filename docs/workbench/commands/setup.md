@@ -47,6 +47,14 @@ deploys and verifies. It does not publish an authoring-only baseline or create
 an activation PR. A normal first Slack message supplies model-backed persistence
 evidence; there is no visible test nonce. Completion includes `verify-live`.
 
+Slack consent uses the current Vercel CLI user without an explicit token subject
+and requests only `identity.basic`. The adapter validates the nested team/user
+response from Slack `users.identity`; `auth.test` is not that identity contract.
+The app Messages link uses validated connector metadata, without requesting an
+app-subject token from the personal CLI. Project linking and Neon creation run
+in disposable private directories because the provider CLI can generate local
+OIDC and skill files even with environment pulling disabled.
+
 Events are `input`, `choice`, `review`, `action`, `recovery`, `complete`, and
 `cancelled`. Responses are `answer`, `edit`, `confirm`, `retry`, and `cancel`;
 see the release runbook for their JSON fields. Revision IDs are machine transport,

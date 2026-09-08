@@ -98,6 +98,9 @@ reported separately. Slack installation and identity consent occur in provider
 flows. The original Workspace Steward is the authenticated installer shown in
 the summary; the verified Slack identity is bound during that person's consent.
 Credentials stay in provider flows and secret processes, outside chat and Git.
+The Slack identity step uses the consenting CLI user with `identity.basic`;
+the app entry link comes from verified connector metadata. Opening that link
+is not completion evidence: the real reply and final verification must pass.
 
 The CLI generates the complete supervised, Tool-free operating Workspace as its
 first version. It checks the exact initial commit, prepares the database, builds

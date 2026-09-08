@@ -16,6 +16,7 @@ import { gzipSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
 import YAML from "yaml";
 import { diagnostic } from "./diagnostics.mjs";
 import { PNPM_VERSION } from "./core-version.mjs";
@@ -442,6 +443,30 @@ const git = (executor, workspace, ...args) => run(executor, "git", ["-C", worksp
 const gh = (executor, args, options = {}) => run(executor, "gh", args, options);
 const vercel = (executor, coreRoot, args, options = {}) => run(executor, "vercel", [...args, "--cwd", coreRoot, "--scope", options.scope], { ...options, cwd: coreRoot });
 
+// Provider CLIs may write skills or local OIDC files even when env pulling is
+// disabled. Keep those transient side effects outside the immutable Core.
+export const withIsolatedVercelContext = (coreRoot, action, { retainProjectLink = false } = {}) => {
+  const directory = mkdtempSync(join(tmpdir(), "oregano-provider-"));
+  chmodSync(directory, 0o700);
+  const linkPath = (root) => join(root, ".vercel", "project.json");
+  const copyLink = (source, target) => {
+    if (!existsSync(linkPath(source))) return;
+    const metadata = JSON.parse(readFileSync(linkPath(source), "utf8"));
+    const link = Object.fromEntries(["orgId", "projectId", "projectName"].filter((key) => typeof metadata[key] === "string").map((key) => [key, metadata[key]]));
+    if (!link.projectId) throw new Error("Vercel did not return a project link identity.");
+    mkdirSync(join(target, ".vercel"), { recursive: true, mode: 0o700 });
+    writeFileSync(linkPath(target), JSON.stringify(link), { mode: 0o600 });
+  };
+  try {
+    copyLink(coreRoot, directory);
+    const result = action(directory);
+    if (retainProjectLink) copyLink(directory, coreRoot);
+    return result;
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+};
+
 const vercelApi = (executor, coreRoot, scope, endpoint, { method = "GET", body, sensitiveOutput = false } = {}) => {
   const args = ["api", endpoint, "--method", method, "--raw"];
   if (body !== undefined) args.push("--input", "-");
@@ -583,24 +608,24 @@ export async function resolveSlackPrincipal(connector, { executor = createComman
   const credential = clean(tokenPayload.token ?? tokenPayload.accessToken ?? tokenPayload.access_token);
   if (!credential) throw new Error("Vercel Connect did not return a short-lived Slack user credential.");
   try {
-    const response = await fetchImpl("https://slack.com/api/auth.test", { headers: { authorization: `Bearer ${credential}` } });
+    const response = await fetchImpl("https://slack.com/api/users.identity", { headers: { authorization: `Bearer ${credential}` } });
     const identity = await response.json();
-    if (!response.ok || identity?.ok !== true || !identity.team_id || !identity.user_id) throw new Error(`Slack identity verification failed: ${safeError(identity?.error ?? response.status)}`);
-    return { team_id: clean(identity.team_id), user_id: clean(identity.user_id), team: clean(identity.team), user: clean(identity.user) };
+    if (!response.ok || identity?.ok !== true || !/^T[A-Z0-9]{5,31}$/.test(identity.team?.id ?? "") || !/^[UW][A-Z0-9]{5,31}$/.test(identity.user?.id ?? "")) throw new Error(`Slack identity verification failed: ${safeError(identity?.error ?? response.status)}`);
+    return { team_id: identity.team.id, user_id: identity.user.id, team: clean(identity.team.name), user: clean(identity.user.name) };
   } finally {
     // The short-lived credential is intentionally neither returned nor persisted.
   }
 }
 
-const resolveSlackBot = async (executor, coreRoot, scope, connector, fetchImpl) => {
-  const result = vercel(executor, coreRoot, ['connect', 'token', connector, '--subject', 'app', '--format', 'json', '--yes'], { scope, sensitiveOutput: true });
-  const payload = parseJson(result.stdout, 'Slack app authorization');
-  const credential = clean(payload.token ?? payload.accessToken ?? payload.access_token);
-  if (!credential) throw new Error('Slack app authorization is unavailable.');
-  const response = await fetchImpl('https://slack.com/api/auth.test', { headers: { authorization: `Bearer ${credential}` } });
-  const identity = await response.json();
-  if (!response.ok || identity.ok !== true || !identity.team_id || !identity.user_id) throw new Error('Slack app identity could not be verified.');
-  return { team_id: clean(identity.team_id), user_id: clean(identity.user_id) };
+export const resolveSlackApp = (executor, coreRoot, scope, connector, expectedTeamId) => {
+  // Connector responses can contain provider credentials: retain only the
+  // validated app/workspace IDs, never persist or expose the raw response.
+  const payload = vercelApi(executor, coreRoot, scope, `/v1/connect/connectors/${encodeURIComponent(connector.uid)}`, { sensitiveOutput: true });
+  if (payload.id !== connector.id || payload.uid !== connector.uid || payload.service !== "slack"
+    || payload.defaultInstallationId !== expectedTeamId || payload.data?.slackTeam?.id !== expectedTeamId
+    || !/^A[A-Z0-9]{5,31}$/.test(payload.data?.appId ?? "")) throw new Error("Slack connector app and human authorization do not match the recorded workspace and connector.");
+  return { app_id: payload.data.appId, team_id: expectedTeamId,
+    open_url: `slack://app?team=${encodeURIComponent(expectedTeamId)}&id=${encodeURIComponent(payload.data.appId)}&tab=messages` };
 };
 
 const ensureInitialWorkspaceCommit = (executor, state) => {
@@ -946,7 +971,7 @@ export async function advanceLiveSetup({
           beginMutation(absoluteStatePath, state, intentKey, { provider: "vercel", operation: "create-project", scope: state.answers.vercel_scope, project: state.answers.vercel_project });
           vercel(executor, coreRoot, ["project", "add", state.answers.vercel_project], { scope: state.answers.vercel_scope });
         }
-        vercel(executor, coreRoot, ["link", "--project", state.answers.vercel_project, "--team", state.answers.vercel_scope, "--yes"], { scope: state.answers.vercel_scope });
+        withIsolatedVercelContext(coreRoot, (directory) => vercel(executor, directory, ["link", "--project", state.answers.vercel_project, "--team", state.answers.vercel_scope, "--yes"], { scope: state.answers.vercel_scope }), { retainProjectLink: true });
         const projectMetadata = JSON.parse(readFileSync(join(coreRoot, ".vercel", "project.json"), "utf8"));
         const configuration = ensureVercelProjectConfiguration(executor, coreRoot, state.answers.vercel_scope, state.answers.vercel_project, state.answers.vercel_project_mode);
         state.resources.vercel = { id: clean(projectMetadata.projectId), project: state.answers.vercel_project, scope: state.answers.vercel_scope, mode: state.answers.vercel_project_mode, configuration };
@@ -1019,7 +1044,7 @@ export async function advanceLiveSetup({
           beginMutation(absoluteStatePath, state, intentKey, { provider: "neon", operation: "create-state-resource", name: state.answers.neon_resource_name, plan: state.answers.neon_plan, region: state.answers.neon_region || null });
           const args = ["integration", "add", "neon", "--name", state.answers.neon_resource_name, "--plan", state.answers.neon_plan, "--environment", "production", "--environment", "preview", "--environment", "development", "--no-env-pull", "--format", "json"];
           if (state.answers.neon_region) args.push("--metadata", `region=${state.answers.neon_region}`);
-          const identity = VERCEL_NEON_SLACK_PROFILE.stateService.normalizeCreateReceipt(parseJson(vercel(executor, coreRoot, args, { scope: state.answers.vercel_scope }).stdout, "Neon resource creation"), state.answers.neon_resource_name);
+          const identity = VERCEL_NEON_SLACK_PROFILE.stateService.normalizeCreateReceipt(parseJson(withIsolatedVercelContext(coreRoot, (directory) => vercel(executor, directory, args, { scope: state.answers.vercel_scope })).stdout, "Neon resource creation"), state.answers.neon_resource_name);
           if (!identity.id && !identity.uid && !identity.name) throw new Error("Neon resource creation did not return an immutable resource receipt.");
           resource = identity;
           state.resources.neon = { ...resource, mode: state.answers.neon_resource_mode, plan: state.answers.neon_plan, region: state.answers.neon_region || null };
@@ -1115,16 +1140,15 @@ export async function advanceLiveSetup({
         try { identity = await resolveSlackPrincipal(state.resources.slack.uid, { executor, coreRoot, scope: state.answers.vercel_scope, fetchImpl }); }
         catch (error) {
           if (!(error instanceof SlackAuthorizationRequiredError)) throw error;
-          return wait(absoluteStatePath, state, "Slack needs one browser authorization with the minimal identity.basic scope before Oregano can record the consenting human's canonical Slack identity. No token is stored.", { type: "browser-authorization", provider: "slack", command: ["vercel", "connect", "token", state.resources.slack.uid, "--subject", "user", "--scopes", VERCEL_NEON_SLACK_PROFILE.communication.userAuthorizationScopes.join(","), "--yes"] });
+          return wait(absoluteStatePath, state, "Slack needs one browser authorization with the minimal identity.basic scope before Oregano can record the consenting human's canonical Slack identity. No token is stored.", { type: "browser-authorization", provider: "slack", command: ["vercel", "connect", "token", state.resources.slack.uid, "--scopes", VERCEL_NEON_SLACK_PROFILE.communication.userAuthorizationScopes.join(","), "--yes"] });
         }
         state.resources.slack.team_id = identity.team_id;
         state.resources.slack.user_id = identity.user_id;
         state.resources.slack.team = identity.team;
         if (isFreshSetup(state)) {
-          const bot = await resolveSlackBot(executor, coreRoot, state.answers.vercel_scope, state.resources.slack.uid, fetchImpl);
-          if (bot.team_id !== identity.team_id) throw new Error('Slack app and human authorization belong to different workspaces.');
-          state.resources.slack.bot_user_id = bot.user_id;
-          state.resources.slack.open_url = `slack://user?team=${encodeURIComponent(bot.team_id)}&id=${encodeURIComponent(bot.user_id)}`;
+          const app = resolveSlackApp(executor, coreRoot, state.answers.vercel_scope, state.resources.slack, identity.team_id);
+          state.resources.slack.app_id = app.app_id;
+          state.resources.slack.open_url = app.open_url;
         }
         savePhase(absoluteStatePath, state, isFreshSetup(state) ? "fresh-workspace" : "operating-workspace");
       } else if (state.phase === "fresh-workspace") {

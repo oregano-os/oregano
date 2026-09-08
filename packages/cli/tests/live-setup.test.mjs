@@ -13,6 +13,8 @@ import {
   normalizeLiveSetupAnswers,
   planLiveSetup,
   resolveSlackPrincipal,
+  resolveSlackApp,
+  withIsolatedVercelContext,
   safeProviderError,
   SlackAuthorizationRequiredError,
   SUPPORTED_VERCEL_CLI_VERSION,
@@ -412,6 +414,8 @@ test("Slack principal resolution discards the short-lived user credential", asyn
     run(file, args) {
       assert.equal(file, "vercel");
       assert.ok(args.includes("token"));
+      assert.equal(args.includes("--subject"), false);
+      assert.equal(args[args.indexOf("--scopes") + 1], "identity.basic");
       return { status: 0, stdout: JSON.stringify({ token: "temporary-user-credential" }), stderr: "" };
     },
   };
@@ -419,9 +423,10 @@ test("Slack principal resolution discards the short-lived user credential", asyn
     executor,
     coreRoot: "/tmp/core",
     scope: "example",
-    fetchImpl: async (_url, options) => {
+    fetchImpl: async (url, options) => {
+      assert.equal(url, "https://slack.com/api/users.identity");
       assert.equal(options.headers.authorization, "Bearer temporary-user-credential");
-      return { ok: true, json: async () => ({ ok: true, team_id: "T12345678", user_id: "U12345678", team: "Example", user: "anna" }) };
+      return { ok: true, json: async () => ({ ok: true, team: { id: "T12345678", name: "Example" }, user: { id: "U12345678", name: "anna" } }) };
     },
   });
   assert.deepEqual(identity, { team_id: "T12345678", user_id: "U12345678", team: "Example", user: "anna" });
@@ -716,8 +721,11 @@ test("the create path explicitly adds the Vercel project before linking it", asy
         if (file === "vercel" && args[0] === "project" && args[1] === "inspect") return { status: 1, stdout: "", stderr: "not found" };
         if (file === "vercel" && args[0] === "project" && args[1] === "add") return { status: 0, stdout: "created", stderr: "" };
         if (file === "vercel" && args[0] === "link") {
-          mkdirSync(join(core, ".vercel"), { recursive: true });
-          writeFileSync(join(core, ".vercel", "project.json"), JSON.stringify({ projectId: "prj_example" }));
+          const providerCwd = args[args.indexOf("--cwd") + 1];
+          assert.notEqual(providerCwd, core);
+          mkdirSync(join(providerCwd, ".vercel"), { recursive: true });
+          writeFileSync(join(providerCwd, ".env.local"), "VERCEL_OIDC_TOKEN=synthetic-ephemeral");
+          writeFileSync(join(providerCwd, ".vercel", "project.json"), JSON.stringify({ projectId: "prj_example" }));
           return { status: 0, stdout: "linked", stderr: "" };
         }
         if (file === "vercel" && args[0] === "api") {
@@ -817,8 +825,11 @@ test("an adopted Vercel project with a conflicting runner root is left unchanged
       run(file, args) {
         if (file === "vercel" && args[0] === "project" && args[1] === "inspect") return { status: 0, stdout: "exists", stderr: "" };
         if (file === "vercel" && args[0] === "link") {
-          mkdirSync(join(core, ".vercel"), { recursive: true });
-          writeFileSync(join(core, ".vercel", "project.json"), JSON.stringify({ projectId: "prj_adopted" }));
+          const providerCwd = args[args.indexOf("--cwd") + 1];
+          assert.notEqual(providerCwd, core);
+          mkdirSync(join(providerCwd, ".vercel"), { recursive: true });
+          writeFileSync(join(providerCwd, ".env.local"), "VERCEL_OIDC_TOKEN=synthetic-ephemeral");
+          writeFileSync(join(providerCwd, ".vercel", "project.json"), JSON.stringify({ projectId: "prj_adopted" }));
           return { status: 0, stdout: "linked", stderr: "" };
         }
         if (file === "vercel" && args[0] === "api") {
@@ -863,6 +874,9 @@ test("Neon creation persists the authoritative create receipt without a name-lis
         }
         if (file === "vercel" && args[0] === "integration" && args[1] === "add") {
           neonCreates += 1;
+          const providerCwd = args[args.indexOf("--cwd") + 1];
+          assert.notEqual(providerCwd, core);
+          writeFileSync(join(providerCwd, "skills-lock.json"), "synthetic-provider-file");
           return { status: 0, stdout: JSON.stringify({ resource: { id: "store_synthetic", uid: "neon/store-synthetic", name: "example-companyos-db" } }), stderr: "" };
         }
         if (file === "vercel" && args[0] === "connect") return { status: 1, stdout: "", stderr: "stop after Neon" };
@@ -873,6 +887,7 @@ test("Neon creation persists the authoritative create receipt without a name-lis
   assert.equal(result.status, "blocked");
   assert.equal(neonCreates, 1);
   assert.equal(neonLists, 1);
+  assert.equal(existsSync(join(core, "skills-lock.json")), false);
   assert.equal(result.state.resources.neon.id, "store_synthetic");
   assert.equal(result.state.intents["neon-resource-create"].status, "completed");
 }));
@@ -1451,4 +1466,56 @@ test("production confirmation does not bypass a plan downgrade before deployment
   assert.equal(result.next_action.type, "upgrade-vercel-plan");
   assert.deepEqual(result.state.intents, {});
   assert.ok(!executor.calls.some((call) => call[1] === "deploy"));
+}));
+
+for (const identity of [
+  { ok: true, team_id: "T12345678", user_id: "U12345678" },
+  { ok: true, team: { id: "wrong" }, user: { id: "U12345678" } },
+  { ok: true, team: { id: "T12345678" }, user: { id: "B12345678" } },
+  { ok: false, error: "invalid_auth" },
+]) test(`Slack identity rejects malformed or non-human identity: ${JSON.stringify(identity)}`, async () => {
+  await assert.rejects(resolveSlackPrincipal("slack/example", {
+    executor: { run: () => ({ status: 0, stdout: JSON.stringify({ token: "synthetic-human" }), stderr: "" }) },
+    coreRoot: "/tmp/core", scope: "example",
+    fetchImpl: async () => ({ ok: true, json: async () => identity }),
+  }), /Slack identity verification failed/);
+});
+
+const syntheticSlackConnector = () => ({ id: "scl_example", uid: "slack/example", service: "slack", defaultInstallationId: "T12345678", data: { appId: "A12345678", slackTeam: { id: "T12345678" }, clientSecret: "synthetic-secret" } });
+test("Slack app metadata is scoped and reduced to non-secret app entry evidence", () => {
+  const app = resolveSlackApp({ run(file, args, options) {
+    assert.equal(file, "vercel");
+    assert.ok(args.includes("/v1/connect/connectors/slack%2Fexample"));
+    assert.equal(options.sensitiveOutput, true);
+    return { status: 0, stdout: JSON.stringify(syntheticSlackConnector()), stderr: "" };
+  } }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678");
+  assert.deepEqual(app, { app_id: "A12345678", team_id: "T12345678", open_url: "slack://app?team=T12345678&id=A12345678&tab=messages" });
+  assert.doesNotMatch(JSON.stringify(app), /secret/);
+});
+for (const change of [
+  { id: "scl_other" }, { uid: "slack/other" }, { service: "other" },
+  { defaultInstallationId: "T99999999" },
+  { data: { appId: "A12345678", slackTeam: { id: "T99999999" } } },
+  { data: { appId: "malformed", slackTeam: { id: "T12345678" } } },
+]) test(`Slack app rejects mismatched connector metadata: ${JSON.stringify(change)}`, () => {
+  assert.throws(() => resolveSlackApp({ run: () => ({ status: 0, stdout: JSON.stringify({ ...syntheticSlackConnector(), ...change }), stderr: "" }) }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678"), /do not match/);
+});
+for (const fail of [false, true]) test(`provider scratch files are removed after ${fail ? "failure" : "success"}`, () => withSetup(({ core }) => {
+  let scratch;
+  const invoke = () => withIsolatedVercelContext(core, (directory) => {
+    scratch = directory;
+    assert.equal(statSync(directory).mode & 0o777, 0o700);
+    writeFileSync(join(directory, "skills-lock.json"), "synthetic");
+    writeFileSync(join(directory, ".env.local"), "VERCEL_OIDC_TOKEN=synthetic");
+    if (fail) throw new Error("synthetic provider failure");
+    mkdirSync(join(directory, ".vercel"), { recursive: true });
+    writeFileSync(join(directory, ".vercel", "project.json"), JSON.stringify({ orgId: "team_example", projectId: "prj_example", projectName: "example", unexpected: "discarded" }));
+  }, { retainProjectLink: true });
+  if (fail) assert.throws(invoke, /synthetic provider failure/); else {
+    invoke();
+    assert.deepEqual(JSON.parse(readFileSync(join(core, ".vercel", "project.json"))), { orgId: "team_example", projectId: "prj_example", projectName: "example" });
+  }
+  assert.equal(existsSync(scratch), false);
+  assert.equal(existsSync(join(core, "skills-lock.json")), false);
+  assert.equal(existsSync(join(core, ".env.local")), false);
 }));

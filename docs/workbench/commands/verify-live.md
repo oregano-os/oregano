@@ -30,6 +30,9 @@ The standard `companyos setup` session invokes this command automatically.
 Fresh setup proves an ordinary first Slack exchange, including delivered model
 response and persisted entries bound to the principal and exact Artifact.
 Legacy states retain their nonce proof; they cannot use the fresh exception.
+The `identity.basic` human receipt and connector-derived app Messages link are
+setup inputs only. They cannot replace the delivered response or model evidence,
+and verification does not request a bot credential through the personal CLI.
 
 The default `starter` scope is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:

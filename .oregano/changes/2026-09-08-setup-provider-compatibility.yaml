@@ -1,0 +1,64 @@
+version: 3
+plan_id: setup-provider-compatibility-2026-09-08
+created: "2026-09-08"
+title: Repair Slack setup identity and isolate provider filesystem effects
+objective: >-
+  Use the identity.basic Slack endpoint with the current CLI user subject, derive
+  the Slack app entry link from validated connector metadata, and isolate
+  provider-generated files from the immutable Core checkout. Keep the existing
+  exact-resource authorization and model-backed exchange completion proof.
+non_goals:
+  - Expand Slack scopes or enable development access to production connectors.
+  - Change runtime behavior, resource ownership or setup authorization receipts.
+  - Claim a successful live qualification from synthetic regression tests.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-setup-provider-compatibility.yaml
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
+  - INSTALL-COMPANYOS.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests:
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.index
+    - onboarding.company-workspace
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - command.setup
+    - command.verify-live
+    - status.current
+architecture:
+  placement:
+    core: Maintained provider adapter compatibility and synthetic regressions.
+    packages: Reuse the existing starter and model recipe without modification.
+    workspace: Generated company identity and responsible human remain private.
+    instance: Connector metadata, credentials, exact receipts and live exchange proof.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Match the identity.basic response contract and personal CLI requester authority.
+    - mechanism: capability-contracts-and-connectors
+      reason: Validate app entry metadata and contain provider CLI filesystem side effects.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company uses the same adapter without embedded account data or relaxed completion checks.
+rollback: Revert the installer adapter for future runs; retain receipts and resources. Do not rewrite the Core pin or claim completed verification for an interrupted session.

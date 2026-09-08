@@ -171,13 +171,14 @@ function lifecycle(f) {
     }
     if (file === 'vercel') {
       if (args[0] === 'project') { if (args[1] === 'add') { project=true;return ok(); } return project ? ok() : missing; }
-      if (args[0] === 'link') { mkdirSync(join(f.coreRoot,'.vercel'), { recursive:true }); writeFileSync(join(f.coreRoot,'.vercel/project.json'), JSON.stringify({projectId:'prj_example'}));return ok(); }
+      if (args[0] === 'link') { const cwd=args[args.indexOf('--cwd')+1]; mkdirSync(join(cwd,'.vercel'), { recursive:true }); writeFileSync(join(cwd,'.vercel/project.json'), JSON.stringify({projectId:'prj_example'}));return ok(); }
       if (args[1]?.startsWith('/v9/projects/') && project) return ok({rootDirectory:'packages/runner-vercel',framework:'nextjs',sourceFilesOutsideRootDirectory:true});
       if (args[0] === 'integration' && args[1] === 'add') return ok({resource:{id:'store_example',uid:'neon/store-example',name:'example-companyos-db'}});
       if (f.candidate && args[0] === 'connect' && args[1] === 'list') return ok([{ id: 'scl_existing', uid: 'slack/oregano', name: 'Oregano-slack' }]);
       if (args[0] === 'connect' && args[1] === 'create') { const name=args[args.indexOf('--name')+1]; return ok({connector:{id:'scl_example',uid:`slack/${name}`,name}}); }
       if (args[0] === 'connect' && args[1] === 'attach') return ok({id:'destination_example',path:'/api/webhooks/slack'});
-      if (args[0] === 'connect' && args[1] === 'token') return ok({token: args.includes('app') ? 'synthetic-app' : 'synthetic-human'});
+      if (args[0] === 'connect' && args[1] === 'token') { assert.equal(args.includes('--subject'), false); return ok({token:'synthetic-human'}); }
+      if (args[0] === 'api' && args[1]?.startsWith('/v1/connect/connectors/')) return ok({id:'scl_example',uid:decodeURIComponent(args[1].split('/').at(-1)),service:'slack',defaultInstallationId:'T12345678',data:{appId:'A12345678',slackTeam:{id:'T12345678'},clientSecret:'synthetic-secret-discarded'}});
       if (args[0] === 'env') {
         if (args[1] === 'list') return ok([]);
         if (args[1] === 'add') return ok();
@@ -189,7 +190,7 @@ function lifecycle(f) {
     }
     return base.run(file,args,options);
   } };
-  const fetchImpl = async (url,options) => ({ok:true,status:200,json:async()=> url.includes('slack.com') ? {ok:true,team_id:'T12345678',user_id:options.headers.authorization.endsWith('synthetic-app')?'U99999999':'U12345678',team:'Example'} : {ok:true,status:'ready',artifactHash:hash,coreCommit:f.coreIdentity.ref,workspaceCommit:commit,resolvedToolSetHash:tools,agent:'oregano',tools:[],modelRoute:'vercel-ai-gateway',model:'openai/gpt-5.4-nano',databaseManifestDigest:manifestDigest}});
+  const fetchImpl = async (url,options) => ({ok:true,status:200,json:async()=> url.includes('slack.com') ? {ok:true,team:{id:'T12345678',name:'Example'},user:{id:'U12345678'}} : {ok:true,status:'ready',artifactHash:hash,coreCommit:f.coreIdentity.ref,workspaceCommit:commit,resolvedToolSetHash:tools,agent:'oregano',tools:[],modelRoute:'vercel-ai-gateway',model:'openai/gpt-5.4-nano',databaseManifestDigest:manifestDigest}});
   return {executor,fetchImpl,calls,passCheck(){check=true;},respond(){proof=true;}};
 }
 
@@ -204,7 +205,7 @@ for (const kind of ['stable', 'candidate']) test(`one ${kind} decision reaches p
   live.passCheck();
   const slack = await runStandardSetup({...options,reply:{action:'confirm',revision:review.revision}});
   assert.equal(slack.action?.type,'open-slack',JSON.stringify(slack));
-  assert.match(slack.action.url,/slack:\/\/user\?team=T12345678&id=U99999999/);
+  assert.match(slack.action.url,/slack:\/\/app\?team=T12345678&id=A12345678&tab=messages/);
   assert.doesNotMatch(JSON.stringify(slack),/nonce|Setup-Test|confirmation_hash/);
   live.respond();
   const result=await runStandardSetup({...options,reply:{action:'retry'}});
@@ -215,6 +216,7 @@ for (const kind of ['stable', 'candidate']) test(`one ${kind} decision reaches p
   const state=readLiveSetupState(join(f.root,'.companyos-bootstrap/live-state.json'));
   assert.equal(state.fresh.initialization.check,'passed');assert.deepEqual(state.operating,{});
   assert.equal(state.schema_version,5);assert.equal(state.verification.database.ok,true);
+  assert.doesNotMatch(JSON.stringify(state), /synthetic-secret-discarded|synthetic-human/);
   assert.equal(result.timing.distribution,kind);
   if (kind === 'candidate') {
     assert.match(state.resources.slack.uid, /^slack\/oregano-test-[0-9a-f]{12}$/);

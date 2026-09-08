@@ -43,6 +43,9 @@ For an existing Workspace or explicit adoption use the advanced profile and
 its existing change process. Local authoring via `create workspace` still yields
 an authoring-only Workspace; `bootstrap verify` remains its local checkpoint.
 The bundled release tools use exact versions without replacing global tooling.
+Provider-created skills and local OIDC files are contained in a private temporary
+CLI directory and removed after use, including failed commands. Only the
+non-secret project link is retained for deployment.
 
 ### Candidate initialization
 

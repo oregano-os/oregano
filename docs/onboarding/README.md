@@ -45,7 +45,9 @@ asks about cron frequency. After consent, the fresh initializer generates one
 complete operating Workspace and checks its first commit. It does not publish
 an authoring-only intermediate version or request an activation PR/merge.
 The first ordinary Slack message supplies real model and persistence evidence.
-The CLI runs `companyos verify-live` before reporting completion.
+The CLI runs `companyos verify-live` before reporting completion. Slack identity
+consent verifies the human; the connector app link opens its Messages tab.
+Neither identity consent nor opening Slack proves that Oregano has replied.
 
 Existing Workspaces still use `companyos onboard /path/to/workspace` for local
 inspection. `companyos create workspace` and `companyos bootstrap verify` remain

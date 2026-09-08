@@ -25,6 +25,13 @@ infrastructure, configuration, secrets, integrations, and operational state.
 The environment is part of the identity, for example `acme-production` or
 `acme-staging`.
 
+During setup, Slack human identity comes from `users.identity` with
+`identity.basic`. The maintained adapter checks the connector ID, UID, service,
+installation workspace and Slack app ID before producing the app Messages link.
+Only non-secret identifiers enter Instance receipts. The deployed Connector
+uses runtime authorization; the local personal CLI does not request its app
+credential. Readiness still requires a persisted, delivered model-backed reply.
+
 ```mermaid
 flowchart LR
     C["Oregano Core<br/>release version + exact commit"] --> B["Validate and build"]
