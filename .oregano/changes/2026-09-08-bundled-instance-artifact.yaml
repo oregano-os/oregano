@@ -29,9 +29,7 @@ architecture:
     packages: No Package change.
     workspace: No change to business policy or generated content.
     instance: Own the private compressed Artifact file, exact upload inventory and mode flag.
-  mechanisms_extended:
-    - mechanism: artifact-payload
-      reason: Add a fixed local server-only file as a third mutually exclusive transport.
+  mechanisms_extended: []
   new_core_mechanisms: []
   boundary_assertions:
     company_values_in_core: false
