@@ -437,7 +437,13 @@ The maintained Slack connector MUST be created with incoming triggers enabled.
 Before requesting the first message and during final verification, setup MUST
 check current source forwarding, the exact production webhook destination,
 and a production-only project attachment. A destination receipt alone MUST NOT
-be treated as evidence that incoming forwarding is enabled.
+be treated as evidence that incoming forwarding is enabled. Explicit event
+selections MUST include `message.im`. A repeated missing first reply MUST expose
+exact-app delivery recovery instead of only repeating the message invitation.
+Recovery MUST distinguish Vercel synchronization, Slack Request URL verification,
+and actual message delivery. It MUST preserve approved scopes when the provider
+UI adds event-dependent permissions; a URL challenge MUST NOT count as reply
+evidence. The maintained setup guide defines the bounded recovery procedure.
 
 The first ordinary Slack exchange MUST bind the authorized principal, current
 Artifact, selected model, delivered response and durable conversation evidence.

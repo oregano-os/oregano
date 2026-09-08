@@ -31,6 +31,9 @@ evidence, historical prototypes, and production gaps.
   incoming triggers explicitly; both the first-message gate and final verification
   check forwarding plus the exact production attachment and webhook destination.
   Regressions reject disabled forwarding and wrong project, route or environment.
+  Missing replies on retry now expose exact Slack URL-verification and Connect
+  delivery recovery; explicit subscriptions without `message.im` are refused.
+  Provider synchronization and URL challenges do not qualify a model reply.
 
 - The Core 0.6.0 Builder release adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,

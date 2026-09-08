@@ -84,8 +84,17 @@ merge confirmation, or second deployment confirmation belongs in this path.
 
 For pending checks and provider receipts, wait with bounded backoff and submit
 `retry`; do not ask the human to approve each wait or run technical commands.
-Open the returned Slack link and invite the human to send an ordinary first
+Before inviting the first message, the agent checks Slack's saved Request URL
+using steps 1–4 of [Slack delivery recovery](docs/workbench/commands/setup.md#slack-delivery-recovery).
+Then open the returned Slack link and invite the human to send an ordinary first
 message. No test phrase, nonce, channel ID, or copied response is required.
+If a reply remains unverified, follow the returned delivery diagnostic and
+[Slack delivery recovery](docs/workbench/commands/setup.md#slack-delivery-recovery)
+before requesting another message. Use the browser where the human actually
+signed into the selected Slack workspace. Vercel synchronization success does
+not prove Slack URL verification: require Events On, the exact Connect intake
+URL, `Verified`, `Save Changes`, and verification after reload. Never substitute
+a URL challenge or a manually posted bot message for the real model reply.
 
 ## Accounts, consent, and completion
 

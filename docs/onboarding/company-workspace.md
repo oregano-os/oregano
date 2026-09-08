@@ -51,6 +51,10 @@ ID; it neither disables deployment protection nor creates bypass credentials.
 The Slack connector is created with incoming triggers enabled. Registering a
 trigger destination alone does not enable forwarding; the current source flag,
 project, production environment and route are checked before the message gate.
+Explicit event selections must include direct messages. If the first reply is
+still missing on retry, use the [delivery recovery](../workbench/commands/setup.md#slack-delivery-recovery)
+for the exact app and connector. Check Slack URL verification separately from
+Vercel synchronization, and preserve approved permissions when saving in Slack.
 
 ### Candidate initialization
 

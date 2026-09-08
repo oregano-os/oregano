@@ -45,7 +45,7 @@ const teams = async (executor, coreRoot) => {
 };
 const actionFromLive = (action) => {
   if (!action) return undefined;
-  if (action.type === 'slack-round-trip') return { type: 'open-slack', url: action.url, message: 'Open Oregano in Slack and send your first message.' };
+  if (action.type === 'slack-round-trip') return { type: 'open-slack', url: action.url, message: action.message ?? 'Open Oregano in Slack and send your first message.' };
   return action;
 };
 

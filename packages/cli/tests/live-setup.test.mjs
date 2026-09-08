@@ -1483,6 +1483,9 @@ for (const identity of [
 });
 
 const syntheticSlackConnector = () => ({ triggers: { enabled: true }, triggerDestinations: [{ projectId: "prj_example", path: "/api/webhooks/slack" }], id: "scl_example", uid: "slack/example", service: "slack", defaultInstallationId: "T12345678", data: { appId: "A12345678", slackTeam: { id: "T12345678" }, clientSecret: "synthetic-secret" } });
+for (const events of [[], ['app_mention'], 'message.im']) test(`Slack rejects unusable explicit direct-message subscriptions: ${JSON.stringify(events)}`, () => {
+  assert.throws(() => resolveSlackApp({ run: () => ({ status: 0, stdout: JSON.stringify({ ...syntheticSlackConnector(), events }), stderr: '' }) }, '/tmp/core', 'example', { id: 'scl_example', uid: 'slack/example' }, 'T12345678', 'prj_example'), /message.im/);
+});
 test("Slack app metadata is scoped and reduced to non-secret app entry evidence", () => {
   const app = resolveSlackApp({ run(file, args, options) {
     assert.equal(file, "vercel");

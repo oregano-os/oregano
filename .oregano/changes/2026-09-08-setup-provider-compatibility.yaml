@@ -11,6 +11,10 @@ objective: >-
   than following the protected unique deployment URL into a login page. Enable
   incoming Slack triggers on creation and verify current forwarding, production
   attachment and exact destination before requesting a message or completing.
+  Reject explicit event subscriptions without direct messages and surface a
+  concrete delivery recovery after an unanswered message request. Document
+  Slack URL verification separately from Vercel synchronization and preserve
+  approved scopes when Slack's UI adds event-dependent permissions.
 non_goals:
   - Expand Slack scopes or enable development access to production connectors.
   - Change runtime behavior, resource ownership or setup authorization receipts.
@@ -20,6 +24,7 @@ change_class: security
 files_expected:
   - .oregano/changes/2026-09-08-setup-provider-compatibility.yaml
   - packages/cli/src/live-setup.mjs
+  - packages/cli/src/setup/standard-setup.mjs
   - packages/cli/src/setup/profiles/vercel-neon-slack.ts
   - packages/cli/tests/live-setup.test.mjs
   - packages/cli/tests/standard-setup.test.mjs

@@ -68,6 +68,50 @@ re-read forwarding, app identity, production-only attachment and exact route. An
 older disabled connector needs explicit repair of its existing configuration;
 registering the same destination again or repeating a Slack message cannot fix it.
 
+### Slack delivery recovery
+
+The agent checks steps 1–4 before inviting the first message; the connector
+metadata check does not expose Slack's saved URL-verification state. The first
+missing exchange returns the ordinary message invitation. If a later
+retry still has no verified response, the installer returns a delivery diagnostic
+with the exact Slack app settings and Vercel connector links. The agent handles
+these technical steps before asking the human to repeat a message:
+
+1. Use the browser session signed into the selected Slack workspace. Open the
+   recorded app's **Event Subscriptions**. Do not replace the app, connector,
+   workspace, credentials or production destination.
+2. Require **Enable Events: On** and the Request URL
+   `https://connect.vercel.com/trigger/<recorded-connector-id>`.
+   The Slack-facing URL is the Connect intake; the project's
+   `/api/webhooks/slack` route is its separate forwarding destination.
+3. If Slack reports that the URL did not respond, use **Retry**. Require
+   **Verified**, choose **Save Changes**, then reload and confirm it stays
+   verified. A Vercel `serviceSync.status=done` response does not establish
+   this state. A verification failure is a delivery problem, not a reason to
+   regenerate tokens or reinstall blindly.
+4. Require the bot event `message.im` for direct messages. Explicit connector
+   event selections without it fail setup and final verification. Provider
+   default selections are not evidence that Slack has verified its Request URL.
+5. Compare scopes before and after provider UI edits. Slack can automatically
+   add `groups:read` and `mpim:read` when saving
+   `member_joined_channel`. The supervised starter does not consume that
+   event. If it causes extra scope requirements, remove that unused event in
+   the existing connector and remove the unapproved scope additions; retain
+   message subscriptions and approved scopes. Do not authorize broader access
+   merely to dismiss a reinstall banner. Verify both provider configurations.
+6. Inspect the connector's **Observability** after one new human message:
+   no `Inbound Trigger` points to Slack delivery/subscription configuration;
+   inbound without `Forward Trigger` points to Connect routing; a forwarded
+   failure belongs in the exact project's runtime logs. A
+   `url_verification` event proves only the handshake, not message handling.
+7. Retry the same installation. Only the real authorized human message,
+   delivered model response, persisted evidence and `verify-live` can complete
+   it. Do not invent an event, copy a bot reply, or edit completion receipts.
+
+This recovery is a documented provider repair, not a promise that external
+provider availability can be guaranteed. A repaired continuation does not
+qualify a newly rebuilt installer; qualify that exact bundle with a fresh run.
+
 Events are `input`, `choice`, `review`, `action`, `recovery`, `complete`, and
 `cancelled`. Responses are `answer`, `edit`, `confirm`, `retry`, and `cancel`;
 see the release runbook for their JSON fields. Revision IDs are machine transport,

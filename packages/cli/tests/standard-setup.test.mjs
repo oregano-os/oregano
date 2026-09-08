@@ -208,6 +208,15 @@ for (const kind of ['stable', 'candidate']) test(`one ${kind} decision reaches p
   assert.equal(slack.action?.type,'open-slack',JSON.stringify(slack));
   assert.match(slack.action.url,/slack:\/\/app\?team=T12345678&id=A12345678&tab=messages/);
   assert.doesNotMatch(JSON.stringify(slack),/nonce|Setup-Test|confirmation_hash/);
+  const unanswered = await runStandardSetup({...options,reply:{action:'retry'}});
+  assert.equal(unanswered.type, 'action');
+  assert.match(unanswered.action.message, /Event Subscriptions/);
+  assert.match(unanswered.action.message, /https:\/\/api\.slack\.com\/apps\/A12345678\/event-subscriptions/);
+  assert.match(unanswered.action.message, /https:\/\/connect\.vercel\.com\/trigger\/scl_example/);
+  assert.match(unanswered.action.message, /Verified.*Save Changes/);
+  assert.match(unanswered.action.message, /Inbound Trigger.*Forward Trigger/);
+  assert.doesNotMatch(JSON.stringify(unanswered), /synthetic-secret-discarded|synthetic-human/);
+  assert.equal(readLiveSetupState(join(f.root,'.companyos-bootstrap/live-state.json')).phase, 'slack-verification');
   live.respond();
   const result=await runStandardSetup({...options,reply:{action:'retry'}});
   assert.equal(result.type,'complete',JSON.stringify(result));assert.equal(result.metrics.confirmations,1);

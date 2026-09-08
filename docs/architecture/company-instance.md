@@ -35,7 +35,10 @@ recorded deployment ID as well as the complete Artifact provenance. Slack
 forwarding enablement is separate from its trigger destination. Instance checks
 require both the enabled source and an exact production-only project attachment
 and webhook destination; neither connector authentication nor health implies
-that incoming messages are delivered. Readiness still requires a persisted, delivered model-backed reply.
+that incoming messages are delivered. Slack URL verification is a separate
+provider handshake, and its challenge is not conversational evidence. Explicit
+event selections must include direct messages. Readiness still requires a
+persisted, delivered model-backed reply.
 
 ```mermaid
 flowchart LR

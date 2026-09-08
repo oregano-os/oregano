@@ -625,6 +625,7 @@ export const resolveSlackApp = (executor, coreRoot, scope, connector, expectedTe
     || payload.defaultInstallationId !== expectedTeamId || payload.data?.slackTeam?.id !== expectedTeamId
     || !/^A[A-Z0-9]{5,31}$/.test(payload.data?.appId ?? "")) throw new Error("Slack connector app and human authorization do not match the recorded workspace and connector.");
   if (!expectedProjectId || payload.triggers?.enabled !== true || !payload.triggerDestinations?.some((item) => item.projectId === expectedProjectId && item.path === VERCEL_NEON_SLACK_PROFILE.communication.triggerPath && !item.branch && !item.customEnvironmentId)) throw new Error("Slack trigger forwarding is not enabled for the recorded production destination. Enable incoming triggers on the existing connector, then retry.");
+  if (payload.events !== undefined && (!Array.isArray(payload.events) || !payload.events.includes('message.im'))) throw new Error('The Slack connector has explicit event subscriptions without message.im. Restore direct-message delivery within the approved scopes before retrying.');
   const attachment = vercelApi(executor, coreRoot, scope, `/v1/connect/connectors/${encodeURIComponent(connector.id)}/projects/${encodeURIComponent(expectedProjectId)}`, { sensitiveOutput: true });
   if (!Array.isArray(attachment.environments) || attachment.environments.length !== 1 || attachment.environments[0] !== "production") throw new Error("The Slack connector is not attached exclusively to the recorded production environment.");
   return { app_id: payload.data.appId, team_id: expectedTeamId,
@@ -1297,7 +1298,17 @@ export async function advanceLiveSetup({
           const command = VERCEL_NEON_SLACK_PROFILE.runtimeHost.secretBoundCommand({ environment: 'production', project: state.resources.vercel.project, scope: state.answers.vercel_scope, cwd: coreRoot, command: ['node', join(coreRoot, 'packages/cli/src/live-database-proof.mjs'), '--exchange', JSON.stringify(expected)] });
           const proof = run(executor, command.executable, [...command.args], { cwd: coreRoot, allowFailure: true, sensitiveOutput: true });
           const databaseProof = proof.status === 0 ? parseJson(proof.stdout, 'First Slack exchange') : null;
-          if (databaseProof?.ok !== true) return wait(absoluteStatePath, state, 'Oregano is deployed. Open it in Slack and send your first message.', { type: 'slack-round-trip', url: state.resources.slack.open_url });
+          if (databaseProof?.ok !== true) {
+            const requested = Boolean(state.verification.slack_message_requested_at);
+            if (!requested) {
+              state.verification.slack_message_requested_at = now();
+              writeLiveSetupState(absoluteStatePath, state);
+            }
+            const message = requested
+              ? `No verified Slack reply yet. Before requesting another message, check Event Subscriptions at https://api.slack.com/apps/${encodeURIComponent(app.app_id)}/event-subscriptions in the browser signed into the recorded Slack workspace. The Request URL must be https://connect.vercel.com/trigger/${encodeURIComponent(state.resources.slack.id)} with Events On and message.im subscribed. If needed, use Retry until Verified, then Save Changes and reload. Preserve approved scopes; do not grant permissions added automatically by the provider UI. Inspect Inbound Trigger and Forward Trigger in https://vercel.com/${encodeURIComponent(state.answers.vercel_scope)}/~/connect/${encodeURIComponent(state.resources.slack.id)}/observability to locate the delivery failure. Provider synchronization or URL verification alone is not a model-backed reply. Follow the setup command's Slack delivery recovery guide, then retry this session.`
+              : 'Open Oregano in Slack and send your first message.';
+            return wait(absoluteStatePath, state, requested ? 'The first Slack reply is still unverified. Diagnose delivery before repeating the message request.' : 'Oregano is deployed. Open it in Slack and send your first message.', { type: 'slack-round-trip', url: state.resources.slack.open_url, message });
+          }
           if (Number(databaseProof.model_evidence_entries) < 1 || Number(databaseProof.conversation_entries) < 2 || !Number.isFinite(Date.parse(databaseProof.first_response_at))) throw new Error('The first Slack exchange evidence is incomplete.');
           state.verification.database = { ok: true, conversation_entries: databaseProof.conversation_entries, assistant_entries: databaseProof.assistant_entries, model_evidence_entries: databaseProof.model_evidence_entries, first_response_at: databaseProof.first_response_at, checked_at: now() };
           state.verification.scope = 'live-starter-instance'; state.verification.readiness = 'validated';

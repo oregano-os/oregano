@@ -52,6 +52,9 @@ Production health uses an alias reported for the exact deployment; protected
 deployment URLs do not need to be made public. A healthy application alone does
 not prove Slack delivery: setup also checks enabled incoming trigger forwarding
 and the exact production attachment before requesting the first message.
+An unanswered retry returns [delivery recovery](../workbench/commands/setup.md#slack-delivery-recovery),
+including Slack URL verification and saving. Provider synchronization alone
+cannot replace a real reply.
 
 Existing Workspaces still use `companyos onboard /path/to/workspace` for local
 inspection. `companyos create workspace` and `companyos bootstrap verify` remain
