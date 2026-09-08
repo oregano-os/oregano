@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { assertGroundedBuilderBrief, type GroundedBuilderBrief } from "../runtime/builder/brief.ts";
 
 export type BuilderJobState =
   | "queued"
@@ -20,6 +21,8 @@ export interface BuilderJobInput {
   readonly sourceConversationKey: string;
   readonly sourceMessageId?: string;
   readonly objective: string;
+  /** Absent only on legacy jobs and fixed internal qualification fixtures. */
+  readonly brief?: GroundedBuilderBrief;
   readonly repositoryId: string;
   readonly baseCommit: string;
   readonly targetBranchName?: string;
@@ -146,6 +149,7 @@ export function assertBuilderJobInput(input: BuilderJobInput): void {
   ] as const) {
     if (!value || value.length > 512) throw new Error(`Builder job ${label} is invalid.`);
   }
+  if (input.brief) assertGroundedBuilderBrief(input.brief, input.baseCommit);
   if (input.agentId !== "builder") throw new Error("Builder job agentId must be 'builder'.");
   if (input.sourceMessageId !== undefined && (input.sourceMessageId === "" || input.sourceMessageId.length > 512)) {
     throw new Error("Builder job sourceMessageId is invalid.");

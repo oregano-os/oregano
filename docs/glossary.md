@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -235,7 +235,7 @@ fixtures. It declares requirements but cannot assign principals, grants,
 approvals, provider bindings, or runtime authority.
 
 ### BuilderService
-The provider-neutral Core coordinator for confirmed proposal-only Builder jobs.
+The provider-neutral Core coordinator for grounded proposal-only Builder jobs.
 It controls immutable input, leases, recovery, cancellation, repository source,
 isolated coding, independent validation, and checked draft publication. It has
 no merge or deployment authority.
@@ -380,8 +380,10 @@ Contributor receives no authority from its model, prompt, or contributor type.
 ### Builder Agent
 The experimental governed CompanyOS agent under `agents/builder/` that proposes
 Company Workspace changes from authorized requests. Selecting it starts a
-normal Runner conversation; only the requester's explicit confirmation starts
-an isolated coding job. This name is reserved for that product component and
+normal Runner conversation. After current process context and material decisions
+are resolved, a clear development request starts an isolated coding job without
+a redundant confirmation. A separate trusted release coordinator implements
+company-governed acceptance and exact production adoption. This name is reserved for that product component and
 is not a synonym for Contributor or coding agent.
 
 ## Authority roles

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { classifyBuilderRelease } from "../../cli/src/builder-release-inspection.mjs";
 import type { BuilderJob } from "../../state-store/builder-jobs.ts";
 import {
   checkedProposalFromInspection,
@@ -64,7 +65,8 @@ export class CompanyOSWorkbenchProposalValidator implements BuilderProposalValid
         evidenceDigest: sha256(result.stdout),
       });
     }
-    return checkedProposalFromInspection(inspection, checks);
+    return { ...checkedProposalFromInspection(inspection, checks),
+      releaseChangeClass: classifyBuilderRelease(args.workspacePath, args.job.baseCommit, inspection.changedPaths) };
   }
 }
 

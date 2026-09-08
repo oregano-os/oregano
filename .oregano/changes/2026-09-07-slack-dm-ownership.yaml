@@ -1,0 +1,93 @@
+version: 2
+plan_id: slack-dm-ownership-2026-09-07
+created: 2026-09-07
+title: Reserve an exact test recipient direct-message route
+objective: Exclude only explicitly selected account-and-user direct messages
+  from the ordinary shared-app webhook, so a separate qualified workflow
+  receiver owns those replies.
+non_goals:
+  - Enable new business workflows or change grants, artifacts, storage or
+    providers.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-slack-dm-ownership.yaml
+  - packages/runner-vercel/src/lib/slack-workflow-dm-routing.ts
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - docs/operations/vercel-slack-event-staging.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-channel-events.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-slack-event-staging
+rollback: Disable the test DM receiver and restore both route settings together.
+  Preserve the original production Artifact business configuration, messages and
+  workflow evidence.
+status: review
+author: codex-agent
+required_approvals:
+  - oregano-maintainer
+approvals: []
+validation:
+  - pnpm check
+  - pnpm runner:build
+  - pnpm companyos inspect-core --plan
+    .oregano/changes/2026-09-07-slack-dm-ownership.yaml --base
+    fa9f52418a28192a98a7a3c5c99da100790d9900
+  - git diff --check
+open_decisions: []
+architecture_assessment:
+  responsibilities:
+    core:
+      - Provider-specific ingress filtering only; retain signature verification
+        for processed events.
+    packages:
+      - No package or business policy.
+    workspace:
+      - No Workspace change or workflow activation.
+    instance:
+      - Own and verify paired exact account-and-user DM routes, without
+        activating production workflows.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing agent-resolver behavior
+        intact.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing toolset-resolver behavior
+        intact.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing model-recipe-resolver
+        behavior intact.
+    - mechanism: company-records
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing company-records behavior
+        intact.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Narrow ordinary ingress by exact account, user and direct-message
+        surface. All accepted messages retain the existing SDK verification.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing timers-and-business-time
+        behavior intact.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing
+        approvals-effects-and-idempotency behavior intact.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: This narrow ingress filter leaves the existing
+        capability-contracts-and-connectors behavior intact.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Instance sharing an app with a staged destination may
+    retain its existing event behavior.

@@ -102,14 +102,20 @@ export interface BuilderAcpRunEvidence {
 export function createBuilderAcpPermissionPolicy(
   profile: BuilderAcpProfile,
   workspace: string,
+  options: { isolatedSandbox?: boolean; referenceRoot?: string } = {},
 ): NonNullable<BuilderAcpRunRequest["permissionPolicy"]> {
   return (permission) => {
     const allowOnce = permission.options.find((option) => option.kind === "allow_once")?.optionId;
     if (!allowOnce) return undefined;
 
     const locations = permission.toolCall.locations ?? [];
+    // Supplied only by the credential-free maintained sandbox worker. Local
+    // command results never become independent validation evidence.
+    if (options.isolatedSandbox && permission.toolCall.kind === "execute") return allowOnce;
     if (locations.length > 0) {
-      return locations.every((location) => isPathInsideBuilderWorkspace(workspace, location.path))
+      return locations.every((location) => isPathInsideBuilderWorkspace(workspace, location.path)
+        || (["read", "search"].includes(permission.toolCall.kind ?? "") && options.referenceRoot
+          && isPathInsideBuilderWorkspace(options.referenceRoot, location.path)))
         ? allowOnce
         : undefined;
     }

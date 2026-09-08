@@ -1,0 +1,88 @@
+version: 2
+plan_id: chat-initialization-2026-09-07
+created: "2026-09-07"
+title: Reject incomplete chat initialization and verify configuration before readiness
+objective: Cache the chat only after runtime configuration and handler registration succeed; health must reject invalid Connector configuration before reporting readiness.
+non_goals:
+  - Change Slack subscriptions, reinstall the app or activate production workflows.
+  - Treat a diagnostic event or operator reread as a human decision or live acceptance.
+placement: core
+change_class: security
+files_expected:
+  - package.json
+  - .oregano/changes/2026-09-07-chat-initialization.yaml
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - docs/operations/vercel-slack-event-staging.md
+  - docs/_generated/**
+tests:
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-slack-event-staging
+rollback: Restore the previous deployment with matching Artifact and Records configuration. No state migration is required.
+status: approved
+author: codex-agent
+required_approvals: [oregano-maintainer]
+approvals:
+  - role: oregano-maintainer
+    approver: authorized-maintainer
+    approved_at: 2026-09-07
+    evidence: Existing authorization for the shared-app ingress staging and subsequent instruction to fix failures and complete the test.
+validation:
+  - pnpm check
+  - pnpm runner:build
+  - pnpm companyos inspect-core --plan .oregano/changes/2026-09-07-chat-initialization.yaml
+  - git diff --check
+open_decisions: []
+architecture_assessment:
+  responsibilities:
+    core:
+      - Atomic runtime construction and configuration readiness; retain signature verification
+        for processed events.
+    packages:
+      - No package or business policy.
+    workspace:
+      - No Workspace change or workflow activation.
+    instance:
+      - Deploy matching Artifact and Records identities without changing source permissions.
+  existing_mechanisms:
+    - mechanism: agent-resolver
+      decision: reuse
+      reason: This startup correction preserves existing agent-resolver behavior
+        intact.
+    - mechanism: toolset-resolver
+      decision: reuse
+      reason: This startup correction preserves existing toolset-resolver behavior
+        intact.
+    - mechanism: model-recipe-resolver
+      decision: reuse
+      reason: This startup correction preserves existing model-recipe-resolver
+        behavior intact.
+    - mechanism: company-records
+      decision: reuse
+      reason: This startup correction preserves existing company-records behavior
+        intact.
+    - mechanism: identity-and-authorization
+      decision: extend
+      reason: Reject partial runtime construction; all processed events retain existing verification.
+    - mechanism: timers-and-business-time
+      decision: reuse
+      reason: This startup correction preserves existing timers-and-business-time
+        behavior intact.
+    - mechanism: approvals-effects-and-idempotency
+      decision: reuse
+      reason: This startup correction preserves existing
+        approvals-effects-and-idempotency behavior intact.
+    - mechanism: capability-contracts-and-connectors
+      decision: reuse
+      reason: This startup correction preserves existing
+        capability-contracts-and-connectors behavior intact.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Company Instance must fail visibly on invalid configuration and recover without a cached incomplete runtime.

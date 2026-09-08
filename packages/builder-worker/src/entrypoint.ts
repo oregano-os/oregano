@@ -38,7 +38,9 @@ try {
     prompt: request.prompt,
     timeoutMs: request.timeoutMs,
     environment,
-    permissionPolicy: createBuilderAcpPermissionPolicy(profile, request.workspacePath),
+    permissionPolicy: createBuilderAcpPermissionPolicy(profile, request.workspacePath, {
+      isolatedSandbox: true, referenceRoot: "/vercel/sandbox/core",
+    }),
     onProgress: async (progress) => {
       await writeProgress({
         schemaVersion: 1,

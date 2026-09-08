@@ -12,6 +12,8 @@ import { isExactSemanticVersion } from "../../runtime/semantic-version.ts";
 import { inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
 import { loadKnowledgeSourceRequirement } from "../../knowledge/source-config.ts";
 import { inspectStructuredDeclarations } from "./structured-declarations.mjs";
+import { compileWorkspaceReleasePolicy } from "../../runtime/release/policy.ts";
+import { parseRoster } from "../../state-store/roster.ts";
 
 const REQUIRED_PATHS = [
   "company.md",
@@ -19,7 +21,6 @@ const REQUIRED_PATHS = [
   "handbook/roster.md",
   "policies/risk-levels.md",
   "policies/data-retention.md",
-  "agents/builder/instructions.md",
   ".companyos/compatibility.yaml",
   ".companyos/repository-protection.yaml",
   "workflows",
@@ -118,11 +119,10 @@ export function validateWorkspace(root) {
   }
 
   const agents = documents.filter((document) => /^agents\/[^/]+\/instructions\.md$/.test(document.relative));
-  if (!agentRoles.has("builder")) diagnostics.push(diagnostic("WS017", "error", "Workspace needs the Builder Agent entrypoint.", { file: "agents/builder/instructions.md" }));
   for (const agent of agents) {
     if (!agent.data?.description) diagnostics.push(diagnostic("WS018", "error", "Agent instructions need a description.", { file: agent.relative }));
     const agentName = agent.relative.split("/")[1];
-    if (agentName !== "builder" && (!agent.data?.scope?.read || !Array.isArray(agent.data.scope.read))) diagnostics.push(diagnostic("WS019", "error", "Operating agent instructions need scope.read as a list.", { file: agent.relative }));
+    if (!agent.data?.scope?.read || !Array.isArray(agent.data.scope.read)) diagnostics.push(diagnostic("WS019", "error", "Agent instructions need scope.read as a list.", { file: agent.relative }));
     if (agentName !== "builder" && (!Array.isArray(agent.data?.tools) || agent.data.tools.length === 0)) diagnostics.push(diagnostic("WS028", "warning", "Operating agent has no explicit Tool grants and cannot demonstrate resolved ToolSet readiness.", { file: agent.relative }));
     for (const grant of agent.data?.tools ?? []) {
       if (!/^(oregano|company):[a-z0-9][a-z0-9/-]*$/.test(grant)) diagnostics.push(diagnostic("WS020", "error", `Invalid tool grant '${grant}'.`, { file: agent.relative }));
@@ -201,6 +201,7 @@ export function validateWorkspace(root) {
   } else {
     try {
       const governance = YAML.parse(readFileSync(governancePath, "utf8"));
+      compileWorkspaceReleasePolicy(governance, parseRoster(roster?.raw ?? ""));
       reviewMode = governance?.review_mode ?? null;
       if (!new Set(["steward", "independent-review"]).has(governance?.review_mode)) diagnostics.push(diagnostic("GOV010", "error", "Governance review_mode must be 'steward' or 'independent-review'.", { file: ".companyos/governance.yaml" }));
       if (governance?.core_defaults?.may_only_tighten !== true) diagnostics.push(diagnostic("GOV002", "error", "Governance must declare core_defaults.may_only_tighten: true.", { file: ".companyos/governance.yaml" }));

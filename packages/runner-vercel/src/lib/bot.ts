@@ -1,7 +1,8 @@
+import { BUILDER_INTAKE_INSTRUCTIONS } from "../../../runtime/builder/brief.ts";
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
-import { ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
+import { ToolLoopAgent, generateText, jsonSchema, stepCountIs, tool, type ModelMessage, type ToolSet } from "ai";
 import { Actions, Button, Card, CardText, Chat, type Author, type Message, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
@@ -22,11 +23,13 @@ import type { CompanyOSArtifact, CompiledAgent, CompiledSprintRuntime } from "..
 import type { StateAdapter } from "chat";
 import { loadArtifact, resolvedAgentForConversation } from "./artifact.ts";
 import type { ResolvedConversationAgent } from "./artifact.ts";
-import { executeAgentHandoffControl } from "./agent-handoff-tools.ts";
+import { continuesInBuilder, executeAgentHandoffControl } from "./agent-handoff-tools.ts";
 import {
   createBuilderChatIntegration,
   type BuilderChatIntegration,
 } from "./builder/chat-integration.ts";
+import { createBuilderReleaseRuntime } from "./builder/release-provider.ts";
+import { createBuilderChatNotifier } from "./builder/chat-notifier.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
@@ -65,6 +68,7 @@ let state: StateAdapter;
 let artifact: CompanyOSArtifact;
 let runtime: CompanyOSRuntime;
 let builderChat: BuilderChatIntegration;
+let builderRelease: ReturnType<typeof createBuilderReleaseRuntime>;
 let assignmentStore: ConversationAssignmentStore;
 let handoffService: AgentHandoffService;
 let slackAgentExperience: SlackAgentExperienceConfiguration;
@@ -121,7 +125,9 @@ export function modelVisibleToolGrantIds(
 }
 
 function systemInstructions(agent: CompiledAgent, knowledgeRoute: KnowledgeTurnRoute, tools: ToolSet): string {
-  const materials = Object.entries(agent.materials)
+  const materials = agent.id === "builder"
+    ? "Use builder_list_context to discover scoped Workspace definitions and builder_read_context to inspect their current content."
+    : Object.entries(agent.materials)
     .map(([path, content]) => `\n<material path="${path}">\n${content}\n</material>`)
     .join("\n");
   const registeredTools = Object.keys(tools).join(", ") || "none";
@@ -215,7 +221,7 @@ function resolvedTools(
     .some((rule) => rule.fromAgentId === agent.id && rule.surfaces.includes(conversation.assignmentKey.surface));
   if (hasOutgoingHandoff || conversation.resolution.reason === "assignment") {
     output.companyos_agent_handoff = tool({
-      description: "Request an allowlisted CompanyOS Agent handoff for this authenticated conversation, or return an assigned conversation to its deterministic route. This control changes only the next turn's Agent selection; it never copies Tool grants or proves a business effect.",
+      description: "Request an allowlisted CompanyOS Agent handoff for this authenticated conversation, or return to its deterministic route. A handoff to Builder continues the current human request immediately so the human need not repeat it. Other handoffs apply next turn. No Tool grants are copied.",
       inputSchema: jsonSchema({
         type: "object",
         additionalProperties: false,
@@ -235,6 +241,7 @@ function resolvedTools(
           resolution: conversation.resolution,
           artifactHash: artifact.artifactHash,
           messageId,
+          continueBuilderInTurn: agent.id !== "builder",
         },
       ),
     });
@@ -243,7 +250,7 @@ function resolvedTools(
   return output;
 }
 
-async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">) {
+async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">, builderContinuation = false) {
   let workflowSession: WorkflowConversationSession | undefined;
   if (workflowHostingEnabled()) {
     try {
@@ -273,7 +280,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     await thread.post("This Slack identity is not an active human in the Company Workspace roster. The message was blocked before model invocation.");
     return;
   }
-  if (!await state.setIfNotExists(`message:${thread.id}:${message.id}`, true, 30 * DAY)) return;
+  if (!builderContinuation && !await state.setIfNotExists(`message:${thread.id}:${message.id}`, true, 30 * DAY)) return;
   await thread.subscribe();
   const requester = workflowSession?.principal ?? principal(member);
   const conversation: ResolvedConversationAgent = workflowSession ? {
@@ -287,6 +294,9 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     assignmentStore,
   });
   const agent = conversation.agent;
+  if (builderContinuation && (agent.id !== "builder" || conversation.resolution.reason !== "assignment")) {
+    throw new Error("Builder handoff changed before the current request could be continued.");
+  }
   const sessionThreadId = resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
   const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
   await rememberSlackAgentSessionConversation(
@@ -373,15 +383,16 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: systemInstructions(agent, knowledgeRoute, tools),
+    instructions: [systemInstructions(agent, knowledgeRoute, tools), ...(agent.id === "builder" ? [BUILDER_INTAKE_INSTRUCTIONS] : [])].join("\n\n"),
     tools,
+    stopWhen: [stepCountIs(20), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
     prepareStep: ({ stepNumber }) => knowledgeStepChoice(knowledgeRoute, stepNumber),
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
   const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
-  if (shouldStreamSlackAgentResponse({
+  if (!tools.companyos_agent_handoff && shouldStreamSlackAgentResponse({
     configuration: slackAgentExperience,
     agentId: agent.id,
     knowledgeRouteKind: knowledgeRoute.kind,
@@ -450,6 +461,17 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     throw error;
   }
   thread.signal.throwIfAborted();
+  if (!builderContinuation && agent.id !== "builder" && continuesInBuilder(result.toolResults)) {
+    await toolProgress.complete({ waitingForHuman: false });
+    await state.appendToList(conversationKey, {
+      role: "assistant", content: "The current request was handed to Builder for process discovery and clarification.",
+      model_execution: modelExecutionEvidence(resolved.selection, result),
+    } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
+    // Forward the original authenticated input, never a model-written instruction
+    // or another Agent's private history. The target resolves its own read scope.
+    await handleMessage(thread, message, true);
+    return;
+  }
   const response = renderKnowledgeTurnResponse({
     route: knowledgeRoute,
     modelText: result.text,
@@ -480,8 +502,8 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 }
 
 function registerHandlers(bot: Chat) {
-  bot.onNewMention(handleMessage);
-  bot.onSubscribedMessage(handleMessage);
+  bot.onNewMention((thread, message) => handleMessage(thread, message));
+  bot.onSubscribedMessage((thread, message) => handleMessage(thread, message));
   bot.onAgentSessionStopped(async (event) => {
     const bridgedLegacyConversation = await abortRememberedSlackAgentSessionConversation(
       bot,
@@ -561,7 +583,8 @@ export function createCompanyOSRuntimeConnectors(
   options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish },
 ) {
   const baseline = createUnifiedKnowledgeProvider({
-    handbook: createPostgresKnowledgeProvider(),
+    handbook: createPostgresKnowledgeProvider(process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && options?.artifact?.knowledge
+      ? { snapshotHash: options.artifact.knowledge.bundleHash } : {}),
     brain: new PostgresBrainKnowledgeProjectionStore(),
     accessAuditor: new PostgresKnowledgeAccessAuditor(),
   });
@@ -592,7 +615,7 @@ export function getBot(): Chat {
   });
   builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal });
   slackAgentExperience = resolveSlackAgentExperience();
-  botInstance = new Chat({
+  const candidateBot = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",
     adapters: {
       slack: createSlackAdapter({
@@ -614,18 +637,32 @@ export function getBot(): Chat {
     workflowContext: { read: async () => undefined },
     connectors: createCompanyOSRuntimeConnectors(connectorAgentId, {
       artifact,
-      chat: () => botInstance!,
+      chat: () => candidateBot,
       beforeSlackDirectPublish: createSprintDirectAssignmentHook({ artifact, service: handoffService }),
     }),
     toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
-  registerHandlers(botInstance);
-  return botInstance;
+  registerHandlers(candidateBot);
+  builderRelease = createBuilderReleaseRuntime({ chat: candidateBot, state,
+    authenticatedPrincipal: (author) => { const member = rosterMember(author); return member ? principal(member) : undefined; } });
+  builderRelease?.registerHandlers();
+  // Publish only after runtime construction and handler registration succeed.
+  botInstance = candidateBot;
+  return candidateBot;
 }
 
 export function getCompanyOSRuntime(): CompanyOSRuntime {
   getBot();
   return runtime;
+}
+
+export function getBuilderTerminalNotifier() {
+  const chat = getBot();
+  return builderRelease?.notifier ?? createBuilderChatNotifier(chat);
+}
+export async function advanceBuilderRelease(workerId: string) {
+  getBot();
+  return builderRelease ? await builderRelease.advance(workerId) : { state: "idle", reason: "release-unconfigured" };
 }
 
 export function createSprintDirectAssignmentHook(args: {

@@ -15,6 +15,8 @@ import { validateAgentRouting } from "../runtime/agent-resolver.ts";
 import { validateWorkflowInstanceBindings } from "./instance-loader.ts";
 import { compileWorkflows } from "./workflow-compiler.ts";
 import { compileSprintRuntimes } from "./sprint-loader.ts";
+import YAML from "yaml";
+import { compileWorkspaceReleasePolicy } from "../runtime/release/policy.ts";
 
 export function buildCompanyOSArtifact(args: {
   workspaceRoot: string;
@@ -43,7 +45,10 @@ export function buildCompanyOSArtifact(args: {
     assertValidJsonSchema(contract.inputSchema, `${contract.id} input schema`);
     assertValidJsonSchema(contract.outputSchema, `${contract.id} output schema`);
   }
-  const workspace = loadCompanyWorkspace(args.workspaceRoot, { includeBuilder: args.instance.builder?.enabled === true });
+  const workspace = loadCompanyWorkspace(args.workspaceRoot, { includeBuilder: true });
+  if (args.instance.builder && !workspace.agents.some((agent) => agent.id === "builder")) {
+    throw new Error("Builder execution bindings require a Workspace Builder definition.");
+  }
   const knowledgeBundle = buildKnowledgeBundle({ workspaceRoot: args.workspaceRoot, workspaceCommit: args.workspaceCommit });
   const agents = workspace.agents.map((agent) => {
     const toolSet = resolveToolSet({
@@ -58,6 +63,7 @@ export function buildCompanyOSArtifact(args: {
     const resolvedIds = new Set(toolSet.tools.map((tool) => tool.runtimeId));
     return {
       id: agent.id,
+      ...(agent.id === "builder" ? { sourcePaths: Object.keys(workspace.allFiles).sort() } : {}),
       instructions: agent.instructions,
       materials: scopedMaterials(workspace, agent.scopeRead, {
         excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
@@ -67,10 +73,13 @@ export function buildCompanyOSArtifact(args: {
     };
   });
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));
+  const operatingAgents = agents.filter((agent) => agent.id !== "builder");
   const agentRouting = {
     bindings: [...args.instance.agentBindings].sort((a, b) => a.id.localeCompare(b.id)),
     handoffs: workspace.agents.flatMap((agent) => agent.handoffs).sort((a, b) => a.id.localeCompare(b.id)),
-    defaultAgentId: args.instance.defaultAgentId,
+    // Preserve the prior single operating Agent's implicit route when adding
+    // Builder. Its presence must not divert ordinary company conversations.
+    defaultAgentId: args.instance.defaultAgentId ?? (operatingAgents.length === 1 ? operatingAgents[0].id : undefined),
   };
   validateAgentRouting(agentRouting, agents.map((agent) => agent.id));
   const sprints = compileSprintRuntimes({
@@ -85,6 +94,7 @@ export function buildCompanyOSArtifact(args: {
     company: workspace.company,
     instance: { id: args.instance.instanceId, environment: args.instance.environment },
     provenance: {
+      instanceConfigurationDigest: sha256(args.instance),
       coreVersion,
       coreCommit: args.coreCommit,
       workspaceVersion: workspace.version,
@@ -113,6 +123,7 @@ export function buildCompanyOSArtifact(args: {
     ...(args.instance.workflowBindings ? { workflowBindings: args.instance.workflowBindings } : {}),
     workflows: compileWorkflows({ files: workspace.allFiles, agents, provenance: { coreCommit: args.coreCommit, workspaceCommit: args.workspaceCommit, workbenchVersion, instanceId: args.instance.instanceId } }),
     builder: args.instance.builder,
+    builderReleasePolicy: compileWorkspaceReleasePolicy(YAML.parse(workspace.allFiles[".companyos/governance.yaml"] ?? ""), workspace.roster),
   };
   const hashInput = {
     ...withoutHash,

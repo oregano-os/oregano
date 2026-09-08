@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-27
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -46,10 +46,12 @@ implicit technical right.
 The Builder is selected like any other Company Agent: a deterministic
 `AgentResolver` evaluates exact trusted Agent Bindings. Merely selecting the
 Builder starts only a normal Runner conversation. A coding agent MUST NOT start
-until the authenticated requester confirms the exact objective, repository,
-and base revision through `builder.propose_change`.
+until the Builder has resolved the requested change and read the current
+affected process definitions. `builder.propose_change` admits a versioned
+source-grounded brief only after material questions are resolved. An explicit
+unchanged-scope development request requires no additional start click.
 
-Every confirmed request MUST create one idempotent durable Builder job.
+Every admitted request MUST create one idempotent durable Builder job.
 Duplicate delivery MUST NOT create a second execution or proposal. Jobs MUST
 support leases, recovery, timeout, requester-authorized cancellation, terminal
 evidence, and notification back to the source conversation.
@@ -61,42 +63,33 @@ Chat-provider failures with bounded backoff. Retrying a notification MUST NOT
 make a terminal job executable again. Successful delivery MUST be persisted so
 the notification is not reclaimed.
 
-After an authorized confirmation or cancellation succeeds, the Runner MUST
-replace the original interactive confirmation message through its neutral Chat
-adapter. A queued replacement MUST remove the confirmation actions and MAY
-retain only the authenticated job-cancellation action; a cancelled replacement
-MUST contain no actions. The pending confirmation MUST be consumed only after
-that replacement succeeds, so a transient Chat-provider failure remains safely
-retryable while durable job idempotency prevents duplicate execution.
+A newly admitted brief produces one queued acknowledgement and a durable job.
+The Runner MUST retain deterministic conversation history identifying the
+submitted job and MUST NOT ask for another start confirmation. Its terminal
+result is delivered to the original conversation; release readiness and
+acceptance are separate from execution completion.
 
-For new jobs, the immutable input MUST retain the neutral Chat message identity
-of the queued card. Terminal notification delivery MUST replace that card with
-the final `published`, `failed`, or `cancelled` outcome and no actions. A legacy
-job without a retained message identity MAY receive a fallback post in the same
-source thread; fallback delivery is at-least-once when persistence fails after
-the provider accepted the post.
-
-When `builder.propose_change` successfully posts the confirmation card, that
-card MUST be the sole visible Runner acknowledgement for the turn. The Runner
-MUST NOT also post model-generated confirmation prose. It MUST retain a
-deterministic internal conversation-history entry so subsequent turns know that
-the card is awaiting the requester's explicit action. If card creation fails,
-normal error or model communication MUST remain visible.
+Legacy confirmation cards remain consumable during migration. Their handlers
+MUST authenticate the original requester and conversation, remove consumed
+actions, and preserve job idempotency across message-edit failures. Legacy jobs
+with a retained card identity may replace that card; new jobs receive a result
+in the original thread. Delivery remains at-least-once if persistence fails
+after the provider accepts a post.
 
 The Instance MAY bind one safe proposal target branch. The target MUST be
-compiled into the Artifact, visible in the human confirmation, immutable in the
-job, and verified with the exact base commit before publication. The model and
-requester MUST NOT choose or alter it during a job. Without that binding, the
-Repository Provider's verified default branch is the target.
+compiled into the Artifact, retained in the brief/job evidence, and verified
+with the exact base commit before publication. The model and requester MUST NOT
+choose or alter it during a job. Without that binding, the Repository Provider's
+verified default branch is the target.
 
 ## 2. Change matrix
 
 | Change | Minimum class | Required authority |
 |---|---|---|
-| Handbook or non-behavioral operational content | content | assigned Process Steward |
-| Existing SOP/Skill behavior | behavior | assigned Process Steward |
+| Handbook or non-behavioral operational content | content | configured requester or Steward acceptance |
+| Existing SOP/Skill behavior | behavior | configured requester or Steward acceptance |
 | Workflow steps, criteria, order, or schedule | behavior; security if authority/effect changes | Process Steward plus Workspace Steward where security applies |
-| New workflow | security | Workspace Steward and responsible Process Steward |
+| New workflow | declared class; security when authority/data expands | configured acceptance; Workspace Steward for security |
 | Agent scope or instructions | behavior; security when authority/data expands | Process Steward or Workspace Steward by effect |
 | Company Tool, grant, connection, roster, or policy | security | Workspace Steward; plus independent review only when Workspace policy requires it |
 | Builder, governance, CODEOWNERS, CI, or protected paths | security | Workspace Steward under the declared review mode |
@@ -204,11 +197,12 @@ provider integration as a workaround.
 
 ## 7. Pilot and graduation
 
-The initial Builder mode is proposal-only: a Human Contributor performs the
-merge and deployment after review. Increased automation requires 10–20 accurately
-predicted real changes and advances from content to behavior to security only
-through a separate approved decision. Production auto-merge is not part of
-this draft.
+The maintained hosted Builder remains proposal-only until its trusted release
+binding is implemented and qualified. Qualification must prove actual scope,
+current authority, exact candidate identity, retry behavior and production
+verification; an arbitrary count of prior changes is not a substitute.
+A separate Core Release Coordinator may merge and deploy after an authorized
+human accepts the exact result. The coding process remains proposal-only.
 
 ## 8. Required evidence and tests
 
@@ -226,7 +220,7 @@ this draft.
 - merge/deploy uses the exact reviewed commit pair;
 - rollback restores definition and separately tracks compensation for effects.
 
-## 9. Implemented proposal-only profile
+## 9. Historical Stage-0 proposal profile
 
 The experimental implementation currently includes:
 
@@ -262,12 +256,93 @@ trusted Git boundaries must hash the same globally ordered patch, and any
 trusted Git or Workbench validation change requires a rebuilt and rebound
 pinned snapshot before the gate is repeated.
 
-## 10. Open decisions
+## 10. Grounded intake, activation and release
+
+A valid Workspace `agents/builder/instructions.md` declares desired Builder
+availability. The Instance supplies repository and coding execution bindings;
+`builder.enabled: true` is accepted only for compatibility and is no longer
+required. Missing execution bindings must allow scoped discovery and
+clarification while refusing coding submission. Removing the definition removes
+the compiled Builder; stale execution bindings then fail the build. Inclusion
+does not add handoff rules or divert the existing sole operating Agent's route.
+Existing scoped content is not expanded automatically. New generator output
+includes process, Agent, policy, schedule and connection definitions, plus the
+governance and roster needed for approval questions.
+
+The canonical intake procedure is [Prepare a Builder Change](../workbench/guides/prepare-builder-change.md).
+Core verifies current scoped reads for all existing targets and context
+references. Approval/access changes additionally require governance and roster
+reads. Unknown questions, unresolved decisions, unavailable context and a
+missing exact connected-test destination prevent admission. New-path claims
+are checked against the full source existence inventory without exposing
+out-of-scope file content. The employee reviews the finished result; source
+hashes alone do not establish semantic correctness.
+
+Actual-diff inspection includes uncommitted, staged, new, renamed and deleted
+files. A validated v3 plan under `.companyos/changes/` is evidence metadata and
+does not inherit security solely from the broad `.companyos/**` rule. Invalid,
+deleted or legacy plans, and explicit narrower protection rules, retain their
+normal classification. Core `.oregano/` plans are not exempted.
+
+An optional `builder.release` policy in `.companyos/governance.yaml` declares
+eligible named members/groups, requester or Steward acceptance by change
+class, independence, and production deployers. Security acceptance preserves
+Workspace Steward authority and the existing independent-review mode. Missing
+policy grants no automated release authority. The Artifact freezes the policy;
+release authorization must use the currently accepted policy and membership,
+not candidate-proposed permissions. One combined action may cover acceptance
+and deployment when the same human holds both authorities. A split-actor
+acceptance/deployment handoff is not yet implemented by the coordinator.
+
+The provider-neutral Release Coordinator and optional Chat binding implement
+exact-candidate admission, per-Instance leases, deterministic operation IDs,
+merge/build/migration/deploy/verify receipts, and verified live completion.
+Pending operations resume with the same ID; a provider adapter must reconcile
+ambiguous dispatch before retrying. Unknown errors stop the run without
+claiming live success. The optional Postgres store reuses existing runs,
+append-only events and lease tables, with no new DDL in the release path.
+Application rollback excludes migrations and does not undo external effects.
+
+The maintained Runner now composes the GitHub release connector and Vercel
+production host when their Instance binding is present. Exact single-parent
+candidate commits, the full changed-path inventory, trusted Workbench evidence,
+producer-pinned hosted checks, protected up-to-date main and expected-head merge
+bind the accepted content. The class is the strictest classification under the
+base and proposed governance; a proposal cannot lower its own review class.
+
+Vercel staging reuses the exact current Core deployment and its production
+environment, overriding the newly compiled Artifact and revalidated non-secret
+Records/Workflow pairing references. Offline compilation
+requires the exact normalized Instance digest from running Artifact provenance.
+Staged health precedes domain promotion; live health must prove deployment ID,
+Core/Workspace commits, Artifact and configuration. Ambiguous creation is retained
+as a durable intent and reconciled through provider metadata without a blind retry.
+Read-only recovery can recognize a deployment that changed its own acceptance
+policy before the previous worker saved its receipt.
+
+The Postgres implementation is qualified against an isolated database for restart,
+concurrent acceptance, same-revision save races and expired leases. A separate
+atomic revision pointer fences append-only snapshots; no runtime DDL is introduced.
+The shared image packages both coding profiles, CLI and Guides for separate coding
+and trusted executions. Actual per-Instance App rights, hosted enforcement, selected
+profile and request-to-live proof remain mandatory deployment evidence.
+
+The first automatic profile supports structural checks and human result review.
+It stages and verifies the exact Knowledge Bundle without changing the old live
+Handbook selection. A configured release Runner reads the snapshot pinned by its
+Artifact. Changes to Knowledge access policy, Records sources, connections or
+the Records identity roster require renewed Instance qualification.
+Requested simulations, connected tests, live trials, arbitrary migrations and
+optional Preview preparation require further qualified adapters. Selecting a
+strategy in the brief never claims it was executed. Split-actor acceptance and
+release remain outside the combined-action implementation.
+
+## 11. Remaining adoption work
 
 - appoint Process Stewards and Workspace Stewards for each pilot Workspace;
-- choose the isolated preview data and provider topology;
-- define authenticated external approval evidence for future automated merges;
-- approve the exact graduation metrics beyond proposal-only mode.
+- choose test evidence and resources only where the change requires them;
+- qualify the maintained provider merge/release binding in the target Instance;
+- verify hosted protection, correct model/image bindings and actual production adoption.
 
 
 ## Operational state path enforcement

@@ -50,12 +50,14 @@ test("the exact Core, Workspace, and Instance inputs produce one deterministic a
   assert.equal(first.provenance.coreVersion, "0.3.2");
   assert.equal(first.provenance.workspaceVersion, "0.1.0");
   assert.equal(first.provenance.resolvedToolSetHash, second.provenance.resolvedToolSetHash);
-  assert.equal(first.agents.length, 1);
+  assert.equal(first.agents.length, 2);
+  assert.equal(first.agentRouting.defaultAgentId, "growth");
+  assert.ok(first.agents.some((agent) => agent.id === "builder"));
   assert.deepEqual(first.connectors, []);
-  assert.equal(first.agents[0].toolSet.tools.length, 5);
+  assert.equal(first.agents.find((agent) => agent.id === "growth")!.toolSet.tools.length, 5);
   assert.equal(first.roster.length, 3);
-  assert.ok(first.agents[0].materials["workflows/property-campaign.md"]);
-  assert.equal(first.agents[0].materials["connections/marketing.md"], undefined, "undeclared material must stay out of the agent snapshot");
+  assert.ok(first.agents.find((agent) => agent.id === "growth")!.materials["workflows/property-campaign.md"]);
+  assert.equal(first.agents.find((agent) => agent.id === "growth")!.materials["connections/marketing.md"], undefined, "undeclared material must stay out of the agent snapshot");
 });
 
 test("the Artifact freezes non-secret runtime Connector installation configuration", () => {
@@ -144,7 +146,7 @@ test("Artifact building resolves the provider-neutral Sprint standard Tools when
       workbenchVersion: "0.1.0-experimental.10",
       builtAt: "2026-08-31T12:00:00.000Z",
     });
-    const runtimeIds = artifact.agents[0].tools.map((tool) => tool.contract.runtimeId);
+    const runtimeIds = artifact.agents.find((agent) => agent.id === "growth")!.tools.map((tool) => tool.contract.runtimeId);
     for (const runtimeId of [
       "oregano:records/query",
       "oregano:work-items/read",
@@ -529,6 +531,18 @@ test("an approved provider effect with an unverifiable receipt is recorded as un
   });
 });
 
+test("Workspace Builder presence declares conversation intent independently of coding bindings", () => {
+  const artifact = build();
+  assert.ok(artifact.agents.some((agent) => agent.id === "builder"));
+  assert.equal(artifact.builder, undefined, "reading and clarification do not require coding access");
+  const root = mkdtempSync(join(tmpdir(), "companyos-no-builder-"));
+  cpSync(FIXTURE, root, { recursive: true });
+  try {
+    rmSync(join(root, "agents/builder"), { recursive: true });
+    assert.ok(!build(root).agents.some((agent) => agent.id === "builder"));
+    assert.throws(() => buildCompanyOSArtifact({ workspaceRoot: root, instance: { ...instance, builder: { execution: { adapter: "testkit-memory", profile: "isolated-v1" }, codingAgent: { protocol: "acp-v1", profile: "codex" }, repository: { repositoryId: "fixture/workspace", sourceBinding: "workspace", proposalPublisherBinding: "workspace" } } }, coreCommit: CORE_COMMIT, workspaceCommit: WORKSPACE_COMMIT, coreVersion: "0.5.13", workbenchVersion: "0.1.0-experimental.15" }), /Workspace Builder definition/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 test("runtime approval requests preserve an explicit workflow deadline and reject expiry", async () => {
   const state = new InMemoryStateStore();

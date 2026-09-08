@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
+import { classifyBuilderRelease } from "../../cli/src/builder-release-inspection.mjs";
 import {
   checkedProposalFromInspection,
   inspectProposalWorkspace,
@@ -56,7 +57,8 @@ if (request.mode === "inspect") {
       evidenceDigest: sha256(result.stdout),
     });
   }
-  process.stdout.write(`${JSON.stringify(checkedProposalFromInspection(inspection, checks))}\n`);
+  process.stdout.write(`${JSON.stringify({ ...checkedProposalFromInspection(inspection, checks),
+    releaseChangeClass: classifyBuilderRelease(workspacePath, baseCommit, inspection.changedPaths) })}\n`);
 } else {
   throw new Error("Trusted Git worker mode is unsupported.");
 }

@@ -2,6 +2,7 @@ export interface BuilderWorkerEndpointDependencies {
   readonly cronSecret?: string;
   loadArtifact(): { readonly builder?: unknown };
   advanceOne(workerId: string): Promise<unknown>;
+  advanceRelease?(workerId: string): Promise<unknown>;
   deliverNotification(workerId: string): Promise<unknown>;
   createWorkerId(): string;
 }
@@ -26,9 +27,10 @@ export async function handleBuilderWorkerRequest(
     }
 
     const workerId = dependencies.createWorkerId();
+    const release = await dependencies.advanceRelease?.(`${workerId}:release`);
     const result = await dependencies.advanceOne(workerId);
     const notification = await dependencies.deliverNotification(`${workerId}:notification`);
-    return Response.json({ ok: true, enabled: true, result, notification });
+    return Response.json({ ok: true, enabled: true, result, notification, ...(release === undefined ? {} : { release }) });
   } catch (error) {
     return Response.json({
       ok: false,

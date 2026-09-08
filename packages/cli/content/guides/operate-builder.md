@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-08-27
+updated: 2026-09-08
 owners:
   - oregano-maintainers
 audience:
@@ -22,7 +22,7 @@ relations:
 # Operate the Builder
 
 Use this guide to configure, qualify, observe, cancel, and review the
-proposal-only Builder. The current implementation is experimental until all
+Builder and its separately trusted release path. The implementation remains experimental until all
 target-environment gates below pass.
 
 ## Configure Agent and provider bindings
@@ -43,7 +43,6 @@ agent_bindings:
     channel_id: C012345
 default_agent: oregano
 builder:
-  enabled: true
   execution:
     adapter: vercel-sandbox
     profile: isolated-v1
@@ -64,8 +63,108 @@ routing, ACP, repository, or Builder job semantics.
 `target_branch` is optional. Omit it to propose against the repository's
 verified default branch. When a pilot Artifact is built from an exact reviewed
 but not-yet-default Workspace revision, bind that revision's branch explicitly;
-the target is copied into the immutable job, shown in the confirmation card,
+the target is copied into the immutable job, retained in the resolved request,
 and independently verified by the proposal publisher.
+
+## Clarify the process before coding
+
+Follow [Prepare a Builder Change](prepare-builder-change.md). The Workspace
+Builder definition declares desired availability. It compiles for conversation
+without an Instance coding binding; actual job submission still needs that
+binding. Keep existing read scopes deliberate. To discuss process changes,
+include the relevant `workflows/**`, `agents/**`, `schedules/**` and connection
+definitions; governance and roster must be available for rights changes.
+
+The Builder reads the existing process, resolves ambiguous targets, asks only
+material unanswered questions and prepares a versioned before/after brief.
+The resolved request starts isolated coding without a redundant start click.
+The current human message continues through an authorized Builder handoff;
+private history and Tool grants do not transfer. Existing normal chat routing
+is preserved when the sole operating Agent gains a Builder alongside it.
+
+## Configure result acceptance
+
+The Core accepts this optional policy in `.companyos/governance.yaml`. Member
+and group ids must resolve to the roster. The names below are synthetic;
+choose each company's existing membership and actual deployment delegation.
+
+```yaml
+builder:
+  release:
+    version: 1
+    acceptance:
+      content:
+        mode: requester
+        eligible: { members: [], groups: [employees] }
+        independent: false
+      behavior:
+        mode: requester
+        eligible: { members: [], groups: [process-editors] }
+        independent: false
+      security:
+        mode: steward
+        eligible: { members: [workspace-steward], groups: [] }
+        independent: false
+    deployers: { members: [workspace-steward], groups: [process-editors] }
+```
+
+`workspace-steward` must be a roster member assigned Workspace Steward
+responsibility. With `review_mode: independent-review`, security's
+`independent` must be true. Do not change review mode to grant ordinary member
+self-acceptance. Eligibility applies to the actual change class. Production
+release also requires membership in `deployers`; writing the policy does not
+install a provider executor or give anyone repository credentials.
+
+The maintained Runner wires **Accept and make live** when both company policy
+and the trusted Instance release binding are present. A human who holds both
+acceptance and deployment authority needs one action. Otherwise a checked draft
+remains available; split-actor acceptance/deployment is not yet implemented.
+A request, live-trial preference or Preview choice never grants release authority.
+
+The initial automatic release profile supports `test.strategy: auto`: independent
+Workbench validation, protected CI, human result acceptance, staged production
+health and final live verification. These checks do not claim functional simulation
+or provider test effects. A selected simulation, connected test, live trial or
+migration needs its own qualified evidence adapter and remains outside this
+initial automatic profile.
+
+## Bind trusted production release
+
+Keep these values in the Company Instance, never in the Workspace:
+
+- `COMPANYOS_BUILDER_INSTANCE_YAML_BASE64`: base64 of the exact non-secret Instance
+  YAML used to build the running Artifact. Its normalized configuration digest
+  must equal the Artifact provenance; no credentials may be embedded.
+- `COMPANYOS_BUILDER_RELEASE_BINDING_BASE64`: base64 JSON containing `projectId`,
+  `teamId` and the existing `productionUrl` for the maintained Vercel host.
+- `COMPANYOS_VERCEL_RELEASE_TOKEN`: the service credential for that deployment
+  project. It is not supplied to the coding process.
+- The existing automation bypass secret, if deployment protection requires it
+  for the staged health probe. Do not disable protection or create bypass access
+  implicitly during a probe.
+
+The GitHub App requires Contents and Pull requests write, plus Checks and
+Administration read for release inspection. Customers select the exact repository.
+The target branch must enforce strict up-to-date required checks pinned to their
+producer App, no force pushes/deletions/bypass, and enforcement for administrators.
+Existing review requirements still apply. A provider plan that cannot enforce
+these controls blocks automatic release; it does not justify a public repository
+or a bypass. The default branch is `main` for this release binding; explicitly
+bind another target when the company's verified default differs.
+
+The trusted host reuses the exact current Core deployment as the build source.
+It compiles the merged Workspace in a separate offline sandbox, builds with the
+existing production environment and only overrides the compiled Artifact, then
+checks staged health before promoting. It creates no Preview app and copies no
+production secrets into Preview. Domain promotion and a second exact live health
+probe complete the release. Preserve the final Artifact in Instance deployment
+configuration when an operator performs a later manual deployment; a Workspace
+merge alone never publishes it.
+
+Create operations retain a durable intent before dispatch. After an ambiguous
+provider response, reconcile the same operation's deployment metadata; never
+create another deployment merely because a receipt was lost. Inspect unresolved
+intents operationally. A failed release is not proof that production is unchanged.
 
 ## Configure secrets and repository installation
 
@@ -97,32 +196,26 @@ node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-b
 node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts codex
 ```
 
-Then create the digest-pinned worker snapshot:
+Create one qualified image from a clean, committed Core checkout:
 
 ```bash
 node --experimental-strip-types packages/runner-vercel/src/lib/builder/create-worker-snapshot.ts
 ```
 
-Store its returned non-secret snapshot ID as
-`COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID` in the Instance environment. A profile is
-supported only when the exact ACP and execution-adapter combination passes.
-Never silently fall back from ACP, Claude Code, or Codex to another runtime.
+Store the returned ID as `COMPANYOS_BUILDER_SNAPSHOT_ID`. The image contains
+both pinned ACP profiles, Git, the exact Core and Workbench, and matching Guides.
+The setup checks each binary version and the Workbench fixture. Qualify the
+selected coding profile against its actual model broker before admitting jobs.
+The legacy two snapshot environment names remain readable during migration;
+new setup needs only the common ID. The older trusted-Git image command also
+builds this same image recipe.
 
-The hosted GitHub provider also needs a separate snapshot that contains Git and
-the pinned Workbench but never runs a coding agent:
-
-```bash
-node --experimental-strip-types packages/runner-vercel/src/lib/builder/create-trusted-git-snapshot.ts
-```
-
-Store that non-secret ID as
-`COMPANYOS_BUILDER_TRUSTED_GIT_SNAPSHOT_ID`. The trusted Git worker performs
-full source acquisition before closing network access, emits a bounded
-credential-free Git bundle, validates the returned diff independently, and
-creates the one outer commit. Real installation tokens exist only in
-host-scoped network-header transforms and never in either process environment.
-Recreate and rebind this snapshot whenever trusted Git or Workbench validation
-code changes; deploying the Runner alone does not update the pinned snapshot.
+Coding and trusted operations always run in separate sandbox executions. Coding
+can run local commands and read Core references, with no production credentials.
+Independent validation and artifact compilation run in fresh trusted sandboxes
+with network access closed. Source/publisher credentials remain host-scoped
+broker transforms. Rebuild and rebind the image when its Core code changes;
+upgrading the Runner alone does not update an existing image.
 
 Qualify a selected private repository with the exact repository identity,
 numeric provider repository and installation IDs, exact base commit, App ID,
@@ -165,7 +258,7 @@ Run the same protected endpoint once with the fixed
 `SIGKILL` only to that recorded ACP process, and requires a newly instantiated
 coordinator to recover the persisted execution handle as `failed`. Passing
 evidence must contain no checked diff and must prove Sandbox disposal. Never
-resume a half-executed coding turn; retry requires a new human-confirmed job.
+resume a half-executed coding turn; retry requires a new resolved job.
 
 The same endpoint accepts the exact fixed `trusted-git` gate only when its
 bounded repository, installation, base-commit, proposal-branch, and optional
@@ -173,33 +266,29 @@ stacked target-branch settings are present. It calls the same authenticated
 onboarding handler as self-service, rereads the persisted binding, and must
 return the same draft proposal on repetition. Remove the temporary
 qualification settings, staged deployment, and automation bypass immediately
-after evidence capture. Keep both reusable snapshot IDs and the normal
+after evidence capture. Keep the reusable snapshot identity and the normal
 non-qualification provider bindings.
 
-## Operate a proposal
+## Operate a change
 
-1. Address the Builder through its bound channel.
-2. Clarify the exact objective in the normal Runner conversation.
-3. Review the confirmation card's repository and exact base commit. Once this
-   card is posted, it is the sole visible acknowledgement; the Runner does not
-   add a second model-authored restatement below it.
-4. Select **Start proposal**. This is the first point at which a job exists.
-   The same card changes to **CompanyOS Builder proposal queued** and no longer
-   offers **Start proposal** or the confirmation **Cancel** action. If the
-   original confirmation remains actionable, do not click it again; retain the
-   job identifier and diagnose the Chat-provider message update.
-5. Use **Request cancellation** on the queued card when required. The request
-   is authenticated against the original requester and is applied by the
-   asynchronous worker.
-6. Wait for the queued card to change to **ready for review**, **failed
-   closed**, or **cancelled**. New jobs resolve that same card; a legacy job
-   without a retained message identity receives a fallback message in the same
-   source thread.
-7. Review the draft proposal, Change Plan, diff, Workbench evidence, and CI.
-8. Apply the normal human merge and deployment governance.
+1. Ask the normal company Agent to change a process, or open a configured Builder
+   conversation. An allowlisted handoff carries the same human request.
+2. The Builder reads current definitions and asks only material unanswered
+   questions. It retains a brief covering the exact target, before/after,
+   acceptance criteria, rights and test strategy.
+3. A clear, resolved implementation request queues isolated development
+   immediately. Use the queued card to stop the job if necessary.
+4. The trusted worker independently checks the diff and Workbench result, then
+   publishes the exact outer proposal. Coding-agent claims are not evidence.
+5. With the qualified release binding and passed checks, the authorized human
+   accepts the result using **Accept and make live**. The coordinator merges,
+   builds, checks, promotes and verifies the exact pairing.
+6. The terminal card says live only after the production deployment and health
+   match. Otherwise it remains a draft, pending or stopped result with evidence.
 
-The coding process cannot commit, push, merge, or deploy. CompanyOS creates the
-canonical outer commit and draft proposal only after independent validation.
+Legacy start-confirmation cards remain readable during migration. Once consumed,
+those cards must remove their old actions; new resolved briefs need no extra start
+click. A replayed action never creates a different job or release.
 
 ## Diagnose and recover
 
@@ -225,7 +314,7 @@ in the job ledger; do not retry the coding execution to repair presentation.
 For a failed job, inspect only redacted terminal reason, provider receipts,
 exact profile versions, source digest, observed diff digest, and Workbench
 check digests. Never copy a provider credential into logs or a retry request.
-Retry by creating a new confirmed request at an exact current base unless the
+Retry by creating a new resolved request at an exact current base unless the
 existing idempotent job is still recoverable.
 
 For a bounded manual smoke test, target a file that exists at the displayed
@@ -250,44 +339,48 @@ retain both redacted digests for diagnosis.
 
 ## Current qualification status
 
-Unit and local integration coverage proves routing, confirmation gating, job
-leases, cancellation, local repository conformance, GitHub App token
-separation, protected-path rejection, ACP protocol behavior, independent diff
-inspection, and trusted outer publication. Basic live Vercel Sandbox lifecycle,
-duplicate recovery, timeout, and credential-transform mechanics are also
-proved.
+Local tests cover grounded intake, both coding profile contracts, exact-candidate
+policy, protected provider inspection, ambiguous merge/deploy reconciliation,
+separate staging and promotion, and actual Postgres persistence, concurrent saves
+and expired leases. The initial Stage-0 Slack-to-draft tests predate this release
+path and do not qualify its new image or production executor.
 
-The current worker snapshot is `snap_XhgH5ozYTOR5L5GTI3e8ST1G3hvy`; the
-current trusted Git snapshot is `snap_ELocj6iQRrgRzFnOJPeGNcAs7H8k`. Both
-brokered model profiles and the service-owned GitHub App source and
-draft-publication path passed live qualification. The protected model runs
-kept the real general Instance model keys outside the coding processes. The
-separate trusted Git worker and deployed onboarding handler passed source
-transfer, durable binding reuse, independent Workbench validation, outer
-commit, stacked draft publication, and repeat-call idempotency against one
-selected private Workspace. The coding workspace contained no repository
-credential or remote.
+Each Company Instance still needs its selected App installation and scopes, hosted
+branch protection, model/worker qualification, staged production health access,
+and a bounded request-to-live proof. Record those private receipts with exact Core,
+Workspace, image, Artifact and deployment identities. Local tests never substitute
+for these provider and human acceptance steps.
 
-The refreshed trusted Git snapshot also passed mixed tracked-plus-new-file job
-`builder-e33e20f2141fc422efa9234335a75899` as a checked draft in the selected
-private qualification Workspace, without merge or deployment.
 
-On 2026-08-27, the isolated qualification Instance completed the remaining
-Slack-to-draft gate through the normal Runner, an exact Builder Agent Binding,
-explicit confirmation, Claude ACP, independent validation, and a checked draft
-in the selected private qualification Workspace, with no merge or deployment. The job took
-298.240 seconds end to end. Its one-vCPU, 2 GB coding Sandbox ran for 264.182
-seconds, used 8.401 active CPU seconds, and incurred approximately USD 0.00374
-of listed provider compute, memory, network, and creation usage before included
-quotas and excluding Claude model cost.
+## Release configuration and knowledge continuity
 
-On the final worker snapshot, a fixed Claude job recorded 110,033 total tokens
-(10 input, 455 output, 103,466 cached read, and 6,102 cached write) plus an
-ACP-reported estimated model cost of USD 0.1019435. This is model evidence from
-the direct Anthropic-backed run, separate from Vercel Sandbox resource cost. A
-second fixed job injected `SIGKILL` after prompt-start evidence; a replacement
-coordinator recovered `failed`, emitted no diff, and disposed the Sandbox.
+Core 0.6.0 introduces Workspace-declared Builder availability and the optional
+`builder.release` company policy. Workbench 0.1.0-experimental.16 distributes the
+matching intake and operations Guides. Remove a legacy `builder.enabled: false`
+binding; omit execution bindings to keep conversation-only authoring available.
+Previously explicit `enabled: true` bindings remain readable during migration.
 
-The hosted profile remains inactive in customer production. Provider-billing
-reconciliation and a supervised history of 10–20 representative proposals
-remain production-readiness measurements.
+The trusted compiler builds both the Artifact and its exact Knowledge Bundle.
+The release stages and verifies an immutable Knowledge snapshot; the configured
+Runner selects the snapshot named by its Artifact. Staging cannot switch the
+old production deployment's Handbook. Initial adoption must also stage and
+verify the current Artifact's bundle before configuring live release. A changed
+Knowledge access policy needs separate Instance qualification in this profile.
+
+Existing Records and hosted Workflow settings are revalidated and rebound to
+the exact new Workspace/Artifact while retaining qualified resources, enabled
+workflow IDs, schedules and operators. No credentials are copied. Changes to
+record sources, connections or the Records identity roster require renewed
+qualification; they remain reviewable proposals until that evidence is supplied.
+The live profile currently supports `auto` tests. Connected trials, new provider
+resources, data migrations and split acceptance/deployment actors require a
+separately qualified execution path and must not be presented as automatic.
+
+If CI or Instance readiness is still pending, the chat delivers the built draft
+and a **Check readiness** action. This action only refreshes evidence; it never
+approves or releases the result. A ready result presents **Accept and make live**.
+
+Manual deployments must carry the current exact Artifact and rebound non-secret
+configurations forward. The Builder stores them durably with its release; it
+does not silently overwrite project-level environment variables. Production
+verification also compares Vercel's actual Git source commit with Core provenance.

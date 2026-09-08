@@ -93,7 +93,7 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
   readonly #configuration: VercelSandboxBuilderConfiguration;
 
   constructor(configuration: VercelSandboxBuilderConfiguration = {
-    workerSnapshotId: process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID,
+    workerSnapshotId: process.env.COMPANYOS_BUILDER_SNAPSHOT_ID ?? process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     openAiApiKey: process.env.OPENAI_API_KEY,
   }) {

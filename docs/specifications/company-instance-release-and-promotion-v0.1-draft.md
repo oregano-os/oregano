@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-09-03
+updated: 2026-09-08
 owners:
   - oregano-maintainers
   - product-owner
@@ -118,8 +118,9 @@ One human MAY hold several roles, but every recorded action MUST identify the
 role and scope being exercised. In `review_mode: steward`, one Workspace
 Steward MAY authorize a checked security change and later authorize deployment.
 In `review_mode: independent-review`, a security-change author MUST NOT provide
-the independent approval. Merge and deployment remain separate confirmations
-in both modes.
+the independent approval. Acceptance, merge and deployment retain separate authority checks. A single
+explicit result-acceptance action MAY authorize the exact merge and deployment
+when the same human holds both authorities and sees the candidate and target.
 
 ## 4. Change lanes
 
@@ -139,15 +140,18 @@ diff classification, required CODEOWNERS routing, and human review. It requires
 neither durable-state branching nor a Preview Instance merely to duplicate the
 repository branch.
 
-### 4.2 Preview Lane
+### 4.2 Isolated execution lane
 
-The Preview Lane applies when the change affects executable code, workflow
+The isolated execution lane applies when the change affects executable code, workflow
 execution, a Core or dependency pin, runtime configuration shape, durable state,
 schema, migration, retry behavior, ordering, idempotency, approval handling, or
 another property that static review cannot establish.
 
-Preview Lane evidence MUST run the exact proposed Core and Workspace pair in
-an isolated environment. Stateful changes MUST use an isolated database or
+Execution evidence MUST exercise the relevant exact proposed Core and Workspace
+pair in an isolated environment. A local fixture or coding Sandbox can satisfy
+the applicable check; a hosted Preview is required only when the behavior needs
+a separately running application, callback, state or provider integration.
+Do not provision a Preview for every behavior change. Stateful changes MUST use an isolated database or
 equivalent StateStore branch. Database isolation alone is insufficient when
 the changed behavior also depends on runtime processes, queues, webhooks,
 secrets, or provider adapters.
@@ -164,7 +168,11 @@ mock Connector, or effect sink. It MUST prove scope enforcement, duplicate
 suppression, failure and retry behavior, and receipt verification where the
 effect contract requires read-after-write. Production credentials and
 production write targets MUST NOT be exposed to an ordinary pull-request
-Preview Instance.
+Preview Instance. Existing company apps may provide scoped test channels,
+boards or equivalent resources through the trusted test executor; no second
+app is mandatory. A deliberately selected live trial requires separately
+recorded exact effect scope under existing company authority. A preference in
+a build brief does not grant that authority or prove execution.
 
 ## 5. Pull-request assessment and notification
 
@@ -258,11 +266,14 @@ conditions are satisfied.
 
 The merge initiator does not create missing approval by clicking merge. A
 Platform Administrator MUST NOT use administrative bypass as the normal merge
-path. The future Builder Agent remains proposal-only and MUST NOT merge its own
-change.
+path. The Builder coding process remains proposal-only and MUST NOT merge its own
+change. A separate trusted Core Release Coordinator may perform the mechanical
+merge under a verified human acceptance and enforced hosted protections.
 
 The accepted revision becomes a Release Candidate. Production remains pinned
-to its prior recorded revision until a separate deployment is authorized.
+to its prior recorded revision until deployment is authorized. That
+authorization may be part of the combined exact-result acceptance described
+above; merging by itself never grants it.
 
 ## 9. Deployment and production promotion
 
@@ -271,6 +282,13 @@ Platform Administrator with `instance` scope authorizes the target Instance and
 timing; a least-privilege deployment identity performs the technical action.
 Neither a merge to the Company Workspace nor a push to Oregano Core MUST
 automatically deploy a real company's Production Instance.
+
+A configured Workspace `builder.release` policy MAY delegate content and
+behavior acceptance to eligible requesters. Existing protected security
+changes retain Workspace Steward and independent-review requirements. Evaluate
+such changes using the current accepted policy, never proposed new permissions.
+The same human's combined acceptance and deployment action is valid only when
+that human is also an eligible production deployer.
 
 Before deployment, the path MUST verify:
 
@@ -353,92 +371,24 @@ Implementation of this contract requires tests proving at least:
 
 ## 14. Implementation status and open decisions
 
-This document specifies mostly planned behavior. The current Workbench does not
-yet implement general lane classification, hosted pull-request consequence
-summaries, isolated Preview Instance provisioning, reusable Release Candidate
-records, protected deployment environments, or promotion orchestration.
+The maintained initial Builder release profile is implemented behind Workspace
+acceptance/deployer policy and exact Company Instance bindings. GitHub protects
+and merges the independently checked candidate. A separate trusted compiler builds
+the exact merged Workspace with the running Core and normalized Instance digest.
+Vercel stages a production-target build using the existing production environment,
+checks readiness before promotion, and verifies the live deployment and Artifact.
+The coding worker receives none of this execution authority or its credentials.
 
-The experimental `companyos setup --profile vercel-neon-slack` command
-implements one bounded initial-installation subset:
+Postgres stores immutable acceptance and append-only release snapshots, with a
+leased Instance queue and atomic revision pointer. Private operation intents retain
+ambiguous creates for provider reconciliation. Local tests exercise actual database
+restart and concurrency, provider receipt loss, stale checks and distinct staging
+and promotion. Target provider scopes, branch enforcement, worker image and a real
+human request-to-live proof must be qualified independently before an Instance is
+called ready.
 
-- exact clean Core and Workspace identity plus an immutable Artifact;
-- a private GitHub repository, an automatic hosted-protection attempt recorded
-  as `enforced` or `advisory`, a required CompanyOS check, and explicit
-  Workspace Steward merge authorization for the authoring-to-operating change;
-- explicit create-or-adopt choices for one Vercel project, Neon resource, and
-  Slack connection;
-- database preparation that detects first bootstrap, additive upgrade, or
-  already-current verification for both maintained schemas, an immutable
-  versioned manifest, and a non-secret read-only qualification receipt before
-  runtime deployment;
-- an explicit `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
-  `google-direct` model execution recipe, with direct credentials confined to
-  the runtime host secret store;
-- separate hash-bound confirmations for the setup plan, operating Workspace
-  content, checked merge, and exact production candidate;
-- current deployment health plus one nonce-bound, model-backed Slack response,
-  non-secret route/model response evidence, and Neon persistence proof; and
-- a supervised Oregano Agent with no business Tool grants.
-
-The Workbench implements this subset through a private typed setup-provider
-boundary with four roles: source host, runtime host, state service, and
-communication provider, plus a typed Runner model-execution selection. The
-maintained profile currently binds those roles to GitHub, Vercel,
-Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,
-and named compatible cloud recipes. Generic OpenAI-compatible, LiteLLM,
-Ollama, and llama-server recipes are available outside the bounded one-prompt
-profile when their endpoints are explicitly reachable from the runtime.
-This boundary is installation
-orchestration only; it is not a public plugin contract and does not alter the
-provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.
-Provider creates require write-ahead intents and immutable receipts so resume
-does not depend on eventually consistent name searches.
-
-For this subset, StateStore provisioning and schema preparation are distinct
-operations. A new Instance MUST create or explicitly adopt exactly one
-PostgreSQL StateStore, bind its `DATABASE_URL` only through the selected
-runtime host's secret environment, and successfully run the provider-neutral
-database prepare operation before setup advances. Prepare MUST inspect the
-catalog and immutable ledger, select `bootstrap` for an empty database,
-`upgrade` for a supported predecessor, or read-only `verify` for the current
-manifest, and fail closed for an unknown or conflicting state. Bootstrap MUST
-remain the empty-database primitive. Preparation MUST cover `companyos`,
-`companyos_knowledge`, and `companyos_records`, record the exact immutable manifest, be idempotent,
-and fail closed if the same manifest version has different content. Setup state
-MUST retain only the selected operation, previous manifest versions, provider
-resource identity, and bounded non-secret qualification receipt.
-Runtime health and completion verification MUST use read-only qualification,
-MUST match the receipt's manifest digest, and MUST NOT perform schema DDL. The
-maintained Vercel profile's `vercel env run` transport is one adapter binding,
-not a requirement on a conforming alternative runtime host.
-
-The current bounded subset targets additive manifest
-`companyos-postgres@1.9.0`, which preserves predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,
-`1.1.0`, and `1.0.0`, qualifies 67 required Knowledge relations plus 14 Record
-Source and Sprint relations, and assigns unresolved
-existing access-policy identities to quarantine. The successor adds durable
-Source Events, provider ACL snapshots, pipeline receipts, completed watermarks,
-synchronization leases, lifecycle requests, an integrity-linked change stream,
-and rebuildable Retrieval V3 projection and qualification evidence plus atomic
-Sprint event, state, decision, and intent persistence. Deployment
-qualification proves schema readiness only. Runtime authorization and
-provider-ACL mapping conformance are separate release evidence and MUST pass
-before a sensitive Source is enabled.
-
-This subset records readiness as `validated`. It has no reusable Preview or
-Effect Lane, no generic pre-production provider-test topology, no unattended
-promotion, and no claim of `enforced` readiness. It is therefore suitable only
-for the documented Tool-free supervised starter. Later behavior, integration,
-scope, state, or effect changes remain subject to every applicable requirement
-in this draft, including isolated pre-merge evidence where safely testable.
-Hosted GitHub protection is defense in depth for this bounded starter rather
-than a readiness gate. It becomes mandatory before a future unattended agent
-receives repository write, merge, or deployment authority.
-
-The general implementation Change Plan must still select:
-
-- the machine-readable lane and release-evidence schemas;
-- the final Company Instance deployment repository or Workspace-owned CI model;
-- the Git-host review, merge-queue, and protected-environment integration;
-- the reference Vercel, Neon/Postgres, and provider-test topology; and
-- retention and cleanup policy for Preview Instance resources and evidence.
+The combined action currently requires one human to hold both acceptance and
+release authority. Connected test execution, optional Preview preparation,
+arbitrary migration adapters and split-actor handoff remain future extensions.
+A failed deployment must retain its exact evidence; application recovery does not
+undo database changes or already completed business effects.

@@ -1,0 +1,91 @@
+version: 3
+plan_id: builder-workspace-activation-and-preview-2026-09-08
+created: "2026-09-08"
+proposal: true
+title: Plan reusable Builder activation, configurable acceptance, and preview testing
+objective: >-
+  Define company-independent Core changes for Workspace-declared Builder intent,
+  scoped Steward or requester acceptance, continuous guided chat, replaceable
+  coding-agent profiles, isolated development and test environments, and exact
+  candidate adoption. Reuse existing company apps and variable test resources,
+  automate complete Preview access provisioning, define a versioned build brief,
+  and deliver the simple request-to-production path before optional previews.
+  Distinguish database rehearsal from production migration and company data
+  definitions from Core schema changes.
+non_goals:
+  - Implement runtime behavior or activate any Company Workspace or Instance in this proposal-only change.
+  - Create external resources, connect providers, choose private company policy, or authorize production effects.
+  - Grant coding agents repository publication, production database, or deployment credentials.
+  - Introduce a new workflow engine or unrestricted company-authored SQL migrations.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-workspace-activation-and-preview.yaml
+  - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests: []
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.builder-workspace-activation-and-preview
+architecture:
+  placement:
+    core: >-
+      Generic activation and acceptance contracts, chat handoff and Builder jobs,
+      execution profiles, validation, test-session lifecycle, dependency resolution,
+      shared-app dispatch, and adoption.
+      This diff adds only a reviewable proposal and generated documentation entries.
+    packages: >-
+      Reuse reviewed capabilities and templates through existing Package and Tool
+      boundaries. No new Package runtime or privileged Workspace code is needed.
+    workspace: >-
+      Company Builder definitions, desired capability, acceptance scope and
+      eligible members, operating context, logical test choices, and grants.
+    instance: >-
+      Verified repository connections, coding profile, runtime and state resources,
+      secret references, exact test or live-trial resources, environment attachment,
+      budgets, and release receipts.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: >-
+        Extend the existing governed handoff with authorized typed context and a
+        continuous conversation; retain exact trusted initial Agent selection.
+    - mechanism: identity-and-authorization
+      reason: >-
+        Resolve company-delegated requester acceptance and Steward acceptance
+        against current identity, change scope, and the previously accepted policy.
+    - mechanism: approvals-effects-and-idempotency
+      reason: >-
+        Bind acceptance, preview effects, and adoption to exact candidate revisions
+        while reusing durable jobs, leases, effect claims, and decision receipts.
+    - mechanism: capability-contracts-and-connectors
+      reason: >-
+        Extend maintained runtime-host, state-service, repository, and communication
+        adapters with dependency-driven Preview configuration, existing-connection
+        reuse, scoped test-session dispatch, and trusted adoption operations.
+    - mechanism: timers-and-business-time
+      reason: >-
+        Extend existing timers and leases for candidate test-session expiry and
+        bounded resource cleanup; reuse fake time in supported scenario execution.
+  new_core_mechanisms:
+    - Versioned Builder brief, dependency manifest, and candidate test-session contract spanning existing execution and provider adapters.
+    - Versioned scoped acceptance policy integrated with the existing governance and identity surfaces.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The same Core serves companies with different acceptance policies, channels,
+    coding agents, and infrastructure through declarations and qualified adapters.
+    Acceptance requires two synthetic companies with distinct policies and both
+    maintained ACP profiles at the contract boundary; private adoption selects
+    its own live profile without customer values in public code or documentation.
+rollback: >-
+  Remove the proposal and regenerate documentation before implementation. Each
+  later phase records its own rollback. Runtime rollback must retain decision
+  evidence, stop new jobs or test sessions, restore the prior exact release pair,
+  and never assume that reverting application code reverses a data migration.
+open_decisions:
+  - Private adopters select delegated acceptance scope, release authority, test destinations, data policy, and budget through separate Workspace and Instance changes.
+  - Confirm whether any initial use case requires a new company-owned schema extension beyond existing Company Records before scheduling that additional contract.
