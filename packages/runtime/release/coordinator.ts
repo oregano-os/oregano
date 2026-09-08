@@ -66,14 +66,14 @@ export class ReleaseCoordinator {
 
   async #inspect(candidate: ReleaseCandidate): Promise<void> {
     const inspected = await this.dependencies.execution.inspect(candidate);
-    if (!inspected.protectionEnforced || inspected.repositoryId !== candidate.repositoryId
+    if ((!inspected.protectionEnforced && inspected.mergeStrategy !== "exact-fast-forward") || inspected.repositoryId !== candidate.repositoryId
       || inspected.targetBranch !== candidate.targetBranch || inspected.currentBase !== candidate.baseCommit
       || inspected.candidateCommit !== candidate.candidateCommit || inspected.candidateTree !== candidate.candidateTree
       || inspected.diffDigest !== candidate.diffDigest || inspected.changeClass !== candidate.changeClass
       || inspected.checksDigest !== candidate.checksDigest
       || candidate.requiredChecks.some((id) => !inspected.checks.some((check) => check.id === id && check.status === "passed"))
       || inspected.checks.some((check) => check.status !== "passed")) {
-      throw new Error("Candidate, base, protection or required checks changed; refresh and review the result.");
+      throw new Error("Candidate, base, merge strategy or required checks changed; refresh and review the result.");
     }
   }
 
@@ -112,8 +112,8 @@ export class ReleaseCoordinator {
         switch (run.stage) {
           case "approved": await this.#inspect(candidate); await move("merging"); break;
           case "merging": {
-            // The adapter rechecks exact head/base and protected checks atomically
-            // with merge, or reconciles this same operation after an ambiguous result.
+            // The adapter enforces the checked content at the merge boundary,
+            // or reconciles this same operation after an ambiguous result.
             const result = await execution.merge(context);
             if (result.state === "pending") break;
             const receipt = result.receipt;

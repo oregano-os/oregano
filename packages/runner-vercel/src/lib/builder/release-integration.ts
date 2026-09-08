@@ -53,13 +53,13 @@ export function createBuilderReleaseIntegration(args: {
       const digest = sha256(candidate);
       const token = randomUUID();
       await args.state.set(`builder-release-candidate:${token}`, { candidate, digest } satisfies PendingRelease, 24 * 60 * 60 * 1000);
-      const card = Card({ title: "Change ready for acceptance", children: [
+      const card = Card({ title: "Confirm merge and live adoption", children: [
         CardText(job.brief.brief.proposedBehavior),
         CardText(`Success criteria: ${job.brief.brief.acceptanceCriteria.join("; ")}`),
         CardText(`Production target: ${candidate.instanceId}. Candidate: ${candidate.candidateCommit.slice(0, 12)}.`),
-        CardText("Accepting starts the checked merge, production build, deployment and verification if your current company permissions allow it."),
+        CardText("May I merge this exact checked change and make it live? Your confirmation authorizes the merge, production build, deployment and verification under your current company permissions."),
         ...(candidate.migration ? [CardText(`Includes migration ${candidate.migration.id}. Application rollback does not undo data changes.`)] : []),
-        Actions([Button({ id: "companyos.builder.release", label: "Accept and make live", style: "primary", value: token })]),
+        Actions([Button({ id: "companyos.builder.release", label: "Merge and make live", style: "primary", value: token })]),
       ] });
       const thread = args.chat.thread(job.sourceConversationKey);
       if (job.sourceMessageId) await thread.adapter.editMessage(thread.id, job.sourceMessageId, card);
@@ -88,7 +88,7 @@ export function createBuilderReleaseIntegration(args: {
       } catch {
         // Authority/check failures are actionable but provider exceptions may
         // contain credentials. Never echo the raw error to the chat surface.
-        await event.thread.post("Live adoption could not start. The required acceptor and deployment authority, exact candidate, protected checks and current production version must still match. Refresh the result or route it to the authorized person.");
+        await event.thread.post("Live adoption could not start. The required acceptor and deployment authority, exact candidate, required checks and current production version must still match. Refresh the result or route it to the authorized person.");
       }
     });
   };

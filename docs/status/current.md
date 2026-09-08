@@ -20,6 +20,16 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Core 0.7.0 adds explicit human-confirmed Builder merges for unprotected
+  repositories. A non-forcing fast-forward adopts only the exact single-parent
+  checked candidate; concurrent divergent changes stop rather than entering an
+  unchecked merge. Existing protected merges remain supported. Strategy and
+  checks are bound to confirmation, and showing the result grants no authority.
+  Lost responses reconcile from immutable branch/commit evidence. The coding
+  process still has no repository or release credential; production adoption
+  uses the same trusted compiler, staged health and explicit promotion path.
+  This capability does not prevent manual changes to an unprotected Git branch.
+
 - The Core 0.6.0 Builder release adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,
   original-message continuation through an allowlisted Builder handoff, and
