@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -20,6 +20,13 @@ relations:
 ---
 
 # CompanyOS Onboarding
+
+Instance preparation records non-secret configuration in the Company's
+`.companyos/instance.yaml`, directly beside governance and compatibility.
+The maintained operating setup includes it before the initial commit or
+activation review, and deployment reads that reviewed file. Existing
+installations adopt their exact declaration without changing bindings. See
+[the format, migration and compatibility rules](../reference/instance-configuration.md).
 
 Start with [Choose a setup](setup-options.md) to distinguish the available
 live profile and model variants from local authoring and future provider
@@ -60,9 +67,9 @@ cannot replace a real reply.
 Existing Workspaces still use `companyos onboard /path/to/workspace` for local
 inspection. `companyos create workspace` and `companyos bootstrap verify` remain
 local authoring commands; they are not extra steps in the standard installer.
-The explicit `setup --profile vercel-neon-slack` contract remains available for
-legacy sessions and deliberate resource adoption. Its separate approvals are
-not silently reused as fresh-installation authority.
+Only current schema-5 fresh setup sessions can resume. The retired
+`setup --profile` flow and schemas 1–4 are unsupported; historical receipts
+must not be converted into fresh-installation authority.
 
 The release includes checksummed platform tooling instead of a full developer
 installation on the client. This flow is experimental; see the
@@ -85,7 +92,7 @@ it. A resumed run reconciles an unresolved intent by immutable provider
 identity and never creates a second resource from a name-only lookup.
 
 A new Company Instance does not need a database before setup begins. The state
-service adapter first creates or explicitly adopts one PostgreSQL resource and
+service adapter creates one dedicated PostgreSQL resource and
 binds its connection only in the runtime host's secret environment. The next
 phase invokes the provider-neutral `companyos database prepare` operation
 through that environment. Prepare detects an empty, older, or current database

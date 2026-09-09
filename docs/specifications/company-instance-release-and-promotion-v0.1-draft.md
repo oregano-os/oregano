@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
   - product-owner
@@ -23,6 +23,17 @@ relations:
 ---
 
 # Company Instance Release and Promotion v0.1
+
+The reviewed non-secret Instance build declaration MUST be versioned at
+`.companyos/instance.yaml` in the responsible Company Workspace.
+Its exact bindings and SecretRefs are permitted company Git content; resolved
+credentials and operational evidence are not. Setup MUST include the declaration
+before its initial commit. CLI and hosted builds MUST consume that tracked file
+from the exact clean Workspace checkout. External YAML overrides and transport
+copies are not supported. Hosted compilation checks the running Artifact
+configuration digest before building. The format is defined in the
+[Instance configuration contract](../reference/instance-configuration.md).
+Reviewing or merging this file does not independently authorize deployment.
 
 This draft defines how a Company Workspace change moves from a bounded proposal
 to a reviewed source revision and, when applicable, to a running Company
@@ -421,7 +432,7 @@ arbitrary migration adapters and split-actor handoff remain future extensions.
 A failed deployment must retain its exact evidence; application recovery does not
 undo database changes or already completed business effects.
 
-### Standard fresh initialization and advanced setup
+### Standard fresh initialization
 
 The standard `companyos setup` command implements the fresh-only exception:
 one reviewed decision authorizes the listed new resources and their first
@@ -465,31 +476,13 @@ Artifact, selected model, delivered response and durable conversation evidence.
 The standard implementation is experimental. Its release-built platform payloads
 and local/simulated regression tests do not establish cold live timing.
 
-The experimental `companyos setup --profile vercel-neon-slack` command
-retains the explicit advanced and legacy initial-installation subset:
-
-- exact clean Core and Workspace identity plus an immutable Artifact;
-- a concrete Vercel Pro-or-Enterprise prerequisite, checked automatically
-  before hosted resource creation, on resume, before production deployment,
-  and during final verification; Hobby returns a resumable human billing
-  action, with no automatic subscription change or cron-frequency question;
-- a private GitHub repository, an automatic hosted-protection attempt recorded
-  as `enforced` or `advisory`, a required CompanyOS check, and explicit
-  Workspace Steward merge authorization for the authoring-to-operating change;
-- explicit create-or-adopt choices for one Vercel project, Neon resource, and
-  Slack connection;
-- database preparation that detects first bootstrap, additive upgrade, or
-  already-current verification for both maintained schemas, an immutable
-  versioned manifest, and a non-secret read-only qualification receipt before
-  runtime deployment;
-- an explicit `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
-  `google-direct` model execution recipe, with direct credentials confined to
-  the runtime host secret store;
-- separate hash-bound confirmations for the setup plan, operating Workspace
-  content, checked merge, and exact production candidate;
-- current deployment health plus one nonce-bound, model-backed Slack response,
-  non-secret route/model response evidence, and Neon persistence proof; and
-- a supervised Oregano Agent with no business Tool grants.
+The maintained `companyos setup` lifecycle requires schema-5 fresh initialization,
+exact resource-create receipts, the checked initial commit containing
+`.companyos/instance.yaml`, one explicit model choice and the scoped initial
+deployment decision. Current health and an authorized model-backed Slack
+exchange MUST be verified before completion. The retired `--profile` flow and
+state versions 1–4 MUST be rejected before provider operations. Historical
+receipts MUST NOT be relabeled to manufacture current initialization authority.
 
 The Workbench implements this subset through a private typed setup-provider
 boundary with four roles: source host, runtime host, state service, and
@@ -515,7 +508,7 @@ Provider creates require write-ahead intents and immutable receipts so resume
 does not depend on eventually consistent name searches.
 
 For this subset, StateStore provisioning and schema preparation are distinct
-operations. A new Instance MUST create or explicitly adopt exactly one
+operations. Fresh setup MUST create exactly one
 PostgreSQL StateStore, bind its `DATABASE_URL` only through the selected
 runtime host's secret environment, and successfully run the provider-neutral
 database prepare operation before setup advances. Prepare MUST inspect the

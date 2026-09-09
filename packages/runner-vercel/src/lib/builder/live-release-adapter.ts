@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { gzipSync, gunzipSync } from "node:zlib";
 import type { WorkflowExecutionStore } from "../../../../state-store/workflow-engine.ts";
-import { parseInstanceBuildConfiguration } from "../../../../companyos-builder/instance-loader.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { releaseAuthorization } from "../../../../runtime/release/policy.ts";
 import { authorizeRelease } from "../../../../runtime/release/coordinator.ts";
@@ -28,7 +27,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
   readonly id = "github-vercel";
   readonly configurationDigest: string;
   private readonly dependencies: {
-    artifact: CompanyOSArtifact; instanceYaml: string; state: ReleasePrivateState;
+    artifact: CompanyOSArtifact; state: ReleasePrivateState;
     github: GitHubAppRepositoryProvider; compiler: VercelSandboxTrustedGitExecutionAdapter;
     host: VercelProductionReleaseHost;
     knowledge: Pick<KnowledgeProvider, "stage" | "verify">;
@@ -39,12 +38,11 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
   };
   constructor(dependencies: HostedBuilderReleaseAdapter["dependencies"]) {
     this.dependencies = dependencies;
-    const { artifact, instanceYaml } = dependencies;
-    const instance = parseInstanceBuildConfiguration(instanceYaml);
-    if (!artifact.builder || !artifact.builderReleasePolicy || !artifact.knowledge || artifact.instance.environment !== "production"
-      || instance.instanceId !== artifact.instance.id || instance.environment !== "production") throw new Error("Release requires the company's Builder policy and exact production Instance binding.");
-    this.configurationDigest = sha256(instance);
-    if (artifact.provenance.instanceConfigurationDigest !== this.configurationDigest) throw new Error("Release compilation binding differs from the running Artifact's exact configuration.");
+    const { artifact } = dependencies;
+    if (!artifact.builder || !artifact.builderReleasePolicy || !artifact.knowledge || artifact.instance.environment !== "production") throw new Error("Release requires the company's Builder policy and production Instance.");
+    const digest = artifact.provenance.instanceConfigurationDigest;
+    if (!digest || !/^[a-f0-9]{64}$/.test(digest)) throw new Error("Release requires the running Artifact's exact Instance configuration digest.");
+    this.configurationDigest = digest;
   }
   async authorization(instanceId: string) {
     const { artifact } = this.dependencies;
@@ -145,7 +143,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     await tests.accept(session.id, { principal: actor, actionId, resultDigest: digest, acceptedAt: new Date().toISOString() });
   }
   async compileTestArtifact(job: BuilderJob): Promise<CompanyOSArtifact> {
-    const { artifact, github, compiler, instanceYaml, state } = this.dependencies;
+    const { artifact, github, compiler, state } = this.dependencies;
     const { proposal, checked, brief } = checkedBuilderProposal(job);
     if (job.instanceId !== artifact.instance.id || job.repositoryId !== artifact.builder!.repository.repositoryId
       || job.baseCommit !== artifact.provenance.workspaceCommit || brief.artifactHash !== artifact.artifactHash) throw new Error("Test source does not match the current Workspace.");
@@ -165,7 +163,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       if (!source.transfer) throw new Error("Test compilation requires the credential-free source bundle.");
       const { artifact: compiled, knowledgeBundle } = await compiler.compileArtifact({ operationId: `${job.jobId}:test`,
         sourceBundlePath: source.transfer.path, workspaceCommit: proposal.proposalCommit, coreCommit: artifact.provenance.coreCommit,
-        instanceId: job.instanceId, instanceYaml });
+        instanceId: job.instanceId, configurationDigest: this.configurationDigest });
       const { artifactHash, ...content } = compiled;
       if (sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } }) !== artifactHash
         || compiled.provenance.workspaceCommit !== proposal.proposalCommit || compiled.provenance.coreCommit !== artifact.provenance.coreCommit
@@ -184,7 +182,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
   }
   #builtKey(candidate: ReleaseCandidate) { return `release:artifact:${sha256(candidate)}`; }
   async build(context: ReleaseExecutionContext & { merge: MergeReceipt }) {
-    const { state, github, compiler, artifact, instanceYaml, host } = this.dependencies;
+    const { state, github, compiler, artifact, host } = this.dependencies;
     const record = await this.#record(context.candidate);
     const key = this.#builtKey(context.candidate);
     let built = await state.get<BuiltRecord>(key);
@@ -197,7 +195,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
         if (!source.transfer) throw new Error("Hosted release requires a credential-free source bundle.");
         const { artifact: compiled, knowledgeBundle } = await compiler.compileArtifact({ operationId: context.operationId, sourceBundlePath: source.transfer.path,
           workspaceCommit: context.merge.mergedCommit, coreCommit: context.candidate.coreCommit,
-          instanceId: context.candidate.instanceId, instanceYaml });
+          instanceId: context.candidate.instanceId, configurationDigest: this.configurationDigest });
         const { artifactHash, ...content } = compiled;
         if (sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } }) !== artifactHash
           || compiled.provenance.workspaceCommit !== context.merge.mergedCommit || compiled.provenance.coreCommit !== context.candidate.coreCommit

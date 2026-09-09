@@ -126,15 +126,20 @@ human to message Slack, setup verifies that incoming trigger forwarding is
 enabled for the exact production project and webhook route.
 
 The CLI generates the complete supervised, Tool-free operating Workspace as its
-first version. It checks the exact initial commit, prepares the database, builds
+first version, including the non-secret `.companyos/instance.yaml` beside
+its governance and compatibility files. The deployment build consumes that
+committed declaration; setup state and secrets remain separate. See the
+[format and migration reference](docs/reference/instance-configuration.md).
+It checks the exact initial commit, prepares the database, builds
 and deploys the Artifact, verifies health, and correlates the human's first
 message with a real model response and persistence. It invokes
 `companyos verify-live` internally. Announce completion only for `complete`;
 local `companyos bootstrap verify` alone does not prove a live installation.
 
 Later business capabilities, knowledge imports, and automation follow their own
-change process. Existing/legacy sessions retain their release and explicit
-profile flow; never convert them into fresh setup authority.
+change process. Only current schema-5 fresh setup sessions can resume. Retired schemas 1–4
+and the old `--profile` installer are unsupported; retain their historical
+receipts and never convert them into fresh setup authority.
 
 ## Qualification and source installation
 

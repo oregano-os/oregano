@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -13,6 +13,14 @@ audience:
 ---
 
 # Agent Working Agreement
+
+For an Instance configuration change, use the Company's tracked
+`.companyos/instance.yaml` beside governance and compatibility. Do not invent
+an `instances/` folder or edit a temporary/encoded copy as the source of truth.
+Read [the format and migration contract](../reference/instance-configuration.md),
+preserve unrelated bindings, and classify changes under `.companyos/**`
+security review. This allowed non-secret placement does not authorize new
+provider access, resolved secrets in Git or deployment.
 
 Before editing, an Agent Contributor reads the Vision, Glossary, relevant
 specification, relevant Workbench Guide, and the

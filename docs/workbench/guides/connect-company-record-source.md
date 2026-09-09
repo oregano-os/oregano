@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -22,6 +22,12 @@ relations:
 ---
 
 # Connect a Company Record Source
+
+The build declaration lives at `.companyos/instance.yaml` in company Git.
+The Record Source operation-binding and qualification files below use distinct
+schemas and commands; their external storage rules remain unchanged. They are
+not substitutes for, or top-level sections of, the build declaration. See
+[Instance configuration](../../reference/instance-configuration.md).
 
 Use this Guide when a company wants to mirror structured operational objects
 from a business provider into the existing Company Instance database so

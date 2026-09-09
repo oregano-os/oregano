@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import YAML from "yaml";
 import { parseBuilderTestResources } from "../runtime/builder/functional-tests.ts";
 import type { WorkflowInstanceBindings, InstanceBuildConfiguration } from "./types.ts";
@@ -7,6 +8,23 @@ import type { AgentBinding } from "../runtime/agent-resolver.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { BuilderInstanceConfiguration, RuntimeConnectorConfiguration } from "./types.ts";
 import type { SprintRuntimeInstanceConfiguration } from "./types.ts";
+
+export const WORKSPACE_INSTANCE_PATH = ".companyos/instance.yaml";
+
+/** Resolve the sole reviewed Instance declaration from the Company Workspace. */
+export function resolveWorkspaceInstanceConfiguration(workspaceRoot: string): {
+  path: string; configuration: InstanceBuildConfiguration;
+} {
+  const path = join(resolve(workspaceRoot), WORKSPACE_INSTANCE_PATH);
+  if (!existsSync(path)) throw new Error(`Instance declaration is missing at ${path}. Prepare and commit ${WORKSPACE_INSTANCE_PATH} before building.`);
+  const root = realpathSync(workspaceRoot);
+  if (!lstatSync(path).isFile()
+    || lstatSync(join(workspaceRoot, ".companyos")).isSymbolicLink()
+    || !realpathSync(path).startsWith(`${root}${sep}`)) {
+    throw new Error(`${WORKSPACE_INSTANCE_PATH} must resolve inside the Company Workspace as a regular file, without symbolic links.`);
+  }
+  return { path, configuration: loadInstanceBuildConfiguration(path) };
+}
 
 export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfiguration {
   return parseInstanceBuildConfiguration(readFileSync(path, "utf8"), path);
@@ -21,6 +39,10 @@ export function parseInstanceBuildConfiguration(raw: string, path = "Instance bi
     throw new Error(`${path}: possible ${credentialIndicators[0].label} detected; Instance build declarations never contain resolved credentials.`);
   }
   const data = YAML.parse(raw);
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error(`${path}: Instance declaration must be an object.`);
+  const allowed = ["version", "instance_id", "environment", "bindings", "connectors", "agent_bindings", "default_agent", "sprint_runtimes", "workflow_bindings", "builder"];
+  const extra = Object.keys(data).find((key) => !allowed.includes(key));
+  if (extra) throw new Error(`${path}: unsupported Instance field '${extra}'.`);
   if (data?.version !== 1) throw new Error(`${path}: version must be 1.`);
   if (typeof data.instance_id !== "string" || !data.instance_id) throw new Error(`${path}: instance_id is required.`);
   if (typeof data.environment !== "string" || !data.environment) throw new Error(`${path}: environment is required.`);

@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-26
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,12 @@ relations:
 ---
 
 # Connect a Repository Knowledge Source
+
+The `.companyos/instance.yaml` file is the versioned build declaration. The
+Knowledge Source binding described below has a different schema and CLI
+contract and retains its documented external location. Do not paste that
+binding into the build declaration. See
+[Instance configuration](../../reference/instance-configuration.md).
 
 This procedure connects one read-only GitHub repository document source to the
 existing Company Instance database. It does not add a second database, Agent

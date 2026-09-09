@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -52,5 +52,6 @@ authorize:
 
 Those external phases remain visible as `manual`, `deferred`, or
 `not-authorized` to this local command. The standard `companyos setup` session owns provider work and fresh initial
-authorization. The explicit `--profile` path retains legacy/adoption approvals.
+authorization. Only current schema-5 fresh setup sessions can resume; the
+explicit `--profile` installer and schemas 1–4 are retired.
 `companyos verify-live` is the final completion boundary for that full path.

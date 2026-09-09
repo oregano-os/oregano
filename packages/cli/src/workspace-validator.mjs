@@ -14,6 +14,7 @@ import { loadKnowledgeSourceRequirement } from "../../knowledge/source-config.ts
 import { inspectStructuredDeclarations } from "./structured-declarations.mjs";
 import { compileWorkspaceReleasePolicy } from "../../runtime/release/policy.ts";
 import { parseRoster } from "../../state-store/roster.ts";
+import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 
 const REQUIRED_PATHS = [
   "company.md",
@@ -54,6 +55,11 @@ export function validateWorkspace(root) {
 
   for (const required of REQUIRED_PATHS) {
     if (!existsSync(join(root, required))) diagnostics.push(diagnostic("WS002", "error", `Required Company Workspace path '${required}' is missing.`, { file: required }));
+  }
+
+  if (existsSync(join(root, WORKSPACE_INSTANCE_PATH))) {
+    try { resolveWorkspaceInstanceConfiguration(root); }
+    catch (error) { diagnostics.push(diagnostic("WSI001", "error", error.message, { file: WORKSPACE_INSTANCE_PATH })); }
   }
 
   const documents = parsedMarkdown(root);

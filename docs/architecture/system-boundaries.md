@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -17,6 +17,13 @@ relations:
 ---
 
 # System Boundaries and Placement
+
+The non-secret Instance build declaration is physically stored in the Company
+Workspace at `.companyos/instance.yaml`. Its ownership remains the Company
+Instance; its source changes use Workspace security review. The file may name
+exact accounts, resources, routes and SecretRefs, but cannot grant credentials,
+execute a provider call or activate a deployment. Runtime state and secrets
+remain outside Git. See the [format contract](../reference/instance-configuration.md).
 
 The standard installation flow lives in the Workbench, not in a Codex/Claude
 prompt. Its session owns discovery, defaults, one initial setup decision and
@@ -120,7 +127,7 @@ Knowledge authorization remains upstream of model execution; the recipe layer
 does not duplicate it as a provider data-class engine or approval workflow.
 
 Database resource provisioning and CompanyOS schema preparation are separate
-setup responsibilities. The state-service adapter creates or adopts the
+setup responsibilities. In fresh setup, the state-service adapter creates the
 provider resource and identifies the runtime secret binding. Core owns the
 provider-neutral, versioned PostgreSQL manifest and the idempotent bootstrap
 and read-only qualification operations for `companyos` and

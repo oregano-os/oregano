@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -15,6 +15,14 @@ availability: experimental
 ---
 
 # Prepare a Company Instance
+
+Prepare the non-secret build declaration at `.companyos/instance.yaml` in the
+Company Workspace. This allowed, security-reviewed configuration sits beside
+`governance.yaml` and `compatibility.yaml`; no `instances/` directory is used.
+Commit it before building. `companyos build` discovers it automatically, and
+alternative input paths are not supported. See
+[Workspace Instance Configuration](../../reference/instance-configuration.md)
+for the format, external dependencies and migration checklist.
 
 Assign a stable Instance ID and environment, then pin the exact Core and
 Workspace revisions. Provision environment-specific infrastructure, secrets,
@@ -66,10 +74,11 @@ persisted conversation for the exact Artifact and human. The CLI invokes
 `companyos verify-live` before completion. It proves `live-starter-instance`,
 not general unattended authority. Fresh cold live timing remains to be qualified.
 
-For existing sessions, deliberate adoption or model selection, use the explicit
-`companyos setup --profile vercel-neon-slack` contract. Its versions 1–4 retain
-separate operating, merge and deployment decisions and nonce verification.
-Never reinterpret them as a new installation to remove a required approval.
+Resume current schema-5 sessions with `companyos setup`. The explicit
+`--profile` installer and state versions 1–4 are retired and fail before provider
+work. Existing installations use reviewed Workspace and Instance changes; they
+are not adopted through a fresh setup session. Select the supported model
+provider during the standard setup review.
 
 Before release, run `companyos build` against clean exact repository checkouts
 and a non-secret Instance declaration. The build records the Core and Workspace

@@ -28,7 +28,10 @@ target-environment gates below pass.
 ## Configure Agent and provider bindings
 
 Keep Company Agent routing separate from coding execution. A representative
-non-secret Instance declaration is:
+non-secret declaration stored at `.companyos/instance.yaml` in the Company
+Workspace is shown below. It is protected by `.companyos/**` security review.
+See [the configuration reference](../../reference/instance-configuration.md)
+for discovery and the boundary between source and deployment copies:
 
 ```yaml
 version: 1
@@ -129,11 +132,11 @@ adapter. The connected profile below supplies its own exact test evidence.
 
 ## Bind trusted production release
 
-Keep these values in the Company Instance, never in the Workspace:
+The compiler reads `.companyos/instance.yaml` from the exact checked Workspace
+commit and compares it with the running Artifact configuration digest. No YAML
+copy is supplied through the environment. Keep these host values in the Company
+Instance:
 
-- `COMPANYOS_BUILDER_INSTANCE_YAML_BASE64`: base64 of the exact non-secret Instance
-  YAML used to build the running Artifact. Its normalized configuration digest
-  must equal the Artifact provenance; no credentials may be embedded.
 - `COMPANYOS_BUILDER_RELEASE_BINDING_BASE64`: base64 JSON containing `projectId`,
   `teamId` and the existing `productionUrl` for the maintained Vercel host.
 - `COMPANYOS_VERCEL_RELEASE_TOKEN`: the service credential for that deployment

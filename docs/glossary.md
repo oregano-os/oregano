@@ -15,6 +15,11 @@ audience:
 
 # CompanyOS Glossary
 
+The canonical non-secret Instance declaration is `.companyos/instance.yaml`
+in the Company Workspace. Its physical placement does not turn secrets,
+deployment authority or operational state into Workspace content. See
+[Workspace Instance Configuration](reference/instance-configuration.md).
+
 ## Knowledge terms
 
 ### Company Knowledge
