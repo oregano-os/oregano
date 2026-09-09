@@ -90,3 +90,13 @@ test("continuation failure is visible while the recorded approval stays accepted
   assert.match(cards.at(-1)!, /couldn't continue/);
   assert.doesNotMatch(cards.at(-1)!, /private infrastructure|saved the changes|button/);
 });
+test("a delivered continuation explanation clears an earlier presentation failure", async () => {
+  let edits = 0;
+  const result = await recordWorkflowButtonResponse({
+    decide: async () => ({ runId: "run", decision: "approved" }),
+    replace: async () => { if (++edits === 1) throw new Error("first edit failed"); },
+    continueRun: async () => { throw new Error("worker unavailable"); },
+  });
+  assert.equal(result.presentation, "updated"); assert.equal(result.error, undefined);
+  assert.equal(result.continuation, "failed"); assert.equal(result.decision, "approved");
+});

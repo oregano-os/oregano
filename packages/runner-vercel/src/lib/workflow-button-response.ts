@@ -37,7 +37,7 @@ export async function recordWorkflowButtonResponse(args: {
   } catch (continuationError) {
     // The persisted cursor remains available to the maintained steps worker.
     if (recorded.decision === "approved") {
-      try { await args.replace(feedbackDecisionCard("continuation", language)); }
+      try { await args.replace(feedbackDecisionCard("continuation", language)); presentation = "updated"; error = undefined; }
       catch (failure) { presentation = "failed"; error = failure; }
     }
     return { ...recorded, presentation, error, continuation: "failed" as const, continuationError };
