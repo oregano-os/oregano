@@ -8,7 +8,7 @@ export const standardTemplateDigest = () => setupDigest(['../workspace-generator
 export const standardSlackConnectorName = (scope) => scope.distribution?.kind === 'candidate' ? `oregano-test-${setupDigest(scope.session_id).slice(0, 12)}` : 'oregano';
 export const isFreshSetup = (state) => state?.flow === 'fresh-initialization';
 export function assertFreshSetupAuthority(state) {
-  if (!isFreshSetup(state)) return;
+  if (!isFreshSetup(state)) throw new Error('Only current fresh setup sessions are supported.');
   const { scope, authorization } = state.fresh ?? {};
   if (state.schema_version !== 5 || !scope || !authorization || authorization.scope_hash !== setupDigest(scope)
     || !scope.session_id || authorization.session_id !== scope.session_id

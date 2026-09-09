@@ -20,15 +20,14 @@ relations:
 
 # `companyos build`
 
-The default input is the tracked `.companyos/instance.yaml` in the selected
-Workspace. An explicit `--instance` remains supported for unmigrated Workspaces;
-when the canonical file exists, an explicit transport copy must have identical
-parsed configuration. Conflicts fail before building. See the
-[Instance format and migration reference](../../reference/instance-configuration.md).
+The required input is the tracked `.companyos/instance.yaml` in the selected
+Workspace. Missing files and `--instance` overrides are rejected. The same path
+is used by the hosted Builder in its exact checked Workspace commit. See the
+[Instance configuration reference](../../reference/instance-configuration.md).
 The build never creates or rewrites the declaration.
 
 ```bash
-companyos build <workspace> --output <artifact.json> [--instance <file>] [--knowledge-output <knowledge.json>]
+companyos build <workspace> --output <artifact.json> [--knowledge-output <knowledge.json>]
 ```
 
 The command compiles one exact CompanyOS pairing. Both the Oregano Core and

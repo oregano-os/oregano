@@ -168,9 +168,10 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
 
   async compileArtifact(request: {
     operationId: string; sourceBundlePath: string; workspaceCommit: string;
-    coreCommit: string; instanceId: string; instanceYaml: string;
+    coreCommit: string; instanceId: string; configurationDigest: string;
   }): Promise<{ artifact: CompanyOSArtifact; knowledgeBundle: KnowledgeBundle }> {
     assertOperationId(request.operationId);
+    if (!/^[a-f0-9]{64}$/.test(request.configurationDigest)) throw new Error("Production build requires the accepted Instance configuration digest.");
     assertCommit(request.workspaceCommit); assertCommit(request.coreCommit);
     assertTrustedGitBundlePath(request.sourceBundlePath, "Production build bundle");
     const bundle = await readFile(request.sourceBundlePath);
@@ -180,9 +181,8 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
       await sandbox.fs.mkdir(INPUT_ROOT, { recursive: true });
       await sandbox.writeFiles([
         { path: SOURCE_BUNDLE_PATH, content: bundle, mode: 0o600 },
-        { path: `${INPUT_ROOT}/instance.yaml`, content: request.instanceYaml, mode: 0o600 },
         { path: `${INPUT_ROOT}/build.json`, content: JSON.stringify({ coreCommit: request.coreCommit,
-          workspaceCommit: request.workspaceCommit, instanceId: request.instanceId }), mode: 0o600 },
+          workspaceCommit: request.workspaceCommit, instanceId: request.instanceId, configurationDigest: request.configurationDigest }), mode: 0o600 },
       ]);
       await requireSuccess(await sandbox.runCommand({ cmd: "git", args: ["clone", "--no-checkout", SOURCE_BUNDLE_PATH, WORKSPACE_PATH], timeoutMs: 60000 }), "Production source checkout");
       await runGit(sandbox, ["checkout", "--detach", request.workspaceCommit]);

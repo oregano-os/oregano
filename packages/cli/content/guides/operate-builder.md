@@ -132,12 +132,11 @@ adapter. The connected profile below supplies its own exact test evidence.
 
 ## Bind trusted production release
 
-Keep these values in the Company Instance, never in the Workspace:
+The compiler reads `.companyos/instance.yaml` from the exact checked Workspace
+commit and compares it with the running Artifact configuration digest. No YAML
+copy is supplied through the environment. Keep these host values in the Company
+Instance:
 
-- `COMPANYOS_BUILDER_INSTANCE_YAML_BASE64`: base64 of the exact non-secret Instance
-  `.companyos/instance.yaml` used to build the running Artifact. This variable
-  is a generated transport copy, not an editable configuration source. Its normalized configuration digest
-  must equal the Artifact provenance; no credentials may be embedded.
 - `COMPANYOS_BUILDER_RELEASE_BINDING_BASE64`: base64 JSON containing `projectId`,
   `teamId` and the existing `productionUrl` for the maintained Vercel host.
 - `COMPANYOS_VERCEL_RELEASE_TOKEN`: the service credential for that deployment

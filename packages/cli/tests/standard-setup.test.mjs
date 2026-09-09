@@ -358,3 +358,19 @@ test('temporary read failures use bounded retries without creating resources',()
  const result=await runStandardSetup({...f,executor});assert.equal(result.type,'input');assert.equal(reads,3);
  assert.equal(base.calls.filter(call=>call.includes('create')).length,0);
 }));
+
+for (const command of ['pnpm', 'vercel']) test(`current fresh setup stops at an incompatible ${command} before resource creation`, () => fixture(async (f) => {
+  const core = { root: f.coreRoot, repository: f.coreIdentity.repository, ref: f.coreIdentity.ref, version: f.coreIdentity.core_version, workbench_version: WORKBENCH_VERSION };
+  const scope = standardSetupScope({ root: f.root, core, account, owner: account, team, settings: { model_provider: 'openai' }, companyName: 'Example' });
+  const state = createFreshSetupState(scope, setupDigest(scope));
+  const path = join(f.root, 'current-state.json'); writeLiveSetupState(path, state);
+  const base = discovery();
+  const result = await advanceLiveSetup({ statePath: path, executor: { run(file, args, options) {
+    if (file === command && args[0] === '--version') return ok('0.0.0');
+    return base.run(file, args, options);
+  } } });
+  assert.equal(result.status, 'waiting');
+  assert.match(result.message, /requires/);
+  assert.deepEqual(readLiveSetupState(path).intents, {});
+  assert.ok(!base.calls.some((call) => call.includes('create') || call.includes('deploy')));
+}));

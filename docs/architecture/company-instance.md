@@ -232,7 +232,7 @@ General provider keys remain ordinary Instance secrets named
 `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`, not Builder-specific configuration.
 
 Database setup distinguishes resource provisioning from schema preparation.
-The State Service adapter first creates or explicitly adopts one database
+The State Service adapter creates one dedicated database
 resource. The runtime-host adapter then starts the provider-neutral
 `companyos database prepare` operation in a secret-bound process. Prepare
 detects whether the database is empty, behind the current manifest, or already
@@ -331,12 +331,11 @@ It renders one complete operating Workspace at `0.1.0`, records the checked
 initial commit and resource receipts, and deploys the exact resulting Artifact.
 No activation PR or merge receipt is invented for a first commit.
 
-The explicit `--profile vercel-neon-slack` flow retains versions 1–4 and their
-separate authoring-to-operating, merge and deployment confirmations for legacy
-sessions or adoption. Both flows produce one supervised `oregano` Agent, one
-Slack workflow and no business Tool grants. The standard release payload ships
-tooling for its declared platforms; fresh five-minute live qualification remains
-outstanding.
+Only the schema-5 fresh setup lifecycle is maintained. The old `--profile`
+installer and versions 1–4 are retired. It produces one supervised `oregano`
+Agent, one Slack workflow and no business Tool grants. The release payload
+ships tooling for its declared platforms; fresh five-minute live qualification
+remains outstanding.
 
 The concrete Vercel profile requires Pro or Enterprise because its deployed
 configuration includes frequent background schedules. Setup reads the exact
@@ -359,7 +358,7 @@ consenting human's canonical team and user IDs exists only in memory and is
 discarded after the identity call.
 
 The maintained Vercel project is configured with `packages/runner-vercel` as
-its root, and setup refuses to overwrite a conflicting adopted root or
+its root, and setup refuses to overwrite conflicting existing configuration or
 production environment value. The Slack binding uses the fixed Connector UID
 `slack/oregano` and visible Agent name `Oregano`; provider-internal resource
 names may remain company-specific but do not become the Agent identity.
@@ -396,13 +395,12 @@ deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus
 4.7. Embeddings and cross-encoder reranking remain separately configured
 capabilities.
 
-Both paths build immutable Artifacts from exact clean commits and verify
+Setup builds immutable Artifacts from exact clean commits and verify
 current health. Fresh setup uses its single initial decision and correlates an
 ordinary authorized Slack message, a delivered selected-model response and both
 persisted entries to the exact Artifact, Core, Workspace, principal and model.
-Legacy states retain their nonce-bound test and separate deployment decision.
-The verifier recognizes the fresh checked-initialization evidence or the legacy
-checked-merge evidence explicitly, and rejects unresolved mutation receipts.
+The verifier requires current checked-initialization evidence and rejects
+retired setup states and unresolved mutation receipts.
 Completion remains `live-starter-instance` with readiness `validated`; it is not
 general promotion, unattended operation, or business-Tool authority.
 

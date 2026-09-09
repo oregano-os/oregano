@@ -5,7 +5,9 @@ title: Version the non-secret Instance declaration alongside Workspace governanc
 objective: Establish .companyos/instance.yaml as the canonical non-secret Instance
   declaration, resolve it during builds, validate it during Workspace checks, and include
   it in reviewed setup commits instead of generating mutable out-of-repository
-  configuration at deployment time.
+  configuration at deployment time. Require the canonical file in CLI and hosted builds,
+  remove external YAML transport and retired setup state formats, and retain exact
+  running-Artifact authority for hosted compilation.
 non_goals:
   - Store credentials, provider receipts, operational state or deployment code in Git.
   - Change provider permissions, agent routing semantics, business policy or live
@@ -56,7 +58,19 @@ files_expected:
   - packages/cli/tests/workspace-instance.test.mjs
   - packages/cli/tests/live-setup.test.mjs
   - INSTALL-COMPANYOS.md
+  - packages/runtime/builder/build-artifact-worker.ts
+  - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
+  - packages/runner-vercel/src/lib/builder/release-provider.ts
+  - packages/runner-vercel/src/lib/builder/trusted-git-sandbox.ts
+  - packages/runner-vercel/src/lib/builder/live-release-functional-tests.test.ts
+  - packages/cli/tests/build-artifact-worker.test.mjs
+  - docs/onboarding/setup-options.md
+  - packages/cli/src/setup/standard-contract.mjs
+  - packages/cli/src/setup/standard-setup.mjs
+  - packages/cli/tests/standard-setup.test.mjs
 tests:
+  - packages/cli/tests/build-artifact-worker.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
   - packages/testkit/tests/instance-loader.test.ts
   - packages/cli/tests/workspace-instance.test.mjs
   - packages/cli/tests/live-setup.test.mjs
@@ -70,6 +84,7 @@ documentation_impact:
     - reference.glossary
     - governance.agent-agreement
     - governance.versioning
+    - onboarding.setup-options
     - onboarding.index
     - onboarding.company-workspace
     - specification.company-instance-release-promotion-v0.1
@@ -105,8 +120,6 @@ architecture:
     public_fixtures: synthetic-only
   core_reusability: Every company uses the same path and format while retaining its own
     exact bindings; no provider-specific orchestration or company data enters Core.
-rollback: Restore the previous Core and reviewed Workspace commits. Older Workbenches can
-  explicitly load .companyos/instance.yaml with --instance. Keep the existing immutable
-  deployment for runtime rollback; no live state or provider migration is performed by
-  this change.
+rollback: Restore the previous reviewed Core and Workspace commits and retained immutable
+  deployment. No live state or provider migration is performed by this change.
 open_decisions: []

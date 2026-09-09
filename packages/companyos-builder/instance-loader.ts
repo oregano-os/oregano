@@ -1,6 +1,5 @@
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { sha256 } from "../runtime/canonical.ts";
 import YAML from "yaml";
 import { parseBuilderTestResources } from "../runtime/builder/functional-tests.ts";
 import type { WorkflowInstanceBindings, InstanceBuildConfiguration } from "./types.ts";
@@ -12,29 +11,19 @@ import type { SprintRuntimeInstanceConfiguration } from "./types.ts";
 
 export const WORKSPACE_INSTANCE_PATH = ".companyos/instance.yaml";
 
-/** Resolve the reviewed declaration; an explicit transported copy cannot override it. */
-export function resolveWorkspaceInstanceConfiguration(workspaceRoot: string, explicitPath?: string): {
+/** Resolve the sole reviewed Instance declaration from the Company Workspace. */
+export function resolveWorkspaceInstanceConfiguration(workspaceRoot: string): {
   path: string; configuration: InstanceBuildConfiguration;
 } {
-  const canonicalPath = join(resolve(workspaceRoot), WORKSPACE_INSTANCE_PATH);
-  const path = explicitPath ? resolve(explicitPath) : canonicalPath;
-  if (!existsSync(path)) throw new Error(`Instance declaration is missing at ${path}. Prepare and commit ${WORKSPACE_INSTANCE_PATH}, or use --instance <file> for an unmigrated Workspace.`);
-  if (existsSync(canonicalPath)) {
-    const root = realpathSync(workspaceRoot);
-    if (!lstatSync(canonicalPath).isFile()
-      || lstatSync(join(workspaceRoot, ".companyos")).isSymbolicLink()
-      || !realpathSync(canonicalPath).startsWith(`${root}${sep}`)) {
-      throw new Error(`${WORKSPACE_INSTANCE_PATH} must resolve inside the Company Workspace as a regular file, without symbolic links.`);
-    }
+  const path = join(resolve(workspaceRoot), WORKSPACE_INSTANCE_PATH);
+  if (!existsSync(path)) throw new Error(`Instance declaration is missing at ${path}. Prepare and commit ${WORKSPACE_INSTANCE_PATH} before building.`);
+  const root = realpathSync(workspaceRoot);
+  if (!lstatSync(path).isFile()
+    || lstatSync(join(workspaceRoot, ".companyos")).isSymbolicLink()
+    || !realpathSync(path).startsWith(`${root}${sep}`)) {
+    throw new Error(`${WORKSPACE_INSTANCE_PATH} must resolve inside the Company Workspace as a regular file, without symbolic links.`);
   }
-  const configuration = loadInstanceBuildConfiguration(path);
-  if (existsSync(canonicalPath)) {
-    const canonical = path === canonicalPath ? configuration : loadInstanceBuildConfiguration(canonicalPath);
-    if (sha256(configuration) !== sha256(canonical)) {
-      throw new Error(`Explicit Instance declaration differs from ${WORKSPACE_INSTANCE_PATH}. Update the reviewed Workspace declaration instead of overriding it.`);
-    }
-  }
-  return { path, configuration };
+  return { path, configuration: loadInstanceBuildConfiguration(path) };
 }
 
 export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfiguration {

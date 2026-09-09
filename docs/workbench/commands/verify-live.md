@@ -60,8 +60,7 @@ runbook. It fails unless fresh or recorded evidence proves:
 - the GitHub Workspace repository is private and one hosted-protection attempt
   was recorded as `enforced` or `advisory`;
 - fresh schema-5 initialization has its single scoped setup decision, create
-  receipts, responsible human and exact checked initial commit; or the legacy
-  operating change has its required check and Steward-authorized merge;
+  receipts, responsible human and exact checked initial commit;
 - the named Vercel, Neon, and Slack resources are present in setup evidence;
 - a fresh Vercel API read confirms Pro or Enterprise for the exact selected
   team; Hobby, an unknown plan, or inaccessible plan evidence fails
@@ -81,8 +80,8 @@ runbook. It fails unless fresh or recorded evidence proves:
   state; and
 - the authorized human message and a delivered model-backed Oregano reply
   have matching persisted conversation and model-response evidence. Fresh setup
-  binds the ordinary exchange to exact identity and deployment; legacy states
-  retain `Setup-Test <nonce> successful.` verification.
+  binds the ordinary exchange to exact identity and deployment. Retired state
+  versions 1–4 are rejected.
 
 The current Core target receipt identifies additive manifest
 `companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14

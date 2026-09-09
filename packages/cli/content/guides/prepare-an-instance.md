@@ -20,7 +20,7 @@ Prepare the non-secret build declaration at `.companyos/instance.yaml` in the
 Company Workspace. This allowed, security-reviewed configuration sits beside
 `governance.yaml` and `compatibility.yaml`; no `instances/` directory is used.
 Commit it before building. `companyos build` discovers it automatically, and
-any explicit transport copy must match. See
+alternative input paths are not supported. See
 [Workspace Instance Configuration](../../reference/instance-configuration.md)
 for the format, external dependencies and migration checklist.
 

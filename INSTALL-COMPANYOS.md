@@ -137,8 +137,9 @@ message with a real model response and persistence. It invokes
 local `companyos bootstrap verify` alone does not prove a live installation.
 
 Later business capabilities, knowledge imports, and automation follow their own
-change process. Existing/legacy sessions retain their release and explicit
-profile flow; never convert them into fresh setup authority.
+change process. Only current schema-5 fresh setup sessions can resume. Retired schemas 1–4
+and the old `--profile` installer are unsupported; retain their historical
+receipts and never convert them into fresh setup authority.
 
 ## Qualification and source installation
 

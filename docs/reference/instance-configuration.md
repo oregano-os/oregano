@@ -46,22 +46,17 @@ in `.companyos/compatibility.yaml` and exact commits in Artifact provenance.
 relative to the selected Workspace, regardless of the current directory. The
 Core and Workspace checkouts must be clean, and the canonical file must be
 tracked. A missing file is an actionable error, never a synthesized empty
-configuration. An authoring-only or unmigrated Workspace may still pass local
+configuration. An authoring-only Workspace may still pass local
 validation without it; prepare the declaration before its normal build.
 
-Legacy Workspaces without the canonical file may use `--instance <file>`.
-When the canonical file exists, an explicit file is only a transport copy:
-its parsed configuration must match. Different comments or YAML formatting
-are allowed; different bindings, identity or environment are rejected. To
-change configuration, change the reviewed Workspace file. Do not maintain a
-second editable copy in a temporary directory or deployment variable.
+There is no alternate input path or deployment-variable copy. `--instance` is
+rejected. To change configuration, change the reviewed Workspace file.
 
-The maintained setup creates the declaration before the fresh initial commit
-or legacy operating-starter review. It preserves an existing declaration and
-refuses a conflicting setup identity or environment. The deployment build
-reads the committed file and does not rewrite it. An older setup session that
-already passed its Workspace commit must first adopt the file through a
-reviewed Workspace change, then resume.
+The maintained setup creates the declaration before the initial commit. It
+preserves an existing declaration and refuses a conflicting setup identity or
+environment. The deployment build reads the committed file and does not rewrite
+it. Only the current fresh setup state (schema 5) can be resumed; retired setup
+states are historical receipts, not inputs to the current installer.
 
 ## Version 1 format
 
@@ -130,12 +125,12 @@ Knowledge Source and Record Source operation-binding files use separate
 schemas and CLI arguments; do not paste them into this build declaration or
 assume this placement change changes their storage and qualification rules.
 
-The hosted Builder's `COMPANYOS_BUILDER_INSTANCE_YAML_BASE64` is a deployment
-transport copy of the exact reviewed file. Its parsed configuration digest
-must match the active Artifact. A later Instance-binding change requires an
-authorized deployment that updates the file-derived inputs together; the
-current Builder release adapter cannot silently rebind itself from a coding
-proposal.
+The hosted Builder reads the same tracked file directly from its exact checked
+Workspace checkout. Only the expected configuration digest is passed alongside
+the source commit. Before compilation, the normalized file must match the
+running Artifact's configuration digest and production identity. Compilation
+results are checked again before release. A later Instance-binding change
+requires an authorized deployment; a coding proposal cannot rebind itself.
 
 ## Build, hosting and rollback
 
@@ -154,7 +149,6 @@ when the normal runtime moves to another qualified host.
 To migrate an existing installation, copy its exact non-secret declaration
 into `.companyos/instance.yaml`, validate and review the diff, and build from
 the resulting clean commit. Preserve all bindings; moving the file is not
-authorization to change them or deploy. Existing pinned Workbenches can read
-the new location with explicit `--instance` before the new default is released.
+authorization to change them or deploy. Use the Workbench that implements this canonical-file contract for new builds.
 Use the prior immutable Artifact for a runtime rollback. Reverting Git alone
 does not undo external effects or restore mutable database state.

@@ -8,13 +8,12 @@ import {
   readdirSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import YAML from "yaml";
@@ -23,19 +22,19 @@ import { PNPM_VERSION } from "./core-version.mjs";
 import { renderWorkspace } from "./workspace-generator.mjs";
 import { assertFreshSetupAuthority, assertFreshInitializationEvidence, isFreshSetup, standardSlackConnectorName } from "./setup/standard-contract.mjs";
 import { inspectWorkspaceSecurity } from "./security.mjs";
-import { applyOperatingStarter, previewOperatingStarter, renderOperatingStarter } from "./operating-starter.mjs";
+import { renderOperatingStarter } from "./operating-starter.mjs";
 import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 import { validateWorkspace } from "./workspace-validator.mjs";
 import { VERCEL_NEON_SLACK_PROFILE } from "./setup/profiles/vercel-neon-slack.ts";
 import { setupModelProvider } from "./setup/model-providers.ts";
-import { legacyGatewaySelection, normalizeModelExecution } from "../../runner/model-execution.ts";
+import { normalizeModelExecution } from "../../runner/model-execution.ts";
 import { assertCompanyDatabaseQualificationReceipt } from "../../state-postgres/database-bootstrap.ts";
 
 export const LIVE_SETUP_PROFILE = VERCEL_NEON_SLACK_PROFILE.id;
 export const LIVE_SETUP_PROVIDER_PROFILE = VERCEL_NEON_SLACK_PROFILE;
-export const LIVE_SETUP_STATE_VERSION = 4;
+export const LIVE_SETUP_STATE_VERSION = 5;
 export const SUPPORTED_VERCEL_CLI_VERSION = VERCEL_NEON_SLACK_PROFILE.runtimeHost.cliVersion;
-const setupSlackName = (state) => isFreshSetup(state) ? standardSlackConnectorName(state.fresh.scope) : VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName;
+const setupSlackName = (state) => standardSlackConnectorName(state.fresh.scope);
 
 export const LIVE_SETUP_FIELDS = [
   "change_date",
@@ -99,10 +98,6 @@ export function normalizeLiveSetupAnswers(raw = {}) {
     if (raw[field] !== undefined && typeof raw[field] !== "string") diagnostics.push(diagnostic("LIVE006", "error", `Live setup field '${field}' must be plain text.`, { field }));
   }
   const answers = Object.fromEntries(LIVE_SETUP_FIELDS.map((field) => [field, clean(raw[field])]));
-  if (!answers.model_route && !answers.model_credential_mode && answers.model) {
-    answers.model_route = "vercel-ai-gateway";
-    answers.model_credential_mode = "platform";
-  }
   for (const [field, label] of [
     ["change_date", "Change date"],
     ["steward_email", "Workspace Steward email"],
@@ -132,7 +127,7 @@ export function normalizeLiveSetupAnswers(raw = {}) {
   }
   if (!new Set(["personal", "organization"]).has(answers.github_account_type)) diagnostics.push(diagnostic("LIVE012", "error", "GitHub account type must be 'personal' or 'organization'.", { field: "github_account_type" }));
   for (const field of ["github_repository_mode", "vercel_project_mode", "neon_resource_mode", "slack_connector_mode"]) {
-    if (!new Set(["create", "adopt"]).has(answers[field])) diagnostics.push(diagnostic("LIVE013", "error", `${field} must be 'create' or 'adopt'.`, { field }));
+    if (answers[field] !== "create") diagnostics.push(diagnostic("LIVE013", "error", `${field} must be 'create'; resource adoption is not part of fresh setup.`, { field }));
   }
   if (answers.neon_plan && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(answers.neon_plan)) diagnostics.push(diagnostic("LIVE014", "error", "Neon plan ID has an invalid shape.", { field: "neon_plan" }));
   if (answers.neon_region && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(answers.neon_region)) diagnostics.push(diagnostic("LIVE015", "error", "Neon region has an invalid shape.", { field: "neon_region" }));
@@ -146,11 +141,6 @@ export function normalizeLiveSetupAnswers(raw = {}) {
   }
   if (answers.slack_connector_name && answers.slack_connector_name.toLowerCase() !== VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName) diagnostics.push(diagnostic("LIVE029", "error", `The maintained Slack profile requires connector name '${VERCEL_NEON_SLACK_PROFILE.communication.agentDisplayName}' so the installed Slack Agent has the fixed visible name oregano.`, { field: "slack_connector_name" }));
   return { answers, diagnostics };
-}
-
-export function readLiveSetupAnswers(path) {
-  const raw = readFileSync(path, "utf8");
-  return path.endsWith(".json") ? JSON.parse(raw) : YAML.parse(raw);
 }
 
 const workspaceFiles = (root) => {
@@ -171,110 +161,6 @@ export const workspaceFingerprint = (root) => sha256(JSON.stringify(workspaceFil
   relative(root, path).replaceAll("\\", "/"),
   sha256(readFileSync(path)),
 ])));
-
-const normalizeCoreIdentity = (raw, diagnostics) => {
-  const identity = {
-    root: clean(raw?.root),
-    repository: clean(raw?.repository),
-    ref: clean(raw?.ref).toLowerCase(),
-    core_version: clean(raw?.core_version),
-    workbench_version: clean(raw?.workbench_version),
-    clean: raw?.clean === true,
-  };
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(identity.repository)) diagnostics.push(diagnostic("LIVE018", "error", "Core repository identity is invalid."));
-  if (!/^[0-9a-f]{40}$/.test(identity.ref)) diagnostics.push(diagnostic("LIVE019", "error", "Core ref must be one immutable 40-character Git commit."));
-  for (const field of ["core_version", "workbench_version"]) {
-    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(identity[field])) diagnostics.push(diagnostic("LIVE020", "error", `${field} must be one exact semantic version.`));
-  }
-  if (!identity.clean) diagnostics.push(diagnostic("LIVE021", "error", "Live setup requires a clean reviewed Oregano release checkout."));
-  if (!existsSync(join(identity.root, "packages", "runner-vercel", "vercel.json"))) diagnostics.push(diagnostic("LIVE022", "error", "This Oregano release does not contain the maintained Vercel Runner."));
-  return identity;
-};
-
-export function planLiveSetup({ workspaceRoot, rawAnswers, coreIdentity, statePath }) {
-  const diagnostics = [];
-  let workspace;
-  try { workspace = realpathSync(resolve(workspaceRoot)); }
-  catch {
-    return { plan: null, diagnostics: [diagnostic("LIVE023", "error", `Company Workspace does not exist: ${resolve(workspaceRoot)}`)] };
-  }
-  const workspaceResult = validateWorkspace(workspace);
-  diagnostics.push(...workspaceResult.diagnostics.filter((item) => item.severity === "error"));
-  if (workspaceResult.summary?.workspace_mode !== "authoring-only") diagnostics.push(diagnostic("LIVE024", "error", "The one-prompt live profile starts from the locally verified authoring-only Workspace.", { file: "company.md" }));
-  if (workspaceResult.summary?.review_mode !== "steward") diagnostics.push(diagnostic("LIVE028", "error", "The one-prompt live profile requires the default steward review mode. Configure a custom independent-review installation outside this profile.", { file: ".companyos/governance.yaml" }));
-  const normalized = normalizeLiveSetupAnswers(rawAnswers);
-  diagnostics.push(...normalized.diagnostics);
-  const modelProvider = setupModelProvider(normalized.answers.model_route);
-  const core = normalizeCoreIdentity(coreIdentity, diagnostics);
-  const effectiveStatePath = resolve(statePath ?? join(dirname(workspace), ".companyos-bootstrap", `${basename(workspace)}-${LIVE_SETUP_PROFILE}-state.json`));
-  if (effectiveStatePath.startsWith(`${workspace}/`) && !effectiveStatePath.includes("/.companyos-bootstrap/")) diagnostics.push(diagnostic("LIVE025", "error", "Live setup state must stay outside committed Workspace material."));
-
-  const plan = {
-    schema_version: 1,
-    profile: LIVE_SETUP_PROFILE,
-    providers: {
-      source_host: VERCEL_NEON_SLACK_PROFILE.sourceHost.provider,
-      runtime_host: VERCEL_NEON_SLACK_PROFILE.runtimeHost.provider,
-      state_service: VERCEL_NEON_SLACK_PROFILE.stateService.provider,
-      communication: VERCEL_NEON_SLACK_PROFILE.communication.provider,
-      model_execution: normalized.answers.model_route,
-    },
-    workspace,
-    workspace_fingerprint: workspaceFingerprint(workspace),
-    state_path: effectiveStatePath,
-    core: {
-      root: core.root,
-      repository: core.repository,
-      ref: core.ref,
-      version: core.core_version,
-      workbench_version: core.workbench_version,
-    },
-    answers: normalized.answers,
-    prerequisites: {
-      vercel_plan: VERCEL_NEON_SLACK_PROFILE.runtimeHost.requiredPlan,
-      accepted_vercel_plans: [...VERCEL_NEON_SLACK_PROFILE.runtimeHost.acceptedPlans],
-      background_scheduling: "managed-by-oregano",
-    },
-    outcome: "One private GitHub Company Workspace and one supervised Oregano Company Instance on Vercel with Neon/Postgres and Slack.",
-    mutations: [
-      `Initialize and push ${normalized.answers.github_owner}/${normalized.answers.github_repository} as a private GitHub repository.`,
-      "Detect and preserve hosted protection on an adopted repository, or apply the solo-Steward protected-main baseline to a new repository when GitHub supports it; otherwise retain the same pull-request, CompanyOS-check, and Steward-confirmation process without hosted enforcement.",
-      `${normalized.answers.vercel_project_mode === "create" ? "Create" : "Adopt"} Vercel project '${normalized.answers.vercel_project}' in '${normalized.answers.vercel_scope}'.`,
-      `${normalized.answers.neon_resource_mode === "create" ? "Create" : "Adopt"} Neon resource '${normalized.answers.neon_resource_name}' on plan '${normalized.answers.neon_plan}'.`,
-      "Bootstrap and qualify the companyos and companyos_knowledge schemas through the runtime profile's secret-bound process without persisting DATABASE_URL.",
-      `${normalized.answers.slack_connector_mode === "create" ? "Create" : "Adopt"} Slack connector '${normalized.answers.slack_connector_name}' and attach ${VERCEL_NEON_SLACK_PROFILE.communication.triggerPath}.`,
-      "Resolve the consenting human's canonical Slack principal with a short-lived user token and discard the token.",
-      "Propose one operating, supervised, Tool-free Oregano Slack assistant in a pull request.",
-      `Build an immutable Artifact from Core ${core.ref} and the reviewed Workspace commit.`,
-      modelProvider?.credentialRef
-        ? `Use ${modelProvider.displayName} model '${normalized.answers.model}' directly from the Vercel Runner. The human places ${modelProvider.credentialRef} only in the Vercel project Production secret UI; Oregano records neither its value nor a copy.`
-        : `Configure Vercel AI Gateway model '${normalized.answers.model}' without a separate model-provider API key.`,
-      "Deploy production only after a separate confirmation and prove a model-backed Slack round trip in Neon.",
-    ],
-    required_human_actions: [
-      "Use a Vercel Pro team (Enterprise is also supported). Oregano detects the plan automatically; only Hobby requires a billing action before setup can continue.",
-      "Complete GitHub, Vercel, Neon, and Slack browser login or consent when prompted.",
-      "Confirm provider plans and possible usage charges before resource creation.",
-      "Confirm the exact operating Workspace preview, the checked pull request merge, and the exact production candidate.",
-      "Send the generated Slack verification message after deployment.",
-      ...(modelProvider?.credentialRef ? [`Create or select a dedicated ${modelProvider.displayName} API key, then paste it directly into the Vercel project Production secret named ${modelProvider.credentialRef}. Never paste it into chat or a local setup file.`] : []),
-    ],
-    safety: {
-      github_visibility: "private",
-      github_protection: "automatic-best-effort",
-      execution_mode: "supervised",
-      business_tools: [],
-      credentials_in_chat_or_git: false,
-      automatic_resource_deletion: false,
-      independent_review_required: false,
-      review_mode: "steward",
-      model_route: normalized.answers.model_route,
-      model_credential_in_chat_git_or_state: false,
-    },
-  };
-  plan.confirmation_hash = sha256(JSON.stringify(plan));
-  return { plan, diagnostics };
-}
 
 const assertSafeState = (value, path = "state") => {
   if (value === null || value === undefined) return;
@@ -303,38 +189,10 @@ export function writeLiveSetupState(path, state) {
 
 export function readLiveSetupState(path) {
   const state = JSON.parse(readFileSync(path, "utf8"));
-  if (!new Set([1, 2, 3, LIVE_SETUP_STATE_VERSION, 5]).has(state?.schema_version) || state?.profile !== LIVE_SETUP_PROFILE) throw new Error(`${path}: unsupported live setup state.`);
+  if (state?.schema_version !== LIVE_SETUP_STATE_VERSION || state?.profile !== LIVE_SETUP_PROFILE || !isFreshSetup(state)) throw new Error(`${path}: unsupported live setup state. Only current fresh setup sessions (schema 5) can resume; retain older states as historical receipts.`);
   assertSafeState(state);
-  if (state.schema_version === 5 && !isFreshSetup(state)) throw new Error("Unsupported version 5 setup flow.");
   assertFreshSetupAuthority(state);
   return state;
-}
-
-export function initializeLiveSetup({ planResult, confirmationHash }) {
-  if (!planResult?.plan || hasErrors(planResult.diagnostics)) return { state: null, diagnostics: planResult?.diagnostics ?? [] };
-  if (confirmationHash !== planResult.plan.confirmation_hash) return { state: null, diagnostics: [...planResult.diagnostics, diagnostic("LIVE026", "error", "Live setup confirmation does not match the current plan.")] };
-  if (existsSync(planResult.plan.state_path)) return { state: null, diagnostics: [...planResult.diagnostics, diagnostic("LIVE027", "error", "Live setup state already exists. Use --resume instead of starting a second installation.", { file: planResult.plan.state_path })] };
-  const state = {
-    schema_version: LIVE_SETUP_STATE_VERSION,
-    profile: LIVE_SETUP_PROFILE,
-    plan_hash: planResult.plan.confirmation_hash,
-    created_at: now(),
-    updated_at: now(),
-    phase: "preflight",
-    workspace: planResult.plan.workspace,
-    workspace_fingerprint: planResult.plan.workspace_fingerprint,
-    core: planResult.plan.core,
-    answers: planResult.plan.answers,
-    resources: {},
-    intents: {},
-    operating: {},
-    artifact: {},
-    deployment: {},
-    verification: {},
-    history: [{ phase: "plan", status: "confirmed", at: now() }],
-  };
-  writeLiveSetupState(planResult.plan.state_path, state);
-  return { state, statePath: planResult.plan.state_path, diagnostics: planResult.diagnostics };
 }
 
 export function createCommandExecutor() {
@@ -503,7 +361,7 @@ export const inspectVercelPlan = (executor, coreRoot, state) => {
   if (!teamId) throw new Error(`The selected Vercel team '${scope}' could not be found with the current login.`);
   const team = vercelApi(executor, coreRoot, scope, `/v2/teams/${encodeURIComponent(teamId)}`, { sensitiveOutput: true });
   if (team?.id !== teamId || (team.id !== scope && team.slug !== scope)) throw new Error("Vercel team evidence does not match the selected setup team.");
-  if (isFreshSetup(state) && team.id !== state.fresh.scope.vercel_team_id) throw new Error('The Vercel account scope changed after setup confirmation.');
+  if (state.fresh && team.id !== state.fresh.scope.vercel_team_id) throw new Error('The Vercel account scope changed after setup confirmation.');
   const plan = clean(team.billing?.plan).toLowerCase();
   const receipt = { team_id: team.id, team_slug: clean(team.slug), plan: plan || "unknown", checked_at: now() };
   if (VERCEL_NEON_SLACK_PROFILE.runtimeHost.acceptedPlans.includes(plan)) return { receipt };
@@ -552,14 +410,11 @@ const projectConfigurationMatches = (project, expected) =>
   clean(project?.framework) === expected.framework &&
   project?.sourceFilesOutsideRootDirectory === expected.sourceFilesOutsideRootDirectory;
 
-const ensureVercelProjectConfiguration = (executor, coreRoot, scope, project, mode) => {
+const ensureVercelProjectConfiguration = (executor, coreRoot, scope, project) => {
   const endpoint = VERCEL_NEON_SLACK_PROFILE.runtimeHost.projectEndpoint(project);
   const expected = expectedVercelProjectConfiguration();
   let current = vercelApi(executor, coreRoot, scope, endpoint);
   if (!projectConfigurationMatches(current, expected)) {
-    if (mode === "adopt") {
-      throw new Error(`Adopted Vercel project '${project}' does not use the maintained runner root '${expected.rootDirectory}', framework '${expected.framework}', and outside-root source access. Oregano left the project unchanged.`);
-    }
     vercelApi(executor, coreRoot, scope, endpoint, { method: "PATCH", body: expected });
     current = vercelApi(executor, coreRoot, scope, endpoint);
   }
@@ -583,9 +438,7 @@ const vercelEnvironmentVariables = (executor, coreRoot, scope, project) => {
 const vercelEnvironmentNames = (executor, coreRoot, scope, project) =>
   new Set(vercelEnvironmentVariables(executor, coreRoot, scope, project).map((item) => item.name));
 
-const modelExecutionForState = (state) => state.answers?.model_route
-  ? normalizeModelExecution(state.answers.model_route, state.answers.model)
-  : legacyGatewaySelection(state.answers?.model);
+const modelExecutionForState = (state) => normalizeModelExecution(state.answers.model_route, state.answers.model);
 
 const modelCredentialDashboardUrl = (state) => `https://vercel.com/${encodeURIComponent(state.answers.vercel_scope)}/${encodeURIComponent(state.answers.vercel_project)}/settings/environment-variables`;
 
@@ -688,13 +541,7 @@ const applyGitHubProtection = (executor, state) => {
       };
     }
   }
-  if (state.answers.github_repository_mode === "adopt") {
-    return {
-      status: "advisory",
-      checked_at: now(),
-      reason: "adopted-repository-protection-left-unchanged",
-    };
-  }
+
   const payload = JSON.stringify({
     required_status_checks: { strict: true, contexts: ["check"] },
     enforce_admins: true,
@@ -727,29 +574,6 @@ const applyGitHubProtection = (executor, state) => {
     };
   }
 };
-
-const createOperatingPullRequest = (executor, state) => {
-  const workspace = state.workspace;
-  const branch = "companyos/activate-oregano-slack";
-  const branchExists = run(executor, "git", ["-C", workspace, "show-ref", "--verify", `refs/heads/${branch}`], { allowFailure: true }).status === 0;
-  git(executor, workspace, "switch", ...(branchExists ? [branch] : ["-c", branch]));
-  git(executor, workspace, "add", "company.md", "handbook/roster.md", ".companyos/governance.yaml", WORKSPACE_INSTANCE_PATH, ".companyos/changes", ".github/CODEOWNERS", "agents/oregano", "workflows", "connections");
-  if (run(executor, "git", ["-C", workspace, "diff", "--cached", "--quiet"], { allowFailure: true }).status !== 0) {
-    git(executor, workspace, "commit", "-m", "feat: activate supervised Oregano Slack assistant");
-  }
-  git(executor, workspace, "push", "-u", "origin", branch);
-  const existing = parseJson(gh(executor, ["pr", "list", "--repo", githubRepository(state), "--head", branch, "--state", "all", "--json", "url"]).stdout, "GitHub pull request list");
-  if (Array.isArray(existing) && existing[0]?.url) return { branch, url: existing[0].url };
-  const result = gh(executor, ["pr", "create", "--repo", githubRepository(state), "--base", "main", "--head", branch, "--title", "Activate the supervised Oregano Slack assistant", "--body", "Moves the Company Workspace to operating mode with one Tool-free, supervised Slack assistant. The Workspace Steward confirms the merge after the required CompanyOS check passes."]);
-  const url = result.stdout.match(/https:\/\/github\.com\/[^\s]+\/pull\/\d+/)?.[0];
-  if (!url) throw new Error("GitHub did not return the operating Workspace pull request URL.");
-  return { branch, url };
-};
-
-const inspectPullRequest = (executor, state) => parseJson(gh(executor, ["pr", "view", state.operating.pull_request_url, "--repo", githubRepository(state), "--json", "state,mergeCommit,statusCheckRollup,url"]).stdout, "GitHub pull request");
-
-const requiredCheckPassed = (pullRequest) => (pullRequest?.statusCheckRollup ?? []).some((check) =>
-  clean(check?.name ?? check?.context) === "check" && new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]).has(clean(check?.conclusion ?? check?.state).toUpperCase()));
 
 const materializeFreshWorkspace = (statePath, state) => {
   assertFreshSetupAuthority(state);
@@ -786,14 +610,13 @@ const buildAndConfigureArtifact = (executor, state, statePath, coreRoot) => {
   git(executor, state.workspace, "pull", "--ff-only", "origin", "main");
   if (clean(git(executor, state.workspace, "status", "--porcelain").stdout)) throw new Error("Reviewed Company Workspace must be clean before Artifact build.");
   const workspaceCommit = clean(git(executor, state.workspace, "rev-parse", "HEAD").stdout);
-  const { path: instancePath, configuration: instance } = resolveWorkspaceInstanceConfiguration(state.workspace);
+  const { configuration: instance } = resolveWorkspaceInstanceConfiguration(state.workspace);
   if (instance.instanceId !== `${state.answers.github_repository}-production` || instance.environment !== "production") throw new Error("The reviewed Instance declaration differs from the confirmed setup target.");
   git(executor, state.workspace, "ls-files", "--error-unmatch", WORKSPACE_INSTANCE_PATH);
   const artifactPath = join(dirname(statePath), `${state.answers.github_repository}-${workspaceCommit.slice(0, 12)}-artifact.json`);
   if (existsSync(artifactPath)) rmSync(artifactPath, { force: true });
-  const buildArgs = ["build", state.workspace, "--instance", instancePath, "--output", artifactPath];
-  if (isFreshSetup(state)) run(executor, process.execPath, [join(coreRoot, "packages/cli/src/cli.mjs"), ...buildArgs], { cwd: coreRoot });
-  else run(executor, "pnpm", ["companyos", ...buildArgs], { cwd: coreRoot });
+  const buildArgs = ["build", state.workspace, "--output", artifactPath];
+  run(executor, process.execPath, [join(coreRoot, "packages/cli/src/cli.mjs"), ...buildArgs], { cwd: coreRoot });
   const artifact = JSON.parse(readFileSync(artifactPath, "utf8"));
   if (artifact?.provenance?.coreCommit !== state.core.ref || artifact?.provenance?.workspaceCommit !== workspaceCommit || !/^[0-9a-f]{64}$/.test(artifact?.artifactHash ?? "")) throw new Error("Built Artifact provenance does not match the reviewed Core and Workspace commits.");
   const encoded = gzipSync(readFileSync(artifactPath)).toString("base64");
@@ -841,8 +664,8 @@ const expectedHealth = (state, health) => health?.ok === true && health?.status 
   (!state.deployment?.health_url || health?.deploymentId === state.deployment.id) &&
   health?.artifactHash === state.artifact.hash && health?.coreCommit === state.artifact.core_commit &&
   health?.workspaceCommit === state.artifact.workspace_commit && health?.agent === "oregano" &&
-  (state.schema_version < 3 || (health?.modelRoute === modelExecutionForState(state).route && health?.model === modelExecutionForState(state).model)) &&
-  (state.schema_version < 4 || health?.databaseManifestDigest === state.verification?.database_schema?.qualification?.manifestDigest) &&
+  ((health?.modelRoute === modelExecutionForState(state).route && health?.model === modelExecutionForState(state).model)) &&
+  (health?.databaseManifestDigest === state.verification?.database_schema?.qualification?.manifestDigest) &&
   health?.resolvedToolSetHash === state.artifact.resolved_toolset_hash &&
   Array.isArray(health?.tools) && health.tools.length === 0;
 
@@ -886,9 +709,6 @@ export const fetchVerifiedProductionHealth = async (state, inspected, fetchImpl 
 
 export async function advanceLiveSetup({
   statePath,
-  operatingConfirmation,
-  mergeConfirmation,
-  productionConfirmation,
   executor = createCommandExecutor(),
   fetchImpl = globalThis.fetch,
 } = {}) {
@@ -896,7 +716,7 @@ export async function advanceLiveSetup({
   const state = readLiveSetupState(absoluteStatePath);
   const coreRoot = liveSetupCoreRoot(state);
   let vercelPlanChecked = false;
-  if (isFreshSetup(state)) {
+  {
     const current = gh(executor, ['api', 'user'], { allowFailure: true, sensitiveOutput: true });
     let account; try { account = JSON.parse(current.stdout); } catch {}
     if (current.status !== 0) return wait(absoluteStatePath, state, 'Sign in to the GitHub account that confirmed this setup.', { type: 'browser-login', command: ['gh', 'auth', 'login', '--web'] });
@@ -929,7 +749,7 @@ export async function advanceLiveSetup({
         const prerequisite = requireVercelPlan(executor, coreRoot, absoluteStatePath, state);
         if (prerequisite) return prerequisite;
         vercelPlanChecked = true;
-        savePhase(absoluteStatePath, state, isFreshSetup(state) ? "vercel-project" : "github-auth");
+        savePhase(absoluteStatePath, state, "vercel-project");
       } else if (state.phase === "github-auth") {
         if (gh(executor, ["auth", "status"], { allowFailure: true }).status !== 0) return wait(absoluteStatePath, state, "GitHub needs your browser login before the private Workspace repository can be created.", { type: "browser-login", command: ["gh", "auth", "login", "--web"] });
         savePhase(absoluteStatePath, state, "github-repository");
@@ -938,7 +758,7 @@ export async function advanceLiveSetup({
         ensureInitialWorkspaceCommit(executor, state);
         const repository = githubRepository(state);
         const authenticatedLogin = clean(gh(executor, ["api", "user", "--jq", ".login"]).stdout);
-        if (isFreshSetup(state) && authenticatedLogin !== state.fresh.scope.installer.login) throw new Error('The GitHub login changed after setup confirmation.');
+        if (authenticatedLogin !== state.fresh.scope.installer.login) throw new Error('The GitHub login changed after setup confirmation.');
         if (state.answers.github_account_type === "personal" && authenticatedLogin.toLowerCase() !== state.answers.github_owner.toLowerCase()) {
           throw new Error(`The selected personal GitHub owner '${state.answers.github_owner}' does not match the authenticated user '${authenticatedLogin}'.`);
         }
@@ -948,54 +768,54 @@ export async function advanceLiveSetup({
         }
         const existing = gh(executor, ["repo", "view", repository, "--json", "nameWithOwner,url,visibility"], { allowFailure: true });
         const intentKey = "github-repository-create";
-        if (state.answers.github_repository_mode === "create" && existing.status === 0 && !hasPendingMutation(state, intentKey) && !state.resources.github?.repository) throw new Error(`GitHub repository '${repository}' already exists; choose adopt explicitly or a new name.`);
-        if (state.answers.github_repository_mode === "adopt" && existing.status !== 0) throw new Error(`GitHub repository '${repository}' does not exist and cannot be adopted.`);
+        if (existing.status === 0 && !hasPendingMutation(state, intentKey) && !state.resources.github?.repository) throw new Error(`GitHub repository '${repository}' already exists; choose a new name.`);
+
         let repositoryData;
         if (existing.status === 0) {
           repositoryData = parseJson(existing.stdout, "GitHub repository");
-          if (isFreshSetup(state) && hasPendingMutation(state, intentKey)) {
+          if (hasPendingMutation(state, intentKey)) {
             const remoteCommit = clean(gh(executor, ['api', `repos/${repository}/commits/main`, '--jq', '.sha']).stdout);
             const localCommit = clean(git(executor, state.workspace, 'rev-parse', 'HEAD').stdout);
             if (remoteCommit !== localCommit) throw new Error('The interrupted repository creation has no matching initial commit. Resolve its provider receipt before continuing.');
           }
         }
         else {
-          if (state.answers.github_repository_mode === "create") beginMutation(absoluteStatePath, state, intentKey, { provider: "github", operation: "create-private-repository", repository });
+          beginMutation(absoluteStatePath, state, intentKey, { provider: "github", operation: "create-private-repository", repository });
           gh(executor, ["repo", "create", repository, "--private", "--source", state.workspace, "--remote", "origin", "--push"]);
           repositoryData = parseJson(gh(executor, ["repo", "view", repository, "--json", "nameWithOwner,url,visibility"]).stdout, "GitHub repository");
         }
         if (String(repositoryData.visibility).toUpperCase() !== "PRIVATE") throw new Error("GitHub repository visibility is not private.");
-        if (state.answers.github_repository_mode === "adopt" || (state.answers.github_repository_mode === "create" && existing.status === 0 && hasPendingMutation(state, intentKey))) {
+        if ((existing.status === 0 && hasPendingMutation(state, intentKey))) {
           const origin = run(executor, "git", ["-C", state.workspace, "remote", "get-url", "origin"], { allowFailure: true });
           const expectedRemote = `https://github.com/${repository}.git`;
           if (origin.status !== 0) git(executor, state.workspace, "remote", "add", "origin", expectedRemote);
-          else if (!clean(origin.stdout).replace(/\.git$/, "").endsWith(repository)) throw new Error(`Existing Git origin does not match adopted repository '${repository}'.`);
+          else if (!clean(origin.stdout).replace(/\.git$/, "").endsWith(repository)) throw new Error(`Existing Git origin does not match the setup repository '${repository}'.`);
           git(executor, state.workspace, "push", "-u", "origin", "main");
         }
         state.resources.github = { repository, url: repositoryData.url, visibility: "PRIVATE", mode: state.answers.github_repository_mode, authenticated_login: authenticatedLogin };
-        if (state.answers.github_repository_mode === "create") completeMutation(absoluteStatePath, state, intentKey, { repository, url: repositoryData.url, visibility: "PRIVATE" });
+        completeMutation(absoluteStatePath, state, intentKey, { repository, url: repositoryData.url, visibility: "PRIVATE" });
         savePhase(absoluteStatePath, state, "github-protection");
       } else if (state.phase === "github-protection") {
         state.resources.github.protection = applyGitHubProtection(executor, state);
-        savePhase(absoluteStatePath, state, isFreshSetup(state) ? "fresh-check" : "vercel-auth");
+        savePhase(absoluteStatePath, state, "fresh-check");
       } else if (state.phase === "vercel-auth") {
         if (vercel(executor, coreRoot, ["whoami"], { scope: state.answers.vercel_scope, allowFailure: true }).status !== 0) return wait(absoluteStatePath, state, "Vercel needs your browser login before the runtime project can be created.", { type: "browser-login", command: ["vercel", "login"] });
         savePhase(absoluteStatePath, state, "vercel-project");
       } else if (state.phase === "vercel-project") {
         const inspect = vercel(executor, coreRoot, ["project", "inspect", state.answers.vercel_project, "--yes"], { scope: state.answers.vercel_scope, allowFailure: true });
         const intentKey = "vercel-project-create";
-        if (state.answers.vercel_project_mode === "create" && inspect.status === 0 && !hasPendingMutation(state, intentKey) && !state.resources.vercel?.id) throw new Error(`Vercel project '${state.answers.vercel_project}' already exists; choose adopt explicitly or a new name.`);
-        if (isFreshSetup(state) && inspect.status === 0 && hasPendingMutation(state, intentKey) && !state.resources.vercel?.id) return wait(absoluteStatePath, state, "The interrupted Vercel project request needs its provider receipt. A matching name alone cannot authorize adoption.", { type: "reconcile-provider-receipt", provider: "vercel-project" });
-        if (state.answers.vercel_project_mode === "adopt" && inspect.status !== 0) throw new Error(`Vercel project '${state.answers.vercel_project}' does not exist and cannot be adopted.`);
-        if (state.answers.vercel_project_mode === "create" && inspect.status !== 0) {
+        if (inspect.status === 0 && !hasPendingMutation(state, intentKey) && !state.resources.vercel?.id) throw new Error(`Vercel project '${state.answers.vercel_project}' already exists; choose a new name.`);
+        if (inspect.status === 0 && hasPendingMutation(state, intentKey) && !state.resources.vercel?.id) return wait(absoluteStatePath, state, "The interrupted Vercel project request needs its provider receipt. A matching name alone cannot authorize adoption.", { type: "reconcile-provider-receipt", provider: "vercel-project" });
+
+        if (inspect.status !== 0) {
           beginMutation(absoluteStatePath, state, intentKey, { provider: "vercel", operation: "create-project", scope: state.answers.vercel_scope, project: state.answers.vercel_project });
           vercel(executor, coreRoot, ["project", "add", state.answers.vercel_project], { scope: state.answers.vercel_scope });
         }
         withIsolatedVercelContext(coreRoot, (directory) => vercel(executor, directory, ["link", "--project", state.answers.vercel_project, "--team", state.answers.vercel_scope, "--yes"], { scope: state.answers.vercel_scope }), { retainProjectLink: true });
         const projectMetadata = JSON.parse(readFileSync(join(coreRoot, ".vercel", "project.json"), "utf8"));
-        const configuration = ensureVercelProjectConfiguration(executor, coreRoot, state.answers.vercel_scope, state.answers.vercel_project, state.answers.vercel_project_mode);
+        const configuration = ensureVercelProjectConfiguration(executor, coreRoot, state.answers.vercel_scope, state.answers.vercel_project);
         state.resources.vercel = { id: clean(projectMetadata.projectId), project: state.answers.vercel_project, scope: state.answers.vercel_scope, mode: state.answers.vercel_project_mode, configuration };
-        if (state.answers.vercel_project_mode === "create") completeMutation(absoluteStatePath, state, intentKey, { id: state.resources.vercel.id, project: state.resources.vercel.project });
+        completeMutation(absoluteStatePath, state, intentKey, { id: state.resources.vercel.id, project: state.resources.vercel.project });
         savePhase(absoluteStatePath, state, "model-credential");
       } else if (state.phase === "model-credential") {
         const selection = modelExecutionForState(state);
@@ -1055,9 +875,9 @@ export async function advanceLiveSetup({
         const intentKey = "neon-resource-create";
         const receipt = state.resources.neon;
         const existing = resourceItems(listed).find((entry) => sameResource(entry, receipt, state.answers.neon_resource_name));
-        if (state.answers.neon_resource_mode === "create" && existing && !receipt && !hasPendingMutation(state, intentKey)) throw new Error(`Neon resource '${state.answers.neon_resource_name}' already exists; choose adopt explicitly or another name.`);
-        if (isFreshSetup(state) && existing && !receipt && hasPendingMutation(state, intentKey)) return wait(absoluteStatePath, state, "The interrupted Neon request needs its provider receipt. A matching name alone cannot authorize adoption.", { type: "reconcile-provider-receipt", provider: "neon" });
-        if (state.answers.neon_resource_mode === "adopt" && !existing) throw new Error(`Neon resource '${state.answers.neon_resource_name}' was not found for adoption.`);
+        if (existing && !receipt && !hasPendingMutation(state, intentKey)) throw new Error(`Neon resource '${state.answers.neon_resource_name}' already exists; choose another name.`);
+        if (existing && !receipt && hasPendingMutation(state, intentKey)) return wait(absoluteStatePath, state, "The interrupted Neon request needs its provider receipt. A matching name alone cannot authorize adoption.", { type: "reconcile-provider-receipt", provider: "neon" });
+
         let resource = existing ?? receipt;
         if (!resource) {
           if (hasPendingMutation(state, intentKey)) return wait(absoluteStatePath, state, "The Neon create request was recorded but its immutable resource receipt is not available yet. Wait for provisioning, then resume; Oregano will not create a duplicate.", { type: "wait-for-provider-receipt", provider: "neon", resource_name: state.answers.neon_resource_name });
@@ -1070,13 +890,13 @@ export async function advanceLiveSetup({
           state.resources.neon = { ...resource, mode: state.answers.neon_resource_mode, plan: state.answers.neon_plan, region: state.answers.neon_region || null };
           completeMutation(absoluteStatePath, state, intentKey, resourceIdentity(resource));
         } else {
-          if (state.answers.neon_resource_mode === "adopt") vercel(executor, coreRoot, ["integration", "resource", "connect", resourceIdentity(resource).id || resourceIdentity(resource).name, state.answers.vercel_project, "--environment", "production", "--environment", "preview", "--environment", "development", "--format", "json", "--yes"], { scope: state.answers.vercel_scope });
-          if (state.answers.neon_resource_mode === "create" && hasPendingMutation(state, intentKey)) completeMutation(absoluteStatePath, state, intentKey, resourceIdentity(resource));
+
+          if (hasPendingMutation(state, intentKey)) completeMutation(absoluteStatePath, state, intentKey, resourceIdentity(resource));
         }
         state.resources.neon = { ...resourceIdentity(resource), mode: state.answers.neon_resource_mode, plan: state.answers.neon_plan, region: state.answers.neon_region || null };
-        savePhase(absoluteStatePath, state, state.schema_version >= 4 ? "database-prepare" : "slack");
-      } else if (state.phase === "database-prepare" || state.phase === "database-bootstrap") {
-        const intentKey = state.intents?.["database-bootstrap"] ? "database-bootstrap" : "database-prepare";
+        savePhase(absoluteStatePath, state, "database-prepare");
+      } else if (state.phase === "database-prepare") {
+        const intentKey = "database-prepare";
         if (!hasPendingMutation(state, intentKey)) {
           beginMutation(absoluteStatePath, state, intentKey, {
             provider: VERCEL_NEON_SLACK_PROFILE.stateService.provider,
@@ -1129,9 +949,9 @@ export async function advanceLiveSetup({
         const createIntentKey = "slack-connector-create";
         const receipt = state.resources.slack;
         const existing = resourceItems(listed).find((entry) => sameResource(entry, receipt, state.answers.slack_connector_name));
-        if (state.answers.slack_connector_mode === "create" && existing && !receipt && !hasPendingMutation(state, createIntentKey)) throw new Error(`Slack connector '${state.answers.slack_connector_name}' already exists; choose adopt explicitly or another name.`);
-        if (isFreshSetup(state) && existing && !receipt && hasPendingMutation(state, createIntentKey)) return wait(absoluteStatePath, state, "The interrupted Slack request needs its provider receipt. A matching name alone cannot authorize adoption.", { type: "reconcile-provider-receipt", provider: "slack" });
-        if (state.answers.slack_connector_mode === "adopt" && !existing) throw new Error(`Slack connector '${state.answers.slack_connector_name}' was not found for adoption.`);
+        if (existing && !receipt && !hasPendingMutation(state, createIntentKey)) throw new Error(`Slack connector '${state.answers.slack_connector_name}' already exists; choose another name.`);
+        if (existing && !receipt && hasPendingMutation(state, createIntentKey)) return wait(absoluteStatePath, state, "The interrupted Slack request needs its provider receipt. A matching name alone cannot authorize adoption.", { type: "reconcile-provider-receipt", provider: "slack" });
+
         let connector = existing ?? receipt;
         if (!connector) {
           if (hasPendingMutation(state, createIntentKey)) return wait(absoluteStatePath, state, "The Slack connector create request was recorded but its immutable receipt is not available yet. Wait for installation, then resume; Oregano will not create a duplicate.", { type: "wait-for-provider-receipt", provider: "slack", connector_name: state.answers.slack_connector_name });
@@ -1165,18 +985,18 @@ export async function advanceLiveSetup({
         state.resources.slack.team_id = identity.team_id;
         state.resources.slack.user_id = identity.user_id;
         state.resources.slack.team = identity.team;
-        if (isFreshSetup(state)) {
+        {
           const app = resolveSlackApp(executor, coreRoot, state.answers.vercel_scope, state.resources.slack, identity.team_id, state.resources.vercel.id);
           state.resources.slack.app_id = app.app_id;
           state.resources.slack.open_url = app.open_url;
         }
-        savePhase(absoluteStatePath, state, isFreshSetup(state) ? "fresh-workspace" : "operating-workspace");
+        savePhase(absoluteStatePath, state, "fresh-workspace");
       } else if (state.phase === "fresh-workspace") {
-        if (!isFreshSetup(state)) throw new Error('Fresh initialization requires its setup decision.');
+
         materializeFreshWorkspace(absoluteStatePath, state);
         savePhase(absoluteStatePath, state, "github-auth");
       } else if (state.phase === "fresh-check") {
-        if (!isFreshSetup(state)) throw new Error('Fresh initialization requires its setup decision.');
+
         const commit = clean(git(executor, state.workspace, 'rev-parse', 'HEAD').stdout);
         if (!/^[0-9a-f]{40}$/.test(commit) || workspaceFingerprint(state.workspace) !== state.fresh.workspace_fingerprint) throw new Error('The initial commit no longer matches the checked workspace.');
         const checks = parseJson(gh(executor, ['api', `repos/${githubRepository(state)}/commits/${commit}/check-runs`]).stdout, 'Initial repository checks');
@@ -1185,64 +1005,12 @@ export async function advanceLiveSetup({
         if (check.conclusion !== 'success') throw new Error('The initial CompanyOS check failed. Review its diagnostic and resume.');
         state.fresh.initialization = { kind: 'fresh-initialization', scope_hash: state.fresh.authorization.scope_hash, actor_id: state.fresh.scope.installer.id, workspace_commit: commit, check: 'passed', check_id: check.id, checked_at: now() };
         savePhase(absoluteStatePath, state, 'artifact');
-      } else if (state.phase === "operating-workspace") {
-        if (clean(git(executor, state.workspace, "status", "--porcelain").stdout)) throw new Error("Company Workspace has uncommitted changes before the operating-starter preview.");
-        const rawInput = {
-          change_date: state.answers.change_date,
-          slack_team_id: state.resources.slack.team_id,
-          slack_user_id: state.resources.slack.user_id,
-          slack_channel_id: state.answers.slack_channel_id,
-        };
-        const preview = previewOperatingStarter({ workspaceRoot: state.workspace, rawInput, instanceId: `${state.answers.github_repository}-production` });
-        if (hasErrors(preview.diagnostics)) throw new Error(`Operating Workspace preview failed: ${preview.diagnostics.find((item) => item.severity === "error")?.message}`);
-        state.operating.preview_hash = preview.preview.confirmation_hash;
-        state.operating.workspace_version = preview.preview.workspace_version;
-        writeLiveSetupState(absoluteStatePath, state);
-        if (operatingConfirmation !== preview.preview.confirmation_hash) return wait(absoluteStatePath, state, "The exact operating Workspace is ready for human confirmation before files are changed.", { type: "confirm-operating-workspace", confirmation_hash: preview.preview.confirmation_hash, summary: { files: preview.preview.files, deletions: preview.preview.deletions, agent: "oregano", execution_mode: "supervised", tools: [] } });
-        const applied = applyOperatingStarter({ workspaceRoot: state.workspace, rawInput, confirmationHash: operatingConfirmation, instanceId: `${state.answers.github_repository}-production` });
-        if (!applied.applied) throw new Error(`Operating Workspace apply failed: ${applied.diagnostics.find((item) => item.severity === "error")?.message}`);
-        state.operating.applied = true;
-        savePhase(absoluteStatePath, state, "steward-merge");
-      } else if (state.phase === "steward-merge") {
-        if (!state.operating.pull_request_url) {
-          const pullRequest = createOperatingPullRequest(executor, state);
-          state.operating.pull_request_url = pullRequest.url;
-          state.operating.branch = pullRequest.branch;
-          writeLiveSetupState(absoluteStatePath, state);
-        }
-        const pullRequest = inspectPullRequest(executor, state);
-        if (pullRequest.state === "MERGED") {
-          if (state.operating.merge_authorized_by !== state.resources.github.authenticated_login) throw new Error("The operating Workspace was merged without the installer's recorded Workspace Steward authorization.");
-          if (!requiredCheckPassed(pullRequest)) throw new Error("The operating Workspace was merged without the required successful CompanyOS check evidence.");
-          state.operating.required_check = "passed";
-          state.operating.merge_commit = clean(pullRequest.mergeCommit?.oid);
-          if (!/^[0-9a-f]{40}$/.test(state.operating.merge_commit)) throw new Error("GitHub did not return one immutable merge commit for the operating Workspace.");
-          savePhase(absoluteStatePath, state, "artifact");
-          continue;
-        }
-        if (!requiredCheckPassed(pullRequest)) return wait(absoluteStatePath, state, "The operating Workspace pull request is waiting for the required CompanyOS check.", { type: "wait-for-required-check", url: state.operating.pull_request_url, check: "check" });
-        const candidateHash = sha256(JSON.stringify({ url: state.operating.pull_request_url, checks: pullRequest.statusCheckRollup }));
-        state.operating.required_check = "passed";
-        state.operating.merge_confirmation_hash = candidateHash;
-        writeLiveSetupState(absoluteStatePath, state);
-        if (mergeConfirmation !== candidateHash) return wait(absoluteStatePath, state, "The required check passed. The Workspace Steward must confirm this exact merge before the release candidate is built.", { type: "confirm-merge", confirmation_hash: candidateHash, url: state.operating.pull_request_url });
-        state.operating.merge_authorized_by = state.resources.github.authenticated_login;
-        state.operating.merge_authorized_at = now();
-        writeLiveSetupState(absoluteStatePath, state);
-        gh(executor, ["pr", "merge", state.operating.pull_request_url, "--repo", githubRepository(state), "--squash", "--delete-branch"]);
       } else if (state.phase === "artifact") {
         state.artifact = buildAndConfigureArtifact(executor, state, absoluteStatePath, coreRoot);
-        if (isFreshSetup(state)) assertFreshInitializationEvidence(state);
-        savePhase(absoluteStatePath, state, isFreshSetup(state) ? "production-deployment" : "production-confirmation");
-      } else if (state.phase === "production-confirmation") {
-        const modelExecution = modelExecutionForState(state);
-        const candidateHash = sha256(JSON.stringify({ artifact: state.artifact.hash, core: state.artifact.core_commit, workspace: state.artifact.workspace_commit, project: state.resources.vercel.project, model_route: modelExecution.route, model: modelExecution.model }));
-        state.deployment.production_confirmation_hash = candidateHash;
-        writeLiveSetupState(absoluteStatePath, state);
-        if (productionConfirmation !== candidateHash) return wait(absoluteStatePath, state, "The exact production candidate is ready. Confirm deployment after reviewing provider costs and the immutable provenance.", { type: "confirm-production", confirmation_hash: candidateHash, candidate: { artifact_hash: state.artifact.hash, core_commit: state.artifact.core_commit, workspace_commit: state.artifact.workspace_commit, vercel_project: state.resources.vercel.project, model_route: modelExecution.route, model: modelExecution.model } });
+        assertFreshInitializationEvidence(state);
         savePhase(absoluteStatePath, state, "production-deployment");
       } else if (state.phase === "production-deployment") {
-        if (isFreshSetup(state)) assertFreshInitializationEvidence(state);
+        assertFreshInitializationEvidence(state);
         const prerequisite = requireVercelPlan(executor, coreRoot, absoluteStatePath, state);
         if (prerequisite) return prerequisite;
         vercelPlanChecked = true;
@@ -1251,7 +1019,7 @@ export async function advanceLiveSetup({
           const intentKey = "vercel-production-deployment";
           let recovered;
           if (hasPendingMutation(state, intentKey)) {
-            if (isFreshSetup(state)) {
+            {
               const listed = parseJson(vercel(executor, coreRoot, ['list', state.resources.vercel.project, '--environment', 'production', '--meta', `oreganoSetup=${state.fresh.scope.session_id}`, '--meta', `oreganoArtifact=${state.artifact.hash}`, '--limit', '100', '--format', 'json'], { scope: state.answers.vercel_scope }).stdout, 'Deployment recovery');
               const candidates = (Array.isArray(listed) ? listed : listed.deployments ?? []).filter((item) => (item.id || item.uid) && item.url);
               if (candidates.length === 1) recovered = candidates[0];
@@ -1260,7 +1028,7 @@ export async function advanceLiveSetup({
           }
           beginMutation(absoluteStatePath, state, intentKey, { provider: "vercel", operation: "deploy-production", project: state.resources.vercel.project, artifact_hash: state.artifact.hash });
           const deploymentArgs = ["deploy", "--prod", "--yes", "--project", state.resources.vercel.project, "--format", "json"];
-          if (isFreshSetup(state)) deploymentArgs.push('--meta', `oreganoSetup=${state.fresh.scope.session_id}`, '--meta', `oreganoArtifact=${state.artifact.hash}`);
+          deploymentArgs.push('--meta', `oreganoSetup=${state.fresh.scope.session_id}`, '--meta', `oreganoArtifact=${state.artifact.hash}`);
           const deployed = recovered ?? parseJson(vercel(executor, coreRoot, deploymentArgs, { scope: state.answers.vercel_scope }).stdout, "Vercel production deployment");
           const rawUrl = clean(deployed?.url ?? deployed?.deployment?.url);
           url = rawUrl && !/^https?:\/\//.test(rawUrl) ? `https://${rawUrl}` : rawUrl;
@@ -1275,9 +1043,9 @@ export async function advanceLiveSetup({
         state.deployment.ready_state = readyState;
         state.deployment.ready_at = now();
         writeLiveSetupState(absoluteStatePath, state);
-        const checked = isFreshSetup(state) ? await fetchVerifiedProductionHealth(state, inspected, fetchImpl) : { url, health: await fetchHealth(url, fetchImpl) };
+        const checked = await fetchVerifiedProductionHealth(state, inspected, fetchImpl);
         const health = checked.health;
-        if (isFreshSetup(state)) state.deployment.health_url = checked.url;
+        state.deployment.health_url = checked.url;
         if (!expectedHealth(state, health)) throw new Error("Production health does not match the expected Artifact, Core, Workspace, ToolSet, and Agent provenance.");
         state.deployment.health = {
           artifact_hash: health.artifactHash,
@@ -1292,7 +1060,7 @@ export async function advanceLiveSetup({
         };
         savePhase(absoluteStatePath, state, "slack-verification");
       } else if (state.phase === "slack-verification") {
-        if (isFreshSetup(state)) {
+        {
           const app = resolveSlackApp(executor, coreRoot, state.answers.vercel_scope, state.resources.slack, state.resources.slack.team_id, state.resources.vercel.id);
           if (app.app_id !== state.resources.slack.app_id) throw new Error("The recorded Slack app identity changed before verification.");
           const selection = modelExecutionForState(state);
@@ -1317,25 +1085,6 @@ export async function advanceLiveSetup({
           savePhase(absoluteStatePath, state, 'complete');
           continue;
         }
-        const nonce = state.verification.slack_nonce ?? `oregano-${sha256(`${state.plan_hash}:${state.deployment.url}`).slice(0, 12)}`;
-        state.verification.slack_nonce = nonce;
-        writeLiveSetupState(absoluteStatePath, state);
-        const modelExecution = modelExecutionForState(state);
-        const proofExecution = VERCEL_NEON_SLACK_PROFILE.runtimeHost.secretBoundCommand({
-          environment: "production",
-          project: state.resources.vercel.project,
-          scope: state.answers.vercel_scope,
-          cwd: coreRoot,
-          command: ["node", join(coreRoot, "packages", "cli", "src", "live-database-proof.mjs"), nonce, modelExecution.route, modelExecution.model],
-        });
-        const proof = run(executor, proofExecution.executable, [...proofExecution.args], { cwd: coreRoot, allowFailure: true });
-        if (proof.status !== 0) return wait(absoluteStatePath, state, "Send the generated message to Oregano in Slack. The installer will then prove both the user message and Oregano response in Neon.", { type: "slack-round-trip", message: `@Oregano Setup-Test ${nonce}`, channel_id: state.answers.slack_channel_id || null });
-        const databaseProof = parseJson(proof.stdout, "Slack database proof");
-        if (databaseProof.ok !== true) return wait(absoluteStatePath, state, "The Slack message has not produced a complete persisted round trip yet.", { type: "slack-round-trip", message: `@Oregano Setup-Test ${nonce}`, channel_id: state.answers.slack_channel_id || null });
-        state.verification.database = { ok: true, conversation_entries: databaseProof.conversation_entries, assistant_entries: databaseProof.assistant_entries, exact_response_entries: databaseProof.exact_response_entries, model_evidence_entries: databaseProof.model_evidence_entries, checked_at: now() };
-        state.verification.scope = "live-starter-instance";
-        state.verification.readiness = "validated";
-        savePhase(absoluteStatePath, state, "complete");
       } else if (state.phase === "complete") {
         return stateResult(absoluteStatePath, state, "complete", "The live Oregano starter Instance is verified.", null);
       } else throw new Error(`Unknown live setup phase '${state.phase}'.`);
@@ -1371,7 +1120,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
   if (!new Set(["enforced", "advisory"]).has(recordedProtection)) diagnostics.push(diagnostic("LIVE103", "error", "GitHub hosted-protection attempt evidence is missing."));
   if (!state.resources.neon?.id && !state.resources.neon?.uid && !state.resources.neon?.name) diagnostics.push(diagnostic("LIVE104", "error", "Neon resource evidence is missing."));
   if (!state.resources.slack?.uid || !state.resources.slack?.team_id || !state.resources.slack?.user_id) diagnostics.push(diagnostic("LIVE105", "error", "Slack connector or canonical human principal evidence is missing."));
-  if (state.schema_version >= 2) {
+  {
     const expectedProject = expectedVercelProjectConfiguration();
     const recordedProject = state.resources.vercel?.configuration;
     if (recordedProject?.root_directory !== expectedProject.rootDirectory || recordedProject?.framework !== expectedProject.framework || recordedProject?.source_files_outside_root_directory !== expectedProject.sourceFilesOutsideRootDirectory) diagnostics.push(diagnostic("LIVE114", "error", "Vercel runner-root configuration evidence is missing or mismatched."));
@@ -1381,7 +1130,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
     if (unresolvedIntents.length > 0) diagnostics.push(diagnostic("LIVE116", "error", `Provider mutation receipts are incomplete: ${unresolvedIntents.join(", ")}.`));
     if (!new Set(["READY", "SUCCEEDED", "SUCCESS"]).has(state.deployment?.ready_state)) diagnostics.push(diagnostic("LIVE117", "error", "Structured ready deployment evidence is missing."));
   }
-  if (state.schema_version >= 3) {
+  {
     let selection;
     try { selection = modelExecutionForState(state); }
     catch (error) { diagnostics.push(diagnostic("LIVE118", "error", safeError(error.message))); }
@@ -1393,14 +1142,14 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
     }
     if (Number(state.verification?.database?.model_evidence_entries ?? 0) < 1) diagnostics.push(diagnostic("LIVE121", "error", "Persisted model-backed Slack response evidence is missing."));
   }
-  if (state.schema_version >= 4) {
+  {
     try { assertCompanyDatabaseQualificationReceipt(state.verification?.database_schema?.qualification); }
     catch (error) { diagnostics.push(diagnostic("LIVE122", "error", safeError(error.message))); }
     if (state.verification?.database_schema?.state_service?.provider !== VERCEL_NEON_SLACK_PROFILE.stateService.provider) {
       diagnostics.push(diagnostic("LIVE123", "error", "Database qualification is not bound to the recorded State Service provider."));
     }
   }
-  if (isFreshSetup(state)) {
+  {
     try { assertFreshInitializationEvidence(state); }
     catch (error) { diagnostics.push(diagnostic("LIVE125", "error", safeError(error.message))); }
     try {
@@ -1408,7 +1157,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
       if (app.app_id !== state.resources.slack.app_id) throw new Error("The recorded Slack app identity changed.");
     } catch (error) { diagnostics.push(diagnostic("LIVE126", "error", safeError(error.message))); }
   }
-  if (!isFreshSetup(state) && (!/^[0-9a-f]{40}$/.test(state.operating?.merge_commit ?? "") || state.operating?.merge_authorized_by !== state.resources.github?.authenticated_login || !/^\d{4}-\d{2}-\d{2}T/.test(state.operating?.merge_authorized_at ?? "") || state.operating?.required_check !== "passed")) diagnostics.push(diagnostic("LIVE106", "error", "Workspace Steward merge authorization, required check, or immutable merge evidence is missing."));
+
   if (state.verification?.database?.ok !== true) diagnostics.push(diagnostic("LIVE107", "error", "Persisted Slack round-trip evidence is missing."));
   if (state.deployment?.url) {
     try {
@@ -1443,7 +1192,7 @@ export async function verifyLiveSetup({ statePath, executor = createCommandExecu
       readiness: !hasErrors(diagnostics) ? "validated" : "not-validated",
       github_protection: currentProtection,
       vercel_plan: currentVercelPlan ?? null,
-      statement: `Verification proves this exact supervised starter Instance: private GitHub Workspace, ${isFreshSetup(state) ? "single authorized fresh initialization and checked initial commit" : "checked pull request and explicit Steward merge"}, immutable Core and Workspace provenance, selected model execution route, Vercel health, Neon persistence, and one authorized model-backed Slack round trip. Hosted GitHub protection is reported separately and is not required for this Tool-free supervised starter. This does not authorize business Tools, unattended workflows, or claim general enforced production readiness.`,
+      statement: `Verification proves this exact supervised starter Instance: private GitHub Workspace, ${"single authorized fresh initialization and checked initial commit"}, immutable Core and Workspace provenance, selected model execution route, Vercel health, Neon persistence, and one authorized model-backed Slack round trip. Hosted GitHub protection is reported separately and is not required for this Tool-free supervised starter. This does not authorize business Tools, unattended workflows, or claim general enforced production readiness.`,
     },
     state: {
       profile: state.profile,

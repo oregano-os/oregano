@@ -32,7 +32,7 @@ async function fixture() {
   const values = new Map<string, unknown>();
   values.set(`release:candidate:${sha256([artifact.instance.id, candidate.id])}`, { candidate, job: f.job, github: {}, previous: {} });
   let providerCalls = 0;
-  const adapter = new HostedBuilderReleaseAdapter({ artifact, instanceYaml, functionalTests: f.tests,
+  const adapter = new HostedBuilderReleaseAdapter({ artifact, functionalTests: f.tests,
     state: { get: async <T>(key: string) => structuredClone(values.get(key)) as T,
       set: async (key: string, value: unknown) => { values.set(key, value); },
       setIfNotExists: async (key: string, value: unknown) => { if (values.has(key)) return false; values.set(key, value); return true; } },

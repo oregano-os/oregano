@@ -51,8 +51,7 @@ awaits fresh cold-run qualification; see [setup choices](setup-options.md).
 
 The reference checklist below describes the resulting account, Workspace and
 governance contract. It is not a questionnaire to repeat during standard setup.
-For an existing Workspace or explicit adoption use the advanced profile and
-its existing change process. Local authoring via `create workspace` still yields
+For an existing Workspace use its governed change and Instance release process. Local authoring via `create workspace` still yields
 an authoring-only Workspace; `bootstrap verify` remains its local checkpoint.
 The bundled release tools use exact versions without replacing global tooling.
 Provider-created skills and local OIDC files are contained in a private temporary
@@ -106,7 +105,7 @@ not make the Workspace a credential or provider-identity authority.
 Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider
 account. The maintained complete starter requires a Vercel Pro or Enterprise
 team, detected automatically before hosted resource creation, and consent
-to create or adopt a Neon Marketplace resource, permission to install the Slack
+to create a Neon Marketplace resource, permission to install the Slack
 app in a selected Slack workspace, and access to the selected model route.
 Oregano manages background scheduling. Hobby requires a human upgrade through
 the returned billing link followed by resume; no cron-frequency selection is
@@ -188,8 +187,7 @@ state, not a user-selected installation mode, and the agent never asks for a
 GitHub upgrade.
 
 Fresh setup waits for the initial commit's `check` under its single setup
-decision. The explicit legacy/adoption flow creates an operating pull request
-and retains the Workspace Steward's exact merge confirmation. GitHub enforcement adds protection against accidental
+decision. Later operating changes retain the Workspace Steward’s release authority. GitHub enforcement adds protection against accidental
 direct pushes, force pushes, and deletion. It becomes a prerequisite only
 before an unattended agent receives repository write, merge, or deployment
 authority. Follow the version-matched [repository protection
@@ -198,12 +196,10 @@ status and professional organization controls.
 
 ## 7. Complete an existing authoring Workspace when requested
 
-An authoring-only request stops here. To activate an existing authoring Workspace, plan and
-execute `companyos setup --profile vercel-neon-slack` with its non-secret
-answers file and ignored, mode-0600 state file. The profile performs GitHub,
-Vercel, Neon, and Slack setup only after explicit create-or-adopt selection,
-provider consent, and the applicable confirmation hash. It never places a
-provider credential in Git or setup state.
+An authoring-only request stops here. New live installations use the standard
+setup in a fresh setup directory. The old `setup --profile` activation path and
+state versions 1–4 are retired. Changes to an existing operating Workspace follow
+the governed change and release process.
 
 The profile is assembled from private typed adapters for the source-host,
 runtime-host, state-service, and communication roles. Its maintained bindings
@@ -213,7 +209,7 @@ A future Hetzner, Docker, Railway, Supabase, or other provider path must satisfy
 the same role contract through a separately qualified adapter and profile.
 
 For a new Instance, the selected database normally does not exist before this
-setup. The State Service phase therefore creates or explicitly adopts one
+setup. The State Service phase therefore creates one dedicated
 resource and binds its `DATABASE_URL` only in the runtime secret environment.
 The next phase runs `companyos database prepare` through that runtime profile.
 Prepare detects an empty, older, or current database and selects `bootstrap`,
@@ -242,7 +238,7 @@ resolution and authorization conformance remain mandatory.
 
 Knowledge Source activation follows database preparation; it is not a database
 migration step. A new setup may begin with no database at all: the State
-Service first creates or adopts the PostgreSQL resource, `database prepare`
+Service first creates the dedicated PostgreSQL resource, `database prepare`
 creates the current schemas, and read-only verification qualifies them. Only
 then may setup install a SecretRef-only Source binding, deploy its runtime
 handlers, obtain provider qualification evidence, change the binding to
@@ -277,10 +273,10 @@ contract](../specifications/company-instance-release-and-promotion-v0.1-draft.md
 Onboarding is locally ready when `companyos onboard` has no errors. The complete
 starter is ready only when `companyos verify-live --state <file>` succeeds with
 scope `live-starter-instance`: the repository is private, the exact initial
-commit and fresh setup decision (or legacy checked merge) are recorded, current
+commit and fresh setup decision are recorded, current
 Vercel health matches the exact Artifact and version pair, and an authorized
 Slack exchange has model-response and persistence evidence. Fresh setup uses
-an ordinary first message; legacy states retain their exact nonce-bound reply. Verification also requires the
+an ordinary first message. Verification also requires the
 immutable receipts for the exact provider resources used by the deployment and
 fails closed on an unresolved setup intent. Hosted GitHub protection is
 reported separately as `enforced` or `advisory`; either status is valid for

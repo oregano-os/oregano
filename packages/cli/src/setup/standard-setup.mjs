@@ -55,7 +55,7 @@ const actionFromLive = (action) => {
 export async function runStandardSetup({ root = process.cwd(), coreRoot, reply, executor = createCommandExecutor(), fetchImpl = globalThis.fetch, coreIdentity, startedAt } = {}) {
   root = realpathSync(resolve(root));
   coreRoot = realpathSync(resolve(coreRoot));
-  if (root === coreRoot || existsSync(join(root, 'company.md'))) throw new Error('Start the standard setup in a new setup folder. Use the explicit advanced flow for an existing company.');
+  if (root === coreRoot || existsSync(join(root, 'company.md'))) throw new Error('Start the standard setup in a new setup folder. Use the governed Workspace change and Instance release process for an existing company.');
   const directory = join(root, '.companyos-bootstrap'); privatePath(directory);
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   const sessionPath = join(directory, 'standard-setup.json'); privatePath(sessionPath);

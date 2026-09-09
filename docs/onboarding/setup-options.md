@@ -46,14 +46,13 @@ qualification remains outstanding; five minutes is not yet a measured promise.
 | Choice | What it sets up | Entry and completion | Availability |
 |---|---|---|---|
 | Standard live starter | Private GitHub Workspace, Vercel Runner, Neon/Postgres and Slack; required choice of OpenAI or Anthropic using its direct API | Shared Release runbook; `companyos setup`; one provider choice and one resource/cost review; `companyos verify-live` before completion | Implemented, experimental; the human supplies a provider API key in Vercel Sensitive Production settings |
-| Another model or provider on request | The same infrastructure with an explicitly requested, release-supported model recipe | Standard session accepts `model` or `model_route` on request; adoption retains the advanced flow | Maintained routes remain available, including Gateway; there is no automatic Gateway fallback |
+| Another model or provider on request | The same infrastructure with an explicitly requested, release-supported model recipe | Standard session accepts `model` or `model_route` on request; existing-resource adoption is outside the installer | Maintained routes remain available, including Gateway; there is no automatic Gateway fallback |
 | Local authoring Workspace | Company files and local checks; no hosted runtime, database, or Slack assistant | `companyos create workspace`, then `companyos bootstrap verify` | Implemented, experimental; not a live installation |
 | Alternative infrastructure | For example a container host, another PostgreSQL service, or another communication surface | No selectable full setup profile or complete installation runbook exists | Requires implementation and qualification before it can be offered |
 
-Selecting `create` or `adopt` changes resource handling within the same live
-profile. Adoption is not permission to overwrite an arbitrary project or to
-use a provider absent from the profile. The maintained live path targets one
-production Instance; it is not a staging-and-production installer.
+The maintained installer creates fresh resources for one production Instance.
+Existing-resource adoption is outside this installer and requires the governed
+operating change and release process. It is not a staging-and-production installer.
 
 ## Test before releasing
 
@@ -81,10 +80,8 @@ reply and successful verification.
 
 OpenAI and Anthropic are the two ordinary choices; the recipe model is filled
 in automatically. Other models or providers require an explicit request, using
-`model` or `model_route` in the same session. Deliberate resource adoption uses
-the [advanced setup contract](../workbench/commands/setup.md#explicit-advanced-and-legacy-flow).
-Adoption answers and separate activation/deployment decisions remain supported.
-Adoption is an optional destination, never a preliminary simple/advanced question.
+`model` or `model_route` in the same session. The retired advanced `--profile` setup flow and state versions 1–4 are no longer
+supported. Only current schema-5 fresh sessions resume.
 Supported native and named compatible cloud routes are enumerated from the
 same recipe registry in `supported_model_routes`; individual provider/model
 availability and live qualification must be established for the chosen release.
@@ -101,9 +98,9 @@ use the full live prompt and announce success at this earlier checkpoint.
 
 | Responsibility | Current binding | Setup behavior |
 |---|---|---|
-| Source and review | GitHub | Fresh: publish one checked operating initial commit under the setup decision. Advanced/adoption: retain Steward merge authorization. Attempt hosted protection in both flows |
+| Source and review | GitHub | Publish one checked operating initial commit under the setup decision and attempt hosted protection |
 | Runtime hosting | Vercel Pro or Enterprise | Detect the selected team's plan before creating hosted resources, then verify the Next.js root `packages/runner-vercel`, include source files outside that root, bind environment values, deploy, and verify health |
-| Durable state | Neon/Postgres through Vercel Marketplace | Create or adopt a dedicated resource without pulling credentials to disk; prepare and qualify CompanyOS schemas through the runtime's secret environment |
+| Durable state | Neon/Postgres through Vercel Marketplace | Create a dedicated resource without pulling credentials to disk; prepare and qualify CompanyOS schemas through the runtime's secret environment |
 | Communication | Slack through Vercel Connect | Use `slack/oregano`, attach `/api/webhooks/slack`, resolve the consenting human, and verify a persisted model-backed round trip |
 | Model execution | Separate model recipe | Bind the exact route and model; request a Sensitive provider credential only for routes that require one |
 
