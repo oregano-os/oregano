@@ -1,0 +1,47 @@
+version: 3
+plan_id: clear-decision-feedback-2026-09-09
+created: 2026-09-09
+title: Clear decision feedback and dependent failure notices
+objective: Keep approval feedback concise and report stopped writes or dependent verification through the original approved conversation.
+non_goals:
+  - Change human authority, business rules, provider bindings or retry authorization.
+  - Add company-specific wording or claim completion without verified evidence.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-09-clear-decision-feedback.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/runtime/decision-feedback.ts
+  - packages/runtime/workflow-engine/**
+  - packages/runner-vercel/src/lib/decision-cards.ts
+  - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
+  - packages/testkit/tests/slack-decision-review.test.ts
+  - packages/testkit/tests/workflow-review-dependency.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-button-response.test.ts
+  - packages/testkit/tests/slack-decision-review.test.ts
+  - packages/testkit/tests/workflow-review-dependency.test.ts
+  - packages/testkit/tests/workflow-review-delivery.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.workflow-engine, specification.workflow-execution-v1]
+architecture:
+  placement:
+    core: Generic feedback and durable failure delivery to the unique retained approver of an explicitly referenced completed step.
+    packages: No Package changes.
+    workspace: Own conversational wording and domain-specific success templates.
+    instance: Preserve existing artifacts, decisions, failure evidence and recipients.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Extend existing failure delivery to dependent verification without granting another write or changing the approved audience.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every communication Connector uses opaque retained conversation references; no provider or business identifiers enter the mechanism.
+rollback: Restore the preceding exact runtime; retain approvals, writes and frozen notices. Never replay uncertain effects.

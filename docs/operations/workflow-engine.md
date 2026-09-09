@@ -166,8 +166,9 @@ explicit operator qualification; it is not an automatic universal setup doctor.
 
 After the current user and exact request pass authorization, the interface may
 show “Processing your decision…”. This is temporary feedback, not a new
-Workflow step or a saved decision. A success notice appears only after the
-decision is stored. If storage fails, show that the result could not be confirmed
+Workflow step or a saved decision. Once approval is stored, keep the reviewed
+proposal, remove the controls and show only “Approved”. A separate completion
+message requires a verified result. If storage fails, show that the result could not be confirmed
 and direct the user to an administrator; do not claim rejection or success.
 
 System feedback uses the existing working language from the Workspace's company
@@ -176,6 +177,14 @@ The current system-message catalog supports English and German, including
 regional language tags. Older Artifacts without this field, unsupported languages
 and invalid tags fall back to English. Business explanations and button labels
 remain authored in the Workspace. Runtime decisions stay in the Instance store.
+
+A continuation failure shows a short explanation while retaining the saved
+approval. A stopped write or dependent verification also uses the existing
+durable notice in the original approver's conversation. The notice says that
+completion could not be confirmed and asks the person not to submit again until
+the result is checked. Raw errors remain in operator diagnostics. Declared
+output dependencies must identify one approved decision; ambiguous audiences
+remain available for operator review. A notification never retries the write.
 
 ## Check model-generated steps
 

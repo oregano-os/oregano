@@ -4,6 +4,7 @@ import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, Wo
 import { canonicalJson, sha256, jsonDigest } from "../canonical.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
 import { workflowReviewDeliveryDigest } from "./review-notice.ts";
+import { workflowReviewDecision } from "./review-dependency.ts";
 
 export function workflowInstant(value: string): void {
   if (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) throw new Error("Workflow state requires an exact UTC ISO instant");
@@ -110,7 +111,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
   if (priorDelivery && !delivery) throw new Error("Effect review delivery history cannot be removed");
   if (delivery) {
     const failed = workflow.steps.find((step) => step.id === delivery.blockedStepId), decision = state.decisions[delivery.decisionStepId];
-    if (!failed?.requiresDecisions.some((requirement) => requirement.stepId === delivery.decisionStepId)
+    if (!failed || workflowReviewDecision(workflow, failed, state) !== delivery.decisionStepId
       || decision?.status !== "approved" || decision.approvingPrincipal !== delivery.principal || !decision.recipients.includes(delivery.memberId)) throw new Error("Effect review must retain its original approved decision");
     if (!priorDelivery && (state.status !== "waiting" || state.blocked?.stepId !== delivery.blockedStepId || state.cursor !== delivery.blockedStepId)) throw new Error("Effect review must start from the stopped business step");
     const receipt = decision.deliveries[delivery.memberId] as Record<string, unknown> | undefined;

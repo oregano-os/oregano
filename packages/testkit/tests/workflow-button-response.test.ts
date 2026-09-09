@@ -11,7 +11,7 @@ for (const decision of ["approved", "rejected"] as const) {
         calls.push("replace");
         const text = JSON.stringify(card);
         assert.ok(!text.includes('"actions"') && !text.includes('"button"'));
-        assert.match(text, decision === "approved" ? /not confirmation/ : /rejection was saved/);
+        assert.match(text, decision === "approved" ? /"title":"Approved"/ : /rejection was saved/);
       },
     });
     assert.deepEqual(calls, ["persist", "replace"]);
@@ -40,7 +40,7 @@ test("validated action shows localized processing before durable acceptance", as
     replace: async (card) => { cards.push(JSON.stringify(card)); },
     observe: (phase) => { phases.push(phase); },
   });
-  assert.match(cards[1]!, /Freigabe gespeichert/);
+  assert.match(cards[1]!, /Freigegeben/);
   assert.deepEqual(phases, ["validated", "processing", "recorded", "resolved"]);
   assert.ok(cards.every((card) => !card.includes('"actions"')));
 });
@@ -69,6 +69,24 @@ test("presentation failure still advances, while continuation failure preserves 
     replace: async () => { calls.push("replace"); throw new Error("display unavailable"); },
     continueRun: async (id) => { assert.equal(id, "run"); calls.push("continue"); throw new Error("worker unavailable"); },
   });
-  assert.deepEqual(calls, ["record", "replace", "continue"]);
+  assert.deepEqual(calls, ["record", "replace", "continue", "replace"]);
   assert.equal(result.decision, "approved"); assert.equal(result.presentation, "failed"); assert.equal(result.continuation, "failed");
+});
+
+for (const language of ["en", "de-DE"]) test(`approved feedback has no empty text element or long paragraph (${language})`, async () => {
+  await recordWorkflowButtonResponse({ language,
+    decide: async () => ({ runId: "run", decision: "approved" }),
+    replace: async (card) => { assert.deepEqual(card.children, []); assert.equal(card.title, language === "en" ? "Approved" : "Freigegeben"); },
+  });
+});
+test("continuation failure is visible while the recorded approval stays accepted", async () => {
+  const cards: string[] = [];
+  const result = await recordWorkflowButtonResponse({
+    decide: async () => ({ runId: "run", decision: "approved" }),
+    replace: async (card) => { cards.push(JSON.stringify(card)); },
+    continueRun: async () => { throw new Error("private infrastructure details"); },
+  });
+  assert.equal(result.decision, "approved"); assert.equal(result.continuation, "failed");
+  assert.match(cards.at(-1)!, /couldn't continue/);
+  assert.doesNotMatch(cards.at(-1)!, /private infrastructure|saved the changes|button/);
 });

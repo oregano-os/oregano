@@ -23,7 +23,8 @@ for (const decision of ["approved", "rejected"] as const) {
       assert.deepEqual(card.children.slice(0, 2).map((child) => (child as { content: string }).content), original.message.blocks.slice(1, 3).map((block) => block.text!.text));
       assert.ok(!JSON.stringify(card).includes('"button"'));
     }
-    assert.match(JSON.stringify(cards[1]), /decision recorded/);
+    assert.match(JSON.stringify(cards[1]), decision === "approved" ? /Approved/ : /decision recorded/);
+    if (decision === "approved") assert.doesNotMatch(JSON.stringify(cards[1]), /Your approval was saved|not confirmation/);
     assert.deepEqual(original, before);
   });
 }

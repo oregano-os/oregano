@@ -571,10 +571,11 @@ export class WorkflowEngine {
       const { artifact, workflow, step } = await this.#definition(run), state = structuredClone(run.state);
       const roster = await this.#options.currentRoster();
       if (!state.reviewDelivery) {
-        if (!step.tool || step.forEach || step.requiresDecisions.length !== 1) return run;
+        if (!step.tool || step.forEach || step.decision) return run;
         const context = workflowContext(run, roster), effect = await this.#options.control.getEffect(workflowEffectKey(artifact, context));
-        if (!effect) return run;
-        const delivery = prepareWorkflowReviewDelivery({ run, workflow, step, roster, effect, input: workflowToolInput(artifact, workflow, step, context) });
+        let input: JsonValue = null;
+        try { input = workflowToolInput(artifact, workflow, step, context); } catch { /* Missing input must not hide a stopped approved request. */ }
+        const delivery = prepareWorkflowReviewDelivery({ run, workflow, step, roster, effect, input, language: artifact.language });
         if (!delivery) return run;
         await this.#options.qualifyMessageDestinations(artifact, [delivery.pages[0]!.input]);
         state.reviewDelivery = delivery;

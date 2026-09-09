@@ -28,7 +28,7 @@ export function decisionCard(args: {
 /** Feedback never exposes controls or claims completion of downstream effects. */
 export function feedbackDecisionCard(status: DecisionFeedback, language?: string) {
   const text = decisionFeedback(status, language);
-  return Card({ title: text.title, children: [CardText(text.content)] });
+  return Card({ title: text.title, children: text.content ? [CardText(text.content)] : [] });
 }
 export function resolvedDecisionCard(decision: "approved" | "rejected", language?: string) {
   return feedbackDecisionCard(decision, language);

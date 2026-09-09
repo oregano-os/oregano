@@ -265,7 +265,14 @@ assignment or real human approval. Those remain subsequent integration gates.
 ## Stopped-effect control notice
 
 A stopped scalar effect with one recorded approved decision can deliver its
-normalized per-item outcome to that decision's actual human approver. Core
+normalized per-item outcome to that decision's actual human approver. A stopped
+verification or completion step can use the same notice when its compiled input
+references, followed only through completed steps, identify exactly one approved
+decision. This dependency determines notification audience only; it grants no
+Tool or write authority. Missing effect evidence and a successful effect followed
+by failed verification must still produce an uncertainty notice, never success.
+Ordinary failures use a short localized explanation; detailed partial batch
+outcomes keep their per-item pages. Full operator evidence stays available. Core
 retains frozen pages in the existing workflow state, selects the original
 decision conversation and invokes the pinned publication Tool under a separate
 R2 review purpose. Current recipient eligibility, exact payload, Artifact and

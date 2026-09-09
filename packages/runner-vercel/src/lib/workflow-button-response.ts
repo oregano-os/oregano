@@ -36,6 +36,10 @@ export async function recordWorkflowButtonResponse(args: {
     return { ...recorded, presentation, error, continuation: args.continueRun ? "attempted" as const : "not-requested" as const };
   } catch (continuationError) {
     // The persisted cursor remains available to the maintained steps worker.
+    if (recorded.decision === "approved") {
+      try { await args.replace(feedbackDecisionCard("continuation", language)); }
+      catch (failure) { presentation = "failed"; error = failure; }
+    }
     return { ...recorded, presentation, error, continuation: "failed" as const, continuationError };
   }
 }
