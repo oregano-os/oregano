@@ -36,11 +36,13 @@ files_expected:
   - packages/runner-vercel/src/app/api/builder/worker/route.ts
   - packages/testkit/tests/builder-functional-tests.test.ts
   - packages/testkit/tests/builder-service.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
   - packages/testkit/tests/builder-intake.test.ts
   - packages/testkit/tests/builder-single-card-presentation.test.ts
 tests:
   - packages/testkit/tests/builder-functional-tests.test.ts
   - packages/testkit/tests/builder-service.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
   - packages/runner-vercel/src/lib/builder/*.test.ts
 documentation_impact:
   required: true

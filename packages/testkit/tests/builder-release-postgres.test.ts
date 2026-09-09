@@ -96,3 +96,31 @@ test("release Knowledge selects its verified snapshot without changing the legac
   assert.equal(await missing.get({ path: "index.md" }), undefined);
   assert.equal((await missing.search({ query: "company" })).snapshotHash, null);
 });
+
+test("Postgres interactive history survives reconstruction and restart invalidates the old test digest", { skip: !enabled }, async () => {
+  const f = builderFunctionalFixture();
+  try {
+    const prepared = { ...f.session, id: `builder-test-${sha256(randomUUID()).slice(0, 40)}`,
+      execution: { kind: "agent" as const, agentId: "test-reader", prompt: "Explain your role.", interaction: "interactive" as const } };
+    const store = createPostgresBuilderTestStore(), service = new BuilderFunctionalTests(store);
+    await store.create(prepared);
+    await service.begin(prepared.id, f.candidate.artifactHash, "slack:C20002:2.0");
+    const result = { artifactHash: f.candidate.artifactHash, candidateCommit: prepared.candidateCommit, executionDigest: prepared.scopeDigest,
+      summary: "Synthetic initial reply", completedAt: new Date().toISOString(), evidence: { synthetic: true } };
+    await service.recordResult(prepared.id, result);
+    assert.equal((await createPostgresBuilderTestStore().create(prepared)).stage, "interactive");
+    const recovered = new BuilderFunctionalTests(createPostgresBuilderTestStore());
+    const race = await Promise.allSettled([service.beginTurn(prepared.id, prepared.requester, "first", "Explain more"),
+      recovered.beginTurn(prepared.id, prepared.requester, "second", "Another question")]);
+    assert.equal(race.filter((entry) => entry.status === "fulfilled").length, 1);
+    const pending = await createPostgresBuilderTestStore().get(prepared.id);
+    await recovered.recordTurn(prepared.id, pending!.conversation!.pending!.messageId, { ...result, summary: "Synthetic follow-up" });
+    const reviewed = await service.finish(prepared.id, prepared.requester), digest = builderTestResultDigest(reviewed);
+    assert.equal((await createPostgresBuilderTestStore().get(prepared.id))?.conversation?.turns.length, 2);
+    await recovered.restart(prepared.id, prepared.requester);
+    const fresh = await createPostgresBuilderTestStore().create(prepared);
+    assert.equal(fresh.stage, "interactive"); assert.deepEqual(fresh.conversation?.turns, []);
+    assert.equal(fresh.result, undefined); assert.equal(fresh.conversation?.generation, 1);
+    await assert.rejects(() => service.accept(prepared.id, { principal: prepared.requester, actionId: "stale", resultDigest: digest, acceptedAt: new Date().toISOString() }));
+  } finally { f.cleanup(); }
+});
