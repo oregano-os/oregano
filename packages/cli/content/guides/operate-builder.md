@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -115,7 +115,7 @@ self-acceptance. Eligibility applies to the actual change class. Production
 release also requires membership in `deployers`; writing the policy does not
 install a provider executor or give anyone repository credentials.
 
-The maintained Runner wires **Accept and make live** when both company policy
+The maintained Runner wires **Go live** when both company policy
 and the trusted Instance release binding are present. A human who holds both
 acceptance and deployment authority needs one action. Otherwise a checked draft
 remains available; split-actor acceptance/deployment is not yet implemented.
@@ -293,13 +293,20 @@ non-qualification provider bindings.
    questions. It retains a brief covering the exact target, before/after,
    acceptance criteria, rights and test strategy.
 3. A clear, resolved implementation request queues isolated development
-   immediately. Use the queued card to stop the job if necessary.
+   immediately. The acknowledgement confirms receipt only. The same card announces
+   that coding is running only after a job-bound worker start receipt. Use
+   **Cancel request** while waiting or running if necessary.
 4. The trusted worker independently checks the diff and Workbench result, then
    publishes the exact outer proposal. Coding-agent claims are not evidence.
-5. With the qualified release binding and passed checks, the authorized human
-   accepts the result using **Accept and make live**. The coordinator merges,
+5. If a connected test was agreed, Core runs the unmerged version on the selected
+   test resources. For an interactive Agent test, follow the result card's link,
+   mention the app to ask questions, then choose **Finish test** in the original
+   Builder conversation. **Restart test** clears the test history without
+   rebuilding; **Request changes** records feedback for a revised candidate.
+6. With the qualified release binding and passed checks, the authorized human
+   accepts the result using **Go live**. The coordinator merges,
    builds, checks, promotes and verifies the exact pairing.
-6. The terminal card says live only after the production deployment and health
+7. The terminal card says live only after the production deployment and health
    match. Otherwise it remains a draft, pending or stopped result with evidence.
 
 Legacy start-confirmation cards remain readable during migration. Once consumed,
@@ -395,7 +402,7 @@ acceptance/deployment actors still require a separately qualified path.
 If CI or Instance readiness is still pending, the chat delivers the built draft
 and a **Check readiness** action. This action only refreshes evidence; it never
 approves or releases the result. A ready result asks permission to merge the
-exact checked change and presents **Merge and make live**. No merge starts until
+exact checked change and presents **Go live**. No merge starts until
 the authorized human confirms. The existing company policy decides whether that
 human is the requester or a Steward and whether they may also deploy.
 
@@ -442,7 +449,7 @@ builder:
 These are fictional values. Use already qualified resources for the company.
 The list grants no new provider scope and contains no credentials. The first
 profile requires one existing Slack channel for result delivery and supports
-read-only Agent replies and immediate operator workflow graphs with bounded
+single or interactive Agent replies without Tools and immediate operator workflow graphs with bounded
 work-item capabilities. It excludes workflow messages, timers, intermediate
 human decisions and automatic production-to-test resource remapping.
 
@@ -450,11 +457,16 @@ human decisions and automatic production-to-test resource remapping.
    test and starts coding from the grounded brief.
 2. Trusted Workbench checks publish a candidate. Core compiles that exact
    unmerged candidate with the current Core and Instance configuration.
-3. Core runs the selected test and delivers its result and permalink. Workflow
-   state and timers use separate storage namespaces, with normal effect control.
+3. Core runs the selected test and updates one result card with the test link and
+   actions. Workflow state and timers remain separately namespaced. An Agent test
+   can specify `interaction: interactive`: the requester can ask follow-up questions
+   in its test thread, then use **Finish test** in the original Builder conversation.
+   Open sessions expire after 24 hours and admit at most twenty replies. Mention the
+   app where required by the Instance's ingress policy. **Restart test** clears
+   test history and invalidates old acceptance without rebuilding the candidate.
 4. The requester reviews it. **Request changes** disables the old live action;
    the following authenticated message supplies feedback for a fresh build/test.
-5. The authorized human uses one **Merge and make live** action for the accepted
+5. The authorized human uses one **Go live** action for the accepted
    test result. Current acceptance and deployment permissions both apply.
 6. Core merges, compiles production, stages without domain assignment, verifies
    staged health, promotes and verifies the actual live identity. The test digest

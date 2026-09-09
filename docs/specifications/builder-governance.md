@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -66,14 +66,14 @@ the notification is not reclaimed.
 A newly admitted brief produces one queued acknowledgement and a durable job.
 The Runner MUST retain deterministic conversation history identifying the
 submitted job and MUST NOT ask for another start confirmation. Its terminal
-result is delivered to the original conversation; release readiness and
+result updates the retained request card in the original conversation; release readiness and
 acceptance are separate from execution completion.
 
 Legacy confirmation cards remain consumable during migration. Their handlers
 MUST authenticate the original requester and conversation, remove consumed
 actions, and preserve job idempotency across message-edit failures. Legacy jobs
-with a retained card identity may replace that card; new jobs receive a result
-in the original thread. Delivery remains at-least-once if persistence fails
+with a retained card identity may replace that card; new jobs retain their posted card identity in the chat store and update it
+through progress and result delivery. Delivery remains at-least-once if persistence fails
 after the provider accepts a post.
 
 The Instance MAY bind one safe proposal target branch. The target MUST be
@@ -378,11 +378,13 @@ updated inspector and pass their qualification gate before activation.
 
 ## Connected functional tests before merge
 
-Core 0.8.0 supports `test.strategy: test-resources` with one explicit execution:
+The connected profile introduced in Core 0.8.0 supports
+`test.strategy: test-resources` with one explicit execution:
 
 - `kind: agent`, `agentId`, `prompt`: one actual reply from a compiled read-only
   Agent using the existing model recipe. This does not test conversational Tools
-  or Agent handoffs.
+  or Agent handoffs. Add `interaction: interactive` for the bounded multi-turn
+  profile described below; omission preserves the single-answer behavior.
 - `kind: workflow`, `workflowId`, `fields`: an actual operator-opened graph through
   CompanyOSRuntime and WorkflowEngine. The initial qualified profile excludes
   messages, timers and intermediate human decisions; its bounded work-item
@@ -415,7 +417,7 @@ complete requested result against the current source. The new session retains
 its predecessor and must run its own tests. Test resources and company policy
 cannot be expanded by candidate-authored instructions.
 
-One **Merge and make live** action accepts the exact completed test and starts
+One **Go live** action accepts the exact completed test and starts
 release when the current human has both company authorities. It atomically
 freezes the test result before release admission. Changed or concurrently
 invalidated results fail closed; another human cannot overwrite acceptance.
@@ -429,3 +431,112 @@ connected test. Adding a test resource does not create another app or copy
 secrets into Preview. New provider access still follows the existing Instance
 setup/qualification boundary. Each pilot must retain real model/provider, human
 feedback, merge and deployment receipts before claiming its complete live proof.
+
+## Accepted Builder experience and test direction (2026-09-09)
+
+The guided progress, unified result card and interactive Agent profile in this
+section are implemented in this change. Deployment requires adopting the updated
+Core; existing running Instances do not change merely because this specification
+changed. Simulation and the broader profiles below remain deferred. Requirements
+apply to every company and coding profile; destinations and policy stay configurable.
+The maintained action-card labels are English; free-form Builder conversation
+continues to use the Company Workspace language.
+
+### Build requests and progress
+
+Use **Build request** for both new development and changes to existing behavior;
+ordinary conversation can say "your request". **Build brief** names the resolved
+instructions passed to the coding agent. These are the maintained English action-card labels; the Builder explains the
+request in the Company Workspace language.
+
+Initially acknowledge that the request is being passed to the coding agent and
+promise an update when development starts. "The coding agent is working on your
+request" requires job-bound evidence that the agent has begun processing the
+brief; queuing a job or creating a sandbox is insufficient. Reuse worker progress
+evidence and durable delivery, not a chat model's assertion. Keep cancellation
+available while pending or running; distinguish requesting it from confirmed stopping.
+
+Maintain one understandable progress presentation through preparation, coding,
+checks and testing. Show the objective, current step and next action. Keep
+repository identifiers, full commits and job IDs in technical details.
+
+Return one result card in the original Builder conversation: a plain-language
+summary, the actual test and its limits, a result link, **Request changes**, and
+**Go live** when authorized and ready. Do not post separate test and proposal
+cards. Explain that Go live accepts the exact reviewed result and starts
+publication; report progress until deployed verification proves it is live.
+If readiness or authority is missing, explain the next step on the same result
+instead of presenting a working Go live action.
+
+"Make it live only after my approval" means offer publication after later
+acceptance, not prepare-only. Preparing a draft without offering publication
+remains distinct. Starting development never accepts the result.
+
+### Agent-recommended testing
+
+The Builder recommends the smallest supported test that answers the human's
+question, using Workspace defaults and verified Instance capabilities. Before
+coding, explain what will run, where the result appears, which data or actions
+are affected, what the human should inspect and what the test does not cover:
+
+> I suggest asking the new version one example question and posting its answer
+> in the configured test channel. You can review the wording there. This test
+> does not support follow-up conversation with that version.
+
+The human can adjust this recommendation in conversation. Do not require a test
+menu, two-question wizard, technical strategy name or repeated confirmation when
+the request and defaults resolve the choice. Ask only about material missing
+decisions. Explain unsupported requests before promising a test.
+
+Core reasons about independent dimensions in the background:
+
+| Dimension | Meaning |
+|---|---|
+| Interaction | Automatically execute specified examples, or let the human interact with the candidate. |
+| Data and effects | Simulated inputs/actions, designated real test resources, or an explicitly scoped trial on real operating resources. |
+| Environment | Reuse the existing app and isolated candidate session where supported; provision a separate Preview only when needed. |
+
+These are not four competing test types. Interactive tests can use simulated
+actions or real test resources. Preview describes hosting, not a test method or
+proof of isolation. A bounded live trial performs real effects on selected
+operating resources without global candidate activation. It requires actual
+scope and authority; a preference grants neither. This conceptual model does
+not migrate current machine fields or make unimplemented executors available.
+
+Distinguish execution success, business correctness and human acceptance. A
+generated answer alone does not prove all content criteria. Publishing a test
+report is a real, separately scoped delivery.
+
+### Interactive Agent testing without Tools
+
+The interactive Agent profile extends `test.execution` with optional
+`interaction: interactive`; omitted or `automatic` retains the single-answer test. Reuse the existing app,
+configured test destination and compiled candidate. Bind the test conversation
+to one exact candidate, retaining its own multi-turn history for follow-up
+questions. Keep it separate from the company's active Agent and other work.
+Sessions admit at most twenty completed replies and expire after 24 hours while
+open. Expiry is enforced on use; completed review evidence is retained. Only the
+requester may send questions, finish, restart or request revisions. A supported
+Workspace-only change needs no second app or mandatory Preview. Mention the app
+in the test thread where the Instance's ingress policy requires mentions.
+
+Changing only test questions or inputs should allow a fresh test of the same
+unchanged candidate without recoding. Retain fresh evidence and prevent old
+acceptance from authorizing a different result. Full workflow dialogs with
+Tools, messages, timers and intermediate decisions are outside this increment.
+
+### Deferred: simulation
+
+Simulation is specified for later work, not the next implementation. It executes
+the candidate with defined example data and scenarios. Selected business writes
+are recorded as intended actions instead of being sent to external systems. The
+report shows executed steps, intended actions, errors and unsupported parts.
+Reuse the applicable Core executor and existing test/replay mechanisms; do not
+create a second workflow engine or present an invented narrative as execution.
+
+Simulation may be automatic or interactive. Model replies may be real while
+selected data and external actions are simulated. Report delivery is separately
+scoped. Simulation does not prove provider access, actual external writes or
+end-to-end production behavior. General simulation, separate Preview provisioning
+and bounded live-trial execution remain later capabilities, not currently
+available Builder options.

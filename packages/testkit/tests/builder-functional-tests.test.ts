@@ -109,3 +109,69 @@ test("test connector blocks live resources, foreign runs and inactive tests befo
   await assert.rejects(() => connector.invoke("work-item.comment", input, context));
   assert.equal(calls, 1);
 });
+
+async function interactiveFixture() {
+  const f = fixture();
+  let now = new Date("2026-09-09T10:00:00Z");
+  const service = new BuilderFunctionalTests(f.store, () => now);
+  const session = prepareBuilderTestSession({ job: f.job, coreCommit: f.session.coreCommit, resources: f.session.resources,
+    execution: { kind: "agent", agentId: "example", prompt: "Explain your role.", interaction: "interactive" } });
+  await f.store.create(session);
+  await service.begin(session.id, "1".repeat(64), "slack:TEST:2.0");
+  const result = (summary: string) => ({ artifactHash: "1".repeat(64), candidateCommit: session.candidateCommit,
+    executionDigest: session.scopeDigest, summary, completedAt: now.toISOString(), evidence: { synthetic: true } });
+  await service.recordResult(session.id, result("I help with the company process."));
+  return { ...f, session, service, result, advanceDay: () => { now = new Date(now.getTime() + 25 * 60 * 60_000); } };
+}
+
+test("interactive replies stay unaccepted until the requester explicitly finishes the exact conversation", async () => {
+  const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
+  await assert.rejects(() => f.service.releaseEvidence(f.job, false), /no current/);
+  await assert.rejects(() => f.service.beginTurn(id, "another-human", "m1", "Explain more"));
+  const pending = await f.service.beginTurn(id, actor, "m1", "Explain the second point");
+  assert.equal(pending.conversation?.turns[0]?.prompt, "Explain your role.");
+  await assert.rejects(() => f.service.finish(id, actor));
+  await assert.rejects(() => f.service.restart(id, actor));
+  await assert.rejects(() => f.service.recordTurn(id, "another-message", f.result("Different reply")));
+  await f.service.recordTurn(id, "m1", f.result("Here is the second point."));
+  await assert.rejects(() => f.service.beginTurn(id, actor, "m1", "Replay"));
+  await assert.rejects(() => f.service.finish(id, "another-human"));
+  const finished = await f.service.finish(id, actor);
+  assert.equal(finished.conversation?.turns.length, 2);
+  assert.equal((await f.service.releaseEvidence(f.job, false)).digest, builderTestResultDigest(finished));
+});
+
+test("retesting the same candidate clears history and invalidates its previous acceptance token", async () => {
+  const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
+  const old = await f.service.finish(id, actor), oldDigest = builderTestResultDigest(old);
+  const restarted = await f.service.restart(id, actor);
+  assert.equal(restarted.candidateCommit, old.candidateCommit);
+  assert.equal(restarted.conversation?.turns.length, 0); assert.equal(restarted.result, undefined);
+  await assert.rejects(() => f.service.accept(id, { principal: actor, actionId: "old", resultDigest: oldDigest, acceptedAt: "2026-09-09T10:01:00Z" }));
+  await f.service.beginTurn(id, actor, "new-question", "Give an example");
+  await f.service.recordTurn(id, "new-question", f.result("A new example."));
+  const fresh = await f.service.finish(id, actor), freshDigest = builderTestResultDigest(fresh);
+  assert.notEqual(freshDigest, oldDigest);
+  await assert.rejects(() => f.service.accept(id, { principal: actor, actionId: "old", resultDigest: oldDigest, acceptedAt: "2026-09-09T10:02:00Z" }));
+  await f.service.accept(id, { principal: actor, actionId: "fresh", resultDigest: freshDigest, acceptedAt: "2026-09-09T10:02:00Z" });
+  await assert.rejects(() => f.service.restart(id, actor));
+});
+
+test("interactive expiry blocks new work and acceptance until a fresh test is completed", async () => {
+  const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
+  f.advanceDay();
+  await assert.rejects(() => f.service.beginTurn(id, actor, "late", "Continue"));
+  await assert.rejects(() => f.service.finish(id, actor));
+  assert.equal((await f.service.expire(id)).stage, "expired");
+  await assert.rejects(() => f.service.releaseEvidence(f.job, false));
+  await f.service.restart(id, actor);
+  assert.equal((await f.service.beginTurn(id, actor, "fresh", "Start again")).stage, "responding");
+});
+
+test("concurrent interactive turns have one durable winner", async () => {
+  const f = await interactiveFixture();
+  const results = await Promise.allSettled([f.service.beginTurn(f.session.id, f.session.requester, "a", "First"),
+    f.service.beginTurn(f.session.id, f.session.requester, "b", "Second")]);
+  assert.equal(results.filter((entry) => entry.status === "fulfilled").length, 1);
+  assert.equal((await f.store.get(f.session.id))?.stage, "responding");
+});

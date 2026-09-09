@@ -4,7 +4,7 @@ import type { CheckedProposal, ProposalPublicationReceipt } from "../repository/
 import { sha256 } from "../canonical.ts";
 
 export type BuilderTestExecution =
-  | { kind: "agent"; agentId: string; prompt: string }
+  | { kind: "agent"; agentId: string; prompt: string; interaction?: "automatic" | "interactive" }
   | { kind: "workflow"; workflowId: string; fields: Record<string, string> };
 
 /** Instance authority, never a grant supplied by the candidate or coding process. */
@@ -43,7 +43,13 @@ export interface BuilderTestSession {
   scopeDigest: string;
   execution: BuilderTestExecution;
   resources: BuilderTestResource[];
-  stage: "prepared" | "running" | "reviewable" | "feedback-pending" | "changes-requested" | "accepted" | "failed";
+  stage: "prepared" | "running" | "interactive" | "responding" | "expired" | "reviewable" | "feedback-pending" | "changes-requested" | "accepted" | "failed";
+  conversation?: {
+    expiresAt: string;
+    turns: { messageId: string; prompt: string; result: BuilderTestResult }[];
+    pending?: { messageId: string; prompt: string };
+    generation: number;
+  };
   artifactHash?: string;
   testConversation?: string;
   testUrl?: string;
@@ -67,8 +73,12 @@ const bounded = (value: unknown, max: number): value is string => typeof value =
 export function parseBuilderTestExecution(value: unknown): BuilderTestExecution {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("A concrete Agent or workflow test is required.");
   const item = value as Record<string, unknown>;
-  if (item.kind === "agent" && Object.keys(item).every((key) => ["kind", "agentId", "prompt"].includes(key))
-    && bounded(item.agentId, 128) && bounded(item.prompt, 4000)) return { kind: "agent", agentId: item.agentId, prompt: item.prompt };
+  if (item.kind === "agent" && Object.keys(item).every((key) => ["kind", "agentId", "prompt", "interaction"].includes(key))
+    && bounded(item.agentId, 128) && bounded(item.prompt, 4000)
+    && (item.interaction === undefined || item.interaction === "automatic" || item.interaction === "interactive")) {
+    return { kind: "agent", agentId: item.agentId, prompt: item.prompt,
+      ...(item.interaction === undefined ? {} : { interaction: item.interaction }) };
+  }
   if (item.kind === "workflow" && Object.keys(item).every((key) => ["kind", "workflowId", "fields"].includes(key))
     && bounded(item.workflowId, 128) && item.fields && typeof item.fields === "object" && !Array.isArray(item.fields)) {
     const fields = Object.entries(item.fields);
@@ -127,13 +137,23 @@ export function builderTestResultDigest(session: BuilderTestSession): string {
   if (!session.result || !session.artifactHash || !session.testConversation) throw new Error("This candidate has no completed functional test.");
   return sha256({ id: session.id, previousTestSessionId: session.previousTestSessionId, candidateCommit: session.candidateCommit, artifactHash: session.artifactHash,
     coreCommit: session.coreCommit, checksDigest: session.checksDigest, briefDigest: session.briefDigest,
-    scopeDigest: session.scopeDigest, testConversation: session.testConversation, testUrl: session.testUrl, result: session.result });
+    scopeDigest: session.scopeDigest, testConversation: session.testConversation, testUrl: session.testUrl, result: session.result,
+    ...(session.conversation ? { conversation: session.conversation } : {}) });
+}
+
+export function builderTestSessionId(job: Pick<BuilderJob, "instanceId" | "jobId">): string {
+  return `builder-test-${sha256([job.instanceId, job.jobId]).slice(0, 40)}`;
+}
+
+export function isInteractiveAgentTest(session: Pick<BuilderTestSession, "execution">): boolean {
+  return session.execution.kind === "agent" && session.execution.interaction === "interactive";
 }
 
 /** Only trusted host execution may supply results; chat exposes feedback and acceptance, not recordResult. */
 export class BuilderFunctionalTests {
   readonly store: BuilderTestStore;
-  constructor(store: BuilderTestStore) { this.store = store; }
+  readonly now: () => Date;
+  constructor(store: BuilderTestStore, now: () => Date = () => new Date()) { this.store = store; this.now = now; }
   async #update(id: string, update: (session: BuilderTestSession) => BuilderTestSession): Promise<BuilderTestSession> {
     const previous = await this.store.get(id);
     if (!previous) throw new Error("Unknown Builder test session.");
@@ -146,7 +166,8 @@ export class BuilderFunctionalTests {
     return this.#update(id, (session) => {
       if (session.stage !== "prepared" || !digestPattern.test(artifactHash) || !bounded(testConversation, 512)) throw new Error("Test preparation is incomplete or already consumed.");
       if (testUrl && (testUrl.length > 2048 || new URL(testUrl).protocol !== "https:")) throw new Error("Test result URL is invalid.");
-      return { ...session, stage: "running", artifactHash, testConversation, ...(testUrl ? { testUrl } : {}) };
+      return { ...session, stage: "running", artifactHash, testConversation, ...(testUrl ? { testUrl } : {}),
+        ...(isInteractiveAgentTest(session) ? { conversation: { expiresAt: new Date(this.now().getTime() + 24 * 60 * 60_000).toISOString(), turns: [], generation: 0 } } : {}) };
     });
   }
   async recordResult(id: string, result: BuilderTestResult) {
@@ -154,7 +175,58 @@ export class BuilderFunctionalTests {
       if (session.stage !== "running" || result.artifactHash !== session.artifactHash || result.candidateCommit !== session.candidateCommit
         || result.executionDigest !== session.scopeDigest || !bounded(result.summary, 8000) || !Number.isFinite(Date.parse(result.completedAt))
         || JSON.stringify(result.evidence).length > 100_000) throw new Error("Test result does not prove this exact execution.");
+      if (session.conversation && session.execution.kind === "agent") {
+        return { ...session, stage: "interactive", result: structuredClone(result), conversation: { ...session.conversation,
+          turns: [{ messageId: "initial", prompt: session.execution.prompt, result: structuredClone(result) }] } };
+      }
       return { ...session, stage: "reviewable", result: structuredClone(result) };
+    });
+  }
+  async beginTurn(id: string, principal: string, messageId: string, prompt: string) {
+    return this.#update(id, (session) => {
+      if (session.stage !== "interactive" || !session.conversation || principal !== session.requester
+        || !bounded(messageId, 512) || !bounded(prompt, 4000)
+        || session.conversation.turns.length >= 20
+        || session.conversation.turns.some((turn) => turn.messageId === messageId)
+        || Date.parse(session.conversation.expiresAt) <= this.now().getTime()) throw new Error("This test cannot accept another message. Finish it, or restart the test.");
+      return { ...session, stage: "responding", conversation: { ...session.conversation, pending: { messageId, prompt } } };
+    });
+  }
+  async recordTurn(id: string, messageId: string, result: BuilderTestResult) {
+    return this.#update(id, (session) => {
+      const conversation = session.conversation, pending = conversation?.pending;
+      if (session.stage !== "responding" || !conversation || pending?.messageId !== messageId
+        || Date.parse(conversation.expiresAt) <= this.now().getTime()
+        || result.artifactHash !== session.artifactHash || result.candidateCommit !== session.candidateCommit
+        || result.executionDigest !== session.scopeDigest || !bounded(result.summary, 8000)
+        || !Number.isFinite(Date.parse(result.completedAt)) || JSON.stringify(result.evidence).length > 100_000) throw new Error("This reply does not belong to the active candidate test turn.");
+      return { ...session, stage: "interactive", result: structuredClone(result), conversation: {
+        ...conversation, pending: undefined, turns: [...conversation.turns, { ...pending, result: structuredClone(result) }],
+      } };
+    });
+  }
+  async finish(id: string, principal: string) {
+    return this.#update(id, (session) => {
+      if (session.stage !== "interactive" || !session.conversation || principal !== session.requester || !session.result
+        || Date.parse(session.conversation.expiresAt) <= this.now().getTime()) throw new Error("Only the requester can finish an active test with a completed reply.");
+      return { ...session, stage: "reviewable" };
+    });
+  }
+  async restart(id: string, principal: string) {
+    return this.#update(id, (session) => {
+      if (!["interactive", "reviewable", "expired"].includes(session.stage) || !session.conversation || principal !== session.requester) {
+        throw new Error("Only the requester can restart an unaccepted interactive test.");
+      }
+      return { ...session, stage: "interactive", result: undefined, conversation: {
+        expiresAt: new Date(this.now().getTime() + 24 * 60 * 60_000).toISOString(), turns: [], generation: session.conversation.generation + 1,
+      } };
+    });
+  }
+  async expire(id: string) {
+    return this.#update(id, (session) => {
+      if (!["interactive", "responding"].includes(session.stage) || !session.conversation
+        || Date.parse(session.conversation.expiresAt) > this.now().getTime()) throw new Error("The test is not expired.");
+      return { ...session, stage: "expired" };
     });
   }
   async requestChanges(id: string, feedback: NonNullable<BuilderTestSession["feedback"]>) {
@@ -166,7 +238,7 @@ export class BuilderFunctionalTests {
   }
   async requestFeedback(id: string, principal: string) {
     return this.#update(id, (session) => {
-      if (session.stage !== "reviewable" || principal !== session.requester) throw new Error("Only the authenticated requester may request changes to this result.");
+      if (!["reviewable", "interactive"].includes(session.stage) || principal !== session.requester) throw new Error("Only the authenticated requester may request changes to this result.");
       return { ...session, stage: "feedback-pending" };
     });
   }
@@ -180,7 +252,7 @@ export class BuilderFunctionalTests {
   }
   async fail(id: string, error: unknown) {
     return this.#update(id, (session) => {
-      if (!["prepared", "running"].includes(session.stage)) throw new Error("A completed test cannot be replaced by a failure.");
+      if (!["prepared", "running", "responding"].includes(session.stage)) throw new Error("A completed test cannot be replaced by a failure.");
       return { ...session, stage: "failed", failureDigest: sha256(error instanceof Error ? error.message : String(error)) };
     });
   }

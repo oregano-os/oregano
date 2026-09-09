@@ -61,7 +61,10 @@ export async function executeBuilderFunctionalTest(args: {
   if (!member || !isHumanRosterMember(member) || !/^(active|aktiv)$/i.test(member.status)) throw new Error("The test requester is no longer an active company human.");
   const assertActive = async () => {
     const current = await args.store.get(session.id);
-    if (current?.stage !== "running" || current.artifactHash !== artifact.artifactHash || current.scopeDigest !== session.scopeDigest) throw new Error("The candidate test is no longer active.");
+    if (!current || !["running", "responding"].includes(current.stage) || current.artifactHash !== artifact.artifactHash || current.scopeDigest !== session.scopeDigest
+      || current.conversation?.pending?.messageId !== session.conversation?.pending?.messageId
+      || current.conversation?.generation !== session.conversation?.generation
+      || (current.conversation && Date.parse(current.conversation.expiresAt) <= Date.now())) throw new Error("The candidate test is no longer active.");
   };
   await assertActive();
   const base = { artifactHash: artifact.artifactHash, candidateCommit: session.candidateCommit, executionDigest: session.scopeDigest };
@@ -69,15 +72,16 @@ export async function executeBuilderFunctionalTest(args: {
     const agentId = session.execution.agentId, agent = artifact.agents.find((entry) => entry.id === agentId)!;
     const resolved = resolveModelExecution({ profile: "utility", task: "chat.response", requiredCapability: "language" });
     const response = await generateText({ model: resolved.model,
-      system: systemInstructions(agent, resolveKnowledgeTurnRoute({ text: session.execution.prompt, tools: [] }), {}),
-      prompt: session.execution.prompt, maxOutputTokens: 1500,
+      system: systemInstructions(agent, resolveKnowledgeTurnRoute({ text: session.conversation?.pending?.prompt ?? session.execution.prompt, tools: [] }), {}),
+      messages: builderAgentTestMessages(session), maxOutputTokens: 1500,
       abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs ?? 60000),
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
     });
     if (!response.text.trim()) throw new Error("The candidate Agent returned no test response.");
     await assertActive();
     return { ...base, completedAt: new Date().toISOString(), summary: response.text.slice(0, 8000),
-      evidence: JSON.parse(JSON.stringify({ kind: "agent", agentId, promptDigest: sha256(session.execution.prompt),
+      evidence: JSON.parse(JSON.stringify({ kind: "agent", agentId, promptDigest: sha256(session.conversation?.pending?.prompt ?? session.execution.prompt),
+        conversationDigest: sha256(builderAgentTestMessages(session)),
         responseDigest: sha256(response.text), model: modelExecutionEvidence(resolved.selection, response) })) };
   }
   const executionNamespace = session.id;
@@ -103,4 +107,15 @@ export async function executeBuilderFunctionalTest(args: {
   const evidence = JSON.parse(JSON.stringify({ kind: "workflow", runId, executionNamespace, artifactHash: artifact.artifactHash,
     manifestHash: completed.manifestHash, state: completed.state, events }));
   return { ...base, completedAt: completed.updatedAt, summary: `The candidate workflow ${completed.workflowId} completed. Its exact steps and provider receipts are retained under ${runId}.`, evidence };
+}
+
+/** History belongs to one retained candidate session; no live conversation is loaded. */
+export function builderAgentTestMessages(session: BuilderTestSession): { role: "user" | "assistant"; content: string }[] {
+  if (session.execution.kind !== "agent") throw new Error("Agent test messages require an Agent execution.");
+  return [
+    ...(session.conversation?.turns ?? []).flatMap((turn) => [
+      { role: "user" as const, content: turn.prompt }, { role: "assistant" as const, content: turn.result.summary },
+    ]),
+    { role: "user", content: session.conversation?.pending?.prompt ?? session.execution.prompt },
+  ];
 }

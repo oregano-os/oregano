@@ -1,6 +1,6 @@
 import { protectProductionWorker } from "../../../../lib/production-worker-gate.ts";
 import { getBuilderService } from "../../../../lib/builder/provider-factory.ts";
-import { getBuilderTerminalNotifier, advanceBuilderRelease } from "../../../../lib/bot.ts";
+import { getBuilderTerminalNotifier, advanceBuilderRelease, reportBuilderProgress } from "../../../../lib/bot.ts";
 import { handleBuilderWorkerRequest } from "../../../../lib/builder/worker-endpoint.ts";
 import { loadArtifact } from "../../../../lib/artifact.ts";
 import { deliverNextBuilderNotification } from "../../../../../../runtime/builder/notifications.ts";
@@ -18,7 +18,7 @@ async function handleScheduledRequest(request: Request): Promise<Response> {
       process.env.VERCEL_REGION ?? "unknown",
       crypto.randomUUID(),
     ].join(":"),
-    advanceOne: (workerId) => getBuilderService().advanceOne(workerId),
+    advanceOne: (workerId) => getBuilderService().advanceOne(workerId, reportBuilderProgress),
     advanceRelease: advanceBuilderRelease,
     deliverNotification: (workerId) => deliverNextBuilderNotification({
       jobs: createPostgresBuilderJobStore(),

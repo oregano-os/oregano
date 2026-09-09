@@ -91,13 +91,17 @@ export class BuilderService {
     return await this.#jobs.requestCancellation(jobId, this.#now());
   }
 
-  async advanceOne(workerId: string): Promise<BuilderAdvanceResult> {
+  async advanceOne(workerId: string, onProgress?: (job: BuilderJob, phase: "preparing" | "coding" | "checking") => Promise<void>): Promise<BuilderAdvanceResult> {
     const lease = await this.#jobs.claimNext({ workerId, leaseMs: this.#leaseMs, now: this.#now() });
     if (!lease) return { state: "idle" };
     let job = lease.job;
     let handle = executionHandle(job, this.#execution);
     let temporary: string | undefined;
     let observedExecutionStatus: Awaited<ReturnType<BuilderExecutionAdapter["status"]>> | undefined;
+    const progress = async (phase: "preparing" | "coding" | "checking") => {
+      // Presentation retries at the next observed state; it must not fail coding.
+      try { await onProgress?.(job, phase); } catch { /* terminal delivery remains independently durable */ }
+    };
     try {
       if (job.cancelRequestedAt) {
         if (handle) await this.#execution.cancel(handle).catch(() => undefined);
@@ -110,6 +114,7 @@ export class BuilderService {
 
       if (job.state === "executing" && handle) {
         observedExecutionStatus = await this.#execution.status(handle);
+        if (observedExecutionStatus.codingStarted) await progress("coding");
         if (observedExecutionStatus.state === "starting" || observedExecutionStatus.state === "running") {
           await this.#jobs.releaseLease({
             jobId: job.jobId,
@@ -140,6 +145,7 @@ export class BuilderService {
       }
 
       if (job.state === "preparing_source") {
+        await progress("preparing");
         handle = await this.#execution.start({
           schemaVersion: 1,
           jobId: job.jobId,
@@ -215,6 +221,7 @@ export class BuilderService {
       if (sha256Text(execution.artifacts.diff) !== execution.artifacts.diffDigest) {
         throw new Error("Builder execution diff does not match its transfer digest.");
       }
+      await progress("checking");
       const sourceBundlePath = sourceReceipt.transfer?.format === "git-bundle"
         ? sourceReceipt.transfer.path
         : undefined;

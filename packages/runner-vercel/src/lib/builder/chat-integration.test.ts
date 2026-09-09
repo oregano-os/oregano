@@ -12,7 +12,7 @@ const input: BuilderBrief = {
   currentBehavior: "The weekly report has ten paragraphs", proposedBehavior: "The same report has three paragraphs",
   contextRefs: ["workflows/report.md"], acceptanceCriteria: ["Three paragraphs preserving decisions"], constraints: [],
   decisions: { workflow: { disposition: "change", detail: "Summarize the same input" }, approvals: { disposition: "preserve", detail: "Owner approves" }, access: { disposition: "preserve", detail: "Existing team access" } },
-  test: { strategy: "simulate", scenarios: ["Synthetic report"], targetBindings: [] }, deploymentIntent: "after-acceptance", openQuestions: [],
+  test: { strategy: "auto", scenarios: ["Synthetic report"], targetBindings: [] }, deploymentIntent: "after-acceptance", openQuestions: [],
 };
 const agent = { id: "builder", materials: { "workflows/report.md": "The weekly report has ten paragraphs; owner approves." } } as unknown as CompiledAgent;
 const artifact = {
@@ -37,8 +37,8 @@ test("actual Builder chat reads the process, blocks unresolved work and starts a
   await call(tools, "builder_read_context", { path: "workflows/report.md" });
   await assert.rejects(call(tools, "builder_propose_change", { ...input, openQuestions: ["Who approves the new exception?"] }), /Clarification required/);
   assert.equal(f.cards.length, 0);
-  const result = await call(tools, "builder_propose_change", input) as { jobId: string; codingJobStarted: boolean };
-  assert.equal(result.codingJobStarted, true);
+  const result = await call(tools, "builder_propose_change", input) as { jobId: string; codingJobSubmitted: boolean };
+  assert.equal(result.codingJobSubmitted, true);
   const job = await f.jobs.get(result.jobId);
   assert.equal(job?.state, "queued"); assert.deepEqual(job?.brief?.brief, input);
   assert.doesNotMatch(JSON.stringify(f.cards), /companyos.builder.confirm/);
@@ -59,5 +59,12 @@ test("Builder can clarify before execution bindings are ready and does not prete
   await call(f.tools(), "builder_read_context", { path: "workflows/report.md" });
   assert.equal((await call(f.tools(), "builder_list_context", {}) as { codingConfigured: boolean }).codingConfigured, false);
   await assert.rejects(call(f.tools(), "builder_propose_change", input), /Instance repository and execution bindings/);
+  assert.equal(f.cards.length, 0);
+});
+
+test("deferred test strategies cannot start a job merely because the brief schema recognizes them", async () => {
+  const f = fixture(), tools = f.tools();
+  await call(tools, "builder_read_context", { path: "workflows/report.md" });
+  for (const strategy of ["simulate", "live-trial"]) await assert.rejects(call(tools, "builder_propose_change", { ...input, test: { ...input.test, strategy } }), /not available yet/);
   assert.equal(f.cards.length, 0);
 });
