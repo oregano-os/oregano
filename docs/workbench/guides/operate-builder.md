@@ -298,10 +298,15 @@ non-qualification provider bindings.
    **Cancel request** while waiting or running if necessary.
 4. The trusted worker independently checks the diff and Workbench result, then
    publishes the exact outer proposal. Coding-agent claims are not evidence.
-5. With the qualified release binding and passed checks, the authorized human
+5. If a connected test was agreed, Core runs the unmerged version on the selected
+   test resources. For an interactive Agent test, follow the result card's link,
+   mention the app to ask questions, then choose **Finish test** in the original
+   Builder conversation. **Restart test** clears the test history without
+   rebuilding; **Request changes** records feedback for a revised candidate.
+6. With the qualified release binding and passed checks, the authorized human
    accepts the result using **Go live**. The coordinator merges,
    builds, checks, promotes and verifies the exact pairing.
-6. The terminal card says live only after the production deployment and health
+7. The terminal card says live only after the production deployment and health
    match. Otherwise it remains a draft, pending or stopped result with evidence.
 
 Legacy start-confirmation cards remain readable during migration. Once consumed,

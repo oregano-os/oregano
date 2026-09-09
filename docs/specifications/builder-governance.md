@@ -507,7 +507,7 @@ Distinguish execution success, business correctness and human acceptance. A
 generated answer alone does not prove all content criteria. Publishing a test
 report is a real, separately scoped delivery.
 
-### Next increment: interactive Agent testing without Tools
+### Interactive Agent testing without Tools
 
 The interactive Agent profile extends `test.execution` with optional
 `interaction: interactive`; omitted or `automatic` retains the single-answer test. Reuse the existing app,
