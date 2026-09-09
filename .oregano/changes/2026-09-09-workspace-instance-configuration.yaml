@@ -8,7 +8,7 @@ objective: Establish .companyos/instance.yaml as the canonical non-secret Instan
   configuration at deployment time. Require the canonical file in CLI and hosted builds,
   remove external YAML transport and retired setup state formats, and retain exact
   running-Artifact authority for hosted compilation. Release the incompatible
-  contract as Core 0.9.0 with Workbench 0.1.0-experimental.19; Company Workspace
+  contract as Core 0.10.0 with Workbench 0.1.0-experimental.20; Company Workspace
   adoption and production receipts remain in their private repositories.
 non_goals:
   - Store credentials, provider receipts, operational state or deployment code in Git.

@@ -15,7 +15,7 @@ audience:
 
 # Current System Status
 
-Core 0.9.0 and Workbench 0.1.0-experimental.19 require CLI and hosted Builder builds to read the tracked `.companyos/instance.yaml`
+Core 0.10.0 and Workbench 0.1.0-experimental.20 require CLI and hosted Builder builds to read the tracked `.companyos/instance.yaml`
 from the exact checked Workspace commit. External YAML overrides and the hosted
 YAML environment copy are removed; hosted compilation retains the running
 Artifact configuration-digest authority check. Setup writes the declaration
@@ -1076,7 +1076,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.19`; no
+  builds. Its repository release candidate is `0.1.0-experimental.20`; no
   public package release is claimed.
 - Newly generated Change Plans use version 3. They carry no status and no
   approvals: the pull request that carries a plan is its approval and its
