@@ -73,6 +73,18 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     if (prior?.status === "succeeded" && canonicalJson(prior) !== canonicalJson(step)) throw new Error("Completed workflow output is immutable");
     if (prior?.inputDigest && prior.inputDigest !== step.inputDigest) throw new Error("Workflow step input identity is immutable");
     for (const [key, item] of Object.entries(prior?.items ?? {})) if (canonicalJson(step.items?.[key]) !== canonicalJson(item)) throw new Error("Completed workflow item output is immutable");
+    for (const [recipient, recovery] of Object.entries(prior?.publicationRecoveries ?? {})) {
+      if (canonicalJson(step.publicationRecoveries?.[recipient]) !== canonicalJson(recovery)) throw new Error("Publication recovery history is immutable");
+    }
+    for (const [recipient, recovery] of Object.entries(step.publicationRecoveries ?? {})) {
+      const decision = state.decisions[id], priorDecision = previous?.decisions[id];
+      identifier(recipient); identifier(recovery.principal); digest(recovery.inputDigest); workflowInstant(recovery.authorizedAt);
+      if (!/^workflow:[a-f0-9]{64}$/.test(recovery.priorEffectKey) || recovery.proof === undefined || !decision?.recipients.includes(recipient)) throw new Error("Invalid publication recovery evidence");
+      if (!prior?.publicationRecoveries?.[recipient] && (previous?.blocked?.stepId !== id || previous.blocked.code !== "step-failed"
+        || previous.status !== "waiting" || previous.cursor !== id || state.cursor !== id || state.status !== "running" || state.blocked
+        || priorDecision?.status !== "pending" || priorDecision.expiresAt <= recovery.authorizedAt || Object.hasOwn(priorDecision.deliveries, recipient)
+        || canonicalJson(priorDecision) !== canonicalJson(decision))) throw new Error("Publication recovery requires its unchanged blocked pending decision");
+    }
   }
   for (const [id, decision] of Object.entries(state.decisions)) {
     const declaration = workflow.steps.find((step) => step.id === id)?.decision;

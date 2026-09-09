@@ -883,6 +883,19 @@
     }
   },
   {
+    "document_id": "operations.slack-communication",
+    "title": "Slack Communication Delivery",
+    "path": "docs/operations/slack-communication.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-09",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "operations.vercel-connect-workflow-interactions",
     "title": "Vercel Connect Workflow Interaction Qualification",
     "path": "docs/operations/vercel-connect-workflow-interactions.md",
@@ -916,7 +929,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-08",
+    "updated": "2026-09-09",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}

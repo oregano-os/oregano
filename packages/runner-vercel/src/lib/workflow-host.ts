@@ -13,6 +13,7 @@ import { createPostgresWorkflowExecutionStore } from "../../../state-postgres/wo
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import { qualifyCompanyDatabase } from "../../../state-postgres/database-bootstrap.ts";
 import type { CompanyOSArtifact } from "../../../companyos-builder/types.ts";
+import { verifySlackPublicationNotSent } from "../../../connectors/slack/publication-recovery.ts";
 
 export async function createWorkflowHost() {
   if (!workflowHostingEnabled()) throw new Error("Workflow hosting is disabled");
@@ -32,6 +33,7 @@ export async function createWorkflowHost() {
   // Validate required bindings and non-secret snapshots before persisting any opening.
   await connectors(artifact);
   const engine = new WorkflowEngine({ artifact, store, control, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
+    verifyPublicationNotSent: verifySlackPublicationNotSent,
     operatorPrincipals: configuration.operators.map((operator) => operator.principal), currentRoster: roster, connectors,
     qualifyMessageDestinations: (pinned, inputs) => qualifyWorkflowMessageInputs({ scope: slack, artifact: pinned, inputs, roster }),
     conversationForReceipt: ({ artifact: pinned, destinationBinding, output }) => slack(async (transport) => {

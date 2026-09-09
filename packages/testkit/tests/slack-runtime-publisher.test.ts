@@ -2,11 +2,70 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CapabilityEffectOutcomeUnknownError } from "../../capabilities/contracts.ts";
 import { createSlackMessagePublisher } from "../../runner-vercel/src/lib/runtime-connectors.ts";
+import { SlackCommunicationConnector } from "../../connectors/slack/communication.ts";
 
 const sent = (id: string, threadId: string) => ({
   id,
   threadId,
   metadata: { dateSent: new Date("2030-01-01T10:00:00.000Z") },
+});
+
+test("a direct decision and completion reply use the recipient's original thread through the actual Slack adapter", async () => {
+  const { createSlackAdapter } = await import(new URL("../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js", import.meta.url).href);
+  const adapter = createSlackAdapter({ botToken: "xoxb-synthetic", signingSecret: "synthetic" });
+  const requests: any[] = [], order: string[] = [];
+  const parent = "slack:D12345:1893492000.000001";
+  adapter._client.chat.postMessage = async (request: unknown) => { requests.push(request); return { ok: true, ts: `1893492000.00000${requests.length + 1}` }; };
+  const publisher = createSlackMessagePublisher(() => ({
+    channel() { throw new Error("must not publish a channel root"); },
+    async openDM(user: string) {
+      order.push(`open:${user}`);
+      return { id: "slack:D12345:", async post() { throw new Error("must not publish a DM root"); } } as any;
+    },
+    thread(id: string) {
+      return { async subscribe() { throw new Error("must preserve the existing subscription"); }, async post(payload: any) {
+        order.push(`post:${id}`);
+        return { ...await adapter.postMessage(id, payload), metadata: { dateSent: new Date("2030-01-01T10:00:00Z") } };
+      } } as any;
+    },
+  }));
+  const connector = new SlackCommunicationConnector({ bindings: [{ id: "owner-direct", accountId: "T12345", kind: "direct-message", userId: "U12345" }], publisher,
+    async beforeDirectPublish({ threadReference }) { order.push(`qualify:${threadReference}`); } });
+  const context = { instanceId: "fixture", runId: "run", stepId: "review", agentId: "helper", toolId: "oregano:communications/publish", idempotencyKey: "review-effect" };
+  const result = await connector.invoke("communication.message.publish", { destination_binding: "owner-direct", thread_reference: parent, content: "Review the proposed text.",
+    decision: { request_id: "a".repeat(64), approve_label: "Save", reject_label: "Keep unchanged" } }, context);
+  await connector.invoke("communication.message.publish", { destination_binding: "owner-direct", thread_reference: parent, content: "Saved and verified." }, { ...context, idempotencyKey: "receipt-effect" });
+  assert.deepEqual(order, ["open:U12345", "qualify:slack:D12345:", `post:${parent}`, "open:U12345", "qualify:slack:D12345:", `post:${parent}`]);
+  assert.equal(requests.length, 2);
+  for (const request of requests) { assert.equal(request.channel, "D12345"); assert.equal(request.thread_ts, "1893492000.000001"); }
+  const actions = requests[0].blocks.find((b: any) => b.type === "actions").elements;
+  assert.deepEqual(actions.map((a: any) => [a.action_id, a.value]), [["companyos.workflow.approve", "a".repeat(64)], ["companyos.workflow.reject", "a".repeat(64)]]);
+  assert.equal((result.output as any).thread_reference, parent);
+  assert.equal((result.output as any).message_id, "1893492000.000002");
+  assert.equal(requests[1].markdown_text, "Saved and verified.");
+});
+
+test("direct thread publication rejects other recipients and malformed parents before sending", async () => {
+  const publisher = createSlackMessagePublisher(() => ({
+    async openDM() { return { id: "slack:D12345:", async post() { throw new Error("unexpected send"); } } as any; },
+    channel() { throw new Error("unexpected channel"); }, thread() { throw new Error("unexpected thread"); },
+  }));
+  const target = await publisher.openDirect("U12345");
+  for (const parent of ["slack:D99999:1893492000.000001", "slack:C12345:1893492000.000001", "slack:D12345:", "slack:D12345:not-a-timestamp", "other:D12345:1893492000.000001", "slack:D12345:1893492000.000001:extra"]) {
+    await assert.rejects(() => target.publish("Private text", undefined, parent), /does not belong/);
+  }
+});
+
+test("a wrong direct reply receipt is an uncertain effect and never a new root", async () => {
+  const publisher = createSlackMessagePublisher(() => ({
+    async openDM() { return { id: "slack:D12345:" } as any; }, channel() { throw new Error("unexpected channel"); },
+    thread() { return { async post() { return sent("1893492000.000002", "slack:D99999:1893492000.000001"); }, async subscribe() { throw new Error("unexpected subscription"); } } as any; },
+  }));
+  const target = await publisher.openDirect("U12345");
+  await assert.rejects(() => target.publish("Private text", undefined, "slack:D12345:1893492000.000001"), (error: unknown) => {
+    assert.ok(error instanceof CapabilityEffectOutcomeUnknownError);
+    assert.equal((error.evidence as any).message_id, "1893492000.000002"); return true;
+  });
 });
 
 test("Slack runtime publisher subscribes a new bot-authored root before returning its receipt", async () => {

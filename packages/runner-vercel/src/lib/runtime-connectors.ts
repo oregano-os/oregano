@@ -15,6 +15,7 @@ import { mondayCredentialIdentity, qualifyMondayWorkItemCredential } from "../..
 import type { MondayResourceBinding } from "../../../connectors/monday/contracts.ts";
 import {
   SlackCommunicationConnector,
+  verifySlackDirectThread,
   type BeforeSlackDirectPublish,
   type SlackDestinationBinding,
   type SlackMessagePublisher,
@@ -201,18 +202,21 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
       const thread = await chat().openDM(userId);
       return {
         threadReference: thread.id,
-        async publish(content: string, decision?: DecisionPresentation) {
-          const message = await thread.post(slackPublication(content, decision));
+        async publish(content: string, decision?: DecisionPresentation, threadReference?: string) {
+          if (threadReference !== undefined) verifySlackDirectThread(thread.id, threadReference);
+          const destination = threadReference === undefined ? thread : chat().thread(threadReference);
+          const message = await destination.post(slackPublication(content, decision));
           // Chat SDK openDM targets `slack:<channel>:`. Its post receipt keeps
           // that conversation-wide ID; use Slack's returned message timestamp
           // to bind each new root and its replies independently.
           const match = /^slack:(D[A-Z0-9]+):$/.exec(thread.id);
-          if (!match || message.threadId !== thread.id || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
-            "Slack published a direct message without a verifiable root identity.",
+          if (!match || message.threadId !== (threadReference ?? thread.id) || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
+            "Slack published a direct message without a verifiable conversation identity.",
             { provider: "slack", message_id: message.id, thread_reference: message.threadId },
           );
-          const root = `slack:${match[1]}:${message.id}`;
+          const root = threadReference ?? `slack:${match[1]}:${message.id}`;
           const receipt = { messageId: message.id, threadReference: root, publishedAt: message.metadata.dateSent.toISOString() };
+          if (threadReference !== undefined) return receipt;
           try { await chat().thread(root).subscribe(); }
           catch (error) {
             throw new CapabilityEffectOutcomeUnknownError("Slack direct message was published but its reply subscription is unverified.",

@@ -11,6 +11,21 @@ const context = {
   idempotencyKey: "effect-1",
 };
 
+test("DM parent validation precedes handoff hooks and publisher effects", async () => {
+  let published = 0, qualified = 0;
+  const connector = new SlackCommunicationConnector({
+    bindings: [{ id: "owner", accountId: "T12345", kind: "direct-message", userId: "U12345" }],
+    async beforeDirectPublish() { qualified++; },
+    publisher: { async publishChannel() { throw new Error("unexpected channel"); }, async openDirect() {
+      return { threadReference: "slack:D12345:", async publish() { published++; return { messageId: "1893492000.000002", threadReference: "slack:D12345:1893492000.000001", publishedAt: "2030-01-01T10:00:00Z" }; } };
+    } },
+  });
+  for (const parent of ["slack:D99999:1893492000.000001", "slack:D12345:", "slack:D12345:invalid", "other:D12345:1893492000.000001"]) {
+    await assert.rejects(() => connector.invoke("communication.message.publish", { destination_binding: "owner", content: "Private text", thread_reference: parent }, context), /does not belong/);
+  }
+  assert.equal(qualified, 0); assert.equal(published, 0);
+});
+
 test("Slack communication publishes only through an exact destination binding and returns a provider receipt", async () => {
   const calls: unknown[] = [];
   const connector = new SlackCommunicationConnector({

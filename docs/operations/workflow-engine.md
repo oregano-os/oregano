@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,9 @@ availability: experimental
 
 Use this guide to check whether a hosted workflow is ready for human testing.
 It defines the evidence required, independently of the hosting or chat provider.
+
+For a concrete Connector example, see [Slack communication delivery](slack-communication.md).
+Its provider-specific identity checks implement the general conversation contract.
 
 ## Migrating from the retired domain executor
 
@@ -206,3 +209,18 @@ Callers and child steps cannot supply or override this trusted field. Operator
 retries retain the first opening time. Existing workflows that do not declare
 it keep their prior fields and identity. Business period fields still require
 Workspace computation or explicitly reviewed inputs.
+
+## Recover a decision that was never published
+
+An authorized operator may request `recover-unpublished-decision` with the run
+ID. Recovery requires a trusted Connector verifier to prove that the failed
+publication sent nothing. The decision must still be pending and unexpired,
+with its exact text, recipient and thread unchanged. The host qualifies the
+destination again before committing the recovery authorization.
+
+Core records one recovery attempt per recipient under the run lease and keeps
+the original failed effect. The normal worker then delivers the notice and waits
+for the human decision. Recovery does not approve anything or retry business
+writes. A timeout, unknown outcome or second failed attempt stays blocked.
+Hosts without a verifier cannot use this operation. Provider-specific proof
+rules are documented with their Connector.

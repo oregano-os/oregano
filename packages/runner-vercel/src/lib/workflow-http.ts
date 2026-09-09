@@ -10,7 +10,7 @@ export type WorkflowOperatorRequest =
   | ConversationCheck
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
-  | { action: "read" | "resume" | "cancel"; runId: string }
+  | { action: "read" | "resume" | "cancel" | "recover-unpublished-decision"; runId: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
@@ -39,7 +39,7 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     return { action: "verify", runId: text("runId", /^workflow:[a-f0-9]{64}$/),
       ...(input.requirements === undefined ? {} : { requirements: parseWorkflowVerificationRequirements(input.requirements) }) };
   }
-  if (input.action === "read" || input.action === "resume" || input.action === "cancel") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
+  if (input.action === "read" || input.action === "resume" || input.action === "cancel" || input.action === "recover-unpublished-decision") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
   if (input.action === "review") {
     exact(["runId", "offset"]);
     if (input.offset !== undefined && (!Number.isSafeInteger(input.offset) || Number(input.offset) < 0 || Number(input.offset) >= 10000)) throw new Error("Invalid workflow review offset");
@@ -126,6 +126,7 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
     }
     if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
+    if (action.action === "recover-unpublished-decision") return Response.json({ ok: true, run: summary(await host.engine.recoverUnpublishedDecision(action.runId, principal)) });
     if (action.action === "recover-reply") {
       const { recoverHostedWorkflowReply } = await import("./bot.ts");
       const result = await recoverHostedWorkflowReply(action);

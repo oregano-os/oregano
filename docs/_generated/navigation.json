@@ -440,6 +440,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.slack-communication",
+    "title": "Slack Communication Delivery",
+    "path": "docs/operations/slack-communication.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": null
+  },
+  {
     "document_id": "operations.vercel-connect-workflow-interactions",
     "title": "Vercel Connect Workflow Interaction Qualification",
     "path": "docs/operations/vercel-connect-workflow-interactions.md",

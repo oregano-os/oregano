@@ -11,6 +11,8 @@ export interface WorkflowStepState {
   /** Only actual completed item outputs, indexed by the canonical typed key digest. */
   items?: Record<string, { key: string | number; output: JsonValue }>;
   evidence?: JsonValue;
+  /** One operator-authorized no-send recovery per decision recipient. Prior effects stay immutable. */
+  publicationRecoveries?: Record<string, { priorEffectKey: string; inputDigest: string; proof: JsonValue; principal: string; authorizedAt: string }>;
 }
 export interface WorkflowStoredDecision {
   stepId: string;

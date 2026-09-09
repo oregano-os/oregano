@@ -21,6 +21,7 @@ import { workflowEffectReview } from "./effect-review.ts";
 import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 import { verifyCompletedWorkflow } from "./verification.ts";
 import type { WorkflowVerificationRequirement } from "./verification-requirements.ts";
+import { prepareDecisionRecovery, type VerifyPublicationNotSent } from "./decision-recovery.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -38,6 +39,7 @@ export interface WorkflowEngineOptions {
   conversationForReceipt: (args: { artifact: CompanyOSArtifact; destinationBinding: string; output: JsonValue }) => Promise<WorkflowConversation>;
   clock?: () => string;
   assignmentLifetimeMs?: number;
+  verifyPublicationNotSent?: VerifyPublicationNotSent;
 }
 
 const terminal = (run: WorkflowRun): boolean => ["done", "cancelled", "failed"].includes(run.state.status);
@@ -610,6 +612,24 @@ export class WorkflowEngine {
     } finally {
       await store.release({ instanceId: run.instanceId, runId: run.runId, leaseToken: run.lease!.token });
     }
+  }
+
+  /** Reconcile only a pending notice proven never sent; never approve or retry business effects. */
+  async recoverUnpublishedDecision(runId: string, principal: string): Promise<WorkflowRun> {
+    await this.#operator(principal);
+    const now = this.#now(), store = this.#options.store;
+    const run = await store.claim({ instanceId: this.#artifact.instance.id, runId, owner: "workflow-operator", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Workflow recovery is busy or closed");
+    try {
+      this.#enabled(run.workflowId);
+      const definition = await this.#definition(run);
+      const { state, inputs } = await prepareDecisionRecovery({ run, ...definition, roster: await this.#options.currentRoster(), control: this.#options.control,
+        verify: this.#options.verifyPublicationNotSent, now, principal });
+      const qualification = await this.#options.qualifyMessageDestinations(definition.artifact, inputs);
+      return await this.#save(run, state, "workflow.decision-publication-recovery-authorized", {
+        recoveries: state.steps[definition.step.id]!.publicationRecoveries! as unknown as JsonValue, destination_qualification: qualification,
+      }, undefined, principal);
+    } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 
   async resume(runId: string, principal: string): Promise<WorkflowRun> {

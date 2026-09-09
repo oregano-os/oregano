@@ -29,7 +29,7 @@ export function engineArtifact(instanceId = `engine-${randomUUID()}`, workspaceR
  * Every publish and batch call counts: the provider deliberately has no deduplication.
  * Synthetic coverage below is test input, not a Slack/Monday qualification claim.
  */
-export function engineFixture(options: { store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; recordsConnector?: Connector; batchConnector?: Connector; publicationConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
+export function engineFixture(options: { verifyPublicationNotSent?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["verifyPublicationNotSent"]; store?: WorkflowExecutionStore; control?: StateStore; timerStore?: DurableTimerStore; artifact?: CompanyOSArtifact; recordsConnector?: Connector; batchConnector?: Connector; publicationConnector?: Connector; conversationForReceipt?: import("../runtime/workflow-engine/engine.ts").WorkflowEngineOptions["conversationForReceipt"] } = {}) {
   const artifact = options.artifact ?? engineArtifact(), memory = new InMemoryWorkflowExecutionStore();
   const store = options.store ?? memory, control = options.control ?? memory.control, timerStore = options.timerStore ?? new InMemoryDurableTimerStore();
   const timers = new DurableTimerService({ store: timerStore, instanceId: artifact.instance.id });
@@ -78,7 +78,7 @@ export function engineFixture(options: { store?: WorkflowExecutionStore; control
     const principal = memberId && new RecordIdentityDirectory(fixture.roster).members().find((member) => member.id === memberId)?.principals?.find((p) => p.startsWith("slack:"));
     return { surface: "synthetic", accountId: "test-account", channelId: destinationBinding, threadId: (output as Record<string, string>).thread_reference!, ...(principal ? { subjectPrincipal: principal } : {}) };
   };
-  const engine = (pinned = artifact) => new WorkflowEngine({ artifact: pinned, store, control, timers, enabledWorkflowIds: artifact.workflows!.map((w) => w.id), operatorPrincipals: [ENGINE_OPERATOR],
+  const engine = (pinned = artifact) => new WorkflowEngine({ verifyPublicationNotSent: options.verifyPublicationNotSent, artifact: pinned, store, control, timers, enabledWorkflowIds: artifact.workflows!.map((w) => w.id), operatorPrincipals: [ENGINE_OPERATOR],
     currentRoster: async () => fixture.roster, qualifyMessageDestinations: async () => ({ synthetic: true }), connectors: async () => [connector], clock: () => fixture.now,
     conversationForReceipt: options.conversationForReceipt ?? (async ({ destinationBinding, output }) => conversation(destinationBinding, output)) });
   return { ...fixture, get now() { return fixture.now; }, set now(value: string) { fixture.now = value; }, get roster() { return fixture.roster; },
