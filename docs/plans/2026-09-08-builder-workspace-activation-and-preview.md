@@ -54,9 +54,9 @@ channel, budget, or production deployment authority is selected by this document
 
 The [accepted experience and test direction](../specifications/builder-governance.md#accepted-builder-experience-and-test-direction-2026-09-09)
 refines this plan as of 2026-09-09: Build request terminology, evidenced progress,
-one result card, and Agent-recommended testing. The next test increment is
-interactive Agent conversation without Tools. Simulation is deferred. This
-records design decisions only and does not activate the planned capabilities.
+one result card, and Agent-recommended testing. The interactive Agent conversation without Tools and the guided cards are now
+implemented in the follow-up Core change. Simulation remains deferred. Adoption
+of that code and provider/human verification are separate from the design record.
 
 ## 2. Existing implementation and gaps
 

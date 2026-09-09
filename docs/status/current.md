@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,17 @@ This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
+
+- The 2026-09-09 Builder experience change adds a retained request card, confirmed
+  coding-start progress and one result card with **Request changes** and **Go live**.
+  The Agent recommends and explains a supported test without a mandatory menu.
+  Interactive Agent tests without Tools reuse the existing app and exact candidate,
+  with separate multi-turn history, requester-only finish/restart controls, twenty
+  replies maximum and 24-hour open-session expiry. Restarting preserves the code
+  candidate while invalidating earlier acceptance evidence. The updated code has
+  synthetic lifecycle coverage; adoption and real provider/human proofs of this
+  revision remain separate. Simulation, full workflow dialogs, general Preview
+  provisioning and bounded live trials remain deferred.
 
 - Core 0.8.0 adds a bounded connected Builder functional-test profile. It compiles
   the exact unmerged proposal, executes a read-only Agent reply or an immediate

@@ -29,6 +29,9 @@ import {
   createBuilderChatIntegration,
   type BuilderChatIntegration,
 } from "./builder/chat-integration.ts";
+import { createBuilderCardPresenter } from "./builder/card-presenter.ts";
+import { builderProgressCard } from "./builder/action-cards.ts";
+import type { BuilderJob } from "../../../state-store/builder-jobs.ts";
 import { createBuilderReleaseRuntime } from "./builder/release-provider.ts";
 import { createBuilderChatNotifier } from "./builder/chat-notifier.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
@@ -624,7 +627,8 @@ export function getBot(): Chat {
     roster: artifact.roster,
     store: assignmentStore,
   });
-  builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal });
+  builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal,
+    present: (job, card, phase) => createBuilderCardPresenter(getBot(), state)(job, card, phase) });
   slackAgentExperience = resolveSlackAgentExperience();
   const candidateBot = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",
@@ -669,7 +673,10 @@ export function getCompanyOSRuntime(): CompanyOSRuntime {
 
 export function getBuilderTerminalNotifier() {
   const chat = getBot();
-  return builderRelease?.notifier ?? createBuilderChatNotifier(chat);
+  return builderRelease?.notifier ?? createBuilderChatNotifier(chat, createBuilderCardPresenter(chat, state));
+}
+export async function reportBuilderProgress(job: BuilderJob, phase: "preparing" | "coding" | "checking") {
+  await createBuilderCardPresenter(getBot(), state)(job, builderProgressCard(job, phase), phase);
 }
 export async function advanceBuilderRelease(workerId: string) {
   getBot();

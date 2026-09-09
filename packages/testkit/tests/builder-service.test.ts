@@ -76,7 +76,14 @@ test("BuilderService runs a confirmed job to one checked outer proposal", async 
       baseCommit,
     });
     assert.equal(job.state, "queued");
-    assert.equal((await service.advanceOne("worker-1")).state, "executing");
+    const progress: string[] = [];
+    const report = async (_job: unknown, phase: string) => { progress.push(phase); };
+    assert.equal((await service.advanceOne("worker-1", report)).state, "executing");
+    assert.deepEqual(progress, ["preparing"], "queued execution does not prove the coding agent started");
+    const originalStatus = execution.status.bind(execution);
+    execution.status = async (handle) => ({ ...await originalStatus(handle), codingStarted: true as const });
+    await service.advanceOne("worker-poll", report);
+    assert.equal(progress.at(-1), "coding", "only worker evidence permits the started message");
     const executing = await jobs.get(job.jobId);
     assert.ok(executing?.executionHandle);
     const patch = [
@@ -95,7 +102,8 @@ test("BuilderService runs a confirmed job to one checked outer proposal", async 
       { profile: "codex" },
       { diff: patch, diffDigest: sha256(patch) },
     );
-    const result = await service.advanceOne("worker-2");
+    const result = await service.advanceOne("worker-2", report);
+    assert.equal(progress.at(-1), "checking");
     assert.equal(result.state, "published");
     assert.match(result.proposalUrl ?? "", /^local-git:/);
     const published = await jobs.get(job.jobId);

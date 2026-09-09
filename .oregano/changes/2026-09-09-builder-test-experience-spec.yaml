@@ -1,17 +1,16 @@
 version: 3
 plan_id: builder-test-experience-spec-2026-09-09
 created: "2026-09-09"
-proposal: true
-title: Record agent-recommended Builder tests and the next interactive increment
+title: Implement guided Builder progress, unified results and interactive Agent tests
 objective: >-
-  Save Build request terminology, evidenced progress, one result card and an
-  Agent-recommended test explained in ordinary language. Keep interaction,
-  effects and environment as internal dimensions. Prioritize interactive Agent
-  tests without Tools and explicitly defer simulation and broader environments.
+  Implement Build request terminology, observed coding-start progress, a durable
+  unified result card and Agent-recommended testing. Add bounded interactive
+  candidate conversations without Tools, fresh tests without recoding and exact
+  completed-result publication. Keep simulation and broader test modes deferred.
 non_goals:
-  - Implement runtime behavior, change bundled Agent instructions or migrate the brief schema.
-  - Deploy Core, modify a company, or execute a test or release.
-  - Implement simulation or broaden provider permissions and business effects.
+  - Implement simulation, general workflow dialogs, Preview provisioning or bounded live trials.
+  - Broaden provider permissions or allow conversational Tools in the interactive test.
+  - Automatically approve a human's result or activate an untested company change.
 placement: core
 change_class: security
 files_expected:
@@ -22,17 +21,40 @@ files_expected:
   - docs/_generated/document-registry.json
   - docs/_generated/navigation.json
   - docs/_generated/architecture-index.md
-tests: []
+  - docs/status/current.md
+  - docs/workbench/guides/prepare-builder-change.md
+  - docs/workbench/guides/operate-builder.md
+  - packages/cli/content/guides/prepare-builder-change.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/runtime/builder/functional-tests.ts
+  - packages/runtime/builder/brief.ts
+  - packages/runtime/builder/service.ts
+  - packages/runtime/builder/execution.ts
+  - packages/state-postgres/builder-test-store.ts
+  - packages/runner-vercel/src/lib/builder/*.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/app/api/builder/worker/route.ts
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/testkit/tests/builder-service.test.ts
+  - packages/testkit/tests/builder-intake.test.ts
+  - packages/testkit/tests/builder-single-card-presentation.test.ts
+tests:
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/testkit/tests/builder-service.test.ts
+  - packages/runner-vercel/src/lib/builder/*.test.ts
 documentation_impact:
   required: true
   affected_documents:
     - specification.builder-governance
     - reference.glossary
     - plan.builder-workspace-activation-and-preview
+    - status.current
+    - guide.prepare-builder-change
+    - guide.operate-builder
 architecture:
   placement:
-    core: Generic product requirements and terminology; this diff is documentation only.
-    packages: Reuse reviewed capabilities and Workbench contracts; no package changes.
+    core: Durable progress presentation, bounded interactive candidate sessions, grounded test recommendations and exact-result publication.
+    packages: Update the matching Workbench Guides; reuse reviewed capabilities without new privileged Workspace code.
     workspace: Company defaults, language, intent and acceptance policy remain company declarations.
     instance: Verified bindings, test destinations and runtime capabilities remain Instance configuration.
   mechanisms_extended:
@@ -55,5 +77,5 @@ architecture:
     Requirements are independent of company, communication provider, coding agent
     and host. Examples contain no customer identifiers. Later execution reuses
     exact Workspace policy and verified Instance capabilities.
-rollback: Revert these documentation edits and regenerate documentation; no runtime state or deployment changes.
+rollback: Stop new interactive sessions before restoring the prior Core. Retain test histories and acceptance evidence. Legacy automatic tests remain readable; do not reinterpret incomplete interactive sessions as accepted results.
 open_decisions: []

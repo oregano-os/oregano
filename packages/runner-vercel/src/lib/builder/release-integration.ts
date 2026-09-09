@@ -1,11 +1,14 @@
-import { randomUUID } from "node:crypto";
-import { Actions, Button, Card, CardText, type Author, type Chat, type StateAdapter } from "chat";
+import { Card, CardText, type Author, type Chat, type StateAdapter } from "chat";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { assertReleaseCandidate, type ReleaseCoordinator } from "../../../../runtime/release/coordinator.ts";
 import type { ReleaseCandidate } from "../../../../runtime/release/contracts.ts";
 import type { ReleaseRun } from "../../../../state-store/release-runs.ts";
 import type { BuilderJob } from "../../../../state-store/builder-jobs.ts";
 import type { BuilderTerminalNotifier } from "../../../../runtime/builder/notifications.ts";
+
+import type { BuilderTestSession } from "../../../../runtime/builder/functional-tests.ts";
+import type { BuilderCardPresenter } from "./card-presenter.ts";
+import { builderResultCard } from "./result-card.ts";
 
 interface PendingRelease { candidate: ReleaseCandidate; digest: string; }
 interface PendingReadiness { job: BuilderJob; }
@@ -23,25 +26,32 @@ export function createBuilderReleaseIntegration(args: {
   prepareCandidate(job: BuilderJob): Promise<ReleaseCandidate>;
   beforeAccept?(candidate: ReleaseCandidate, actor: string, actionId: string): Promise<void>;
   fallback: BuilderTerminalNotifier;
+  getTestSession?(job: BuilderJob): Promise<BuilderTestSession | undefined>;
+  present?: BuilderCardPresenter;
+  revisionPending?(job: BuilderJob): Promise<boolean>;
 }) {
   const notifier: BuilderTerminalNotifier = {
     async deliver(job) {
-      if (job.state !== "published" || !job.brief || job.brief.brief.deploymentIntent !== "after-acceptance") {
-        await args.fallback.deliver(job); return;
+      if (job.state !== "published" || !job.brief) { await args.fallback.deliver(job); return; }
+      const session = await args.getTestSession?.(job);
+      const show = async (options: Parameters<typeof builderResultCard>[1]) => {
+        if (session && (await args.getTestSession?.(job))?.revision !== session.revision) return;
+        const card = builderResultCard(job, { session, ...options });
+        if (args.present) await args.present(job, card, "result");
+        else if (job.sourceMessageId) await args.chat.thread(job.sourceConversationKey).adapter.editMessage(job.sourceConversationKey, job.sourceMessageId, card);
+        else await args.chat.thread(job.sourceConversationKey).post(card);
+      };
+      if (await args.revisionPending?.(job)) { await show({ detail: "Changes were requested. Describe the revision to Builder before a new result can be published." }); return; }
+      if (session && !["reviewable", "accepted"].includes(session.stage)) { await show({}); return; }
+      if (job.brief.brief.deploymentIntent !== "after-acceptance") {
+        await show({ detail: "This request was prepared as a draft only. Publication has not been requested." }); return;
       }
       let candidate: ReleaseCandidate;
       try { candidate = await args.prepareCandidate(job); }
       catch {
-        // CI and provider readiness can lag behind draft publication. Deliver
-        // the actual result now, with a read-only retry rather than losing the
-        // terminal notification or pretending the change is ready to accept.
-        await args.fallback.deliver(job);
-        const token = randomUUID();
+        const token = sha256([job.jobId, job.brief.digest, "readiness"]);
         await args.state.set(`builder-release-readiness:${token}`, { job } satisfies PendingReadiness, 24 * 60 * 60 * 1000);
-        await args.chat.thread(job.sourceConversationKey).post(Card({ title: "Change built; live adoption pending", children: [
-          CardText("The proposal is available. Required checks, production access or the selected test evidence are not yet ready. No live adoption has started."),
-          Actions([Button({ id: "companyos.builder.release.refresh", label: "Check readiness", value: token })]),
-        ] }));
+        await show({ retryToken: token, detail: "The result is available. Required checks or publication access are not ready yet. No publication has started." });
         return;
       }
       assertReleaseCandidate(candidate);
@@ -52,20 +62,9 @@ export function createBuilderReleaseIntegration(args: {
         throw new Error("Release preparation did not identify the published Builder result.");
       }
       const digest = sha256(candidate);
-      const token = randomUUID();
+      const token = digest;
       await args.state.set(`builder-release-candidate:${token}`, { candidate, digest } satisfies PendingRelease, 24 * 60 * 60 * 1000);
-      const card = Card({ title: "Confirm merge and live adoption", children: [
-        CardText(job.brief.brief.proposedBehavior),
-        CardText(`Success criteria: ${job.brief.brief.acceptanceCriteria.join("; ")}`),
-        CardText(`Production target: ${candidate.instanceId}. Candidate: ${candidate.candidateCommit.slice(0, 12)}.`),
-        ...(candidate.functionalTestDigest ? [CardText("Review the functional test result above. This one action accepts that exact tested result and authorizes merge and live adoption.")] : []),
-        CardText("May I merge this exact checked change and make it live? Your confirmation authorizes the merge, production build, deployment and verification under your current company permissions."),
-        ...(candidate.migration ? [CardText(`Includes migration ${candidate.migration.id}. Application rollback does not undo data changes.`)] : []),
-        Actions([Button({ id: "companyos.builder.release", label: "Merge and make live", style: "primary", value: token })]),
-      ] });
-      const thread = args.chat.thread(job.sourceConversationKey);
-      if (job.sourceMessageId) await thread.adapter.editMessage(thread.id, job.sourceMessageId, card);
-      else await thread.post(card);
+      await show({ liveToken: token });
     },
   };
   const registerHandlers = () => {
@@ -87,7 +86,8 @@ export function createBuilderReleaseIntegration(args: {
       try {
         await args.beforeAccept?.(pending.candidate, actor, event.messageId);
         const run = await args.coordinator.accept(pending.candidate, actor, pending.digest);
-        await event.adapter.editMessage(event.threadId, event.messageId, releaseStatusCard(run));
+        if (args.present) await presentRun(run);
+        else await event.adapter.editMessage(event.threadId, event.messageId, releaseStatusCard(run));
       } catch {
         // Authority/check failures are actionable but provider exceptions may
         // contain credentials. Never echo the raw error to the chat surface.
@@ -95,9 +95,12 @@ export function createBuilderReleaseIntegration(args: {
       }
     });
   };
-  const notify = async (run: ReleaseRun) => {
-    await args.chat.thread(run.candidate.sourceConversation).post(releaseStatusCard(run));
+  const presentRun = async (run: ReleaseRun) => {
+    if (args.present) await args.present({ jobId: run.candidate.id, instanceId: run.candidate.instanceId, sourceConversationKey: run.candidate.sourceConversation },
+      releaseStatusCard(run), run.stage === "live" || run.stage === "rolled-back" ? "live" : "releasing");
+    else await args.chat.thread(run.candidate.sourceConversation).post(releaseStatusCard(run));
   };
+  const notify = presentRun;
   return { notifier, registerHandlers, notify };
 }
 
@@ -105,8 +108,8 @@ export function releaseStatusCard(run: ReleaseRun) {
   const description = run.stage === "live" ? "This exact change is live. The production version and readiness checks were verified."
     : run.stage === "rolled-back" ? "The previous application artifact is active and verified. This does not undo data changes or external effects."
     : run.stage === "failed" ? "Live adoption stopped. Review the release evidence; production may already have changed if deployment began."
-    : "The accepted change is being released. It is not yet verified live.";
-  return Card({ title: run.stage === "live" ? "Change live" : run.stage === "rolled-back" ? "Previous version restored" : "Live adoption", children: [
-    CardText(description), CardText(`Target: ${run.candidate.instanceId}. Release: ${run.id}. Status: ${run.stage}.`),
+    : "Your approved result is being published. You will be told when it is verified live.";
+  return Card({ title: run.stage === "live" ? "Your result is live" : run.stage === "rolled-back" ? "Previous version restored" : "Publishing your result", children: [
+    CardText(description),
   ] });
 }

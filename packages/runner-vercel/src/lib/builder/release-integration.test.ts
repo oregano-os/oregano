@@ -31,8 +31,8 @@ function fixture(prepared: ReleaseCandidate | Error = candidate, beforeAccept?: 
 
 test("qualified Chat release binding accepts one exact published result under the authenticated actor", async () => {
   const f = fixture(); f.integration.registerHandlers(); await f.integration.notifier.deliver(job);
-  assert.match(JSON.stringify(f.messages), /May I merge this exact checked change and make it live\?/);
-  assert.match(JSON.stringify(f.messages), /Merge and make live/);
+  assert.match(JSON.stringify(f.messages), /Go live approves this exact reviewed result/);
+  assert.match(JSON.stringify(f.messages), /Go live/);
   assert.equal(f.accepted.length, 0, "showing a result never grants merge authority");
   await f.click();
   assert.deepEqual(f.accepted, [{ value: candidate, actor: candidate.requester, digest: sha256(candidate) }]);
@@ -83,13 +83,14 @@ test("prepare-only results use the draft path and mismatched provider candidates
 test("pending hosted checks deliver the proposal and an authenticated read-only retry without leaking provider errors", async () => {
   const f = fixture(new Error("private-provider-token")); f.integration.registerHandlers();
   await f.integration.notifier.deliver(job);
-  assert.equal(f.fallbacks(), 1);
+  assert.equal(f.fallbacks(), 0);
+  assert.equal(f.messages.length, 1);
   assert.match(JSON.stringify(f.messages), /Check readiness/);
-  assert.doesNotMatch(JSON.stringify(f.messages), /private-provider-token|Merge and make live/);
+  assert.doesNotMatch(JSON.stringify(f.messages), /private-provider-token|Go live/);
   const token = [...f.values.keys()][0]!.slice("builder-release-readiness:".length);
   const event = { thread: f.thread, value: token, user: { userId: "U1" } };
   await f.handlers.get("companyos.builder.release.refresh")!({ ...event, thread: { ...f.thread, id: "another-conversation" } });
-  assert.equal(f.fallbacks(), 1);
+  assert.equal(f.fallbacks(), 0);
   await f.handlers.get("companyos.builder.release.refresh")!(event);
-  assert.equal(f.fallbacks(), 2); assert.equal(f.accepted.length, 0);
+  assert.equal(f.fallbacks(), 0); assert.equal(f.accepted.length, 0);
 });

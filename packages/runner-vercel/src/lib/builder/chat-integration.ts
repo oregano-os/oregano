@@ -16,9 +16,10 @@ import {
   resolveBuilderActionCard,
 } from "./action-cards.ts";
 import { runnerTurnPresentation } from "./presentation.ts";
-import { builderFeedbackKey } from "./functional-tests.ts";
+import { builderFeedbackKey, builderProposalFeedbackKey, builderProposalFeedbackConversation } from "./functional-tests.ts";
 import type { BuilderTestSession } from "../../../../runtime/builder/functional-tests.ts";
 import { assertBuilderTestScope } from "./functional-test-execution.ts";
+import type { BuilderCardPresenter } from "./card-presenter.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -53,6 +54,7 @@ export function createBuilderChatIntegration(args: {
   rosterMember(author: Author): RosterMember | undefined;
   principal(member: RosterMember): string;
   createJobs?: () => BuilderJobStore;
+  present?: BuilderCardPresenter;
 }): BuilderChatIntegration {
   const createJobs = args.createJobs ?? createPostgresBuilderJobStore;
 
@@ -67,13 +69,22 @@ export function createBuilderChatIntegration(args: {
         description: "Read currently configured Instance capabilities and designated test resources before choosing a connected test. Missing entries require Instance setup; never invent provider access.",
         inputSchema: jsonSchema({ type: "object", properties: {}, additionalProperties: false }),
         execute: async () => ({ capabilities: args.artifact.bindings.map((binding) => ({ capability: binding.capability, version: binding.contractVersion })),
-          testResources: builder?.testResources ?? [], supportedConnectedTests: ["read-only Agent reply", "operator workflow without messages, timers or intermediate decisions"],
+          testResources: builder?.testResources ?? [], supportedConnectedTests: ["single Agent reply without Tools", "interactive Agent conversation without Tools", "operator workflow without messages, timers or intermediate decisions"],
+          testableAgents: args.artifact.agents?.filter((entry) => entry.id !== "builder" && entry.toolSet.tools.length === 0).map((entry) => entry.id) ?? [],
           providerAccess: "Configured bindings; actual provider access is independently verified during the test." }),
       });
       output.builder_read_test_result = tool({
         description: "Read the previous candidate, its actual test summary and authenticated change request in this conversation. Rebuild the complete original change plus this feedback against the current Workspace source; re-read the affected definitions.",
         inputSchema: jsonSchema({ type: "object", properties: {}, additionalProperties: false }),
         execute: async () => {
+          const proposalId = await args.state.get<string>(builderProposalFeedbackConversation(thread.id, requester));
+          if (proposalId) {
+            const retained = await args.state.get<{ feedback?: { principal: string; text: string } }>(builderProposalFeedbackKey(proposalId));
+            const previous = retained?.feedback ? await createJobs().get(proposalId) : undefined;
+            if (previous?.requesterPrincipal === requester && previous.sourceConversationKey === thread.id && retained?.feedback?.principal === requester) {
+              return { available: true, jobId: proposalId, previousBrief: previous.brief?.brief, feedback: retained.feedback, liveActionInvalidated: true };
+            }
+          }
           const session = await args.state.get<BuilderTestSession>(builderFeedbackKey(thread.id, requester));
           if (!session?.feedback || session.requester !== requester || session.sourceConversation !== thread.id) return { available: false };
           const previous = await createJobs().get(session.jobId);
@@ -117,6 +128,9 @@ export function createBuilderChatIntegration(args: {
           execute: async (input: unknown) => {
             if (!builder) throw new Error("Builder can clarify this change, but coding requires the Instance repository and execution bindings to be configured.");
             const parsed = parseBuilderBrief(input);
+            if (parsed.test.strategy === "simulate" || parsed.test.strategy === "live-trial") {
+              throw new Error("Simulation and live trials are not available yet. Recommend automatic checks or a supported test on configured test resources.");
+            }
             if (parsed.test.strategy === "test-resources") {
               if (!parsed.test.execution || !parsed.test.targetBindings.length
                 || parsed.test.targetBindings.some((id) => !builder.testResources?.some((resource) => resource.id === id))) {
@@ -152,10 +166,13 @@ export function createBuilderChatIntegration(args: {
             if (feedback?.stage === "changes-requested" && feedback.requester === requester && feedback.sourceConversation === thread.id) {
               await args.state.setIfNotExists(`builder:test-parent:${job.jobId}`, feedback.id);
             }
-            await thread.post(builderQueuedActionCard(job));
+            const priorProposal = await args.state.get<string>(builderProposalFeedbackConversation(thread.id, requester));
+            if (priorProposal && priorProposal !== job.jobId) await args.state.delete(builderProposalFeedbackConversation(thread.id, requester));
+            if (args.present) await args.present(job, builderQueuedActionCard(job), "queued");
+            else await thread.post(builderQueuedActionCard(job));
             return {
               ok: true,
-              codingJobStarted: true,
+              codingJobSubmitted: true,
               operation: "builder.propose_change",
               requestId,
               jobId: job.jobId,

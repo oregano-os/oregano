@@ -44,6 +44,8 @@ export interface BuilderExecutionStatus {
   readonly state: BuilderExecutionState;
   readonly observedAt: string;
   readonly detail?: string;
+  /** Job-bound worker evidence, not sandbox creation or a queued command. */
+  readonly codingStarted?: true;
 }
 
 export interface BuilderExecutionResult {
