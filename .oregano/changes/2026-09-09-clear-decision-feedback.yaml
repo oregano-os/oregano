@@ -14,7 +14,9 @@ files_expected:
   - packages/runtime/decision-feedback.ts
   - packages/runtime/workflow-engine/**
   - packages/runner-vercel/src/lib/decision-cards.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
   - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/testkit/tests/agent-model-task.test.ts
   - packages/testkit/tests/workflow-button-response.test.ts
   - packages/testkit/tests/slack-decision-review.test.ts
   - packages/testkit/tests/workflow-review-dependency.test.ts
@@ -22,6 +24,7 @@ files_expected:
   - docs/specifications/workflow-execution-v1-draft.md
   - docs/_generated/**
 tests:
+  - packages/testkit/tests/agent-model-task.test.ts
   - packages/testkit/tests/workflow-button-response.test.ts
   - packages/testkit/tests/slack-decision-review.test.ts
   - packages/testkit/tests/workflow-review-dependency.test.ts

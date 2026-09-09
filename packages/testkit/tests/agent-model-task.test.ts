@@ -37,5 +37,7 @@ test("qualification and runtime prompt assembly retain Skills and collection saf
   assert.match(prompt, /Never invent a deadline/);
   assert.match(prompt, /Synthetic task/);
   assert.match(prompt, /collection is never authorization/);
+  assert.match(prompt, /follow the Agent's wording and language/);
+  assert.doesNotMatch(prompt, /A separate human decision will be delivered/);
   assert.match(prompt, /never infer approval from conversational text/);
 });
