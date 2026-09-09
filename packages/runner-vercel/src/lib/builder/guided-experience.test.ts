@@ -7,7 +7,7 @@ import { builderTestSessionId } from "../../../../runtime/builder/functional-tes
 import type { ReleaseCandidate } from "../../../../runtime/release/contracts.ts";
 import { createBuilderCardPresenter } from "./card-presenter.ts";
 import { builderQueuedActionCard, builderProgressCard } from "./action-cards.ts";
-import { createBuilderFunctionalTestIntegration } from "./functional-tests.ts";
+import { builderFeedbackKey, createBuilderFunctionalTestIntegration } from "./functional-tests.ts";
 import { createBuilderReleaseIntegration } from "./release-integration.ts";
 import { builderAgentTestMessages } from "./functional-test-execution.ts";
 
@@ -48,6 +48,36 @@ test("one durable card advances without duplicate posts or late progress overwri
     await show(job, builderProgressCard(job, "checking"), "checking");
     assert.equal(t.messages.length, 1); assert.match(JSON.stringify(t.messages), /Ready for review/);
     assert.doesNotMatch(JSON.stringify(t.messages), /Checking your result/);
+  } finally { f.cleanup(); }
+});
+
+test("requesting changes during an interactive test retains the next source message and closes candidate testing", async () => {
+  const f = builderFunctionalFixture(), t = transport();
+  try {
+    await f.store.create({ ...f.session, execution: { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" } });
+    await f.tests.begin(f.session.id, f.candidate.artifactHash, "slack:C20002:2.0");
+    await f.tests.recordResult(f.session.id, { artifactHash: f.candidate.artifactHash, candidateCommit: f.session.candidateCommit,
+      executionDigest: f.session.scopeDigest, completedAt: new Date().toISOString(), summary: "A test answer", evidence: { synthetic: true } });
+    const user = { userId: "U10001" } as Author;
+    const integration = createBuilderFunctionalTestIntegration({ artifact: f.previous, chat: t.chat, state: t.state, tests: f.tests,
+      authenticatedPrincipal: () => f.session.requester, getJob: async () => f.job, compile: async () => f.candidate,
+      execute: async () => { throw new Error("Feedback must not start a test execution"); },
+      ready: { async deliver() {} }, fallback: { async deliver() { assert.fail("unexpected fallback"); } },
+    });
+    integration.registerHandlers();
+    const event = { thread: t.thread(f.session.sourceConversation), value: f.session.id, user };
+    await t.handlers.get("companyos.builder.test.changes")!(event);
+    await t.handlers.get("companyos.builder.test.changes")!(event);
+    assert.equal((await f.store.get(f.session.id))?.stage, "feedback-pending");
+    await assert.rejects(() => f.tests.finish(f.session.id, f.session.requester));
+    await assert.rejects(() => f.tests.beginTurn(f.session.id, f.session.requester, "late-question", "Continue?"));
+    assert.equal(await integration.receive({ conversation: f.session.sourceConversation, author: user, messageId: "feedback",
+      text: "Add a concrete example to the second point.", occurredAt: new Date().toISOString() }), false);
+    const revised = await f.store.get(f.session.id);
+    assert.equal(revised?.stage, "changes-requested");
+    assert.equal(revised?.feedback?.text, "Add a concrete example to the second point.");
+    assert.deepEqual(t.values.get(builderFeedbackKey(f.session.sourceConversation, f.session.requester)), revised);
+    await assert.rejects(() => f.tests.releaseEvidence(f.job, false), /no current/);
   } finally { f.cleanup(); }
 });
 

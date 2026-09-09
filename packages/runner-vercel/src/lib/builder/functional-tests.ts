@@ -117,7 +117,7 @@ export function createBuilderFunctionalTestIntegration(args: {
         if (!session || !["reviewable", "interactive", "feedback-pending"].includes(session.stage) || actor !== session.requester || event.thread.id !== session.sourceConversation) {
           await event.thread.post("This test is unavailable, already accepted, or belongs to another requester or conversation."); return;
         }
-        if (session.stage === "reviewable") await args.tests.requestFeedback(session.id, actor);
+        if (session.stage !== "feedback-pending") await args.tests.requestFeedback(session.id, actor);
         await args.state.set(`${builderFeedbackKey(event.thread.id, actor)}:pending`, session.id);
         const job = await args.getJob(session.jobId);
         if (job) await args.ready.deliver(job);

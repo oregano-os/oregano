@@ -109,7 +109,7 @@ export function releaseStatusCard(run: ReleaseRun) {
     : run.stage === "rolled-back" ? "The previous application artifact is active and verified. This does not undo data changes or external effects."
     : run.stage === "failed" ? "Live adoption stopped. Review the release evidence; production may already have changed if deployment began."
     : "Your approved result is being published. You will be told when it is verified live.";
-  return Card({ title: run.stage === "live" ? "Your result is live" : run.stage === "rolled-back" ? "Previous version restored" : "Publishing your result", children: [
+  return Card({ title: run.stage === "live" ? "Your result is live" : run.stage === "rolled-back" ? "Previous version restored" : run.stage === "failed" ? "Publication stopped" : "Publishing your result", children: [
     CardText(description),
   ] });
 }
