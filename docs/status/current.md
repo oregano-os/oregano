@@ -20,7 +20,8 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
-- The 2026-09-09 Builder experience change adds a retained request card, confirmed
+- Core 0.9.0 and Workbench 0.1.0-experimental.19 release the reviewed Builder
+  experience from PR 108: a retained request card, confirmed
   coding-start progress and one result card with **Request changes** and **Go live**.
   The Agent recommends and explains a supported test without a mandatory menu.
   Interactive Agent tests without Tools reuse the existing app and exact candidate,
@@ -30,6 +31,16 @@ evidence, historical prototypes, and production gaps.
   synthetic lifecycle coverage; adoption and real provider/human proofs of this
   revision remain separate. Simulation, full workflow dialogs, general Preview
   provisioning and bounded live trials remain deferred.
+  Hosted entrypoints are the maintained Slack webhook/action route and Builder
+  worker, wired to the same functional-test controller and release coordinator.
+  PR 108 passed 1,079 general tests and 70 mandatory Postgres proofs without
+  database skips; synthetic Chat tests exercise request, follow-up, finish,
+  restart, feedback and stale acceptance. Real hosted proofs of this new revision
+  remain an Instance adoption gate and are not claimed by this release note.
+  Upgrade from 0.8.1 requires matching Core/Workbench pins and a newly qualified
+  image/deployment, with no DDL, provider grants or business-file migration.
+  Before rollback, stop or resolve interactive sessions and preserve their
+  evidence; legacy automatic tests remain readable.
 
 - Core 0.8.0 adds a bounded connected Builder functional-test profile. It compiles
   the exact unmerged proposal, executes a read-only Agent reply or an immediate
