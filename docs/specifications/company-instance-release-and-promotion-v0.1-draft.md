@@ -25,12 +25,13 @@ relations:
 # Company Instance Release and Promotion v0.1
 
 The reviewed non-secret Instance build declaration MUST be versioned at
-`.companyos/instance.yaml` in the responsible Company Workspace once migrated.
+`.companyos/instance.yaml` in the responsible Company Workspace.
 Its exact bindings and SecretRefs are permitted company Git content; resolved
 credentials and operational evidence are not. Setup MUST include the declaration
-before its initial commit or operating review, and deployment MUST consume it
-without rewriting it. Explicit transport copies MUST match its parsed content.
-Legacy external-file compatibility is defined in the
+before its initial commit. CLI and hosted builds MUST consume that tracked file
+from the exact clean Workspace checkout. External YAML overrides and transport
+copies are not supported. Hosted compilation checks the running Artifact
+configuration digest before building. The format is defined in the
 [Instance configuration contract](../reference/instance-configuration.md).
 Reviewing or merging this file does not independently authorize deployment.
 

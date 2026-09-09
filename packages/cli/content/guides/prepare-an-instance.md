@@ -74,10 +74,11 @@ persisted conversation for the exact Artifact and human. The CLI invokes
 `companyos verify-live` before completion. It proves `live-starter-instance`,
 not general unattended authority. Fresh cold live timing remains to be qualified.
 
-For existing sessions, deliberate adoption or model selection, use the explicit
-`companyos setup --profile vercel-neon-slack` contract. Its versions 1–4 retain
-separate operating, merge and deployment decisions and nonce verification.
-Never reinterpret them as a new installation to remove a required approval.
+Resume current schema-5 sessions with `companyos setup`. The explicit
+`--profile` installer and state versions 1–4 are retired and fail before provider
+work. Existing installations use reviewed Workspace and Instance changes; they
+are not adopted through a fresh setup session. Select the supported model
+provider during the standard setup review.
 
 Before release, run `companyos build` against clean exact repository checkouts
 and a non-secret Instance declaration. The build records the Core and Workspace

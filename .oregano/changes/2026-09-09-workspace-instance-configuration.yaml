@@ -7,7 +7,9 @@ objective: Establish .companyos/instance.yaml as the canonical non-secret Instan
   it in reviewed setup commits instead of generating mutable out-of-repository
   configuration at deployment time. Require the canonical file in CLI and hosted builds,
   remove external YAML transport and retired setup state formats, and retain exact
-  running-Artifact authority for hosted compilation.
+  running-Artifact authority for hosted compilation. Release the incompatible
+  contract as Core 0.9.0 with Workbench 0.1.0-experimental.19; Company Workspace
+  adoption and production receipts remain in their private repositories.
 non_goals:
   - Store credentials, provider receipts, operational state or deployment code in Git.
   - Change provider permissions, agent routing semantics, business policy or live
@@ -17,6 +19,12 @@ placement: core
 change_class: security
 files_expected:
   - .oregano/changes/2026-09-09-workspace-instance-configuration.yaml
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - package.json
+  - packages/cli/package.json
+  - docs/workbench/overview.md
+  - docs/workbench/commands/bootstrap.md
   - docs/README.md
   - docs/glossary.md
   - docs/architecture/company-instance.md
@@ -55,6 +63,7 @@ files_expected:
   - packages/cli/src/workspace-validator.mjs
   - packages/companyos-builder/instance-loader.ts
   - packages/testkit/tests/instance-loader.test.ts
+  - packages/cli/tests/workbench.test.mjs
   - packages/cli/tests/workspace-instance.test.mjs
   - packages/cli/tests/live-setup.test.mjs
   - INSTALL-COMPANYOS.md
@@ -77,6 +86,8 @@ tests:
 documentation_impact:
   required: true
   affected_documents:
+    - workbench.overview
+    - command.bootstrap
     - docs.index
     - architecture.company-instance
     - architecture.company-workspace

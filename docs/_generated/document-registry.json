@@ -177,7 +177,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-08",
+    "updated": "2026-09-09",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -1443,7 +1443,7 @@
     "status": "building",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-03",
+    "updated": "2026-09-09",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}

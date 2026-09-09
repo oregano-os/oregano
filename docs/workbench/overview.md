@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -30,7 +30,7 @@ same boundary, the agent presents them together instead of asking one by one.
 This workflow convenience does not change the runtime R0-R4 effect model or
 allow a required confirmation to be bypassed.
 
-The current repository release candidate is `0.1.0-experimental.15`. Verify the
+The current repository release candidate is `0.1.0-experimental.19`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
 contract version; it does not claim that a public package has been published.
 
@@ -44,7 +44,7 @@ contract version; it does not claim that a public package has been published.
 | `companyos security` | Check local governance controls and protected paths | experimental |
 | `companyos onboard` | Check end-to-end Workspace onboarding readiness and surface manual external steps | experimental |
 | `companyos bootstrap status` / `verify` | Drive the resume-aware local checkpoint used by the shared Codex and Claude Code runbook | experimental |
-| `companyos setup --profile vercel-neon-slack` | Plan, confirm, execute, and resume the maintained private GitHub plus Vercel, Neon, and Slack starter setup | experimental |
+| `companyos setup` | Plan, confirm, execute, and resume the maintained private GitHub plus Vercel, Neon, and Slack starter setup | experimental |
 | `companyos verify-live` | Verify the exact supervised live starter scope, including health and persisted Slack evidence | experimental |
 | `companyos versions` | Report the exact Core, Workspace, Workbench, and specification versions | experimental |
 | `companyos package inspect` | Inspect a local Package without mutation; Blueprint is supported, Tool and Connector are recognition-only | experimental |

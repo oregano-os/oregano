@@ -15,7 +15,7 @@ audience:
 
 # Current System Status
 
-CLI and hosted Builder builds require the tracked `.companyos/instance.yaml`
+Core 0.9.0 and Workbench 0.1.0-experimental.19 require CLI and hosted Builder builds to read the tracked `.companyos/instance.yaml`
 from the exact checked Workspace commit. External YAML overrides and the hosted
 YAML environment copy are removed; hosted compilation retains the running
 Artifact configuration-digest authority check. Setup writes the declaration
@@ -1086,15 +1086,12 @@ evidence, historical prototypes, and production gaps.
   intake and a bounded agent answers-file transport, complete preview,
   confirmed atomic materialization, and a deterministic
   `authoring-only-local` bootstrap checkpoint.
-- The experimental `companyos setup --profile vercel-neon-slack` state machine
-  continues from that checkpoint through explicit create-or-adopt GitHub,
-  Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a
-  private GitHub repository, automatic best-effort hosted protection with no
-  paid GitHub plan requirement, a separately confirmed operating-starter diff,
-  required-check and Steward merge evidence, immutable Artifact injection, current
-  health verification, and nonce-bound Slack plus Neon persistence proof.
-  `companyos verify-live` reports only `live-starter-instance` with readiness
-  `validated`.
+- Standard `companyos setup` owns the fresh private GitHub, Vercel, Neon and
+  Slack installation under one scoped initial decision. It writes the canonical
+  Instance declaration into the checked initial operating Workspace commit and
+  verifies live health plus the ordinary first Slack exchange. Only schema-5
+  fresh sessions resume; the explicit installer and state schemas 1–4 are
+  retired before provider work. Existing installations follow governed upgrades.
 - The maintained setup now requires Vercel Pro or Enterprise. It detects the
   selected team's plan before hosted resource creation, rechecks on resume
   and before deployment, and verifies the current plan in `verify-live`.
@@ -1104,14 +1101,13 @@ evidence, historical prototypes, and production gaps.
   prerequisite and resume behavior; fresh external setup qualification remains
   outstanding.
 - The [five-minute standard setup](../plans/2026-09-08-five-minute-setup.md)
-  is implemented in the working tree: CLI-owned account/default discovery,
+  is implemented: CLI-owned account/default discovery,
   one initial decision including deployment, direct operating initialization,
   checked first commit, private resumable state and an ordinary first Slack
-  exchange with model/persistence evidence. Existing explicit states retain their
-  legacy approval process. Release CI builds checksummed platform payloads;
+  exchange with model/persistence evidence. Release CI builds checksummed platform payloads;
   client setup and initial CI use bundled tools. Model metadata comes from one
-  registry. Local and simulated tests establish these contracts; publication
-  and fresh cold live qualification remain outstanding. A five-minute claim
+  registry. Local and simulated tests establish these contracts; fresh cold live
+  qualification remains outstanding. A five-minute claim
   requires five qualifying cold runs per harness and advertised platform.
 - Setup and the maintained Runner select Gateway, native Anthropic/OpenAI/Google,
   or a named compatible cloud recipe through the same resolver. Generic

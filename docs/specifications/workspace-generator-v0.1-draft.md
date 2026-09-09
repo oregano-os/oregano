@@ -36,8 +36,8 @@ bootstrap runbook.
 Normative requirements use stable `CWG-*` identifiers. The experimental local
 generator implements Workspace creation only. It does not authorize Git
 hosting changes, provider provisioning, deployment, or operating automation.
-Those responsibilities belong to the separately planned and confirmed
-`companyos setup --profile vercel-neon-slack` state machine; separating the two
+Those responsibilities belong to the separately confirmed `companyos setup`
+standard session; separating the two
 keeps an authoring-only request local while allowing the complete agent runbook
 to continue through a live supervised starter.
 
