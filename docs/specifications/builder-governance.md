@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -429,3 +429,107 @@ connected test. Adding a test resource does not create another app or copy
 secrets into Preview. New provider access still follows the existing Instance
 setup/qualification boundary. Each pilot must retain real model/provider, human
 feedback, merge and deployment receipts before claiming its complete live proof.
+
+## Accepted Builder experience and test direction (2026-09-09)
+
+This section records the accepted direction for subsequent implementation. It
+does not claim that current cards, test executors, brief fields or routing already
+implement it. The connected profiles above remain the current availability
+boundary. The requirements apply to every company and coding profile; company
+language, policy and destinations remain configurable.
+
+### Build requests and progress
+
+Use **Build request** for both new development and changes to existing behavior;
+ordinary conversation can say "your request". **Build brief** names the resolved
+instructions passed to the coding agent. These are English reference labels;
+runtime communication follows the Company Workspace language.
+
+Initially acknowledge that the request is being passed to the coding agent and
+promise an update when development starts. "The coding agent is working on your
+request" requires job-bound evidence that the agent has begun processing the
+brief; queuing a job or creating a sandbox is insufficient. Reuse worker progress
+evidence and durable delivery, not a chat model's assertion. Keep cancellation
+available while pending or running; distinguish requesting it from confirmed stopping.
+
+Maintain one understandable progress presentation through preparation, coding,
+checks and testing. Show the objective, current step and next action. Keep
+repository identifiers, full commits and job IDs in technical details.
+
+Return one result card in the original Builder conversation: a plain-language
+summary, the actual test and its limits, a result link, **Request changes**, and
+**Go live** when authorized and ready. Do not post separate test and proposal
+cards. Explain that Go live accepts the exact reviewed result and starts
+publication; report progress until deployed verification proves it is live.
+If readiness or authority is missing, explain the next step on the same result
+instead of presenting a working Go live action.
+
+"Make it live only after my approval" means offer publication after later
+acceptance, not prepare-only. Preparing a draft without offering publication
+remains distinct. Starting development never accepts the result.
+
+### Agent-recommended testing
+
+The Builder recommends the smallest supported test that answers the human's
+question, using Workspace defaults and verified Instance capabilities. Before
+coding, explain what will run, where the result appears, which data or actions
+are affected, what the human should inspect and what the test does not cover:
+
+> I suggest asking the new version one example question and posting its answer
+> in the configured test channel. You can review the wording there. This test
+> does not support follow-up conversation with that version.
+
+The human can adjust this recommendation in conversation. Do not require a test
+menu, two-question wizard, technical strategy name or repeated confirmation when
+the request and defaults resolve the choice. Ask only about material missing
+decisions. Explain unsupported requests before promising a test.
+
+Core reasons about independent dimensions in the background:
+
+| Dimension | Meaning |
+|---|---|
+| Interaction | Automatically execute specified examples, or let the human interact with the candidate. |
+| Data and effects | Simulated inputs/actions, designated real test resources, or an explicitly scoped trial on real operating resources. |
+| Environment | Reuse the existing app and isolated candidate session where supported; provision a separate Preview only when needed. |
+
+These are not four competing test types. Interactive tests can use simulated
+actions or real test resources. Preview describes hosting, not a test method or
+proof of isolation. A bounded live trial performs real effects on selected
+operating resources without global candidate activation. It requires actual
+scope and authority; a preference grants neither. This conceptual model does
+not migrate current machine fields or make unimplemented executors available.
+
+Distinguish execution success, business correctness and human acceptance. A
+generated answer alone does not prove all content criteria. Publishing a test
+report is a real, separately scoped delivery.
+
+### Next increment: interactive Agent testing without Tools
+
+Prioritize an interactive Agent test without Tools. Reuse the existing app,
+configured test destination and compiled candidate. Bind the test conversation
+to one exact candidate, retaining its own multi-turn history for follow-up
+questions. Keep it separate from the company's active Agent and other work.
+Include session completion/expiry, result review and exact completed-test
+acceptance. A supported Workspace-only change needs no second app or mandatory
+Preview. This increment is planned, not implemented by this specification update.
+
+Changing only test questions or inputs should allow a fresh test of the same
+unchanged candidate without recoding. Retain fresh evidence and prevent old
+acceptance from authorizing a different result. Full workflow dialogs with
+Tools, messages, timers and intermediate decisions are outside this increment.
+
+### Deferred: simulation
+
+Simulation is specified for later work, not the next implementation. It executes
+the candidate with defined example data and scenarios. Selected business writes
+are recorded as intended actions instead of being sent to external systems. The
+report shows executed steps, intended actions, errors and unsupported parts.
+Reuse the applicable Core executor and existing test/replay mechanisms; do not
+create a second workflow engine or present an invented narrative as execution.
+
+Simulation may be automatic or interactive. Model replies may be real while
+selected data and external actions are simulated. Report delivery is separately
+scoped. Simulation does not prove provider access, actual external writes or
+end-to-end production behavior. General simulation, separate Preview provisioning
+and bounded live-trial execution remain later capabilities, not currently
+available Builder options.

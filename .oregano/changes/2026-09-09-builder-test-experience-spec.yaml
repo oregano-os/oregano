@@ -1,0 +1,59 @@
+version: 3
+plan_id: builder-test-experience-spec-2026-09-09
+created: "2026-09-09"
+proposal: true
+title: Record agent-recommended Builder tests and the next interactive increment
+objective: >-
+  Save Build request terminology, evidenced progress, one result card and an
+  Agent-recommended test explained in ordinary language. Keep interaction,
+  effects and environment as internal dimensions. Prioritize interactive Agent
+  tests without Tools and explicitly defer simulation and broader environments.
+non_goals:
+  - Implement runtime behavior, change bundled Agent instructions or migrate the brief schema.
+  - Deploy Core, modify a company, or execute a test or release.
+  - Implement simulation or broaden provider permissions and business effects.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-09-builder-test-experience-spec.yaml
+  - docs/specifications/builder-governance.md
+  - docs/glossary.md
+  - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/_generated/architecture-index.md
+tests: []
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - reference.glossary
+    - plan.builder-workspace-activation-and-preview
+architecture:
+  placement:
+    core: Generic product requirements and terminology; this diff is documentation only.
+    packages: Reuse reviewed capabilities and Workbench contracts; no package changes.
+    workspace: Company defaults, language, intent and acceptance policy remain company declarations.
+    instance: Verified bindings, test destinations and runtime capabilities remain Instance configuration.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Preserve exact candidate conversation routing and isolation from ordinary work in the planned interactive test.
+    - mechanism: model-recipe-resolver
+      reason: Reuse configured models for candidate replies independently of the coding-agent vendor.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse worker evidence, durable sessions and exact-result acceptance for progress and unified result presentation.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse verified test resources; later simulation and live trials retain explicit effect scopes.
+    - mechanism: timers-and-business-time
+      reason: Reuse lifecycle and replay mechanisms for planned session expiry and later simulation.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Requirements are independent of company, communication provider, coding agent
+    and host. Examples contain no customer identifiers. Later execution reuses
+    exact Workspace policy and verified Instance capabilities.
+rollback: Revert these documentation edits and regenerate documentation; no runtime state or deployment changes.
+open_decisions: []

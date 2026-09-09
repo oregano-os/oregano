@@ -5,7 +5,7 @@ kind: plan
 status: draft
 authority: informative
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -42,8 +42,8 @@ The product direction established for this proposal is:
   path. Prefer automatic defaults over repeated technical questions.
 - Reuse existing company app installations and connections for test destinations.
   A second test app, separate provider account, and dedicated test channel are
-  not prerequisites. Users can select simulation, designated test resources, or
-  a bounded live trial when their company policy authorizes it.
+  not prerequisites. The Builder recommends a supported test and explains its
+  scope; the human can adjust it in conversation without a required choice menu.
 - Materialize and verify all required Preview configuration and access through
   maintained setup adapters. Manual production-to-preview environment copying
   is not an acceptable onboarding or per-change workflow.
@@ -51,6 +51,12 @@ The product direction established for this proposal is:
 Recommended defaults and future field names in this document remain proposals.
 In particular, no actual customer review policy, data-copy permission, test
 channel, budget, or production deployment authority is selected by this document.
+
+The [accepted experience and test direction](../specifications/builder-governance.md#accepted-builder-experience-and-test-direction-2026-09-09)
+refines this plan as of 2026-09-09: Build request terminology, evidenced progress,
+one result card, and Agent-recommended testing. The next test increment is
+interactive Agent conversation without Tools. Simulation is deferred. This
+records design decisions only and does not activate the planned capabilities.
 
 ## 2. Existing implementation and gaps
 
@@ -268,25 +274,36 @@ coding agent and local checks. Preview hosts the built candidate so humans and
 integration tests can interact with it. A Neon branch supplies isolated durable
 state for that preview when needed. None is a second company repository.
 
-The reference profile remains Vercel Sandbox + Vercel Preview + Neon/Postgres.
+The optional hosted reference profile uses Vercel Sandbox + Vercel Preview + Neon/Postgres.
 The neutral contract records the candidate, runtime, state, resource bindings,
 effect mode, data policy, expiry, budget, and results. Other qualified providers
 can implement the same contract without company-specific Core forks.
 
-| Test level | Default use | Environment and outputs |
-|---|---|---|
-| Static and local | Every change | Workspace validation, exact diff, relevant unit checks, and required documentation. No hosted preview for a text-only change unless requested. |
-| Simulation | Workflows and Agent behavior | Same applicable Core executor with fake time, synthetic events, and recorded would-be effects. Explicitly label unsupported scenarios instead of claiming complete coverage. |
-| Protected preview | Interactive, stateful, or integration-sensitive changes | Exact candidate Runner artifact, isolated state, authorized preview access, mocked effects by default, and a test report. |
-| Connected test | Channel/provider behavior that simulation cannot prove | Reuse an existing allowed connection with an exact test channel, board, page, meeting resource, or recipient; record actual effect receipts. |
-| Bounded live trial | A user wants to exercise real operating resources and holds the required authority | Exact candidate, selected users/resources, allowed effects, time window, stop control, and attributable results. A trial does not activate the candidate globally. |
+Static/local validation, exact diff inspection and relevant checks remain the
+baseline. Additional testing is resolved internally along independent dimensions:
 
-Core recommends the least costly adequate level and explains it. Reuse company
-and process defaults rather than asking for a channel on every request. When a
-decision is missing, one question offers simulation, a known test target, or
-the permitted live scope. A user may choose a richer test or defer an optional
-preview; mandatory relevant checks still run. Do not provision Neon or Vercel
-resources for a static-only proposal.
+| Dimension | Choices and implications |
+|---|---|
+| Interaction | Automatic examples or human conversation with the exact candidate. An interactive test is not inherently a separate deployment. |
+| Data and effects | Simulated actions, designated real test resources, or a bounded real operating trial. A simulation does not prove provider behavior; a live trial does not activate the candidate globally. |
+| Hosting | Existing app with candidate-scoped execution where supported, or a separately prepared Preview when required. Hosting alone does not determine effects. |
+
+The Builder recommends the smallest supported combination and explains what it
+does, where results appear, what can change and what remains untested. This model
+is background reasoning, not a test menu or a mandatory two-question wizard.
+Reuse company/process defaults; ask only about material missing decisions and
+allow conversational corrections. Do not offer unavailable execution modes or
+provision infrastructure for a static-only proposal.
+
+Prioritize interactive Agent tests without Tools using the existing app and
+test destination, exact candidate binding, separate conversation history and
+explicit session completion. Simulation remains a later extension: execute the
+candidate against specified examples and record intended business writes instead
+of sending them. Model replies can remain real; report delivery is separately
+scoped. Reuse existing executor, fixture/replay and business-time mechanisms.
+General workflow dialogs, simulation, separate Preview provisioning and bounded
+live trials are outside the first interactive increment. The specification linked
+above defines this accepted direction and its availability limits.
 
 Separate compute location, data access, and effects. A Preview may call a real
 provider through an approved connection; that makes its effects real even with
@@ -467,14 +484,16 @@ the conversation; use durable jobs, checked patches, and candidate revisions.
 | B. Intent and authority | Workspace activation migration, readiness reporting, scoped acceptance policy, and trusted acceptance receipts. | Two synthetic companies use different policies on the same Core; legacy placeholders gain no execution bindings, handoff routes or wider read scope; requester mode cannot self-grant authority. |
 | C. Guided authoring | Context-preserving chat, versioned brief and preparation Guide, pinned CLI/Guides, profile registry, bounded corrections, and readable result cards. | An explicit request reaches a checked result without another start dialog or repeated objective entry; Claude and Codex satisfy the same contract tests; selected profile has no silent fallback. |
 | D. Complete simple adoption | Policy-aware human acceptance, Git enforcement, trusted merge/release execution for supported changes without migration, and production verification. | One authorized final action leads from the tested candidate to a recorded healthy production version without requiring the employee to use GitHub or Vercel; stale candidates and unauthorized actors are rejected. |
-| E. Optional connected testing | Dependency manifest and Preview provisioning, shared-app session routing, simulation adapters, isolated state, supported migration rehearsal, and bounded live trials. | Preview resolves real required access; test channel and board reuse existing connections; simulated tests send no effects; trial scope prevents duplicate/out-of-scope production effects; concurrent configuration, expiry, callbacks, and cleanup are qualified. |
-| F. Private adoption and release | Adopt a qualified Core release through a separate Workspace/Instance change, initially using one Claude Code profile. Start with the A-D path and add E as needed. | Simple and process-change examples demonstrate request-to-healthy-release; connected tests demonstrate actual selected resource access without manual environment copying; no company-specific Core branches. |
+| E1. Next interactive increment | Multi-turn Agent tests without Tools in the existing app, exact candidate sessions and history, completion/expiry, fresh tests without unnecessary recoding, and one result card. | Follow-up questions stay on the candidate; concurrent ordinary work is unaffected; session completion and exact-result acceptance are evidenced without a second app or mandatory Preview. |
+| E2. Deferred broader testing | Simulation adapters, full workflow dialogs, dependency-driven Preview provisioning, supported migration rehearsal and bounded live trials. | Qualify each requested execution scope separately; do not advertise unavailable modes. Simulation records business effects, connected tests constrain real resources, and Preview proves its actual access. |
+| F. Private adoption and release | Adopt a qualified Core release through a separate Workspace/Instance change, initially using one Claude Code profile. Add E1 after the A-D path; defer E2 until needed. | Simple and process-change examples demonstrate request-to-healthy-release; connected tests demonstrate actual selected resource access without manual environment copying; no company-specific Core branches. |
 
 Ship the smallest complete path A-D before expanding optional infrastructure.
 Automatic standard checks are part of that path; optional Preview is not a
 prerequisite for a supported simple change. A-C alone is an internal
-proposal-only milestone, not the employee product. Add E for changes whose
-required test evidence needs connected execution or database rehearsal.
+proposal-only milestone, not the employee product. Existing bounded connected
+tests remain available. E1 extends them with interactive Agent conversation;
+E2 requires a separate implementation decision for broader test requirements.
 
 Do not make a web test chat, second app, arbitrary company-owned schema
 extension, new workflow engine, or multiple live coding profiles a first-release
