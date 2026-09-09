@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-09-09
 owners:
   - oregano-maintainers
   - product-owner
@@ -127,6 +127,12 @@ approvals, non-mandatory CODEOWNER review, and no bypass. This is a complete
 operating-capable review contract, not a temporary bootstrap exception.
 
 ## 3. Canonical generated baseline
+
+The authoring baseline does not invent an Instance before its target is
+prepared. Operating setup adds `.companyos/instance.yaml` beside governance
+and compatibility before the initial commit or activation review. Existing
+configuration is preserved and must match the selected target. See
+[the Instance configuration contract](../reference/instance-configuration.md).
 
 Version 0.1 produces exactly the minimum authoring structure:
 

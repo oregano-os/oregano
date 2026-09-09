@@ -5,7 +5,7 @@ kind: index
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -43,6 +43,7 @@ future public documentation website.
 | What outcome must CompanyOS optimize for? | `docs/vision.md` |
 | What does a term mean? | `docs/glossary.md` |
 | Where does a capability belong? | `docs/architecture/` |
+| Where is Instance configuration stored and how is it formatted? | `docs/reference/instance-configuration.md` |
 | What is formally required? | `docs/specifications/` |
 | Which public contracts are stable or changing? | `docs/compatibility/` |
 | What is implemented now? | `docs/status/current.md` |

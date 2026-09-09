@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-09-09
 owners:
   - oregano-maintainers
   - product-owner
@@ -248,7 +248,10 @@ Workspace proposal generation.
 
 **CWU-INSTANCE-001 — Separate plan.** Instance migration assistance MUST produce
 an environment-specific plan distinct from the Workspace diff. Secrets,
-credentials, provider account identifiers, and live state remain outside Git.
+credentials and live state remain outside Git. Supported non-secret provider
+identifiers and bindings are versioned in `.companyos/instance.yaml`; this
+source-location rule does not grant migration or deployment authority. See
+[the Instance configuration contract](../reference/instance-configuration.md).
 
 **CWU-INSTANCE-002 — Preflight and recovery.** Before a stateful migration, the
 plan MUST identify backups, recovery evidence, deployment isolation, health

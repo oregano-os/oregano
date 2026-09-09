@@ -1,0 +1,112 @@
+version: 3
+plan_id: workspace-instance-configuration-2026-09-09
+created: 2026-09-09
+title: Version the non-secret Instance declaration alongside Workspace governance
+objective: Establish .companyos/instance.yaml as the canonical non-secret Instance
+  declaration, resolve it during builds, validate it during Workspace checks, and include
+  it in reviewed setup commits instead of generating mutable out-of-repository
+  configuration at deployment time.
+non_goals:
+  - Store credentials, provider receipts, operational state or deployment code in Git.
+  - Change provider permissions, agent routing semantics, business policy or live
+    deployments.
+  - Introduce an instances directory, environment overlays or a new configuration format.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-09-workspace-instance-configuration.yaml
+  - docs/README.md
+  - docs/glossary.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/company-workspace.md
+  - docs/architecture/system-boundaries.md
+  - docs/governance/agent-working-agreement.md
+  - docs/governance/versioning-policy.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/reference/instance-configuration.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/workspace-generator-v0.1-draft.md
+  - docs/specifications/core-workspace-upgrades-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/build.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/commands/validate.md
+  - docs/workbench/guides/choose-placement.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - docs/workbench/commands/records.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - packages/cli/content/guides/choose-placement.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/operating-starter.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/companyos-builder/instance-loader.ts
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/cli/tests/workspace-instance.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - INSTALL-COMPANYOS.md
+tests:
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/cli/tests/workspace-instance.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - docs.index
+    - architecture.company-instance
+    - architecture.company-workspace
+    - architecture.boundaries
+    - reference.glossary
+    - governance.agent-agreement
+    - governance.versioning
+    - onboarding.index
+    - onboarding.company-workspace
+    - specification.company-instance-release-promotion-v0.1
+    - specification.companyos-core-v0.7
+    - specification.core-workspace-upgrades-v0.1
+    - specification.workspace-generator-v0.1
+    - status.current
+    - command.build
+    - command.records
+    - command.setup
+    - command.validate
+    - command.verify-live
+    - guide.choose-placement
+    - guide.connect-company-record-source
+    - guide.connect-knowledge-source
+    - guide.operate-builder
+    - guide.prepare-instance
+    - reference.instance-configuration
+architecture:
+  placement:
+    core: Reuse the Instance parser and Artifact builder for deterministic path resolution,
+      validation, setup materialization and conflict checks.
+    packages: Keep portable Packages free of company Instance identities and bindings.
+    workspace: Store the exact non-secret declaration beside governance and compatibility
+      under existing security review and CODEOWNERS protection.
+    instance: Retain runtime authority, secrets, receipts, state and deployment; its reviewed
+      non-secret declaration is physically stored in the Workspace.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company uses the same path and format while retaining its own
+    exact bindings; no provider-specific orchestration or company data enters Core.
+rollback: Restore the previous Core and reviewed Workspace commits. Older Workbenches can
+  explicitly load .companyos/instance.yaml with --instance. Keep the existing immutable
+  deployment for runtime rollback; no live state or provider migration is performed by
+  this change.
+open_decisions: []

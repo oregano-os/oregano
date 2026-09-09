@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
   - product-owner
@@ -23,6 +23,16 @@ relations:
 ---
 
 # Company Instance Release and Promotion v0.1
+
+The reviewed non-secret Instance build declaration MUST be versioned at
+`.companyos/instance.yaml` in the responsible Company Workspace once migrated.
+Its exact bindings and SecretRefs are permitted company Git content; resolved
+credentials and operational evidence are not. Setup MUST include the declaration
+before its initial commit or operating review, and deployment MUST consume it
+without rewriting it. Explicit transport copies MUST match its parsed content.
+Legacy external-file compatibility is defined in the
+[Instance configuration contract](../reference/instance-configuration.md).
+Reviewing or merging this file does not independently authorize deployment.
 
 This draft defines how a Company Workspace change moves from a bounded proposal
 to a reviewed source revision and, when applicable, to a running Company

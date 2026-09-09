@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -21,6 +21,14 @@ relations:
 ---
 
 # Onboard a Company Workspace
+
+Keep the non-secret Instance build declaration at `.companyos/instance.yaml`
+under the Workspace's existing security review. Local authoring can precede
+Instance preparation; operating setup creates the file before review/commit
+and preserves existing configuration. Tokens, database credentials, provider
+receipts and operational state stay outside Git. The
+[Instance configuration reference](../reference/instance-configuration.md)
+defines the fields and migration from external declaration files.
 
 ## Agent-guided complete starter setup
 
@@ -135,6 +143,7 @@ has approved one.
 Add these machine-readable control files:
 
 - `.companyos/governance.yaml` — roles, change classes, and approvals;
+- `.companyos/instance.yaml` — the non-secret Instance declaration once prepared;
 - `.companyos/compatibility.yaml` — exact Core version, immutable Core commit,
   and exact Workbench version;
 - `.companyos/repository-protection.yaml` — intended Git workflow and hosted-hardening baseline;

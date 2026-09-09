@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -22,6 +22,14 @@ relations:
 ---
 
 # `companyos setup`
+
+The setup's reviewed operating Workspace includes `.companyos/instance.yaml`
+beside governance and compatibility. The declaration records the exact target
+Instance before the first commit or legacy activation review. The deployment
+phase reads it and refuses a conflicting target; it no longer creates a
+separate editable YAML beside setup state. Existing sessions past their commit
+must adopt the file through a Workspace change before resuming. See
+[Instance configuration](../../reference/instance-configuration.md).
 
 `companyos setup` starts or resumes the standard fresh installation in the
 current setup directory. Codex and Claude Code invoke the same entry and render

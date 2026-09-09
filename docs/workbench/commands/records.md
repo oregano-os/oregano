@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,12 @@ relations:
 ---
 
 # `companyos records`
+
+The non-secret build declaration is versioned at `.companyos/instance.yaml`.
+The separate Record Source operation bindings and qualification receipts used
+by this command retain their documented external paths and schemas. This
+command does not read those as arbitrary sections of the build declaration.
+See [Instance configuration](../../reference/instance-configuration.md).
 
 `companyos records` is the provider-neutral Workbench surface for structured
 operational Company Records. It does not operate Company Knowledge, grant an

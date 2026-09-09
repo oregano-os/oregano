@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,14 @@ audience:
 ---
 
 # Current System Status
+
+The Workbench now defaults builds to the Company's tracked
+`.companyos/instance.yaml`, validates a present declaration with the build
+parser and includes it in operating setup review/commits. Legacy explicit
+`--instance` files remain supported for unmigrated Workspaces; conflicting
+copies are refused after adoption. Credentials and mutable Instance state
+remain external. This implements a source-location contract, not a live
+migration or provider rollout. See [the reference](../reference/instance-configuration.md).
 
 This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.

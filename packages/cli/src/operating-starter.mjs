@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
 import { diagnostic } from "./diagnostics.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
+import { parseInstanceBuildConfiguration, resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 
 export const OPERATING_STARTER_FIELDS = [
   "change_date",
@@ -87,7 +88,7 @@ const readWorkspaceSource = (root) => {
   return { company, roster, governance, repositoryProtection };
 };
 
-export function renderOperatingStarter(root, rawInput, { initialization } = {}) {
+export function renderOperatingStarter(root, rawInput, { initialization, instanceId } = {}) {
   const normalized = normalizeOperatingStarterInput(rawInput);
   const diagnostics = [...normalized.diagnostics];
   const files = new Map();
@@ -110,6 +111,21 @@ export function renderOperatingStarter(root, rawInput, { initialization } = {}) 
     diagnostics.push(diagnostic("OPS020", "error", "The Oregano operating starter already exists; use an ordinary governed Workspace change instead of applying bootstrap twice."));
   }
   if (hasErrors(diagnostics)) return { input: normalized.input, files, deletions, diagnostics, workspaceVersion: null };
+
+  try {
+    const path = join(root, WORKSPACE_INSTANCE_PATH);
+    const raw = existsSync(path) ? readFileSync(path, "utf8") : YAML.stringify({
+      version: 1, instance_id: instanceId ?? `${source.company.data.slug}-production`, environment: "production", bindings: [],
+    });
+    const instance = existsSync(path) ? resolveWorkspaceInstanceConfiguration(root).configuration : parseInstanceBuildConfiguration(raw);
+    if ((instanceId && instance.instanceId !== instanceId) || instance.environment !== "production") {
+      throw new Error("The existing Instance declaration does not match this production setup target. Review the Workspace configuration before setup.");
+    }
+    files.set(WORKSPACE_INSTANCE_PATH, raw);
+  } catch (error) {
+    diagnostics.push(diagnostic("OPS025", "error", error.message, { file: WORKSPACE_INSTANCE_PATH }));
+    return { input: normalized.input, files, deletions, diagnostics, workspaceVersion: null };
+  }
 
   const workspaceVersion = initialization ? source.company.data.workspace_version : nextMinorVersion(source.company.data.workspace_version);
   const companyData = { ...source.company.data, workspace_version: workspaceVersion, workspace_mode: "operating" };
@@ -193,7 +209,7 @@ export function renderOperatingStarter(root, rawInput, { initialization } = {}) 
     placement: "workspace",
     change_class: "security",
     vision_principles_affected: ["Human authority is explicit", "Safety cannot be weakened from a Workspace", "Evidence beats claims"],
-    files_expected: ["company.md", "handbook/roster.md", ".companyos/governance.yaml", ".companyos/repository-protection.yaml", "agents/oregano/instructions.md", "workflows/slack-assistant.md", "connections/slack.md", planPath],
+    files_expected: ["company.md", "handbook/roster.md", ".companyos/governance.yaml", ".companyos/repository-protection.yaml", WORKSPACE_INSTANCE_PATH, "agents/oregano/instructions.md", "workflows/slack-assistant.md", "connections/slack.md", planPath],
     required_approvals: ["workspace-steward"],
     approvals: [{ role: "workspace-steward", approver: steward.id, approved_at: normalized.input.change_date, evidence: "explicit-human-bootstrap-confirmation" }],
     validation: ["companyos validate .", "companyos security .", "companyos inspect . --plan auto", "companyos onboard ."],
@@ -269,14 +285,14 @@ const applyRenderedFiles = (root, rendered) => {
   }
 };
 
-export function previewOperatingStarter({ workspaceRoot, rawInput }) {
+export function previewOperatingStarter({ workspaceRoot, rawInput, instanceId }) {
   let root;
   try { root = realpathSync(resolve(workspaceRoot)); }
   catch {
     return { preview: null, diagnostics: [diagnostic("OPS021", "error", `Company Workspace does not exist: ${resolve(workspaceRoot)}`)], validation: null };
   }
   const baseline = validateWorkspace(root);
-  const rendered = renderOperatingStarter(root, rawInput);
+  const rendered = renderOperatingStarter(root, rawInput, { instanceId });
   const diagnostics = [...baseline.diagnostics.filter((item) => item.severity === "error"), ...rendered.diagnostics];
   const sourceHashes = Object.fromEntries([...rendered.files.keys()].sort().map((relative) => {
     const path = join(root, relative);
@@ -294,6 +310,7 @@ export function previewOperatingStarter({ workspaceRoot, rawInput }) {
     deletions: [...rendered.deletions].sort(),
     source_hashes: sourceHashes,
     input: rendered.input,
+    instance_id: rendered.files.has(WORKSPACE_INSTANCE_PATH) ? parseInstanceBuildConfiguration(rendered.files.get(WORKSPACE_INSTANCE_PATH)).instanceId : null,
   };
   preview.confirmation_hash = createHash("sha256").update(JSON.stringify(preview)).digest("hex");
   if (hasErrors(diagnostics)) return { preview, diagnostics, validation: null, rendered };
@@ -310,8 +327,8 @@ export function previewOperatingStarter({ workspaceRoot, rawInput }) {
   }
 }
 
-export function applyOperatingStarter({ workspaceRoot, rawInput, confirmationHash }) {
-  const inspected = previewOperatingStarter({ workspaceRoot, rawInput });
+export function applyOperatingStarter({ workspaceRoot, rawInput, confirmationHash, instanceId }) {
+  const inspected = previewOperatingStarter({ workspaceRoot, rawInput, instanceId });
   if (!inspected.preview || hasErrors(inspected.diagnostics)) return { ...inspected, applied: false };
   if (confirmationHash !== inspected.preview.confirmation_hash) {
     return { ...inspected, applied: false, diagnostics: [...inspected.diagnostics, diagnostic("OPS022", "error", "Operating starter confirmation does not match the current preview.")] };

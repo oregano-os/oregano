@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -17,6 +17,13 @@ relations:
 ---
 
 # System Boundaries and Placement
+
+The non-secret Instance build declaration is physically stored in the Company
+Workspace at `.companyos/instance.yaml`. Its ownership remains the Company
+Instance; its source changes use Workspace security review. The file may name
+exact accounts, resources, routes and SecretRefs, but cannot grant credentials,
+execute a provider call or activate a deployment. Runtime state and secrets
+remain outside Git. See the [format contract](../reference/instance-configuration.md).
 
 The standard installation flow lives in the Workbench, not in a Codex/Claude
 prompt. Its session owns discovery, defaults, one initial setup decision and

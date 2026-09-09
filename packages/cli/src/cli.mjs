@@ -59,7 +59,7 @@ import {
 import { WORKBENCH_VERSION } from "./workbench-version.mjs";
 import { CORE_VERSION } from "./core-version.mjs";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
-import { loadInstanceBuildConfiguration } from "../../companyos-builder/instance-loader.ts";
+import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 import { buildKnowledgeBundle, inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
 import { inspectCurationInbox, proposeKnowledgePromotion } from "../../knowledge/curation.ts";
 import { createPostgresKnowledgeProvider, decidePostgresKnowledgeReview, getPostgresKnowledgeReviewCandidate, listPersistedKnowledgeReviewCandidateIds, persistKnowledgeReviewCandidates, rebuildPostgresKnowledgeDerived } from "../../state-postgres/knowledge-store.ts";
@@ -138,7 +138,7 @@ Usage:
   companyos database branch-status --host <neon-host> [--format human|json]
   companyos database branch-prepare --host <neon-host> [--format human|json]
   companyos database branch-verify --host <neon-host> [--format human|json]
-  companyos build <workspace> --instance <file> --output <file> [--knowledge-output <file>]
+  companyos build <workspace> --output <file> [--instance <file>] [--knowledge-output <file>]
   companyos knowledge inspect <workspace> [--format human|json]
   companyos knowledge build <workspace> --output <file>
   companyos knowledge retrieval-v3-build [--format human|json]
@@ -745,18 +745,23 @@ try {
     const target = targetWorkspace(action);
     const instanceIndex = args.indexOf("--instance");
     const outputIndex = args.indexOf("--output");
-    const instancePath = instanceIndex >= 0 ? resolve(args[instanceIndex + 1]) : undefined;
+    const instancePath = instanceIndex >= 0 ? args[instanceIndex + 1] : undefined;
+    if (instanceIndex >= 0 && (!instancePath || instancePath.startsWith("--"))) throw new Error("--instance requires a file path.");
     const outputPath = outputIndex >= 0 ? resolve(args[outputIndex + 1]) : undefined;
-    if (!instancePath || !outputPath) throw new Error("companyos build requires --instance <file> and --output <file>.");
+    if (!outputPath) throw new Error("companyos build requires --output <file>.");
     const git = (cwd, ...gitArgs) => execFileSync("git", gitArgs, { cwd, encoding: "utf8" }).trim();
     const coreCommit = git(repoRoot, "rev-parse", "HEAD");
     const workspaceCommit = git(target, "rev-parse", "HEAD");
     if (git(repoRoot, "status", "--porcelain") || git(target, "status", "--porcelain")) {
       throw new Error("CompanyOS build requires clean Core and Workspace checkouts so the recorded SHA pair is reproducible.");
     }
+    const selectedInstance = resolveWorkspaceInstanceConfiguration(target, instancePath);
+    if (existsSync(join(target, WORKSPACE_INSTANCE_PATH))) {
+      git(target, "ls-files", "--error-unmatch", WORKSPACE_INSTANCE_PATH);
+    }
     const artifact = buildCompanyOSArtifact({
       workspaceRoot: target,
-      instance: loadInstanceBuildConfiguration(instancePath),
+      instance: selectedInstance.configuration,
       coreVersion: CORE_VERSION,
       coreCommit,
       workspaceCommit,

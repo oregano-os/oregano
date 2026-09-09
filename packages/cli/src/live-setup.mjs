@@ -24,6 +24,7 @@ import { renderWorkspace } from "./workspace-generator.mjs";
 import { assertFreshSetupAuthority, assertFreshInitializationEvidence, isFreshSetup, standardSlackConnectorName } from "./setup/standard-contract.mjs";
 import { inspectWorkspaceSecurity } from "./security.mjs";
 import { applyOperatingStarter, previewOperatingStarter, renderOperatingStarter } from "./operating-starter.mjs";
+import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 import { validateWorkspace } from "./workspace-validator.mjs";
 import { VERCEL_NEON_SLACK_PROFILE } from "./setup/profiles/vercel-neon-slack.ts";
 import { setupModelProvider } from "./setup/model-providers.ts";
@@ -732,7 +733,7 @@ const createOperatingPullRequest = (executor, state) => {
   const branch = "companyos/activate-oregano-slack";
   const branchExists = run(executor, "git", ["-C", workspace, "show-ref", "--verify", `refs/heads/${branch}`], { allowFailure: true }).status === 0;
   git(executor, workspace, "switch", ...(branchExists ? [branch] : ["-c", branch]));
-  git(executor, workspace, "add", "company.md", "handbook/roster.md", ".companyos/governance.yaml", ".companyos/changes", ".github/CODEOWNERS", "agents/oregano", "workflows", "connections");
+  git(executor, workspace, "add", "company.md", "handbook/roster.md", ".companyos/governance.yaml", WORKSPACE_INSTANCE_PATH, ".companyos/changes", ".github/CODEOWNERS", "agents/oregano", "workflows", "connections");
   if (run(executor, "git", ["-C", workspace, "diff", "--cached", "--quiet"], { allowFailure: true }).status !== 0) {
     git(executor, workspace, "commit", "-m", "feat: activate supervised Oregano Slack assistant");
   }
@@ -761,7 +762,7 @@ const materializeFreshWorkspace = (statePath, state) => {
     for (const [path, content] of renderWorkspace(state.fresh.scope.company, { ...state.core, core_version: state.core.version, clean: true })) {
       mkdirSync(dirname(join(staging, path)), { recursive: true }); writeFileSync(join(staging, path), content);
     }
-    const rendered = renderOperatingStarter(staging, { change_date: state.answers.change_date, slack_team_id: state.resources.slack.team_id, slack_user_id: state.resources.slack.user_id, slack_channel_id: '' }, { initialization: { ...state.fresh.authorization, distribution: state.fresh.scope.distribution } });
+    const rendered = renderOperatingStarter(staging, { change_date: state.answers.change_date, slack_team_id: state.resources.slack.team_id, slack_user_id: state.resources.slack.user_id, slack_channel_id: '' }, { initialization: { ...state.fresh.authorization, distribution: state.fresh.scope.distribution }, instanceId: `${state.answers.github_repository}-production` });
     if (hasErrors(rendered.diagnostics)) throw new Error(rendered.diagnostics.map((item) => item.message).join(' '));
     for (const path of rendered.deletions) rmSync(join(staging, path), { force: true });
     for (const [path, content] of rendered.files) {
@@ -785,9 +786,10 @@ const buildAndConfigureArtifact = (executor, state, statePath, coreRoot) => {
   git(executor, state.workspace, "pull", "--ff-only", "origin", "main");
   if (clean(git(executor, state.workspace, "status", "--porcelain").stdout)) throw new Error("Reviewed Company Workspace must be clean before Artifact build.");
   const workspaceCommit = clean(git(executor, state.workspace, "rev-parse", "HEAD").stdout);
-  const instancePath = join(dirname(statePath), `${state.answers.github_repository}-production-instance.yaml`);
+  const { path: instancePath, configuration: instance } = resolveWorkspaceInstanceConfiguration(state.workspace);
+  if (instance.instanceId !== `${state.answers.github_repository}-production` || instance.environment !== "production") throw new Error("The reviewed Instance declaration differs from the confirmed setup target.");
+  git(executor, state.workspace, "ls-files", "--error-unmatch", WORKSPACE_INSTANCE_PATH);
   const artifactPath = join(dirname(statePath), `${state.answers.github_repository}-${workspaceCommit.slice(0, 12)}-artifact.json`);
-  writeFileSync(instancePath, YAML.stringify({ version: 1, instance_id: `${state.answers.github_repository}-production`, environment: "production", bindings: [] }), { encoding: "utf8", mode: 0o600 });
   if (existsSync(artifactPath)) rmSync(artifactPath, { force: true });
   const buildArgs = ["build", state.workspace, "--instance", instancePath, "--output", artifactPath];
   if (isFreshSetup(state)) run(executor, process.execPath, [join(coreRoot, "packages/cli/src/cli.mjs"), ...buildArgs], { cwd: coreRoot });
@@ -1191,13 +1193,13 @@ export async function advanceLiveSetup({
           slack_user_id: state.resources.slack.user_id,
           slack_channel_id: state.answers.slack_channel_id,
         };
-        const preview = previewOperatingStarter({ workspaceRoot: state.workspace, rawInput });
+        const preview = previewOperatingStarter({ workspaceRoot: state.workspace, rawInput, instanceId: `${state.answers.github_repository}-production` });
         if (hasErrors(preview.diagnostics)) throw new Error(`Operating Workspace preview failed: ${preview.diagnostics.find((item) => item.severity === "error")?.message}`);
         state.operating.preview_hash = preview.preview.confirmation_hash;
         state.operating.workspace_version = preview.preview.workspace_version;
         writeLiveSetupState(absoluteStatePath, state);
         if (operatingConfirmation !== preview.preview.confirmation_hash) return wait(absoluteStatePath, state, "The exact operating Workspace is ready for human confirmation before files are changed.", { type: "confirm-operating-workspace", confirmation_hash: preview.preview.confirmation_hash, summary: { files: preview.preview.files, deletions: preview.preview.deletions, agent: "oregano", execution_mode: "supervised", tools: [] } });
-        const applied = applyOperatingStarter({ workspaceRoot: state.workspace, rawInput, confirmationHash: operatingConfirmation });
+        const applied = applyOperatingStarter({ workspaceRoot: state.workspace, rawInput, confirmationHash: operatingConfirmation, instanceId: `${state.answers.github_repository}-production` });
         if (!applied.applied) throw new Error(`Operating Workspace apply failed: ${applied.diagnostics.find((item) => item.severity === "error")?.message}`);
         state.operating.applied = true;
         savePhase(absoluteStatePath, state, "steward-merge");

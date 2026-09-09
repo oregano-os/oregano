@@ -326,6 +326,7 @@ test("the operating starter is deterministic, Tool-free, and keeps one Steward",
   assert.equal(first.diagnostics.filter((item) => item.severity === "error").length, 0);
   assert.deepEqual(first.preview.tools, []);
   assert.equal(first.preview.execution_mode, "supervised");
+  assert.ok(first.preview.files.includes(".companyos/instance.yaml"));
 
   const applied = applyOperatingStarter({ workspaceRoot: workspace, rawInput: operatingAnswers(), confirmationHash: first.preview.confirmation_hash });
   assert.equal(applied.applied, true);

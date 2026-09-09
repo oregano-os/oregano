@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -20,6 +20,13 @@ relations:
 ---
 
 # CompanyOS Onboarding
+
+Instance preparation records non-secret configuration in the Company's
+`.companyos/instance.yaml`, directly beside governance and compatibility.
+The maintained operating setup includes it before the initial commit or
+activation review, and deployment reads that reviewed file. Existing
+installations adopt their exact declaration without changing bindings. See
+[the format, migration and compatibility rules](../reference/instance-configuration.md).
 
 Start with [Choose a setup](setup-options.md) to distinguish the available
 live profile and model variants from local authoring and future provider

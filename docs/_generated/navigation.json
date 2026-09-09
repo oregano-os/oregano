@@ -528,6 +528,14 @@
     "availability": null
   },
   {
+    "document_id": "reference.instance-configuration",
+    "title": "Workspace Instance Configuration",
+    "path": "docs/reference/instance-configuration.md",
+    "kind": "reference",
+    "status": "implemented",
+    "availability": "experimental"
+  },
+  {
     "document_id": "reference.translation-exceptions",
     "title": "Translation Exception Report",
     "path": "docs/reference/translation-exceptions.md",

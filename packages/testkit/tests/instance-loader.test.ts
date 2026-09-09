@@ -1,9 +1,31 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadInstanceBuildConfiguration } from "../../companyos-builder/instance-loader.ts";
+import { loadInstanceBuildConfiguration, resolveWorkspaceInstanceConfiguration } from "../../companyos-builder/instance-loader.ts";
+
+test("Workspace Instance discovery accepts identical transport copies and refuses drift", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-instance-discovery-"));
+  try {
+    const workspace = join(root, "workspace");
+    mkdirSync(join(workspace, ".companyos"), { recursive: true });
+    const copy = join(root, "transport.yaml");
+    const raw = "version: 1\ninstance_id: example-production\nenvironment: production\nbindings: []\n";
+    assert.throws(() => resolveWorkspaceInstanceConfiguration(workspace), /Instance declaration is missing/);
+    writeFileSync(copy, raw);
+    assert.equal(resolveWorkspaceInstanceConfiguration(workspace, copy).configuration.instanceId, "example-production");
+    const canonical = join(workspace, ".companyos/instance.yaml");
+    writeFileSync(canonical, `# Reviewed source\n${raw}`);
+    assert.equal(resolveWorkspaceInstanceConfiguration(workspace).path, canonical);
+    assert.equal(resolveWorkspaceInstanceConfiguration(workspace, copy).configuration.instanceId, "example-production");
+    writeFileSync(copy, raw.replace("production", "preview"));
+    assert.throws(() => resolveWorkspaceInstanceConfiguration(workspace, copy), /differs from .companyos\/instance.yaml/);
+    rmSync(canonical);
+    symlinkSync(copy, canonical);
+    assert.throws(() => resolveWorkspaceInstanceConfiguration(workspace), /must resolve inside/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 const withFile = (content: string, run: (path: string) => void) => {
   const root = mkdtempSync(join(tmpdir(), "companyos-instance-"));

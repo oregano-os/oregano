@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-24
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -18,6 +18,13 @@ relations:
 ---
 
 # Core and Workspace Versioning Policy
+
+The non-secret `.companyos/instance.yaml` is versioned by the Company Workspace
+Git history. Its `version: 1` identifies the configuration format, not the
+Workspace release or an edit counter. A build records the exact Workspace
+commit and normalized Instance configuration digest. A binding change requires
+review and a new deployment before it affects runtime; no separate Instance
+release-number sequence is introduced.
 
 Oregano Core and every Company Workspace use Semantic Versioning 2.0.0. Their
 release versions are independent because generic platform behavior and one

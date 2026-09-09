@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -18,6 +18,13 @@ relations:
 ---
 
 # Company Instance
+
+The non-secret build declaration is versioned at `.companyos/instance.yaml`
+in the Company Workspace, beside governance and compatibility. Physical
+storage does not change Instance authority: credentials, deployment, provider
+receipts and operational state remain separately controlled. See the
+[Instance configuration reference](../reference/instance-configuration.md)
+for the complete format, build discovery, setup and migration contract.
 
 A Company Instance is one deployed pairing of an exact Oregano Core version
 and an exact Company Workspace version, connected to environment-specific
@@ -201,8 +208,10 @@ A replacement runtime host must preserve environment isolation, scoped
 deployment identity, secret injection, immutable deployment provenance,
 observable health, and rollback. A replacement StateStore must preserve the
 specified transactional, idempotency, evidence, retention, backup, and recovery
-contracts. Provider account IDs, project IDs, tokens, and secrets belong to the
-Instance configuration or CI secret store, never the Company Workspace.
+contracts. Non-secret Instance identifiers and bindings belong in the reviewed
+`.companyos/instance.yaml` in the Company Workspace where supported by its
+format. Tokens and resolved credentials remain in the Instance or CI secret
+store, never the Workspace or Git.
 
 Runtime secrets live in the target environment's secret store. Deployment
 credentials live in CI secrets. The Workspace declares required logical

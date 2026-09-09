@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -28,7 +28,10 @@ target-environment gates below pass.
 ## Configure Agent and provider bindings
 
 Keep Company Agent routing separate from coding execution. A representative
-non-secret Instance declaration is:
+non-secret declaration stored at `.companyos/instance.yaml` in the Company
+Workspace is shown below. It is protected by `.companyos/**` security review.
+See [the configuration reference](../../reference/instance-configuration.md)
+for discovery and the boundary between source and deployment copies:
 
 ```yaml
 version: 1
@@ -132,7 +135,8 @@ adapter. The connected profile below supplies its own exact test evidence.
 Keep these values in the Company Instance, never in the Workspace:
 
 - `COMPANYOS_BUILDER_INSTANCE_YAML_BASE64`: base64 of the exact non-secret Instance
-  YAML used to build the running Artifact. Its normalized configuration digest
+  `.companyos/instance.yaml` used to build the running Artifact. This variable
+  is a generated transport copy, not an editable configuration source. Its normalized configuration digest
   must equal the Artifact provenance; no credentials may be embedded.
 - `COMPANYOS_BUILDER_RELEASE_BINDING_BASE64`: base64 JSON containing `projectId`,
   `teamId` and the existing `productionUrl` for the maintained Vercel host.

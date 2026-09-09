@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -21,6 +21,12 @@ relations:
 ---
 
 # `companyos verify-live`
+
+Verification still proves the deployed Artifact and exact revision pair.
+After adopting `.companyos/instance.yaml`, its committed values and Artifact
+configuration digest identify the reviewed Instance configuration. Merely
+finding or validating the file does not prove deployment, provider access or
+live readiness. See [the configuration contract](../../reference/instance-configuration.md).
 
 ```bash
 companyos verify-live --state <file> [--scope starter|workflow] [--format human|json]
