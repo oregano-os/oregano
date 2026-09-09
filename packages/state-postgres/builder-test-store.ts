@@ -19,7 +19,7 @@ export function createPostgresBuilderTestStore(databaseUrl = process.env.DATABAS
         values (${key(session.id)}, ${JSON.stringify(session)}::jsonb, null) on conflict (key) do nothing`;
       const existing = await store.get(session.id);
       if (!existing || sha256({ ...existing, revision: 0, stage: "prepared", artifactHash: undefined, testConversation: undefined, testUrl: undefined,
-        result: undefined, feedback: undefined, acceptance: undefined, failureDigest: undefined }) !== sha256(session)) throw new Error("Test identity conflicts with a changed candidate or scope.");
+        result: undefined, conversation: undefined, feedback: undefined, acceptance: undefined, failureDigest: undefined }) !== sha256(session)) throw new Error("Test identity conflicts with a changed candidate or scope.");
       return existing;
     },
     async replace(previous, next) {

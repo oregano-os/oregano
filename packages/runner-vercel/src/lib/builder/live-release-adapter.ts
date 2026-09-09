@@ -34,6 +34,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     artifacts: Pick<WorkflowExecutionStore, "putArtifact" | "getArtifact">;
     environment: NodeJS.ProcessEnv;
     functionalTests?: BuilderFunctionalTests;
+    revisionPending?(job: { jobId: string }): Promise<boolean>;
   };
   constructor(dependencies: HostedBuilderReleaseAdapter["dependencies"]) {
     this.dependencies = dependencies;
@@ -60,14 +61,16 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     return { instanceId: artifact.instance.id, bindingId: artifact.builder!.repository.proposalPublisherBinding,
       repositoryId: artifact.builder!.repository.repositoryId };
   }
-  #key(id: string) { return `release:candidate:${sha256([this.dependencies.artifact.instance.id, id])}`; }
+  #key(id: string, testDigest?: string) { return `release:candidate:${sha256([this.dependencies.artifact.instance.id, id, ...(testDigest ? [testDigest] : [])])}`; }
   async #record(candidate: ReleaseCandidate) {
-    const record = await this.dependencies.state.get<CandidateRecord>(this.#key(candidate.id));
+    const record = await this.dependencies.state.get<CandidateRecord>(this.#key(candidate.id, candidate.functionalTestDigest))
+      ?? (candidate.functionalTestDigest ? await this.dependencies.state.get<CandidateRecord>(this.#key(candidate.id)) : undefined);
     if (!record || sha256(record.candidate) !== sha256(candidate)) throw new Error("Release candidate differs from trusted preparation.");
     return record;
   }
   async prepareCandidate(job: BuilderJob): Promise<ReleaseCandidate> {
     const { artifact, github, state } = this.dependencies;
+    if (await this.dependencies.revisionPending?.(job)) throw new Error("Changes were requested for this candidate.");
     const evidence = job.evidence as { proposal?: ProposalPublicationReceipt; validation?: CheckedProposal } | undefined;
     const published = evidence?.proposal; const checked = evidence?.validation;
     if (job.state !== "published" || !job.brief || !published || !checked?.validationPassed || !checked.releaseChangeClass
@@ -101,10 +104,10 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       checksDigest: inspection.checksDigest, previousArtifactHash: previous.artifactHash,
       ...(functionalTest ? { functionalTestDigest: functionalTest.digest } : {}),
     };
-    const key = this.#key(candidate.id);
+    const key = this.#key(candidate.id, candidate.functionalTestDigest);
     const existing = await state.get<CandidateRecord>(key);
     if (existing && sha256(existing.candidate) !== sha256(candidate)) throw new Error("Candidate evidence changed; prepare a new proposal.");
-    await state.setIfNotExists(key, { candidate, github: input, previous, ...(functionalTest ? { job } : {}) } satisfies CandidateRecord);
+    await state.setIfNotExists(key, { candidate, github: input, previous, job } satisfies CandidateRecord);
     return candidate;
   }
   async inspect(candidate: ReleaseCandidate) {
@@ -119,12 +122,14 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     return receipt ? { state: "succeeded" as const, receipt } : { state: "pending" as const };
   }
   async #assertFunctionalTest(record: CandidateRecord) {
+    if (await this.dependencies.revisionPending?.({ jobId: record.candidate.id })) throw new Error("This candidate has a pending revision.");
     if (!record.candidate.functionalTestDigest) return;
     if (!record.job || !this.dependencies.functionalTests) throw new Error("Functional test evidence is unavailable.");
     const result = await this.dependencies.functionalTests.releaseEvidence(record.job, true);
     if (result.digest !== record.candidate.functionalTestDigest) throw new Error("The accepted functional test changed.");
   }
   async acceptFunctionalTest(candidate: ReleaseCandidate, actor: string, actionId: string) {
+    if (await this.dependencies.revisionPending?.({ jobId: candidate.id })) throw new Error("This candidate has a pending revision.");
     if (!candidate.functionalTestDigest) return;
     authorizeRelease(candidate, actor, await this.authorization(candidate.instanceId));
     const record = await this.#record(candidate), tests = this.dependencies.functionalTests;

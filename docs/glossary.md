@@ -239,6 +239,19 @@ Sprint Agent instructions, Workflows, Skills, templates, and synthetic
 fixtures. It declares requirements but cannot assign principals, grants,
 approvals, provider bindings, or runtime authority.
 
+### Build request
+The user-facing Builder task covering new development or a change to existing
+Company Workspace behavior. Ordinary conversation may call it "your request".
+Submission covers the resolved development scope, not result acceptance or
+publication. See the accepted experience direction in the
+[Builder specification](specifications/builder-governance.md#accepted-builder-experience-and-test-direction-2026-09-09).
+
+### Build brief
+The resolved objective, current and proposed behavior, scope, constraints,
+acceptance criteria and test instructions passed to the coding agent. Core binds
+it to the authenticated request and source-read evidence. It does not grant
+provider access or live-publication authority.
+
 ### BuilderService
 The provider-neutral Core coordinator for grounded proposal-only Builder jobs.
 It controls immutable input, leases, recovery, cancellation, repository source,

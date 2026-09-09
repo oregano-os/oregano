@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -98,17 +98,25 @@ the brief; both Claude Code and Codex receive the same contract.
 
 ## Select the smallest useful test
 
-Use `simulate` for local fixtures, `auto` when maintained inspection can select
-the checks, `test-resources` for existing company test destinations, or
-`live-trial` for a precisely authorized production trial. A test channel in the
-existing app or a test board in the existing provider can be sufficient.
-Neither a second app nor a hosted Preview is an unconditional requirement.
+The Builder recommends a supported test in ordinary language before coding.
+Explain what runs, where the result appears, what can change, what the human
+should inspect and what the test does not cover. Reuse known defaults. Keep
+interaction, effect scope and hosting as internal reasoning, not a menu or
+mandatory questionnaire; the human can adjust the recommendation in conversation.
 
-Record exact logical resource bindings for a connected test or live trial.
-The preference does not grant provider access and does not prove a test ran.
-Only a qualified test executor can produce execution evidence. If none exists
-for the requested test, report the gap. A coding worker with model-only network
-access cannot perform that test by itself.
+Use `auto` for technical checks without a connected user test, or `test-resources`
+for a supported Agent or workflow test on existing qualified resources. General
+simulation and live trials remain deferred; the chat admission rejects `simulate`
+and `live-trial` even though those legacy schema values remain readable. Preview
+and a second app are not required for the supported interactive Agent profile.
+
+A test preference grants no access and is not execution evidence. Explain missing
+capabilities before coding. The isolated coding worker cannot run connected tests.
+
+Call the task a **Build request**, including new development; the resolved coding
+instructions are the **Build brief**. “Only make it live after my approval” means
+`deploymentIntent: after-acceptance`, which offers later **Go live** acceptance.
+Use `prepare-only` only for an explicit draft without publication intent.
 
 ## Start and hand off
 
@@ -143,13 +151,24 @@ before coding. Do not ask to install another provider app for an existing bindin
 Include one exact `test.execution` in the brief:
 
 ```json
-{"strategy":"test-resources","scenarios":["Review the revised answer"],"targetBindings":["test-channel"],"execution":{"kind":"agent","agentId":"assistant","prompt":"Explain the weekly report."}}
+{"strategy":"test-resources","scenarios":["Review the revised answer"],"targetBindings":["test-channel"],"execution":{"kind":"agent","agentId":"assistant","prompt":"Explain the weekly report.","interaction":"interactive"}}
 ```
 
 For a workflow use `execution: {kind: "workflow", workflowId: "report", fields: {}}`
 and the selected test channel plus exact work-item test resource. Current support
-is a read-only Agent reply or an immediate operator workflow without messages,
-waits or intermediate decisions. Report unsupported cases explicitly.
+is an Agent with no Tools (one answer or interactive conversation), or an immediate
+operator workflow without messages, waits or intermediate decisions. Report
+unsupported cases explicitly. Omit interaction or use `automatic` for one answer.
+
+For interactive tests, the human mentions the app in the dedicated test thread
+and can ask follow-up questions. The session retains only that candidate's own
+history, admits up to twenty replies and expires after 24 hours while open.
+**Finish test** freezes the conversation for review; only then can **Go live** be
+offered. **Restart test** uses the same candidate with empty history and fresh
+evidence, invalidating the old acceptance action without a new coding job.
+Accepted results cannot be restarted. Result generation does not itself prove
+semantic correctness; the human reviews the actual answer. Report delivery is
+a real post to the test channel.
 
 Core tests the unmerged candidate and posts its actual result before the final
 merge/live action. The requester uses **Request changes**, then explains the

@@ -55,12 +55,12 @@ test("the chat presents the completed candidate test before release and feedback
       async acquireLock() { return { threadId: "lock", token: "token", expiresAt: Date.now() + 300000 }; }, async releaseLock() {} } as unknown as StateAdapter;
     const artifact = { ...f.previous, builder: { ...f.previous.builder!, testResources: f.resources }, connectors: [{ id: "slack", connector: "oregano/slack-communication", connectorVersion: "0.1.0",
       configuration: { destinations: [{ id: "test-channel", kind: "channel", channel_id: "C20002", account_id: "T10001" }] } }] };
-    const integration = createBuilderFunctionalTestIntegration({ artifact, chat, state, tests: f.tests,
+    const integration = createBuilderFunctionalTestIntegration({ artifact, chat, state, tests: f.tests, getJob: async () => f.job,
       authenticatedPrincipal: (author) => author.userId === "U10001" ? f.session.requester : undefined,
       compile: async () => { order.push("compile-candidate"); return f.candidate; },
       execute: async (candidate, session) => { executions++; order.push("execute-candidate"); return { artifactHash: candidate.artifactHash, candidateCommit: candidate.provenance.workspaceCommit,
         executionDigest: session.scopeDigest, completedAt: new Date().toISOString(), summary: "Synthetic provider result", evidence: { synthetic: true } }; },
-      ready: { async deliver(job) { await f.tests.releaseEvidence(job, false); order.push("offer-merge-and-live"); } },
+      ready: { async deliver(job) { if ((await f.store.get(f.session.id))?.stage === "reviewable") { await f.tests.releaseEvidence(job, false); order.push("offer-merge-and-live"); } } },
       fallback: { async deliver() { order.push("fallback"); } },
       transport: { async qualify() {}, async permalink() { return "https://example.slack.com/archives/C20002/p2000000"; } },
     });
