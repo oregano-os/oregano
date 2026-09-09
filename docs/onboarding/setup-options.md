@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -25,7 +25,7 @@ relations:
 
 CompanyOS currently implements one complete infrastructure setup profile:
 GitHub + Vercel Pro (or Enterprise) + Neon/Postgres + Slack. You can choose how its model calls
-are served, create or explicitly adopt compatible resources, or create only
+are served, create fresh resources, or create only
 a local authoring Workspace. Other hosting, database, and communication
 combinations are extension possibilities, not available installers.
 

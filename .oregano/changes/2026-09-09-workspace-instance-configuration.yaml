@@ -23,6 +23,9 @@ files_expected:
   - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
   - package.json
   - packages/cli/package.json
+  - packages/cli/README.md
+  - docs/workbench/guides/configure-repository-protection.md
+  - packages/cli/content/guides/configure-repository-protection.md
   - docs/workbench/overview.md
   - docs/workbench/commands/bootstrap.md
   - docs/README.md
@@ -109,6 +112,7 @@ documentation_impact:
     - command.validate
     - command.verify-live
     - guide.choose-placement
+    - guide.configure-repository-protection
     - guide.connect-company-record-source
     - guide.connect-knowledge-source
     - guide.operate-builder

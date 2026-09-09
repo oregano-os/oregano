@@ -918,10 +918,10 @@ evidence, historical prototypes, and production gaps.
   alert delivery, and backup/restore
   evidence remain Instance-specific and cannot be inferred from repository
   tests.
-- Database setup state version 4 now separates StateStore resource provisioning
-  from schema preparation. New runs use the `database-prepare` phase; legacy
-  pending `database-bootstrap` phases resume compatibly through the same
-  idempotent preparation entrypoint. The deterministic
+- Historical setup state version 4 introduced separate StateStore resource
+  provisioning and schema preparation. Current schema-5 fresh runs retain the
+  `database-prepare` phase; setup states 1–4 no longer resume. The following
+  database-manifest and qualification evidence remains historical. The deterministic
   `companyos-postgres@1.9.0` additive manifest preserves the immutable `1.8.0`,
   `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares `companyos`, `companyos_knowledge`, and `companyos_records`, records an immutable
@@ -969,7 +969,7 @@ evidence, historical prototypes, and production gaps.
 
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Oregano Core source is versioned `0.5.14` as the prepared patch candidate
+- Historical release preparation: Oregano Core source was versioned `0.5.14` as the prepared patch candidate
   that extends the isolated Sprint scenario runner with a digest-bound, fixed,
   single-thread Friday Close test sequence. `v0.5.13` is the latest published
   release; `v0.5.14` becomes release authority only
@@ -1065,7 +1065,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.15`; no
+  builds. Its repository release candidate is `0.1.0-experimental.19`; no
   public package release is claimed.
 - Newly generated Change Plans use version 3. They carry no status and no
   approvals: the pull request that carries a plan is its approval and its

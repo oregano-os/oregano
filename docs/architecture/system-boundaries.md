@@ -127,7 +127,7 @@ Knowledge authorization remains upstream of model execution; the recipe layer
 does not duplicate it as a provider data-class engine or approval workflow.
 
 Database resource provisioning and CompanyOS schema preparation are separate
-setup responsibilities. The state-service adapter creates or adopts the
+setup responsibilities. In fresh setup, the state-service adapter creates the
 provider resource and identifies the runtime secret binding. Core owns the
 provider-neutral, versioned PostgreSQL manifest and the idempotent bootstrap
 and read-only qualification operations for `companyos` and
