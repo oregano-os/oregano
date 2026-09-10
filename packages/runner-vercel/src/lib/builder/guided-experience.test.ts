@@ -167,3 +167,19 @@ test("legacy source message references never authorize overwriting the conversat
     assert.match(JSON.stringify(t.messages[2]), /Live/);
   } finally { f.cleanup(); }
 });
+
+test("readiness button refreshes do not duplicate an unchanged result explanation", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    const card = (value: string) => ({ type: "card", title: "Ready to test", children: [
+      { type: "text", content: "The checked result and test instructions." },
+      { type: "actions", children: [{ type: "button", id: "release", label: "Go Live", value }] },
+    ] }) as any;
+    await show(f.job, card("first-token"), "result");
+    await show(f.job, card("fresh-token"), "result");
+    assert.equal(t.messages.length, 1);
+    assert.match(JSON.stringify(t.messages[0]), /The checked result and test instructions/);
+    assert.match(JSON.stringify(t.messages[0]), /fresh-token/);
+  } finally { f.cleanup(); }
+});

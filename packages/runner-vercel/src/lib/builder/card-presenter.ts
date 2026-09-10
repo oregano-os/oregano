@@ -18,8 +18,14 @@ export function createBuilderCardPresenter(chat: Pick<Chat, "thread">, state: St
       const rank = phases.indexOf(phase), digest = sha256(card);
       if (existing && (existing.rank > rank || existing.digest === digest)) return;
       const thread = chat.thread(job.sourceConversationKey);
+      const withoutActions = (value: CardElement): CardElement => ({ ...value, children: value.children.filter(child => child.type !== "actions") });
+      if (existing?.card && sha256(withoutActions(existing.card)) === sha256(withoutActions(card))) {
+        await thread.adapter.editMessage(thread.id, existing.messageId, card);
+        await state.set(key, { messageId: existing.messageId, rank, digest, card });
+        return;
+      }
       if (existing?.card) {
-        const archived = { ...existing.card, children: existing.card.children.filter(child => child.type !== "actions") };
+        const archived = withoutActions(existing.card);
         await thread.adapter.editMessage(thread.id, existing.messageId, archived);
       }
       const messageId = (await thread.post(card)).id;
