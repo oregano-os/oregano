@@ -11,7 +11,7 @@ const candidate: ReleaseCandidate = { version: 1, id: "change", instanceId: "acm
 const job = { jobId: candidate.id, state: "published", instanceId: candidate.instanceId, repositoryId: candidate.repositoryId, baseCommit: candidate.baseCommit, requesterPrincipal: candidate.requester, sourceConversationKey: candidate.sourceConversation, brief: { brief: { deploymentIntent: "after-acceptance", proposedBehavior: "The report starts with a short summary.", acceptanceCriteria: ["Summary precedes tickets"] } }, evidence: { proposal: { proposalCommit: candidate.candidateCommit } } } as unknown as BuilderJob;
 function fixture(prepared: ReleaseCandidate | Error = candidate, beforeAccept?: (candidate: ReleaseCandidate, actor: string, actionId: string) => Promise<void>) {
   const values = new Map<string, unknown>(); const messages: unknown[] = []; const accepted: unknown[] = []; const handlers = new Map<string, (event: any) => Promise<void>>();
-  let fallbacks = 0;
+  let fallbacks = 0, preparations = 0;
   const thread = { id: candidate.sourceConversation, async post(card: unknown) { messages.push(card); }, adapter: { async editMessage(_thread: string, _id: string, card: unknown) { messages.push(card); } } };
   const run: ReleaseRun = { id: "release", candidate, candidateDigest: sha256(candidate), acceptedBy: candidate.requester, acceptedAt: new Date().toISOString(), stage: "approved", revision: 0, updatedAt: new Date().toISOString() };
   const integration = createBuilderReleaseIntegration({
@@ -19,14 +19,14 @@ function fixture(prepared: ReleaseCandidate | Error = candidate, beforeAccept?: 
     state: { async set(key: string, value: unknown) { values.set(key, value); }, async get(key: string) { return values.get(key) ?? null; } } as Pick<StateAdapter, "get" | "set">,
     coordinator: { async accept(value, actor, digest) { accepted.push({ value, actor, digest }); return run; }, async rollback() { return run; } },
     authenticatedPrincipal: (author: Author) => author.userId === "U1" ? candidate.requester : undefined,
-    async prepareCandidate() { if (prepared instanceof Error) throw prepared; return prepared; }, fallback: { async deliver() { fallbacks++; } },
+    async prepareCandidate() { preparations++; if (prepared instanceof Error) throw prepared; return prepared; }, fallback: { async deliver() { fallbacks++; } },
     beforeAccept, getJob: async () => job,
   });
   const click = async (threadId = thread.id, userId = "U1") => {
     const key = [...values.keys()][0];
     await handlers.get("companyos.builder.release")!({ thread: { ...thread, id: threadId }, threadId, value: key.slice("builder-release-candidate:".length), user: { userId }, adapter: thread.adapter, messageId: "card" });
   };
-  return { integration, handlers, values, thread, click, messages, accepted, run, fallbacks: () => fallbacks };
+  return { integration, handlers, values, thread, click, messages, accepted, run, fallbacks: () => fallbacks, prepare: (next: ReleaseCandidate | Error) => { prepared = next; }, preparations: () => preparations };
 }
 
 test("qualified Chat release binding accepts one exact published result under the authenticated actor", async () => {
@@ -93,4 +93,50 @@ test("pending hosted checks deliver the proposal and an authenticated read-only 
   assert.equal(f.fallbacks(), 0);
   await f.handlers.get("companyos.builder.release.refresh")!(event);
   assert.equal(f.fallbacks(), 0); assert.equal(f.accepted.length, 0);
+});
+
+ test("Go Live on a card without a precomputed token prepares and accepts in the same click", async () => {
+  const calls: string[] = [];
+  const f = fixture(new Error("The exact merge strategy and all candidate checks must pass before acceptance."), async () => { calls.push("accepted-test"); });
+  f.integration.registerHandlers();
+  await f.integration.notifier.deliver(job);
+  assert.match(JSON.stringify(f.messages), /companyos.builder.release.check/);
+  assert.equal(f.accepted.length, 0);
+  f.prepare(candidate);
+  const event = { thread: f.thread, value: job.jobId, user: { userId: "U1" }, messageId: "result-card" };
+  await f.handlers.get("companyos.builder.release.check")!(event);
+  assert.equal(f.accepted.length, 1);
+  assert.deepEqual(calls, ["accepted-test"]);
+  assert.match(JSON.stringify(f.messages.at(-1)), /Publishing/);
+  assert.doesNotMatch(JSON.stringify(f.messages), /then use Go Live when ready/);
+  const preparations = f.preparations();
+  f.prepare(new Error("The base moved after this version was published."));
+  await f.handlers.get("companyos.builder.release.check")!(event);
+  assert.equal(f.preparations(), preparations, "retry reconciles the same accepted release without preparing another candidate");
+  assert.deepEqual(calls, ["accepted-test"]);
+});
+
+test("Go Live reports actual blockers without requiring review or exposing private provider errors", async () => {
+  const f = fixture(new Error("This build is draft-only.")); f.integration.registerHandlers();
+  const event = { thread: f.thread, value: job.jobId, user: { userId: "U1" }, messageId: "result-card" };
+  await f.handlers.get("companyos.builder.release.check")!(event);
+  assert.equal(f.accepted.length, 0);
+  assert.match(JSON.stringify(f.messages.at(-1)), /prepared as a draft only/);
+  f.prepare(new Error("private-provider-token"));
+  await f.handlers.get("companyos.builder.release.check")!(event);
+  assert.equal(f.accepted.length, 0);
+  assert.match(JSON.stringify(f.messages.at(-1)), /Diagnostic reference/);
+  assert.doesNotMatch(JSON.stringify(f.messages), /private-provider-token/);
+});
+
+test("tokenless Go Live cannot publish another conversation or a mismatched build", async () => {
+  const f = fixture(); f.integration.registerHandlers();
+  const event = { thread: f.thread, value: job.jobId, user: { userId: "U1" }, messageId: "result-card" };
+  await f.handlers.get("companyos.builder.release.check")!({ ...event, thread: { ...f.thread, id: "other" } });
+  await f.handlers.get("companyos.builder.release.check")!({ ...event, user: { userId: "unknown" } });
+  assert.equal(f.preparations(), 0);
+  f.prepare({ ...candidate, candidateCommit: "f".repeat(40) });
+  await f.handlers.get("companyos.builder.release.check")!(event);
+  assert.equal(f.accepted.length, 0);
+  assert.match(JSON.stringify(f.messages), /does not match this build/);
 });

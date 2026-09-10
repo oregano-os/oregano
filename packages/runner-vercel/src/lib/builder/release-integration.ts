@@ -36,6 +36,15 @@ export function createBuilderReleaseIntegration(args: {
   present?: BuilderCardPresenter;
   revisionPending?(job: BuilderJob): Promise<boolean>;
 }) {
+  const assertJobCandidate = (job: BuilderJob, candidate: ReleaseCandidate) => {
+    assertReleaseCandidate(candidate);
+    const published = (job.evidence as { proposal?: { proposalCommit?: string } } | undefined)?.proposal?.proposalCommit;
+    if (candidate.id !== job.jobId || candidate.instanceId !== job.instanceId || candidate.repositoryId !== job.repositoryId
+      || candidate.baseCommit !== job.baseCommit || candidate.candidateCommit !== published
+      || candidate.requester !== job.requesterPrincipal || candidate.sourceConversation !== job.sourceConversationKey) {
+      throw new Error("Release preparation did not identify the published Builder result.");
+    }
+  };
   const notifier: BuilderTerminalNotifier = {
     async deliver(job) {
       if (job.state !== "published" || !job.brief) { await args.fallback.deliver(job); return; }
@@ -66,13 +75,7 @@ export function createBuilderReleaseIntegration(args: {
         await show({ retryToken: token, detail: "The result is available. Required checks or publication access are not ready yet. No publication has started." });
         return;
       }
-      assertReleaseCandidate(candidate);
-      const published = (job.evidence as { proposal?: { proposalCommit?: string } } | undefined)?.proposal?.proposalCommit;
-      if (candidate.instanceId !== job.instanceId || candidate.repositoryId !== job.repositoryId
-        || candidate.baseCommit !== job.baseCommit || candidate.candidateCommit !== published
-        || candidate.requester !== job.requesterPrincipal || candidate.sourceConversation !== job.sourceConversationKey) {
-        throw new Error("Release preparation did not identify the published Builder result.");
-      }
+      assertJobCandidate(job, candidate);
       const digest = sha256(candidate);
       const token = digest;
       await args.state.set(`builder-release-candidate:${token}`, { candidate, digest } satisfies PendingRelease, 24 * 60 * 60 * 1000);
@@ -91,8 +94,28 @@ export function createBuilderReleaseIntegration(args: {
     args.chat.onAction("companyos.builder.release.check", async event => {
       const job = event.value ? await args.getJob?.(event.value) : undefined;
       if (!job || !event.thread || job.sourceConversationKey !== event.thread.id || !args.authenticatedPrincipal(event.user)) return;
-      await notifier.deliver(job);
-      await event.thread.post("Publication was not started or queued. Review the current test and readiness information on the build card, then use Go Live when ready.");
+      const actor = args.authenticatedPrincipal(event.user)!;
+      let approvalRecorded = false;
+      try {
+        const publish = async () => {
+          if (job.brief?.brief.deploymentIntent !== "after-acceptance") throw new Error("This build is draft-only.");
+          const receiptKey = `builder-release-accepted:${job.jobId}`;
+          const accepted = await args.state.get<PendingRelease>(receiptKey);
+          // A retry reconciles the same accepted version, never a newly selected build.
+          const candidate = accepted?.candidate ?? await args.prepareCandidate(job);
+          assertJobCandidate(job, candidate);
+          const digest = sha256(candidate);
+          if (accepted && accepted.digest !== digest) throw new Error("The accepted candidate changed.");
+          if (!accepted) await args.beforeAccept?.(candidate, actor, event.messageId);
+          approvalRecorded = true;
+          const run = await args.coordinator.accept(candidate, actor, digest);
+          await args.state.set(receiptKey, { candidate, digest } satisfies PendingRelease);
+          await presentRun(run);
+        };
+        if (args.withBuildLock) await args.withBuildLock(job.jobId, publish); else await publish();
+      } catch (error) {
+        await event.thread.post(`${approvalRecorded ? "Your approval was recorded, but publication could not be confirmed." : "Publication could not start."} ${releaseBlockerMessage(error)}`);
+      }
     });
     args.chat.onAction("companyos.builder.discard", async event => {
       const job = event.value ? await args.getJob?.(event.value) : undefined, actor = args.authenticatedPrincipal(event.user);
@@ -126,8 +149,8 @@ export function createBuilderReleaseIntegration(args: {
           else await event.adapter.editMessage(event.threadId, event.messageId, releaseStatusCard(run));
         };
         if (args.withBuildLock) await args.withBuildLock(pending.candidate.id, publish); else await publish();
-      } catch {
-        await event.thread.post(approvalRecorded ? "Your approval was recorded, but publication status could not be confirmed. Ask Builder to check the build status before retrying." : "Publication could not start. A test may still be running, the reviewed result may have changed, or required checks or permissions are unavailable. No approval was queued for later publication.");
+      } catch (error) {
+        await event.thread.post(`${approvalRecorded ? "Your approval was recorded, but publication could not be confirmed." : "Publication could not start."} ${releaseBlockerMessage(error)}`);
       }
     });
   };
@@ -148,4 +171,28 @@ export function releaseStatusCard(run: ReleaseRun) {
   return Card({ title: run.stage === "live" ? "Live" : run.stage === "rolled-back" ? "Previous version restored" : run.stage === "failed" ? "Publication stopped" : "Publishing", children: [
     CardText(description),
   ] });
+}
+
+/** Translate known control failures; never render arbitrary provider errors or secrets. */
+export function releaseBlockerMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "unknown-release-error";
+  const known: Record<string, string> = {
+    "Release requires an authenticated active human.": "Your account is not an active human member authorized for publication.",
+    "This human is not the required acceptor for this change.": "The Workspace policy requires a different authorized person to approve this change.",
+    "This human has no production release authority for the Instance.": "Your account does not have publication rights for this Instance.",
+    "Release policy or membership changed; review the candidate under the current policy.": "The publication policy or company membership changed. Builder must refresh the current authorization.",
+    "Production changed since this candidate was prepared.": "Another version became live. Builder must update this build against the current Workspace.",
+    "This build is draft-only.": "This build was prepared as a draft only. Ask Builder to enable publication for this build.",
+    "Changes were requested for this candidate.": "This version has an outstanding change request. Complete or withdraw that request before publishing.",
+    "This candidate has a pending revision.": "This version has an outstanding change request. Complete or withdraw that request before publishing.",
+    "The exact candidate has no current functional-test evidence.": "The selected technical test has no current completed result. No separate review confirmation is required.",
+    "The exact merge strategy and all candidate checks must pass before acceptance.": "The repository checks or the checked target branch are not ready. Builder must refresh their status before publication can proceed.",
+    "Only the exact independently checked current Workspace proposal can be released.": "This build no longer matches the current Workspace or lacks its completed technical checks. Builder must update the build first.",
+    "Release preparation did not identify the published Builder result.": "The prepared version does not match this build. Nothing else was selected for publication.",
+    "The displayed candidate is no longer ready or current.": "The build or its technical evidence changed during publication. Builder must refresh the exact result.",
+    "The displayed test result is stale.": "The test result changed during publication. Builder must refresh the exact result.",
+    "A test or decision is still running.": "A test or another decision is currently running for this build. Publication has not been queued.",
+    "The deployment lost required Builder runtime configuration.": "The deployment is missing required Builder settings. The Instance configuration must be repaired.",
+  };
+  return known[message] ?? `A technical release operation failed. Diagnostic reference: ${sha256(message).slice(0, 12)}. Builder must inspect this failure; reviewing the test again will not resolve it.`;
 }
