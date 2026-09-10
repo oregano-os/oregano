@@ -284,6 +284,7 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
     throw new Error(`${path}: builder must be an object.`);
   }
   const builder = value as Record<string, any>;
+  if (builder.test_inactivity_days !== undefined && (!Number.isInteger(builder.test_inactivity_days) || builder.test_inactivity_days < 1 || builder.test_inactivity_days > 90)) throw new Error(`${path}: builder.test_inactivity_days must be between 1 and 90.`);
   if (builder.enabled !== undefined && builder.enabled !== true) throw new Error(`${path}: builder.enabled is obsolete; declare or remove the Builder in the Workspace instead.`);
   if (builder.coding_agent?.protocol !== "acp-v1") {
     throw new Error(`${path}: builder.coding_agent.protocol must be 'acp-v1'.`);
@@ -292,6 +293,7 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
     throw new Error(`${path}: builder.coding_agent.profile must be 'claude-code' or 'codex'.`);
   }
   return {
+    ...(builder.test_inactivity_days !== undefined ? { testInactivityDays: builder.test_inactivity_days } : {}),
     enabled: true,
     ...(builder.test_resources === undefined ? {} : { testResources: parseBuilderTestResources(builder.test_resources) }),
     execution: {

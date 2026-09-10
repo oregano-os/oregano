@@ -1,0 +1,106 @@
+version: 3
+plan_id: builder-user-tests-2026-09-10
+created: "2026-09-10"
+title: Implement user-selected Builder tests and four-action result cards
+objective: >-
+  Separate current-message development intent from review questions, expose actual
+  build and test context and image attachments, bind fresh user-started conversations
+  to one selected candidate per company user, retain independent histories, and
+  provide Go Live, Discard Build, Open Test Channel and Request Changes on one card.
+  Freeze tested evidence on publication and support requester-authorized discard
+  through the trusted repository boundary. Keep lifecycle and presentation decisions
+  independent of the chat provider, coding profile and execution host.
+non_goals:
+  - Implement simulation, general workflow dialogs, Preview provisioning or bounded live trials.
+  - Broaden provider permissions or allow conversational Tools in the interactive test.
+  - Automatically approve a human's result or activate an untested company change.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-10-builder-user-tests.yaml
+  - docs/_generated/document-registry.json
+  - docs/glossary.md
+  - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
+  - docs/reference/instance-configuration.md
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/workbench/guides/prepare-builder-change.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/cli/content/guides/prepare-builder-change.md
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/types.ts
+  - packages/connectors/github-release.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/action-cards.test.ts
+  - packages/runner-vercel/src/lib/builder/action-cards.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.ts
+  - packages/runner-vercel/src/lib/builder/guided-experience.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.ts
+  - packages/runner-vercel/src/lib/builder/release-provider.ts
+  - packages/runner-vercel/src/lib/builder/result-card.ts
+  - packages/runtime/builder/attachments.ts
+  - packages/runtime/builder/brief.ts
+  - packages/runtime/builder/discard.ts
+  - packages/runtime/builder/experience.ts
+  - packages/runtime/builder/functional-tests.ts
+  - packages/runtime/builder/presentation.ts
+  - packages/runtime/builder/test-integration.ts
+  - packages/runtime/builder/turn-intent.ts
+  - packages/state-postgres/builder-job-store.ts
+  - packages/state-postgres/builder-test-store.ts
+  - packages/state-store/builder-jobs.ts
+  - packages/testkit/adapter/in-memory-builder-jobs.ts
+  - packages/testkit/builder-functional-fixture.ts
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/testkit/tests/builder-user-tests.test.ts
+tests:
+  - packages/testkit/tests/builder-user-tests.test.ts
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/guided-experience.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - reference.glossary
+    - plan.builder-workspace-activation-and-preview
+    - status.current
+    - guide.prepare-builder-change
+    - guide.operate-builder
+    - reference.instance-configuration
+architecture:
+  placement:
+    core: Durable progress presentation, bounded interactive candidate sessions, grounded test recommendations and exact-result publication.
+    packages: Update the matching Workbench Guides; reuse reviewed capabilities without new privileged Workspace code.
+    workspace: Company defaults, language, intent and acceptance policy remain company declarations.
+    instance: Verified bindings, test destinations and runtime capabilities remain Instance configuration.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Preserve exact candidate conversation routing and isolation from ordinary work in the planned interactive test.
+    - mechanism: model-recipe-resolver
+      reason: Reuse configured models for candidate replies independently of the coding-agent vendor.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse worker evidence, durable sessions and exact-result acceptance for progress and unified result presentation.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse verified test resources; later simulation and live trials retain explicit effect scopes.
+    - mechanism: timers-and-business-time
+      reason: Reuse lifecycle and replay mechanisms for planned session expiry and later simulation.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Requirements are independent of company, communication provider, coding agent
+    and host. Examples contain no customer identifiers. Later execution reuses
+    exact Workspace policy and verified Instance capabilities.
+rollback: Stop new test conversations and publication before restoring the preceding Core. Retain candidate histories, discarded decisions and repository receipts. Do not run older code against new multi-conversation sessions or reinterpret an expired, discarded or unfinished test as accepted.
+open_decisions: []

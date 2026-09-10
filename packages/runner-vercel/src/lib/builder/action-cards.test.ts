@@ -63,7 +63,7 @@ test("queued Builder card resolves confirmation actions and retains cancellation
   assert.equal(card.title, "Build request received");
   assert.deepEqual(actionIds(card), ["companyos.builder.stop"]);
   assert.doesNotMatch(JSON.stringify(card), /companyos\.builder\.(confirm|cancel)/);
-  assert.match(JSON.stringify(card), /when development starts/);
+  assert.match(JSON.stringify(card), /confirm when it starts/);
   assert.doesNotMatch(JSON.stringify(card), /Exact base|Proposal target|is working/);
 });
 

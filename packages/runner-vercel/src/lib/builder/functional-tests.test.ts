@@ -43,6 +43,7 @@ test("the chat presents the completed candidate test before release and feedback
   const f = builderFunctionalFixture();
   try {
     // Synthetic transport and model boundaries; the controller and retained lifecycle are real.
+    (f.job as any).objective = "Shorten the report";
     const values = new Map<string, unknown>(), handlers = new Map<string, (event: any) => Promise<void>>(), order: string[] = [];
     let executions = 0;
     const thread = (id: string) => ({ id, async subscribe() {}, async post(content: unknown) {
@@ -72,6 +73,7 @@ test("the chat presents the completed candidate test before release and feedback
     await handlers.get("companyos.builder.test.changes")!({ thread: thread(f.session.sourceConversation), value: f.session.id, user: { userId: "U10001" } });
     await assert.rejects(() => f.tests.releaseEvidence(f.job, false), /no current/);
     await integration.receive({ conversation: f.session.sourceConversation, author: { userId: "U10001" } as any, messageId: "human-feedback", text: "Make the summary shorter.", occurredAt: new Date().toISOString() });
-    assert.equal((await f.store.get(f.session.id))?.feedback?.text, "Make the summary shorter.");
+    assert.equal((await f.store.get(f.session.id))?.stage, "feedback-pending");
+    assert.equal((await f.store.get(f.session.id))?.feedback, undefined, "Only an explicitly classified revision may consume feedback; receive never infers development.");
   } finally { f.cleanup(); }
 });

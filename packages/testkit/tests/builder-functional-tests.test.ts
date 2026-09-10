@@ -121,24 +121,23 @@ async function interactiveFixture() {
   const result = (summary: string) => ({ artifactHash: "1".repeat(64), candidateCommit: session.candidateCommit,
     executionDigest: session.scopeDigest, summary, completedAt: now.toISOString(), evidence: { synthetic: true } });
   await service.recordResult(session.id, result("I help with the company process."));
-  return { ...f, session, service, result, advanceDay: () => { now = new Date(now.getTime() + 25 * 60 * 60_000); } };
+  return { ...f, session, service, result, advanceDay: () => { now = new Date(now.getTime() + 8 * 24 * 60 * 60_000); } };
 }
 
-test("interactive replies stay unaccepted until the requester explicitly finishes the exact conversation", async () => {
+test("interactive Go Live freezes current evidence directly without a Finish test action", async () => {
   const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
-  await assert.rejects(() => f.service.releaseEvidence(f.job, false), /no current/);
+  const old = (await f.service.releaseEvidence(f.job, false)).digest;
   await assert.rejects(() => f.service.beginTurn(id, "another-human", "m1", "Explain more"));
-  const pending = await f.service.beginTurn(id, actor, "m1", "Explain the second point");
-  assert.equal(pending.conversation?.turns[0]?.prompt, "Explain your role.");
-  await assert.rejects(() => f.service.finish(id, actor));
-  await assert.rejects(() => f.service.restart(id, actor));
-  await assert.rejects(() => f.service.recordTurn(id, "another-message", f.result("Different reply")));
-  await f.service.recordTurn(id, "m1", f.result("Here is the second point."));
+  await f.service.beginTurn(id, actor, "m1", "Explain the second point");
+  await assert.rejects(() => f.service.releaseEvidence(f.job, false), /no current/);
+  await assert.rejects(() => f.service.accept(id, { principal: actor, actionId: "old", resultDigest: old, acceptedAt: "2026-09-09T10:01:00Z" }));
+  const answered = await f.service.recordTurn(id, "m1", f.result("Here is the second point."));
   await assert.rejects(() => f.service.beginTurn(id, actor, "m1", "Replay"));
-  await assert.rejects(() => f.service.finish(id, "another-human"));
-  const finished = await f.service.finish(id, actor);
-  assert.equal(finished.conversation?.turns.length, 2);
-  assert.equal((await f.service.releaseEvidence(f.job, false)).digest, builderTestResultDigest(finished));
+  assert.notEqual(builderTestResultDigest(answered), old);
+  await assert.rejects(() => f.service.accept(id, { principal: actor, actionId: "old", resultDigest: old, acceptedAt: "2026-09-09T10:01:00Z" }));
+  await f.service.accept(id, { principal: actor, actionId: "current", resultDigest: builderTestResultDigest(answered), acceptedAt: "2026-09-09T10:01:00Z" });
+  assert.equal((await f.service.releaseEvidence(f.job, true)).session.stage, "accepted");
+  await assert.rejects(() => f.service.beginTurn(id, actor, "m2", "Too late"));
 });
 
 test("retesting the same candidate clears history and invalidates its previous acceptance token", async () => {
@@ -157,14 +156,16 @@ test("retesting the same candidate clears history and invalidates its previous a
   await assert.rejects(() => f.service.restart(id, actor));
 });
 
-test("interactive expiry blocks new work and acceptance until a fresh test is completed", async () => {
+test("inactivity pauses tests after seven days and requester resume retains the candidate and history", async () => {
   const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
   f.advanceDay();
   await assert.rejects(() => f.service.beginTurn(id, actor, "late", "Continue"));
   await assert.rejects(() => f.service.finish(id, actor));
   assert.equal((await f.service.expire(id)).stage, "expired");
   await assert.rejects(() => f.service.releaseEvidence(f.job, false));
-  await f.service.restart(id, actor);
+  const resumed = await f.service.resume(id, actor);
+  assert.equal(resumed.candidateCommit, f.session.candidateCommit);
+  assert.equal(resumed.conversation?.turns.length, 1);
   assert.equal((await f.service.beginTurn(id, actor, "fresh", "Start again")).stage, "responding");
 });
 
@@ -174,4 +175,29 @@ test("concurrent interactive turns have one durable winner", async () => {
     f.service.beginTurn(f.session.id, f.session.requester, "b", "Second")]);
   assert.equal(results.filter((entry) => entry.status === "fulfilled").length, 1);
   assert.equal((await f.store.get(f.session.id))?.stage, "responding");
+});
+
+test("fresh conversations have independent histories while existing conversations remain pinned", async () => {
+  const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
+  const fresh = await f.service.beginTurn(id, actor, "new-root", "First question", "example-chat:new-thread");
+  assert.equal(fresh.conversation?.turns.length, 0, "new threads do not inherit the scripted initial test answer");
+  const answered = await f.service.recordTurn(id, "new-root", f.result("Fresh answer"));
+  assert.equal(answered.testConversations?.["example-chat:new-thread"].turns.length, 1);
+  const original = await f.service.beginTurn(id, actor, "original-followup", "Continue", "slack:TEST:2.0");
+  assert.equal(original.conversation?.turns.length, 1);
+  assert.equal(original.conversation?.turns[0].prompt, "Explain your role.");
+  const completed = await f.service.recordTurn(id, "original-followup", f.result("Original followup"));
+  assert.equal(completed.testConversations?.["example-chat:new-thread"].turns.length, 1);
+  assert.equal(completed.testConversations?.["slack:TEST:2.0"].turns.length, 2);
+  assert.equal(completed.candidateCommit, f.session.candidateCommit);
+});
+
+test("publication and a new test reply race through the same atomic session revision", async () => {
+  const f = await interactiveFixture();
+  const resultDigest = (await f.service.releaseEvidence(f.job, false)).digest;
+  const results = await Promise.allSettled([
+    f.service.accept(f.session.id, { principal: f.session.requester, actionId: "live", resultDigest, acceptedAt: "2026-09-09T10:01:00Z" }),
+    f.service.beginTurn(f.session.id, f.session.requester, "new", "Another question", "example:new"),
+  ]);
+  assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
 });

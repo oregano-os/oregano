@@ -124,3 +124,46 @@ test("Postgres interactive history survives reconstruction and restart invalidat
     await assert.rejects(() => service.accept(prepared.id, { principal: prepared.requester, actionId: "stale", resultDigest: digest, acceptedAt: new Date().toISOString() }));
   } finally { f.cleanup(); }
 });
+
+test("Postgres retains independent test conversations, inactivity resume and exact discard across reconstruction", { skip: !enabled }, async () => {
+  const f = builderFunctionalFixture();
+  try {
+    let now = new Date("2032-01-01T10:00:00Z");
+    const prepared = { ...f.session, id: `builder-test-${sha256(randomUUID()).slice(0, 40)}`, execution: { kind: "agent" as const, agentId: "test-reader", prompt: "Initial", interaction: "interactive" as const } };
+    const store = createPostgresBuilderTestStore(), service = new BuilderFunctionalTests(store, () => now, 3);
+    await store.create(prepared); await service.begin(prepared.id, f.candidate.artifactHash, "example:original");
+    const result = { artifactHash: f.candidate.artifactHash, candidateCommit: prepared.candidateCommit, executionDigest: prepared.scopeDigest, summary: "Actual reply", completedAt: now.toISOString(), evidence: {} };
+    await service.recordResult(prepared.id, result);
+    await service.beginTurn(prepared.id, prepared.requester, "fresh", "Fresh question", "example:fresh");
+    await service.recordTurn(prepared.id, "fresh", result);
+    const reconstructed = await createPostgresBuilderTestStore().create(prepared);
+    assert.equal(reconstructed.idleDays, 3);
+    assert.equal(reconstructed.testConversations?.["example:original"].turns[0].prompt, "Initial");
+    assert.equal(reconstructed.testConversations?.["example:fresh"].turns[0].prompt, "Fresh question");
+    now = new Date("2032-01-05T10:00:00Z");
+    await service.expire(prepared.id); await service.resume(prepared.id, prepared.requester);
+    assert.equal((await store.get(prepared.id))?.conversation?.expiresAt, "2032-01-08T10:00:00.000Z");
+    await service.discard(prepared.id, prepared.requester);
+    const discarded = await createPostgresBuilderTestStore().create(prepared);
+    assert.equal(discarded.stage, "discarded"); assert.equal(discarded.testConversations?.["example:fresh"].turns.length, 1);
+  } finally { f.cleanup(); }
+});
+
+test("Postgres build discovery is isolated by company and requester and finds older unindexed builds", { skip: !enabled }, async () => {
+  const { createPostgresBuilderJobStore } = await import("../../state-postgres/builder-job-store.ts");
+  const { createBuilderJobId } = await import("../../state-store/builder-jobs.ts");
+  const store = createPostgresBuilderJobStore(), instance = `test-${randomUUID()}`;
+  const input = (requester: string, conversation: string) => {
+    const requestId = randomUUID();
+    return { schemaVersion: 1 as const, jobId: createBuilderJobId(requestId), requestId, instanceId: instance, requesterPrincipal: requester,
+      agentId: "builder" as const, sourceConversationKey: conversation, objective: "Synthetic discovery", repositoryId: "example/workspace", baseCommit: "a".repeat(40),
+      sourceBindingId: "source", proposalPublisherBindingId: "publisher", execution: { adapterId: "testkit-memory", profile: "isolated-v1", timeoutMs: 60000 },
+      codingAgent: { protocol: "acp-v1" as const, profileId: "codex" as const, implementation: "@agentclientprotocol/codex-acp", version: "1.6.2" } };
+  };
+  const older = await store.create(input("alice", "thread:a"), new Date("2032-01-01T10:00:00Z"));
+  const latest = await store.create(input("alice", "thread:b"), new Date("2032-01-01T11:00:00Z"));
+  await store.create(input("bob", "thread:a"));
+  assert.deepEqual((await store.listForRequester(instance, "alice")).map(job => job.jobId), [latest.jobId, older.jobId]);
+  assert.deepEqual((await store.listForRequester(instance, "alice", "thread:a")).map(job => job.jobId), [older.jobId]);
+  assert.deepEqual(await store.listForRequester(`${instance}-other`, "alice"), []);
+});

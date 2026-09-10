@@ -1,3 +1,9 @@
+import { sha256 } from "../../../../runtime/canonical.ts";
+import { builderDecisionKey, builderOperationLock, builderSelectionKey, type BuilderRequestReference } from "../../../../runtime/builder/experience.ts";
+import { discardBuilder } from "../../../../runtime/builder/discard.ts";
+import { checkedBuilderProposal } from "../../../../runtime/builder/functional-tests.ts";
+import { discardGitHubProposal } from "../../../../connectors/github-release.ts";
+import { createSlackBuilderTestSurface } from "./functional-tests.ts";
 import type { Author, Chat, StateAdapter } from "chat";
 import { ReleaseCoordinator, authorizeRelease } from "../../../../runtime/release/coordinator.ts";
 import { createPostgresReleasePrivateState, createPostgresReleaseRunStore } from "../../../../state-postgres/release-run-store.ts";
@@ -30,9 +36,9 @@ export function createBuilderReleaseRuntime(args: {
   const state = createPostgresReleasePrivateState();
   const present = createBuilderCardPresenter(args.chat, args.state);
   const revisionPending = async (job: { jobId: string }) => !!await args.state.get(builderProposalFeedbackKey(job.jobId))
-    || (await args.state.get<{ kind: string }>(builderProposalDecisionKey(job.jobId)))?.kind === "revision";
+    || ["revision", "discarding", "discarded"].includes((await args.state.get<{ kind: string }>(builderProposalDecisionKey(job.jobId)))?.kind ?? "");
   const jobs = createPostgresBuilderJobStore();
-  const functionalTests = new BuilderFunctionalTests(createPostgresBuilderTestStore());
+  const functionalTests = new BuilderFunctionalTests(createPostgresBuilderTestStore(), () => new Date(), artifact.builder.testInactivityDays ?? 7);
   const host = new VercelProductionReleaseHost({ binding, state, token: process.env.COMPANYOS_VERCEL_RELEASE_TOKEN ?? "",
     ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { healthHeaders: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET } } : {}) });
   const execution = new HostedBuilderReleaseAdapter({ artifact, state, host, functionalTests, revisionPending,
@@ -41,10 +47,29 @@ export function createBuilderReleaseRuntime(args: {
     github: getGitHubRepositoryProvider(), compiler: getTrustedGitExecution() });
   const coordinator = new ReleaseCoordinator({ store: createPostgresReleaseRunStore(), execution,
     leaseMs: 300000, notify: async (run) => integration.notify(run) });
+  const surface = createSlackBuilderTestSurface(artifact, args.chat);
   const integration = createBuilderReleaseIntegration({ ...args, coordinator, present, revisionPending,
+    getJob: id => jobs.get(id),
+    isSelected: async job => (await args.state.get<BuilderRequestReference>(builderSelectionKey(job.instanceId, job.requesterPrincipal)))?.jobId === job.jobId,
+    testChannelUrl: job => { const resource = artifact.builder!.testResources?.find(item => item.capability === "communication.message.publish" && job.brief?.brief.test.targetBindings.includes(item.id)); return resource ? surface.destination(resource.match.destination_binding!).url : undefined; },
+    withBuildLock: async (jobId, action) => {
+      const lock = await args.state.acquireLock(builderOperationLock(jobId), 300000);
+      if (!lock) throw new Error("A test or decision is still running.");
+      try { return await action(); } finally { await args.state.releaseLock(lock); }
+    },
+    discard: (job, actor) => discardBuilder({ job, actor, state: args.state, tests: functionalTests,
+      closeProposal: async job => {
+        const { proposal } = checkedBuilderProposal(job), url = new URL(proposal.proposalUrl);
+        const match = url.pathname.match(/^\/([^/]+\/[^/]+)\/pull\/(\d+)$/);
+        if (url.origin !== "https://github.com" || match?.[1] !== job.repositoryId) throw new Error("Proposal repository differs.");
+        return getGitHubRepositoryProvider().withReleaseClient({ instanceId: job.instanceId, bindingId: artifact.builder!.repository.proposalPublisherBinding, repositoryId: job.repositoryId }, client =>
+          discardGitHubProposal(client, { repositoryId: job.repositoryId, number: Number(match[2]), candidateCommit: proposal.proposalCommit, baseCommit: job.baseCommit }));
+      } }),
     getTestSession: (job) => functionalTests.store.get(builderTestSessionId(job)),
     prepareCandidate: (job) => execution.prepareCandidate(job), beforeAccept: async (candidate, actor, actionId) => {
       authorizeRelease(candidate, actor, await execution.authorization(candidate.instanceId));
+      const job = await jobs.get(candidate.id);
+      if (!job || sha256(await execution.prepareCandidate(job)) !== sha256(candidate)) throw new Error("The displayed candidate is no longer ready or current.");
       if (!candidate.functionalTestDigest) {
         const key = builderProposalDecisionKey(candidate.id), decision = { kind: "release", actor, digest: candidate.diffDigest };
         if (!await args.state.setIfNotExists(key, decision)) {

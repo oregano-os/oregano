@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -251,6 +251,12 @@ The resolved objective, current and proposed behavior, scope, constraints,
 acceptance criteria and test instructions passed to the coding agent. Core binds
 it to the authenticated request and source-read evidence. It does not grant
 provider access or live-publication authority.
+
+### Selected test build
+The exact Builder candidate selected for one authenticated user in one Company
+Instance. New test-channel threads use that build; existing threads retain their
+candidate and independent conversation history. Selecting or resuming a test is
+not development, acceptance or publication.
 
 ### BuilderService
 The provider-neutral Core coordinator for grounded proposal-only Builder jobs.

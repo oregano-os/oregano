@@ -5,7 +5,7 @@ kind: plan
 status: draft
 authority: informative
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -389,13 +389,13 @@ channel or board. The Inspector reports that specific gap without requiring a
 new app. A separate installation remains an optional company choice or a
 provider limitation, never the normal Builder setup.
 
-For the first release, lease one candidate at a time per shared live test
-resource when the provider cannot distinguish sessions reliably. Qualified
-thread/item/session routing can support concurrent candidates without requiring
-a channel per change. Expired test callbacks are rejected or explained; they
-must not fall through into normal production execution. The current standard
-Agent Binding alone does not establish this routing; extending it is explicit
-implementation work.
+The interactive Agent increment now uses one selected candidate per Instance/user
+for new test conversations and immutable candidate assignments for existing threads.
+Users need no activation or fresh-test button. Candidate replies serialize through
+a per-build lock, and different users/builds can test concurrently. Shared mutable
+workflow test resources still need exact scope and qualified isolation; user routing
+alone is not permission to share an arbitrary operating board or record. Expired or
+closed test events never fall through into ordinary production execution.
 
 A test channel is an optional destination, not a complete environment boundary.
 Keep test state and effect limits explicit even when app credentials are shared.
@@ -484,7 +484,7 @@ the conversation; use durable jobs, checked patches, and candidate revisions.
 | B. Intent and authority | Workspace activation migration, readiness reporting, scoped acceptance policy, and trusted acceptance receipts. | Two synthetic companies use different policies on the same Core; legacy placeholders gain no execution bindings, handoff routes or wider read scope; requester mode cannot self-grant authority. |
 | C. Guided authoring | Context-preserving chat, versioned brief and preparation Guide, pinned CLI/Guides, profile registry, bounded corrections, and readable result cards. | An explicit request reaches a checked result without another start dialog or repeated objective entry; Claude and Codex satisfy the same contract tests; selected profile has no silent fallback. |
 | D. Complete simple adoption | Policy-aware human acceptance, Git enforcement, trusted merge/release execution for supported changes without migration, and production verification. | One authorized final action leads from the tested candidate to a recorded healthy production version without requiring the employee to use GitHub or Vercel; stale candidates and unauthorized actors are rejected. |
-| E1. Next interactive increment | Multi-turn Agent tests without Tools in the existing app, exact candidate sessions and history, completion/expiry, fresh tests without unnecessary recoding, and one result card. | Follow-up questions stay on the candidate; concurrent ordinary work is unaffected; session completion and exact-result acceptance are evidenced without a second app or mandatory Preview. |
+| E1. Interactive increment | Multi-turn Agent tests, user selection, independent fresh threads, inactivity/resume and four-action result cards. | Fresh threads require no activation click; Go Live accepts completed current evidence directly; stale cards, concurrent tests and discard cannot publish another result. Core ports also run with a synthetic non-Slack surface. |
 | E2. Deferred broader testing | Simulation adapters, full workflow dialogs, dependency-driven Preview provisioning, supported migration rehearsal and bounded live trials. | Qualify each requested execution scope separately; do not advertise unavailable modes. Simulation records business effects, connected tests constrain real resources, and Preview proves its actual access. |
 | F. Private adoption and release | Adopt a qualified Core release through a separate Workspace/Instance change, initially using one Claude Code profile. Add E1 after the A-D path; defer E2 until needed. | Simple and process-change examples demonstrate request-to-healthy-release; connected tests demonstrate actual selected resource access without manual environment copying; no company-specific Core branches. |
 

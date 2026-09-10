@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Author, Chat, StateAdapter } from "chat";
+import { rememberBuilderRequest, builderCurrentRequestKey } from "../../../../runtime/builder/experience.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { builderFunctionalFixture } from "../../../../testkit/builder-functional-fixture.ts";
 import { builderTestSessionId } from "../../../../runtime/builder/functional-tests.ts";
@@ -40,9 +41,9 @@ test("one durable card advances without duplicate posts or late progress overwri
     await show(job, builderQueuedActionCard(job), "queued");
     await show(job, builderQueuedActionCard(job), "queued");
     assert.equal(t.messages.length, 1);
-    assert.match(JSON.stringify(t.messages), /when development starts/);
+    assert.match(JSON.stringify(t.messages), /confirm when it starts/);
     await show(job, builderProgressCard(job, "coding"), "coding");
-    assert.equal(t.messages.length, 1); assert.match(JSON.stringify(t.messages), /Claude Code is working/);
+    assert.equal(t.messages.length, 1); assert.match(JSON.stringify(t.messages), /Coding agent is working/);
     const result = { type: "card", title: "Ready for review", children: [] } as const;
     await show(job, result as any, "result");
     await show(job, builderProgressCard(job, "checking"), "checking");
@@ -51,7 +52,7 @@ test("one durable card advances without duplicate posts or late progress overwri
   } finally { f.cleanup(); }
 });
 
-test("requesting changes during an interactive test retains the next source message and closes candidate testing", async () => {
+test("Request Changes closes candidate testing but does not treat the next question as development", async () => {
   const f = builderFunctionalFixture(), t = transport();
   try {
     await f.store.create({ ...f.session, execution: { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" } });
@@ -66,7 +67,9 @@ test("requesting changes during an interactive test retains the next source mess
     });
     integration.registerHandlers();
     const event = { thread: t.thread(f.session.sourceConversation), value: f.session.id, user };
+    await t.state.set(builderCurrentRequestKey(f.job.instanceId, f.session.requester, f.session.sourceConversation), { jobId: "newer-build", sourceConversation: f.session.sourceConversation });
     await t.handlers.get("companyos.builder.test.changes")!(event);
+    assert.equal((await t.state.get<{ jobId: string }>(builderCurrentRequestKey(f.job.instanceId, f.session.requester, f.session.sourceConversation)))?.jobId, f.job.jobId, "Request Changes targets the clicked older card, not a newer build");
     await t.handlers.get("companyos.builder.test.changes")!(event);
     assert.equal((await f.store.get(f.session.id))?.stage, "feedback-pending");
     await assert.rejects(() => f.tests.finish(f.session.id, f.session.requester));
@@ -74,17 +77,16 @@ test("requesting changes during an interactive test retains the next source mess
     assert.equal(await integration.receive({ conversation: f.session.sourceConversation, author: user, messageId: "feedback",
       text: "Add a concrete example to the second point.", occurredAt: new Date().toISOString() }), false);
     const revised = await f.store.get(f.session.id);
-    assert.equal(revised?.stage, "changes-requested");
-    assert.equal(revised?.feedback?.text, "Add a concrete example to the second point.");
-    assert.deepEqual(t.values.get(builderFeedbackKey(f.session.sourceConversation, f.session.requester)), revised);
+    assert.equal(revised?.stage, "feedback-pending");
+    assert.equal(revised?.feedback, undefined);
     await assert.rejects(() => f.tests.releaseEvidence(f.job, false), /no current/);
   } finally { f.cleanup(); }
 });
 
-test("interactive candidate chat, result card, restart and exact Go live acceptance form one complete loop", async () => {
+test("interactive candidate chat, fresh user threads and exact Go Live acceptance form one complete loop", async () => {
   const f = builderFunctionalFixture(), t = transport();
   try {
-    const job = { ...structuredClone(f.job), codingAgent: { profileId: "claude-code" } } as typeof f.job;
+    const job = { ...structuredClone(f.job), createdAt: new Date().toISOString(), codingAgent: { profileId: "claude-code" } } as typeof f.job;
     (job.brief!.brief.test as any).execution = { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" };
     const id = builderTestSessionId(job), actor = job.requesterPrincipal, accepted: ReleaseCandidate[] = [], histories: unknown[] = [];
     const artifact = { ...f.previous, builder: { ...f.previous.builder!, testResources: f.resources }, connectors: [{ id: "slack", connector: "oregano/slack-communication", connectorVersion: "0.1.0",
@@ -117,11 +119,13 @@ test("interactive candidate chat, result card, restart and exact Go live accepta
       transport: { async qualify() {}, async permalink() { return "https://example.slack.com/archives/C20002/p2000000"; } },
     });
     release.registerHandlers(); integration.registerHandlers();
+    await rememberBuilderRequest(t.state, job);
     await integration.notifier.deliver(job);
     await integration.notifier.deliver(job);
     const sourceCards = () => t.messages.filter((message) => message.threadId === job.sourceConversationKey);
     assert.equal(histories.length, 1); assert.equal(sourceCards().length, 1);
-    assert.match(JSON.stringify(sourceCards()), /Finish test/); assert.doesNotMatch(JSON.stringify(sourceCards()), /Go live/);
+    assert.doesNotMatch(JSON.stringify(sourceCards()), /Finish test|Restart test|More/);
+    for (const label of ["Go Live", "Discard Build", "Open Test Channel", "Request Changes"]) assert.ok(JSON.stringify(sourceCards()).includes(label));
     const user = { userId: "U10001" } as Author;
     await integration.receive({ conversation: "slack:C20002:2.0", author: { userId: "other" } as Author, messageId: "foreign", text: "Private?", occurredAt: new Date().toISOString() });
     assert.equal(histories.length, 1);
@@ -129,15 +133,12 @@ test("interactive candidate chat, result card, restart and exact Go live accepta
     await integration.receive(message); await integration.receive(message);
     assert.equal(histories.length, 2); assert.deepEqual(histories[1], [{ role: "user", content: "What can you do?" }, { role: "assistant", content: "Answer 1" }, { role: "user", content: message.text }]);
     const event = (value: string) => ({ thread: t.thread(job.sourceConversationKey), threadId: job.sourceConversationKey, adapter: t.adapter, user, value, messageId: sourceCards()[0].id });
-    await t.handlers.get("companyos.builder.test.finish")!(event(id));
-    assert.equal(sourceCards().length, 1); assert.match(JSON.stringify(sourceCards()), /Request changes/); assert.match(JSON.stringify(sourceCards()), /Go live/);
+    assert.equal(sourceCards().length, 1); assert.match(JSON.stringify(sourceCards()), /Request Changes/); assert.match(JSON.stringify(sourceCards()), /Go Live/);
     const oldToken = [...t.values.keys()].find((key) => key.startsWith("builder-release-candidate:"))!.slice("builder-release-candidate:".length);
-    await t.handlers.get("companyos.builder.test.restart")!(event(id));
     await t.handlers.get("companyos.builder.release")!(event(oldToken));
     assert.equal(accepted.length, 0);
-    await integration.receive({ ...message, messageId: "fresh-question", text: "Give me another example" });
+    await integration.receive({ ...message, conversation: "slack:C20002:fresh-question", messageId: "fresh-question", text: "Give me another example" });
     assert.deepEqual(histories[2], [{ role: "user", content: "Give me another example" }]);
-    await t.handlers.get("companyos.builder.test.finish")!(event(id));
     const newToken = [...t.values.keys()].filter((key) => key.startsWith("builder-release-candidate:")).at(-1)!.slice("builder-release-candidate:".length);
     assert.notEqual(newToken, oldToken);
     await t.handlers.get("companyos.builder.release")!(event(newToken));

@@ -150,3 +150,20 @@ async function verifyFastForward(client: GitHubReleaseClient, input: GitHubCandi
   return { repositoryId: input.repositoryId, targetBranch: input.targetBranch, baseCommit: accepted.baseCommit,
     candidateCommit: accepted.candidateCommit, mergedCommit: commit.sha, mergedTree: commit.commit.tree.sha };
 }
+
+/** Close only this unmerged, unchanged proposal. Never delete its branch or history. */
+export async function discardGitHubProposal(client: GitHubReleaseClient, input: {
+  repositoryId: string; number: number; candidateCommit: string; baseCommit: string;
+}) {
+  if (!Number.isSafeInteger(input.number) || input.number <= 0) throw new Error("Invalid proposal number.");
+  const path = `/pulls/${input.number}`;
+  const validate = (pull: PullRequest) => {
+    if (pull.merged || pull.head.sha !== input.candidateCommit || pull.head.repo?.full_name !== input.repositoryId
+      || pull.base.repo.full_name !== input.repositoryId) throw new Error("Proposal changed or was already merged.");
+  };
+  const previous = await client.request<PullRequest>("GET", path); validate(previous);
+  if (previous.state !== "closed") await client.request("PATCH", path, { state: "closed" });
+  const closed = await client.request<PullRequest>("GET", path); validate(closed);
+  if (closed.state !== "closed") throw new Error("Proposal closure is unconfirmed.");
+  return { repositoryId: input.repositoryId, number: input.number, candidateCommit: input.candidateCommit, state: "closed", merged: false };
+}

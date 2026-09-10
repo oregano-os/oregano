@@ -5,7 +5,7 @@ kind: reference
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -152,3 +152,15 @@ the resulting clean commit. Preserve all bindings; moving the file is not
 authorization to change them or deploy. Use the Workbench that implements this canonical-file contract for new builds.
 Use the prior immutable Artifact for a runtime rollback. Reverting Git alone
 does not undo external effects or restore mutable database state.
+
+
+## Builder test inactivity
+
+The optional `builder.test_inactivity_days` integer (1–90, default 7) controls how
+long an interactive candidate test remains open without activity. It does not
+delete a build or its results. Expiry is enforced on use; the requester can ask
+Builder to resume an available saved build. Keep this field inside the existing
+Builder declaration alongside execution, coding-agent and repository bindings.
+New test threads select a candidate per Instance and authenticated user; exact
+communication destinations still come from `builder.test_resources` and the
+corresponding Connector configuration. No additional app or Preview is required.

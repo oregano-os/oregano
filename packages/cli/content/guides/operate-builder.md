@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -118,7 +118,7 @@ self-acceptance. Eligibility applies to the actual change class. Production
 release also requires membership in `deployers`; writing the policy does not
 install a provider executor or give anyone repository credentials.
 
-The maintained Runner wires **Go live** when both company policy
+The maintained Runner wires **Go Live** when both company policy
 and the trusted Instance release binding are present. A human who holds both
 acceptance and deployment authority needs one action. Otherwise a checked draft
 remains available; split-actor acceptance/deployment is not yet implemented.
@@ -298,16 +298,16 @@ non-qualification provider bindings.
 3. A clear, resolved implementation request queues isolated development
    immediately. The acknowledgement confirms receipt only. The same card announces
    that coding is running only after a job-bound worker start receipt. Use
-   **Cancel request** while waiting or running if necessary.
+   **Cancel build** while waiting or running if necessary.
 4. The trusted worker independently checks the diff and Workbench result, then
    publishes the exact outer proposal. Coding-agent claims are not evidence.
 5. If a connected test was agreed, Core runs the unmerged version on the selected
-   test resources. For an interactive Agent test, follow the result card's link,
-   mention the app to ask questions, then choose **Finish test** in the original
-   Builder conversation. **Restart test** clears the test history without
-   rebuilding; **Request changes** records feedback for a revised candidate.
+   test resources. For an interactive Agent test, open the test channel and start
+   a fresh thread. Mention the app where required. New threads use the selected
+   build; existing threads retain their version. **Request Changes** opens the
+   revision conversation without treating questions as development.
 6. With the qualified release binding and passed checks, the authorized human
-   accepts the result using **Go live**. The coordinator merges,
+   accepts the result using **Go Live**. The coordinator merges,
    builds, checks, promotes and verifies the exact pairing.
 7. The terminal card says live only after the production deployment and health
    match. Otherwise it remains a draft, pending or stopped result with evidence.
@@ -402,12 +402,12 @@ The live profile supports `auto` and the bounded connected test profile below.
 General live trials, new provider resources, data migrations and split
 acceptance/deployment actors still require a separately qualified path.
 
-If CI or Instance readiness is still pending, the chat delivers the built draft
-and a **Check readiness** action. This action only refreshes evidence; it never
-approves or releases the result. A ready result asks permission to merge the
-exact checked change and presents **Go live**. No merge starts until
-the authorized human confirms. The existing company policy decides whether that
-human is the requester or a Steward and whether they may also deploy.
+The result card displays **Go Live**, **Discard Build**, **Open Test Channel** and
+**Request Changes** directly. If CI, test execution or Instance readiness is pending,
+Go Live explains the blocker and refreshes evidence without saving a future approval.
+A ready action accepts the current exact result; company policy still decides who
+can approve and deploy. Discard closes only the unchanged unmerged proposal and
+retains its evidence. If closure is uncertain, retry the same discard operation.
 
 Core 0.7.0 and Workbench 0.1.0-experimental.17 support unprotected private
 repositories without a paid GitHub plan.
@@ -460,17 +460,18 @@ human decisions and automatic production-to-test resource remapping.
    test and starts coding from the grounded brief.
 2. Trusted Workbench checks publish a candidate. Core compiles that exact
    unmerged candidate with the current Core and Instance configuration.
-3. Core runs the selected test and updates one result card with the test link and
-   actions. Workflow state and timers remain separately namespaced. An Agent test
-   can specify `interaction: interactive`: the requester can ask follow-up questions
-   in its test thread, then use **Finish test** in the original Builder conversation.
-   Open sessions expire after 24 hours and admit at most twenty replies. Mention the
-   app where required by the Instance's ingress policy. **Restart test** clears
-   test history and invalidates old acceptance without rebuilding the candidate.
-4. The requester reviews it. **Request changes** disables the old live action;
-   the following authenticated message supplies feedback for a fresh build/test.
-5. The authorized human uses one **Go live** action for the accepted
-   test result. Current acceptance and deployment permissions both apply.
+3. Core runs the selected test and updates the one result card. For an interactive
+   Agent, users may create fresh threads directly in the configured test channel.
+   Each user's new threads use their selected build; existing threads keep their
+   candidate and history. The newest request is selected at admission. A build
+   that is still preparing never falls back to an older candidate.
+4. The requester reviews the actual result. **Request Changes** disables its old
+   live action; only an explicit revision request starts another build. Questions
+   and screenshot evaluations read the existing result without coding. A separate
+   new build is allowed even while older reviews remain open.
+5. **Go Live** accepts the exact current completed evidence without a Finish test
+   step. **Open Test Channel** opens the existing destination; **Discard Build**
+   abandons an unaccepted draft. Requester and deployment permissions still apply.
 6. Core merges, compiles production, stages without domain assignment, verifies
    staged health, promotes and verifies the actual live identity. The test digest
    and provider receipts remain associated with that release.
@@ -481,3 +482,14 @@ a fresh attempt. An Agent reply test does not prove its handoff or Tool behavior
 a short workflow test does not qualify a timed multi-party process. Complete
 pilot evidence includes actual human feedback and acceptance, not just synthetic
 fixtures, successful compilation or an operator's asserted principal.
+
+
+Interactive inactivity defaults to seven days; optionally add
+`test_inactivity_days: 7` inside the existing Instance `builder` block (1–90 days).
+A paused test retains its draft and history. The user can ask Builder to resume
+or select an available older build, then start fresh threads without recoding.
+Each build allows twenty conversations with twenty replies each. This does not
+change provider access. Result cards identify a build whose selection has since
+been replaced. Existing deployments require a qualified Core/image update;
+editing these Guides alone does not update a live Instance. Keep old sessions
+stopped before rolling back to code that does not understand multi-thread evidence.

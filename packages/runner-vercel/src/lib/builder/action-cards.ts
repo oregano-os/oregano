@@ -1,3 +1,5 @@
+import { builderProgressPresentation } from "../../../../runtime/builder/presentation.ts";
+import { renderBuilderCard } from "./result-card.ts";
 import { Actions, Button, Card, CardText, type ActionEvent, type CardElement } from "chat";
 import type { BuilderJob } from "../../../../state-store/builder-jobs.ts";
 
@@ -33,28 +35,10 @@ export function builderTerminalActionCard(job: BuilderJob): BuilderActionCard {
 }
 
 export function builderQueuedActionCard(job: BuilderConfirmationDetails): BuilderActionCard {
-  return Card({
-    title: "Build request received",
-    children: [
-      CardText(job.objective),
-      CardText("I’m passing your request to the coding agent. I’ll let you know when development starts."),
-      Actions([
-        Button({ id: "companyos.builder.stop", label: "Cancel request", style: "danger", value: job.jobId }),
-      ]),
-    ],
-  }) as CardElement;
+  return renderBuilderCard(builderProgressPresentation(job, "queued"));
 }
-
 export function builderProgressCard(job: BuilderJob, phase: "preparing" | "coding" | "checking" | "testing"): CardElement {
-  const name = job.codingAgent.profileId === "claude-code" ? "Claude Code" : job.codingAgent.profileId === "codex" ? "Codex" : "The coding agent";
-  return Card({ title: phase === "coding" ? `${name} is working on your request`
-    : phase === "checking" ? "Checking your result" : phase === "testing" ? "Preparing your test" : "Preparing your build request",
-    children: [CardText(job.objective), CardText(phase === "coding" ? "Development has started. Next, the result will be checked and the agreed test prepared."
-      : phase === "checking" ? "Development has finished. The proposed result is being checked before review."
-      : phase === "testing" ? "The checked version is being prepared for the agreed test."
-      : "The workspace and coding environment are being prepared. Development has not started yet."),
-      ...(phase === "preparing" || phase === "coding" ? [Actions([Button({ id: "companyos.builder.stop", label: "Cancel request", value: job.jobId })])] : []),
-    ] });
+  return renderBuilderCard(builderProgressPresentation(job, phase));
 }
 
 export function builderCancelledActionCard(

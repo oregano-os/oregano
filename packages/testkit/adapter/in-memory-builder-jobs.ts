@@ -61,6 +61,12 @@ export class InMemoryBuilderJobStore implements BuilderJobStore {
     return stored ? structuredClone(stored.job) : undefined;
   }
 
+  async listForRequester(instanceId: string, requester: string, conversation?: string): Promise<BuilderJob[]> {
+    return [...this.#jobs.values()].map(item => structuredClone(item.job))
+      .filter(job => job.instanceId === instanceId && job.requesterPrincipal === requester && (!conversation || job.sourceConversationKey === conversation))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.jobId.localeCompare(a.jobId)).slice(0, 30);
+  }
+
   async getByRequestId(requestId: string): Promise<BuilderJob | undefined> {
     const jobId = this.#requestIds.get(requestId);
     return jobId ? this.get(jobId) : undefined;
