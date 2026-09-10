@@ -397,8 +397,15 @@ encoding fits, do not truncate the Artifact or remove its integrity checks.
 
 The action-only test endpoint does not receive normal conversations. Start with
 a new thread in the approved test channel, one recipient mapping, and
-`COMPANYOS_WORKFLOW_ONLY=true` in the test environment. This enables channel
-messages on the workflow endpoint. A shared app's direct messages need the
+`COMPANYOS_WORKFLOW_ONLY=true` in the test environment. Both Slack entrypoints admit conversation events only for exact Slack account/channel
+pairs in the compiled Instance Agent bindings or explicitly reserved DM principals.
+This check runs before SDK dispatch and before the general conversation coordinator;
+the default Agent never confers ownership of other channels. Roots, thread replies
+and app mentions use the same selection. An empty channel binding list admits no
+channels. Controls retain their existing authenticated route. Paired production
+exclusions must cover these same channels and reserved DM principals.
+
+This enables owned channel messages on the workflow endpoint. A shared app's direct messages need the
 explicit ownership setup below; otherwise the normal bot may answer them. The SDK verifies the original event; only subscribed, assigned threads
 reach the workflow, and unassigned replies receive no general-agent fallback.
 Replies may include an explicit app mention when the channel has an exclusive
