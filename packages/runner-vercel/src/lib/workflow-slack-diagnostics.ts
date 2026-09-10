@@ -1,3 +1,4 @@
+import { ignoreUnownedSlackConversation, type SlackChannelOwnership } from "./slack-conversation-ownership.ts";
 import { randomUUID } from "node:crypto";
 import { inspectWorkflowSlackRequest, slackMessageReference, type WorkflowSlackIngressReason } from "./workflow-action-ingress.ts";
 
@@ -32,6 +33,7 @@ export function workflowSlackMessageTrace(threadId: string, messageId: string) {
 /** The injected handler is the existing signature-verifying Chat SDK webhook. */
 export async function dispatchWorkflowSlackRequest(request: Request, options: {
   workflowOnly: boolean;
+  channelBindings?: readonly SlackChannelOwnership[];
   handler: (request: Request, options: { waitUntil: (task: Promise<unknown>) => void }) => Promise<Response>;
   waitUntil: (task: Promise<unknown>) => void;
   diagnostics?: boolean;
@@ -44,6 +46,11 @@ export async function dispatchWorkflowSlackRequest(request: Request, options: {
     trace.correlate(inspection.messageRef);
     if (inspection.kind === "ignored") {
       trace.emit("filtered", inspection.reason);
+      return new Response(null, { status: 200 });
+    }
+    if (options.workflowOnly && inspection.kind === "message"
+      && await ignoreUnownedSlackConversation(request, options.channelBindings ?? [])) {
+      trace.emit("filtered", "unowned-conversation");
       return new Response(null, { status: 200 });
     }
     trace.emit("sdk-dispatch", inspection.reason);

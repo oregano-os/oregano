@@ -3,7 +3,7 @@ import { ownsWorkflowDm, workflowDmRecipients } from "./slack-workflow-dm-routin
 
 export type WorkflowSlackIngressReason = "workflow-action" | "workflow-message" | "not-post" | "unsupported-content-type"
   | "payload-too-large" | "invalid-payload" | "other-action" | "conversations-disabled" | "other-event"
-  | "bot-or-subtype" | "not-channel-message" | "invalid-message" | "mention";
+  | "unowned-conversation" | "bot-or-subtype" | "not-channel-message" | "invalid-message" | "mention";
 export interface WorkflowSlackIngressInspection {
   kind: "action" | "message" | "ignored";
   reason: WorkflowSlackIngressReason;

@@ -18,6 +18,13 @@ audience:
 This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
+The experimental workflow-only host rejects unowned channels and DMs before
+either communication entrypoint can initialize a general Agent. Ownership reuses exact
+compiled Instance channel bindings and reserved DM principals; accepted events
+retain provider authentication. Synthetic partition and signed-ingress tests cover
+roots, thread replies, mentions and cross-account isolation. Live delivery still
+requires separate exact-deployment verification.
+
 Channel answers can now join one exact recipient-bound fact collection in the
 experimental workflow-only host. Multiple open questions require clarification;
 channel answers never record a human decision. Live inbound delivery must be

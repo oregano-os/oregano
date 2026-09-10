@@ -6,6 +6,7 @@ import { inspectWorkflowSlackRequest, slackMessageReference } from "./workflow-a
 import { createWorkflowSlackTrace, dispatchWorkflowSlackRequest } from "./workflow-slack-diagnostics.ts";
 import { workflowInboundThreadId } from "./workflow-conversations.ts";
 
+const channelBindings = [{ surface: "slack", accountId: "T10001", channelId: "C10001" }];
 const secret = "synthetic-signing-key";
 const event = { type: "message", channel: "C10001", channel_type: "group", user: "U10001", ts: "20.000001", text: "Synthetic private business facts" };
 function request(value: unknown = event, valid = true) {
@@ -32,7 +33,7 @@ test("existing SDK and isolated ingress both dispatch signed channel roots and t
     const entries: Record<string, unknown>[] = [];
     assert.equal((await original.handler(request(value), { waitUntil() {} })).status, 200);
     const input = request(value), expectedBytes = await input.clone().text();
-    const response = await dispatchWorkflowSlackRequest(input, { workflowOnly: true, diagnostics: true,
+    const response = await dispatchWorkflowSlackRequest(input, { workflowOnly: true, channelBindings, diagnostics: true,
       sink: (entry) => entries.push(entry), waitUntil() {}, handler: async (originalRequest, options) => {
         assert.equal(await originalRequest.clone().text(), expectedBytes);
         return isolated.handler(originalRequest, options);
@@ -50,7 +51,7 @@ test("existing SDK and isolated ingress both dispatch signed channel roots and t
 
 test("diagnostics do not authenticate an unsigned message or bypass the existing SDK verifier", async () => {
   const sdk = await adapterHarness(), entries: Record<string, unknown>[] = [];
-  const response = await dispatchWorkflowSlackRequest(request(event, false), { workflowOnly: true, diagnostics: true,
+  const response = await dispatchWorkflowSlackRequest(request(event, false), { workflowOnly: true, channelBindings, diagnostics: true,
     sink: (entry) => entries.push(entry), handler: sdk.handler, waitUntil() {} });
   assert.equal(response.status, 401);
   assert.deepEqual(sdk.delivered, []);
@@ -66,13 +67,13 @@ test("an explicitly routed DM uses the same SDK verification for roots and repli
       const value = { ...event, channel: "D10001", channel_type: "im", thread_ts };
       const sdk = await adapterHarness();
       const response = await dispatchWorkflowSlackRequest(request(value), {
-        workflowOnly: true, diagnostics: false, handler: sdk.handler, waitUntil() {},
+        workflowOnly: true, channelBindings, diagnostics: false, handler: sdk.handler, waitUntil() {},
       });
       assert.equal(response.status, 200);
       assert.deepEqual(sdk.delivered.map((id) => workflowInboundThreadId(id, event.ts)), [`slack:D10001:${thread_ts ?? event.ts}`]);
       const invalid = await adapterHarness();
       assert.equal((await dispatchWorkflowSlackRequest(request(value, false), {
-        workflowOnly: true, diagnostics: false, handler: invalid.handler, waitUntil() {},
+        workflowOnly: true, channelBindings, diagnostics: false, handler: invalid.handler, waitUntil() {},
       })).status, 401);
       assert.deepEqual(invalid.delivered, []);
     }
@@ -89,7 +90,7 @@ test("filtered messages identify their reason and never initialize a general age
     [{ thread_ts: "bad" }, "invalid-message"], [{ type: "reaction_added" }, "other-event"],
   ] as const) {
     const entries: Record<string, unknown>[] = [];
-    await dispatchWorkflowSlackRequest(request({ ...event, ...patch }), { workflowOnly: true, diagnostics: true,
+    await dispatchWorkflowSlackRequest(request({ ...event, ...patch }), { workflowOnly: true, channelBindings, diagnostics: true,
       sink: (entry) => entries.push(entry), waitUntil() {}, handler: async () => { assert.fail("filtered message reached SDK"); } });
     assert.equal(entries.at(-1)!.stage, "filtered");
     assert.equal(entries.at(-1)!.outcome, reason);
@@ -100,11 +101,11 @@ test("filtered messages identify their reason and never initialize a general age
 test("initialization and background errors remain failures with content-free diagnostic stages", async () => {
   const privateError = new Error("private upstream content and credential");
   const entries: Record<string, unknown>[] = [];
-  await assert.rejects(dispatchWorkflowSlackRequest(request(), { workflowOnly: true, diagnostics: true,
+  await assert.rejects(dispatchWorkflowSlackRequest(request(), { workflowOnly: true, channelBindings, diagnostics: true,
     sink: (entry) => entries.push(entry), waitUntil() {}, handler: async () => { throw privateError; } }), (error) => error === privateError);
   assert.equal(entries.at(-1)!.stage, "ingress-failed");
   let background: Promise<unknown> | undefined;
-  const response = await dispatchWorkflowSlackRequest(request(), { workflowOnly: true, diagnostics: true,
+  const response = await dispatchWorkflowSlackRequest(request(), { workflowOnly: true, channelBindings, diagnostics: true,
     sink: (entry) => entries.push(entry), waitUntil: (task) => { background = task; }, handler: async (_request, options) => {
       options.waitUntil(Promise.reject(privateError)); return new Response(null, { status: 200 });
     } });
@@ -118,8 +119,25 @@ test("diagnostics can be disabled and a broken sink never changes response deliv
   const trace = createWorkflowSlackTrace({ enabled: false, sink: () => assert.fail("disabled diagnostics emitted") });
   trace.emit("handler-entered");
   const sdk = await adapterHarness();
-  assert.equal((await dispatchWorkflowSlackRequest(request(), { workflowOnly: true, diagnostics: true,
+  assert.equal((await dispatchWorkflowSlackRequest(request(), { workflowOnly: true, channelBindings, diagnostics: true,
     sink: () => { throw new Error("logging unavailable"); }, handler: sdk.handler, waitUntil() {} })).status, 200);
   assert.equal(sdk.delivered.length, 1);
   assert.equal(slackMessageReference("invalid-channel", "20.000001"), undefined);
+});
+
+
+test("unowned channels never initialize the SDK or general coordinator", async () => {
+  for (const channel of ["C20001", "C30001", "G20001"]) {
+    for (const type of ["message", "app_mention"]) {
+      for (const thread_ts of [undefined, "10.000001"]) {
+        const entries: Record<string, unknown>[] = [];
+        const response = await dispatchWorkflowSlackRequest(request({ ...event, channel, type, thread_ts }), {
+          workflowOnly: true, channelBindings, diagnostics: true, sink: (entry) => entries.push(entry),
+          waitUntil() {}, handler: async () => { assert.fail("unowned conversation initialized a responder"); },
+        });
+        assert.equal(response.status, 200);
+        assert.equal(entries.at(-1)!.outcome, "unowned-conversation");
+      }
+    }
+  }
 });
