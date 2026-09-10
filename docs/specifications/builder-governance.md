@@ -482,8 +482,15 @@ Include a concise change summary, what actually ran, its limits and the actual
 result link. No second completion/proposal card is posted. Preparing a draft with
 `prepare-only` still cannot publish: the card explains that no publication intent
 was requested. A visible Go Live action does not itself establish readiness or rights.
-If checks are pending, a test is running or the evidence changed, the action explains
-the blocker and refreshes the card. It does not store an approval to execute later.
+Every Go Live action attempts exact candidate preparation and acceptance in the
+same authenticated click, including cards without a precomputed release token.
+It must never act as a readiness-only refresh requiring a second confirmation.
+The click itself accepts the functional result; no separate reviewed flag or
+Finish Test action is required. If checks are pending, a test is running or the
+evidence changed, report the specific known blocker (or a content-free diagnostic
+reference for an unknown provider failure). Do not store a failed request for later
+publication. Successful acceptance is retained so retries reconcile the same
+release instead of preparing a different candidate.
 The accepted result is frozen atomically; further test turns cannot modify it.
 After acceptance, preserve the result and its test description. Post **Publishing**,
 then **Live** only after production verification; remove consumed action rows without

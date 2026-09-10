@@ -15,6 +15,12 @@ audience:
 
 # Current System Status
 
+Go Live on Builder cards without a precomputed release token now prepares and
+accepts the exact version in one authenticated click. The click is functional
+acceptance; no separate test-review action is required. Failures retain technical
+controls and report known blockers or a safe diagnostic reference.
+
+
 Builder Workspace releases preserve deployment-local runtime settings and reject
 promotion if the staged Instance loses its Builder configuration. Builder status
 messages retain earlier conversation content instead of replacing result text.
