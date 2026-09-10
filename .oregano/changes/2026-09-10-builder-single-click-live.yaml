@@ -1,0 +1,50 @@
+version: 3
+plan_id: builder-single-click-live-2026-09-10
+created: 2026-09-10
+title: Make every Go Live action publish in the same authenticated click
+objective: Replace the readiness-only fallback behind Go Live with exact
+  candidate preparation and release acceptance in one click, retain current
+  authority and candidate checks, and report safe specific blockers.
+non_goals:
+  - Change SOP workflows or company operating instructions.
+placement: core
+change_class: security
+files_expected:
+  - package.json
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - .oregano/changes/2026-09-10-builder-single-click-live.yaml
+  - packages/runner-vercel/src/lib/builder/release-integration.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+tests:
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/guided-experience.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - status.current
+architecture:
+  placement:
+    core: Authenticated Builder publication and safe failure presentation.
+    packages: Reuse the existing Workbench without a new package contract.
+    workspace: Company operating intent and acceptance policy remain unchanged.
+    instance: Reuse configured model recipes and repository and test bindings.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Use the existing release coordinator and functional acceptance in the
+        same Go Live click.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The correction is independent of company, chat provider,
+    coding profile and deployment host.
+rollback: Restore the preceding Core; the readiness-only click defect returns.
+  Preserve accepted release receipts and conversation history.
+open_decisions: []
