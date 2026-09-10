@@ -15,6 +15,10 @@ audience:
 
 # Current System Status
 
+Builder test conversations show candidate replies without an extra test-version
+introduction. Readiness changes refresh the existing result card instead of
+posting a second completion card; later release messages retain earlier history.
+
 Go Live on Builder cards without a precomputed release token now prepares and
 accepts the exact version in one authenticated click. The click is functional
 acceptance; no separate test-review action is required. Failures retain technical

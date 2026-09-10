@@ -143,6 +143,9 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
     assert.equal(accepted.length, 0);
     await integration.receive({ ...message, conversation: "slack:C20002:fresh-question", messageId: "fresh-question", text: "Give me another example" });
     assert.deepEqual(histories[2], [{ role: "user", content: "Give me another example" }]);
+    const freshReplies = t.messages.filter(entry => entry.threadId === "slack:C20002:fresh-question");
+    assert.equal(freshReplies.length, 1, "a fresh test thread receives only its actual candidate reply");
+    assert.doesNotMatch(JSON.stringify(t.messages), /Test version · Not live|This conversation stays on this version/);
     const newToken = [...t.values.keys()].filter((key) => key.startsWith("builder-release-candidate:")).at(-1)!.slice("builder-release-candidate:".length);
     assert.notEqual(newToken, oldToken);
     await t.handlers.get("companyos.builder.release")!(event(newToken));
@@ -181,5 +184,25 @@ test("readiness button refreshes do not duplicate an unchanged result explanatio
     assert.equal(t.messages.length, 1);
     assert.match(JSON.stringify(t.messages[0]), /The checked result and test instructions/);
     assert.match(JSON.stringify(t.messages[0]), /fresh-token/);
+  } finally { f.cleanup(); }
+});
+
+
+test("readiness changes update the existing result while later release messages preserve it", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    const card = (pending: boolean) => ({ type: "card", title: "Ready to test", children: [
+      { type: "text", content: "The exact changed result and test link." },
+      ...(pending ? [{ type: "text", content: "Required checks are still running." }] : []),
+      { type: "actions", children: [{ type: "button", id: "release", label: "Go Live", value: pending ? "prepare" : "ready" }] },
+    ] }) as any;
+    await show(f.job, card(true), "result");
+    await show(f.job, card(false), "result");
+    assert.equal(t.messages.length, 1, "readiness updates must not post a second completion card");
+    assert.doesNotMatch(JSON.stringify(t.messages[0]), /still running/);
+    await show(f.job, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages.length, 2);
+    assert.match(JSON.stringify(t.messages[0]), /The exact changed result/);
   } finally { f.cleanup(); }
 });

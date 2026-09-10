@@ -479,7 +479,12 @@ show these four actions directly, without a More menu:
 | **Request Changes** | Invalidate the old result's release action and ask what to revise. Subsequent questions remain questions. |
 
 Include a concise change summary, what actually ran, its limits and the actual
-result link. No second completion/proposal card is posted. Preparing a draft with
+result link. No second completion/proposal card is posted. Readiness changes and
+refreshed action tokens update that same result card; later progress or release
+stages preserve the preceding messages. A user-created test conversation receives
+only the actual candidate response, without a separate test-version introduction.
+The initial automatic test uses its input as the conversation root. Version
+assignment and evidence stay internal; the Builder result card explains test scope. Preparing a draft with
 `prepare-only` still cannot publish: the card explains that no publication intent
 was requested. A visible Go Live action does not itself establish readiness or rights.
 Every Go Live action attempts exact candidate preparation and acceptance in the
