@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { neon } from "@neondatabase/serverless";
 import { createPostgresConversationAttentionStore } from "../../state-postgres/conversation-attention-store.ts";
 import { createPostgresConversationWorkSource } from "../../state-postgres/conversation-work-source.ts";
 import { createPostgresWorkflowExecutionStore } from "../../state-postgres/workflow-store.ts";
-import { EMPTY_ATTENTION, type ConversationReceipt } from "../../runtime/shared-conversation.ts";
+import { EMPTY_ATTENTION, conversationReceiptKey, conversationScopeKey, type ConversationReceipt } from "../../runtime/shared-conversation.ts";
 import { workflowStateFixture, WORKFLOW_STATE_NOW as now } from "../workflow-state-fixture.ts";
 import { workflowAssignmentKey } from "../../runtime/workflow-engine/state-validation.ts";
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
@@ -21,6 +22,15 @@ test("Postgres attention and receipts survive restart, isolate users, and have o
   assert.equal(await restarted.commit(scope, 0, { ...EMPTY_ATTENTION(), revision: 1 }, "stale", receipt), false);
   assert.equal(await restarted.commit(scope, 1, { ...EMPTY_ATTENTION(), revision: 2 }, event, receipt), false);
   assert.equal((await restarted.read(scope))?.revision, 1);
+  // Logical expiry must not depend on an unrelated physical KV cleanup job.
+  const sql = neon(process.env.DATABASE_URL!);
+  await sql`update companyos.chat_values set expires_at = now() - interval '1 second'
+    where key in (${conversationReceiptKey(scope, event)}, ${conversationScopeKey(scope)})`;
+  assert.equal(await restarted.read(scope), undefined);
+  assert.equal(await restarted.receipt(scope, event), undefined);
+  assert.equal(await restarted.commit(scope, 0, { ...EMPTY_ATTENTION(), revision: 1, focus: ["fresh"] }, event, receipt), true);
+  assert.deepEqual((await restarted.read(scope))?.focus, ["fresh"]);
+  assert.deepEqual(await restarted.receipt(scope, event), receipt);
 });
 
 test("Postgres work lookup uses original workflow records and excludes terminal work by default", { skip: !enabled }, async () => {

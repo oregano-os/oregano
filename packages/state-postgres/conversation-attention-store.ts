@@ -33,7 +33,9 @@ export function createPostgresConversationAttentionStore(): ConversationAttentio
       ), receipt as (
         insert into companyos.chat_values (key, value, expires_at)
         select ${conversationReceiptKey(scope, eventId)}, ${JSON.stringify(receipt)}::jsonb, now() + interval '30 days' from saved
-        on conflict (key) do nothing returning key
+        on conflict (key) do update set value = excluded.value, expires_at = excluded.expires_at
+        where companyos.chat_values.expires_at <= now()
+        returning key
       ) select key from receipt`;
       return rows.length === 1;
     },
