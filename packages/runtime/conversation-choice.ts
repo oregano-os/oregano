@@ -44,6 +44,10 @@ export class ConversationChoiceService<T> {
     if (!await this.store.get(`${key(scope)}:presented`)) return undefined;
     return await this.store.get<ConversationChoiceRequest<T>>(key(scope)) ?? undefined;
   }
+  async unselected(scope: ConversationChoiceScope): Promise<ConversationChoiceRequest<T> | undefined> {
+    const request = await this.read(scope);
+    return request && request.expiresAt > this.clock() && !await this.store.get(`${key(scope)}:selection`) ? request : undefined;
+  }
   async select(scope: ConversationChoiceScope, verified: { text: string; eventId: string }, validate: (target: T, request: ConversationChoiceRequest<T>) => Promise<boolean>): Promise<
     { kind: "unassigned" } | { kind: "invalid" } | { kind: "expired" } | { kind: "selected" | "already-selected"; target: T; request: ConversationChoiceRequest<T> }
   > {

@@ -1,0 +1,57 @@
+version: 3
+plan_id: shared-conversation-coordination-2026-09-10
+created: "2026-09-10"
+title: Coordinate bounded work context across shared conversations
+objective: Let a Workspace Agent interpret new and existing concerns, select authorized work context, and acknowledge routing without assigning an entire shared inbox to one workflow.
+non_goals:
+  - Build another workflow engine, vector database, or automatic transcript summarizer.
+  - Infer human approval from routing, reopen terminal work, or expand specialist Tools.
+  - Claim production qualification for communication providers without a maintained adapter.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-10-shared-conversation-coordination.yaml
+  - packages/runtime/**
+  - packages/state-store/**
+  - packages/state-postgres/**
+  - packages/companyos-builder/**
+  - packages/runner-vercel/src/lib/**
+  - packages/testkit/**
+  - scripts/test-database.mjs
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/workbench/guides/author-an-agent.md
+  - packages/cli/content/guides/author-an-agent.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/agent-handoff.test.ts
+  - packages/testkit/tests/slack-knowledge-routing.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.companyos-core-v0.7, operations.workflow-engine, guide.author-agent, status.current]
+architecture:
+  placement:
+    core: Provider-neutral bounded context and checked work references; existing authorization and execution remain authoritative.
+    packages: Reusable synthetic qualification fixtures only.
+    workspace: Coordinator behavior, specialist purposes, available Tools and business conversation instructions.
+    instance: Authenticated transport identity, private state retention and model execution bindings.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Scope specialist selection to a work reference rather than the whole inbox.
+    - mechanism: identity-and-authorization
+      reason: Revalidate each retrieved work reference against the authenticated recipient and current source state.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Persist routing and clarification receipts while retaining existing workflow decisions and Builder confirmations.
+    - mechanism: capability-contracts-and-connectors
+      reason: Expose bounded existing-work reads and transport-neutral conversation controls to the Agent.
+  new_core_mechanisms:
+    - Small conversation attention record containing focus, draft references and pending clarification, backed by existing Instance state.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Workspace coordinator and verified transport may interpret concerns while existing workflow and job stores retain execution ownership.
+rollback: Disable Workspace conversation coordination and restore the previous exact Core and Artifact pair; attention records carry no effect authority and may be retained without use.

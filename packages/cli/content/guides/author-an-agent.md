@@ -65,3 +65,38 @@ facts must never be invented. A non-empty field is not evidence that its meaning
 is correct. Evaluate relevant, incomplete, contradictory and irrelevant replies
 with the intended model and compiled instructions. Keep content quality checks
 separate from the human approval required for an external change.
+
+## Coordinate a shared conversation
+
+Set `conversation_coordinator: true` on the Agent used by an Instance's default
+route or exact channel binding. The maintained host asks that Agent to interpret
+the incoming message before selecting workflow collection. Keep the policy and
+specialist purposes in its Workspace instructions. This flag does not grant
+Tools or override the Instance's entry binding.
+
+The coordinator can read small pages of authorized workflow deliveries and
+Builder jobs, read one selected context, and submit a checked conversation plan.
+A new request can coexist with a waiting collection. Search results are hints,
+not execution authority: Core rereads recipient scope and source revision before
+dispatch. Descriptive clarification questions retain the original message and
+candidate IDs; the Agent interprets natural replies. Routing never supplies an
+approving principal or changes a terminal workflow's state.
+
+Declare specialist permissions through the existing `handoffs` list. A concern
+handoff executes with the specialist's existing ToolSet and records its rule and
+expiry; it does not install an inbox-wide assignment. Use `when_available: true`
+only for an explicitly optional Agent (for example a Builder enabled by an
+Instance binding). Compilation omits that rule when its target is absent. The
+default remains strict: an unavailable non-optional target is an error.
+
+Use a short discussion draft for new multi-step work before a workflow or job
+exists. Confirmed Builder jobs replace that reference; the job store retains
+its status. Finished drafts can close. Ordinary knowledge questions create no
+draft. Company Knowledge search is selected from meaning or by an Agent Tool
+call, not a keyword list; successful source evidence is still checked.
+
+The shared runtime uses opaque communication addresses and an injected verified
+work source. The maintained chat host retrieves only the current channel's
+recipient scope. Another adapter must authenticate its own identity and access
+before supplying cross-channel or cross-provider work references. A portable
+contract and synthetic tests do not prove a live integration with another communication provider.

@@ -218,6 +218,45 @@ handoffs:
 Legacy and fixed-duration declarations continue to use `ttl_seconds` instead
 of `expiry`; declaring both or neither is invalid.
 
+### Concern-scoped conversation coordination
+
+An Agent MAY declare `conversation_coordinator: true`. The deterministic
+Instance route still selects that entry Agent. Its semantic interpretation MAY
+select authorized existing work, a new discussion, a knowledge question, or a
+clarification. A pending workflow MUST NOT capture unrelated new work merely
+because it is the only open collection. Multiple explicit concerns MAY retain
+separate source excerpts and destinations.
+
+The shared runtime MUST retain only bounded attention (focus references,
+short recent exchanges, pending original answers and small drafts), not copy
+all open work or introduce another execution lifecycle. The workflow and Builder
+stores remain authoritative. Lookup MUST be principal- and audience-scoped,
+paginated, and bounded. Completion excludes work from ordinary active lookup;
+explicit lookup and a verified original conversation MAY read terminal results.
+Such context MUST NOT reopen execution or grant effect authority.
+
+The Agent interprets natural clarification replies. Core MUST validate the
+chosen stable ID against the retained candidate set, current access and source
+revision. A routed excerpt MUST occur in the verified source message. Selection
+MUST NOT be treated as consent. Attention and an immutable event receipt MUST
+commit atomically with revision checking. Reused events with changed source
+content MUST fail closed. Adapters MUST acknowledge a move in the conversation
+where the human is waiting and supply the actual destination reference.
+
+Concern delegation reuses the existing handoff rule and principal checks. It
+MUST NOT change the whole inbox assignment. An exact entry binding remains in
+force while its bound Agent delegates one concern. Optional Workspace rules
+MAY use `when_available: true`; a missing target then removes the rule at
+compilation and cannot become a runtime fallback. Existing workflow delivery
+and Builder job ownership are source evidence for resuming that work, not
+permission to select an arbitrary Agent.
+
+The provider-neutral contract MUST accept only adapter-verified scope and opaque
+addresses. A new transport MUST establish identity and audience access before
+loading work from another surface. Matching display names or model-generated
+identities MUST NOT bridge accounts. Model task and Tool resolution continue
+through existing Instance bindings; no keyword classifier may confer authority.
+
 A Sprint effort basis MAY be actual hours, planned effort, or explicitly
 unavailable. A read model MUST calculate only the selected basis. If that basis
 is unavailable, or any applicable committed item lacks its required observed

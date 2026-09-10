@@ -227,3 +227,39 @@ test("numbered selection rejects edited originals, expired targets and foreign a
   await assert.rejects(host.receive({ ...input, messageId: "999.000004" }));
   for (const run of runs) assert.deepEqual((await h.store.read(h.artifact.instance.id, run.runId))!.state.decisions, {});
 });
+
+test("unresolved legacy choices migrate with verified original text and original candidate order", async () => {
+  const { host, input, setMessage } = await setup(2, "D10001");
+  const result = await host.receiveChannel(input); if (result.kind !== "ambiguous") assert.fail();
+  const choice = await host.prepareChoice(input, result.conversations); await choice.presented("999.000002");
+  const migrated = await host.pendingChoiceForCoordinator({ threadId: input.threadId, authorId: "U10002" });
+  assert.equal(migrated?.source.text, "The agreed intended outcome");
+  assert.equal(migrated?.source.messageId, input.messageId);
+  assert.deepEqual(migrated?.candidates, choice.conversations.map(c => `workflow:${c.assignmentKey}`));
+  assert.equal(await host.pendingChoiceForCoordinator({ threadId: input.threadId, authorId: "U10001" }), undefined);
+  setMessage({ text: "Modified original", edited: { ts: "999.000004" } });
+  await assert.rejects(host.pendingChoiceForCoordinator({ threadId: input.threadId, authorId: "U10002" }));
+});
+
+test("coordinated selection verifies the actual source thread and resumes only the selected workflow", async () => {
+  const { h, host, runs, input, setMessage } = await setup(2, "D10001");
+  const candidates = await h.store.channelAssignments({ instanceId: h.artifact.instance.id, surface: "slack", accountId: "T10001", channelId: "D10001", subjectPrincipal: ENGINE_OWNER, now: h.now });
+  const target = candidates.find(a => a.runId === runs[1]!.runId)!;
+  setMessage({ thread_ts: "950.000001" });
+  const result = await host.receiveSelected({ source: { ...input, authorId: "U10002", threadId: "slack:D10001:950.000001" }, target, text: "The agreed intended outcome", version: String(runs[1]!.revision) });
+  assert.equal(result.kind, "conversation"); if (result.kind !== "conversation") return;
+  assert.equal(result.session.runId, runs[1]!.runId); assert.equal(result.session.text, "The agreed intended outcome");
+  await result.session.collection!.submit({ summary: "The agreed intended outcome" });
+  assert.equal((await h.store.read(h.artifact.instance.id, runs[0]!.runId))?.state.status, "waiting");
+  assert.equal((await h.store.read(h.artifact.instance.id, runs[1]!.runId))?.state.status, "done");
+});
+
+test("coordinated workflow dispatch rejects invented excerpts, foreign recipients, and stale revisions", async () => {
+  const { h, host, runs, input } = await setup(1, "D10001");
+  const [target] = await h.store.channelAssignments({ instanceId: h.artifact.instance.id, surface: "slack", accountId: "T10001", channelId: "D10001", subjectPrincipal: ENGINE_OWNER, now: h.now });
+  const args = { source: { ...input, authorId: "U10002" }, target: target!, text: "The agreed intended outcome", version: String(runs[0]!.revision) };
+  await assert.rejects(host.receiveSelected({ ...args, text: "APPROVE invented" }), /excerpt/);
+  await assert.rejects(host.receiveSelected({ ...args, target: { ...target!, subjectPrincipal: "slack:T10001:U99999" } }), /another recipient/);
+  await assert.rejects(host.receiveSelected({ ...args, version: "-1" }), /changed before dispatch/);
+  assert.equal((await h.store.read(h.artifact.instance.id, runs[0]!.runId))?.state.status, "waiting");
+});

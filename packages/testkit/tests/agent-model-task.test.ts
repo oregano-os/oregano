@@ -24,7 +24,7 @@ test("a workflow-assigned Agent uses its declared task without a legacy runtime"
 test("absent declarations retain general chat and knowledge model routing", () => {
   assert.deepEqual(agentModelTask({}), { profile: "agent", task: "agent.chat", configuration: "shared" });
   const knowledge = { kind: "required-search" as const, grantId: "oregano:knowledge/search" as const,
-    toolName: "knowledge_search", reason: "explicit-search" as const };
+    toolName: "knowledge_search", reason: "agent-selected" as const };
   assert.deepEqual(agentModelTask({}, knowledge), { profile: "deep", task: "knowledge.cited-synthesis", configuration: "knowledge" });
   assert.equal(agentModelTask({ modelTask: "review.conversation" }, knowledge).task, "review.conversation");
 });

@@ -600,3 +600,26 @@ test("R4 request creation requires a known active human with a stable ID", async
   const runtime = new CompanyOSRuntime({ artifact, roster, state: new InMemoryStateStore(), connectors: [new ArtifactSandboxConnector(), new MarketingSandboxConnector()] });
   await assert.rejects(() => runtime.requestApproval({ ...request, subjectPrincipal: "test:solstice:morgan" }), /stable roster id/);
 });
+
+test("Workspace conversation coordination and optional specialist availability compile explicitly", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-coordination-")); cpSync(FIXTURE, root, { recursive: true });
+  const path = join(root, "agents/growth/instructions.md"), original = readFileSync(path, "utf8");
+  try {
+    const baseline = build(root);
+    writeFileSync(path, original.replace(/^---\n/, "---\nconversation_coordinator: true\n"));
+    const compiled = build(root);
+    assert.equal(compiled.agents[0]?.conversationCoordinator, true); assert.notEqual(compiled.artifactHash, baseline.artifactHash);
+    writeFileSync(path, original.replace(/^---\n/, "---\nconversation_coordinator: 'true'\n"));
+    assert.throws(() => build(root), /conversation_coordinator/);
+    const rule = "handoffs:\n  - id: optional-editor\n    target: editor\n    purpose: editing\n    surfaces: [messenger]\n    eligible_roles: [contributor]\n    eligible_groups: []\n    ttl_seconds: 600\n";
+    writeFileSync(path, original.replace(/^---\n/, `---\n${rule}`));
+    assert.throws(() => build(root), /unknown|not found|not present|does not exist/i);
+    writeFileSync(path, original.replace(/^---\n/, `---\n${rule}    when_available: true\n`));
+    assert.deepEqual(build(root).agentRouting.handoffs, []);
+    mkdirSync(join(root, "agents/editor"), { recursive: true });
+    writeFileSync(join(root, "agents/editor/instructions.md"), "---\ndescription: Optional editor\ntools: []\n---\nHelp with editing.\n");
+    const enabled = buildCompanyOSArtifact({ workspaceRoot: root, instance: { ...instance, defaultAgentId: "growth" }, coreVersion: "0.5.14", coreCommit: CORE_COMMIT,
+      workspaceCommit: WORKSPACE_COMMIT, workbenchVersion: "0.1.0-experimental.15" });
+    assert.equal(enabled.agentRouting.handoffs?.[0]?.toAgentId, "editor");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

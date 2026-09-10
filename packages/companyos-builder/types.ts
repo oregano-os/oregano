@@ -60,7 +60,9 @@ export interface CompiledCompanyTool {
 export interface CompiledAgent {
   id: string;
   instructions: string;
+  description?: string;
   modelTask?: string;
+  conversationCoordinator?: boolean;
   materials: Record<string, string>;
   toolSet: ResolvedToolSet;
   tools: CompiledCompanyTool[];

@@ -6,12 +6,12 @@ export interface RoutedTool {
 }
 
 export type KnowledgeTurnRoute =
-  | { readonly kind: "auto" }
+  | { readonly kind: "auto"; readonly searchToolName?: string }
   | {
       readonly kind: "required-search";
       readonly grantId: typeof KNOWLEDGE_SEARCH_GRANT_ID;
       readonly toolName: string;
-      readonly reason: "explicit-search" | "company-evidence-question";
+      readonly reason: "agent-selected";
     };
 
 export interface KnowledgeStepChoice {
@@ -51,45 +51,18 @@ interface KnowledgeSearchOutput {
   readonly degradations?: readonly string[];
 }
 
-const normalize = (value: string): string => value
-  .normalize("NFKD")
-  .replace(/\p{Diacritic}/gu, "")
-  .toLowerCase();
-
-const explicitSearch = /(?:knowledge[\s._:/-]*search|wissenssuche|company[\s-]+knowledge|company[\s-]+brain)/u;
-const searchAction = /\b(?:search\w*|lookup|look\s+up|find\w*|durchsuch\w*|such\w*|recherchier\w*)\b/u;
-const question = /\b(?:was|welch\w*|wer|wann|wo|what|which|who|when|where|fass\w*|zusammenfass\w*|summar\w*|erklar\w*|explain|tell\s+me)\b/u;
-const companyEvidence = /(?:companyos|company[\s-]+knowledge|company[\s-]+brain|granola|transkript\w*|transcript\w*|meeting\w*|gesprach\w*|conversation\w*|besproch\w*|diskutier\w*|discuss\w*|erwahn\w*|mention\w*|entscheidung\w*|decision\w*|beschloss\w*|decid\w*|vereinbart\w*|agreed|commitment\w*|projekt\w*|project\w*|research|forschung)/u;
-
-/**
- * Selects the already-granted read-only search Tool for high-confidence
- * Company Knowledge turns. This is turn-level Tool routing, not Agent routing.
- */
+/** Meaning is selected by the conversation Agent, never by keyword rules.
+ * Direct Agent turns can call the granted search themselves; results are still checked. */
 export function resolveKnowledgeTurnRoute(input: {
   readonly text: string;
   readonly tools: readonly RoutedTool[];
+  readonly requiresKnowledge?: boolean;
 }): KnowledgeTurnRoute {
-  const searchTool = input.tools.find((candidate) => candidate.grantId === KNOWLEDGE_SEARCH_GRANT_ID);
+  const searchTool = input.tools.find(candidate => candidate.grantId === KNOWLEDGE_SEARCH_GRANT_ID);
   if (!searchTool) return { kind: "auto" };
-
-  const text = normalize(input.text);
-  if (explicitSearch.test(text) && searchAction.test(text)) {
-    return {
-      kind: "required-search",
-      grantId: KNOWLEDGE_SEARCH_GRANT_ID,
-      toolName: searchTool.toolName,
-      reason: "explicit-search",
-    };
-  }
-  if (question.test(text) && companyEvidence.test(text)) {
-    return {
-      kind: "required-search",
-      grantId: KNOWLEDGE_SEARCH_GRANT_ID,
-      toolName: searchTool.toolName,
-      reason: "company-evidence-question",
-    };
-  }
-  return { kind: "auto" };
+  return input.requiresKnowledge
+    ? { kind: "required-search", grantId: KNOWLEDGE_SEARCH_GRANT_ID, toolName: searchTool.toolName, reason: "agent-selected" }
+    : { kind: "auto", searchToolName: searchTool.toolName };
 }
 
 /** Requires the selected search Tool only on the first model step. */
@@ -127,7 +100,8 @@ const KNOWLEDGE_ANSWER_INSTRUCTIONS = `Company Knowledge answer contract for thi
 
 /** Returns the route-specific fragment compiled into the existing Agent prompt. */
 export function knowledgeTurnInstructions(route: KnowledgeTurnRoute): string {
-  return route.kind === "required-search" ? KNOWLEDGE_ANSWER_INSTRUCTIONS : "";
+  if (route.kind === "required-search") return KNOWLEDGE_ANSWER_INSTRUCTIONS;
+  return route.searchToolName ? `Decide from the question whether company evidence is needed. Use the registered search for company facts; ordinary conversation does not require research. Apply the following contract only to answers using company evidence.\n${KNOWLEDGE_ANSWER_INSTRUCTIONS}` : "";
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -220,6 +194,12 @@ export function renderKnowledgeTurnResponse(input: {
   readonly toolFailures?: readonly FailedToolResult[];
 }): string {
   const modelText = input.modelText.trim();
+  const autoSearch = input.route.kind === "auto" ? input.route.searchToolName : undefined;
+  if (autoSearch
+    && (input.toolResults.some(r => r.toolName === autoSearch) || input.toolFailures?.some(r => r.toolName === autoSearch))) {
+    return renderKnowledgeTurnResponse({ ...input, route: { kind: "required-search", grantId: KNOWLEDGE_SEARCH_GRANT_ID,
+      toolName: autoSearch, reason: "agent-selected" } });
+  }
   if (input.route.kind === "auto") {
     return modelText || "The requested CompanyOS operation was processed. Review any approval card above before an effect can occur.";
   }

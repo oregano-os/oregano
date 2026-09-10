@@ -248,3 +248,47 @@ They expire after one day; content-free records remain for 30 days to explain
 late replies. The generic service requires verified inputs and target
 revalidation from its adapter. It cannot create an assignment, grant Tools or
 authorize an effect.
+
+
+## Shared conversation coordination
+
+A Workspace can opt its entry Agent into `conversation_coordinator: true`.
+The hosted chat then interprets ordinary messages before the legacy collection
+selector. Existing signed button handlers retain their exact decision path.
+The coordinator searches existing delivery assignments and Builder jobs, then
+resumes the selected work using its source revision and a provider-reread source
+excerpt. Direct replies continue in the original workflow thread. A different
+source thread receives an acknowledgment and verified destination link.
+
+The Instance reuses `chat_values` for attention and immutable routing receipts.
+Attention is scoped by instance, principal, surface, account and channel; an
+atomic revision comparison prevents concurrent turns replacing each other.
+Retention is 30 days. Clarifications expire after one day; draft discussions
+become dormant after seven days without use. Closed, dormant or linked drafts
+are pruned when room is needed within the eight-draft limit. Retained drafts
+hold no business-effect authority.
+The working context keeps at most three focus references, eight recent bounded
+exchanges, eight drafts and four pending clarifications. Search pages contain
+six existing records; at most eight additional read calls and three explicit
+concerns are accepted per turn. Selected detail is capped at 10,000 characters
+and reports truncation. Current conversation history is limited to 12,000
+characters; the selected Agent receives at most twelve messages and 32,000
+characters from its existing transcript. Pending answers expose a 4,000-character
+preview and require an explicit full read before routing longer text (maximum
+16,000 characters). There is no background transcript summarizer or new search
+index.
+
+Dispatch retains per-concern running/completed/failed receipts alongside the
+existing workflow or Builder execution. The same original source is reused on
+retry. Provider and model errors remain visible; routing completion never proves
+a business write. Source changes require fresh interpretation. Builder job
+creation links its preceding discussion draft to the actual job, whose existing
+worker leases, deadlines and notifications remain in force.
+
+Disabling the Workspace flag restores legacy entry behavior without removing
+workflow state. Previously issued button decisions and publications remain
+readable. Unresolved legacy numbered choices import only after the adapter
+rereads and verifies the retained original answer and candidate order.
+Compile and deploy an exact Core/Workspace pair before live acceptance;
+local synthetic transport tests do not constitute provider delivery acceptance or
+production qualification of another adapter.

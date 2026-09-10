@@ -59,7 +59,9 @@ export function buildCompanyOSArtifact(args: {
     return {
       id: agent.id,
       instructions: agent.instructions,
+      ...(agent.description === undefined ? {} : { description: agent.description }),
       ...(agent.modelTask === undefined ? {} : { modelTask: agent.modelTask }),
+      ...(agent.conversationCoordinator === undefined ? {} : { conversationCoordinator: agent.conversationCoordinator }),
       materials: scopedMaterials(workspace, agent.scopeRead, {
         excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
       }),
@@ -70,7 +72,9 @@ export function buildCompanyOSArtifact(args: {
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));
   const agentRouting = {
     bindings: [...args.instance.agentBindings].sort((a, b) => a.id.localeCompare(b.id)),
-    handoffs: workspace.agents.flatMap((agent) => agent.handoffs).sort((a, b) => a.id.localeCompare(b.id)),
+    handoffs: workspace.agents.flatMap((agent) => agent.handoffs)
+      .filter(rule => !rule.whenAvailable || agents.some(agent => agent.id === rule.toAgentId))
+      .map(({ whenAvailable: _optional, ...rule }) => rule).sort((a, b) => a.id.localeCompare(b.id)),
     defaultAgentId: args.instance.defaultAgentId,
   };
   validateAgentRouting(agentRouting, agents.map((agent) => agent.id));

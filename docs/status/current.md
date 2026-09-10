@@ -23,6 +23,13 @@ experimental workflow-only host. Multiple open questions require clarification;
 channel answers never record a human decision. Live inbound delivery must be
 verified separately from message publication and provider read access.
 
+The Workspace `conversation_coordinator` option introduces a shared entry Agent
+with bounded work lookup, semantic concern selection and retained clarification
+sources. The maintained chat path resumes checked workflow replies and retains
+their original destination; the provider-neutral contract is exercised with
+synthetic messaging and MCP-style addresses. Live deployment and additional
+provider qualification remain separate from these local checks.
+
 ## Implemented and tested
 
 - Workflow publications retain their exact sent text for bounded, read-only

@@ -80,6 +80,18 @@ export class AgentHandoffService {
     return await this.#configuration.store.getActive(key, now);
   }
 
+  /** Check a concern-scoped delegation without changing the inbox assignment. */
+  authorizeConcern(request: Omit<AgentHandoffRequest, "transitionKey">): { ruleId: string; expiresAt: string } {
+    this.#assertArtifact(request.artifactHash);
+    const member = this.#authorizedMember(request.subjectPrincipal);
+    const binding = this.#configuration.routing.bindings.find(b => b.surface === request.surface && b.accountId === request.accountId && b.channelId === request.channelId);
+    if (binding && binding.agentId !== request.activeAgentId) throw new AgentHandoffError("exact-binding", "Only the bound entry Agent can delegate a concern in this conversation.");
+    const rule = this.#matchingRule(request as AgentHandoffRequest, member);
+    return { ruleId: rule.id, expiresAt: rule.localDayEndTimeZone
+      ? nextLocalDayStartIso(request.requestedAt, rule.localDayEndTimeZone)
+      : new Date(Date.parse(request.requestedAt) + rule.ttlSeconds! * 1000).toISOString() };
+  }
+
   async handoff(request: AgentHandoffRequest): Promise<ConversationAssignmentTransitionResult> {
     return await this.#assign(request, request.subjectPrincipal, "allowlisted-agent-handoff");
   }

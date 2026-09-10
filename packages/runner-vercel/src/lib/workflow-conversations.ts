@@ -177,8 +177,47 @@ export class WorkflowConversationHost {
   }
 
   async receive(args: { threadId: string; messageId: string; authorId?: string }, channelReply = false): Promise<WorkflowInboundResult> {
+    return this.#receive(args, channelReply);
+  }
+
+  /** Migrate an unresolved legacy choice after independently verifying its original answer. */
+  async pendingChoiceForCoordinator(args: { threadId: string; authorId: string }): Promise<import("../../../runtime/shared-conversation.ts").PendingConcern | undefined> {
+    const match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.threadId);
+    if (!match || !this.#args.choices) return;
+    return this.#args.slack(async transport => {
+      const accountId = await transport.account(), roster = await this.#args.roster();
+      const principal = await transport.human(accountId, args.authorId, roster);
+      const request = await this.#args.choices!.unselected(this.#choiceScope(match[1]!, match[2]!, principal, accountId));
+      if (!request || request.choices.some(c => c.channelId !== match[1] || c.accountId !== accountId || c.subjectPrincipal !== principal)) return;
+      const original = await transport.reply({ conversation: request.choices[0]!, messageId: request.source.messageId, roster, channelReply: true });
+      if (sha256(original) !== request.source.digest) throw new Error("Original clarification answer changed before migration");
+      return { source: { messageId: request.source.messageId, eventId: original.eventId, text: original.text,
+          address: { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]! } },
+        candidates: request.choices.map(c => `workflow:${c.assignmentKey}`), question: "Previously displayed numbered questions, in their original order", expiresAt: request.expiresAt };
+    });
+  }
+
+  /** Reread the source independently, then resume only the selected delivered work.
+   * Routing an excerpt cannot turn ordinary prose into a workflow decision. */
+  async receiveSelected(args: { source: { threadId: string; messageId: string; authorId: string }; target: WorkflowAssignment; text: string; version: string }): Promise<WorkflowInboundResult> {
+    const match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.source.threadId);
+    if (!match || args.target.surface !== "slack" || args.target.channelId !== match[1]) throw new Error("Selected work crosses the verified conversation audience");
+    return this.#args.slack(async transport => {
+      const accountId = await transport.account(), roster = await this.#args.roster();
+      const principal = await transport.human(accountId, args.source.authorId, roster);
+      if (accountId !== args.target.accountId || (args.target.subjectPrincipal && args.target.subjectPrincipal !== principal)) throw new Error("Selected work belongs to another recipient");
+      const reply = await transport.reply({ conversation: { surface: "slack", accountId, channelId: match[1]!, threadId: args.source.messageId === match[2] ? args.target.threadId : match[2]!, subjectPrincipal: principal },
+        messageId: args.source.messageId, roster, channelReply: args.source.messageId === match[2] });
+      if (!args.text.trim() || !reply.text.includes(args.text)) throw new Error("Selected answer is not an excerpt of the provider source");
+      return this.#receive({ threadId: `slack:${args.target.channelId}:${args.target.threadId}`, messageId: args.source.messageId, authorId: args.source.authorId }, true,
+        { reply: { ...reply, text: args.text, eventId: `${reply.eventId}:concern:${sha256({ target: args.target.assignmentKey, text: args.text })}` }, version: args.version });
+    });
+  }
+
+  async #receive(args: { threadId: string; messageId: string; authorId?: string }, channelReply = false,
+    selected?: { reply: { text: string; eventId: string; principal: string }; version: string }): Promise<WorkflowInboundResult> {
     const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
-    if (!match || args.messageId === match[2]) return { kind: "unassigned" };
+    if (!match || (!selected && args.messageId === match[2])) return { kind: "unassigned" };
     if (!channelReply) { const choice = await this.#choiceReply(args); if (choice) return choice; }
     const now = this.#args.clock?.() ?? new Date().toISOString(), { store, artifact } = this.#args;
     return this.#args.slack(async (transport) => {
@@ -186,7 +225,7 @@ export class WorkflowConversationHost {
       const conversation: WorkflowConversation = { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]! };
       // Reread first when no webhook author hint is available. The hint selects
       // only candidate delivery proof; provider data must independently match it.
-      const initial = args.authorId ? undefined : await transport.reply({ conversation, messageId: args.messageId, roster, channelReply });
+      const initial = selected?.reply ?? (args.authorId ? undefined : await transport.reply({ conversation, messageId: args.messageId, roster, channelReply }));
       const principal = initial?.principal ?? `slack:${accountId}:${args.authorId}`;
       const qualifiedConversation = { ...conversation, subjectPrincipal: principal };
       const delivered = await store.deliveredAssignment({ instanceId: artifact.instance.id, conversation: qualifiedConversation });
@@ -196,6 +235,7 @@ export class WorkflowConversationHost {
       if (!delivered) return this.#discussion(qualifiedConversation, principal, reply.text);
       const run = await store.read(artifact.instance.id, delivered.runId);
       if (!run) throw new Error("Delivered workflow run is unavailable");
+      if (selected && String(run.revision) !== selected.version) throw new Error("Selected workflow changed before dispatch");
       if (!this.#args.enabledWorkflowIds.includes(run.workflowId)) throw new Error("Workflow conversation is disabled in this Instance");
       const decision = /^(APPROVE|REJECT) ([a-f0-9]{64})$/.exec(reply.text.trim());
       if (decision && !channelReply) {
@@ -217,7 +257,8 @@ export class WorkflowConversationHost {
       const agent = pinned?.agents.find((agent) => agent.id === workflow?.agentId);
       if (!pinned || !workflow || !step || !agent || !member) throw new Error("Workflow conversation has no exact historical definition");
       if (step.collect && (!run.state.wait || run.state.wait.dueAt <= now)) return { kind: "closed" };
-      if (channelReply && (!step.collect || run.state.status !== "waiting" || run.state.blocked)) return { kind: "closed" };
+      if (channelReply && (!step.collect || run.state.status !== "waiting" || run.state.blocked))
+        return selected ? this.#discussion(qualifiedConversation, principal, reply.text) : { kind: "closed" };
       if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) return { kind: "closed" };
       const runtime = new CompanyOSRuntime({ artifact: pinned, state: this.#args.control, connectors: await this.#args.connectors(pinned),
         workflowContext: new WorkflowConversationContextReader({ store, instanceId: artifact.instance.id, conversation, subjectPrincipal: principal,

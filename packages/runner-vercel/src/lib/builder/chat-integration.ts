@@ -46,6 +46,7 @@ export function createBuilderChatIntegration(args: {
   rosterMember(author: Author): RosterMember | undefined;
   principal(member: RosterMember): string;
   createJobs?: () => BuilderJobStore;
+  onJobCreated?: (job: import("../../../../state-store/builder-jobs.ts").BuilderJob) => Promise<void>;
 }): BuilderChatIntegration {
   const createJobs = args.createJobs ?? createPostgresBuilderJobStore;
 
@@ -178,6 +179,7 @@ export function createBuilderChatIntegration(args: {
             baseCommit: pending.baseCommit,
           }),
         );
+        await args.onJobCreated?.(job);
         await resolveBuilderActionCard(
           event,
           builderQueuedActionCard(job),
