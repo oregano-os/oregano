@@ -1,3 +1,4 @@
+import { releaseContinuityDigest } from "../../connectors/release-continuity.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { inspectGitHubCandidate, mergeGitHubCandidate, type GitHubCandidateInput, type GitHubReleaseClient } from "../../connectors/github-release.ts";
@@ -135,6 +136,8 @@ function vercelFixture(reference = false) {
     coreCommit: core, workspaceCommit: base, configurationDigest: config, deploymentId: "dpl_previous" };
   const artifact = { ...previous, artifactHash: nextHash, workspaceCommit: merged };
   let active = "dpl_previous", creates = 0, promotions = 0, loseResponse = false, listVisible = true;
+  const environment = { COMPANYOS_BUILDER_RELEASE_BINDING_BASE64: "synthetic-binding", COMPANYOS_BUILDER_SNAPSHOT_ID: "snap_synthetic", COMPANYOS_WORKFLOW_ENABLED: "true" };
+  let lostConfiguration = false;
   let staged: any; let badHealth = false, unavailable = false;
   const fakeFetch: typeof fetch = async (url, init) => {
     const parsed = new URL(String(url)); const path = parsed.pathname;
@@ -143,7 +146,7 @@ function vercelFixture(reference = false) {
       const current = parsed.hostname === "staged.vercel.app" ? { ...artifact, deploymentId: "dpl_next" }
         : active === previous.deploymentId ? previous : { ...artifact, deploymentId: active };
       if (unavailable) return Response.json({}, { status: 503 });
-      response = { ok: true, status: "ready", ...current, ...(badHealth && parsed.hostname === "staged.vercel.app" ? { artifactHash: hash } : {}), sourceCoreCommit: current.coreCommit, instance: { id: current.instanceId, environment: "production" } };
+      response = { ok: true, status: "ready", releaseContinuityDigest: releaseContinuityDigest(lostConfiguration ? {} : environment), builder: { releaseConfigured: !lostConfiguration, codingConfigured: true }, knowledgeSnapshotHash: hash, ...current, ...(badHealth && parsed.hostname === "staged.vercel.app" ? { artifactHash: hash } : {}), sourceCoreCommit: current.coreCommit, instance: { id: current.instanceId, environment: "production" } };
     } else {
       assert.equal(parsed.hostname, "api.vercel.com"); assert.equal(parsed.searchParams.get("teamId"), "team_synthetic");
       assert.equal(new Headers(init?.headers).get("authorization"), "Bearer service-secret");
@@ -155,8 +158,8 @@ function vercelFixture(reference = false) {
         assert.equal(body.deploymentId, previous.deploymentId); assert.equal(body.withLatestCommit, false);
         assert.equal(body.target, "production"); assert.equal(body.autoAssignCustomDomains, false);
         assert.deepEqual(body.env, reference
-          ? { COMPANYOS_ARTIFACT_HASH: nextHash, COMPANYOS_ARTIFACT_GZIP_BASE64: "" }
-          : { COMPANYOS_ARTIFACT_HASH: "", COMPANYOS_ARTIFACT_GZIP_BASE64: "encoded-artifact" });
+          ? { ...environment, COMPANYOS_ARTIFACT_HASH: nextHash, COMPANYOS_ARTIFACT_GZIP_BASE64: "" }
+          : { ...environment, COMPANYOS_ARTIFACT_HASH: "", COMPANYOS_ARTIFACT_GZIP_BASE64: "encoded-artifact" });
         assert.deepEqual(body.build.env, body.env);
         assert.equal(JSON.stringify(body).includes("service-secret"), false);
         staged = { id: "dpl_next", name: "synthetic", projectId: "prj_synthetic", target: "production", readyState: "READY", url: "staged.vercel.app", meta: body.meta };
@@ -168,8 +171,8 @@ function vercelFixture(reference = false) {
     }
     return Response.json(response);
   };
-  const host = () => new VercelProductionReleaseHost({ binding: { projectId: "prj_synthetic", teamId: "team_synthetic", productionUrl: "https://synthetic.vercel.app" }, token: "service-secret", state, fetch: fakeFetch });
-  return { host, previous, artifact, badHealth: () => { badHealth = true; }, unavailable: (value: boolean) => { unavailable = value; }, loseResponse: () => { loseResponse = true; }, hide: () => { listVisible = false; }, show: () => { listVisible = true; }, counts: () => ({ creates, promotions }) };
+  const host = () => new VercelProductionReleaseHost({ binding: { projectId: "prj_synthetic", teamId: "team_synthetic", productionUrl: "https://synthetic.vercel.app" }, token: "service-secret", environment: { ...environment, PRIVATE_TOKEN: "must-not-copy" }, state, fetch: fakeFetch });
+  return { host, previous, artifact, loseConfiguration: () => { lostConfiguration = true; }, badHealth: () => { badHealth = true; }, unavailable: (value: boolean) => { unavailable = value; }, loseResponse: () => { loseResponse = true; }, hide: () => { listVisible = false; }, show: () => { listVisible = true; }, counts: () => ({ creates, promotions }) };
 }
 test("Vercel stages production with existing environment and reconciles uncertain creates across restart", async () => {
   const f = vercelFixture(); f.loseResponse(); f.hide();
@@ -213,4 +216,12 @@ test("Vercel binds an exact retained Artifact without carrying its bytes through
   await assert.rejects(f.host().stage({ ...args, retainedArtifactHash: hash }), /differs from the checked/);
   await assert.rejects(f.host().stage({ ...args, retainedArtifactHash: undefined }), /different content/);
   assert.deepEqual(f.counts(), { creates: 1, promotions: 0 });
+});
+
+ test("promotion refuses a healthy exact artifact when Builder configuration was dropped", async () => {
+  const f = vercelFixture();
+  await f.host().stage({ operationId: "continuity:building", previous: f.previous, artifact: f.artifact, encodedArtifact: "encoded-artifact" });
+  f.loseConfiguration();
+  await assert.rejects(f.host().promote({ deploymentId: "dpl_next", artifact: f.artifact, previousArtifactHash: hash }), /lost required Builder/);
+  assert.equal(f.counts().promotions, 0);
 });

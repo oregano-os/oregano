@@ -1,3 +1,4 @@
+import { releaseContinuityEnvironment, releaseContinuityDigest } from "./release-continuity.ts";
 import { sha256 } from "../runtime/canonical.ts";
 import type { DeploymentReceipt, ProductionArtifactReceipt, ProductionVerification } from "../runtime/release/contracts.ts";
 
@@ -24,6 +25,7 @@ class VercelReleaseApiError extends Error {
 export class VercelProductionReleaseHost {
   private readonly dependencies: {
     binding: VercelReleaseBinding; token: string; state: ReleasePrivateState;
+    environment?: Readonly<Record<string, string | undefined>>;
     fetch?: typeof fetch; healthHeaders?: Record<string, string>;
   };
   constructor(dependencies: VercelProductionReleaseHost["dependencies"]) {
@@ -57,6 +59,7 @@ export class VercelProductionReleaseHost {
     if (latest.targets?.production?.id !== id || !health.ok || health.status !== "ready" || health.deploymentId !== id
       || health.instance?.environment !== "production" || health.sourceCoreCommit !== health.coreCommit
       || !/^[a-f0-9]{40}$/.test(health.coreCommit ?? "") || !/^[a-f0-9]{64}$/.test(health.configurationDigest ?? "")) throw new Error("Production health does not prove the current deployment and configuration.");
+    this.#assertContinuity(health);
     return { deployment, health: { deploymentId: id, ready: true, environment: "production", instanceId: health.instance.id,
       artifactHash: health.artifactHash, coreCommit: health.coreCommit, workspaceCommit: health.workspaceCommit, configurationDigest: health.configurationDigest } };
   }
@@ -69,9 +72,10 @@ export class VercelProductionReleaseHost {
     const overrides = args.environmentOverrides ?? {};
     if (Object.keys(overrides).some((key) => !["COMPANYOS_RECORDS_CONFIG_GZIP_BASE64", "COMPANYOS_WORKFLOW_CONFIG_GZIP_BASE64"].includes(key))) throw new Error("Release may only rebind maintained non-secret production configurations.");
     if (args.retainedArtifactHash !== undefined && args.retainedArtifactHash !== args.artifact.artifactHash) throw new Error("Retained Artifact reference differs from the checked release.");
+    const continuity = releaseContinuityEnvironment(this.dependencies.environment ?? {});
     const environment = args.retainedArtifactHash
-      ? { ...overrides, COMPANYOS_ARTIFACT_HASH: args.retainedArtifactHash, COMPANYOS_ARTIFACT_GZIP_BASE64: "" }
-      : { ...overrides, COMPANYOS_ARTIFACT_HASH: "", COMPANYOS_ARTIFACT_GZIP_BASE64: args.encodedArtifact };
+      ? { ...continuity, ...overrides, COMPANYOS_ARTIFACT_HASH: args.retainedArtifactHash, COMPANYOS_ARTIFACT_GZIP_BASE64: "" }
+      : { ...continuity, ...overrides, COMPANYOS_ARTIFACT_HASH: "", COMPANYOS_ARTIFACT_GZIP_BASE64: args.encodedArtifact };
     const fingerprint = sha256({ previous: args.previous, artifact: args.artifact, environment });
     let intent = await this.dependencies.state.get<StagingIntent>(key);
     // Read-only failures must not reserve an operation that never reached the
@@ -124,6 +128,11 @@ export class VercelProductionReleaseHost {
       || deployment.meta?.companyosCoreCommit !== artifact.coreCommit || deployment.meta?.companyosWorkspaceCommit !== artifact.workspaceCommit
       || deployment.meta?.companyosConfigurationDigest !== artifact.configurationDigest) throw new Error("Staged deployment differs from the accepted production artifact.");
   }
+  #assertContinuity(health: Record<string, any>) {
+    if (health.releaseContinuityDigest !== releaseContinuityDigest(this.dependencies.environment ?? {})
+      || health.builder?.releaseConfigured !== true || health.builder?.codingConfigured !== true
+      || !health.knowledgeSnapshotHash) throw new Error("The deployment lost required Builder runtime configuration.");
+  }
   async promote(args: { deploymentId: string; artifact: ProductionArtifactReceipt; previousArtifactHash: string }): Promise<DeploymentReceipt | undefined> {
     const { projectId } = this.dependencies.binding;
     const current = await this.current();
@@ -141,6 +150,7 @@ export class VercelProductionReleaseHost {
       || health.artifactHash !== args.artifact.artifactHash || health.instance?.id !== args.artifact.instanceId
       || health.instance?.environment !== "production" || health.coreCommit !== args.artifact.coreCommit || health.sourceCoreCommit !== health.coreCommit
       || health.workspaceCommit !== args.artifact.workspaceCommit || health.configurationDigest !== args.artifact.configurationDigest) throw new Error("The staged build does not run the exact accepted production pairing.");
+    this.#assertContinuity(health);
     try { await this.#api("POST", `/v10/projects/${projectId}/promote/${args.deploymentId}`); }
     catch (error) {
       if (error instanceof VercelReleaseApiError && [400, 401, 403, 404, 422].includes(error.status)) throw error;

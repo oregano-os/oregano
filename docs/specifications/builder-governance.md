@@ -66,14 +66,16 @@ the notification is not reclaimed.
 A newly admitted brief produces one queued acknowledgement and a durable job.
 The Runner MUST retain deterministic conversation history identifying the
 submitted job and MUST NOT ask for another start confirmation. Its terminal
-result updates the retained request card in the original conversation; release readiness and
+result is posted while preserving prior messages in the original conversation; release readiness and
 acceptance are separate from execution completion.
 
 Legacy confirmation cards remain consumable during migration. Their handlers
 MUST authenticate the original requester and conversation, remove consumed
 actions, and preserve job idempotency across message-edit failures. Legacy jobs
-with a retained card identity may replace that card; new jobs retain their posted card identity in the chat store and update it
-through progress and result delivery. Delivery remains at-least-once if persistence fails
+with a retained card identity must not overwrite source explanations. New jobs retain
+their posted card identity and content in the chat store. Changed progress, result,
+and release messages are posted separately; previous text is retained and consumed
+action rows are removed. Duplicate content and stale progress are suppressed. Delivery remains at-least-once if persistence fails
 after the provider accepts a post.
 
 The Instance MAY bind one safe proposal target branch. The target MUST be
@@ -325,7 +327,11 @@ GitHub itself does not prevent manual unreviewed changes on an unprotected
 branch; those changes cannot independently activate the production Instance.
 
 Vercel staging reuses the exact current Core deployment and its production
-environment, overriding the newly compiled Artifact and revalidated non-secret
+environment. Deployment-only Builder release bindings, coding snapshots and Workflow
+enablement are explicitly retained from trusted Instance configuration; secrets are
+not copied from the process environment. Staged health must match their continuity
+digest and confirm Builder release configuration and Knowledge availability before
+promotion. The adapter overrides the newly compiled Artifact and revalidated non-secret
 Records/Workflow pairing references. Offline compilation
 requires the exact normalized Instance digest from running Artifact provenance.
 Staged health precedes domain promotion; live health must prove deployment ID,
@@ -479,8 +485,9 @@ was requested. A visible Go Live action does not itself establish readiness or r
 If checks are pending, a test is running or the evidence changed, the action explains
 the blocker and refreshes the card. It does not store an approval to execute later.
 The accepted result is frozen atomically; further test turns cannot modify it.
-After acceptance, the same card reports **Publishing**, then **Live** only after
-production verification. An uncertain publication outcome is reported as uncertain.
+After acceptance, preserve the result and its test description. Post **Publishing**,
+then **Live** only after production verification; remove consumed action rows without
+erasing previous messages. An uncertain publication outcome is reported as uncertain.
 
 Discard and publication share a per-build lock and durable decision. An uncertain
 repository closure keeps testing and publication blocked but never claims the draft

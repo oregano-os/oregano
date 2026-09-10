@@ -1,3 +1,4 @@
+import { releaseContinuityDigest } from "../../../../../connectors/release-continuity.ts";
 import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
 import { builderConfigurationDigest } from "../../../lib/builder/release-provider.ts";
 import { getBot } from "../../../lib/bot.ts";
@@ -63,6 +64,7 @@ export async function GET() {
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID ?? null,
       sourceCoreCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       configurationDigest: builderConfigurationDigest() ?? null,
+      releaseContinuityDigest: releaseContinuityDigest(process.env),
       knowledgeSnapshotHash: knowledgeSnapshot?.snapshotHash ?? null,
       builder: {
         desired: artifact.agents.some((agent) => agent.id === "builder"),

@@ -39,7 +39,7 @@ export function createBuilderReleaseRuntime(args: {
     || ["revision", "discarding", "discarded"].includes((await args.state.get<{ kind: string }>(builderProposalDecisionKey(job.jobId)))?.kind ?? "");
   const jobs = createPostgresBuilderJobStore();
   const functionalTests = new BuilderFunctionalTests(createPostgresBuilderTestStore(), () => new Date(), artifact.builder.testInactivityDays ?? 7);
-  const host = new VercelProductionReleaseHost({ binding, state, token: process.env.COMPANYOS_VERCEL_RELEASE_TOKEN ?? "",
+  const host = new VercelProductionReleaseHost({ binding, state, environment: process.env, token: process.env.COMPANYOS_VERCEL_RELEASE_TOKEN ?? "",
     ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { healthHeaders: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET } } : {}) });
   const execution = new HostedBuilderReleaseAdapter({ artifact, state, host, functionalTests, revisionPending,
     knowledge: createPostgresKnowledgeProvider(), environment: process.env,
