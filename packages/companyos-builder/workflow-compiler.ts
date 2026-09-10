@@ -122,7 +122,7 @@ export function compileWorkflows(args: {
           templates.set(path, { path, content: template.body, format: template.data.format, digest: sha256(workspaceFile(files, path)) });
           message = { template: path, vars: raw.message.vars };
         }
-        const presentation = { version: 1 as const, ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
+        const presentation = { version: 1 as const, ...(raw.review_format === "message" ? { reviewFormat: "message" as const } : {}), ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
 
         const path = calendar(); usedSchedules.add(path);
         const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);

@@ -4,7 +4,7 @@ import { inspectWorkflowSlackRequest, slackMessageReference, type WorkflowSlackI
 type Stage = "received" | "filtered" | "sdk-dispatch" | "sdk-returned" | "ingress-failed" | "background-failed"
   | "handler-entered" | "handler-finished" | "handler-failed" | "assignment" | "verification-failed"
   | "identity-rejected" | "deduplicated" | "model-started" | "model-finished" | "reply-posted";
-type Outcome = WorkflowSlackIngressReason | "unassigned" | "ambiguous" | "closed" | "conversation" | "decision";
+type Outcome = WorkflowSlackIngressReason | "unassigned" | "ambiguous" | "routing" | "closed" | "conversation" | "decision";
 type Sink = (entry: Record<string, unknown>) => void;
 
 /** Only explicitly selected fields can enter this content-free diagnostic stream. */

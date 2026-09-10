@@ -233,3 +233,18 @@ for the human decision. Recovery does not approve anything or retry business
 writes. A timeout, unknown outcome or second failed attempt stays blocked.
 Hosts without a verifier cannot use this operation. Provider-specific proof
 rules are documented with their Connector.
+
+## Readable decisions and conversation selection
+
+A human decision may declare `review_format: message` with a complete readable
+message template and button labels. The exact bound object remains in decision
+state, hashes and effect checks; technical serialization is omitted from the
+presentation. Retained Artifacts without this declaration preserve their exact
+historical notices and receipt verification.
+
+Conversation choice snapshots bind one original message reference to a frozen
+numbered list, scoped by Instance, provider, account, channel, thread and human.
+They expire after one day; content-free records remain for 30 days to explain
+late replies. The generic service requires verified inputs and target
+revalidation from its adapter. It cannot create an assignment, grant Tools or
+authorize an effect.

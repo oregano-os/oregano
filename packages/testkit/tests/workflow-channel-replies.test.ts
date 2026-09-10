@@ -1,3 +1,4 @@
+import { ConversationChoiceService } from "../../runtime/conversation-choice.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { collectionFixture } from "../workflow-collection-fixture.ts";
@@ -26,17 +27,21 @@ async function setup(count = 1, channelId = "C10001", reportOnly = false) {
   }
   let message: Record<string, unknown> = { type: "message", ts: "999.000001", user: "U10002", text: "The agreed intended outcome" };
   const calls: string[] = [];
-  const host = new WorkflowConversationHost({ artifact: h.artifact, engine: h.engine(), store: h.store, control: h.control, roster: async () => h.roster,
+  const sourceMessages = new Map<string, Record<string, unknown>>([[String(message.ts), message]]);
+  const choiceValues = new Map<string, unknown>();
+  const choices = new ConversationChoiceService<any>({ async get<T>(key: string) { return (choiceValues.get(key) ?? null) as T | null; }, async setIfNotExists(key, value) { if (choiceValues.has(key)) return false; choiceValues.set(key, structuredClone(value)); return true; } }, () => h.now);
+  const host = new WorkflowConversationHost({ choices, artifact: h.artifact, engine: h.engine(), store: h.store, control: h.control, roster: async () => h.roster,
     connectors: async () => [], enabledWorkflowIds: ["monday-handoff"], clock: () => h.now, slack: async (operation) => operation(new WorkflowSlackTransport({ call: async (method, args) => {
       calls.push(method);
       if (method === "auth.test") return { ok: true, team_id: "T10001" };
       if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted: false, is_bot: false } };
       assert.ok(["conversations.history", "conversations.replies"].includes(method));
-      assert.equal(args.oldest, message.ts); assert.equal(args.latest, message.ts);
-      return { ok: true, has_more: false, messages: [message] };
+      const found = sourceMessages.get(args.oldest!);
+      assert.ok(found, `Missing synthetic message ${args.oldest}`); assert.equal(args.latest, found.ts);
+      return { ok: true, has_more: false, messages: [found] };
     } })) });
   const input = { threadId: `slack:${channelId}:999.000001`, messageId: "999.000001", authorId: "U10002" };
-  return { h, host, runs, input, calls, setMessage: (patch: Record<string, unknown>) => { message = { ...message, ...patch }; } };
+  return { h, host, runs, input, calls, setMessage: (patch: Record<string, unknown>) => { message = { ...message, ...patch }; sourceMessages.set(String(message.ts), message); } };
 }
 
 test("a channel answer reaches only its exact active collection, with original event evidence and no inferred approval", async () => {
@@ -184,4 +189,41 @@ test("direct root recovery preserves actual identity and cannot decide or switch
   setMessage({ user: "U10001" });
   await assert.rejects(recoverWorkflowReply(input, dependencies));
   assert.equal(received.length, 1);
+});
+
+for (const channelId of ["C10001", "D10001"]) test(`numbered selection routes the original answer, not the selector, in ${channelId}`, async () => {
+  const { h, host, input, setMessage, runs } = await setup(2, channelId);
+  const ambiguous = await host.receiveChannel(input); assert.equal(ambiguous.kind, "ambiguous"); if (ambiguous.kind !== "ambiguous") return;
+  const choice = await host.prepareChoice(input, ambiguous.conversations); await choice.presented("999.000002");
+  const target = choice.conversations[1]!;
+  setMessage({ ts: "999.000003", thread_ts: input.messageId, text: "<@U90001> it belongs to question 2" });
+  const selectionInput = { ...input, messageId: "999.000003" };
+  const selected = await host.receive(selectionInput); assert.equal(selected.kind, "conversation"); if (selected.kind !== "conversation") return;
+  assert.equal(selected.session.runId, target.runId);
+  assert.equal(selected.session.text, "The agreed intended outcome");
+  assert.equal(workflowReplyThreadId(selected.session), `slack:${channelId}:${target.threadId}`);
+  setMessage({ ts: "999.000004", text: "question 1" });
+  const duplicate = await host.receive({ ...input, messageId: "999.000004" }); assert.equal(duplicate.kind, "routing");
+  await selected.session.collection!.submit({ summary: "The agreed intended outcome" });
+  assert.equal((await h.store.read(h.artifact.instance.id, target.runId))!.state.status, "done");
+  const retriedRoot = await host.receiveChannel(input);
+  assert.equal(retriedRoot.kind, "ambiguous");
+  if (retriedRoot.kind === "ambiguous") assert.deepEqual(retriedRoot.conversations, choice.conversations);
+  const other = runs.find((run) => run.runId !== target.runId)!;
+  assert.equal((await h.store.read(h.artifact.instance.id, other.runId))!.state.status, "waiting");
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, target.runId))!.state.decisions, {});
+});
+
+test("numbered selection rejects edited originals, expired targets and foreign authors", async () => {
+  const { h, host, input, setMessage, runs } = await setup(2);
+  const ambiguous = await host.receiveChannel(input); if (ambiguous.kind !== "ambiguous") assert.fail();
+  const choice = await host.prepareChoice(input, ambiguous.conversations); await choice.presented("999.000002");
+  setMessage({ ts: "999.000003", thread_ts: input.messageId, text: "Question 2" });
+  assert.equal((await host.receive({ ...input, authorId: "U10001", messageId: "999.000003" })).kind, "unassigned");
+  await h.store.cancel({ instanceId: h.artifact.instance.id, runId: choice.conversations[1]!.runId, principal: ENGINE_OPERATOR, now: h.now });
+  assert.equal((await host.receive({ ...input, messageId: "999.000003" })).kind, "routing");
+  setMessage({ ts: input.messageId, thread_ts: undefined, text: "Edited answer", edited: { ts: "999.000009" } });
+  setMessage({ ts: "999.000004", thread_ts: input.messageId, text: "Question 1", edited: undefined });
+  await assert.rejects(host.receive({ ...input, messageId: "999.000004" }));
+  for (const run of runs) assert.deepEqual((await h.store.read(h.artifact.instance.id, run.runId))!.state.decisions, {});
 });

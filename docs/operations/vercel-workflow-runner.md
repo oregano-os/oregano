@@ -781,3 +781,18 @@ The hosted automatic-opening validator accepts the declared trusted instant;
 caller-supplied business keys are still refused. Preview still needs a separately
 scheduled protected worker driver. A manually invoked worker is not evidence
 that the hosting provider invokes it automatically.
+
+## Choosing between open conversations
+
+When a root reply could belong to several active collections, the host freezes
+the numbered choices and original message reference in finite durable state.
+The person can reply with a number in the clarification thread; the host
+subscribes to that thread before offering the choice. It rereads the selection
+and original unedited message, checks the same current human identity and
+selected live assignment, and submits the original text in the chosen question.
+Retries preserve the displayed numbering and cannot switch the first selection.
+Invalid or expired selections receive a short explanation. The adapter-neutral
+selection service supports other verified communication adapters; Slack supplies
+only provider identity, message proof, links and existing key/value persistence.
+Selection is never a decision approval. Existing link-only notices are not
+silently reconstructed as authenticated choice snapshots.

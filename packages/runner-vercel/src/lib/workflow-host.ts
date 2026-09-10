@@ -1,3 +1,5 @@
+import { ConversationChoiceService } from "../../../runtime/conversation-choice.ts";
+import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { loadArtifact } from "./artifact.ts";
 import { createCompanyOSRuntimeConnectors, getBot } from "./bot.ts";
 import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "./workflow-configuration.ts";
@@ -46,6 +48,6 @@ export async function createWorkflowHost() {
   const workers = new WorkflowWorkers({ artifact, engine, store, timers, configuration });
   const records = new WorkflowRecordWorkers({ artifact, store, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
     recordSync: configuration.recordSync, synchronizeSource: createWorkflowRecordSynchronizer() });
-  const conversations = new WorkflowConversationHost({ artifact, engine, store, control, connectors, roster, slack, enabledWorkflowIds: configuration.enabledWorkflowIds });
+  const conversations = new WorkflowConversationHost({ choices: new ConversationChoiceService(createPostgresChatState()), artifact, engine, store, control, connectors, roster, slack, enabledWorkflowIds: configuration.enabledWorkflowIds });
   return { artifact, configuration, store, engine, workers, records, conversations };
 }

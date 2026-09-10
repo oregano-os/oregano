@@ -750,3 +750,23 @@ Callers and child steps cannot supply or override this trusted field. Operator
 retries retain the first opening time. Existing workflows that do not declare
 it keep their prior fields and identity. Business period fields still require
 Workspace computation or explicitly reviewed inputs.
+
+### Complete readable review presentation
+
+`review_format: message` is an opt-in human-step declaration requiring `message`
+and `labels`. The complete proposed business change must be visible in that
+Workspace-owned template, including target, field changes and comment content
+where relevant. The compiler records the opt-in in the presentation; absent
+values retain legacy bound-payload rendering. This affects presentation only:
+`binds`, exact digest, recipient, expiry, provider receipt validation and effect
+authorization are unchanged. Rendering an empty message-only review fails.
+
+### Explicit conversation choice
+
+A routing clarification may freeze up to twenty already-authorized collection
+assignments and one verified source-message reference in durable, recipient-
+scoped state. Number selection requires independently verified current identity,
+original-message evidence and an unchanged live target. Numbering is immutable
+across retries; the first selection is atomic and later replies cannot switch
+target. Only the original message enters the selected collection, and ordinary
+decision validation remains separate. Selection expires after one day.

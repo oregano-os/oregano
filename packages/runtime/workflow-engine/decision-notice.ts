@@ -26,11 +26,12 @@ export function authorizeWorkflowDecisionPrincipal(roster: RosterMember[], princ
 }
 
 /** Deterministic rendering also permits retrospective input verification after expiry. */
-export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string; threadReference?: string; presentation?: { explanation: string; approve: string; reject: string } }): JsonValue {
+export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string; threadReference?: string; presentation?: { reviewFormat?: "message"; explanation: string; approve: string; reject: string } }): JsonValue {
   const id = workflowDecisionId(args.runId, args.stepId, jsonDigest(args.bound));
   if (args.presentation) {
+    if (args.presentation.reviewFormat === "message" && !args.presentation.explanation.trim()) throw new Error("Message-only review requires a complete readable proposal");
     const content = [args.presentation.explanation || "Please review the proposed change before deciding.",
-      `Decision expires: ${args.expiresAt}`, "Exact proposed changes:", canonicalJson(args.bound)].join("\n\n");
+      ...(args.presentation.reviewFormat === "message" ? [] : [`Decision expires: ${args.expiresAt}`, "Exact proposed changes:", canonicalJson(args.bound)])].join("\n\n");
     if (content.length > 20_000) throw new Error("Decision payload is too large for a complete review notice; it must not be truncated");
     return { destination_binding: args.destinationBinding, ...(args.threadReference === undefined ? {} : { thread_reference: args.threadReference }), content, format: "provider-markdown",
       decision: { request_id: id, approve_label: args.presentation.approve, reject_label: args.presentation.reject } };
@@ -56,7 +57,7 @@ export function workflowDecisionPresentation(workflow: CompiledWorkflow, step: C
       return String(value);
     });
   }
-  return { explanation, ...presentation.labels };
+  return { explanation, ...(presentation.reviewFormat ? { reviewFormat: presentation.reviewFormat } : {}), ...presentation.labels };
 }
 
 /** Only a captured prior publication to this exact destination may supply the parent. */
@@ -71,7 +72,7 @@ export function workflowDecisionThread(workflow: CompiledWorkflow, step: Compile
   return thread;
 }
 
-/** Generic control notice; the complete bound JSON is displayed without truncation. */
+/** Generic control notice; exact internal binding is independent of the declared readable review. */
 export function workflowDecisionNoticeInput(artifact: CompanyOSArtifact, workflow: CompiledWorkflow, step: CompiledWorkflowStep, context: WorkflowInvocationContext): JsonValue {
   const decision = context.decisions[step.id];
   if (!step.decision || !decision || decision.status !== "pending" || typeof context.itemKey !== "string" || !decision.recipients?.includes(context.itemKey)) throw new Error("Decision delivery has no persisted pending request and exact recipient");

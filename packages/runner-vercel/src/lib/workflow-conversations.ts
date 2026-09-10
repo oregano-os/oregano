@@ -1,3 +1,5 @@
+import { sha256 } from "../../../runtime/canonical.ts";
+import { ConversationChoiceService, type ConversationChoiceScope } from "../../../runtime/conversation-choice.ts";
 import { subjectDecisionReply, workflowDecisionId } from "../../../runtime/workflow-engine/decision-notice.ts";
 import { collectionReviewDelivery } from "./workflow-conversation-presentation.ts";
 import { collectionSchema } from "../../../runtime/workflow-engine/collection.ts";
@@ -11,9 +13,11 @@ import { WorkflowEngine } from "../../../runtime/workflow-engine/engine.ts";
 import { WorkflowConversationContextReader } from "../../../runtime/workflow-engine/readers.ts";
 import type { StateStore } from "../../../state-store/interface.ts";
 import { findByCanonicalPrincipal, type RosterMember } from "../../../state-store/roster.ts";
-import type { WorkflowConversation, WorkflowExecutionStore } from "../../../state-store/workflow-engine.ts";
+import type { WorkflowAssignment, WorkflowConversation, WorkflowExecutionStore } from "../../../state-store/workflow-engine.ts";
 import type { WorkflowSlackScope } from "./workflow-slack.ts";
 import { PublishedConversationContextReader, type PublishedConversationContext } from "../../../runtime/published-conversation-context.ts";
+
+export interface WorkflowQuestionChoice extends WorkflowAssignment { collectionStepId: string }
 
 export interface WorkflowConversationSession {
   artifact: CompanyOSArtifact;
@@ -30,7 +34,7 @@ export interface WorkflowConversationSession {
   collection?: { schema: ReturnType<typeof collectionSchema>; context: JsonValue; submit: (output: JsonValue) => Promise<unknown> };
 }
 export type WorkflowInboundResult = { kind: "unassigned" } | { kind: "decision"; runId: string; decision: "approved" | "rejected" }
-  | { kind: "ambiguous"; conversations: WorkflowConversation[] } | { kind: "closed" } | { kind: "conversation"; session: WorkflowConversationSession };
+  | { kind: "ambiguous"; conversations: WorkflowAssignment[] } | { kind: "routing"; text: string } | { kind: "closed" } | { kind: "conversation"; session: WorkflowConversationSession };
 
 /** Keep follow-up replies on the delivered question, including after a channel-root answer. */
 export function workflowReplyThreadId(session: WorkflowConversationSession): string {
@@ -48,6 +52,7 @@ export function workflowInboundThreadId(threadId: string, messageId: string): st
 interface WorkflowConversationHostOptions {
     artifact: CompanyOSArtifact; engine: WorkflowEngine; store: WorkflowExecutionStore; control: StateStore;
     roster: () => Promise<RosterMember[]>; connectors: (artifact: CompanyOSArtifact) => Promise<Connector[]>;
+    choices?: ConversationChoiceService<WorkflowQuestionChoice>;
     slack: WorkflowSlackScope; enabledWorkflowIds: readonly string[]; clock?: () => string;
 }
 export class WorkflowConversationHost {
@@ -85,12 +90,69 @@ export class WorkflowConversationHost {
     });
   }
 
+  #choiceScope(channelId: string, threadId: string, principal: string, accountId: string): ConversationChoiceScope {
+    return { instanceId: this.#args.artifact.instance.id, surface: "slack", accountId, channelId, threadId, principal };
+  }
+  async #choiceTargetActive(target: WorkflowQuestionChoice, now: string): Promise<boolean> {
+    const { store, artifact } = this.#args;
+    const active = await store.assignment({ instanceId: artifact.instance.id, conversation: target, now });
+    if (!active || active.runId !== target.runId || active.stepId !== target.stepId || active.artifactHash !== target.artifactHash) return false;
+    const run = await store.read(artifact.instance.id, target.runId);
+    if (!run || run.state.cursor !== target.collectionStepId || run.state.status !== "waiting" || run.state.blocked || !run.state.wait || run.state.wait.dueAt <= now || !this.#args.enabledWorkflowIds.includes(run.workflowId)) return false;
+    const pinned = await store.getArtifact(run.artifactHash);
+    const step = pinned?.workflows?.find((w) => w.id === run.workflowId)?.steps.find((s) => s.id === run.state.cursor);
+    return !!step?.collect && step.collect.from === `$steps.${target.stepId}.thread_reference`;
+  }
+  /** Freeze the displayed order only after independently rereading the original answer. */
+  async prepareChoice(args: { threadId: string; messageId: string; authorId?: string }, candidates: WorkflowAssignment[]) {
+    if (!this.#args.choices || !args.authorId || !candidates.length) throw new Error("Conversation selection storage is unavailable");
+    const choices = this.#args.choices;
+    return this.#args.slack(async (transport) => {
+      const first = candidates[0]!, accountId = await transport.account();
+      const principal = await transport.human(accountId, args.authorId!, await this.#args.roster());
+      if (args.threadId !== `slack:${first.channelId}:${args.messageId}` || candidates.some((c) => c.accountId !== accountId || c.subjectPrincipal !== principal || c.channelId !== first.channelId)) throw new Error("Conversation choices cross the verified recipient scope");
+      const original = await transport.reply({ conversation: first, messageId: args.messageId, roster: await this.#args.roster(), channelReply: true });
+      const scope = this.#choiceScope(first.channelId, args.messageId, principal, accountId);
+      const targets = await Promise.all(candidates.map(async (candidate) => ({ ...candidate, collectionStepId: (await this.#args.store.read(this.#args.artifact.instance.id, candidate.runId))?.state.cursor ?? "" })));
+      const request = await choices.remember(scope, { messageId: args.messageId, digest: sha256(original) }, targets);
+      return { conversations: request.choices, presented: (messageId: string) => choices.presented(scope, messageId) };
+    });
+  }
+  async #choiceReply(args: { threadId: string; messageId: string; authorId?: string }): Promise<WorkflowInboundResult | undefined> {
+    const choices = this.#args.choices, match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.threadId);
+    if (!choices || !match || !args.authorId) return undefined;
+    return this.#args.slack(async (transport) => {
+      const accountId = await transport.account(), principal = `slack:${accountId}:${args.authorId}`;
+      const scope = this.#choiceScope(match[1]!, match[2]!, principal, accountId);
+      if (!await choices.read(scope)) return undefined;
+      const reply = await transport.reply({ conversation: { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]!, subjectPrincipal: principal }, messageId: args.messageId, roster: await this.#args.roster() });
+      const selected = await choices.select(scope, { ...reply, text: reply.text.trim().replace(/^<@[UW][A-Z0-9]+>\s*/, "") }, async (target, request) => {
+        if (!await this.#choiceTargetActive(target, this.#args.clock?.() ?? new Date().toISOString())) return false;
+        const original = await transport.reply({ conversation: target, messageId: request.source.messageId, roster: await this.#args.roster(), channelReply: true });
+        return sha256(original) === request.source.digest;
+      });
+      if (selected.kind === "unassigned") return undefined;
+      if (selected.kind === "invalid") return { kind: "routing", text: "Please reply with the question number, for example ‘Question 2’. I will use your original answer." };
+      if (selected.kind === "expired") return { kind: "routing", text: "That question is no longer open, or this selection has expired. Please open the relevant question and reply there." };
+      const link = `<https://slack.com/archives/${selected.target.channelId}/p${selected.target.threadId.replace(".", "")}|selected question>`;
+      if (selected.kind === "already-selected") return { kind: "routing", text: `Your original answer has already been assigned to the ${link}. Continue there.` };
+      const result = await this.receive({ threadId: `slack:${selected.target.channelId}:${selected.target.threadId}`, messageId: selected.request.source.messageId, authorId: args.authorId }, true);
+      if (result.kind !== "conversation" || !result.session.collection || result.session.runId !== selected.target.runId || result.session.stepId !== selected.target.collectionStepId || result.session.artifact.artifactHash !== selected.target.artifactHash) return { kind: "routing", text: `That question is no longer waiting for an answer. Please continue in the ${link}.` };
+      return result;
+    });
+  }
+
   async receiveChannel(args: { threadId: string; messageId: string; authorId?: string }): Promise<WorkflowInboundResult> {
     const match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.threadId);
     if (!match || match[2] !== args.messageId || !args.authorId || !/^[UW][A-Z0-9]{4,31}$/.test(args.authorId)) return { kind: "unassigned" };
     const { artifact, store } = this.#args, now = this.#args.clock?.() ?? new Date().toISOString();
     const candidates = await this.#args.slack(async (transport) => {
       const accountId = await transport.account();
+      const frozen = await this.#args.choices?.read(this.#choiceScope(match[1]!, args.messageId, `slack:${accountId}:${args.authorId}`, accountId));
+      if (frozen) {
+        await transport.human(accountId, args.authorId!, await this.#args.roster());
+        return frozen.choices; // A retry must never renumber or reroute the original answer.
+      }
       const assignments = await store.channelAssignments({ instanceId: artifact.instance.id, surface: "slack", accountId,
         channelId: match[1]!, subjectPrincipal: `slack:${accountId}:${args.authorId}`, now });
       if (!assignments.length) return [];
@@ -117,6 +179,7 @@ export class WorkflowConversationHost {
   async receive(args: { threadId: string; messageId: string; authorId?: string }, channelReply = false): Promise<WorkflowInboundResult> {
     const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
     if (!match || args.messageId === match[2]) return { kind: "unassigned" };
+    if (!channelReply) { const choice = await this.#choiceReply(args); if (choice) return choice; }
     const now = this.#args.clock?.() ?? new Date().toISOString(), { store, artifact } = this.#args;
     return this.#args.slack(async (transport) => {
       const accountId = await transport.account(), roster = await this.#args.roster();

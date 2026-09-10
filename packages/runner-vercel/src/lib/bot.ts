@@ -271,11 +271,15 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
         ? await host.conversations.receiveChannel(input) : await host.conversations.receive(input);
       trace.emit("assignment", received.kind);
       if (received.kind === "ambiguous") {
-        const links = received.conversations.map((c, index) => `<https://slack.com/archives/${c.channelId}/p${c.threadId.replace(".", "")}|Question ${index + 1}>`).join(" · ");
-        await thread.post(`Several questions are open for you. Which question does your answer belong to? Open the matching question and reply there: ${links}`);
+        const choice = await host.conversations.prepareChoice(input, received.conversations);
+        const links = choice.conversations.map((c, index) => `<https://slack.com/archives/${c.channelId}/p${c.threadId.replace(".", "")}|Question ${index + 1}>`).join(" · ");
+        await thread.subscribe();
+        const notice = await thread.post(`Several questions are open for you. Which question does your answer belong to? Reply here with the number (for example “Question 2”), and I will use your original answer. You can also open the matching question: ${links}`);
+        await choice.presented(notice.id);
         trace.emit("reply-posted");
         return;
       }
+      if (received.kind === "routing") { await thread.post(received.text); trace.emit("reply-posted"); return; }
       if (received.kind === "unassigned" && process.env.COMPANYOS_WORKFLOW_ONLY === "true") return;
       if (received.kind === "decision") {
         if (await state.setIfNotExists(`workflow-response:${received.runId}:${message.id}`, true, 30 * DAY)) {

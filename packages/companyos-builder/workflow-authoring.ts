@@ -502,6 +502,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
           if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each || !s.recipient || JSON.stringify(source.recipient) !== JSON.stringify(s.recipient) || !s.labels)
             err(f, `${s.id}: threaded decision requires controls and a prior private root publication to the same explicit recipient`);
         }
+        if (s.review_format !== undefined && (s.review_format !== "message" || !s.message || !s.labels)) err(f, `${s.id}: message-only review requires a complete message template and decision labels`);
         if (s.tool === "human:subject" && !s.recipient) err(f, `${s.id}: subject confirmation requires one exact recipient`);
         if (!s.binds) err(f, `${s.id}: decision needs binds:`);
         else if (!/^\$steps\.[a-z][a-z0-9-]*(?:\.[A-Za-z0-9_-]+)*$/.test(String(s.binds))) err(f, `${s.id}: decision must bind a prior step output, found ${s.binds}`);
@@ -581,7 +582,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
   else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout");
   else if (step.tool === "wait") allowed.push("for");
-  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread"];
+  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "review_format"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");

@@ -204,6 +204,7 @@
             "type": "string",
             "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"
           },
+          "review_format": { "enum": ["message"] },
           "binds": {
             "type": "string",
             "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"

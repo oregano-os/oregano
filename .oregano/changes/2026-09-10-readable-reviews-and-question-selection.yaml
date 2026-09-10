@@ -1,0 +1,59 @@
+version: 3
+plan_id: readable-reviews-and-question-selection-2026-09-10
+created: "2026-09-10"
+title: Readable decision reviews and resolvable conversation choices
+objective: Keep exact decision payloads internal when a complete Workspace review is declared and resolve an authenticated numbered choice to the original answer and active conversation.
+non_goals:
+  - Infer approval, broaden Tools, or change business workflows in Core.
+  - Migrate old conversations or enable production.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - .oregano/changes/2026-09-10-readable-reviews-and-question-selection.yaml
+  - packages/runtime/conversation-choice.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.ts
+  - packages/testkit/tests/conversation-choice.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-readable-review.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - docs/operations/vercel-workflow-runner.md
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/conversation-choice.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-readable-review.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.vercel-workflow-runner, operations.workflow-engine, specification.workflow-execution-v1, guide.author-workflow, status.current]
+architecture:
+  placement:
+    core: Extend versioned decision rendering and authenticated reply routing with a finite provider-neutral selection service.
+    packages: No new Package behavior.
+    workspace: Declare a complete readable review; retain questions, proposals and business effects.
+    instance: Persist finite choice snapshots in existing durable key/value state; keep provider verification in the adapter.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Revalidate exact sender, original message, destination and selected live assignment before routing.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Keep full bound values and historical notice inputs; freeze and atomically select immutable numbered options.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can use readable reviews and any communication adapter can reuse the selection service without business or provider assumptions.
+rollback: Restore the previous deployed pairing while retaining historical Artifacts and receipts; leave finite choice records to expire and never infer or replay human approvals.

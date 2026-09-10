@@ -1290,3 +1290,13 @@ Typed fact collection, recipient-bound reversible confirmations and deduplicated
 child openings are implemented. Their contracts and limits are described in the
 [Workflow Execution specification](../specifications/workflow-execution-v1-draft.md).
 Local execution tests do not replace actual host, human and provider acceptance.
+
+### Readable review and conversation-choice correction
+
+The workflow authoring contract supports opt-in complete readable reviews with
+internal bound payloads. The hosted conversation path supports finite numbered
+selection of an open question and forwards the original verified answer; its
+selection service is provider-neutral. Synthetic coverage checks preservation,
+expiry, identity isolation and duplicate selection. Hosted deployment and human
+acceptance remain separate evidence; these source changes do not activate an
+Instance.

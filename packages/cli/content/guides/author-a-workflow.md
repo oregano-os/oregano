@@ -154,3 +154,12 @@ Callers and child steps cannot supply or override this trusted field. Operator
 retries retain the first opening time. Existing workflows that do not declare
 it keep their prior fields and identity. Business period fields still require
 Workspace computation or explicitly reviewed inputs.
+
+## Show a readable review without technical payloads
+
+On a `human:*` step with `message` and `labels`, add `review_format: message`
+to show only the complete readable proposal. Include the target and every
+proposed business change in the template, such as before/after values and the
+full comment. Do not use a vague confirmation sentence as the entire review.
+The full `binds` object remains internal for exact approval and write checks.
+Leave out the option to retain the historical payload-inclusive presentation.
