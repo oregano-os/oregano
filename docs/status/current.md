@@ -15,6 +15,11 @@ audience:
 
 # Current System Status
 
+Builder Workspace releases preserve deployment-local runtime settings and reject
+promotion if the staged Instance loses its Builder configuration. Builder status
+messages retain earlier conversation content instead of replacing result text.
+
+
 Core 0.10.0 and Workbench 0.1.0-experimental.20 require CLI and hosted Builder builds to read the tracked `.companyos/instance.yaml`
 from the exact checked Workspace commit. External YAML overrides and the hosted
 YAML environment copy are removed; hosted compilation retains the running

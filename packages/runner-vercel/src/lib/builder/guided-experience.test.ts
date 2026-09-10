@@ -33,7 +33,7 @@ function transport() {
   return { values, handlers, messages, chat, state, thread, adapter };
 }
 
-test("one durable card advances without duplicate posts or late progress overwriting the result", async () => {
+test("durable progress preserves history without duplicate posts or stale updates", async () => {
   const t = transport(), f = builderFunctionalFixture();
   try {
     const job = { ...f.job, objective: "Build a concise answer", codingAgent: { profileId: "claude-code" } } as typeof f.job;
@@ -43,11 +43,15 @@ test("one durable card advances without duplicate posts or late progress overwri
     assert.equal(t.messages.length, 1);
     assert.match(JSON.stringify(t.messages), /confirm when it starts/);
     await show(job, builderProgressCard(job, "coding"), "coding");
-    assert.equal(t.messages.length, 1); assert.match(JSON.stringify(t.messages), /Coding agent is working/);
+    assert.equal(t.messages.length, 2); assert.match(JSON.stringify(t.messages), /Coding agent is working/);
     const result = { type: "card", title: "Ready for review", children: [] } as const;
     await show(job, result as any, "result");
     await show(job, builderProgressCard(job, "checking"), "checking");
-    assert.equal(t.messages.length, 1); assert.match(JSON.stringify(t.messages), /Ready for review/);
+    assert.equal(t.messages.length, 3); assert.match(JSON.stringify(t.messages), /Ready for review/);
+    assert.match(JSON.stringify(t.messages[0]), /confirm when it starts/);
+    await show(job, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages.length, 4);
+    assert.match(JSON.stringify(t.messages[2]), /Ready for review/);
     assert.doesNotMatch(JSON.stringify(t.messages), /Checking your result/);
   } finally { f.cleanup(); }
 });
@@ -123,7 +127,7 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
     await integration.notifier.deliver(job);
     await integration.notifier.deliver(job);
     const sourceCards = () => t.messages.filter((message) => message.threadId === job.sourceConversationKey);
-    assert.equal(histories.length, 1); assert.equal(sourceCards().length, 1);
+    assert.equal(histories.length, 1); assert.ok(sourceCards().length >= 1);
     assert.doesNotMatch(JSON.stringify(sourceCards()), /Finish test|Restart test|More/);
     for (const label of ["Go Live", "Discard Build", "Open Test Channel", "Request Changes"]) assert.ok(JSON.stringify(sourceCards()).includes(label));
     const user = { userId: "U10001" } as Author;
@@ -132,8 +136,8 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
     const message = { conversation: "slack:C20002:2.0", author: user, messageId: "follow-up", text: "Explain your second point", occurredAt: new Date().toISOString() };
     await integration.receive(message); await integration.receive(message);
     assert.equal(histories.length, 2); assert.deepEqual(histories[1], [{ role: "user", content: "What can you do?" }, { role: "assistant", content: "Answer 1" }, { role: "user", content: message.text }]);
-    const event = (value: string) => ({ thread: t.thread(job.sourceConversationKey), threadId: job.sourceConversationKey, adapter: t.adapter, user, value, messageId: sourceCards()[0].id });
-    assert.equal(sourceCards().length, 1); assert.match(JSON.stringify(sourceCards()), /Request Changes/); assert.match(JSON.stringify(sourceCards()), /Go Live/);
+    const event = (value: string) => ({ thread: t.thread(job.sourceConversationKey), threadId: job.sourceConversationKey, adapter: t.adapter, user, value, messageId: sourceCards().at(-1)!.id });
+    assert.ok(sourceCards().length >= 1); assert.match(JSON.stringify(sourceCards()), /Request Changes/); assert.match(JSON.stringify(sourceCards()), /Go Live/);
     const oldToken = [...t.values.keys()].find((key) => key.startsWith("builder-release-candidate:"))!.slice("builder-release-candidate:".length);
     await t.handlers.get("companyos.builder.release")!(event(oldToken));
     assert.equal(accepted.length, 0);
@@ -143,5 +147,39 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
     assert.notEqual(newToken, oldToken);
     await t.handlers.get("companyos.builder.release")!(event(newToken));
     assert.equal(accepted.length, 1); assert.equal((await f.store.get(id))?.stage, "accepted");
+    assert.match(JSON.stringify(sourceCards().at(-1)), /Publishing/);
+    assert.match(JSON.stringify(sourceCards().slice(0, -1)), /Ready to test/);
+    assert.doesNotMatch(JSON.stringify(sourceCards().slice(0, -1)), /companyos.builder.release"/);
+  } finally { f.cleanup(); }
+});
+
+test("legacy source message references never authorize overwriting the conversation", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const original = await t.thread(f.job.sourceConversationKey).post("The agreed instructions and test plan.");
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    await show({ ...f.job, sourceMessageId: original.id }, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages[0].content, "The agreed instructions and test plan.");
+    assert.equal(t.messages.length, 2);
+    await show({ ...f.job, sourceMessageId: original.id }, { type: "card", title: "Live", children: [] } as any, "live");
+    assert.equal(t.messages[0].content, "The agreed instructions and test plan.");
+    assert.match(JSON.stringify(t.messages[1]), /Publishing/);
+    assert.match(JSON.stringify(t.messages[2]), /Live/);
+  } finally { f.cleanup(); }
+});
+
+test("readiness button refreshes do not duplicate an unchanged result explanation", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    const card = (value: string) => ({ type: "card", title: "Ready to test", children: [
+      { type: "text", content: "The checked result and test instructions." },
+      { type: "actions", children: [{ type: "button", id: "release", label: "Go Live", value }] },
+    ] }) as any;
+    await show(f.job, card("first-token"), "result");
+    await show(f.job, card("fresh-token"), "result");
+    assert.equal(t.messages.length, 1);
+    assert.match(JSON.stringify(t.messages[0]), /The checked result and test instructions/);
+    assert.match(JSON.stringify(t.messages[0]), /fresh-token/);
   } finally { f.cleanup(); }
 });

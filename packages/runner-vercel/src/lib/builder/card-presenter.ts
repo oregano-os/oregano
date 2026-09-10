@@ -7,21 +7,29 @@ const phases: BuilderCardPhase[] = ["queued", "preparing", "coding", "checking",
 type Destination = Pick<BuilderJob, "jobId" | "instanceId" | "sourceConversationKey" | "sourceMessageId">;
 export type BuilderCardPresenter = (job: Destination, card: CardElement, phase: BuilderCardPhase) => Promise<void>;
 
-/** One durable message per request; late worker updates cannot overwrite a result. */
+/** Preserve conversation history; retire consumed controls without replacing prior text. */
 export function createBuilderCardPresenter(chat: Pick<Chat, "thread">, state: StateAdapter): BuilderCardPresenter {
   return async (job, card, phase) => {
     const key = `builder:card:${sha256([job.instanceId, job.jobId, job.sourceConversationKey])}`;
     const lock = await state.acquireLock(key, 60_000);
     if (!lock) throw new Error("Build request presentation is already being updated.");
     try {
-      const existing = await state.get<{ messageId: string; rank: number; digest: string }>(key);
+      const existing = await state.get<{ messageId: string; rank: number; digest: string; card?: CardElement }>(key);
       const rank = phases.indexOf(phase), digest = sha256(card);
       if (existing && (existing.rank > rank || existing.digest === digest)) return;
       const thread = chat.thread(job.sourceConversationKey);
-      let messageId = existing?.messageId ?? job.sourceMessageId;
-      if (messageId) await thread.adapter.editMessage(thread.id, messageId, card);
-      else messageId = (await thread.post(card)).id;
-      await state.set(key, { messageId, rank, digest });
+      const withoutActions = (value: CardElement): CardElement => ({ ...value, children: value.children.filter(child => child.type !== "actions") });
+      if (existing?.card && sha256(withoutActions(existing.card)) === sha256(withoutActions(card))) {
+        await thread.adapter.editMessage(thread.id, existing.messageId, card);
+        await state.set(key, { messageId: existing.messageId, rank, digest, card });
+        return;
+      }
+      if (existing?.card) {
+        const archived = withoutActions(existing.card);
+        await thread.adapter.editMessage(thread.id, existing.messageId, archived);
+      }
+      const messageId = (await thread.post(card)).id;
+      await state.set(key, { messageId, rank, digest, card });
     } finally { await state.releaseLock(lock); }
   };
 }
