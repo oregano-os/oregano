@@ -29,6 +29,16 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Core 0.11.1 corrects Builder intake after clarification. Typed model output
+  replaces free-text JSON parsing. Invalid output and execution failures are
+  retried once and then reported as unavailable, never as a normal question.
+  Current-message and literal-quote checks still gate development. Retained
+  intake receipts distinguish questions from failures without storing message
+  text. A protected hosted qualification exercises the configured model on
+  synthetic clarification, explicit-start and negative cases without creating
+  jobs. Source checks do not prove a company deployment or human acceptance;
+  adoption must pass this hosted gate. No provider permission or DDL changes.
+
 - Core 0.11.0 and Workbench 0.1.0-experimental.21 replace the 0.9.0 Finish/Restart workflow with one
   four-action result card: **Go Live**, **Discard Build**, **Open Test Channel** and
   **Request Changes**. Current-message intent separates questions from coding.
