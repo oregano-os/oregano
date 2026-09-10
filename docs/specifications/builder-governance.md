@@ -510,6 +510,18 @@ that a model can never misunderstand intent. Images use only an authenticated
 communication adapter's data/reader (three images, five MiB each); inaccessible
 images are disclosed, never described as seen or fetched from arbitrary URLs.
 
+Intake uses typed structured output. A transport, timeout or output-validation
+failure is retried once within the active conversation turn. Exhausted failures
+are `unavailable`, not `question`: no authoring Tool loop runs and the user gets
+a clear retry message with a diagnostic reference. A stopped conversation is
+not retried. Retained intake evidence records the outcome, attempt count, failure
+categories and model execution metadata without copying message text or secrets.
+An answer resolving the last scope question can continue a still-unsubmitted
+explicit request; a current explicit start must not be lost because it also
+contains clarification. Questions and previously consumed permissions never
+authorize a new job. Deployment qualification exercises the configured model on
+synthetic multi-turn clarification and negative cases before production adoption.
+
 An explicit new build is allowed while older drafts remain open, in the same or
 a new Builder conversation. It does not consume unrelated revision feedback or
 automatically discard anything. Read Tools expose the authenticated user's current

@@ -22,7 +22,7 @@ import { assertBuilderTestScope } from "./functional-test-execution.ts";
 import type { BuilderCardPresenter } from "./card-presenter.ts";
 
 import { createPostgresBuilderTestStore } from "../../../../state-postgres/builder-test-store.ts";
-import { assertBuilderDevelopmentIntent, type BuilderTurnIntent } from "../../../../runtime/builder/turn-intent.ts";
+import { assertBuilderDevelopmentIntent, canStartBuilderDevelopment, type BuilderTurnIntent } from "../../../../runtime/builder/turn-intent.ts";
 import { builderCurrentRequestKey, builderUserLock, builderOperationLock, builderDecisionKey, rememberBuilderRequest, selectBuilderRequest, type BuilderRequestReference } from "../../../../runtime/builder/experience.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -161,7 +161,7 @@ export function createBuilderChatIntegration(args: {
           return { ...receipt, workspaceCommit: args.artifact.provenance.workspaceCommit, content };
         },
       });
-      if (intent && ["new-build", "revision"].includes(intent.kind)) output.builder_propose_change = tool({
+      if (canStartBuilderDevelopment(intent, messageId)) output.builder_propose_change = tool({
           description: [
             "Start the requested isolated coding job from the resolved, source-grounded brief.",
             "Use only after the human's objective and scope are clear and material questions are resolved.",

@@ -70,7 +70,7 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.11.0");
+  assert.equal(CORE_VERSION, "0.11.1");
   assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.21");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
@@ -334,7 +334,7 @@ test("Core and Workspace versions are exact SemVer and visible through the Workb
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.11.0",
+    core: "0.11.1",
     workspace: "0.1.0",
     workbench: "0.1.0-experimental.21",
     companyos_spec: "0.7-draft",
@@ -1078,7 +1078,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.11.0",
+  core_version: "0.11.1",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };

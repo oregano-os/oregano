@@ -5,6 +5,7 @@ import {
 } from "../../../../lib/builder/deployed-acp-qualification.ts";
 import { qualifyDeployedAcpCrashRecovery } from "../../../../lib/builder/deployed-acp-crash-qualification.ts";
 import { qualifyDeployedTrustedGit } from "../../../../lib/builder/deployed-trusted-git-qualification.ts";
+import { qualifyBuilderIntake } from "../../../../lib/builder/intake-qualification.ts";
 
 export const maxDuration = 300;
 
@@ -15,6 +16,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const body = await request.json() as Record<string, unknown>;
     if (Object.keys(body).length !== 1) throw new Error("invalid qualification request");
+    if (body.gate === "builder-intake") {
+      const evidence = await qualifyBuilderIntake();
+      return Response.json({ ok: evidence.passed, evidence }, { status: evidence.passed ? 200 : 500 });
+    }
     if (body.gate === "trusted-git") {
       return Response.json({ ok: true, evidence: await qualifyDeployedTrustedGit() });
     }

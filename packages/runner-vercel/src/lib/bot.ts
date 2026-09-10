@@ -1,4 +1,5 @@
-import { BUILDER_TURN_INTENT_INSTRUCTIONS, parseBuilderTurnIntent, type BuilderTurnIntent } from "../../../runtime/builder/turn-intent.ts";
+import { type BuilderTurnIntent } from "../../../runtime/builder/turn-intent.ts";
+import { classifyBuilderTurn } from "./builder/turn-intent.ts";
 import { builderCurrentRequestKey, type BuilderRequestReference } from "../../../runtime/builder/experience.ts";
 import { readBuilderImages } from "../../../runtime/builder/attachments.ts";
 import { systemInstructions } from "./agent-instructions.ts";
@@ -379,13 +380,19 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   let builderIntent: BuilderTurnIntent | undefined;
   if (agent.id === "builder") {
     const current = await state.get<BuilderRequestReference>(builderCurrentRequestKey(artifact.instance.id, requester, deliveryThread.id));
-    const classification = resolveModelExecution({ profile: "utility", task: "builder.turn-intent", requiredCapability: "language" });
-    try {
-      const result = await generateText({ model: classification.model, system: BUILDER_TURN_INTENT_INSTRUCTIONS,
-        prompt: JSON.stringify({ currentMessage: message.text, currentBuild: current ?? null, recentConversation: history.slice(-8) }),
-        maxOutputTokens: classification.selection.maxOutputTokens ?? 2048, maxRetries: 0, abortSignal: resolveSlackTurnAbortSignal(thread.signal, classification.selection.timeoutMs) });
-      builderIntent = parseBuilderTurnIntent(JSON.parse(result.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")), message.id, message.text);
-    } catch { builderIntent = { kind: "question", messageId: message.id }; }
+    const classification = await classifyBuilderTurn({ messageId: message.id, currentMessage: message.text,
+      currentBuild: current ?? null, recentConversation: history.slice(-8).map(({ role, content }) => ({ role, content })) }, thread.signal);
+    builderIntent = classification.intent;
+    const reference = sha256([artifact.artifactHash, conversationKey, message.id]);
+    await state.set(`builder:intake:${reference}`, { artifactHash: artifact.artifactHash, messageId: message.id,
+      kind: builderIntent.kind, attempts: classification.attempts, failures: classification.failures, executions: classification.executions }, 30 * DAY);
+    console.info(JSON.stringify({ event: "builder.intake", reference, kind: builderIntent.kind, attempts: classification.attempts, failures: classification.failures }));
+    if (builderIntent.kind === "unavailable") {
+      const response = `I could not process your build request because the request check failed. No build was started. Your conversation is retained; please retry in this thread with an app mention. Reference: ${reference.slice(0, 12)}`;
+      await state.appendToList(conversationKey, { role: "assistant", content: response, in_reply_to: message.id, artifact_hash: artifact.artifactHash } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
+      await deliveryThread.post(response);
+      return;
+    }
   }
   const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession, builderIntent);
   const knowledgeRoute = resolveKnowledgeTurnRoute({
