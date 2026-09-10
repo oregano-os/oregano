@@ -22,7 +22,11 @@ export function createSlackBuilderTestSurface(artifact: CompanyOSArtifact, chat:
       url: binding.account_id ? `https://app.slack.com/client/${binding.account_id}/${binding.channel_id}` : `https://slack.com/app_redirect?channel=${binding.channel_id}` };
   };
   return { destination,
-    contains: (binding, conversation) => conversation.startsWith(`${destination(binding).channel}:`),
+    contains: (binding, conversation) => {
+      // Invalid test setup must not break unrelated ordinary conversations.
+      try { return conversation.startsWith(`${destination(binding).channel}:`); }
+      catch { return false; }
+    },
     isRoot: (conversation, messageId) => conversation.split(":").at(-1) === messageId,
     qualify: async binding => { await createWorkflowSlackScope(() => chat)(async scope => { await scope.qualify(artifact, binding, artifact.roster); }); },
     permalink: conversation => createWorkflowSlackScope(() => chat)(scope => scope.permalink(conversation)),
