@@ -29,7 +29,7 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
-- The current Builder source replaces the 0.9.0 Finish/Restart workflow with one
+- Core 0.11.0 and Workbench 0.1.0-experimental.21 replace the 0.9.0 Finish/Restart workflow with one
   four-action result card: **Go Live**, **Discard Build**, **Open Test Channel** and
   **Request Changes**. Current-message intent separates questions from coding.
   Users can start new builds while earlier drafts remain open and create fresh
@@ -39,8 +39,14 @@ evidence, historical prototypes, and production gaps.
   closure blocks publication and remains retryable. Shared Core routing and
   presentation accept a synthetic non-Slack test surface; maintained deployed
   adapters remain Slack/Vercel and the same Claude Code/Codex ACP profiles.
-  This describes source implementation, not a new Core release or a verified
-  customer deployment. The historical 0.9.0 limits below describe that release.
+  The hosted integration is the maintained Slack webhook/action route, Builder
+  worker and functional-test controller. PR 112 passed CI, including 72 mandatory
+  Postgres proofs; the updated source has synthetic multi-user and alternative
+  communication-adapter coverage. Exact hosted model/provider qualification
+  remains an Instance adoption gate; this release does not claim a new customer
+  deployment or human acceptance. No DDL or provider permission change is needed.
+  Preserve test histories and decision evidence and stop tests/publication before
+  rolling back to 0.10.0. The historical 0.9.0 limits below describe that release.
 
 - Core 0.9.0 and Workbench 0.1.0-experimental.19 release the reviewed Builder
   experience from PR 108: a retained request card, confirmed
@@ -1089,7 +1095,7 @@ evidence, historical prototypes, and production gaps.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.20`; no
+  builds. Its repository release candidate is `0.1.0-experimental.21`; no
   public package release is claimed.
 - Newly generated Change Plans use version 3. They carry no status and no
   approvals: the pull request that carries a plan is its approval and its
