@@ -152,3 +152,18 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
     assert.doesNotMatch(JSON.stringify(sourceCards().slice(0, -1)), /companyos.builder.release"/);
   } finally { f.cleanup(); }
 });
+
+test("legacy source message references never authorize overwriting the conversation", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const original = await t.thread(f.job.sourceConversationKey).post("The agreed instructions and test plan.");
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    await show({ ...f.job, sourceMessageId: original.id }, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages[0].content, "The agreed instructions and test plan.");
+    assert.equal(t.messages.length, 2);
+    await show({ ...f.job, sourceMessageId: original.id }, { type: "card", title: "Live", children: [] } as any, "live");
+    assert.equal(t.messages[0].content, "The agreed instructions and test plan.");
+    assert.match(JSON.stringify(t.messages[1]), /Publishing/);
+    assert.match(JSON.stringify(t.messages[2]), /Live/);
+  } finally { f.cleanup(); }
+});

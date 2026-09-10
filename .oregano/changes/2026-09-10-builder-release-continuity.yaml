@@ -54,7 +54,5 @@ architecture:
     public_fixtures: synthetic-only
   core_reusability: The correction is independent of company, chat provider,
     coding profile and deployment host.
-rollback: Restore the preceding exact Core and Workspace pairing without
-  changing retained jobs or test evidence. The prior intake classification
-  defect returns; stop new build requests until recovery.
+rollback: Restore the preceding exact deployment with its complete Instance settings. Retain approved builds, test evidence and conversation history; do not resume a deployment missing its runtime bindings.
 open_decisions: []
