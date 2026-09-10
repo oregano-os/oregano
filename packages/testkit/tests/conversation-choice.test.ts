@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ConversationChoiceService, conversationChoiceNumber, type ConversationChoiceStore } from "../../runtime/conversation-choice.ts";
+import { ConversationChoiceService, conversationChoiceNumber, publishConversationChoice, type ConversationChoiceStore } from "../../runtime/conversation-choice.ts";
 
 export const memoryChoiceStore = (): ConversationChoiceStore => {
   const values = new Map<string, unknown>();
@@ -40,4 +40,11 @@ test("foreign identity, channel, provider and instance cannot reuse a choice; ex
   assert.equal((await service.select(scope, { text: "2", eventId: "e" }, async () => false)).kind, "expired");
   instant = "2030-01-09T12:00:00Z";
   assert.equal((await service.select(scope, { text: "2", eventId: "e" }, async () => { assert.fail("Expired selection revalidated"); })).kind, "expired");
+});
+
+for (const inboundId of ["direct-alias", "verified-root"]) test(`clarification subscribes and publishes in the verified source conversation (${inboundId})`, async () => {
+  const calls: string[] = [];
+  const conversation = (id: string) => ({ id, async subscribe() { calls.push(`subscribe:${id}`); }, async post(content: string) { assert.equal(content, "Choose a question"); calls.push(`post:${id}`); return { id: "notice" }; } });
+  await publishConversationChoice({ conversationId: "verified-root", inbound: conversation(inboundId), resolve: conversation, content: "Choose a question", async recordPublication(id) { calls.push(`record:${id}`); } });
+  assert.deepEqual(calls, ["subscribe:verified-root", "post:verified-root", "record:notice"]);
 });

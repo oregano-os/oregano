@@ -61,3 +61,21 @@ export class ConversationChoiceService<T> {
     return { kind: saved.index === selection.index && saved.eventId === selection.eventId ? "selected" : "already-selected", target: request.choices[saved.index]!, request };
   }
 }
+
+interface ChoiceConversation {
+  id: string;
+  subscribe(): Promise<unknown>;
+  post(content: string): Promise<{ id: string }>;
+}
+
+/** Use the verified source conversation, not an adapter's unthreaded DM alias. */
+export async function publishConversationChoice(args: {
+  conversationId: string; inbound: ChoiceConversation; resolve: (id: string) => ChoiceConversation;
+  content: string; recordPublication: (messageId: string) => Promise<void>;
+}): Promise<void> {
+  const conversation = args.inbound.id === args.conversationId ? args.inbound : args.resolve(args.conversationId);
+  if (conversation.id !== args.conversationId) throw new Error("Choice presentation resolved another conversation");
+  await conversation.subscribe();
+  const notice = await conversation.post(args.content);
+  await args.recordPublication(notice.id);
+}

@@ -1,3 +1,4 @@
+import { publishConversationChoice } from "../../../runtime/conversation-choice.ts";
 import { retainSlackDecisionReview } from "./slack-decision-review.ts";
 import { workflowDmRecipients } from "./slack-workflow-dm-routing.ts";
 import { workflowInboundThreadId } from "./workflow-conversations.ts";
@@ -273,9 +274,9 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       if (received.kind === "ambiguous") {
         const choice = await host.conversations.prepareChoice(input, received.conversations);
         const links = choice.conversations.map((c, index) => `<https://slack.com/archives/${c.channelId}/p${c.threadId.replace(".", "")}|Question ${index + 1}>`).join(" · ");
-        await thread.subscribe();
-        const notice = await thread.post(`Several questions are open for you. Which question does your answer belong to? Reply here with the number (for example “Question 2”), and I will use your original answer. You can also open the matching question: ${links}`);
-        await choice.presented(notice.id);
+        await publishConversationChoice({ conversationId: input.threadId, inbound: thread, resolve: (id) => botInstance!.thread(id),
+          content: `Several questions are open for you. Which question does your answer belong to? Reply here with the number (for example “Question 2”), and I will use your original answer. You can also open the matching question: ${links}`,
+          recordPublication: choice.presented });
         trace.emit("reply-posted");
         return;
       }
