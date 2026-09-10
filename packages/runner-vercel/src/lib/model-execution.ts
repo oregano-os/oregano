@@ -6,6 +6,7 @@ import type { LanguageModel } from "ai";
 import {
   CORE_MODEL_RECIPE_REGISTRY,
   resolveModelExecutionSelection,
+  resolvePromptCachingMode,
   type ModelBinding,
   type ModelCapability,
   type ModelExecutionEvidence,
@@ -14,6 +15,7 @@ import {
   type ModelRuntimeConfiguration,
   type ModelTaskProfile,
 } from "../../../runner/model-execution.ts";
+import { withPromptCaching } from "./prompt-caching.ts";
 
 export interface ResolvedModelExecution {
   readonly selection: ModelExecutionSelection;
@@ -55,7 +57,7 @@ export function resolveModelExecution(input: ModelEnvironment | ModelExecutionCo
   if (selectedRecipe.credentialRequired && selection.credentialRef && !credential) throw new Error(`Missing required runtime secret: ${selection.credentialRef}.`);
   const modelId = providerModelId(selection);
   if (selectedRecipe.transport === "anthropic-messages") {
-    return { selection, model: createAnthropic({ apiKey: credential })(modelId) };
+    return { selection, model: withPromptCaching(createAnthropic({ apiKey: credential })(modelId), selection) };
   }
   if (selectedRecipe.transport === "openai-responses") {
     return { selection, model: createOpenAI({ apiKey: credential })(modelId) };
@@ -82,13 +84,24 @@ export function resolveModelExecution(input: ModelEnvironment | ModelExecutionCo
 
 export function modelExecutionEvidence(
   selection: ModelExecutionSelection,
-  result: { response: { id: string; modelId: string }; usage: { inputTokens?: number; outputTokens?: number } },
+  result: { response: { id: string; modelId: string }; usage: ModelUsage; totalUsage?: ModelUsage },
 ): ModelExecutionEvidence {
+  const usage = result.totalUsage ?? result.usage;
   return {
     ...selection,
+    promptCaching: resolvePromptCachingMode(selection),
     responseId: result.response.id,
     responseModel: result.response.modelId,
-    inputTokens: result.usage.inputTokens ?? 0,
-    outputTokens: result.usage.outputTokens ?? 0,
+    inputTokens: usage.inputTokens ?? 0,
+    outputTokens: usage.outputTokens ?? 0,
+    cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? null,
+    cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? null,
+    uncachedInputTokens: usage.inputTokenDetails?.noCacheTokens ?? null,
   };
+}
+
+interface ModelUsage {
+  readonly inputTokens?: number;
+  readonly outputTokens?: number;
+  readonly inputTokenDetails?: { readonly cacheReadTokens?: number; readonly cacheWriteTokens?: number; readonly noCacheTokens?: number };
 }

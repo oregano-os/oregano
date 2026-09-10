@@ -1,0 +1,48 @@
+version: 3
+plan_id: agent-prompt-caching-2026-09-10
+created: "2026-09-10"
+title: Configure prompt caching through existing model recipes
+objective: Reuse provider prompt caches across ordinary Agent calls, streaming and tool loops, with provider-default lifetimes and inspectable token usage.
+non_goals:
+  - Create a local cache, transcript store, or cross-company memory.
+  - Configure custom cache lifetimes or claim savings without provider evidence.
+  - Change model identities, authority, business Tools or conversation routing.
+placement: core
+change_class: security
+files_expected:
+  - package.json
+  - .oregano/changes/2026-09-10-agent-prompt-caching.yaml
+  - packages/runner/model-execution.ts
+  - packages/runner-vercel/src/lib/**
+  - packages/testkit/tests/model-recipes.test.ts
+  - docs/operations/model-prompt-caching.md
+  - docs/architecture/company-instance.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/runner-vercel/src/lib/model-execution.test.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
+  - packages/testkit/tests/model-recipes.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.model-prompt-caching, architecture.company-instance, guide.operate-knowledge-provider, status.current]
+architecture:
+  placement:
+    core: Validated model binding option, common provider adapter, stable prompt boundaries and content-free usage evidence.
+    packages: Synthetic transport and model-loop fixtures only.
+    workspace: Agent instructions and model-task selection remain company-owned and unchanged.
+    instance: Existing exact task/profile/default model bindings choose caching; credentials stay in the provider secret store.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Reuse the existing task/profile/default selection and central language-model construction for all Agent calls.
+    - mechanism: capability-contracts-and-connectors
+      reason: Translate caching only in the maintained provider adapter and retain provider-native behavior elsewhere.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies and transport adapters using the common model resolver receive the same optional cache behavior.
+rollback: Set promptCaching to provider-default in the selected Instance model binding or restore the preceding Core revision; no stored business data or schema is changed.

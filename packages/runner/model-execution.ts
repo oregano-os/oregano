@@ -37,6 +37,7 @@ export type ModelTaskProfile = (typeof MODEL_TASK_PROFILES)[number];
 export type ModelCapability = "language" | "tools" | "structured-output" | "embedding" | "reranking";
 export type ModelTransport = "ai-gateway" | "anthropic-messages" | "openai-responses" | "google-generative-ai" | "openai-compatible";
 export type ModelEnvironment = Readonly<Record<string, string | undefined>>;
+export type PromptCachingMode = "auto" | "provider-default";
 
 export interface ModelProviderRecipe {
   readonly contractVersion: typeof MODEL_RECIPE_CONTRACT_VERSION;
@@ -58,6 +59,7 @@ export interface ModelBinding {
   readonly maxOutputTokens?: number;
   readonly timeoutMs?: number;
   readonly retries?: number;
+  readonly promptCaching?: PromptCachingMode;
 }
 
 export interface ModelRuntimeConfiguration {
@@ -82,6 +84,14 @@ export interface ModelExecutionEvidence extends ModelExecutionSelection {
   readonly responseModel: string;
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly cacheReadTokens?: number | null;
+  readonly cacheWriteTokens?: number | null;
+  readonly uncachedInputTokens?: number | null;
+}
+
+/** Ordinary Agent calls opt in; other profiles retain their provider defaults. */
+export function resolvePromptCachingMode(selection: Pick<ModelExecutionSelection, "profile" | "promptCaching">): PromptCachingMode {
+  return selection.promptCaching ?? (selection.profile === "agent" ? "auto" : "provider-default");
 }
 
 const MODEL_ID = /^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._:/-]*$/;
@@ -433,7 +443,7 @@ const boundedInteger = (value: unknown, minimum: number, maximum: number, label:
 export function normalizeModelBinding(value: unknown, label = "Model binding", registry = CORE_MODEL_RECIPE_REGISTRY): ModelBinding {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object.`);
   const candidate = value as Record<string, unknown>;
-  if (Object.keys(candidate).some((key) => !["route", "model", "maxOutputTokens", "timeoutMs", "retries"].includes(key))) throw new Error(`${label} has an unsupported field.`);
+  if (Object.keys(candidate).some((key) => !["route", "model", "maxOutputTokens", "timeoutMs", "retries", "promptCaching"].includes(key))) throw new Error(`${label} has an unsupported field.`);
   const route = String(candidate.route ?? "").trim() as ModelExecutionRoute;
   const model = String(candidate.model ?? "").trim();
   const selectedRecipe = registry.resolve(route);
@@ -441,12 +451,15 @@ export function normalizeModelBinding(value: unknown, label = "Model binding", r
   const maxOutputTokens = boundedInteger(candidate.maxOutputTokens, 1, 200_000, `${label} maxOutputTokens`);
   const timeoutMs = boundedInteger(candidate.timeoutMs, 100, 600_000, `${label} timeoutMs`);
   const retries = boundedInteger(candidate.retries, 0, 10, `${label} retries`);
+  const promptCaching = candidate.promptCaching;
+  if (promptCaching !== undefined && promptCaching !== "auto" && promptCaching !== "provider-default") throw new Error(`${label} promptCaching must be auto or provider-default.`);
   return {
     route,
     model,
     ...(maxOutputTokens === undefined ? {} : { maxOutputTokens }),
     ...(timeoutMs === undefined ? {} : { timeoutMs }),
     ...(retries === undefined ? {} : { retries }),
+    ...(promptCaching === undefined ? {} : { promptCaching }),
   };
 }
 

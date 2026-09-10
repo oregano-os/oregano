@@ -337,6 +337,17 @@ Those bindings override the simple `COMPANYOS_MODEL_ROUTE` and
 documented Anthropic-then-OpenAI priority before the Gateway default. No
 resolved request silently fails over across providers.
 
+The selected model binding may set `promptCaching` to `auto` or
+`provider-default`. Ordinary `agent` profile calls default to `auto`; other
+profiles preserve provider defaults. The common model adapter applies supported cache controls to stable prefixes
+and growing conversation history without a TTL override; unsupported routes
+retain native provider behavior. Instance
+configuration chooses this behavior; Agent Skills and communication adapters do
+not implement caches. Cache reads/writes are content-free execution evidence,
+aggregated across Tool steps, and do not grant access or replace context storage.
+See [model operation](../workbench/guides/operate-knowledge-provider.md#agent-prompt-caching)
+for exact route support and rollback.
+
 `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` accepts the same provider-neutral
 shape and overrides the shared bindings only for registered Knowledge prompts.
 This permits retained evidence to use a direct provider without changing the

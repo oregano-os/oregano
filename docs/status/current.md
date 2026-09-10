@@ -36,6 +36,16 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
 
 ## Implemented and tested
 
+- Common model execution supports `promptCaching` per selected model binding.
+  Agent-profile calls enable supported prefix/conversation caching with the
+  provider-default TTL; other routes retain native defaults.
+  Stable Agent instructions are separate from changing work evidence. SDK
+  transport tests cover ordinary generation, streaming, Tool-loop totals,
+  explicit-strategy preservation, configuration precedence, and provider request
+  isolation. See [exact adapter support](../operations/model-prompt-caching.md). Provider cache reads/writes are recorded without prompt content;
+  actual savings and deployment remain Instance qualification, not unit-test
+  claims.
+
 - Workflow publications retain their exact sent text for bounded, read-only
   follow-up context after completion or cancellation. The generic reader uses
   opaque provider identities and existing delivery state. Synthetic mail and
