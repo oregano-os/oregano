@@ -226,6 +226,10 @@ select authorized existing work, a new discussion, a knowledge question, or a
 clarification. A pending workflow MUST NOT capture unrelated new work merely
 because it is the only open collection. Multiple explicit concerns MAY retain
 separate source excerpts and destinations.
+An ongoing discussion draft is an internal context reference, not an external
+card, proposal or execution. Deferring those external objects MUST NOT prevent
+the Agent from retaining the discussion. Routing acknowledgments SHOULD be
+brief; substantive answers belong to the selected Agent's execution.
 
 The shared runtime MUST retain only bounded attention (focus references,
 short recent exchanges, pending original answers and small drafts), not copy

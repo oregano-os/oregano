@@ -25,6 +25,7 @@ files_expected:
   - docs/status/current.md
   - docs/_generated/**
 tests:
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
   - packages/testkit/tests/shared-conversation.test.ts
   - packages/testkit/tests/workflow-channel-replies.test.ts
   - packages/testkit/tests/agent-handoff.test.ts

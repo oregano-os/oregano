@@ -259,6 +259,11 @@ The coordinator searches existing delivery assignments and Builder jobs, then
 resumes the selected work using its source revision and a provider-reread source
 excerpt. Direct replies continue in the original workflow thread. A different
 source thread receives an acknowledgment and verified destination link.
+The interpretation pass chooses routes rather than composing substantive
+answers; routed replies contain only a short destination acknowledgment when
+needed. New ongoing ideas receive an internal discussion bookmark even when
+the human explicitly wants no card or external change yet. Live qualification
+must inspect persisted drafts as well as the visible response.
 
 The Instance reuses `chat_values` for attention and immutable routing receipts.
 Attention is scoped by instance, principal, surface, account and channel; an

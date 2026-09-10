@@ -91,7 +91,9 @@ default remains strict: an unavailable non-optional target is an error.
 
 Use a short discussion draft for new multi-step work before a workflow or job
 exists. Confirmed Builder jobs replace that reference; the job store retains
-its status. Finished drafts can close. Ordinary knowledge questions create no
+its status. "Discuss first; do not create a card" still warrants an internal
+discussion reference, which carries no external effect or approval.
+Finished drafts can close. Ordinary knowledge questions create no
 draft. Company Knowledge search is selected from meaning or by an Agent Tool
 call, not a keyword list; successful source evidence is still checked.
 

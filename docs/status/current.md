@@ -29,6 +29,10 @@ sources. The maintained chat path resumes checked workflow replies and retains
 their original destination; the provider-neutral contract is exercised with
 synthetic messaging and MCP-style addresses. Live deployment and additional
 provider qualification remain separate from these local checks.
+Coordinator instructions distinguish internal discussion bookmarks from
+external cards and keep routing acknowledgments separate from substantive
+answers. Real-model acceptance must check both the saved topic reference and
+the delivered conversation; synthetic SDK outputs alone do not prove this.
 
 ## Implemented and tested
 
