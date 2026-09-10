@@ -22,9 +22,19 @@ import {
   currentSprintRuntimeMode,
   executeSprintOperator,
   parseSprintOperatorRequest,
+  readSprintProjection,
   scheduledSprintRuntimeDefinitions,
   stabilizeSprintProjection,
 } from "../../runner-vercel/src/lib/sprint-runtime.ts";
+import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
+import { CompanyRecordsRegistry } from "../../records/registry.ts";
+import { CompanyRecordsService } from "../../records/service.ts";
+import { MAX_RECORD_QUERY_ROWS } from "../../records/query.ts";
+import { RECORD_QUERY_INPUT_SCHEMA, RECORD_QUERY_OUTPUT_SCHEMA } from "../../records/query-schema.ts";
+import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
+import type { RecordQuery } from "../../records/contracts.ts";
+import { STANDARD_RECORDS_TOOLS } from "../../standard-tools/records.ts";
+import { executeIsolatedCompanyTool } from "../../tool-sdk/isolated-runner.ts";
 
 const compiled: CompiledSprintRuntime = {
   definitionId: "weekly-delivery",
@@ -538,6 +548,115 @@ test("operator opening time cannot move the projection freshness check into the 
     () => executeSprintOperator(input, "2030-01-28T09:00:00.000Z"),
     /must not be in the future/,
   );
+});
+
+function projectionReadFixture(size: number) {
+  const instant = "2030-01-28T09:00:00.000Z";
+  const projectionId = compiled.policy.work_items.projection;
+  const registry = new CompanyRecordsRegistry();
+  registry.registerSource({
+    schema_version: 1, id: "fixture-source", record_type: "fixture-item",
+    connection: "connections/fixture.md", resource_binding: "fixture-board",
+    delivery: "poll", identity: { source_field: "id" }, fields: [],
+    access: { read_groups: ["team"], write_roles: [] },
+  });
+  registry.registerProjection({
+    schema_version: 1, id: projectionId, record_type: "fixture-item", source_ids: ["fixture-source"],
+    fields: [{ name: "summary", path: "summary" }], freshness: { max_age_minutes: 60 },
+    access: { read_groups: ["team"] }, materialization: { mode: "database-view" },
+  });
+  const store = new InMemoryCompanyRecordsStore();
+  for (let index = 0; index < size; index += 1) {
+    const id = `item-${String(index).padStart(5, "0")}`;
+    store.projectionRows.set(id, {
+      instance_id: "fixture", projection_id: projectionId, record_id: id, record_type: "fixture-item",
+      source_version_id: id, projected_at: instant, values: { summary: "Synthetic work item. ".repeat(40) },
+    });
+  }
+  let reads = 0;
+  let snapshotBytes = 0;
+  const readSnapshot = store.readProjectionSnapshot.bind(store);
+  store.readProjectionSnapshot = async (request) => {
+    const result = await readSnapshot(request);
+    reads += 1;
+    snapshotBytes += Buffer.byteLength(JSON.stringify(result));
+    return result;
+  };
+  const subject = { principal_id: compiled.servicePrincipal, status: "active" as const, roles: [], group_ids: ["team"] };
+  const service = new CompanyRecordsService({ instanceId: "fixture", registry, store, now: () => new Date(instant) });
+  const runtime: Parameters<typeof readSprintProjection>[1] = {
+    execute: async (request) => {
+      assert.equal(request.agentId, compiled.agentId);
+      assert.equal(request.grantId, "oregano:records/query");
+      assert.equal(request.subjectPrincipal, subject.principal_id);
+      assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_INPUT_SCHEMA, request.input), []);
+      const tool = STANDARD_RECORDS_TOOLS[0]!;
+      const output = await executeIsolatedCompanyTool({
+        compiledSource: tool.compiledSource, input: request.input,
+        context: { instanceId: "fixture", runId: request.runId, stepId: request.stepId,
+          agentId: request.agentId, toolId: tool.contract.runtimeId },
+        allowedCapabilities: tool.contract.capabilities,
+        invokeCapability: async (capability, input) => {
+          assert.equal(capability, "records.query");
+          return service.query({ subject, query: input as RecordQuery });
+        },
+      });
+      assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_OUTPUT_SCHEMA, output), []);
+      return { output };
+    },
+  };
+  const read = (pass: number) => readSprintProjection({
+    compiled, projectionId, runId: "fixture-snapshot", now: instant, pass,
+  }, runtime);
+  return { read, runtime, service, subject, store, instant, projectionId,
+    metrics: () => ({ reads, snapshotBytes }), reset: () => { reads = 0; snapshotBytes = 0; } };
+}
+
+test("Sprint full reads preserve complete bounded results with two snapshot reads", async (t) => {
+  for (const size of [0, 1, 200, 1_300, MAX_RECORD_QUERY_ROWS]) {
+    const fixture = projectionReadFixture(size);
+    const result = await stabilizeSprintProjection(fixture.projectionId, fixture.read);
+    assert.equal(result.rows.length, size);
+    assert.equal(result.observedAt, fixture.instant);
+    assert.equal(fixture.metrics().reads, 2);
+    if (size === 1_300) {
+      const current = fixture.metrics();
+      fixture.reset();
+      // Reproduce the previous reader through the same service and store.
+      for (let pass = 0; pass < 2; pass += 1) {
+        let cursor: string | undefined;
+        do {
+          const page = await fixture.service.query({ subject: fixture.subject,
+            query: { projection_id: fixture.projectionId, limit: 200, ...(cursor ? { cursor } : {}) } });
+          cursor = page.next_cursor;
+        } while (cursor);
+      }
+      assert.equal(fixture.metrics().reads, 14);
+      assert.equal(fixture.metrics().snapshotBytes, current.snapshotBytes * 7);
+      t.diagnostic(`1,300 synthetic rows, two stable passes: snapshot reads 14 -> 2; serialized snapshot bytes ${fixture.metrics().snapshotBytes} -> ${current.snapshotBytes}`);
+    }
+  }
+});
+
+test("Sprint full reads retain authorization, staleness and row-bound failures", async () => {
+  const fixture = projectionReadFixture(1);
+  fixture.subject.group_ids = [];
+  await assert.rejects(fixture.read(0), /cannot read projection/);
+  assert.equal(fixture.metrics().reads, 0, "authorization precedes data access");
+  fixture.subject.group_ids = ["team"];
+  await assert.rejects(readSprintProjection({ compiled, projectionId: fixture.projectionId,
+    runId: "fixture-stale", now: "2030-01-28T11:00:00.000Z", pass: 0 }, fixture.runtime), /is stale/);
+  await assert.rejects(projectionReadFixture(MAX_RECORD_QUERY_ROWS + 1).read(0), /snapshot bound/);
+  const query = await fixture.service.query({ subject: fixture.subject, query: { projection_id: fixture.projectionId } });
+  for (const output of [
+    { ...query, next_cursor: "unexpected-partial-result" },
+    { ...query, projection_id: "wrong-projection" },
+    { ...query, rows: Array(MAX_RECORD_QUERY_ROWS + 1).fill(query.rows[0]) },
+  ]) {
+    await assert.rejects(readSprintProjection({ compiled, projectionId: fixture.projectionId,
+      runId: "fixture-invalid", now: fixture.instant, pass: 0 }, { execute: async () => ({ output }) }),
+    /incomplete full read|invalid .*projection|exceeds the supported/);
+  }
 });
 
 test("Sprint projection freezing requires two consecutive canonical reads", async () => {

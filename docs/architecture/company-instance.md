@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -262,6 +262,14 @@ Sensitive values exist and never creates, deletes, or activates them.
 Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
+
+Qualification compares the required tables, indexes, constraints, active Core
+Page types, optional vector objects and exact manifest ledger inside one
+read-only SQL statement. It returns compact evidence instead of complete catalog
+listings. Missing objects, unexpected active Core Page types and missing or
+mismatched manifests still fail readiness; unexpected type diagnostics include
+at most 20 names and the full count. The receipt and qualification frequency
+are unchanged. This optimization adds no cache, schema migration or database.
 
 The current additive database manifest is `companyos-postgres@2.0.0`. It
 retains the immutable `1.9.0`, `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,

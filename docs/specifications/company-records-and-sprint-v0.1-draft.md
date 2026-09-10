@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-04
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -197,6 +197,15 @@ handled only according to declared policy. Submission classification uses the
 provider-accepted timestamp. A report is frozen at its configured instant;
 later submissions do not rewrite it. Actual effort and Rollover eligibility use
 the exact declared policy and never an inferred substitute.
+
+The hosted Sprint reader uses the existing `all_pages: true` Records query
+for each full projection read, including replay message projections. It MUST
+retain the query's authorization, source-provenance validation, freshness
+evidence and 10,000-row snapshot bound, and reject partial results. Freezing
+still requires two consecutive full reads with the same canonical row digest,
+with at most three reads when reconciliation changes the projection. Paging
+inside one immutable Records query MUST NOT reload the database projection for
+each page. No cache or synchronization protocol is introduced.
 
 **CRS-024 — Intents, not effects.** Close-thread reminder, chase, report,
 retrospective, reconciliation, and Rollover outputs are stable intents with
