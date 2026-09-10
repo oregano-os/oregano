@@ -1,3 +1,4 @@
+import { builderDecisionKey } from "../../../../runtime/builder/experience.ts";
 import { Card, CardText, type Author, type Chat, type StateAdapter } from "chat";
 import { sha256 } from "../../../../runtime/canonical.ts";
 import { assertReleaseCandidate, type ReleaseCoordinator } from "../../../../runtime/release/coordinator.ts";
@@ -21,6 +22,11 @@ interface PendingReadiness { job: BuilderJob; }
 export function createBuilderReleaseIntegration(args: {
   chat: Pick<Chat, "thread" | "onAction">;
   state: Pick<StateAdapter, "get" | "set">;
+  withBuildLock?<T>(jobId: string, action: () => Promise<T>): Promise<T>;
+  getJob?(id: string): Promise<BuilderJob | undefined>;
+  isSelected?(job: BuilderJob): Promise<boolean>;
+  testChannelUrl?(job: BuilderJob): string | undefined;
+  discard?(job: BuilderJob, actor: string): Promise<void>;
   coordinator: Pick<ReleaseCoordinator, "accept" | "rollback">;
   authenticatedPrincipal(author: Author): string | undefined;
   prepareCandidate(job: BuilderJob): Promise<ReleaseCandidate>;
@@ -36,13 +42,19 @@ export function createBuilderReleaseIntegration(args: {
       const session = await args.getTestSession?.(job);
       const show = async (options: Parameters<typeof builderResultCard>[1]) => {
         if (session && (await args.getTestSession?.(job))?.revision !== session.revision) return;
-        const card = builderResultCard(job, { session, ...options });
+        const card = builderResultCard(job, { session, testChannelUrl: args.testChannelUrl?.(job), selected: await args.isSelected?.(job), ...options });
         if (args.present) await args.present(job, card, "result");
         else if (job.sourceMessageId) await args.chat.thread(job.sourceConversationKey).adapter.editMessage(job.sourceConversationKey, job.sourceMessageId, card);
         else await args.chat.thread(job.sourceConversationKey).post(card);
       };
+      if ((await args.state.get<{ kind: string }>(builderDecisionKey(job.jobId)))?.kind === "discarded") {
+        const card = builderResultCard(job, { session, discarded: true });
+        if (args.present) await args.present(job, card, "result"); else await args.chat.thread(job.sourceConversationKey).post(card);
+        return;
+      }
+      if ((await args.state.get<{ kind: string }>(builderDecisionKey(job.jobId)))?.kind === "discarding") { await show({ discardPending: true }); return; }
       if (await args.revisionPending?.(job)) { await show({ detail: "Changes were requested. Describe the revision to Builder before a new result can be published." }); return; }
-      if (session && !["reviewable", "accepted"].includes(session.stage)) { await show({}); return; }
+      if (session && !["interactive", "reviewable", "accepted"].includes(session.stage)) { await show({}); return; }
       if (job.brief.brief.deploymentIntent !== "after-acceptance") {
         await show({ detail: "This request was prepared as a draft only. Publication has not been requested." }); return;
       }
@@ -76,22 +88,46 @@ export function createBuilderReleaseIntegration(args: {
       }
       await notifier.deliver(pending.job);
     });
+    args.chat.onAction("companyos.builder.release.check", async event => {
+      const job = event.value ? await args.getJob?.(event.value) : undefined;
+      if (!job || !event.thread || job.sourceConversationKey !== event.thread.id || !args.authenticatedPrincipal(event.user)) return;
+      await notifier.deliver(job);
+      await event.thread.post("Publication was not started or queued. Review the current test and readiness information on the build card, then use Go Live when ready.");
+    });
+    args.chat.onAction("companyos.builder.discard", async event => {
+      const job = event.value ? await args.getJob?.(event.value) : undefined, actor = args.authenticatedPrincipal(event.user);
+      if (!job || !event.thread || !actor || actor !== job.requesterPrincipal || event.thread.id !== job.sourceConversationKey || !args.discard) return;
+      try {
+        const discard = () => args.discard!(job, actor);
+        if (args.withBuildLock) await args.withBuildLock(job.jobId, discard); else await discard();
+        await notifier.deliver(job);
+      } catch { await event.thread.post("Discard could not complete. Publication may already have started, or the repository could not confirm closure. The draft was not reported as discarded."); }
+    });
+    args.chat.onAction("companyos.builder.test.open", async event => {
+      const job = event.value ? await args.getJob?.(event.value) : undefined;
+      if (!job || !event.thread || !args.authenticatedPrincipal(event.user) || event.thread.id !== job.sourceConversationKey) return;
+      const url = args.testChannelUrl?.(job);
+      await event.thread.post(url ? `Open your test channel: ${url}` : "No connected test channel was configured for this build. Ask Builder to explain the selected test.");
+    });
     args.chat.onAction("companyos.builder.release", async (event) => {
       if (!event.thread || !event.value) return;
       const pending = await args.state.get<PendingRelease>(`builder-release-candidate:${event.value}`);
       const actor = args.authenticatedPrincipal(event.user);
       if (!pending || !actor || pending.candidate.sourceConversation !== event.thread.id) {
-        await event.thread.post("This result is unavailable in this conversation or this identity is not an active company member."); return;
+        await event.thread.post("This result is unavailable in this conversation. Ask Builder for the current build card."); return;
       }
+      let approvalRecorded = false;
       try {
-        await args.beforeAccept?.(pending.candidate, actor, event.messageId);
-        const run = await args.coordinator.accept(pending.candidate, actor, pending.digest);
-        if (args.present) await presentRun(run);
-        else await event.adapter.editMessage(event.threadId, event.messageId, releaseStatusCard(run));
+        const publish = async () => {
+          await args.beforeAccept?.(pending.candidate, actor, event.messageId);
+          approvalRecorded = true;
+          const run = await args.coordinator.accept(pending.candidate, actor, pending.digest);
+          if (args.present) await presentRun(run);
+          else await event.adapter.editMessage(event.threadId, event.messageId, releaseStatusCard(run));
+        };
+        if (args.withBuildLock) await args.withBuildLock(pending.candidate.id, publish); else await publish();
       } catch {
-        // Authority/check failures are actionable but provider exceptions may
-        // contain credentials. Never echo the raw error to the chat surface.
-        await event.thread.post("Live adoption could not start. The required acceptor and deployment authority, exact candidate, required checks and current production version must still match. Refresh the result or route it to the authorized person.");
+        await event.thread.post(approvalRecorded ? "Your approval was recorded, but publication status could not be confirmed. Ask Builder to check the build status before retrying." : "Publication could not start. A test may still be running, the reviewed result may have changed, or required checks or permissions are unavailable. No approval was queued for later publication.");
       }
     });
   };
@@ -109,7 +145,7 @@ export function releaseStatusCard(run: ReleaseRun) {
     : run.stage === "rolled-back" ? "The previous application artifact is active and verified. This does not undo data changes or external effects."
     : run.stage === "failed" ? "Live adoption stopped. Review the release evidence; production may already have changed if deployment began."
     : "Your approved result is being published. You will be told when it is verified live.";
-  return Card({ title: run.stage === "live" ? "Your result is live" : run.stage === "rolled-back" ? "Previous version restored" : run.stage === "failed" ? "Publication stopped" : "Publishing your result", children: [
+  return Card({ title: run.stage === "live" ? "Live" : run.stage === "rolled-back" ? "Previous version restored" : run.stage === "failed" ? "Publication stopped" : "Publishing", children: [
     CardText(description),
   ] });
 }

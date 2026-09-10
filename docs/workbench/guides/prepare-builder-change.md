@@ -5,7 +5,7 @@ kind: guide
 status: building
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -160,20 +160,29 @@ is an Agent with no Tools (one answer or interactive conversation), or an immedi
 operator workflow without messages, waits or intermediate decisions. Report
 unsupported cases explicitly. Omit interaction or use `automatic` for one answer.
 
-For interactive tests, the human mentions the app in the dedicated test thread
-and can ask follow-up questions. The session retains only that candidate's own
-history, admits up to twenty replies and expires after 24 hours while open.
-**Finish test** freezes the conversation for review; only then can **Go live** be
-offered. **Restart test** uses the same candidate with empty history and fresh
-evidence, invalidating the old acceptance action without a new coding job.
-Accepted results cannot be restarted. Result generation does not itself prove
-semantic correctness; the human reviews the actual answer. Report delivery is
-a real post to the test channel.
+For interactive tests, the human creates a fresh thread in the configured test
+channel and mentions the app where required. New threads use that user's selected
+build and start with empty history. Existing threads stay on their original version.
+The initial example and each test conversation retain actual candidate answers;
+they are separate from normal company traffic. Each build allows twenty threads,
+each with twenty replies. Inactivity pauses the test after seven days by default;
+Builder can select/resume the saved build without recoding when explicitly requested.
 
-Core tests the unmerged candidate and posts its actual result before the final
-merge/live action. The requester uses **Request changes**, then explains the
-correction in the original Builder conversation. Call `builder_read_test_result`
-to retrieve the previous brief, actual summary and authenticated feedback. Re-read
-the current definitions and create a complete revised brief. The previous test
-and live action cannot approve this rebuilt candidate. No extra start click is
-needed for a resolved correction request.
+One result card offers **Go Live**, **Discard Build**, **Open Test Channel** and
+**Request Changes** directly. No Finish test, Restart test or More action is needed.
+Go Live accepts the exact completed evidence and freezes further testing. Running,
+stale or unready tests do not create a queued approval. Core then handles the
+qualified production release and reports verified live completion separately.
+
+Use `builder_read_test_result` for questions and evaluations as well as revisions.
+It returns the actual result, history and original brief without requiring a button
+click. Answer “is this right?” before considering development. Never treat an image,
+copied conversation or old approval as a current request to code. If an attachment
+cannot be read, state that limitation and use retained test evidence where helpful.
+
+Only a current explicit revision request starts a correction. Preserve the complete
+original scope, re-read current definitions and prepare a new grounded brief. A
+separate new request may start while previous builds remain open; do not attach old
+feedback, silently discard a previous draft or reuse its acceptance. Use
+`builder_list_builds` to locate an older request and `builder_select_test` only when
+the current user explicitly asks to select/resume it. This does not run coding.

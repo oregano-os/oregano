@@ -63,7 +63,7 @@ steps:
   const resources: BuilderTestResource[] = [{ id: "test-board", capability: "work-item.comment", match: { resource_binding: "designated-test-board", work_item_id: "42" } },
     { id: "test-channel", capability: "communication.message.publish", match: { destination_binding: "test-channel" } }];
   const job = { jobId: "builder-functional-example", instanceId: previous.instance.id, repositoryId: "example/company", requesterPrincipal: "slack:T10001:U10001",
-    sourceConversationKey: "slack:C10001:1.0", baseCommit: previous.provenance.workspaceCommit, state: "published",
+    objective: "Build a concise answer", sourceConversationKey: "slack:C10001:1.0", baseCommit: previous.provenance.workspaceCommit, state: "published",
     brief: { artifactHash: previous.artifactHash, digest: "e".repeat(64), brief: { deploymentIntent: "after-acceptance", proposedBehavior: "Summary precedes the task list.",
       test: { strategy: "test-resources", targetBindings: resources.map((resource) => resource.id), execution: { kind: "workflow", workflowId: "builder-proof", fields: {} } } } },
     evidence: { proposal: { jobId: "builder-functional-example", repositoryId: "example/company", baseCommit: previous.provenance.workspaceCommit, proposalCommit: candidate.provenance.workspaceCommit },

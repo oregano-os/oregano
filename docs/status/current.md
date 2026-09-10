@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -28,6 +28,19 @@ This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
+
+- The current Builder source replaces the 0.9.0 Finish/Restart workflow with one
+  four-action result card: **Go Live**, **Discard Build**, **Open Test Channel** and
+  **Request Changes**. Current-message intent separates questions from coding.
+  Users can start new builds while earlier drafts remain open and create fresh
+  test-channel threads directly, with selection per Instance/user and pinned
+  existing conversations. Seven-day configurable inactivity pauses tests without
+  deleting history. Trusted discard closes an exact unmerged proposal; uncertain
+  closure blocks publication and remains retryable. Shared Core routing and
+  presentation accept a synthetic non-Slack test surface; maintained deployed
+  adapters remain Slack/Vercel and the same Claude Code/Codex ACP profiles.
+  This describes source implementation, not a new Core release or a verified
+  customer deployment. The historical 0.9.0 limits below describe that release.
 
 - Core 0.9.0 and Workbench 0.1.0-experimental.19 release the reviewed Builder
   experience from PR 108: a retained request card, confirmed

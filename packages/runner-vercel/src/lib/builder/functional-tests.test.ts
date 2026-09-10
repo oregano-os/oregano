@@ -5,7 +5,7 @@ import { builderFunctionalFixture } from "../../../../testkit/builder-functional
 import { InMemoryWorkflowExecutionStore } from "../../../../runtime/workflow-engine/memory-store.ts";
 import { InMemoryDurableTimerStore } from "../../../../runtime/memory-durable-timers.ts";
 import { executeBuilderFunctionalTest, assertBuilderTestSupported } from "./functional-test-execution.ts";
-import { createBuilderFunctionalTestIntegration } from "./functional-tests.ts";
+import { createBuilderFunctionalTestIntegration, createSlackBuilderTestSurface } from "./functional-tests.ts";
 
 test("the connected executor runs the unmerged candidate through the real engine and preserves production", async () => {
   const f = builderFunctionalFixture();
@@ -43,6 +43,7 @@ test("the chat presents the completed candidate test before release and feedback
   const f = builderFunctionalFixture();
   try {
     // Synthetic transport and model boundaries; the controller and retained lifecycle are real.
+    (f.job as any).objective = "Shorten the report";
     const values = new Map<string, unknown>(), handlers = new Map<string, (event: any) => Promise<void>>(), order: string[] = [];
     let executions = 0;
     const thread = (id: string) => ({ id, async subscribe() {}, async post(content: unknown) {
@@ -72,6 +73,17 @@ test("the chat presents the completed candidate test before release and feedback
     await handlers.get("companyos.builder.test.changes")!({ thread: thread(f.session.sourceConversation), value: f.session.id, user: { userId: "U10001" } });
     await assert.rejects(() => f.tests.releaseEvidence(f.job, false), /no current/);
     await integration.receive({ conversation: f.session.sourceConversation, author: { userId: "U10001" } as any, messageId: "human-feedback", text: "Make the summary shorter.", occurredAt: new Date().toISOString() });
-    assert.equal((await f.store.get(f.session.id))?.feedback?.text, "Make the summary shorter.");
+    assert.equal((await f.store.get(f.session.id))?.stage, "feedback-pending");
+    assert.equal((await f.store.get(f.session.id))?.feedback, undefined, "Only an explicitly classified revision may consume feedback; receive never infers development.");
+  } finally { f.cleanup(); }
+});
+
+
+test("an invalid test destination is refused during preparation without breaking ordinary channel routing", () => {
+  const f = builderFunctionalFixture();
+  try {
+    const surface = createSlackBuilderTestSurface({ ...f.previous, connectors: [] }, {} as Chat);
+    assert.equal(surface.contains("missing-test-channel", "slack:ORDINARY:1.0"), false);
+    assert.throws(() => surface.destination("missing-test-channel"), /not a configured channel/);
   } finally { f.cleanup(); }
 });

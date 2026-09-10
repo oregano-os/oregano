@@ -1,3 +1,6 @@
+import { BUILDER_TURN_INTENT_INSTRUCTIONS, parseBuilderTurnIntent, type BuilderTurnIntent } from "../../../runtime/builder/turn-intent.ts";
+import { builderCurrentRequestKey, type BuilderRequestReference } from "../../../runtime/builder/experience.ts";
+import { readBuilderImages } from "../../../runtime/builder/attachments.ts";
 import { systemInstructions } from "./agent-instructions.ts";
 import { BUILDER_INTAKE_INSTRUCTIONS } from "../../../runtime/builder/brief.ts";
 import { randomUUID } from "node:crypto";
@@ -146,6 +149,7 @@ function resolvedTools(
   conversation: ResolvedConversationAgent,
   visibleGrantIds: ReadonlySet<string>,
   workflowSession?: WorkflowConversationSession,
+  builderIntent?: BuilderTurnIntent,
 ): ToolSet {
   const selectedRuntime = workflowSession?.runtime ?? runtime;
   const output: ToolSet = {};
@@ -243,11 +247,11 @@ function resolvedTools(
       ),
     });
   }
-  Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId }));
+  Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId, intent: builderIntent }));
   return output;
 }
 
-async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">, builderContinuation = false) {
+async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments">>, builderContinuation = false) {
   if (!builderContinuation && await builderRelease?.receive({ conversation: thread.id, author: message.author,
     messageId: message.id, text: message.text, occurredAt: message.metadata.dateSent.toISOString() })) return;
   let workflowSession: WorkflowConversationSession | undefined;
@@ -372,7 +376,18 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
   const history = await state.getList<ConversationEntry>(conversationKey);
   const runId = workflowSession?.runId ?? `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
   const visibleGrantIds = new Set(workflowSession?.allowedTools ?? modelVisibleToolGrantIds(agent, sprintBindings[0]));
-  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession);
+  let builderIntent: BuilderTurnIntent | undefined;
+  if (agent.id === "builder") {
+    const current = await state.get<BuilderRequestReference>(builderCurrentRequestKey(artifact.instance.id, requester, deliveryThread.id));
+    const classification = resolveModelExecution({ profile: "utility", task: "builder.turn-intent", requiredCapability: "language" });
+    try {
+      const result = await generateText({ model: classification.model, system: BUILDER_TURN_INTENT_INSTRUCTIONS,
+        prompt: JSON.stringify({ currentMessage: message.text, currentBuild: current ?? null, recentConversation: history.slice(-8) }),
+        maxOutputTokens: classification.selection.maxOutputTokens ?? 2048, maxRetries: 0, abortSignal: resolveSlackTurnAbortSignal(thread.signal, classification.selection.timeoutMs) });
+      builderIntent = parseBuilderTurnIntent(JSON.parse(result.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")), message.id, message.text);
+    } catch { builderIntent = { kind: "question", messageId: message.id }; }
+  }
+  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession, builderIntent);
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
     tools: agent.toolSet.tools
@@ -390,10 +405,12 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
       ? { configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64) }
       : {}),
   });
+  const attachments = agent.id === "builder" ? await readBuilderImages(message.attachments) : { images: [], notices: [] };
+  if (attachments.notices.length) await deliveryThread.post([...new Set(attachments.notices)].join("\n"));
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: [systemInstructions(agent, knowledgeRoute, tools), ...(agent.id === "builder" ? [BUILDER_INTAKE_INSTRUCTIONS] : [])].join("\n\n"),
+    instructions: [systemInstructions(agent, knowledgeRoute, tools), ...(agent.id === "builder" ? [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`, ...attachments.notices] : [])].join("\n\n"),
     tools,
     stopWhen: [stepCountIs(20), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
     prepareStep: ({ stepNumber }) => knowledgeStepChoice(knowledgeRoute, stepNumber),
@@ -401,6 +418,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
   const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
+  if (attachments.images.length) messages[messages.length - 1] = { role: "user", content: [{ type: "text", text: `${member.name}: ${message.text}` }, ...attachments.images] };
   const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
   if (!tools.companyos_agent_handoff && shouldStreamSlackAgentResponse({
     configuration: slackAgentExperience,
@@ -628,6 +646,7 @@ export function getBot(): Chat {
     store: assignmentStore,
   });
   builderChat = createBuilderChatIntegration({ artifact, state, rosterMember, principal,
+    refreshResult: job => builderRelease?.notifier.deliver(job) ?? Promise.resolve(),
     present: (job, card, phase) => createBuilderCardPresenter(getBot(), state)(job, card, phase) });
   slackAgentExperience = resolveSlackAgentExperience();
   const candidateBot = new Chat({

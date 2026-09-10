@@ -79,6 +79,7 @@ export interface BuilderNotificationLease {
 export interface BuilderJobStore {
   create(input: BuilderJobInput, now?: Date): Promise<BuilderJob>;
   get(jobId: string): Promise<BuilderJob | undefined>;
+  listForRequester(instanceId: string, requester: string, conversation?: string): Promise<BuilderJob[]>;
   getByRequestId(requestId: string): Promise<BuilderJob | undefined>;
   claimNext(args: { workerId: string; leaseMs: number; now?: Date }): Promise<BuilderJobLease | undefined>;
   renewLease(args: {

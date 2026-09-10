@@ -8,7 +8,7 @@ import {
 } from "../../../../runtime/builder/brief.ts";
 import { builderJobInputForConfirmedProposal } from "../../../../runtime/builder/service.ts";
 import { createPostgresBuilderJobStore } from "../../../../state-postgres/builder-job-store.ts";
-import type { BuilderJobStore } from "../../../../state-store/builder-jobs.ts";
+import type { BuilderJob, BuilderJobStore } from "../../../../state-store/builder-jobs.ts";
 import type { RosterMember } from "../../../../state-store/roster.ts";
 import {
   builderCancelledActionCard,
@@ -17,9 +17,13 @@ import {
 } from "./action-cards.ts";
 import { runnerTurnPresentation } from "./presentation.ts";
 import { builderFeedbackKey, builderProposalFeedbackKey, builderProposalFeedbackConversation } from "./functional-tests.ts";
-import type { BuilderTestSession } from "../../../../runtime/builder/functional-tests.ts";
+import { BuilderFunctionalTests, builderTestSessionId, type BuilderTestSession } from "../../../../runtime/builder/functional-tests.ts";
 import { assertBuilderTestScope } from "./functional-test-execution.ts";
 import type { BuilderCardPresenter } from "./card-presenter.ts";
+
+import { createPostgresBuilderTestStore } from "../../../../state-postgres/builder-test-store.ts";
+import { assertBuilderDevelopmentIntent, type BuilderTurnIntent } from "../../../../runtime/builder/turn-intent.ts";
+import { builderCurrentRequestKey, builderUserLock, builderOperationLock, builderDecisionKey, rememberBuilderRequest, selectBuilderRequest, type BuilderRequestReference } from "../../../../runtime/builder/experience.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -40,6 +44,7 @@ export interface BuilderChatIntegration {
     thread: Thread;
     requester: string;
     messageId: string;
+    intent?: BuilderTurnIntent;
   }): ToolSet;
   presentTurn(
     generatedText: string,
@@ -55,11 +60,19 @@ export function createBuilderChatIntegration(args: {
   principal(member: RosterMember): string;
   createJobs?: () => BuilderJobStore;
   present?: BuilderCardPresenter;
+  createTests?: () => BuilderFunctionalTests;
+  refreshResult?: (job: BuilderJob) => Promise<void>;
 }): BuilderChatIntegration {
   const createJobs = args.createJobs ?? createPostgresBuilderJobStore;
+  const createTests = args.createTests ?? (() => new BuilderFunctionalTests(createPostgresBuilderTestStore(), () => new Date(), args.artifact.builder?.testInactivityDays ?? 7));
+  const withLock = async <T>(key: string, action: () => Promise<T>): Promise<T> => {
+    const lock = await args.state.acquireLock(key, 300000);
+    if (!lock) throw new Error("Another build operation is in progress. Please try again shortly.");
+    try { return await action(); } finally { await args.state.releaseLock(lock); }
+  };
 
   return {
-    proposalTools({ agent, thread, requester, messageId }) {
+    proposalTools({ agent, thread, requester, messageId, intent }) {
       if (agent.id !== "builder") return {} satisfies ToolSet;
       const builder = args.artifact.builder;
       const contextKey = `builder-context:${sha256({ artifact: args.artifact.artifactHash, requester, thread: thread.id })}`;
@@ -73,24 +86,54 @@ export function createBuilderChatIntegration(args: {
           testableAgents: args.artifact.agents?.filter((entry) => entry.id !== "builder" && entry.toolSet.tools.length === 0).map((entry) => entry.id) ?? [],
           providerAccess: "Configured bindings; actual provider access is independently verified during the test." }),
       });
+      const currentRequest = async () => {
+        const reference = await args.state.get<BuilderRequestReference>(builderCurrentRequestKey(args.artifact.instance.id, requester, thread.id));
+        // Compatibility for reviews created before current-build indexing existed.
+        const legacy = await args.state.get<BuilderTestSession>(builderFeedbackKey(thread.id, requester));
+        const id = reference?.jobId ?? legacy?.jobId ?? await args.state.get<string>(builderProposalFeedbackConversation(thread.id, requester));
+        const job = id ? await createJobs().get(id) : (await createJobs().listForRequester(args.artifact.instance.id, requester, thread.id))[0];
+        return job?.instanceId === args.artifact.instance.id && job.requesterPrincipal === requester && job.sourceConversationKey === thread.id ? job : undefined;
+      };
       output.builder_read_test_result = tool({
-        description: "Read the previous candidate, its actual test summary and authenticated change request in this conversation. Rebuild the complete original change plus this feedback against the current Workspace source; re-read the affected definitions.",
+        description: "Read this conversation's current build, original brief, status, actual test answers and feedback. Use for questions and evaluations too; no Request Changes click is required. Reading never starts development.",
+        inputSchema: jsonSchema({ type: "object", properties: { conversation: { type: "string", maxLength: 512 } }, additionalProperties: false }),
+        execute: async (input: unknown) => {
+          const job = await currentRequest();
+          if (!job) return { available: false };
+          const session = job.state === "published" && job.brief?.brief.test.strategy === "test-resources" ? await createTests().store.get(builderTestSessionId(job)) : undefined;
+          const reference = (input as { conversation?: string })?.conversation;
+          const histories = session?.testConversations ?? (session?.conversation && session.testConversation ? { [session.testConversation]: session.conversation } : {});
+          if (reference && !Object.hasOwn(histories, reference)) throw new Error("That test conversation does not belong to this build.");
+          const history = reference ? histories[reference] : session?.conversation;
+          return { available: true, jobId: job.jobId, status: job.state, previousBrief: job.brief?.brief,
+            test: session ? { stage: session.stage, candidateCommit: session.candidateCommit,
+              result: session.result ? { summary: session.result.summary, completedAt: session.result.completedAt } : undefined,
+              conversations: Object.entries(histories).map(([id, conversation]) => ({ id, replies: conversation.turns.length })),
+              recentReplies: history?.turns.slice(-8).map(turn => ({ messageId: turn.messageId, prompt: turn.prompt, answer: turn.result.summary, completedAt: turn.result.completedAt })),
+              repliesTruncated: (history?.turns.length ?? 0) > 8, testUrl: session.testUrl, feedback: session.feedback } : undefined,
+            decision: await args.state.get(builderDecisionKey(job.jobId)) };
+        },
+      });
+      output.builder_list_builds = tool({
+        description: "List this authenticated user's recent build requests. Older open builds never block a new request. Use to locate an existing test the user explicitly wants to select or resume.",
         inputSchema: jsonSchema({ type: "object", properties: {}, additionalProperties: false }),
-        execute: async () => {
-          const proposalId = await args.state.get<string>(builderProposalFeedbackConversation(thread.id, requester));
-          if (proposalId) {
-            const retained = await args.state.get<{ feedback?: { principal: string; text: string } }>(builderProposalFeedbackKey(proposalId));
-            const previous = retained?.feedback ? await createJobs().get(proposalId) : undefined;
-            if (previous?.requesterPrincipal === requester && previous.sourceConversationKey === thread.id && retained?.feedback?.principal === requester) {
-              return { available: true, jobId: proposalId, previousBrief: previous.brief?.brief, feedback: retained.feedback, liveActionInvalidated: true };
-            }
-          }
-          const session = await args.state.get<BuilderTestSession>(builderFeedbackKey(thread.id, requester));
-          if (!session?.feedback || session.requester !== requester || session.sourceConversation !== thread.id) return { available: false };
-          const previous = await createJobs().get(session.jobId);
-          return { available: true, jobId: session.jobId, candidateCommit: session.candidateCommit,
-            previousBrief: previous?.brief?.brief, result: session.result?.summary, feedback: session.feedback,
-            liveActionInvalidated: session.stage === "changes-requested" };
+        execute: async () => ({ builds: (await createJobs().listForRequester(args.artifact.instance.id, requester)).map(job => ({ jobId: job.jobId, objective: job.objective, status: job.state, createdAt: job.createdAt })) }),
+      });
+      if (intent?.kind === "select-test" && intent.messageId === messageId) output.builder_select_test = tool({
+        description: "Select or resume the existing build explicitly requested by the human for their next new test-channel conversations. Existing test threads keep their original version. This does not develop anything.",
+        inputSchema: jsonSchema({ type: "object", required: ["jobId"], properties: { jobId: { type: "string" } }, additionalProperties: false }),
+        execute: async (input: unknown) => {
+          const id = (input as { jobId?: string }).jobId, job = id ? await createJobs().get(id) : undefined;
+          if (!job) throw new Error("Build not found.");
+          return withLock(builderUserLock(args.artifact.instance.id, requester), () => withLock(builderOperationLock(job.jobId), async () => {
+            if (job.instanceId !== args.artifact.instance.id || job.requesterPrincipal !== requester || job.state !== "published") throw new Error("Select only your own prepared build.");
+            const tests = createTests(); let session = await tests.store.get(builderTestSessionId(job));
+            if (!session?.conversation || !["expired", "interactive"].includes(session.stage)) throw new Error("This build has no available interactive test.");
+            if (await args.state.get(builderDecisionKey(job.jobId))) throw new Error("This build already has a decision.");
+            if (session.stage === "expired" || Date.parse(session.conversation.expiresAt) <= tests.now().getTime()) session = await tests.resume(session.id, requester);
+            await selectBuilderRequest(args.state, args.artifact.instance.id, requester, job);
+            return { selected: true, jobId: job.jobId, testUrl: session.testUrl, message: "Start a new conversation in the configured test channel. Existing conversations retain their version." };
+          }));
         },
       });
       output.builder_list_context = tool({
@@ -118,7 +161,7 @@ export function createBuilderChatIntegration(args: {
           return { ...receipt, workspaceCommit: args.artifact.provenance.workspaceCommit, content };
         },
       });
-      output.builder_propose_change = tool({
+      if (intent && ["new-build", "revision"].includes(intent.kind)) output.builder_propose_change = tool({
           description: [
             "Start the requested isolated coding job from the resolved, source-grounded brief.",
             "Use only after the human's objective and scope are clear and material questions are resolved.",
@@ -126,6 +169,7 @@ export function createBuilderChatIntegration(args: {
           ].join(" "),
           inputSchema: jsonSchema(JSON.parse(JSON.stringify(BUILDER_BRIEF_SCHEMA))),
           execute: async (input: unknown) => {
+            assertBuilderDevelopmentIntent(intent, messageId);
             if (!builder) throw new Error("Builder can clarify this change, but coding requires the Instance repository and execution bindings to be configured.");
             const parsed = parseBuilderBrief(input);
             if (parsed.test.strategy === "simulate" || parsed.test.strategy === "live-trial") {
@@ -151,23 +195,48 @@ export function createBuilderChatIntegration(args: {
               reads: receipts.filter((receipt): receipt is BuilderContextRead => receipt !== null),
             });
             const objective = brief.brief.objective;
-            const requestId = `builder-request-${sha256(`${requester}:${thread.id}:${messageId}:${brief.digest}`).slice(0, 32)}`;
-            const job = await createJobs().create(builderJobInputForConfirmedProposal(builder, {
-              requestId,
-              instanceId: args.artifact.instance.id,
-              requesterPrincipal: requester,
-              sourceConversationKey: thread.id,
-              objective,
-              brief,
-              repositoryId: builder.repository.repositoryId,
-              baseCommit: brief.workspaceCommit,
-            }));
-            const feedback = await args.state.get<BuilderTestSession>(builderFeedbackKey(thread.id, requester));
-            if (feedback?.stage === "changes-requested" && feedback.requester === requester && feedback.sourceConversation === thread.id) {
-              await args.state.setIfNotExists(`builder:test-parent:${job.jobId}`, feedback.id);
-            }
-            const priorProposal = await args.state.get<string>(builderProposalFeedbackConversation(thread.id, requester));
-            if (priorProposal && priorProposal !== job.jobId) await args.state.delete(builderProposalFeedbackConversation(thread.id, requester));
+            const requestId = `builder-request-${sha256(`${requester}:${thread.id}:${messageId}`).slice(0, 32)}`;
+            const job = await withLock(builderUserLock(args.artifact.instance.id, requester), async () => {
+              const existing = await createJobs().getByRequestId(requestId);
+              if (existing) { await rememberBuilderRequest(args.state, existing); return existing; }
+              let parentSessionId: string | undefined;
+              let revisedJob: BuilderJob | undefined;
+              if (intent?.kind === "revision") {
+                const previous = await currentRequest();
+                if (!previous) throw new Error("No existing build was identified for this revision.");
+                revisedJob = previous;
+                await withLock(builderOperationLock(previous.jobId), async () => {
+                  const decision = await args.state.get<{ kind: string }>(builderDecisionKey(previous.jobId));
+                  if (decision && decision.kind !== "revision") throw new Error("This build already has a decision.");
+                  if (previous.brief?.brief.test.strategy === "test-resources") {
+                    const tests = createTests();
+                    const session = await tests.store.get(builderTestSessionId(previous));
+                    if (!session || session.stage === "accepted" || session.stage === "discarded") throw new Error("This build cannot be revised. Start a new build instead.");
+                    if (session.stage !== "changes-requested") await tests.requestChanges(session.id, { principal: requester, messageId, text: intent.requestQuote!, receivedAt: new Date().toISOString() });
+                    parentSessionId = session.id;
+                  } else {
+                    const key = builderDecisionKey(previous.jobId), decision = await args.state.get<{ kind: string }>(key);
+                    if (decision && decision.kind !== "revision") throw new Error("This build already has a publication or discard decision.");
+                    await args.state.set(key, { kind: "revision", actor: requester });
+                    await args.state.set(builderProposalFeedbackKey(previous.jobId), { jobId: previous.jobId, feedback: { principal: requester, text: intent.requestQuote } });
+                  }
+                });
+              }
+              const created = await createJobs().create(builderJobInputForConfirmedProposal(builder, {
+                requestId,
+                instanceId: args.artifact.instance.id,
+                requesterPrincipal: requester,
+                sourceConversationKey: thread.id,
+                objective,
+                brief,
+                repositoryId: builder.repository.repositoryId,
+                baseCommit: brief.workspaceCommit,
+              }));
+              if (parentSessionId) await args.state.setIfNotExists(`builder:test-parent:${created.jobId}`, parentSessionId);
+              await rememberBuilderRequest(args.state, created);
+              if (revisedJob) await args.refreshResult?.(revisedJob);
+              return created;
+            });
             if (args.present) await args.present(job, builderQueuedActionCard(job), "queued");
             else await thread.post(builderQueuedActionCard(job));
             return {
@@ -245,6 +314,7 @@ export function createBuilderChatIntegration(args: {
             baseCommit: pending.baseCommit,
           }),
         );
+        await withLock(builderUserLock(job.instanceId, job.requesterPrincipal), () => rememberBuilderRequest(args.state, job));
         await resolveBuilderActionCard(
           event,
           builderQueuedActionCard(job),

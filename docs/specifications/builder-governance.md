@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-09
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -410,9 +410,11 @@ a separate storage namespace; production workers, assignments, timers and
 workflow dispatch fences cannot consume that state. Artifact identity is retained.
 Unknown publication or execution outcomes stop rather than repeating effects.
 
-The result is delivered with a provider permalink. **Request changes** immediately
-invalidates its live action; the next authenticated requester message becomes
-feedback. Builder reads that feedback and original brief, then rebuilds the
+The result is delivered with a provider permalink. **Request Changes** immediately
+invalidates its live action. Only a current explicit revision request becomes
+feedback; a question or screenshot evaluation is answered without coding.
+Builder reads actual saved test answers and the original brief without requiring
+a button click, then rebuilds the
 complete requested result against the current source. The new session retains
 its predecessor and must run its own tests. Test resources and company policy
 cannot be expanded by candidate-authored instructions.
@@ -460,17 +462,58 @@ Maintain one understandable progress presentation through preparation, coding,
 checks and testing. Show the objective, current step and next action. Keep
 repository identifiers, full commits and job IDs in technical details.
 
-Return one result card in the original Builder conversation: a plain-language
-summary, the actual test and its limits, a result link, **Request changes**, and
-**Go live** when authorized and ready. Do not post separate test and proposal
-cards. Explain that Go live accepts the exact reviewed result and starts
-publication; report progress until deployed verification proves it is live.
-If readiness or authority is missing, explain the next step on the same result
-instead of presenting a working Go live action.
+Return one result card in the original Builder conversation. From **Ready to test**,
+show these four actions directly, without a More menu:
 
-"Make it live only after my approval" means offer publication after later
-acceptance, not prepare-only. Preparing a draft without offering publication
-remains distinct. Starting development never accepts the result.
+| Action | Effect |
+|---|---|
+| **Go Live** | Accept the exact current result and start the qualified release path if checks and current company authority permit it. |
+| **Discard Build** | Stop testing and publication, close only the exact unmerged proposal through the trusted repository adapter, and retain history. |
+| **Open Test Channel** | Open the configured destination. New threads use the requesting user's selected build; old result cards disclose when another build is selected. |
+| **Request Changes** | Invalidate the old result's release action and ask what to revise. Subsequent questions remain questions. |
+
+Include a concise change summary, what actually ran, its limits and the actual
+result link. No second completion/proposal card is posted. Preparing a draft with
+`prepare-only` still cannot publish: the card explains that no publication intent
+was requested. A visible Go Live action does not itself establish readiness or rights.
+If checks are pending, a test is running or the evidence changed, the action explains
+the blocker and refreshes the card. It does not store an approval to execute later.
+The accepted result is frozen atomically; further test turns cannot modify it.
+After acceptance, the same card reports **Publishing**, then **Live** only after
+production verification. An uncertain publication outcome is reported as uncertain.
+
+Discard and publication share a per-build lock and durable decision. An uncertain
+repository closure keeps testing and publication blocked but never claims the draft
+was discarded. Retrying reconciles that exact proposal; it does not delete its branch
+or audit history. Already accepted or merged builds cannot be discarded.
+
+Example maintained copy:
+
+1. **Build request received** — “I’m sending your request to the coding agent.
+   I’ll confirm when it starts.”
+2. **Preparing your build** — “The workspace and coding environment are being
+   prepared. Development has not started yet.”
+3. **Coding agent is working** — “Development has started. Afterwards, I’ll check
+   the change and prepare your test version.”
+4. **Ready to test** — change summary, actual test explanation/link and the four
+   actions above. Technical checks without a connected test are described explicitly.
+5. **Publishing** — approval received and deployment progress, followed by **Live**
+   only on verified production completion, or a concrete stopped/uncertain status.
+
+The admission host classifies the current message separately from the authoring
+Tool loop using the configured model recipe. Questions, evaluation requests and
+unreadable/uncertain intent expose no development Tool. Only a current development
+request or unconsumed answer to a concrete pending scope can expose submission.
+The current-message ID is the durable idempotency key, independently of a model's
+changing brief. Interpretation still needs model qualification; this is not a claim
+that a model can never misunderstand intent. Images use only an authenticated
+communication adapter's data/reader (three images, five MiB each); inaccessible
+images are disclosed, never described as seen or fetched from arbitrary URLs.
+
+An explicit new build is allowed while older drafts remain open, in the same or
+a new Builder conversation. It does not consume unrelated revision feedback or
+automatically discard anything. Read Tools expose the authenticated user's current
+build and retained results, including builds from before the new selection index.
 
 ### Agent-recommended testing
 
@@ -514,16 +557,33 @@ The interactive Agent profile extends `test.execution` with optional
 configured test destination and compiled candidate. Bind the test conversation
 to one exact candidate, retaining its own multi-turn history for follow-up
 questions. Keep it separate from the company's active Agent and other work.
-Sessions admit at most twenty completed replies and expire after 24 hours while
-open. Expiry is enforced on use; completed review evidence is retained. Only the
-requester may send questions, finish, restart or request revisions. A supported
-Workspace-only change needs no second app or mandatory Preview. Mention the app
-in the test thread where the Instance's ingress policy requires mentions.
+Core keeps one selected build per Company Instance and authenticated user for
+new test-channel conversations. Selection occurs when a new request is admitted,
+not when a worker finishes and not through a mandatory activation button. If that
+build is still preparing, explain this instead of routing to an older version.
+A late completion cannot overwrite a newer selection. Different users have
+independent selections. Existing threads remain pinned to their candidate and
+requester, even when that user starts another build. Each fresh thread has empty
+history; the scripted initial example remains in its original result thread.
 
-Changing only test questions or inputs should allow a fresh test of the same
-unchanged candidate without recoding. Retain fresh evidence and prevent old
-acceptance from authorizing a different result. Full workflow dialogs with
-Tools, messages, timers and intermediate decisions are outside this increment.
+Each build admits at most twenty test conversations, each with at most twenty
+completed replies. Replies for one candidate are serialized; different users/builds
+can proceed concurrently. Mention the app where the Instance's ingress policy
+requires it. There is no Finish test or Restart test step. A fresh user-created
+thread starts another test directly; Go Live freezes current completed evidence.
+
+Open sessions pause after inactivity, by default seven days. The Instance may set
+`builder.test_inactivity_days` to an integer from 1 through 90. Expiry is enforced
+on use; no timer job deletes history or closes the draft. The requester can ask
+Builder to select or resume a saved available build without recoding. Accepted,
+discarded, unresolved or failed tests are not silently resumed. Shared testing of
+one build by several humans and full workflow dialogs remain outside this increment.
+
+Core lifecycle, selection and presentation use opaque conversation references and
+communication ports. The maintained deployed adapter is Slack, and the maintained
+production release host remains Vercel. A synthetic non-Slack adapter proves the
+Core boundary; it does not claim a deployed Teams or other provider implementation.
+Claude Code and Codex retain the same ACP, brief and result contracts.
 
 ### Deferred: simulation
 
