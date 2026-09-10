@@ -15,6 +15,10 @@ audience:
 
 # Current System Status
 
+Core 0.11.4 corrects Builder test presentation: candidate conversations show the
+actual answer without a setup introduction, and readiness changes update the
+same result card while preserving distinct progress and release history.
+
 Builder test conversations show candidate replies without an extra test-version
 introduction. Readiness changes refresh the existing result card instead of
 posting a second completion card; later release messages retain earlier history.
