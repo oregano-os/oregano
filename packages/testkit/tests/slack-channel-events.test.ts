@@ -66,3 +66,19 @@ test("DM reservations reject broad or ambiguous configured identities", async ()
     assert.throws(() => workflowDmRecipients(value), /SLACK_WORKFLOW_DM_RECIPIENTS/);
   }
 });
+
+
+test("an isolated receiver admits only exact owned channel events and controls", async () => {
+  const owns = (input: Request) => ignoreSlackChannelEvent(input, "process", undefined, [], "C10001,G10001");
+  for (const type of ["message", "app_mention"]) {
+    for (const channel of ["C10001", "G10001"]) assert.equal(await owns(request({ type, channel })), false);
+    for (const channel of ["C20001", "D10001"]) assert.equal(await owns(request({ type, channel })), true);
+  }
+  const control = (channel?: string) => new Request("https://example.test", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ payload: JSON.stringify({ type: "block_actions", ...(channel ? { channel: { id: channel } } : {}) }) }).toString() });
+  const input = control("C10001"), bytes = await input.clone().text();
+  assert.equal(await owns(input), false); assert.equal(await input.text(), bytes);
+  assert.equal(await owns(control("C20001")), true);
+  assert.equal(await owns(control()), true);
+  for (const ids of ["", "*", "D10001", "C10001,C10001"]) await assert.rejects(ignoreSlackChannelEvent(request({}), "process", undefined, [], ids), /SLACK_OWNED_CHANNEL_IDS/);
+});

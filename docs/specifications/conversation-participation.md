@@ -110,3 +110,9 @@ exact ownership exclusions. The legacy blanket channel-message ignore flag no
 longer drops owned replies. No database migration or new business permission is
 required. Before rollback, restore a compatible ingress/receiver pairing while
 preserving message, job and candidate evidence.
+
+The maintained channel adapter also supports a finite Instance-owned channel
+allowlist for isolated deployments. An isolated receiver must reject foreign
+channels and callbacks whose channel cannot be established before dispatch.
+This extends ingress ownership only; the common participation and human
+permission decisions still run for every admitted message.

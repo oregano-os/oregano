@@ -1343,3 +1343,8 @@ controller and attributed context. The same-message routing and read-only
 source checks remain in force. Synthetic tests exercise silence, follow-ups
 and sender identity; they do not prove a live provider deployment. See
 [the participation contract](../specifications/conversation-participation.md).
+
+An authorized model-only hosted check exercised eight synthetic participation
+cases with the configured model: all returned the expected respond or
+context-only choice in one model step. This qualifies those cases only; it does
+not establish incoming communication delivery or company acceptance.

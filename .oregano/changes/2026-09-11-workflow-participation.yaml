@@ -9,6 +9,7 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
   - packages/runner-vercel/src/lib/slack-channel-events.ts
   - packages/testkit/tests/slack-channel-events.test.ts
   - .oregano/changes/2026-09-11-workflow-participation.yaml
