@@ -89,8 +89,8 @@ export function createBuilderFunctionalTestIntegration<Author, Lock>(args: {
         if (!threadReference) {
           await transport.qualify(destination!);
           if (!await args.state.setIfNotExists(intentKey, { candidate: session.candidateCommit })) throw new Error("A test-thread publication has an unresolved outcome; do not duplicate it.");
-          const message = await args.chat.channel(binding.channel).post({ title: "Test version · Not live", paragraphs: [briefSummary(job.objective),
-            "This conversation uses your test version. Start a new conversation in this test channel for fresh history."], actions: [] });
+          const message = await args.chat.channel(binding.channel).post(session.execution.kind === "agent"
+            ? session.execution.prompt : briefSummary(job.objective));
           threadReference = message.threadId;
           if (!transport.contains(destination!, threadReference)) throw new Error("Test publication returned another destination.");
           await args.state.set(rootKey, threadReference);
@@ -186,7 +186,6 @@ export function createBuilderFunctionalTestIntegration<Author, Lock>(args: {
         await args.state.setIfNotExists(builderConversationKey(argsIn.conversation), assigned);
         if (await args.state.get(builderConversationKey(argsIn.conversation)) !== assigned) throw new Error("Conversation was already assigned to another build.");
         await thread.subscribe();
-        await thread.post({ title: "Test version · Not live", paragraphs: [briefSummary(job.objective), "This conversation stays on this version. Start another conversation for fresh history."], actions: [] });
       }
       const thread = args.chat.thread(argsIn.conversation);
       const lock = await args.state.acquireLock(builderOperationLock((await args.tests.store.get(assigned))?.jobId ?? assigned), 300000);
