@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -89,6 +89,29 @@ is not a Package, Component, Tool grant, provider binding, or approval. A
 Connector Package MAY implement Capabilities. A Tool Package MAY require
 Capabilities. A Package MUST NOT redefine a Capability under an existing Core
 identifier.
+
+### Experimental historical evidence capability
+
+The maintained catalog adds `evidence.query@1.0.0` as a read capability (minimum
+R0, no effect claim). Its schemas live in `packages/capabilities/evidence.ts`.
+Company Tools MUST declare the capability and their actual data classification;
+a binding or installed connector never substitutes for a Tool grant.
+
+Input selects `kind` (`workflows`, `records`, or `context`), exact `references`,
+`from`, `to`, optional `limit` (1–100), `step_ids` and `include_linked_builds`.
+Connector scopes explicitly name Agent, owning workflow (or null for standalone),
+read groups, allowed workflow/source/path references and `max_history_days`
+(1–90). Runtime-supplied Instance, subject, Agent and workflow cutoff MUST remain
+outside model-controlled input. Sources and context may only narrow that scope.
+
+Output contains `items`, `artifact_hash` and `coverage` with requested interval,
+observation time, completeness and limitations. Consumers MUST distinguish
+retained-read completeness from complete business history, preserve missing
+sources and avoid invented correlation. The maintained Records implementation
+exposes observations, not a complete provider event ledger. Exact source policy
+and generation checks apply before returning them. Storage/provider details and
+the meaning of a company's metric stay on their respective sides of the
+[System of Proof](../architecture/system-of-proof.md) boundary.
 
 ## 3. Package identity and manifest
 

@@ -61,10 +61,26 @@ export class WorkflowConversationHost {
   #published() {
     return new PublishedConversationContextReader({ ...this.#args, clock: () => this.#args.clock?.() ?? new Date().toISOString() });
   }
-  async #discussion(conversation: WorkflowConversation, principal: string, text: string): Promise<WorkflowInboundResult> {
+  async #discussion(conversation: WorkflowConversation, principal: string, text: string, source?: { eventId: string; messageId: string }): Promise<WorkflowInboundResult> {
     const context = await this.#published().read(conversation, principal);
     if (!context) return { kind: "closed" };
     const latest = context.evidence.messages.at(-1)!;
+    const root = context.evidence.messages.find(message => message.messageId === conversation.threadId);
+    const related = root ?? (new Set(context.evidence.messages.map(message => message.runId)).size === 1 ? latest : undefined);
+    if (source && related) {
+      // Already reread and attributed by the provider adapter. Feedback is data,
+      // never an approval and never permission to reopen a terminal workflow.
+      const [seconds, fraction] = source.messageId.split(".");
+      const occurredAt = new Date(Number(seconds) * 1000).toISOString().replace(".000Z", `.${fraction}Z`);
+      await this.#args.control.appendEvent({ runId: related.runId, stepId: related.stepId,
+        actor: "human:feedback", subjectPrincipal: principal, event: "workflow.feedback.received", status: "succeeded",
+        evidence: { event_id: source.eventId, message_id: source.messageId, principal, occurred_at: occurredAt,
+          observed_at: this.#args.clock?.() ?? new Date().toISOString(), publication_message_id: root?.messageId ?? null,
+          relation: root ? "publication-thread" : "single-run-conversation",
+          related_publication_ids: context.evidence.messages.filter(message => message.runId === related.runId).map(message => message.messageId),
+          run_id: related.runId, step_id: related.stepId, conversation: { ...conversation },
+          text: text.slice(0, 8000), truncated: text.length > 8000, authority: "feedback-only" } });
+    }
     return { kind: "conversation", session: { artifact: this.#args.artifact, agent: context.agent, principal, member: context.member,
       conversation, runId: latest.runId, stepId: latest.stepId, allowedTools: [], text, publishedContext: context.evidence } };
   }
@@ -232,7 +248,7 @@ export class WorkflowConversationHost {
       if (!delivered && !(await store.publishedAssignments({ instanceId: artifact.instance.id, conversation: qualifiedConversation, now })).length) return { kind: "unassigned" };
       const reply = initial ?? await transport.reply({ conversation: qualifiedConversation, messageId: args.messageId, roster, channelReply });
       if (reply.principal !== principal) throw new Error("Workflow reply author differs from the candidate delivery identity");
-      if (!delivered) return this.#discussion(qualifiedConversation, principal, reply.text);
+      if (!delivered) return this.#discussion(qualifiedConversation, principal, reply.text, { eventId: reply.eventId, messageId: args.messageId });
       const run = await store.read(artifact.instance.id, delivered.runId);
       if (!run) throw new Error("Delivered workflow run is unavailable");
       if (selected && String(run.revision) !== selected.version) throw new Error("Selected workflow changed before dispatch");
@@ -251,14 +267,14 @@ export class WorkflowConversationHost {
         return { kind: "decision", runId: result.runId, decision: subjectReply };
       }
       const active = await store.assignment({ instanceId: artifact.instance.id, conversation: qualifiedConversation, now });
-      if (!active) return this.#discussion(qualifiedConversation, principal, reply.text);
+      if (!active) return this.#discussion(qualifiedConversation, principal, reply.text, { eventId: reply.eventId, messageId: args.messageId });
       const pinned = await store.getArtifact(active.artifactHash), member = findByCanonicalPrincipal(roster, principal);
       const workflow = pinned?.workflows?.find((workflow) => workflow.id === run.workflowId), step = workflow?.steps.find((step) => step.id === run.state.cursor);
       const agent = pinned?.agents.find((agent) => agent.id === workflow?.agentId);
       if (!pinned || !workflow || !step || !agent || !member) throw new Error("Workflow conversation has no exact historical definition");
       if (step.collect && (!run.state.wait || run.state.wait.dueAt <= now)) return { kind: "closed" };
       if (channelReply && (!step.collect || run.state.status !== "waiting" || run.state.blocked))
-        return selected ? this.#discussion(qualifiedConversation, principal, reply.text) : { kind: "closed" };
+        return selected ? this.#discussion(qualifiedConversation, principal, reply.text, { eventId: reply.eventId, messageId: args.messageId }) : { kind: "closed" };
       if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) return { kind: "closed" };
       const runtime = new CompanyOSRuntime({ artifact: pinned, state: this.#args.control, connectors: await this.#args.connectors(pinned),
         workflowContext: new WorkflowConversationContextReader({ store, instanceId: artifact.instance.id, conversation, subjectPrincipal: principal,

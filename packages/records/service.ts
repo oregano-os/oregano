@@ -26,6 +26,18 @@ export class RecordAccessDeniedError extends Error {
 }
 
 export class CompanyRecordsService {
+  async history(args: { sourceId: string; from: string; to: string; limit: number; subject: RecordAccessSubject }): Promise<RecordObjectVersion[]> {
+    const { instanceId, registry, store } = this.dependencies;
+    const source = registry.source(args.sourceId);
+    registry.assertSourceInstance(source.id, instanceId);
+    if (args.subject.status !== "active" || !source.access.read_groups.some(group => args.subject.group_ids.includes(group))) {
+      throw new Error("Record source history access denied by current source policy");
+    }
+    const versions = await store.readHistory({ instanceId, sourceId: source.id, from: args.from, to: args.to, limit: args.limit });
+    if (versions.some(value => value.instance_id !== instanceId || value.source_id !== source.id
+      || compareRecordInstants(value.observed_at, args.from) <= 0 || compareRecordInstants(value.observed_at, args.to) > 0)) throw new Error("Record history escaped its source or time scope");
+    return versions;
+  }
   readonly dependencies: {
     instanceId: string;
     registry: CompanyRecordsRegistry;

@@ -100,6 +100,18 @@ export function createPostgresWorkflowExecutionStore(options: { prepareArtifactS
         order by run_id limit ${args.limit}`;
       return rows.map(runRow);
     },
+    async history(args) {
+      if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 101 || !args.workflowIds.length) throw new Error("Invalid workflow history bound");
+      await ensureWorkflowExecutionSchema();
+      const rows = await connection()`select * from companyos.workflow_executions
+        where instance_id = ${scoped(args.instanceId)}
+        and workflow_id in (select jsonb_array_elements_text(${JSON.stringify(args.workflowIds)}::jsonb))
+        and (identity_json->'trigger'->>'instant')::timestamptz > ${args.from}::timestamptz
+        and (identity_json->'trigger'->>'instant')::timestamptz <= ${args.to}::timestamptz
+        and (${args.excludeRunId ?? null}::text is null or run_id <> ${args.excludeRunId ?? null})
+        order by (identity_json->'trigger'->>'instant')::timestamptz desc, run_id desc limit ${args.limit}`;
+      return rows.map(runRow);
+    },
     async hasActiveArtifact(args) {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select exists(select 1 from companyos.workflow_executions

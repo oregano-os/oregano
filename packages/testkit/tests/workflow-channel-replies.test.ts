@@ -67,6 +67,15 @@ test("a report published inside an existing thread needs no root execution assig
   assert.equal(received.kind, "conversation"); if (received.kind !== "conversation") return;
   assert.deepEqual(received.session.allowedTools, []); assert.equal(received.session.runtime, undefined);
   assert.equal(received.session.publishedContext!.messages[0]!.content, "Please explain the intended outcome.");
+  const feedback = (await h.control.listEvents(runs[0]!.runId)).filter(event => event.event === "workflow.feedback.received");
+  assert.equal(feedback.length, 1);
+  const evidence = feedback[0]!.evidence as any;
+  assert.equal(evidence.principal, ENGINE_OWNER); assert.equal(evidence.message_id, input.messageId);
+  assert.equal(evidence.publication_message_id, null, "an existing-thread reply does not identify an individual report message");
+  assert.equal(evidence.relation, "single-run-conversation");
+  assert.deepEqual(evidence.related_publication_ids, [received.session.publishedContext!.messages[0]!.messageId]);
+  assert.equal(evidence.authority, "feedback-only"); assert.equal(evidence.text, "Please explain this report");
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, runs[0]!.runId))!.state.decisions, {});
 });
 
 test("multiple open questions ask for clarification; cancelled or expired runs do not capture a channel answer", async () => {

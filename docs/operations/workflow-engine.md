@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-09
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -321,3 +321,28 @@ See [Shared Conversation Participation](../specifications/conversation-participa
 Exact provider ownership, current sender permissions and independent authorized
 job notifications remain mandatory. This source change needs an exact Instance
 adoption and configured-model qualification; unit tests are not live evidence.
+
+## Monitor a scheduled review without an Agent
+
+The existing authenticated operator endpoint accepts:
+
+```json
+{"action":"health","workflowId":"quality-review","graceMinutes":120}
+```
+
+This read bypasses model generation and workflow/connector initialization. It
+uses the current compiled calendar, host activation and retained run state.
+The response reports a blocked run, an overdue successful occurrence after the
+chosen grace period, or two successive unsuccessful expected occurrences.
+A quiet `done` result counts as success. Disabled calendars and non-working days
+do not create missing occurrences. The lookback is bounded to 30 days and 100
+runs; overflow is explicit. Ordinary operator authentication still applies.
+
+A healthy or intentionally disabled review returns 200; a required intervention
+returns 503 with structured issues and run references. Query/storage failures
+also return 503. Connect this check to the Instance's existing operations monitor,
+accountable human, permitted destination and repeat suppression. A 503 or log
+alone is not delivered notice. Verify an intentionally blocked review, unavailable
+model, actual alert receipt and recovery before unattended activation. Until that
+route is qualified, keep the review calendar blocked. No additional monitoring
+Agent or notification service is installed by this endpoint.
