@@ -477,23 +477,31 @@ fabricated webhook or count an operator-only replay as live delivery acceptance.
 See the [Vercel Slack setup instructions](https://vercel.com/kb/guide/build-a-slack-bot-with-vercel-connect)
 and [Slack private-channel events](https://docs.slack.dev/reference/events/message.groups/).
 
-For a staged shared-app rollout, the main Slack webhook has an opt-in
-`SLACK_CHANNEL_MESSAGE_EVENTS=ignore` guard. Deploy and verify this guard on a
-destination that must retain mention/DM-only behavior **before** subscribing the
-app to channel message events. It drops `message` events from public or private
-channels on `/api/webhooks/slack`; `app_mention`, direct messages and interactive
-controls keep their existing authenticated path. The workflow-only test endpoint
-is separate. The default `process` behavior is unchanged. This is an Instance
-rollout choice, not a Workspace business rule or permission to deploy production.
-Remove the guard only after channel conversation behavior is explicitly accepted.
+For a staged shared-app rollout, configure exact channel ownership before enabling
+another destination. The legacy `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` blanket
+filter is retired: both `ignore` and `process` retain owned channel messages for
+subscription and participation routing. Neither setting provides isolation.
+See [shared-app staging](vercel-slack-event-staging.md) for the paired deployment
+checks. Ownership is an Instance rollout choice, not a Workspace business rule
+or permission to deploy production.
 
 To give the workflow Instance exclusive ownership of an approved test channel,
 set `SLACK_IGNORED_CHANNEL_IDS` on the other Instance to the exact channel IDs,
 separated by commas. Omit the variable when no channels are excluded. Wildcards,
 duplicates, direct-message IDs and empty entries are rejected. On the ordinary
-Slack webhook this excludes both `message` and `app_mention` for those channels.
-Mentions elsewhere, DMs and interactive controls retain their existing paths.
-The existing `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` setting can remain in place.
+Slack webhook and `/api/workflows/slack`, this excludes `message`, `app_mention`,
+and channel-bound `block_actions` before responder initialization. Both JSON and
+form actions are checked against `channel.id` and `container.channel_id`.
+Other channels and DMs retain their existing admission and SDK authentication;
+channel-less controls follow their existing rules. Existing exact DM reservations
+also exclude DM-bound actions for the reserved account and person from production
+ingress. The workflow-only receiver retains its reserved DM messages and actions.
+Verify that test-channel and reserved-DM buttons cannot trigger a production
+response and ordinary production buttons still require a valid Slack signature.
+With routing exclusions or reservations configured, JSON and form bodies above
+100,000 characters are acknowledged without responder dispatch. This ownership
+inspection limit also applies to production channels; an oversized payload must
+not bypass routing into the SDK.
 
 The workflow-only endpoint accepts signed ordinary messages and `app_mention`
 events, then checks the persisted conversation and its assigned recipient.

@@ -41,11 +41,22 @@ Set `SLACK_IGNORED_CHANNEL_IDS` on the primary destination to a comma-separated
 list of exact channel IDs owned by the test destination. Deploy and verify this
 exclusion before enabling mention handling on the test destination.
 
-The primary webhook then drops both `message` and `app_mention` for those channels.
-Other mentions, direct messages and interactive controls retain their existing
-path. IDs must identify channels; empty entries, duplicate IDs, direct-message
+Both `/api/webhooks/slack` and `/api/workflows/slack` then drop `message`,
+`app_mention`, and channel-bound `block_actions` for those channels before
+initializing a responder. The exclusion recognizes JSON and form-encoded actions
+using either `channel.id` or `container.channel_id`. Other channels, direct
+messages and channel-less controls retain their existing admission and SDK
+signature verification. Channel exclusions do not change DM reservations.
+IDs must identify channels; empty entries, duplicate IDs, direct-message
 IDs and wildcards are rejected. Leave the variable unset to exclude no channels.
 Keep company-specific IDs in Instance configuration, outside Core source.
+
+Receivers with channel exclusions, channel allowlists or DM reservations inspect
+at most 100,000 request-body characters. Larger JSON or form requests are
+acknowledged without dispatch, because their ownership cannot be established
+within that limit. This also applies to otherwise ordinary production payloads
+above the limit. The ordinary webhook's behavior without any routing rules is
+unchanged; the workflow endpoint retains its existing inspection limit.
 
 This needs no new Slack subscription, scope or installation. The test destination
 still verifies provider signatures, human identity and the active conversation
@@ -74,9 +85,13 @@ prove incoming Slack delivery or a model response. Complete a real reply test.
 A shared Slack app can deliver a person's direct message to both deployments.
 Before testing a workflow in a DM, reserve its route on both destinations.
 Set `SLACK_WORKFLOW_DM_RECIPIENTS` to the same exact `account:user` list, for
-example `T10001:U10002`. This maintenance guard excludes those DM messages from
-the ordinary webhook. Other accounts, people, channels and controls retain
-their existing behavior. No credential, grant or workflow changes.
+example `T10001:U10002`. This maintenance guard excludes those DM messages and
+DM-bound `block_actions` from the ordinary webhook. The alternate
+`/api/workflows/slack` endpoint also excludes reserved DM actions unless it runs
+in workflow-only mode. Actions identify the account and person through `team.id`
+and `user.id`, and the DM through `channel.id` or `container.channel_id`, in JSON
+or form payloads. Other accounts, people and channels retain their existing
+behavior. No credential, grant or workflow changes.
 
 The workflow destination must run a compatible receiver that accepts the same
 list and verifies its existing recipient-bound questions. Verify the exclusion
