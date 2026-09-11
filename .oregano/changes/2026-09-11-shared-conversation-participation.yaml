@@ -1,7 +1,7 @@
 version: 3
 plan_id: shared-conversation-participation-2026-09-11
 created: 2026-09-11
-title: Let existing Agents participate selectively in shared conversations
+title: Release Core 0.12.0 with selective shared-conversation participation
 objective: Admit owned conversation follow-ups, preserve attributed context and let the existing Agent explicitly choose visible participation without another model classifier. Enforce the same output contract for every maintained and future chat adapter, including candidate tests and workflow conversations.
 non_goals:
   - Add a separate participation Agent or model classification pass.
@@ -10,6 +10,11 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
   - packages/testkit/tests/builder-release-postgres.test.ts
   - package.json
   - packages/runner-vercel/src/lib/conversation-participation.test.ts

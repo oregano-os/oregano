@@ -85,3 +85,19 @@ exactly one assigned response. A working button does not prove text delivery.
 The reservation covers the person's whole DM during the test; ordinary chat
 there is temporarily unavailable. Remove the paired settings when the test ends.
 Never enable only one side or treat configuration as proof of actual delivery.
+
+## Isolated conversation acceptance deployment
+
+Set `SLACK_OWNED_CHANNEL_IDS` on an isolated receiver to its exact test channels.
+The primary receiver must exclude those same channels before the separate
+Connect destination is enabled. Ordinary messages, mentions and channel-bound
+interactive controls follow this allowlist; channel-less controls are rejected
+rather than guessed. Provider signature verification still follows admission.
+The normal primary receiver leaves the allowlist unset. Use a separate database
+for the test Instance. On retirement, disconnect the test destination before
+returning its channel ownership to the primary deployment.
+
+A model-only preview can qualify synthetic participation cases using an existing
+secret assignment inside the host. Sensitive provider keys need not leave that
+host. Such a check has no conversation destination and does not prove actual
+incoming-message or interactive-control delivery.

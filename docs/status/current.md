@@ -1560,7 +1560,7 @@ immutable, correctly paired configuration snapshot. The installer also resolves
 the pinned pnpm package behind the shell shims used by CI. Neither correction
 changes provider authority or replaces actual functional acceptance evidence.
 
-## Shared conversation participation — source implementation
+## Core 0.12.0 shared conversation participation — release preparation
 
 The Core participation controller, existing Agent Tool loop and interactive
 candidate executor now support context-only turns, attributed recent history
@@ -1569,3 +1569,15 @@ new work and preserves the last visible candidate result. Exact shared-app
 ownership remains required. The source includes scripted-model and synthetic
 transport proofs; these do not establish real-model quality or a live company
 deployment. See [the contract](../specifications/conversation-participation.md).
+
+Core 0.12.0 introduces the shared conversation participation contract and retires
+the blanket channel-message ignore behavior. Before Instance adoption, verify
+exclusive channel/recipient ownership on every shared-app destination. Roll back
+the exact Core/Workspace/Instance pairing and restore compatible ingress settings
+together; preserve conversation and execution evidence. A Git merge or version
+field alone is neither a published release nor a deployed Instance.
+
+An authorized model-only hosted check exercised eight synthetic participation
+cases with `anthropic/claude-sonnet-5`: all returned the expected respond or
+context-only choice in one model step. This qualifies those cases only; it does
+not establish incoming communication delivery or company acceptance.
