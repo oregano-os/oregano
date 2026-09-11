@@ -55,3 +55,8 @@ PostgreSQL qualification checks the exact manifest and required catalog objects;
 it does not create a new database or authorize a schema migration. Records readers
 retain their declared projection, provenance and freshness contracts. Provider
 credentials cannot expand an Agent's ToolSet or bypass per-effect authorization.
+
+Retained workflow Record snapshots may still select Slack Record Source `0.1.3`.
+The maintained registry keeps that exact profile alongside `0.1.4`; the older
+profile retains its stricter bot-identity rule. Historical bindings, qualification
+receipts and projection identities are not rewritten to impersonate a newer version.

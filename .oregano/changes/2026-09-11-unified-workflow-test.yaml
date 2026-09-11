@@ -115,6 +115,7 @@ files_expected:
   - packages/cli/src/live-database-proof.mjs
   - packages/cli/src/live-setup.mjs
   - packages/cli/src/operating-starter.mjs
+  - packages/cli/src/records-operations.mjs
   - packages/cli/src/setup-entry.mjs
   - packages/cli/src/setup/profiles/vercel-neon-slack.ts
   - packages/cli/src/setup/release-defaults.mjs
@@ -197,6 +198,7 @@ files_expected:
   - packages/runner-vercel/src/lib/company-records-diagnostic.test.ts
   - packages/runner-vercel/src/lib/company-records-diagnostic.ts
   - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
   - packages/runner-vercel/src/lib/production-worker-gate.test.ts
   - packages/runner-vercel/src/lib/production-worker-gate.ts
   - packages/runner-vercel/src/lib/runtime-connectors.ts
@@ -268,6 +270,7 @@ tests:
   - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
   - packages/testkit/tests/workflow-state-postgres.test.ts
   - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
 documentation_impact:
   required: true
   affected_documents:
