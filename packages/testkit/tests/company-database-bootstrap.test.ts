@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { neon, neonConfig } from "@neondatabase/serverless";
 import {
   createNeonBranchDatabaseUrl,
   assertSupportedCompanyDatabaseManifestHistory,
@@ -214,4 +215,106 @@ test("retirement upgrades a known manifest without deleting historical domain au
   assertCompanyDatabaseQualificationReceipt(await qualifyCompanyDatabase());
   const rows = await sql`select payload from companyos_records.sprint_events where id = 'retained-audit-fixture'`;
   assert.deepEqual(rows[0]?.payload, { historical: true });
+});
+
+test("Postgres qualification returns compact evidence and rejects every maintained drift category", { skip: !runDatabaseTests }, async (t) => {
+  await bootstrapCompanyDatabase();
+  const sql = neon(process.env.DATABASE_URL!);
+  const previousFetch = neonConfig.fetchFunction;
+  const fetch = previousFetch ?? globalThis.fetch;
+  let calls = 0;
+  let bytes = 0;
+  neonConfig.fetchFunction = async (...args: Parameters<typeof globalThis.fetch>) => {
+    const response = await fetch(...args);
+    calls += 1;
+    bytes += Buffer.byteLength(await response.clone().text());
+    return response;
+  };
+  try {
+    // The old six responses, measured through the same isolated HTTP transport.
+    await sql`select schemaname, tablename from pg_tables
+      where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') order by schemaname, tablename`;
+    await sql`select schemaname, indexname from pg_indexes
+      where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') order by schemaname, indexname`;
+    await sql`select n.nspname as schema_name, c.conname from pg_constraint c join pg_namespace n on n.oid = c.connamespace
+      where n.nspname in ('companyos', 'companyos_knowledge', 'companyos_records') order by n.nspname, c.conname`;
+    await sql`select type_key from companyos_knowledge.page_type_registry where origin = 'core' and lifecycle_status = 'active' order by type_key`;
+    await sql`select exists(select 1 from pg_extension where extname = 'vector') as enabled`;
+    await sql`select manifest_digest from companyos.schema_manifests
+      where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = ${COMPANY_DATABASE_MANIFEST.version} limit 1`;
+    const legacyBytes = bytes;
+    assert.equal(calls, 6);
+    calls = 0; bytes = 0;
+    const qualified = await qualifyCompanyDatabase();
+    const compactBytes = bytes;
+    assert.equal(calls, 1);
+    assert.ok(compactBytes < legacyBytes / 10, "healthy qualification must not export the catalog");
+    t.diagnostic(`Qualification HTTP response bodies: 6 -> 1 requests; ${legacyBytes} -> ${compactBytes} bytes (isolated PostgreSQL bridge; vector=${qualified.features.vector})`);
+
+    await sql`create table companyos.traffic_fixture (id integer primary key, note text check (length(note) > 0))`;
+    try {
+      calls = 0; bytes = 0;
+      await qualifyCompanyDatabase();
+      assert.equal(calls, 1);
+      assert.equal(bytes, compactBytes, "unrelated tables, indexes and constraints do not grow successful evidence");
+    } finally {
+      await sql`drop table companyos.traffic_fixture`;
+    }
+  } finally {
+    neonConfig.fetchFunction = previousFetch;
+  }
+
+  // Each mutation is restored before the next assertion, in the isolated test database.
+  const cases = [
+    {
+      change: () => sql`alter table companyos.workflow_thread_assignments rename to traffic_workflow_thread_assignments`,
+      restore: () => sql`alter table companyos.traffic_workflow_thread_assignments rename to workflow_thread_assignments`,
+      error: /missing tables companyos\.workflow_thread_assignments/,
+    },
+    {
+      change: () => sql`alter index companyos.workflow_thread_assignments_run_idx rename to traffic_events_idx`,
+      restore: () => sql`alter index companyos.traffic_events_idx rename to workflow_thread_assignments_run_idx`,
+      error: /missing indexes companyos\.workflow_thread_assignments_run_idx/,
+    },
+    {
+      change: () => sql`alter table companyos.workflow_executions rename constraint workflow_execution_origin_unique to traffic_event_fk`,
+      restore: () => sql`alter table companyos.workflow_executions rename constraint traffic_event_fk to workflow_execution_origin_unique`,
+      error: /missing constraints companyos\.workflow_execution_origin_unique/,
+    },
+    {
+      change: () => sql`update companyos_knowledge.page_type_registry set lifecycle_status = 'deprecated' where type_key = 'person'`,
+      restore: () => sql`update companyos_knowledge.page_type_registry set lifecycle_status = 'active' where type_key = 'person'`,
+      error: /missing Core Page types person/,
+    },
+    {
+      change: () => sql`insert into companyos_knowledge.page_type_registry
+        (type_key, taxonomy_version, display_label, extraction_profile, origin, lifecycle_status, definition)
+        select 'traffic-fixture-' || n, '1.0.0', 'Synthetic', 'identity', 'core', 'active', '{}'::jsonb from generate_series(1, 25) n`,
+      restore: () => sql`delete from companyos_knowledge.page_type_registry where type_key like 'traffic-fixture-%'`,
+      error: /unexpected Core Page types .*\(25 total\)/,
+    },
+    {
+      change: () => sql`update companyos.schema_manifests set manifest_digest = ${"0".repeat(64)}
+        where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = ${COMPANY_DATABASE_MANIFEST.version}`,
+      restore: () => sql`update companyos.schema_manifests set manifest_digest = ${COMPANY_DATABASE_MANIFEST_DIGEST}
+        where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = ${COMPANY_DATABASE_MANIFEST.version}`,
+      error: /missing or mismatched schema manifest ledger entry/,
+    },
+    {
+      change: () => sql`update companyos.schema_manifests set manifest_version = 'traffic-fixture'
+        where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = ${COMPANY_DATABASE_MANIFEST.version}`,
+      restore: () => sql`update companyos.schema_manifests set manifest_version = ${COMPANY_DATABASE_MANIFEST.version}
+        where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = 'traffic-fixture'`,
+      error: /missing or mismatched schema manifest ledger entry/,
+    },
+  ];
+  for (const fixture of cases) {
+    await fixture.change();
+    try {
+      await assert.rejects(qualifyCompanyDatabase(), fixture.error);
+    } finally {
+      await fixture.restore();
+    }
+    await qualifyCompanyDatabase();
+  }
 });
