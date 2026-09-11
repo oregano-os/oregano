@@ -195,7 +195,7 @@ test("preview migration requires its exact independent confirmation", async () =
   const dependencies: any = {
     ensureSchema: async () => {
       migrations += 1;
-      return { operation: "upgrade", qualification: { manifestVersion: "1.9.0" } };
+      return { operation: "upgrade", qualification: { manifestVersion: "2.0.0" } };
     },
     planOperation: () => { throw new Error("not reached"); },
     runOperation: () => { throw new Error("not reached"); },
@@ -211,7 +211,7 @@ test("preview migration requires its exact independent confirmation", async () =
   const applied: any = await executeCompanyRecordsRehearsal({ action: "apply-migration", confirmation_hash: planCompanyRecordsPreviewMigration(selected).confirmation_hash }, selected, environment, dependencies);
   assert.equal(migrations, 1);
   assert.equal(applied.schema_manifest.operation, "upgrade");
-  assert.equal(applied.schema_manifest.qualification.manifestVersion, "1.9.0");
+  assert.equal(applied.schema_manifest.qualification.manifestVersion, "2.0.0");
 });
 
 test("preview sync plans stably, blocks wrong confirmation, and returns payload-free evidence", async () => {

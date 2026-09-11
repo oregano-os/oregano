@@ -105,7 +105,6 @@ workflows/
 policies/
 handbook/
 connections/
-brain/
 ```
 
 The non-secret Instance build declaration MUST use `.companyos/instance.yaml`
@@ -481,3 +480,9 @@ The following are not silently decided by this draft:
 
 These questions are tracked in the Translation Exception Report and MUST remain
 visible in inspection until resolved by the appropriate authority.
+
+## Handbook storage
+
+Handbook articles are ordinary Workspace Markdown without an OKF schema, search
+index or database activation. The structured roster, existing Agent file scopes
+and generic Workspace governance remain Core contracts.

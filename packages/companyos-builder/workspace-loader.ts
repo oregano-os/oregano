@@ -1,3 +1,4 @@
+import YAML from "yaml";
 import { readWorkspaceFiles, workspaceFile, workspaceDocument, type WorkspaceFiles } from "./workspace-files.ts";
 import type { JsonSchema, RiskLevel } from "../capabilities/contracts.ts";
 import { assertValidJsonSchema } from "../capabilities/validation.ts";
@@ -151,13 +152,22 @@ function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): 
 export function scopedMaterials(
   workspace: LoadedWorkspace,
   patterns: string[],
-  options: { excludeKnowledgeDocuments?: boolean } = {},
 ): Record<string, string> {
   const expressions = patterns.map(globExpression);
-  return Object.fromEntries(Object.entries(workspace.allFiles)
+  const entries = Object.entries(workspace.allFiles)
     .filter(([path]) => expressions.some((expression) => expression.test(path)))
-    .filter(([path]) => !options.excludeKnowledgeDocuments || !path.startsWith("handbook/") || path === "handbook/roster.md")
-    .sort(([a], [b]) => a.localeCompare(b)));
+    .sort(([a], [b]) => a.localeCompare(b));
+  for (const [path, raw] of entries) {
+    if (!path.startsWith("handbook/") || path === "handbook/roster.md") continue;
+    const frontmatter = raw.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+    const data = frontmatter ? YAML.parse(frontmatter[1]) : undefined;
+    // A file scope must not silently replace an old per-document access rule.
+    if (data && typeof data === "object" && ["visibility", "allowed_principals", "allowed_groups", "denied_principals", "access_policy_id"]
+      .some((field) => Object.hasOwn(data, field))) {
+      throw new Error(`${path}: retired document access metadata requires a reviewed migration to Workspace file scopes before inclusion in Agent materials.`);
+    }
+  }
+  return Object.fromEntries(entries);
 }
 
 export function loadCompanyTool(allFiles: WorkspaceFiles, id: string, toolId: string): CompiledCompanyTool {

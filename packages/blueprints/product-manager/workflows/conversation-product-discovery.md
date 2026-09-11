@@ -15,7 +15,6 @@ boundary:
   - unavailable Capabilities or Tools fail closed
 required_capabilities:
   - conversation.read
-  - knowledge.record
   - communication.message.publish
 ---
 # Conversation product discovery
@@ -39,5 +38,5 @@ required_capabilities:
 - exact human approval or rejection for a publication attempt;
 - idempotency key plus provider receipt, or explicit no-effect failure state.
 
-The receiving Workspace must select its source, Company Brain store, Tool
+The receiving Workspace must select its source, approved artifact destination, Tool
 grants, destination, retention policy, reviewer, thresholds, and rollout mode.

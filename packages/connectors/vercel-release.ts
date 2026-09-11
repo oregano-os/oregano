@@ -130,8 +130,7 @@ export class VercelProductionReleaseHost {
   }
   #assertContinuity(health: Record<string, any>) {
     if (health.releaseContinuityDigest !== releaseContinuityDigest(this.dependencies.environment ?? {})
-      || health.builder?.releaseConfigured !== true || health.builder?.codingConfigured !== true
-      || !health.knowledgeSnapshotHash) throw new Error("The deployment lost required Builder runtime configuration.");
+      || health.builder?.releaseConfigured !== true || health.builder?.codingConfigured !== true) throw new Error("The deployment lost required Builder runtime configuration.");
   }
   async promote(args: { deploymentId: string; artifact: ProductionArtifactReceipt; previousArtifactHash: string }): Promise<DeploymentReceipt | undefined> {
     const { projectId } = this.dependencies.binding;

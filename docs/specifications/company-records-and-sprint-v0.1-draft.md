@@ -54,8 +54,8 @@ Workspace has no top-level `domains/` directory: executable provider-neutral
 Sprint Domain code remains in Core under `packages/domains/sprint/`.
 
 **CRS-002 — No second authority.** Synchronized Company Records are versioned
-operational evidence and rebuildable read models. They are not curated Company
-Knowledge, Handbook authority, provider authority, or an authorization roster.
+operational evidence and rebuildable read models. They do not replace Handbook authority, provider authority, or an authorization
+roster.
 The external business provider remains authoritative for its own objects.
 
 ## 2. Company Records

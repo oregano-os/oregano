@@ -195,7 +195,7 @@ for (const distribution of [{ kind: 'stable' }, { kind: 'candidate', manifest_sh
 }));
 
 const { COMPANY_DATABASE_MANIFEST: manifest, COMPANY_DATABASE_MANIFEST_DIGEST: manifestDigest } = await import('../../state-postgres/database-bootstrap.ts');
-const qualification = () => ({ receiptVersion: 1, status: 'qualified', manifestId: manifest.id, manifestVersion: manifest.version, manifestDigest, qualifiedAt: new Date().toISOString(), schemas: Object.fromEntries(Object.entries(manifest.schemas).map(([key,value]) => [{companyos_knowledge:'companyosKnowledge',companyos_records:'companyosRecords'}[key] ?? key, { tableCount: value.tables.length }])), corePageTypeCount: manifest.corePageTypes.length, features: { vector: false } });
+const qualification = () => ({ receiptVersion: 2, status: 'qualified', manifestId: manifest.id, manifestVersion: manifest.version, manifestDigest, qualifiedAt: new Date().toISOString(), schemas: Object.fromEntries(Object.entries(manifest.schemas).map(([key,value]) => [key === 'companyos_records' ? 'companyosRecords' : key, { tableCount: value.tables.length }])), features: {} });
 function lifecycle(f, provider = 'gateway') {
   const selection = standardSetupModel(provider === 'gateway' ? { model_route: 'vercel-ai-gateway' } : { model_provider: provider });
   let credentialPresent = false;

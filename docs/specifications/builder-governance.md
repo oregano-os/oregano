@@ -330,7 +330,7 @@ Vercel staging reuses the exact current Core deployment and its production
 environment. Deployment-only Builder release bindings, coding snapshots and Workflow
 enablement are explicitly retained from trusted Instance configuration; secrets are
 not copied from the process environment. Staged health must match their continuity
-digest and confirm Builder release configuration and Knowledge availability before
+digest and confirm Builder release configuration and Artifact availability before
 promotion. The adapter overrides the newly compiled Artifact and revalidated non-secret
 Records/Workflow pairing references. Offline compilation
 requires the exact normalized Instance digest from running Artifact provenance.
@@ -348,10 +348,10 @@ and trusted executions. Actual per-Instance App rights, merge strategy, selected
 profile and request-to-live proof remain mandatory deployment evidence.
 
 The first automatic profile supports structural checks and human result review.
-It stages and verifies the exact Knowledge Bundle without changing the old live
-Handbook selection. A configured release Runner reads the snapshot pinned by its
-Artifact. Changes to Knowledge access policy, Records sources, connections or
-the Records identity roster require renewed Instance qualification.
+It verifies and retains the exact compiled Artifact without changing the live
+selection. Handbook files use the existing Agent file scopes. Changes to Records
+sources, connections or the Records identity roster require renewed Instance
+qualification.
 General simulations, live trials, arbitrary migrations and optional Preview
 preparation require further qualified adapters. The bounded connected profile
 below has a maintained executor. Selecting a
@@ -406,7 +406,7 @@ availability; the executor performs the provider's actual qualification.
 
 The trusted compiler builds the published candidate commit, with the running
 Core and normalized Instance configuration. It verifies and retains the exact
-Artifact and Knowledge Bundle without changing the live selection. The coding
+Artifact without changing the live selection. The coding
 worker neither runs connected tests nor receives provider credentials.
 
 A durable session binds the job, brief, base, candidate, Core, checks, scope,

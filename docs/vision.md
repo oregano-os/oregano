@@ -45,12 +45,11 @@ Steward should be able to discover, inspect, pin, review, install, grant, bind,
 activate, update, remove, or fork it through governed paths. Installation alone
 must never grant company authority, secrets, or runtime access.
 
-An authorized company member should be able to retrieve cited, freshness-aware
-Company Knowledge from the exact reviewed Workspace version without loading the
-entire Handbook into every Agent prompt. Search providers, embeddings, and
-external sources remain replaceable projections or evidence inputs. Only a
-reviewed Workspace change can make raw source material or a Runtime Observation
-part of curated company authority.
+Company members keep their Handbook as ordinary Markdown in the reviewed
+Company Workspace. Agents use only the files selected by existing Workspace
+scopes. Handbook edits follow normal governance; there is no separate search,
+Knowledge database, source-ingestion or promotion subsystem. A retained
+provider integration may remain available independently of that retired pipeline.
 
 ## Non-negotiable principles
 
@@ -105,10 +104,9 @@ part of curated company authority.
 19. **Package lifecycle is reproducible and reversible.** Exact sources,
     versions, digests, managed changes, grants, bindings, activation, updates,
     removals, and revocations remain inspectable and attributable.
-20. **Knowledge authority stays reviewed and singular.** OKF in the exact
-    Company Workspace commit is curated authority. Database projections,
-    embeddings, source envelopes, Runtime Observations, and model summaries
-    remain cited, rebuildable, review-bound evidence.
+20. **Handbook authority stays in reviewed files.** The exact Company Workspace
+    commit contains the Handbook. Ordinary file scopes and Workspace review
+    apply; generated answers do not change those files or confer authority.
 
 ## Architecture fitness questions
 

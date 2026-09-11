@@ -27,7 +27,7 @@ is used by the hosted Builder in its exact checked Workspace commit. See the
 The build never creates or rewrites the declaration.
 
 ```bash
-companyos build <workspace> --output <artifact.json> [--knowledge-output <knowledge.json>]
+companyos build <workspace> --output <artifact.json>
 ```
 
 The command compiles one exact CompanyOS pairing. Both the Oregano Core and
@@ -44,16 +44,15 @@ deployment environment and participate in neither Artifact content nor hashes.
 The build validates Tool and Capability JSON Schemas, compiles restricted
 Company Tools, resolves each agent grant against the Workspace allowlist and
 Instance bindings, scopes agent material, embeds the roster, and writes one
-content-addressed control Artifact plus a separate immutable Knowledge Bundle.
-The control Artifact records the Knowledge Bundle and policy hashes. Agents
-with Knowledge Tool grants retrieve OKF through the bound provider instead of
-receiving searchable Handbook files as prompt material. The command fails
+content-addressed control Artifact. Ordinary Handbook Markdown is included only
+where selected by the Agent's existing read scope. The structured roster
+continues to provide identity and approval authority. The command fails
 closed on unknown, duplicate, ambiguous,
 unbound, forbidden, or invalid inputs.
 
 The output path must not already exist. The artifact is a deployment input, not
 a new source of operating truth. A successful build establishes reproducible
-build evidence; it does not activate the Knowledge Bundle and does not prove a
+build evidence; it does not prove a
 provider deployment or `enforced` Instance
 readiness.
 

@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -235,15 +235,9 @@ future Package lifecycle a prerequisite for proving the Sprint product.
   are proved; and
 - no requirement to use one central Registry or Marketplace.
 
-## Knowledge providers and sources
+## Handbook content
 
-The maintained Postgres Knowledge Provider is a Core adapter implementing the
-provider-neutral snapshot and query contract. A future alternative provider may
-replace it without exposing a different Agent Tool surface. The maintained
-repository Source Connector has a narrower role: authenticate through a
-SecretRef, verify identity, enumerate/fetch read-only Markdown, reconcile a
-complete inventory, and produce normalized raw envelopes and receipts. It
-cannot publish authoritative OKF. Additional source types require their own
-reviewed Connector contracts; they do not require another knowledge surface. A
-knowledge Blueprint may provide filing guidance and examples but cannot bind a
-provider, grant a Tool, or assign access.
+Handbook Markdown belongs to the Company Workspace and uses the existing
+validation, file scopes and governed editing mechanisms. It requires no
+provider Package or dedicated source Connector. Independent repository,
+Company Records and artifact-publication Connectors retain their own contracts.

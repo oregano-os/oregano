@@ -18,7 +18,6 @@
     "packages/companyos-builder/**/*.ts",
     "packages/connectors/**/*.ts",
     "packages/domains/**/*.ts",
-    "packages/knowledge/**/*.ts",
     "packages/records/**/*.ts",
     "packages/runtime/**/*.ts",
     "packages/security/**/*.ts",

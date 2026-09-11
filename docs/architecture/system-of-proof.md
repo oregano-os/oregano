@@ -39,7 +39,6 @@ flowchart LR
     I["Instance bindings<br/>environment and resources"] --> A
     A --> S1["companyos<br/>runs, approvals, effects"]
     P["External providers"] --> S2["companyos_records<br/>observations and sync proof"]
-    P --> S3["companyos_knowledge<br/>sources, evidence, decisions"]
     S1 --> Q["Explain, audit, verify"]
     S2 --> Q
     S3 --> Q
@@ -56,7 +55,6 @@ The layers have different jobs and MUST NOT be collapsed:
 | Oregano Core and immutable Artifact provenance | Exact executable contracts, compiled material, versions, and hashes used by one Instance | Company approval or provider success |
 | `companyos` | Workflow, identity, approval, handoff, idempotency, and effect-control evidence | External provider business truth by itself |
 | `companyos_records` | Versioned provider observations, current pointers, authorized projections, freshness, reconciliation, synchronization receipts, and atomic Sprint event, state, decision, and intent evidence | Curated Handbook authority or a second provider authority |
-| `companyos_knowledge` | Knowledge sources, versions, observations, Claims, evidence, review decisions, lifecycle state, and activation evidence | Automatic promotion into reviewed Workspace authority |
 | External provider receipt or verified reread | The provider accepted or currently exposes the exact bounded effect or object version | That CompanyOS policy authorized the action |
 
 A defensible proof normally links an authenticated principal, the exact Core,
@@ -96,17 +94,13 @@ retained CompanyOS evidence.
 
 The maintained DDL is `packages/state-postgres/records-schema.sql`.
 
-### `companyos_knowledge`: knowledge and decision proof
+### Handbook source files
 
-This schema records Knowledge Snapshots, documents and fragments, source
-receipts and versions, Runtime Observations and lifecycle decisions, Pages,
-Claims and exact supporting evidence, identity and access decisions, Working
-Syntheses, Decision Receipts, promotion candidates, model-execution evidence,
-and rebuildable retrieval projections. These rows support explanation and
-review; only the exact reviewed OKF in the Company Workspace is curated company
-authority.
-
-The maintained DDL is `packages/state-postgres/knowledge-schema.sql`.
+The Handbook is versioned Markdown in the Company Workspace. It has no
+Knowledge database, index or separate activation evidence. Its normal reviewed
+commit and the retained roster/governance contracts supply the applicable
+provenance and authority. Historical Knowledge evidence is covered by the
+[retirement procedure](../workbench/guides/retire-knowledge.md).
 
 ## Retention model
 

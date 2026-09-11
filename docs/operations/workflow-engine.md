@@ -29,7 +29,7 @@ establish provider data completeness or authorize production activation.
    approved test channel and recipients. Do not repoint production webhook
    ingress or share the production database for test execution.
 2. Prepare and qualify the Company database through the maintained bootstrap,
-   including manifest `2.0.0`. Workers qualify before use; they do not apply an
+   including manifest `3.0.0`. Workers qualify before use; they do not apply an
    unapproved migration. One deployment uses one `DATABASE_URL`; never switch
    databases inside a running function.
 3. For each `oregano/company-records` Connector, put the complete non-secret

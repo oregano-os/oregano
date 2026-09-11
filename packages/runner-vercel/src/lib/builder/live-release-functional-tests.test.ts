@@ -38,7 +38,7 @@ async function fixture() {
       setIfNotExists: async (key: string, value: unknown) => { if (values.has(key)) return false; values.set(key, value); return true; } },
     host: { current: async () => ({ health: { artifactHash: artifact.artifactHash, instanceId: artifact.instance.id } }) },
     github: { withReleaseClient: async () => { providerCalls++; throw new Error("synthetic-provider-reached"); } },
-    compiler: {}, knowledge: {}, artifacts: {}, environment: { NODE_ENV: "test" },
+    compiler: {}, artifacts: {}, environment: { NODE_ENV: "test" },
   } as unknown as ConstructorParameters<typeof HostedBuilderReleaseAdapter>[0]);
   return { ...f, candidate, adapter, providerCalls: () => providerCalls };
 }

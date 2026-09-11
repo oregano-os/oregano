@@ -515,8 +515,8 @@ database prepare operation before setup advances. Prepare MUST inspect the
 catalog and immutable ledger, select `bootstrap` for an empty database,
 `upgrade` for a supported predecessor, or read-only `verify` for the current
 manifest, and fail closed for an unknown or conflicting state. Bootstrap MUST
-remain the empty-database primitive. Preparation MUST cover `companyos`,
-`companyos_knowledge`, and `companyos_records`, record the exact immutable manifest, be idempotent,
+remain the empty-database primitive. Preparation MUST cover `companyos`
+and `companyos_records`, record the exact immutable manifest, be idempotent,
 and fail closed if the same manifest version has different content. Setup state
 MUST retain only the selected operation, previous manifest versions, provider
 resource identity, and bounded non-secret qualification receipt.
@@ -525,18 +525,19 @@ MUST match the receipt's manifest digest, and MUST NOT perform schema DDL. The
 maintained Vercel profile's `vercel env run` transport is one adapter binding,
 not a requirement on a conforming alternative runtime host.
 
-The current bounded subset targets additive manifest
-`companyos-postgres@1.9.0`, which preserves predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,
-`1.1.0`, and `1.0.0`, qualifies 67 required Knowledge relations plus 14 Record
-Source and Sprint relations, and assigns unresolved
-existing access-policy identities to quarantine. The successor adds durable
-Source Events, provider ACL snapshots, pipeline receipts, completed watermarks,
-synchronization leases, lifecycle requests, an integrity-linked change stream,
-and rebuildable Retrieval V3 projection and qualification evidence plus atomic
-Sprint event, state, decision, and intent persistence. Deployment
-qualification proves schema readiness only. Runtime authorization and
-provider-ACL mapping conformance are separate release evidence and MUST pass
-before a sensitive Source is enabled.
+The current manifest is `companyos-postgres@3.0.0`. It qualifies 15 control/Workflow
+and 14 Company Records/Sprint tables, and recognizes the immutable identities
+of supported `1.0.0` through `2.0.0` predecessors. Qualification receipt version
+2 covers only `companyos` and `companyos_records`. General identity,
+authorization, approvals, Records, Sprint and model routing remain in Core.
+Preparation preserves existing data; it neither creates nor deletes a Knowledge
+schema. Existing Instances use the separately targeted
+[retirement procedure](../workbench/guides/retire-knowledge.md), then rebuild
+the Artifact and refresh their qualification evidence.
+
+Runtime authorization and provider qualification for retained Record Sources
+remain separate release evidence. Database readiness alone MUST NOT authorize
+sensitive source activation or an effect.
 
 This subset records readiness as `validated`. It has no reusable Preview or
 Effect Lane, no generic pre-production provider-test topology, no unattended

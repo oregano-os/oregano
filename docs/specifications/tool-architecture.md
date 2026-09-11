@@ -206,22 +206,12 @@ does not move code into Core merely because it looks reusable.
 - runtime registers only the resolved set;
 - a Tool cannot bypass approval/effect control through direct provider access.
 
-## 9. Standard Knowledge Tools
+## 9. Handbook materials
 
-`oregano:knowledge/search`, `oregano:knowledge/get`, and
-`oregano:knowledge/traverse`, all at version `3.0.0`, are implemented Core
-standard Tools. They resolve through the same explicit grant, allowed
-Capability, Instance binding, schema validation, isolation, evidence, and
-runtime enforcement path as Company Tools. The Runtime resolves the requesting
-principal against the active roster, derives groups inside Core, and passes
-that subject only in the trusted Capability context. They call `knowledge.search`,
-`knowledge.get`, or `knowledge.traverse` through a Connector and never import a
-database client. All are R0 reads over the active authorized snapshot. Search
-returns bounded citations and explicit degradation/gaps; get uses one exact
-path without fuzzy widening; traversal follows only validated bundle links and
-enforces hard depth/node limits. The Knowledge Connector fails closed when the
-trusted subject is absent or inactive, and the Provider filters protected
-candidates before rank, hydration, traversal, citation, or model output.
+Handbook Markdown is ordinary Workspace content. Existing scoped material
+selection determines what an Agent receives. Core provides no Handbook search,
+graph traversal, separate Knowledge Connector, or Knowledge-only Tool grants.
+The authorization roster and all general Tool and effect controls remain active.
 
 ## 10. Workflow Tool authority
 

@@ -25,7 +25,7 @@ future public documentation website.
 2. [Glossary](glossary.md) — canonical names for the system's parts and roles.
 3. [Architecture overview](architecture/overview.md) — how the parts interact.
 4. [System of Proof](architecture/system-of-proof.md) — how versions,
-   approvals, effects, records, knowledge, and provider receipts form one
+   approvals, effects, records, and provider receipts form one
    explainable evidence chain.
 5. [Ecosystem and packages](architecture/ecosystem-and-packages.md) — how
    portable contributions remain separate from company authority.

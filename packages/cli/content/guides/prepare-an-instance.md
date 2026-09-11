@@ -243,12 +243,7 @@ The maintained Runner requires these Instance values:
 | `COMPANYOS_SPRINT_RUNTIME_MODE` | hosted Sprint kill switch: `disabled` (default), `shadow`, or `active` |
 | `COMPANYOS_SPRINT_OPERATOR_SECRET` | Sensitive bearer protecting Sprint inspect/open actions |
 | `COMPANYOS_SPRINT_DEFINITION_ID` | optional exact compiled Sprint definition when an Instance contains more than one |
-| `COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` | optional Knowledge-only configuration using the same binding shape; overrides the shared model configuration for Knowledge tasks |
-| `COMPANYOS_KNOWLEDGE_CYCLE_BUDGET_USD` | optional productive-maintenance cycle ceiling; defaults to `5` USD |
-| `COMPANYOS_KNOWLEDGE_DAILY_BUDGET_USD` | optional UTC-day productive-maintenance ceiling; defaults to `10` USD |
-| `COMPANYOS_GRANOLA_SOURCE_CONFIG_BASE64` | Secret-free active Source requirement and binding used by the maintained Granola ingestion and compounding adapter |
-| `GRANOLA_API_KEY` | Sensitive workspace API key resolved only inside the Granola provider call |
-| `CRON_SECRET` | Sensitive bearer secret protecting scheduled Knowledge qualification, reconciliation, extraction, and compounding operations |
+| `CRON_SECRET` | Sensitive bearer secret protecting the retained Builder, Records and Sprint jobs |
 | `COMPANYOS_MODEL_ROUTE` | simple or compatibility binding to one Core recipe route |
 | `COMPANYOS_MODEL` | exact route-prefixed `provider/model` identifier for the selected recipe |
 | `ANTHROPIC_API_KEY` | Sensitive runtime secret for `anthropic-direct` |
@@ -407,7 +402,7 @@ argument, Git, the Workspace, the Artifact, or setup state.
     "deep": { "route": "anthropic-direct", "model": "anthropic/claude-opus-4-7" }
   },
   "tasks": {
-    "knowledge.working-synthesis": {
+    "agent.chat": {
       "route": "anthropic-direct",
       "model": "anthropic/claude-sonnet-4-6",
       "maxOutputTokens": 4000,
@@ -426,102 +421,17 @@ resolver otherwise uses Vercel AI Gateway. A resolved request never silently
 fails over to another provider. Run the model smoke test after changing a
 recipe, key, endpoint, or model.
 
-`COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` uses the same JSON shape and is
-compiled against all 13 generative prompts in Core Prompt Registry `2.0.0`. It is the
-right place to pin a direct provider for retained evidence without changing the
-interactive Agent model. The maintained Anthropic task-tier preset uses Haiku
-4.5 for utility classification and expansion, Sonnet 4.6 for extraction and
-evidence reasoning, and Opus 4.7 for explicit deep synthesis. Anthropic is not
-an embedding or cross-encoder reranking provider; configure those capabilities
-separately or retain the declared lexical fallback.
-The prompt dispatcher validates exact prompt, input-schema, and output-schema
-identities before execution. Cross-encoder reranking remains a separate
-capability and is not part of the 13 task bindings.
+Database preparation targets `companyos-postgres@3.0.0` and qualification
+receipt version 2. It creates or upgrades the 15 control/Workflow and 14 Records/Sprint
+tables. Handbook Markdown requires no database projection, vector extension,
+Knowledge model task, source binding or activation. Run the separate read-only
+qualification after preparation.
 
-Database preparation targets additive manifest
-`companyos-postgres@1.9.0`. It creates the existing control and Knowledge
-schemas, the provider-neutral Record Source and Sprint schema, durable compounding state, policy-bound model-result cache, spend
-reservations, execution ledger, and derived Retrieval V3 projection and
-qualification tables when the database is initially absent, or upgrades
-an older supported manifest in place. Run the separate read-only qualification
-after preparation. Do not enable compounding until the model smoke test, all 13
-synthetic prompt fixtures, one real authorized extraction, one manual
-compounding cycle, same-cycle retry evidence, and cross-cycle unchanged-result
-reuse have passed.
-
-### Retrieval V3 non-production lane
-
-A Neon branch is an acceptable staging StateStore boundary. It is not the
-whole non-production Instance. Record one qualification receipt proving all of
-the following before Retrieval V3 is activated anywhere:
-
-- the Neon project or branch identity differs from production;
-- the runtime project or deployment scope differs from production;
-- SecretRefs resolve from a distinct non-production namespace;
-- Slack or another communication binding is distinct and cannot receive normal
-  production traffic;
-- every Source binding has a distinct non-production identity and qualified
-  read scope; and
-- model execution has an explicit small cycle or UTC-day budget.
-
-Prepare and read-only verify schema `1.9.0` on that Instance. Build the derived
-projection from the active Handbook snapshot and current durable Brain
-frontier, stage it, and verify its deterministic hash and complete Unit count.
-Do not activate it during the build step. Run KnowledgeBench against Retrieval
-V2 and V3 with the same authorized subjects, including negative ACL cases, and
-persist the payload-free baseline and shadow comparison. The candidate must
-have zero authorization leakage and citation errors and no recall, rank, or
-authority-label regression.
-
-Then exercise Current Brief, the V3 Answer Envelope, Open Loops, Meeting Prep,
-backup restoration, and rollback. The Knowledge Doctor must report no failed
-gate before an accountable operator creates the separate activation receipt.
-The repository implementation creates none of the external resources or real
-qualification evidence automatically.
-
-### Oregano HQ internal production-canary lane
-
-The strict non-production lane remains the reusable default for customer
-Instances. Oregano HQ MAY instead use the explicit internal-dogfood production
-canary contract. This exception avoids a duplicate Vercel project, Slack app,
-Granola binding, and model-secret namespace, but it does not skip the StateStore
-rehearsal or retrieval gates. It requires all of the following:
-
-- one point-in-time Neon branch from the exact production branch, with
-  `companyos database prepare` and `companyos database verify` succeeding on
-  that branch before production migration;
-- provider backup evidence and an accepted additive-schema rollback posture;
-- one exact verified production V3 projection that is not served while the
-  benchmark and shadow gates run;
-- a payload-free production shadow in which V2 remains the returned response;
-- zero-leak ACL negatives, exact citation membership, a passing KnowledgeBench,
-  healthy Source evidence, and a pre-activation Knowledge Doctor report;
-- an explicit internal Agent allowlist and no external-user traffic; and
-- a tested V2 runtime fallback plus accountable operator risk acceptance.
-
-The production Runner uses three fail-closed bindings:
-
-| Value | Meaning |
-|---|---|
-| `COMPANYOS_KNOWLEDGE_RETRIEVAL_MODE` | `v2` by default, `v3-shadow` to execute but never serve V3, or `v3-canary` to serve the qualified candidate. Any other value falls back to V2. |
-| `COMPANYOS_KNOWLEDGE_V3_PROJECTION_HASH` | Exact 64-character verified projection identity. A missing or malformed identity falls back to V2. |
-| `COMPANYOS_KNOWLEDGE_V3_AGENT_IDS` | Comma-separated internal Agent allowlist. A missing, malformed, or non-matching allowlist falls back to V2. |
-
-`v3-shadow` may read the exact verified inactive projection and persists only
-query, authorization-context, result-digest, count, overlap, and failure
-digests. It returns the exact V2 result. `v3-canary` requires that same exact
-projection to be active. Candidate search failure automatically serves V2 with
-an explicit degradation. Projection activation itself requires the exact
-persisted `qualified-for-explicit-activation` receipt; setting environment
-variables cannot activate a projection.
-
-After those gates pass, the maintained Vercel adapter schedules reconciliation
-at minute `0` and extraction at minute `15` of each six-hour window, plus one
-resumable maintenance batch nightly at `02:00` UTC. Vercel injects the Sensitive
-`CRON_SECRET` as the bearer authorization
-for those protected routes. A non-Vercel host MUST bind the same three portable
-operations to its own scheduler and SecretRef implementation; database setup
-and Core Knowledge do not depend on Vercel Cron.
+For an existing Instance, retire obsolete Knowledge state through
+[Retire Knowledge](retire-knowledge.md). Preparation and health do not perform
+the destructive retirement. Preserve the shared database, model credentials and
+`CRON_SECRET` required by Builder, Records and Sprint. Generic task/profile
+selection follows [Model recipes](../../specifications/model-recipes.md).
 
 An artifact publication is served from `/artifacts/<artifact-id>` only after
 the exact R3 request passes Core authorization and approval consumption. The

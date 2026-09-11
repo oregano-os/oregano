@@ -35,31 +35,21 @@ test("native streaming is limited to ordinary replies without Company business T
   assert.equal(shouldStreamSlackAgentResponse({
     configuration,
     agentId: "oregano",
-    knowledgeRouteKind: "auto",
     businessToolCount: 0,
   }), true);
   assert.equal(shouldStreamSlackAgentResponse({
     configuration,
     agentId: "sprint",
-    knowledgeRouteKind: "auto",
     businessToolCount: 1,
   }), false);
   assert.equal(shouldStreamSlackAgentResponse({
     configuration,
-    agentId: "oregano",
-    knowledgeRouteKind: "required-search",
-    businessToolCount: 0,
-  }), false);
-  assert.equal(shouldStreamSlackAgentResponse({
-    configuration,
     agentId: "builder",
-    knowledgeRouteKind: "auto",
     businessToolCount: 0,
   }), false);
   assert.equal(shouldStreamSlackAgentResponse({
     configuration: resolveSlackAgentExperience({}),
     agentId: "oregano",
-    knowledgeRouteKind: "auto",
     businessToolCount: 0,
   }), false);
 });

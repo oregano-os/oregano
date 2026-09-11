@@ -83,20 +83,14 @@ runbook. It fails unless fresh or recorded evidence proves:
   binds the ordinary exchange to exact identity and deployment. Retired state
   versions 1–4 are rejected.
 
-The current Core target receipt identifies additive manifest
-`companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14
-required Record Source and Sprint tables. The linked
-`oregano-hq-companyos` Instance last applied predecessor `1.6.0` and passed a separate
-read-only verification on 2026-08-27 with digest
-`b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`;
-vector availability brings that predecessor's observed Knowledge table count
-to 63. Manifest `1.7.0` with its second optional Retrieval-Unit vector table is
-not implied by that historical receipt. Another Instance remains on its exact
-older manifest until `database prepare` records an additive upgrade and a
-separate read-only verification. This is schema evidence, not authorization
-evidence.
-`verify-live` for the Tool-free starter does not enable sensitive Sources or
-Agent-facing Brain retrieval.
+The current manifest is `companyos-postgres@3.0.0`. It preserves the immutable
+historical `2.0.0` identity and qualifies 15 required control/Workflow tables
+and 14 Records/Sprint tables. Existing Builder, repository and conversation
+state remains intact. Qualification receipt version 2 contains no Knowledge
+schema, taxonomy or vector feature. Preparation neither creates nor deletes
+Knowledge state; the [retirement procedure](../guides/retire-knowledge.md)
+removes that schema only after the replacement runtime is ready and old writers
+are stopped. General authorization and effect controls remain unchanged.
 
 Successful scope is exactly `live-starter-instance`, with readiness
 `validated`. This scope proves one supervised starter deployment. It does not

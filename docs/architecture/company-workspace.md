@@ -70,34 +70,19 @@ Company content may be written in the company's declared working language.
 Engineering metadata, schemas, governance, change records, and contributor-facing
 instructions remain English.
 
-## Company Knowledge layout
+## Handbook files
 
-Curated shared knowledge uses OKF v0.1 under `handbook/`. Each searchable file
-has `type: concept|playbook|note`, a non-empty `description`, a non-empty body,
-and a stable Handbook-relative path. `handbook/index.md` references every OKF
-file. Relative links must resolve inside the Handbook. The index and roster are
-operational Handbook files and are not searchable OKF in V1.
+The Handbook is ordinary Markdown under `handbook/`. Articles need no OKF
+metadata or search-index registration. An index may remain as human navigation.
+The structured `handbook/roster.md` retains its identity, role and approval
+contract. Existing Workspace governance and Agent file scopes still apply.
 
-Raw, unverified material belongs in `brain/inbox/`; review outcomes belong in
-`brain/archive/`. Neither directory enters the active Knowledge Bundle.
-Promotion is always a reviewed Workspace diff. The V1 knowledge scope is
-shared by active roster members, so salary, personnel-file, medical, legally
-privileged, or otherwise narrower material is excluded until a later
-fine-grained authorization contract exists.
+There are no generated Brain directories, Knowledge source requirements,
+Knowledge Tools, bundles, snapshots or dedicated Handbook approval roles.
+Existing Instances follow [Retire Knowledge](../workbench/guides/retire-knowledge.md).
+For current authoring, see [Author the Handbook](../workbench/guides/author-handbook.md).
 
-A reviewed `connections/*.md` knowledge-source requirement may declare one
-repository document source, data owner, retention, path/size bounds, and
-freshness target. Provider identity, ref, scopes, and an `env:NAME` SecretRef
-live in the separate Knowledge Source operation binding, which retains its
-external storage contract. That file is distinct from the versioned
-`.companyos/instance.yaml` build declaration. Fetched material
-remains a Source Envelope until human review produces and governance accepts an
-ordinary OKF Workspace diff.
-
-Retention is either indefinite (`retention: retain`) or finite
-(`retention_days: N`). Indefinite retention prevents automatic source-content
-purge even after provider deletion; legal hold is a separate temporary control.
-The same distinction between durable proof, rebuildable projections, and
-temporary coordination state applies across the Company Instance; see
+Durable proof and temporary coordination state retain their existing
+responsibilities; see
 [System of Proof](system-of-proof.md). A Workspace policy cannot override a
 valid legal or governed deletion requirement.

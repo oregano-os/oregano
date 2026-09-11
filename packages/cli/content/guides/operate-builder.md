@@ -378,7 +378,7 @@ Workspace, image, Artifact and deployment identities. Local tests never substitu
 for these provider and human acceptance steps.
 
 
-## Release configuration and knowledge continuity
+## Release configuration and continuity
 
 Core 0.6.0 introduces Workspace-declared Builder availability and the optional
 `builder.release` company policy. Workbench 0.1.0-experimental.16 distributes the
@@ -386,12 +386,11 @@ matching intake and operations Guides. Remove a legacy `builder.enabled: false`
 binding; omit execution bindings to keep conversation-only authoring available.
 Previously explicit `enabled: true` bindings remain readable during migration.
 
-The trusted compiler builds both the Artifact and its exact Knowledge Bundle.
-The release stages and verifies an immutable Knowledge snapshot; the configured
-Runner selects the snapshot named by its Artifact. Staging cannot switch the
-old production deployment's Handbook. Initial adoption must also stage and
-verify the current Artifact's bundle before configuring live release. A changed
-Knowledge access policy needs separate Instance qualification in this profile.
+The trusted compiler builds the Artifact from the exact Workspace and Core
+commits. Handbook Markdown follows the existing scoped material selection in
+that Artifact. Releases require no separate Knowledge bundle or snapshot.
+General company policy, human release authority, and Instance qualification
+continue to govern activation.
 
 Existing Records and hosted Workflow settings are revalidated and rebound to
 the exact new Workspace/Artifact while retaining qualified resources, enabled

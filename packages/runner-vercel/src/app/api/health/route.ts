@@ -5,7 +5,6 @@ import { getBot } from "../../../lib/bot.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
 import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
-import { createPostgresKnowledgeProvider } from "../../../../../state-postgres/knowledge-store.ts";
 
 import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "../../../lib/workflow-configuration.ts";
 
@@ -16,21 +15,11 @@ export async function GET() {
     const artifact = loadArtifact();
     const primaryAgent = selectedAgent();
     const modelExecution = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
-    const knowledgeAnswerModelExecution = resolveModelExecution({
-      profile: "deep",
-      task: "knowledge.cited-synthesis",
-      requiredCapability: "tools",
-      configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
-    });
     const database = await qualifyCompanyDatabase();
     const workflowsEnabled = workflowHostingEnabled();
     const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
     // Validate Connector configuration without initializing provider clients.
     getBot();
-    const knowledgeSnapshot = process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64
-      ? await createPostgresKnowledgeProvider({ snapshotHash: artifact.knowledge!.bundleHash }).activeSnapshot() : undefined;
-    if (process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && (!knowledgeSnapshot
-      || knowledgeSnapshot.bundle.workspaceCommit !== artifact.provenance.workspaceCommit)) throw new Error("The release Knowledge snapshot is not available for the exact Workspace.");
     const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
     if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
     const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {
@@ -65,7 +54,6 @@ export async function GET() {
       sourceCoreCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       configurationDigest: builderConfigurationDigest() ?? null,
       releaseContinuityDigest: releaseContinuityDigest(process.env),
-      knowledgeSnapshotHash: knowledgeSnapshot?.snapshotHash ?? null,
       builder: {
         desired: artifact.agents.some((agent) => agent.id === "builder"),
         codingConfigured: Boolean(artifact.builder),
@@ -80,9 +68,6 @@ export async function GET() {
       modelRoute: modelExecution.selection.route,
       modelProvider: modelExecution.selection.provider,
       model: modelExecution.selection.model,
-      knowledgeAnswerModelRoute: knowledgeAnswerModelExecution.selection.route,
-      knowledgeAnswerModelProvider: knowledgeAnswerModelExecution.selection.provider,
-      knowledgeAnswerModel: knowledgeAnswerModelExecution.selection.model,
       databaseManifestId: database.manifestId,
       databaseManifestVersion: database.manifestVersion,
       databaseManifestDigest: database.manifestDigest,

@@ -120,7 +120,7 @@ profile and pinned provider CLI together.
 
 The maintained Runner's `packages/runner-vercel/vercel.json` includes cron
 schedules that run every minute, every fifteen minutes, and multiple times
-per day, including optional Builder, Records, Sprint, and Knowledge handlers.
+per day, including optional Builder, Records, and Sprint handlers.
 These schedules are present in the deployed configuration even when the
 starter grants no business Tools.
 

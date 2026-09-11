@@ -16,8 +16,6 @@ import type { CheckedProposal, ProposalPublicationReceipt } from "../../../../ru
 import type { DeploymentReceipt, ProductionArtifactReceipt, ReleaseCandidate, ReleaseExecutionAdapter, ReleaseExecutionContext, MergeReceipt } from "../../../../runtime/release/contracts.ts";
 import type { VercelSandboxTrustedGitExecutionAdapter } from "./trusted-git-sandbox.ts";
 import { rebindBuilderReleaseEnvironment } from "./release-environment.ts";
-import { assertKnowledgeBundleIntegrity } from "../../../../knowledge/okf.ts";
-import type { KnowledgeProvider } from "../../../../knowledge/contracts.ts";
 
 interface CandidateRecord { candidate: ReleaseCandidate; github: GitHubCandidateInput; previous: DeploymentReceipt; job?: BuilderJob; }
 interface BuiltRecord { receipt: ProductionArtifactReceipt; encodedArtifact: string; environmentOverrides: Record<string, string>; deploymentId?: string; }
@@ -30,7 +28,6 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
     artifact: CompanyOSArtifact; state: ReleasePrivateState;
     github: GitHubAppRepositoryProvider; compiler: VercelSandboxTrustedGitExecutionAdapter;
     host: VercelProductionReleaseHost;
-    knowledge: Pick<KnowledgeProvider, "stage" | "verify">;
     artifacts: Pick<WorkflowExecutionStore, "putArtifact" | "getArtifact">;
     environment: NodeJS.ProcessEnv;
     functionalTests?: BuilderFunctionalTests;
@@ -39,7 +36,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
   constructor(dependencies: HostedBuilderReleaseAdapter["dependencies"]) {
     this.dependencies = dependencies;
     const { artifact } = dependencies;
-    if (!artifact.builder || !artifact.builderReleasePolicy || !artifact.knowledge || artifact.instance.environment !== "production") throw new Error("Release requires the company's Builder policy and production Instance.");
+    if (!artifact.builder || !artifact.builderReleasePolicy || artifact.instance.environment !== "production") throw new Error("Release requires the company's Builder policy and production Instance.");
     const digest = artifact.provenance.instanceConfigurationDigest;
     if (!digest || !/^[a-f0-9]{64}$/.test(digest)) throw new Error("Release requires the running Artifact's exact Instance configuration digest.");
     this.configurationDigest = digest;
@@ -161,7 +158,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       const source = await github.materialize({ schemaVersion: 1, requestId: `${job.jobId}:test`, instanceId: job.instanceId,
         bindingId: artifact.builder!.repository.sourceBinding, repositoryId: job.repositoryId, baseCommit: proposal.proposalCommit, destinationPath: join(temp, "workspace") });
       if (!source.transfer) throw new Error("Test compilation requires the credential-free source bundle.");
-      const { artifact: compiled, knowledgeBundle } = await compiler.compileArtifact({ operationId: `${job.jobId}:test`,
+      const { artifact: compiled } = await compiler.compileArtifact({ operationId: `${job.jobId}:test`,
         sourceBundlePath: source.transfer.path, workspaceCommit: proposal.proposalCommit, coreCommit: artifact.provenance.coreCommit,
         instanceId: job.instanceId, configurationDigest: this.configurationDigest });
       const { artifactHash, ...content } = compiled;
@@ -169,12 +166,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
         || compiled.provenance.workspaceCommit !== proposal.proposalCommit || compiled.provenance.coreCommit !== artifact.provenance.coreCommit
         || compiled.instance.id !== artifact.instance.id || compiled.provenance.instanceConfigurationDigest !== this.configurationDigest) throw new Error("Test Artifact provenance is invalid.");
       rebindBuilderReleaseEnvironment({ previous: artifact, next: compiled, changedPaths: checked.changedPaths, environment: this.dependencies.environment });
-      assertKnowledgeBundleIntegrity(knowledgeBundle);
-      if (!compiled.knowledge || knowledgeBundle.bundleHash !== compiled.knowledge.bundleHash
-        || knowledgeBundle.policyHash !== artifact.knowledge!.policyHash) throw new Error("Test Knowledge access differs from the qualified Instance.");
-      await this.dependencies.knowledge.stage(knowledgeBundle);
-      const verified = await this.dependencies.knowledge.verify(knowledgeBundle.bundleHash);
-      if (!verified.verifiedAt || verified.snapshotHash !== knowledgeBundle.bundleHash) throw new Error("Test Knowledge snapshot is unverified.");
+
       await this.dependencies.artifacts.putArtifact(compiled);
       await state.setIfNotExists(key, { artifactHash });
       return compiled;
@@ -193,7 +185,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
           instanceId: context.candidate.instanceId, bindingId: artifact.builder!.repository.sourceBinding,
           repositoryId: context.candidate.repositoryId, baseCommit: context.merge.mergedCommit, destinationPath: join(temp, "workspace") });
         if (!source.transfer) throw new Error("Hosted release requires a credential-free source bundle.");
-        const { artifact: compiled, knowledgeBundle } = await compiler.compileArtifact({ operationId: context.operationId, sourceBundlePath: source.transfer.path,
+        const { artifact: compiled } = await compiler.compileArtifact({ operationId: context.operationId, sourceBundlePath: source.transfer.path,
           workspaceCommit: context.merge.mergedCommit, coreCommit: context.candidate.coreCommit,
           instanceId: context.candidate.instanceId, configurationDigest: this.configurationDigest });
         const { artifactHash, ...content } = compiled;
@@ -201,16 +193,10 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
           || compiled.provenance.workspaceCommit !== context.merge.mergedCommit || compiled.provenance.coreCommit !== context.candidate.coreCommit
           || compiled.instance.id !== context.candidate.instanceId || compiled.instance.environment !== "production"
           || compiled.provenance.instanceConfigurationDigest !== this.configurationDigest) throw new Error("Compiled artifact provenance is invalid.");
-        assertKnowledgeBundleIntegrity(knowledgeBundle);
-        if (!compiled.knowledge || knowledgeBundle.bundleHash !== compiled.knowledge.bundleHash || knowledgeBundle.workspaceCommit !== context.merge.mergedCommit
-          || knowledgeBundle.policyHash !== artifact.knowledge!.policyHash) throw new Error("Knowledge content must match the release and retain the qualified access policy.");
+
         const environmentOverrides = rebindBuilderReleaseEnvironment({ previous: artifact, next: compiled,
           changedPaths: record.github.changedPaths, environment: this.dependencies.environment });
-        // These immutable snapshots are selected by Artifact identity. Staging
-        // does not switch the knowledge used by the current production app.
-        await this.dependencies.knowledge.stage(knowledgeBundle);
-        const verified = await this.dependencies.knowledge.verify(knowledgeBundle.bundleHash);
-        if (!verified.verifiedAt || verified.snapshotHash !== knowledgeBundle.bundleHash) throw new Error("The release Knowledge snapshot is not verified.");
+
         built = { receipt: { artifactHash, coreCommit: compiled.provenance.coreCommit, workspaceCommit: compiled.provenance.workspaceCommit,
           instanceId: compiled.instance.id, environment: "production", configurationDigest: this.configurationDigest },
           environmentOverrides,

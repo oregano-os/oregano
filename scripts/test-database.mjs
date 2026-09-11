@@ -14,8 +14,6 @@ const suites = [
   "packages/testkit/tests/workflow-state-postgres.test.ts",
   "packages/testkit/tests/workflow-engine-postgres.test.ts",
   "packages/testkit/tests/company-database-bootstrap.test.ts",
-  "packages/testkit/tests/company-brain-persistence.test.ts",
-  "packages/testkit/tests/company-brain-entity-identity.test.ts",
 ];
 const bridge = await startPostgresTestBridge(connectionString);
 try {

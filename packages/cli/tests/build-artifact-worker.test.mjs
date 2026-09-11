@@ -33,7 +33,7 @@ test("hosted compilation reads the committed Workspace declaration and preserves
     assert.equal(result.artifact.instance.id, f.request.instanceId);
     assert.equal(result.artifact.provenance.workspaceCommit, f.request.workspaceCommit);
     assert.equal(result.artifact.provenance.instanceConfigurationDigest, f.request.configurationDigest);
-    assert.ok(result.knowledgeBundle);
+    assert.equal(Object.hasOwn(result, "knowledgeBundle"), false);
     assert.throws(() => compileWorkspaceArtifact(f.root, { ...f.request, configurationDigest: "b".repeat(64) }, f.provenance), /accepted configuration/);
     assert.throws(() => compileWorkspaceArtifact(f.root, { ...f.request, instanceId: "another-instance" }, f.provenance), /accepted production Instance/);
     writeFileSync(join(f.root, ".companyos/instance.yaml"), readFileSync(join(f.root, ".companyos/instance.yaml"), "utf8") + "default_agent: builder\n");

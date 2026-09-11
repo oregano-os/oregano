@@ -5,7 +5,7 @@ kind: plan
 status: draft
 authority: informative
 language: en
-updated: 2026-09-08
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -111,10 +111,10 @@ and qualified; another Markdown guide alone does not make them installable.
 | Credential and resource protection | Keep credentials out of chat/Git; preserve existing resources. A real conflict gets a specific diagnostic, not a generic safety questionnaire. |
 | Version and function verification | Verify the release, initial files, deployment, model response, and persistence automatically. |
 | A real Slack exchange | Open Oregano and send an ordinary first message. Correlate the authorized human's message and real model response internally. |
-| Later company capabilities | Add knowledge, data sources, business Tools, and automation when requested after setup. |
+| Later company capabilities | Add data sources, business Tools, and automation when requested after setup. |
 
 The initial Agent remains supervised and has no business Tool grants.
-Knowledge import, Builder activation, sources, and unattended workflows do not
+Builder activation, sources, and unattended workflows do not
 become hidden prerequisites for the first Slack response.
 
 An account signup, required Vercel upgrade, or unavailable Slack administrator

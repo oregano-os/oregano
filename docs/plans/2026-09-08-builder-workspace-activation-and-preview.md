@@ -420,7 +420,7 @@ Distinguish three operations:
   owned namespaces, allowed migration operations, compatibility, fixtures,
   validation, and release execution. Prefer existing record contracts where
   they satisfy the requirement. Do not invent a direct SQL escape hatch in a Tool.
-- **Core state schemas:** `companyos`, `companyos_knowledge`, and
+- **Core state schemas:** `companyos` and
   `companyos_records` are maintained by Core manifests. A Workspace Builder can
   request the missing capability and adopt a reviewed compatible release; it
   cannot patch Core infrastructure from its company checkout.

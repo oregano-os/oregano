@@ -121,7 +121,7 @@ The declaration does not yet centralize every non-secret runtime setting.
 For example, the Records Connector can refer to
 `env:COMPANYOS_RECORDS_CONFIG_GZIP_BASE64`; model recipes, host deployment
 bindings and other runtime settings retain their documented contracts.
-Knowledge Source and Record Source operation-binding files use separate
+Record Source operation-binding files use separate
 schemas and CLI arguments; do not paste them into this build declaration or
 assume this placement change changes their storage and qualification rules.
 

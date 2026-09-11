@@ -136,7 +136,12 @@ message with a real model response and persistence. It invokes
 `companyos verify-live` internally. Announce completion only for `complete`;
 local `companyos bootstrap verify` alone does not prove a live installation.
 
-Later business capabilities, knowledge imports, and automation follow their own
+The Handbook remains ordinary Workspace Markdown. Setup provisions control,
+Workflow and Records state under database manifest `companyos-postgres@3.0.0`.
+It creates no Knowledge service or special Handbook roles. Existing Instances
+use the [retirement procedure](docs/workbench/guides/retire-knowledge.md).
+
+Later business capabilities and automation follow their own
 change process. Only current schema-5 fresh setup sessions can resume. Retired schemas 1–4
 and the old `--profile` installer are unsupported; retain their historical
 receipts and never convert them into fresh setup authority.

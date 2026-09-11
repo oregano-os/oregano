@@ -83,7 +83,7 @@ const coreIdentity = (root) => ({
   root,
   repository: "oregano-os/oregano",
   ref: CORE_REF,
-  core_version: "0.11.5",
+  core_version: "0.12.0",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 });
@@ -112,7 +112,7 @@ const liveAnswers = (overrides = {}) => ({
 });
 
 const databaseQualification = (overrides = {}) => ({
-  receiptVersion: 1,
+  receiptVersion: 2,
   status: "qualified",
   manifestId: COMPANY_DATABASE_MANIFEST.id,
   manifestVersion: COMPANY_DATABASE_MANIFEST.version,
@@ -120,11 +120,9 @@ const databaseQualification = (overrides = {}) => ({
   qualifiedAt: "2026-08-26T12:00:00.000Z",
   schemas: {
     companyos: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length },
-    companyosKnowledge: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_knowledge.tables.length },
     companyosRecords: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length },
   },
-  corePageTypeCount: COMPANY_DATABASE_MANIFEST.corePageTypes.length,
-  features: { vector: false },
+  features: {},
   ...overrides,
 });
 

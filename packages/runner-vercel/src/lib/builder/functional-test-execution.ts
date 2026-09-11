@@ -9,7 +9,6 @@ import { createPostgresWorkflowExecutionStore } from "../../../../state-postgres
 import { createPostgresStateStore } from "../../../../state-postgres/store.ts";
 import { createPostgresDurableTimerStore } from "../../../../state-postgres/durable-timer-store.ts";
 import { systemInstructions } from "../agent-instructions.ts";
-import { resolveKnowledgeTurnRoute } from "../knowledge-turn-routing.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "../model-execution.ts";
 import { createConfiguredRuntimeConnectors } from "../runtime-connectors.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
@@ -72,7 +71,7 @@ export async function executeBuilderFunctionalTest(args: {
     const agentId = session.execution.agentId, agent = artifact.agents.find((entry) => entry.id === agentId)!;
     const resolved = resolveModelExecution({ profile: "utility", task: "chat.response", requiredCapability: "language" });
     const response = await generateText({ model: resolved.model,
-      system: systemInstructions(agent, resolveKnowledgeTurnRoute({ text: session.conversation?.pending?.prompt ?? session.execution.prompt, tools: [] }), {}),
+      system: systemInstructions(agent, {}),
       messages: builderAgentTestMessages(session), maxOutputTokens: 1500,
       abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs ?? 60000),
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),

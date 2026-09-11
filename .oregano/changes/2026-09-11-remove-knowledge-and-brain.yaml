@@ -1,0 +1,365 @@
+version: 3
+plan_id: remove-knowledge-and-brain-2026-09-11
+created: 2026-09-11
+title: Remove Brain and Knowledge services and retain a Markdown Handbook
+objective: Remove the complete Knowledge and Brain subsystem, including database-backed Handbook
+  search, special curation and authorization, imports, runtime jobs, and Workbench commands. Keep
+  ordinary Handbook Markdown, the structured authorization roster, scoped Workspace materials, and
+  all unrelated Core mechanisms. Update setup, onboarding, documentation, and migration evidence.
+  Target Core 0.12.0 and Workbench 0.1.0-experimental.22. Preserve the current Workflow, Builder
+  release and bounded database qualification contracts. Introduce database manifest 3.0.0 without
+  changing the published 2.0.0 identity. Preserve the independent Granola provider integration for
+  later use; retire only its Brain consumer.
+non_goals:
+  - Replace Brain or add another Handbook search or permission system.
+  - Remove Company Records, chat state, Builder, Sprint, general model routing, or effect approvals.
+  - Delete a shared database, provider source originals, or an unspecified live Instance.
+  - Release or deploy this change without the separately targeted rollout.
+  - Remove Granola provider access, its connection declaration, configuration or credentials;
+    activate a replacement consumer.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-11-remove-knowledge-and-brain.yaml
+  - INSTALL-COMPANYOS.md
+  - docs/README.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/company-workspace.md
+  - docs/architecture/companyos-workbench.md
+  - docs/architecture/ecosystem-and-packages.md
+  - docs/architecture/oregano-core.md
+  - docs/architecture/overview.md
+  - docs/architecture/system-boundaries.md
+  - docs/architecture/system-of-proof.md
+  - docs/archive/retired-knowledge/2026-08-25-company-knowledge-implementation.md
+  - docs/archive/retired-knowledge/2026-09-07-google-meet-knowledge-source.md
+  - docs/archive/retired-knowledge/author-company-knowledge.md
+  - docs/archive/retired-knowledge/company-knowledge-v0.1-draft.md
+  - docs/archive/retired-knowledge/company-knowledge-v0.2-draft.md
+  - docs/archive/retired-knowledge/connect-knowledge-source.md
+  - docs/archive/retired-knowledge/implementation-history.md
+  - docs/archive/retired-knowledge/knowledge.md
+  - docs/archive/retired-knowledge/operate-knowledge-provider.md
+  - docs/archive/retired-knowledge/recover-company-knowledge.md
+  - docs/archive/retired-knowledge/review-company-knowledge.md
+  - docs/compatibility/registry.yaml
+  - docs/glossary.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/onboarding/setup-options.md
+  - docs/operations/workflow-engine.md
+  - docs/plans/2026-08-25-company-knowledge-implementation.md
+  - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
+  - docs/plans/2026-09-08-five-minute-setup.md
+  - docs/reference/instance-configuration.md
+  - docs/specifications/builder-governance.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.1-draft.md
+  - docs/specifications/company-knowledge-v0.2-draft.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/model-recipes.md
+  - docs/specifications/tool-architecture.md
+  - docs/status/current.md
+  - docs/testing/postgres.md
+  - docs/vision.md
+  - docs/workbench/commands/build.md
+  - docs/workbench/commands/knowledge.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/author-company-knowledge.md
+  - docs/workbench/guides/author-handbook.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/workbench/guides/operate-knowledge-provider.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - docs/workbench/guides/recover-company-knowledge.md
+  - docs/workbench/guides/retain-granola.md
+  - docs/workbench/guides/retire-knowledge.md
+  - docs/workbench/guides/review-company-knowledge.md
+  - docs/workbench/overview.md
+  - package.json
+  - packages/blueprints/product-manager/agents/product-manager/skills/product-discovery-to-prd/references/analysis-contract.md
+  - packages/blueprints/product-manager/companyos.package.yaml
+  - packages/blueprints/product-manager/workflows/conversation-product-discovery.md
+  - packages/capabilities/catalog.ts
+  - packages/cli/content/guides/author-company-knowledge.md
+  - packages/cli/content/guides/author-handbook.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/cli/content/guides/operate-knowledge-provider.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/content/guides/recover-company-knowledge.md
+  - packages/cli/content/guides/retain-granola.md
+  - packages/cli/content/guides/retire-knowledge.md
+  - packages/cli/content/guides/review-company-knowledge.md
+  - packages/cli/package.json
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/workspace-generator.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/cli/tests/build-artifact-worker.test.mjs
+  - packages/cli/tests/knowledge.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/connectors/github-knowledge-source-v2.ts
+  - packages/connectors/github-knowledge-source.ts
+  - packages/connectors/granola-knowledge-source-v2.ts
+  - packages/connectors/granola/client.ts
+  - packages/connectors/knowledge.ts
+  - packages/connectors/local-file-knowledge-source-v2.ts
+  - packages/connectors/source-registry-maintained.ts
+  - packages/connectors/source-registry.ts
+  - packages/connectors/vercel-release.ts
+  - packages/knowledge/access-control.ts
+  - packages/knowledge/brain-contracts.ts
+  - packages/knowledge/brain-store.ts
+  - packages/knowledge/compounding.ts
+  - packages/knowledge/contracts.ts
+  - packages/knowledge/curation.ts
+  - packages/knowledge/current-brief.ts
+  - packages/knowledge/cutover.ts
+  - packages/knowledge/embedding.ts
+  - packages/knowledge/extraction-pipeline.ts
+  - packages/knowledge/graph.ts
+  - packages/knowledge/handbook-promotion.ts
+  - packages/knowledge/hybrid-search.ts
+  - packages/knowledge/in-memory-brain-store.ts
+  - packages/knowledge/in-memory-provider.ts
+  - packages/knowledge/in-memory-source-pipeline-store.ts
+  - packages/knowledge/in-memory-source-store.ts
+  - packages/knowledge/knowledge-bench.ts
+  - packages/knowledge/knowledge-doctor.ts
+  - packages/knowledge/knowledge-experiences.ts
+  - packages/knowledge/knowledge-model-execution.ts
+  - packages/knowledge/model-pricing.ts
+  - packages/knowledge/observations.ts
+  - packages/knowledge/okf.ts
+  - packages/knowledge/operations.ts
+  - packages/knowledge/productive-compounding.ts
+  - packages/knowledge/productization.ts
+  - packages/knowledge/prompt-evaluation.ts
+  - packages/knowledge/prompt-registry.ts
+  - packages/knowledge/prompt-schemas.ts
+  - packages/knowledge/regression.ts
+  - packages/knowledge/retrieval-unit.ts
+  - packages/knowledge/retrieval-v2.ts
+  - packages/knowledge/retrieval-v3.ts
+  - packages/knowledge/salience.ts
+  - packages/knowledge/search.ts
+  - packages/knowledge/session-corpus.ts
+  - packages/knowledge/source-config.ts
+  - packages/knowledge/source-contracts-v2.ts
+  - packages/knowledge/source-contracts.ts
+  - packages/knowledge/source-ingestion-v2.ts
+  - packages/knowledge/source-ingestion.ts
+  - packages/knowledge/source-pipeline-store.ts
+  - packages/knowledge/source-sanity.ts
+  - packages/knowledge/source-sync-v2.ts
+  - packages/knowledge/unified-provider.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/compounding/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/model/qualification/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/model/smoke-test/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/extract/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/qualification/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/reconcile/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/webhook/route.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/functional-test-execution.ts
+  - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
+  - packages/runner-vercel/src/lib/builder/live-release-functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/release-provider.ts
+  - packages/runner-vercel/src/lib/builder/trusted-git-sandbox.ts
+  - packages/runner-vercel/src/lib/company-records-production.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
+  - packages/runner-vercel/src/lib/knowledge-model-runtime.ts
+  - packages/runner-vercel/src/lib/knowledge-source-runtime.test.ts
+  - packages/runner-vercel/src/lib/knowledge-source-runtime.ts
+  - packages/runner-vercel/src/lib/knowledge-turn-routing.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/vercel.json
+  - packages/runtime/builder/build-artifact-worker.ts
+  - packages/standard-tools/knowledge.ts
+  - packages/state-postgres/brain-retrieval-store.ts
+  - packages/state-postgres/brain-store.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/state-postgres/extraction-run-store.ts
+  - packages/state-postgres/knowledge-access-store.ts
+  - packages/state-postgres/knowledge-canary-provider.ts
+  - packages/state-postgres/knowledge-compounding-store.ts
+  - packages/state-postgres/knowledge-migrate.ts
+  - packages/state-postgres/knowledge-production-qualification.ts
+  - packages/state-postgres/knowledge-productization-store.ts
+  - packages/state-postgres/knowledge-retrieval-v3-store.ts
+  - packages/state-postgres/knowledge-schema-phase-five.ts
+  - packages/state-postgres/knowledge-schema-phase-four.ts
+  - packages/state-postgres/knowledge-schema-phase-one.ts
+  - packages/state-postgres/knowledge-schema-phase-seven.ts
+  - packages/state-postgres/knowledge-schema-phase-six.ts
+  - packages/state-postgres/knowledge-schema-phase-three.ts
+  - packages/state-postgres/knowledge-schema-phase-two.ts
+  - packages/state-postgres/knowledge-schema.sql
+  - packages/state-postgres/knowledge-source-store.ts
+  - packages/state-postgres/knowledge-store.ts
+  - packages/state-postgres/knowledge-vector-schema.sql
+  - packages/state-postgres/migrations/retire-knowledge.sql
+  - packages/state-postgres/raw-asset-adapter.ts
+  - packages/state-postgres/session-corpus-store.ts
+  - packages/state-postgres/source-pipeline-store.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/acme-casas/agents/ops/instructions.md
+  - packages/testkit/fixtures/acme-casas/brain/archive/.gitkeep
+  - packages/testkit/fixtures/acme-casas/brain/inbox/.gitkeep
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/reference-company/brain/archive/.gitkeep
+  - packages/testkit/fixtures/reference-company/brain/inbox/.gitkeep
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/testkit/tests/company-brain-authorization.test.ts
+  - packages/testkit/tests/company-brain-entity-identity.test.ts
+  - packages/testkit/tests/company-brain-foundation.test.ts
+  - packages/testkit/tests/company-brain-persistence.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/company-knowledge-cutover.test.ts
+  - packages/testkit/tests/company-knowledge-experiences.test.ts
+  - packages/testkit/tests/company-knowledge-extraction.test.ts
+  - packages/testkit/tests/company-knowledge-handbook-promotion.test.ts
+  - packages/testkit/tests/company-knowledge-operations.test.ts
+  - packages/testkit/tests/company-knowledge-production-canary.test.ts
+  - packages/testkit/tests/company-knowledge-production-runtime.test.ts
+  - packages/testkit/tests/company-knowledge-productive-compounding.test.ts
+  - packages/testkit/tests/company-knowledge-productization.test.ts
+  - packages/testkit/tests/company-knowledge-prompts.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-projection-v3.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v2.test.ts
+  - packages/testkit/tests/company-knowledge-retrieval-v3-postgres.test.ts
+  - packages/testkit/tests/company-knowledge-source-v2.test.ts
+  - packages/testkit/tests/company-knowledge.test.ts
+  - packages/testkit/tests/granola-client.test.ts
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/testkit/tests/knowledge-model-pricing.test.ts
+  - packages/testkit/tests/knowledge-source-contract-v2.test.ts
+  - packages/testkit/tests/knowledge-source-github-v2.test.ts
+  - packages/testkit/tests/knowledge-source-granola-v2.test.ts
+  - packages/testkit/tests/knowledge-source-ingestion-v2.test.ts
+  - packages/testkit/tests/knowledge-source-local-session.test.ts
+  - packages/testkit/tests/knowledge-source-registry.test.ts
+  - packages/testkit/tests/knowledge-source.test.ts
+  - packages/testkit/tests/model-recipes.test.ts
+  - packages/testkit/tests/retired-knowledge-migration.test.ts
+  - packages/testkit/tests/slack-knowledge-routing.test.ts
+  - scripts/retire-knowledge.mjs
+  - scripts/test-database.mjs
+  - tsconfig.json
+  - vercel.json
+tests:
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/retired-knowledge-migration.test.ts
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/testkit/tests/granola-client.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.boundaries
+    - architecture.company-instance
+    - architecture.company-workspace
+    - architecture.ecosystem-packages
+    - architecture.oregano-core
+    - architecture.overview
+    - architecture.system-of-proof
+    - architecture.workbench
+    - command.build
+    - command.knowledge
+    - command.records
+    - command.verify-live
+    - docs.index
+    - guide.author-company-knowledge
+    - guide.author-handbook
+    - guide.connect-company-record-source
+    - guide.connect-knowledge-source
+    - guide.operate-builder
+    - guide.operate-knowledge-provider
+    - guide.prepare-instance
+    - guide.recover-company-knowledge
+    - guide.retain-granola
+    - guide.retire-knowledge
+    - guide.review-company-knowledge
+    - history.retired-knowledge-implementation
+    - onboarding.company-workspace
+    - onboarding.index
+    - onboarding.setup-options
+    - operations.workflow-engine
+    - plan.builder-workspace-activation-and-preview
+    - plan.company-knowledge-implementation
+    - plan.five-minute-setup
+    - plan.google-meet-knowledge-source
+    - reference.glossary
+    - reference.instance-configuration
+    - specification.builder-governance
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-knowledge-v0.1
+    - specification.company-knowledge-v0.2
+    - specification.company-records-sprint-v0.1
+    - specification.companyos-core-v0.7
+    - specification.model-recipes
+    - specification.tool-architecture
+    - status.current
+    - testing.postgres
+    - vision.companyos
+    - workbench.overview
+architecture:
+  placement:
+    core: Remove generic Knowledge runtime, contracts and provisioning; retain the existing Core
+      enforcement and Workspace file mechanisms.
+    packages: Remove only Brain dependencies from synthetic Blueprints and maintained connectors;
+      preserve independent workflows and repository integrations.
+    workspace: Keep Markdown content, roster authority, existing file scopes and governed editing; stop
+      generating Brain directories and Knowledge grants.
+    instance: Explicitly retire the obsolete Knowledge schema and dedicated configuration through a
+      scoped migration after old writers stop.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Preserve roster identity, groups and approval enforcement while retiring Knowledge-only
+        permissions.
+    - mechanism: toolset-resolver
+      reason: Remove Knowledge capabilities without changing resolution or grants for retained Tools.
+    - mechanism: model-recipe-resolver
+      reason: Preserve generic model routing and move its shared documentation out of the retired
+        Knowledge specification.
+    - mechanism: company-records
+      reason: Preserve Records persistence and qualification when removing the neighboring Knowledge
+        schema.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve all effect controls and isolate one-time schema retirement from normal startup.
+    - mechanism: capability-contracts-and-connectors
+      reason: Retire only Knowledge interfaces while maintaining ordinary provider and repository
+        integration.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Plain Markdown Workspaces and the retained generic runtime serve every company
+    without a company-specific Brain integration.
+rollback: Before any live schema deletion, restore the prior exact Core and Workspace pairing if
+  needed. After deletion, application rollback alone cannot restore Knowledge data; a separately
+  retained recovery copy is required. Preserve control and Records state and record any completed
+  Instance retirement.

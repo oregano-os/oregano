@@ -9,8 +9,6 @@ import { inspectRepositoryProtectionContract } from "./repository-protection.mjs
 import { inspectAndCompileCompanyTool } from "../../tool-sdk/source-inspector.ts";
 import { scanCredentialIndicators } from "../../security/credential-scanner.ts";
 import { isExactSemanticVersion } from "../../runtime/semantic-version.ts";
-import { inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
-import { loadKnowledgeSourceRequirement } from "../../knowledge/source-config.ts";
 import { inspectStructuredDeclarations } from "./structured-declarations.mjs";
 import { compileWorkspaceReleasePolicy } from "../../runtime/release/policy.ts";
 import { parseRoster } from "../../state-store/roster.ts";
@@ -18,7 +16,6 @@ import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "
 
 const REQUIRED_PATHS = [
   "company.md",
-  "handbook/index.md",
   "handbook/roster.md",
   "policies/risk-levels.md",
   "policies/data-retention.md",
@@ -67,8 +64,7 @@ export function validateWorkspace(root) {
   for (const document of documents) {
     if (document.error) diagnostics.push(diagnostic("WS003", "error", document.error.message, { file: document.relative }));
     const requiresFrontmatter = document.relative !== "AGENTS.md" &&
-      !document.relative.startsWith("brain/inbox/") &&
-      !document.relative.startsWith("brain/archive/");
+      (!document.relative.startsWith("handbook/") || document.relative === "handbook/roster.md");
     if (requiresFrontmatter && !document.data) diagnostics.push(diagnostic("WS004", "error", "Workspace Markdown requires valid YAML frontmatter.", { file: document.relative }));
   }
 
@@ -172,21 +168,6 @@ export function validateWorkspace(root) {
     }
   }
 
-  const handbookIndex = byPath.get("handbook/index.md")?.body ?? "";
-  for (const document of documents.filter((item) => item.relative.startsWith("handbook/") && item.relative !== "handbook/index.md")) {
-    if (!handbookIndex.includes(basename(document.relative))) diagnostics.push(diagnostic("WS027", "warning", `Handbook file is missing from handbook/index.md.`, { file: document.relative }));
-  }
-
-  const knowledge = inspectKnowledgeWorkspace({ workspaceRoot: root });
-  for (const entry of knowledge.diagnostics) {
-    diagnostics.push(diagnostic(entry.code, entry.severity, entry.message, { file: entry.path }));
-  }
-
-  for (const source of documents.filter((item) => item.relative.startsWith("connections/") && item.data?.type === "knowledge-source")) {
-    try { loadKnowledgeSourceRequirement(join(root, source.relative)); }
-    catch (error) { diagnostics.push(diagnostic("WS040", "error", error.message, { file: source.relative })); }
-  }
-
   const structured = inspectStructuredDeclarations(root);
   diagnostics.push(...structured.diagnostics);
 
@@ -245,8 +226,6 @@ export function validateWorkspace(root) {
       unattended_workflows: workflowDocs.filter((workflow) => workflow.data?.execution_mode === "unattended").length,
       agents: agents.length,
       company_tools: toolDocs.length,
-      knowledge_documents: knowledge.bundle?.documentCount ?? 0,
-      knowledge_fragments: knowledge.bundle?.fragmentCount ?? 0,
       record_sources: structured.summary.record_sources,
       record_projections: structured.summary.record_projections,
       sprint_configurations: structured.summary.sprint_configurations,

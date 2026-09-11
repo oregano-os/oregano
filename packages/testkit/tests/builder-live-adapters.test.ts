@@ -146,7 +146,7 @@ function vercelFixture(reference = false) {
       const current = parsed.hostname === "staged.vercel.app" ? { ...artifact, deploymentId: "dpl_next" }
         : active === previous.deploymentId ? previous : { ...artifact, deploymentId: active };
       if (unavailable) return Response.json({}, { status: 503 });
-      response = { ok: true, status: "ready", releaseContinuityDigest: releaseContinuityDigest(lostConfiguration ? {} : environment), builder: { releaseConfigured: !lostConfiguration, codingConfigured: true }, knowledgeSnapshotHash: hash, ...current, ...(badHealth && parsed.hostname === "staged.vercel.app" ? { artifactHash: hash } : {}), sourceCoreCommit: current.coreCommit, instance: { id: current.instanceId, environment: "production" } };
+      response = { ok: true, status: "ready", releaseContinuityDigest: releaseContinuityDigest(lostConfiguration ? {} : environment), builder: { releaseConfigured: !lostConfiguration, codingConfigured: true }, ...current, ...(badHealth && parsed.hostname === "staged.vercel.app" ? { artifactHash: hash } : {}), sourceCoreCommit: current.coreCommit, instance: { id: current.instanceId, environment: "production" } };
     } else {
       assert.equal(parsed.hostname, "api.vercel.com"); assert.equal(parsed.searchParams.get("teamId"), "team_synthetic");
       assert.equal(new Headers(init?.headers).get("authorization"), "Bearer service-secret");
