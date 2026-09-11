@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createSlackAdapter } from "@chat-adapter/slack";
 import {
   abortRememberedSlackAgentSessionConversation,
   createSlackToolProgressReporter,
+  coordinatorSlackMessage,
   rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
   shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
+  withSlackAgentWorking,
   toolResultNeedsHumanInput,
   validatedSlackResponsePlan,
 } from "./slack-agent-experience.ts";
@@ -212,4 +215,86 @@ test("disabled presentation and provider status failures do not block a turn", a
 
 test("collection controls cannot bypass buffered presentation when business grants are empty", () => {
   assert.equal(shouldStreamSlackAgentResponse({ configuration: { enabled: true, streamingEnabled: true, workingStatus: "Working" }, agentId: "synthetic-agent", knowledgeRouteKind: "auto", businessToolCount: 0, hasCollectionControl: true }), false);
+});
+
+const coordinatorConfiguration = { enabled: true, streamingEnabled: true, workingStatus: "Working" } as const;
+
+for (const kind of ["answer", "clarification"] as const) {
+  test(`coordinator ${kind} uses native Markdown and completes the exact working session`, async t => {
+    const adapter = createSlackAdapter({ botToken: "xoxb-synthetic", signingSecret: "synthetic", agentView: true });
+    const events: unknown[] = [];
+    // The pinned adapter sends via _client; webClient is a separate token client.
+    const transport = (adapter as any)._client;
+    t.mock.method(transport, "apiCall", async (method: string, args: unknown) => {
+      assert.equal(method, "agents.sessions.setStatus"); events.push(args); return { ok: true };
+    });
+    t.mock.method(transport.chat, "postMessage", async (args: unknown) => {
+      events.push(args); return { ok: true, ts: "1893492001.000001" };
+    });
+    const id = resolveSlackAgentSessionThreadId("slack:D12345:", "1893492000.000001", coordinatorConfiguration);
+    const thread = { id, adapter, startTyping: (status?: string) => adapter.startTyping(id, status) };
+    const text = kind === "answer"
+      ? String.raw`Open work:\n\n1. **Sales brief** — Scope is missing.\n2. **Onboarding** — Review the first day.\n\nWhich one?`
+      : "Which topic do you mean?\n\n1. **Sales brief**\n2. **Onboarding**";
+    const expected = "Open work:\n\n1. **Sales brief** — Scope is missing.\n2. **Onboarding** — Review the first day.\n\nWhich one?";
+    const result = await withSlackAgentWorking(thread, coordinatorConfiguration, async () => {
+      await adapter.postMessage(id, coordinatorSlackMessage(text)); return "delivered";
+    });
+    assert.equal(result, "delivered");
+    assert.equal(events.length, 3);
+    assert.equal((events[0] as any).status, "processing");
+    assert.equal((events[1] as any).markdown_text, kind === "answer" ? expected : text);
+    assert.equal((events[1] as any).text, undefined);
+    assert.equal((events[1] as any).thread_ts, "1893492000.000001");
+    assert.equal((events[2] as any).status, "active");
+    assert.equal((events[2] as any).thread_ts, "1893492000.000001");
+  });
+}
+
+test("coordinator clears working on replay, model/delivery failure and cancellation", async () => {
+  for (const outcome of ["replay", "model", "delivery", "aborted"]) {
+    const statuses: string[] = [];
+    const thread = { id: "slack:D12345:1893492000.000001", startTyping: async () => { statuses.push("processing"); },
+      adapter: { endTyping: async (_id: string, status?: string) => { statuses.push(status!); } } };
+    const failure = new Error(outcome);
+    const operation = withSlackAgentWorking(thread as any, coordinatorConfiguration, async () => {
+      if (outcome !== "replay") throw failure;
+      return "already delivered";
+    });
+    if (outcome === "replay") assert.equal(await operation, "already delivered");
+    else await assert.rejects(operation, error => error === failure);
+    assert.deepEqual(statuses, ["processing", "active"]);
+  }
+});
+
+test("coordinator completion cannot overwrite the delegated Agent's suspended approval status", async () => {
+  for (const destination of ["source", "other-thread"]) {
+    const statuses: string[] = [];
+    const thread = { id: "source", startTyping: async () => { statuses.push("source:processing"); },
+      adapter: { endTyping: async (id: string, status?: string) => { statuses.push(`${id}:${status}`); } } };
+    await withSlackAgentWorking(thread as any, coordinatorConfiguration, async finish => {
+      await finish();
+      statuses.push(`${destination}:processing`);
+      statuses.push(`${destination}:suspended`);
+    });
+    assert.deepEqual(statuses, ["source:processing", "source:active", `${destination}:processing`, `${destination}:suspended`]);
+  }
+});
+
+test("optional status failure or disabled Agent View cannot veto a coordinator response", async () => {
+  let calls = 0;
+  const thread = { id: "source", startTyping: async () => { calls++; throw new Error("start unavailable"); },
+    adapter: { endTyping: async () => { calls++; throw new Error("end unavailable"); } } };
+  assert.equal(await withSlackAgentWorking(thread as any, { ...coordinatorConfiguration, enabled: false }, async () => "ok"), "ok");
+  assert.equal(calls, 0);
+  assert.equal(await withSlackAgentWorking(thread as any, coordinatorConfiguration, async () => "ok"), "ok");
+  assert.equal(calls, 2);
+  const failure = new Error("model failed");
+  await assert.rejects(withSlackAgentWorking(thread as any, coordinatorConfiguration, async () => { throw failure; }), error => error === failure);
+});
+
+test("coordinator layout repair preserves code, literal paths and already-correct Markdown", () => {
+  const literal = "Code: `\\n\\n` and C:\\new\\notes\\file.txt\n\n```json\n{\"text\":\"\\n\\n\"}\n```\n\n[Continue](https://example.com/thread)";
+  assert.deepEqual(coordinatorSlackMessage(literal), { markdown: literal });
+  assert.equal(coordinatorSlackMessage(String.raw`Intro.\r\n\r\n1. One\r\n2. Two`).markdown, "Intro.\n\n1. One\n2. Two");
 });

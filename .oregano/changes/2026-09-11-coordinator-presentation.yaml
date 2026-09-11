@@ -1,0 +1,42 @@
+version: 3
+plan_id: coordinator-presentation-2026-09-11
+created: "2026-09-11"
+title: Complete coordinator status and render readable replies
+objective: End the coordinator's working indicator on completion, error, cancellation or delegation and render its user-facing text as Markdown.
+non_goals:
+  - Change work selection, business authority, approval state or model caching.
+  - Rewrite retained user answers, structured payloads, code examples or card fields.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-11-coordinator-presentation.yaml
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.ts
+  - docs/operations/workflow-engine.md
+tests:
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.workflow-engine]
+architecture:
+  placement:
+    core: Complete the existing chat presentation lifecycle and explicitly render model-generated prose as Markdown.
+    packages: Synthetic SDK transport and status lifecycle regression fixtures.
+    workspace: Business instructions, language, work selection and available Tools remain unchanged.
+    instance: Existing opted-in Agent View configuration and exact deployment pins.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse Chat SDK Markdown and endTyping boundaries instead of adding provider calls in Workspace code.
+    - mechanism: agent-resolver
+      reason: Keep the coordinator's presentation lifetime separate from the selected Agent's own response or approval state.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies using shared conversation coordination receive the same presentation fix; provider status remains in the Slack adapter.
+rollback: Restore the preceding exact Core and Artifact pair. No business state or schema migration is required.

@@ -35,7 +35,7 @@ export async function interpretConversation(args: { turn: SharedConversationTurn
         execute: input => args.turn.read(input.id) }),
       companyos_conversation_plan: tool({ description: "Record the interpreted concerns or a natural clarification. This never authorizes a business effect.",
         inputSchema: jsonSchema<ConversationPlan>({ type: "object", additionalProperties: false, required: ["reply", "routes"], properties: {
-          reply: { type: "string", maxLength: 4000, description: "Empty for ordinary routing; at most one brief destination acknowledgment when moving. Never answer routed questions here." }, usePendingMessageId: { type: "string" },
+          reply: { type: "string", maxLength: 4000, description: "Empty for ordinary routing; at most one brief destination acknowledgment when moving. Never answer routed questions here. User-facing prose uses Markdown with real paragraph and list line breaks, not literal backslash-n characters. Refer to work by title; omit internal versions and technical metadata." }, usePendingMessageId: { type: "string" },
           clarify: { type: "object", additionalProperties: false, required: ["question", "candidates"], properties: { question: { type: "string", maxLength: 2000 }, candidates: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } } } },
           routes: { type: "array", maxItems: 3, items: { type: "object", additionalProperties: false, required: ["text"], properties: {
             text: { type: "string" }, workId: { type: "string" }, draftId: { type: "string" }, agentId: { type: "string" }, purpose: { type: "string" },

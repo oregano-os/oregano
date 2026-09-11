@@ -271,3 +271,36 @@ export async function showSlackAgentWorking(
     // The Slack adapter logs provider failures. Keep the accepted turn running.
   }
 }
+
+/** Own only this pass's indicator; finish before delegating to another turn. */
+export async function withSlackAgentWorking<T>(
+  thread: Pick<Thread, "id" | "adapter" | "startTyping">,
+  configuration: SlackAgentExperienceConfiguration,
+  operation: (finish: () => Promise<void>) => Promise<T>,
+): Promise<T> {
+  let finished = false;
+  const finish = async () => {
+    if (finished || !configuration.enabled) return;
+    finished = true;
+    try { await thread.adapter.endTyping?.(thread.id, "active"); }
+    catch { /* Optional presentation must not replace the operation's result or error. */ }
+  };
+  await showSlackAgentWorking(thread, configuration);
+  try { return await operation(finish); }
+  finally { await finish(); }
+}
+
+/** Repair double-escaped prose layout only, never reparse a whole JSON payload. */
+export function coordinatorSlackMessage(text: string): { markdown: string } {
+  const layout = /(?:\\r\\n|\\n){2,}|(?:\\r\\n|\\n)(?=(?:\d+[.)]|[-*+]|#{1,6})\s)/gu;
+  const repair = (prose: string) => prose.replace(layout, escaped => escaped.replace(/\\r\\n|\\n/gu, "\n"));
+  // Code is literal. In particular, do not change an explanation of `\\n` or
+  // Windows paths. Single escaped newlines are repaired only before list markers.
+  const code = /(`{3,}|~{3,})[\s\S]*?\1|(`+)[^\r\n]*?\2/gu;
+  let markdown = "", offset = 0;
+  for (const match of text.matchAll(code)) {
+    markdown += repair(text.slice(offset, match.index)) + match[0];
+    offset = match.index + match[0].length;
+  }
+  return { markdown: markdown + repair(text.slice(offset)) };
+}

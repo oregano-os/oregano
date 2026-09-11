@@ -55,12 +55,14 @@ import { setupVerificationPrompt, setupVerificationResponse } from "./setup-veri
 import {
   abortRememberedSlackAgentSessionConversation,
   createSlackToolProgressReporter,
+  coordinatorSlackMessage,
   rememberSlackAgentSessionConversation,
   resolveSlackAgentExperience,
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
   shouldStreamSlackAgentResponse,
   showSlackAgentWorking,
+  withSlackAgentWorking,
   toolResultNeedsHumanInput,
   validatedSlackResponsePlan,
   type SlackAgentExperienceConfiguration,
@@ -277,7 +279,8 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   const sourceThread = workflowInboundThreadId(thread.id, message.id);
   const [, channelId, threadId] = sourceThread.split(":");
   if (!channelId || !threadId) throw new Error("Conversation source has no verified thread identity");
-  await showSlackAgentWorking(botInstance!.thread(resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience)), slackAgentExperience);
+  const workingThread = botInstance!.thread(resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience));
+  return withSlackAgentWorking(workingThread, slackAgentExperience, async finishWorking => {
   const scope: ConversationScope = { instanceId: artifact.instance.id, principal: requester, surface: "slack", accountId: entry.assignmentKey.accountId, channelId };
   const source = createPostgresConversationWorkSource(artifact);
   source.history = async (verifiedScope, address, agentId) => {
@@ -304,8 +307,11 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   const replyThread = botInstance!.thread(sourceThread);
   await replyThread.subscribe();
   if (receipt.plan.clarify || !receipt.concerns.length) {
-    await (receipt.plan.clarify ? replyThread : thread).post(receipt.plan.clarify?.question ?? receipt.plan.reply);
+    await (receipt.plan.clarify ? replyThread : workingThread).post(coordinatorSlackMessage(receipt.plan.clarify?.question ?? receipt.plan.reply));
   } else {
+    // Each selected Agent owns its own status, including suspended approvals.
+    // Finish the coordinator first so its cleanup cannot reset that later state.
+    await finishWorking();
     for (const [index, concern] of receipt.concerns.entries()) {
       if (await state.get(`${routeKey}:${index}:complete`)) continue;
       let session: WorkflowConversationSession | undefined;
@@ -335,7 +341,8 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
       await target.subscribe();
       if (concern.needsAcknowledgement && !await state.get(`${routeKey}:${index}:ack`)) {
         const link = `https://slack.com/archives/${destination.channelId}/p${destination.threadId.replace(".", "")}`;
-        await replyThread.post(`${receipt.plan.reply || "I have assigned your answer to the matching conversation."}\nContinue here: <${link}|${concern.work!.title.replace(/[<>|]/g, " ")}>.`);
+        const title = concern.work!.title.replace(/[\\[\]<>]/g, " ");
+        await replyThread.post(coordinatorSlackMessage(`${receipt.plan.reply || "I have assigned your answer to the matching conversation."}\n\nContinue here: [${title}](${link}).`));
         await state.set(`${routeKey}:${index}:ack`, true, 30 * DAY);
       }
       await state.set(`${routeKey}:${index}:status`, { state: "running", workId: concern.work?.id, agentId: concern.agentId, at: new Date().toISOString() }, 30 * DAY);
@@ -351,6 +358,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   }
   await state.set(`${routeKey}:complete`, true, 30 * DAY);
   return true;
+  });
 }
 
 async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">,

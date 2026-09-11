@@ -265,6 +265,15 @@ needed. New ongoing ideas receive an internal discussion bookmark even when
 the human explicitly wants no card or external change yet. Live qualification
 must inspect persisted drafts as well as the visible response.
 
+Coordinator replies, clarifications and destination acknowledgments are delivered
+as Markdown. Human-facing prose uses real paragraphs and lists; the delivery
+boundary repairs double-escaped paragraph/list separators while preserving code
+and literal paths. It does not rewrite retained answers or structured work data.
+The configured provider's working indicator ends after direct delivery, replay, failure
+or cancellation. Before delegation, the coordinator ends its own indicator;
+the selected Agent then owns its status, including suspended approval state.
+Optional provider status failures cannot replace the accepted turn's result.
+
 The Instance reuses `chat_values` for attention and immutable routing receipts.
 Attention is scoped by instance, principal, surface, account and channel; an
 atomic revision comparison prevents concurrent turns replacing each other.
