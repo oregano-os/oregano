@@ -1,6 +1,7 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import type { CompanyOSArtifact, CompiledSprintRuntime } from "../../../companyos-builder/types.ts";
 import type { RecordProjectionRow, RecordQueryResult } from "../../../records/contracts.ts";
+import { MAX_RECORD_QUERY_ROWS } from "../../../records/query.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { DurableTimerService } from "../../../runtime/durable-timers.ts";
 import {
@@ -24,8 +25,6 @@ import { loadArtifact } from "./artifact.ts";
 import { getCompanyOSRuntime } from "./bot.ts";
 
 const MAX_REQUEST_BYTES = 16_384;
-const PAGE_LIMIT = 200;
-const MAX_PAGES = 250;
 const LEASE_MS = 4 * 60_000;
 
 const text = (value: unknown, label: string, maximum = 255): string => {
@@ -306,46 +305,36 @@ function toolResult(value: unknown, projectionId: string): RecordQueryResult {
   return output;
 }
 
-async function readProjection(args: {
+export async function readSprintProjection(args: {
   compiled: CompiledSprintRuntime;
   projectionId: string;
   runId: string;
   now: string;
   pass: number;
-}): Promise<{ rows: RecordProjectionRow[]; version: string; observedAt: string }> {
-  const runtime = getCompanyOSRuntime();
-  const rows: RecordProjectionRow[] = [];
-  let cursor: string | undefined;
-  let newestObservedAt = "";
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const result = toolResult(await runtime.execute({
-      runId: args.runId,
-      stepId: `projection:${args.projectionId}:${args.pass}:${page}`,
-      agentId: args.compiled.agentId,
-      grantId: "oregano:records/query",
-      subjectPrincipal: args.compiled.servicePrincipal,
-      input: { projection_id: args.projectionId, limit: PAGE_LIMIT, ...(cursor ? { cursor } : {}) },
-    }), args.projectionId);
-    if (result.fresh_until < args.now) throw new Error(`Sprint projection '${args.projectionId}' is stale`);
-    newestObservedAt = newestObservedAt > result.observed_at ? newestObservedAt : result.observed_at;
-    rows.push(...result.rows);
-    cursor = result.next_cursor;
-    if (!cursor) return {
-      rows,
-      observedAt: newestObservedAt || args.now,
-      version: sha256(rows),
-    };
+}, runtime: Pick<ReturnType<typeof getCompanyOSRuntime>, "execute"> = getCompanyOSRuntime()): Promise<{ rows: RecordProjectionRow[]; version: string; observedAt: string }> {
+  const result = toolResult(await runtime.execute({
+    runId: args.runId,
+    stepId: `projection:${args.projectionId}:${args.pass}:0`,
+    agentId: args.compiled.agentId,
+    grantId: "oregano:records/query",
+    subjectPrincipal: args.compiled.servicePrincipal,
+    input: { projection_id: args.projectionId, all_pages: true },
+  }), args.projectionId);
+  if (result.fresh_until < args.now) throw new Error(`Sprint projection '${args.projectionId}' is stale`);
+  if (result.next_cursor !== undefined) throw new Error(`Sprint projection '${args.projectionId}' returned an incomplete full read`);
+  if (result.rows.length > MAX_RECORD_QUERY_ROWS) {
+    throw new Error(`Sprint projection '${args.projectionId}' exceeds the supported ${MAX_RECORD_QUERY_ROWS} rows`);
   }
-  throw new Error(`Sprint projection '${args.projectionId}' exceeds the supported ${MAX_PAGES * PAGE_LIMIT} rows`);
+  return { rows: result.rows, observedAt: result.observed_at, version: sha256(result.rows) };
 }
 
-type ProjectionSnapshot = Awaited<ReturnType<typeof readProjection>>;
+type ProjectionSnapshot = Awaited<ReturnType<typeof readSprintProjection>>;
 
 /**
- * Projection pagination is not a database snapshot transaction. Require two
- * consecutive full reads with the same canonical digest before freezing a
- * Sprint so a reconciliation running between pages cannot create a mixed
- * snapshot. One automatic retry tolerates a single concurrent refresh.
+ * Each full read uses the existing Records snapshot query. Require two
+ * consecutive reads with the same canonical digest before freezing a Sprint;
+ * reconciliation can still refresh the projection between reads.
+ * One automatic retry tolerates a single concurrent refresh.
  */
 export async function stabilizeSprintProjection(
   projectionId: string,
@@ -365,14 +354,14 @@ export async function resolveSprintSnapshot(compiled: CompiledSprintRuntime, now
   const artifact = loadArtifact();
   const runId = `sprint-snapshot:${compiled.definitionId}:${sha256(now).slice(0, 24)}`;
   const [participantProjection, workItemProjection] = await Promise.all([
-    stabilizeSprintProjection(compiled.policy.participants.projection, (pass) => readProjection({
+    stabilizeSprintProjection(compiled.policy.participants.projection, (pass) => readSprintProjection({
       compiled,
       projectionId: compiled.policy.participants.projection,
       runId,
       now,
       pass,
     })),
-    stabilizeSprintProjection(compiled.policy.work_items.projection, (pass) => readProjection({
+    stabilizeSprintProjection(compiled.policy.work_items.projection, (pass) => readSprintProjection({
       compiled,
       projectionId: compiled.policy.work_items.projection,
       runId,
@@ -403,7 +392,7 @@ async function executeHistoricalSprintReplay(args: {
     const snapshot = await resolveSprintSnapshot(hosted.compiled, now);
     const artifact = loadArtifact();
     const runId = `sprint-replay-input:${hosted.compiled.definitionId}:${sha256([input.replayId, now]).slice(0, 24)}`;
-    const messages = await stabilizeSprintProjection(hosted.compiled.replay.messageProjection, (pass) => readProjection({
+    const messages = await stabilizeSprintProjection(hosted.compiled.replay.messageProjection, (pass) => readSprintProjection({
       compiled: hosted.compiled,
       projectionId: hosted.compiled.replay!.messageProjection,
       runId,

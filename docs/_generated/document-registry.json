@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-10",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1236,7 +1236,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-04",
+    "updated": "2026-09-10",
     "availability": null,
     "migration_sources": [],
     "relations": {

@@ -48,6 +48,16 @@ evidence, historical prototypes, and production gaps.
 
 ## Implemented and tested
 
+- Core 0.11.4 reduces redundant database transfer behind existing contracts.
+  Qualification compares the catalog inside one read-only SQL statement and
+  returns compact failure evidence. Hosted Sprint consumes the existing bounded
+  complete Records query once per consistency pass, retaining two matching
+  reads and one retry. Qualification frequency, authorization, schema manifest,
+  scheduling and deployment fences remain unchanged. Synthetic tests cover
+  catalog drift, complete reads, stale and unauthorized results, and row bounds.
+  This patch adds no development database, cache or migration. Source validation
+  does not establish production adoption or a monthly traffic saving.
+
 - Core 0.11.1 corrects Builder intake after clarification. Typed model output
   replaces free-text JSON parsing. Invalid output and execution failures are
   retried once and then reported as unavailable, never as a normal question.
