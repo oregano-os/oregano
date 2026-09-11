@@ -1328,3 +1328,12 @@ selection service is provider-neutral. Synthetic coverage checks preservation,
 expiry, identity isolation and duplicate selection. Hosted deployment and human
 acceptance remain separate evidence; these source changes do not activate an
 Instance.
+
+## Selective team participation — source change
+
+The existing coordinator can record context-only team messages with no concern
+dispatch, draft or visible output. Ordinary Agent turns share the Core output
+controller and attributed context. The same-message routing and read-only
+source checks remain in force. Synthetic tests exercise silence, follow-ups
+and sender identity; they do not prove a live provider deployment. See
+[the participation contract](../specifications/conversation-participation.md).

@@ -1,3 +1,6 @@
+import { CONVERSATION_CONTROL_TOOL, CONVERSATION_PARTICIPATION_INSTRUCTIONS, conversationContext, type ConversationContextEntry } from "../../../runtime/conversation-participation.ts";
+import { withConversationParticipation, participationStep } from "./conversation-model-tools.ts";
+import { slackParticipation, slackConversationMessage } from "./conversation-participation.ts";
 import { boundedConversationHistory, linkConversationDraft, SharedConversationTurn, type CheckedConcern, type ConversationScope } from "../../../runtime/shared-conversation.ts";
 import { createPostgresConversationAttentionStore } from "../../../state-postgres/conversation-attention-store.ts";
 import { createPostgresConversationWorkSource } from "../../../state-postgres/conversation-work-source.ts";
@@ -89,7 +92,7 @@ const requireEnv = (name: string): string => {
   return value;
 };
 
-interface ConversationEntry {
+interface ConversationEntry extends ConversationContextEntry {
   role: "user" | "assistant";
   content: string;
   model_execution?: ModelExecutionEvidence;
@@ -257,7 +260,7 @@ export async function recoverHostedWorkflowReply(reference: { threadId: string; 
   return result;
 }
 
-async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">) {
+async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "isMention">>) {
   const { workflowSlackMessageTrace } = await import("./workflow-slack-diagnostics.ts");
   const trace = workflowSlackMessageTrace(thread.id, message.id);
   trace.emit("handler-entered");
@@ -270,7 +273,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 interface CoordinatedTurn { agent: CompiledAgent; session?: WorkflowConversationSession; concern: CheckedConcern; }
 
 /** The Slack adapter only translates verified addresses. Interpretation and state are shared Core. */
-async function coordinateConversation(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
+async function coordinateConversation(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "isMention">>, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
   const member = rosterMember(message.author);
   if (!member) return false;
   const requester = principal(member);
@@ -280,7 +283,9 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   const [, channelId, threadId] = sourceThread.split(":");
   if (!channelId || !threadId) throw new Error("Conversation source has no verified thread identity");
   const workingThread = botInstance!.thread(resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience));
-  return withSlackAgentWorking(workingThread, slackAgentExperience, async finishWorking => {
+  const incoming = slackConversationMessage(thread, message, { id: requester, name: member.name });
+  const ambient = incoming.shared && !incoming.mentioned;
+  return withSlackAgentWorking(workingThread, ambient ? { ...slackAgentExperience, enabled: false } : slackAgentExperience, async finishWorking => {
   const scope: ConversationScope = { instanceId: artifact.instance.id, principal: requester, surface: "slack", accountId: entry.assignmentKey.accountId, channelId };
   const source = createPostgresConversationWorkSource(artifact);
   source.history = async (verifiedScope, address, agentId) => {
@@ -292,7 +297,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
     ? await (await (await import("./workflow-host.ts")).createWorkflowHost()).conversations.pendingChoiceForCoordinator({ threadId: sourceThread, authorId: message.author.userId })
     : undefined;
   const turn = await SharedConversationTurn.open({ scope, verifiedPending, input: { eventId: `${sourceThread}:${message.id}`, messageId: message.id,
-    text: message.text, address: { surface: "slack", accountId: scope.accountId, channelId, threadId } },
+    text: message.text, message: incoming, address: { surface: "slack", accountId: scope.accountId, channelId, threadId } },
     coordinatorId: entry.agent.id, source, store: createPostgresConversationAttentionStore(), now: new Date().toISOString(),
     authorize: async (agentId, purpose) => handoffService.authorizeConcern({ ...entry.assignmentKey,
       activeAgentId: entry.agent.id, targetAgentId: agentId, purpose, artifactHash: artifact.artifactHash, requestedAt: new Date().toISOString() }),
@@ -303,9 +308,16 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   const { receipt, modelEvidence } = await interpretConversation({ turn, agent: entry.agent, specialists, signal: thread.signal });
   const routeKey = `conversation-dispatch:${sha256({ scope, eventId: turn.input.eventId })}`;
   if (await state.get(`${routeKey}:complete`)) return true;
+  if (!await state.setIfNotExists(`${routeKey}:delivery-claim`, { eventId: turn.input.eventId, claimedAt: new Date().toISOString() }, 30 * DAY)) return true;
   if (modelEvidence) await state.set(`${routeKey}:model`, modelEvidence, 30 * DAY);
   const replyThread = botInstance!.thread(sourceThread);
   await replyThread.subscribe();
+  if (receipt.plan.participation === "context-only") {
+    await state.appendToList(`conversation:${sourceThread}:${entry.agent.id}`, { role: "user", content: message.text,
+      message_id: message.id, principal: requester, sender_name: member.name, sent_at: incoming.sentAt } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
+    await state.set(`${routeKey}:complete`, true, 30 * DAY);
+    return true;
+  }
   if (receipt.plan.clarify || !receipt.concerns.length) {
     await (receipt.plan.clarify ? replyThread : workingThread).post(coordinatorSlackMessage(receipt.plan.clarify?.question ?? receipt.plan.reply));
   } else {
@@ -361,16 +373,17 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   });
 }
 
-async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata">,
+async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "isMention">>,
   trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace, coordinated?: CoordinatedTurn) {
   if (!coordinated && !setupVerificationResponse(message.text)) {
     try { if (await coordinateConversation(thread, message, trace)) return; }
     catch (error) {
-      await thread.post("I could not safely match or process this message. Please try again; your existing work remains available.");
+      if (thread.isDM || message.isMention) await thread.post("I could not safely match or process this message. Please try again; your existing work remains available.");
       throw error;
     }
   }
   let workflowSession: WorkflowConversationSession | undefined = coordinated?.session;
+  let workflowNotice: string | undefined;
   if (!coordinated && workflowHostingEnabled()) {
     try {
       const { createWorkflowHost } = await import("./workflow-host.ts");
@@ -379,7 +392,9 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       const received = input.threadId.endsWith(`:${message.id}`)
         ? await host.conversations.receiveChannel(input) : await host.conversations.receive(input);
       trace.emit("assignment", received.kind);
-      if (received.kind === "ambiguous") {
+      if (received.kind === "ambiguous" && !thread.isDM && !message.isMention) {
+        workflowNotice = "Several workflow questions are waiting. If this message asks you to act on one, ask the sender to continue in that question’s original thread. Team discussion alone needs no response.";
+      } else if (received.kind === "ambiguous") {
         const choice = await host.conversations.prepareChoice(input, received.conversations);
         const links = choice.conversations.map((c, index) => `<https://slack.com/archives/${c.channelId}/p${c.threadId.replace(".", "")}|Question ${index + 1}>`).join(" · ");
         await publishConversationChoice({ conversationId: input.threadId, inbound: thread, resolve: (id) => botInstance!.thread(id),
@@ -388,7 +403,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
         trace.emit("reply-posted");
         return;
       }
-      if (received.kind === "routing") { await thread.post(received.text); trace.emit("reply-posted"); return; }
+      if (received.kind === "routing") workflowNotice = received.text;
       if (received.kind === "unassigned" && process.env.COMPANYOS_WORKFLOW_ONLY === "true") return;
       if (received.kind === "decision") {
         if (await state.setIfNotExists(`workflow-response:${received.runId}:${message.id}`, true, 30 * DAY)) {
@@ -397,7 +412,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
         }
         return;
       }
-      if (received.kind === "closed") { await thread.post("This workflow conversation is closed."); trace.emit("reply-posted"); return; }
+      if (received.kind === "closed") workflowNotice = "This workflow conversation is closed. Explain only when addressed; no action is available.";
       if (received.kind === "conversation") {
         workflowSession = received.session;
         message = { ...message, text: workflowSession.text };
@@ -406,14 +421,13 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       const reference = sha256(error instanceof Error ? error.message : String(error));
       console.error(JSON.stringify({ event: "workflow.conversation.failed", reference }));
       trace.emit("verification-failed");
-      await thread.post(`Your workflow message could not be verified or processed. No decision was inferred. Evidence reference: ${reference}`);
-      trace.emit("reply-posted");
-      return;
+      workflowNotice = `The workflow message could not be verified or processed. No decision was inferred. Evidence reference: ${reference}. Explain only when addressed.`;
     }
   }
   const member = workflowSession?.member ?? rosterMember(message.author);
   if (!member) {
     trace.emit("identity-rejected");
+    if (!thread.isDM && !message.isMention) return;
     await thread.post("This Slack identity is not an active human in the Company Workspace roster. The message was blocked before model invocation.");
     trace.emit("reply-posted");
     return;
@@ -424,6 +438,8 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   try {
   await thread.subscribe();
   const requester = workflowSession?.principal ?? principal(member);
+  const participation = slackParticipation(thread, message, { id: requester, name: member.name });
+  if (coordinated && participation.ambient) participation.choose("respond");
   const conversation: ResolvedConversationAgent = workflowSession ? {
     agent: workflowSession.agent,
     resolution: { agentId: workflowSession.agent.id, reason: "assignment", assignmentId: workflowSession.runId },
@@ -445,15 +461,15 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     thread.id,
     slackAgentExperience,
   );
-  await showSlackAgentWorking(deliveryThread, slackAgentExperience);
+  if (!participation.ambient || coordinated) await showSlackAgentWorking(deliveryThread, slackAgentExperience);
   const historyThreadId = workflowSession ? workflowReplyThreadId(workflowSession) : thread.id;
   const conversationKey = `conversation:${historyThreadId}:${agent.id}`;
-  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}` } satisfies ConversationEntry, {
+  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}`, message_id: message.id, principal: requester, sender_name: member.name, sent_at: message.metadata.dateSent.toISOString() } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
   const verificationResponse = setupVerificationResponse(message.text);
-  if (verificationResponse) {
+  if (verificationResponse && !participation.ambient) {
     const resolved = resolveModelExecution({ profile: "utility", task: "setup.verification", requiredCapability: "language" });
     trace.emit("model-started");
     const probe = await generateText({
@@ -479,13 +495,13 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   const history = boundedConversationHistory(await state.getList<ConversationEntry>(conversationKey));
   const runId = workflowSession?.runId ?? `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
   const visibleGrantIds = new Set(workflowSession?.allowedTools ?? agent.toolSet.tools.map((entry) => entry.grantId));
-  const tools = resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession);
+  const tools = withConversationParticipation(workflowNotice ? {} : resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession), participation);
   if (coordinated) delete tools.companyos_agent_handoff;
   if (coordinated?.concern.work?.kind === "builder") delete tools.builder_propose_change;
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
     requiresKnowledge: coordinated?.concern.knowledge,
-    tools: agent.toolSet.tools
+    tools: (workflowNotice ? [] : agent.toolSet.tools)
       .filter((entry) => visibleGrantIds.has(entry.grantId))
       .map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
   });
@@ -498,19 +514,20 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       ? { configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64) }
       : {}),
   });
+  const participationOffset = participation.ambient && !participation.choice ? 1 : 0;
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: [...agentInstructionMessages(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
+    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...agentInstructionMessages(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
     tools,
-    prepareStep: ({ stepNumber }) => knowledgeStepChoice(knowledgeRoute, stepNumber),
-    ...(workflowSession?.collection ? { stopWhen: [stepCountIs(20), ({ steps }: any) => hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? [])] } : {}),
+    prepareStep: ({ stepNumber }) => participationStep(participation) ?? knowledgeStepChoice(knowledgeRoute, stepNumber - participationOffset),
+    stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? [])],
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
-  const messages: ModelMessage[] = history.map((entry) => ({ role: entry.role, content: entry.content }));
+  const messages: ModelMessage[] = [{ role: "user", content: conversationContext(participation.message, history) }];
   const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
-  if (shouldStreamSlackAgentResponse({
+  if ((!participation.ambient || coordinated) && shouldStreamSlackAgentResponse({
     configuration: slackAgentExperience,
     agentId: agent.id,
     knowledgeRouteKind: knowledgeRoute.kind,
@@ -551,7 +568,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     });
     return;
   }
-  const toolProgress = createSlackToolProgressReporter(deliveryThread, workflowSession?.collection ? { ...slackAgentExperience, streamingEnabled: false } : slackAgentExperience);
+  const toolProgress = createSlackToolProgressReporter(deliveryThread, workflowSession?.collection || participation.ambient ? { ...slackAgentExperience, streamingEnabled: false } : slackAgentExperience);
   let waitingForHuman = false;
   let result: Awaited<ReturnType<typeof modelAgent.generate>>;
   try {
@@ -560,9 +577,10 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       messages,
       abortSignal,
       onToolExecutionStart: async ({ toolCall }) => {
-        await toolProgress.start({ id: toolCall.toolCallId, toolName: toolCall.toolName });
+        if (toolCall.toolName !== CONVERSATION_CONTROL_TOOL) await toolProgress.start({ id: toolCall.toolCallId, toolName: toolCall.toolName });
       },
       onToolExecutionEnd: async ({ toolCall, toolOutput }) => {
+        if (toolCall.toolName === CONVERSATION_CONTROL_TOOL) return;
         const succeeded = toolOutput.type === "tool-result";
         const toolWaitingForHuman = succeeded && toolResultNeedsHumanInput(toolOutput.output);
         waitingForHuman ||= toolWaitingForHuman;
@@ -585,9 +603,12 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     throw error;
   }
   thread.signal.throwIfAborted();
+  const output = participation.finish(result.text);
+  await state.set(`conversation-participation:${sha256([thread.id, message.id, agent.id])}`, { participation: output.participation, reason: output.reason, principal: requester, messageId: message.id }, 30 * DAY);
+  if (output.participation === "context-only") return;
   const response = renderKnowledgeTurnResponse({
     route: knowledgeRoute,
-    modelText: result.text,
+    modelText: output.text ?? "",
     toolResults: result.toolResults,
     toolFailures: result.content
       .filter((part) => part.type === "tool-error")
@@ -601,7 +622,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     : { historyResponse: response, visibleResponse: response };
   waitingForHuman ||= result.toolResults.some((entry) => toolResultNeedsHumanInput(entry.output));
   await toolProgress.complete({ waitingForHuman });
-  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
+  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, sent_at: new Date().toISOString(), in_reply_to: message.id, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });

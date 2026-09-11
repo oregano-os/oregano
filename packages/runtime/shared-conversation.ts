@@ -1,3 +1,4 @@
+import { ConversationParticipation, type ConversationMessage, type ConversationContextEntry, type Participation } from "./conversation-participation.ts";
 import { sha256 } from "./canonical.ts";
 
 /** Adapters supply verified identity and addresses. Model output never supplies a scope. */
@@ -6,7 +7,7 @@ export interface ConversationScope {
 }
 export interface ConversationAddress { surface: string; accountId: string; channelId: string; threadId: string }
 export interface ConversationInput {
-  eventId: string; messageId: string; text: string; address: ConversationAddress;
+  eventId: string; messageId: string; text: string; address: ConversationAddress; message?: ConversationMessage;
 }
 export interface WorkContext {
   id: string; kind: "workflow" | "builder" | "draft"; agentId: string; title: string;
@@ -27,7 +28,7 @@ export interface PendingConcern {
 }
 export interface ConversationAttention {
   revision: number; importedSources?: string[]; focus: string[]; drafts: ConversationDraft[]; pending: PendingConcern[];
-  recent: { role: "user" | "assistant"; content: string }[];
+  recent: ConversationContextEntry[];
 }
 export interface ConcernRoute {
   /** Exact excerpt of the verified current or pending original message. */
@@ -35,6 +36,7 @@ export interface ConcernRoute {
   newDiscussion?: boolean; closeDraft?: boolean; knowledge?: boolean;
 }
 export interface ConversationPlan {
+  participation?: Participation;
   reply: string; routes: ConcernRoute[]; clarify?: { question: string; candidates: string[] };
   usePendingMessageId?: string;
 }
@@ -54,6 +56,8 @@ export interface ConversationAttentionStore {
 export const EMPTY_ATTENTION = (): ConversationAttention => ({ revision: 0, focus: [], drafts: [], pending: [], recent: [] });
 export const conversationScopeKey = (scope: ConversationScope) => `conversation-attention:${sha256(scope)}`;
 export const conversationReceiptKey = (scope: ConversationScope, eventId: string) => `conversation-route:${sha256({ scope, eventId })}`;
+// Adding transport participation facts must not invalidate receipts from before adoption.
+const inputDigest = (input: ConversationInput) => { const { message: _facts, ...original } = input; return sha256(original); };
 const sameAddress = (a: ConversationAddress, b: ConversationAddress) => a.surface === b.surface && a.accountId === b.accountId && a.channelId === b.channelId && a.threadId === b.threadId;
 const compactWork = (work: WorkContext) => ({ id: work.id, kind: work.kind, agentId: work.agentId, title: work.title.slice(0, 250),
   status: work.status, version: work.version, address: work.address, summary: work.summary.slice(0, 1500), terminal: work.terminal });
@@ -63,6 +67,7 @@ export class SharedConversationTurn {
   readonly scope: ConversationScope;
   readonly input: ConversationInput;
   readonly attention: ConversationAttention;
+  readonly participation?: ConversationParticipation;
   readonly #args: {
     scope: ConversationScope; input: ConversationInput; store: ConversationAttentionStore; source: ConversationWorkSource;
     coordinatorId: string; now: string;
@@ -77,6 +82,7 @@ export class SharedConversationTurn {
     authorize: (agentId: string, purpose: string) => Promise<{ ruleId: string; expiresAt: string }>;
   }, attention: ConversationAttention) {
     this.#args = args; this.scope = args.scope; this.input = args.input; this.attention = attention;
+    if (args.input.message) this.participation = new ConversationParticipation(args.input.message);
   }
   static async open(args: {
     verifiedPending?: PendingConcern;
@@ -86,6 +92,8 @@ export class SharedConversationTurn {
   }): Promise<SharedConversationTurn> {
     if (!args.input.text.trim() || args.input.text.length > 16000 || !args.input.eventId || !Number.isFinite(Date.parse(args.now))) throw new Error("Invalid conversation input");
     const a = args.input.address, s = args.scope;
+    if (args.input.message && (args.input.message.id !== args.input.messageId || args.input.message.senderId !== s.principal
+      || args.input.message.text !== args.input.text)) throw new Error("Participation identity does not match the verified conversation input");
     if (a.surface !== s.surface || a.accountId !== s.accountId || a.channelId !== s.channelId) throw new Error("Conversation input crosses authenticated scope");
     const attention = await args.store.read(s) ?? EMPTY_ATTENTION();
     attention.pending = attention.pending.filter(p => p.expiresAt > args.now);
@@ -101,7 +109,7 @@ export class SharedConversationTurn {
   }
   async replay(): Promise<ConversationReceipt | undefined> {
     const receipt = await this.#args.store.receipt(this.scope, this.input.eventId);
-    if (receipt && receipt.digest !== sha256(this.input)) throw new Error("Conversation event was reused with different content");
+    if (receipt && receipt.digest !== inputDigest(this.input)) throw new Error("Conversation event was reused with different content");
     return receipt;
   }
   async initialContext() {
@@ -153,7 +161,11 @@ export class SharedConversationTurn {
     const replay = await this.replay(); if (replay) return replay;
     if (!Array.isArray(plan.routes) || plan.routes.length > 3 || typeof plan.reply !== "string" || plan.reply.length > 4000) throw new Error("Invalid conversation plan");
     if (plan.clarify && plan.routes.length) throw new Error("Clarification cannot dispatch work");
-    if (!plan.clarify && !plan.routes.length && !plan.reply.trim()) throw new Error("A conversation plan must answer, clarify or route");
+    if (plan.participation !== "context-only" && !plan.clarify && !plan.routes.length && !plan.reply.trim()) throw new Error("A conversation plan must answer, clarify or route");
+    if (plan.participation !== undefined && !["respond", "context-only"].includes(plan.participation)) throw new Error("Invalid participation choice");
+    if (this.participation?.ambient && !plan.participation) throw new Error("Choose participation for a shared message before routing work");
+    if (plan.participation === "context-only" && (plan.reply || plan.routes.length || plan.clarify || plan.usePendingMessageId)) throw new Error("A context-only plan cannot reply, clarify or route work");
+    if (plan.participation) this.participation?.choose(plan.participation);
     const workIds = plan.routes.flatMap(r => r.workId ? [r.workId] : []);
     if (new Set(workIds).size !== workIds.length) throw new Error("Combine excerpts for the same work into one concern");
     const pending = plan.usePendingMessageId ? this.attention.pending.find(p => p.source.messageId === plan.usePendingMessageId
@@ -214,10 +226,12 @@ export class SharedConversationTurn {
     } else if (pending) next.pending = next.pending.filter(p => p.source.messageId !== pending.source.messageId);
     next.focus = [...new Set(concerns.filter(c => c.work && !c.work.terminal).map(c => c.work!.id))].slice(0, 3);
     if (!concerns.length) next.focus = this.attention.focus;
-    next.recent = [...next.recent, { role: "user" as const, content: this.input.text.slice(0, 2000) },
-      { role: "assistant" as const, content: (plan.clarify?.question ?? plan.reply).slice(0, 2000) }].slice(-8);
+    next.recent = [...next.recent, { role: "user" as const, content: this.input.text.slice(0, 2000),
+      principal: this.scope.principal, sender_name: this.input.message?.senderName, sent_at: this.input.message?.sentAt ?? this.#args.now, message_id: this.input.messageId },
+      ...(plan.participation === "context-only" ? [] : [{ role: "assistant" as const, content: (plan.clarify?.question ?? plan.reply).slice(0, 2000),
+        sent_at: this.#args.now, in_reply_to: this.input.messageId }])].slice(-8);
     next.revision++;
-    const receipt: ConversationReceipt = { digest: sha256(this.input), plan, concerns, recordedAt: this.#args.now };
+    const receipt: ConversationReceipt = { digest: inputDigest(this.input), plan, concerns, recordedAt: this.#args.now };
     if (!await this.#args.store.commit(this.scope, this.attention.revision, next, this.input.eventId, receipt)) {
       const duplicate = await this.replay(); if (duplicate) return duplicate;
       throw new Error("Conversation changed while interpreting this message; retry with fresh context");

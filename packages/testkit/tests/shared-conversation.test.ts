@@ -194,3 +194,33 @@ test("history remains within its character budget even at a small final remainde
     assert.ok(result.at(-1)?.content.endsWith("new".slice(-Math.min(3, limit))));
   }
 });
+
+for (const surface of ["slack", "synthetic-chat"]) test(`${surface}: quiet team messages retain attributed context without routes, drafts or lost questions`, async () => {
+  const f = fixture(surface);
+  const text = "Bob, can you review that tomorrow?";
+  const message = { id: "message-1", conversationId: `${surface}:inbox:new-message`, senderId: f.scope.principal, senderName: "Alex",
+    sentAt: "2026-09-10T10:00:00Z", shared: true, mentioned: false, text };
+  const turn = await f.open({ text, message });
+  await assert.rejects(() => turn.commit({ reply: "", routes: [{ text, newDiscussion: true, title: "Unexpected draft" }] }), /Choose participation/);
+  await assert.rejects(() => turn.commit({ participation: "context-only", reply: "Let me help", routes: [] }), /cannot reply/);
+  const receipt = await turn.commit({ participation: "context-only", reply: "", routes: [] });
+  assert.equal(receipt.concerns.length, 0);
+  const next = await f.store.read(f.scope);
+  assert.equal(next?.drafts.length, 0);
+  assert.equal(next?.recent.length, 1);
+  assert.equal(next?.recent[0].principal, f.scope.principal);
+  assert.equal(next?.recent[0].sender_name, "Alex");
+  assert.deepEqual(f.calls, []);
+  assert.deepEqual(await (await f.open({ text, message })).replay(), receipt);
+  await assert.rejects(() => f.open({ text, message: { ...message, senderId: "human:someone-else" } }), /identity/);
+});
+
+
+test("adoption retains legacy event receipts when adapters add normalized participation facts", async () => {
+  const f = fixture(), first = await f.open();
+  const receipt = await first.commit({ reply: "Already answered", routes: [] });
+  const message = { id: f.input.messageId, conversationId: "slack:inbox:new-message", senderId: f.scope.principal, senderName: "Alex",
+    sentAt: "2026-09-10T10:00:00Z", shared: true, mentioned: false, text: f.input.text };
+  const reconstructed = await f.open({ message });
+  assert.deepEqual(await reconstructed.replay(), receipt);
+});

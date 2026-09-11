@@ -16,7 +16,8 @@ export async function ignoreSlackChannelEvent(request: Request, mode?: string, e
     if (ownsWorkflowDm(payload, dmRecipients)) return true;
     if (payload?.type === "event_callback" && ["message", "app_mention"].includes(event?.type)
       && channels.includes(event?.channel)) return true;
-    return mode === "ignore" && payload?.type === "event_callback" && event?.type === "message"
-      && (event.channel_type === "channel" || event.channel_type === "group" || /^[CG][A-Z0-9]+$/.test(event.channel ?? ""));
+    // Legacy blanket ignore is superseded by exact ownership and SDK conversation
+    // subscription/trigger routing. It must never discard an owned follow-up.
+    return false;
   } catch { return false; }
 }

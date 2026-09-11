@@ -306,3 +306,18 @@ rereads and verifies the retained original answer and candidate order.
 Compile and deploy an exact Core/Workspace pair before live acceptance;
 local synthetic transport tests do not constitute provider delivery acceptance or
 production qualification of another adapter.
+
+## Selective participation in shared conversations
+
+The existing conversation coordinator follows the shared Core participation
+policy. It records `participation: context-only` with no reply, routes or
+clarification when humans discuss among themselves. This retains attributed
+context without starting another Agent, creating a draft, posting status or
+changing business state. Clear unmentioned follow-ups can still route to the
+existing work. Native mentions and DMs use the normal response path. The
+ordinary Agent loop uses the same output controller when no coordinator applies.
+
+See [Shared Conversation Participation](../specifications/conversation-participation.md).
+Exact provider ownership, current sender permissions and independent authorized
+job notifications remain mandatory. This source change needs an exact Instance
+adoption and configured-model qualification; unit tests are not live evidence.
