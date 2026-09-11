@@ -129,6 +129,7 @@ files_expected:
   - packages/domains/sprint/timers.ts
   - packages/language/contracts.ts
   - packages/runner-vercel/next.config.ts
+  - packages/runner-vercel/package.json
   - packages/runner-vercel/src/app/api/health/route.ts
   - packages/runner-vercel/src/app/api/sprint/intents/route.ts
   - packages/runner-vercel/src/app/api/sprint/operator/route.ts
@@ -287,6 +288,7 @@ files_expected:
   - packages/testkit/tests/workflow-threaded-decisions.test.ts
   - packages/testkit/workflow-collection-fixture.ts
   - packages/testkit/workflow-engine-fixture.ts
+  - pnpm-lock.yaml
   - scripts/test-database.mjs
   - vercel.json
 tests:
