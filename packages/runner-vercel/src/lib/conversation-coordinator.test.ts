@@ -4,6 +4,68 @@ import { MockLanguageModelV3 } from "ai/test";
 import { interpretConversation } from "./conversation-coordinator.ts";
 import { SharedConversationTurn, EMPTY_ATTENTION, type ConversationReceipt } from "../../../runtime/shared-conversation.ts";
 
+const coordinatorAgent = { id: "general", instructions: "Answer company questions. No business Tools are available.", materials: {}, tools: [], toolSet: { agentId: "general", hash: "fixture", resolverVersion: "1" as const, tools: [] } };
+async function directTurn() {
+  const scope = { instanceId: "example", principal: "human:alex", surface: "synthetic-chat", accountId: "company", channelId: "inbox" };
+  const address = { ...scope, threadId: "status" };
+  let saved: ConversationReceipt | undefined;
+  let commits = 0;
+  const turn = await SharedConversationTurn.open({ scope, input: { eventId: "status", messageId: "status", text: "Which topics are open?", address },
+    coordinatorId: "general", now: "2030-01-04T12:00:00Z",
+    store: { async read() { return EMPTY_ATTENTION(); }, async receipt() { return saved; }, async commit(_scope, _revision, _next, _event, receipt) { saved = receipt; commits++; return true; } },
+    source: { async current() { return undefined; }, async search() { return { items: [] }; }, async read() { return undefined; } },
+    authorize: async () => { throw new Error("Unexpected handoff"); },
+  });
+  return { turn, commits: () => commits };
+}
+const modelResult = (content: Array<{ type: "text"; text: string } | { type: "tool-call"; toolCallId: string; toolName: string; input: string }>) => ({ content,
+  finishReason: { unified: content.some(c => c.type === "tool-call") ? "tool-calls" as const : "stop" as const, raw: undefined },
+  usage: { inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 10, text: 10, reasoning: 0 } }, warnings: [] });
+const call = (toolName: string, input: unknown) => ({ type: "tool-call" as const, toolCallId: toolName, toolName, input: JSON.stringify(input) });
+
+test("a lookup cannot finish as plain model text instead of a checked conversation result", async () => {
+  const fixture = await directTurn();
+  const model = new MockLanguageModelV3({ doGenerate: async options => {
+    if (model.doGenerateCalls.length === 1) return modelResult([call("search_work", {})]);
+    // A provider may end in ordinary text when the caller leaves Tool choice automatic.
+    if (options.toolChoice?.type !== "required") return modelResult([{ type: "text", text: "No topics are open." }]);
+    return modelResult([call("companyos_conversation_plan", { reply: "No topics are open.", routes: [] })]);
+  } });
+  const result = await interpretConversation({ turn: fixture.turn, agent: coordinatorAgent, specialists: [], signal: new AbortController().signal, model });
+  assert.equal(result.receipt.plan.reply, "No topics are open.");
+  assert.equal(fixture.commits(), 1);
+  assert.equal(model.doGenerateCalls.length, 2);
+  const replay = await interpretConversation({ turn: fixture.turn, agent: coordinatorAgent, specialists: [], signal: new AbortController().signal, model });
+  assert.deepEqual(replay.receipt, result.receipt);
+  assert.equal(model.doGenerateCalls.length, 2);
+});
+
+test("the bounded coordinator reserves completion capacity instead of spending every step searching", async () => {
+  const fixture = await directTurn();
+  const model = new MockLanguageModelV3({ doGenerate: async options => modelResult([
+    options.toolChoice?.type === "tool"
+      ? call("companyos_conversation_plan", { reply: "No topics were found in this conversation.", routes: [] })
+      : call("search_work", {}),
+  ]) });
+  const result = await interpretConversation({ turn: fixture.turn, agent: coordinatorAgent, specialists: [], signal: new AbortController().signal, model });
+  assert.ok(result.receipt);
+  assert.equal(model.doGenerateCalls.length, 9);
+  assert.equal(fixture.commits(), 1);
+});
+
+test("a rejected plan can be corrected in the same loop without routing invented work", async () => {
+  const fixture = await directTurn();
+  const model = new MockLanguageModelV3({ doGenerate: async options => {
+    if (model.doGenerateCalls.length === 1) return modelResult([call("companyos_conversation_plan", { reply: "", routes: [{ workId: "invented", text: "Which topics are open?" }] })]);
+    assert.match(JSON.stringify(options.prompt), /error/);
+    return modelResult([call("companyos_conversation_plan", { reply: "No verified work was selected.", routes: [] })]);
+  } });
+  const result = await interpretConversation({ turn: fixture.turn, agent: coordinatorAgent, specialists: [], signal: new AbortController().signal, model });
+  assert.equal(result.receipt.concerns.length, 0);
+  assert.equal(fixture.commits(), 1);
+  assert.equal(model.doGenerateCalls.length, 2);
+});
+
 for (const reply of ["the second", "it is for question 2", "the invoicing process"]) {
   test(`model-selected clarification uses the retained source: ${reply}`, async () => {
     const scope = { instanceId: "example", principal: "human:alex", surface: "mcp", accountId: "company", channelId: "inbox" };

@@ -22,6 +22,12 @@ export async function interpretConversation(args: { turn: SharedConversationTurn
   const model = new ToolLoopAgent({
     model: args.model ?? resolved!.model,
     instructions: `${args.agent.instructions}\n\n${CONVERSATION_PARTICIPATION_POLICY}\n\n${CONVERSATION_COORDINATOR_INSTRUCTIONS}\nWorkspace-authorized specialist routes (reference data): ${JSON.stringify(args.specialists)}`,
+    // This pass returns a checked plan, never a free-text answer. Keep lookups
+    // available, but reserve the final two steps for completion and correction.
+    toolChoice: "required",
+    prepareStep: ({ stepNumber }) => stepNumber >= 8
+      ? { toolChoice: { type: "tool", toolName: "companyos_conversation_plan" } }
+      : {},
     stopWhen: [stepCountIs(10), () => receipt !== undefined],
     ...(resolved?.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
     tools: {
@@ -49,6 +55,6 @@ export async function interpretConversation(args: { turn: SharedConversationTurn
   });
   const result = await model.generate({ prompt: JSON.stringify({ context: await args.turn.initialContext(), message: args.turn.input }),
     abortSignal: AbortSignal.any([args.signal, AbortSignal.timeout(resolved?.selection.timeoutMs ?? 90000)]) });
-  if (!receipt) throw new Error("The coordinator did not produce a checked conversation plan");
+  if (!receipt) throw new Error(`The coordinator did not produce a checked conversation plan (steps=${result.steps.length}, finish=${result.finishReason}, lastTools=${result.steps.at(-1)?.toolCalls.map(call => call.toolName).join(",") || "none"})`);
   return { receipt, modelEvidence: resolved ? modelExecutionEvidence(resolved.selection, result) : undefined };
 }

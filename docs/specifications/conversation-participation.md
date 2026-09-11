@@ -62,6 +62,14 @@ request classification and current-message authorization still decide whether a
 new build or revision is permitted. Existing workflow routing passes must make
 the participation decision inside that existing pass before routing concerns.
 
+An existing conversation coordinator must finish through its checked plan Tool.
+Its provider request requires Tool use rather than relying on a prompt alone;
+ordinary model text does not replace a validated plan. The bounded ten-step loop
+reserves its last two steps for recording or correcting that plan. Scoped reads,
+plan validation, silent participation and receipt replay retain their existing
+authority. A failure reports step count, finish reason and last Tool names in
+operator diagnostics, without copying conversation text into the error.
+
 The Agent should answer a clear address (including its name without `@`), a
 follow-up to its answer, or an answer to its outstanding question. Human-to-human
 discussion stays quiet. A question mark, past participation or having something
