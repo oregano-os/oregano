@@ -141,3 +141,24 @@ test("unowned channels never initialize the SDK or general coordinator", async (
     }
   }
 });
+
+test("one full test webhook owns compiled channels and reserved DMs while production excludes them", async () => {
+  const { ignoreSlackChannelEvent } = await import("./slack-channel-events.ts");
+  const { ignoreUnownedSlackConversation } = await import("./slack-conversation-ownership.ts");
+  const recipients = ["T10001:U10001"];
+  for (const value of [event, { ...event, type: "app_mention" }, { ...event, channel: "D10001", channel_type: "im" }]) {
+    const input = request(value);
+    assert.equal(await ignoreSlackChannelEvent(input, undefined, "C10001", recipients), true);
+    assert.equal(await ignoreSlackChannelEvent(input, undefined, undefined, []), false);
+    assert.equal(await ignoreUnownedSlackConversation(input, channelBindings, recipients), false);
+    const sdk = await adapterHarness();
+    assert.equal((await sdk.handler(input, { waitUntil() {} })).status, 200);
+    assert.equal(sdk.delivered.length, 1);
+  }
+  for (const value of [{ ...event, channel: "C20001" }, { ...event, channel: "D10001", channel_type: "im", user: "U20001" }]) {
+    assert.equal(await ignoreUnownedSlackConversation(request(value), channelBindings, recipients), true);
+  }
+  const sdk = await adapterHarness();
+  assert.equal((await sdk.handler(request(event, false), { waitUntil() {} })).status, 401);
+  assert.equal(sdk.delivered.length, 0);
+});

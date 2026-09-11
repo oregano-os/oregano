@@ -95,7 +95,11 @@ scheduler targets and explicitly assigned credentials. Add only the reviewed tes
 channel bindings and keep production exclusions disjoint.
 
 Bind ordinary chat to `/api/webhooks/slack` using the existing custom environment ID.
-Keep the action-only `/api/workflows/slack` destination and production destination.
+When the same test deployment owns both chat and workflows, replace its previous
+`/api/workflows/slack` destination with the full webhook and remove the obsolete
+branch destination atomically. Keep production unchanged; do not fan out the same
+test messages to both paths. The full test webhook admits only compiled test
+channels and exact reserved direct recipients, then uses the unchanged SDK verifier.
 Verify actual Connect delivery after deployment. A separate Vercel project is not
 required for this arrangement, and secrets assigned to the existing custom environment
 should be inherited instead of copied into another project.

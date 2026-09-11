@@ -150,6 +150,7 @@ files_expected:
   - packages/runner-vercel/src/app/api/knowledge/sources/granola/reconcile/route.ts
   - packages/runner-vercel/src/app/api/records/operations/route.ts
   - packages/runner-vercel/src/app/api/records/reconcile/route.ts
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
   - packages/runner-vercel/src/app/api/workflows/records/route.ts
   - packages/runner-vercel/src/app/api/workflows/steps/route.ts
   - packages/runner-vercel/src/app/api/workflows/timers/route.ts
@@ -205,6 +206,7 @@ files_expected:
   - packages/runner-vercel/src/lib/setup-verification.ts
   - packages/runner-vercel/src/lib/workflow-connectors.ts
   - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
   - packages/runtime/builder/acp-client.ts
   - packages/runtime/builder/attachments.ts
   - packages/runtime/builder/brief.ts
@@ -271,6 +273,7 @@ tests:
   - packages/testkit/tests/workflow-state-postgres.test.ts
   - packages/testkit/tests/slack-channel-events.test.ts
   - packages/testkit/tests/slack-record-source.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
 documentation_impact:
   required: true
   affected_documents:
