@@ -12,6 +12,12 @@ export function workflowDmRecipients(value = process.env.SLACK_WORKFLOW_DM_RECIP
 }
 
 export function ownsWorkflowDm(payload: any, recipients: readonly string[]): boolean {
+  if (payload?.type === "block_actions") {
+    const team = payload.team?.id, user = payload.user?.id;
+    return typeof team === "string" && typeof user === "string"
+      && [payload.channel?.id, payload.container?.channel_id].some(channel => typeof channel === "string" && /^D[A-Z0-9]{4,31}$/.test(channel))
+      && recipients.includes(`${team}:${user}`);
+  }
   return payload?.type === "event_callback" && ["message", "app_mention"].includes(payload.event?.type)
     && /^D[A-Z0-9]{4,31}$/.test(payload.event?.channel ?? "")
     && recipients.includes(`${payload.team_id}:${payload.event?.user}`);

@@ -5,25 +5,40 @@ import { test } from "node:test";
 import { inspectWorkflowSlackRequest, slackMessageReference } from "./workflow-action-ingress.ts";
 import { createWorkflowSlackTrace, dispatchWorkflowSlackRequest } from "./workflow-slack-diagnostics.ts";
 import { workflowInboundThreadId } from "./workflow-conversations.ts";
+import { ignoreSlackChannelEvent } from "./slack-channel-events.ts";
 
 const channelBindings = [{ surface: "slack", accountId: "T10001", channelId: "C10001" }];
 const secret = "synthetic-signing-key";
 const event = { type: "message", channel: "C10001", channel_type: "group", user: "U10001", ts: "20.000001", text: "Synthetic private business facts" };
 function request(value: unknown = event, valid = true) {
   const body = JSON.stringify({ type: "event_callback", team_id: "T10001", event_id: "Ev10001", event: value });
+  return signedRequest(body, "application/json", valid);
+}
+function signedRequest(body: string, contentType: string, valid = true) {
   const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = "v0=" + createHmac("sha256", secret).update(`v0:${timestamp}:${body}`).digest("hex");
   return new Request("https://example.test/api/workflows/slack", { method: "POST", body,
-    headers: { "content-type": "application/json", "x-slack-request-timestamp": timestamp,
+    headers: { "content-type": contentType, "x-slack-request-timestamp": timestamp,
       "x-slack-signature": valid ? signature : "v0=invalid", authorization: "private-header-never-log" } });
 }
+function actionRequest(channel: string, container = false, valid = true, user = "U20001", team = "T10001") {
+  const payload = { type: "block_actions", user: { id: user }, team: { id: team },
+    ...(container ? { container: { channel_id: channel, message_ts: event.ts } }
+      : { channel: { id: channel }, message: { ts: event.ts } }),
+    actions: [{ action_id: "companyos.workflow.approve", value: "synthetic-decision" }] };
+  return signedRequest(new URLSearchParams({ payload: JSON.stringify(payload) }).toString(),
+    "application/x-www-form-urlencoded", valid);
+}
 async function adapterHarness() {
-  const delivered: string[] = [];
+  const delivered: string[] = [], actions: string[] = [];
   const adapter = createSlackAdapter({ signingSecret: secret, botToken: "synthetic-token", botUserId: "U90001",
     logger: { debug() {}, info() {}, warn() {}, error() {}, child() { return this; } } });
   await adapter.initialize({ getState: () => ({ set: async () => {} }),
-    processMessage: (_adapter: unknown, threadId: string) => { delivered.push(threadId); return Promise.resolve(); } } as unknown as Parameters<typeof adapter.initialize>[0]);
-  return { delivered, handler: adapter.handleWebhook.bind(adapter) };
+    processMessage: (_adapter: unknown, threadId: string) => { delivered.push(threadId); return Promise.resolve(); },
+    processAction: (action: { threadId: string; actionId: string }) => {
+      actions.push(`${action.threadId}:${action.actionId}`); return Promise.resolve();
+    } } as unknown as Parameters<typeof adapter.initialize>[0]);
+  return { delivered, actions, handler: adapter.handleWebhook.bind(adapter) };
 }
 
 test("existing SDK and isolated ingress both dispatch signed channel roots and thread replies", async () => {
@@ -67,13 +82,13 @@ test("an explicitly routed DM uses the same SDK verification for roots and repli
       const value = { ...event, channel: "D10001", channel_type: "im", thread_ts };
       const sdk = await adapterHarness();
       const response = await dispatchWorkflowSlackRequest(request(value), {
-        workflowOnly: true, channelBindings, diagnostics: false, handler: sdk.handler, waitUntil() {},
+        workflowOnly: true, channelBindings, excludedChannelIds: "C20001", diagnostics: false, handler: sdk.handler, waitUntil() {},
       });
       assert.equal(response.status, 200);
       assert.deepEqual(sdk.delivered.map((id) => workflowInboundThreadId(id, event.ts)), [`slack:D10001:${thread_ts ?? event.ts}`]);
       const invalid = await adapterHarness();
       assert.equal((await dispatchWorkflowSlackRequest(request(value, false), {
-        workflowOnly: true, channelBindings, diagnostics: false, handler: invalid.handler, waitUntil() {},
+        workflowOnly: true, channelBindings, excludedChannelIds: "C20001", diagnostics: false, handler: invalid.handler, waitUntil() {},
       })).status, 401);
       assert.deepEqual(invalid.delivered, []);
     }
@@ -143,7 +158,6 @@ test("unowned channels never initialize the SDK or general coordinator", async (
 });
 
 test("one full test webhook owns compiled channels and reserved DMs while production excludes them", async () => {
-  const { ignoreSlackChannelEvent } = await import("./slack-channel-events.ts");
   const { ignoreUnownedSlackConversation } = await import("./slack-conversation-ownership.ts");
   const recipients = ["T10001:U10001"];
   for (const value of [event, { ...event, type: "app_mention" }, { ...event, channel: "D10001", channel_type: "im" }]) {
@@ -161,4 +175,149 @@ test("one full test webhook owns compiled channels and reserved DMs while produc
   const sdk = await adapterHarness();
   assert.equal((await sdk.handler(request(event, false), { waitUntil() {} })).status, 401);
   assert.equal(sdk.delivered.length, 0);
+});
+
+test("both ingress guards drop excluded channel buttons and messages before any responder initializes", async () => {
+  const excludedChannelIds = "C10001,G10001,C30001";
+  for (const channel of excludedChannelIds.split(",")) {
+    for (const input of [actionRequest(channel), actionRequest(channel, true),
+      request({ ...event, channel }), request({ ...event, channel, type: "app_mention" })]) {
+      const bytes = await input.clone().text();
+      assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds, []), true);
+      for (const workflowOnly of [false, true]) {
+        const entries: Record<string, unknown>[] = [];
+        const response = await dispatchWorkflowSlackRequest(input, {
+          workflowOnly, channelBindings, excludedChannelIds, diagnostics: true, sink: (entry) => entries.push(entry),
+          waitUntil() {}, handler: async () => { assert.fail("excluded channel initialized a responder"); },
+        });
+        assert.equal(response.status, 200);
+        assert.equal(entries.at(-1)!.outcome, "unowned-conversation");
+      }
+      assert.equal(await input.text(), bytes);
+    }
+  }
+});
+
+test("production and DM buttons retain SDK verification and original request bytes on both paths", async () => {
+  const excludedChannelIds = "C10001,G10001,C30001";
+  for (const channel of ["C20001", "G20001", "D10001"]) {
+    for (const container of [false, true]) {
+      for (const valid of [false, true]) {
+        const primary = await adapterHarness(), alternate = await adapterHarness();
+        const input = actionRequest(channel, container, valid), bytes = await input.clone().text();
+        assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds, ["T10001:U10001"]), false);
+        const direct = await primary.handler(input.clone(), { waitUntil() {} });
+        const response = await dispatchWorkflowSlackRequest(input, {
+          workflowOnly: false, excludedChannelIds, diagnostics: false, waitUntil() {},
+          handler: async (original, options) => {
+            assert.equal(await original.clone().text(), bytes);
+            return alternate.handler(original, options);
+          },
+        });
+        assert.equal(direct.status, valid ? 200 : 401);
+        assert.equal(response.status, direct.status);
+        assert.deepEqual(primary.actions, valid ? [`slack:${channel}:${event.ts}:companyos.workflow.approve`] : []);
+        assert.deepEqual(alternate.actions, primary.actions);
+      }
+    }
+  }
+});
+
+test("channel exclusions preserve ordinary production messages and exact DM ownership", async () => {
+  const excludedChannelIds = "C10001,G10001,C30001", recipients = ["T10001:U10001"];
+  for (const value of [{ ...event, channel: "C20001" }, { ...event, channel: "G20001", type: "app_mention" },
+    { ...event, channel: "D10001", channel_type: "im", user: "U20001" }]) {
+    const sdk = await adapterHarness(), input = request(value);
+    assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds, recipients), false);
+    assert.equal((await sdk.handler(input, { waitUntil() {} })).status, 200);
+    assert.equal(sdk.delivered.length, 1);
+  }
+  assert.equal(await ignoreSlackChannelEvent(request({ ...event, channel: "D10001", channel_type: "im" }),
+    "process", excludedChannelIds, recipients), true);
+});
+
+test("malformed form payloads cannot dispatch actions and still reach the primary SDK verifier unchanged", async () => {
+  for (const valid of [false, true]) {
+    const sdk = await adapterHarness();
+    const input = signedRequest("payload=%7B", "application/x-www-form-urlencoded", valid);
+    assert.equal(await ignoreSlackChannelEvent(input, "process", "C10001", []), false);
+    assert.equal((await sdk.handler(input.clone(), { waitUntil() {} })).status, valid ? 400 : 401);
+    assert.deepEqual(sdk.actions, []);
+    const entries: Record<string, unknown>[] = [];
+    assert.equal((await dispatchWorkflowSlackRequest(input, { workflowOnly: false, excludedChannelIds: "C10001",
+      diagnostics: true, sink: (entry) => entries.push(entry), waitUntil() {},
+      handler: async () => { assert.fail("malformed action initialized a responder"); },
+    })).status, 200);
+    assert.equal(entries.at(-1)!.outcome, "invalid-payload");
+  }
+});
+
+test("reserved DM buttons belong only to the workflow receiver while other people and accounts retain production actions", async () => {
+  const previous = process.env.SLACK_WORKFLOW_DM_RECIPIENTS;
+  process.env.SLACK_WORKFLOW_DM_RECIPIENTS = "T10001:U10001";
+  const excludedChannelIds = "C10001,G10001,C30001";
+  try {
+    for (const container of [false, true]) {
+      for (const valid of [false, true]) {
+        const input = actionRequest("D10001", container, valid, "U10001");
+        const bytes = await input.clone().text();
+        assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds), true);
+        assert.equal((await dispatchWorkflowSlackRequest(input, { workflowOnly: false, excludedChannelIds,
+          diagnostics: false, waitUntil() {},
+          handler: async () => { assert.fail("production initialized a responder for a reserved DM button"); },
+        })).status, 200);
+        // The workflow-only webhook passes [] to the same guard before SDK authentication.
+        assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds, []), false);
+        const sdk = await adapterHarness();
+        assert.equal((await dispatchWorkflowSlackRequest(input, { workflowOnly: true, excludedChannelIds,
+          diagnostics: false, waitUntil() {}, handler: async (original, options) => {
+            assert.equal(await original.clone().text(), bytes);
+            return sdk.handler(original, options);
+          },
+        })).status, valid ? 200 : 401);
+        assert.deepEqual(sdk.actions, valid ? [`slack:D10001:${event.ts}:companyos.workflow.approve`] : []);
+      }
+      for (const [user, team] of [["U20001", "T10001"], ["U10001", "T20001"]]) {
+        const input = actionRequest("D10001", container, true, user, team);
+        assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds), false);
+        const sdk = await adapterHarness();
+        assert.equal((await dispatchWorkflowSlackRequest(input, { workflowOnly: false, excludedChannelIds,
+          diagnostics: false, waitUntil() {}, handler: sdk.handler,
+        })).status, 200);
+        assert.deepEqual(sdk.actions, [`slack:D10001:${event.ts}:companyos.workflow.approve`]);
+      }
+    }
+  } finally {
+    if (previous === undefined) delete process.env.SLACK_WORKFLOW_DM_RECIPIENTS;
+    else process.env.SLACK_WORKFLOW_DM_RECIPIENTS = previous;
+  }
+});
+
+test("oversized signed actions cannot bypass configured ownership even though the SDK can dispatch them", async () => {
+  const previous = process.env.SLACK_WORKFLOW_DM_RECIPIENTS;
+  process.env.SLACK_WORKFLOW_DM_RECIPIENTS = "T10001:U10001";
+  try {
+    for (const channel of ["C10001", "D10001"]) {
+      const payload = { type: "block_actions", team: { id: "T10001" }, user: { id: "U10001" }, channel: { id: channel },
+        message: { ts: event.ts, text: "x".repeat(100_000) },
+        actions: [{ action_id: "companyos.workflow.approve", value: "synthetic-decision" }] };
+      const body = new URLSearchParams({ payload: JSON.stringify(payload) }).toString();
+      assert.ok(body.length > 100_000);
+      const input = signedRequest(body, "application/x-www-form-urlencoded");
+      const unguarded = await adapterHarness();
+      assert.equal(await ignoreSlackChannelEvent(input, "process", undefined, []), false);
+      assert.equal((await unguarded.handler(input.clone(), { waitUntil() {} })).status, 200);
+      assert.deepEqual(unguarded.actions, [`slack:${channel}:${event.ts}:companyos.workflow.approve`]);
+      const excludedChannelIds = channel === "C10001" ? "C10001" : undefined;
+      assert.equal(await ignoreSlackChannelEvent(input, "process", excludedChannelIds), true);
+      assert.equal((await dispatchWorkflowSlackRequest(input, { workflowOnly: false, excludedChannelIds,
+        diagnostics: false, waitUntil() {},
+        handler: async () => { assert.fail("an oversized action bypassed routing ownership"); },
+      })).status, 200);
+      assert.equal(await input.text(), body);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.SLACK_WORKFLOW_DM_RECIPIENTS;
+    else process.env.SLACK_WORKFLOW_DM_RECIPIENTS = previous;
+  }
 });

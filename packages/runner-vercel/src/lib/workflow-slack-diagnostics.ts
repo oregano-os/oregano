@@ -1,4 +1,5 @@
 import { ignoreUnownedSlackConversation, type SlackChannelOwnership } from "./slack-conversation-ownership.ts";
+import { ignoreSlackChannelEvent } from "./slack-channel-events.ts";
 import { randomUUID } from "node:crypto";
 import { inspectWorkflowSlackRequest, slackMessageReference, type WorkflowSlackIngressReason } from "./workflow-action-ingress.ts";
 
@@ -34,6 +35,7 @@ export function workflowSlackMessageTrace(threadId: string, messageId: string) {
 export async function dispatchWorkflowSlackRequest(request: Request, options: {
   workflowOnly: boolean;
   channelBindings?: readonly SlackChannelOwnership[];
+  excludedChannelIds?: string;
   handler: (request: Request, options: { waitUntil: (task: Promise<unknown>) => void }) => Promise<Response>;
   waitUntil: (task: Promise<unknown>) => void;
   diagnostics?: boolean;
@@ -42,6 +44,11 @@ export async function dispatchWorkflowSlackRequest(request: Request, options: {
   const trace = createWorkflowSlackTrace({ enabled: options.diagnostics, sink: options.sink });
   trace.emit("received");
   try {
+    // Only a workflow-only receiver owns reserved DMs; other receivers must exclude them.
+    if (await ignoreSlackChannelEvent(request, undefined, options.excludedChannelIds, options.workflowOnly ? [] : undefined)) {
+      trace.emit("filtered", "unowned-conversation");
+      return new Response(null, { status: 200 });
+    }
     const inspection = await inspectWorkflowSlackRequest(request, options.workflowOnly);
     trace.correlate(inspection.messageRef);
     if (inspection.kind === "ignored") {
