@@ -1,0 +1,51 @@
+version: 3
+plan_id: workflow-database-traffic-2026-09-11
+created: 2026-09-11
+title: Reduce redundant database reads in workflow Core 0.5.15
+objective: Port compact database qualification to the workflow release line while
+  preserving its 2.1.0 schema and retired Sprint executor.
+non_goals:
+  - Add a development database, cache, delta synchronization or monitoring service.
+  - Change qualification frequency, scheduling, authorization or production configuration.
+  - Change the database manifest, public query contract or Workbench version.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-11-workflow-database-traffic.yaml
+  - package.json
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - docs/architecture/company-instance.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - status.current
+architecture:
+  placement:
+    core: Optimize maintained database qualification on the workflow release line.
+    packages: Reuse existing Tools and profiles without a new Package or Blueprint.
+    workspace: Preserve operating policy and source declarations unchanged.
+    instance: Reuse the existing database, bindings and qualification lifecycle.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Return compact equivalent evidence from the existing database adapter.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Company Instance benefits without company-specific code,
+    configuration, provider permissions or consumer migration.
+rollback: Restore the preceding exact Core deployment. No schema or data migration
+  is needed; retain existing records, qualification and deployment evidence.
+open_decisions: []

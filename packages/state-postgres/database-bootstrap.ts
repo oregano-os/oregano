@@ -634,9 +634,6 @@ export async function inspectCompanyDatabaseState(): Promise<CompanyDatabaseStat
   };
 }
 
-const missing = (expected: readonly string[], actual: readonly string[]): string[] =>
-  expected.filter((item) => !actual.includes(item));
-
 const qualificationError = (parts: string[]): Error =>
   new Error(`Company Instance database qualification failed: ${parts.join("; ")}.`);
 
@@ -659,42 +656,79 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
 
 export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualificationReceipt> {
   const sql = neon(databaseUrl());
-  const tableRows = await sql`select schemaname, tablename from pg_tables
-    where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') order by schemaname, tablename`;
-  const tables = tableRows.map((row) => `${String(row.schemaname)}.${String(row.tablename)}`);
-  const indexRows = await sql`select schemaname, indexname from pg_indexes
-    where schemaname in ('companyos', 'companyos_knowledge', 'companyos_records') order by schemaname, indexname`;
-  const indexes = indexRows.map((row) => `${String(row.schemaname)}.${String(row.indexname)}`);
-  const constraintRows = await sql`select n.nspname as schema_name, c.conname
-    from pg_constraint c join pg_namespace n on n.oid = c.connamespace
-    where n.nspname in ('companyos', 'companyos_knowledge', 'companyos_records') order by n.nspname, c.conname`;
-  const constraints = constraintRows.map((row) => `${String(row.schema_name)}.${String(row.conname)}`);
-  const pageTypeRows = await sql`select type_key from companyos_knowledge.page_type_registry
-    where origin = 'core' and lifecycle_status = 'active' order by type_key`;
-  const pageTypes = pageTypeRows.map((row) => String(row.type_key));
-  const vector = Boolean((await sql`select exists(select 1 from pg_extension where extname = 'vector') as enabled`)[0]?.enabled);
-  const manifestRows = await sql`select manifest_digest from companyos.schema_manifests
-    where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} and manifest_version = ${COMPANY_DATABASE_MANIFEST.version} limit 1`;
-
   const expectedTables = [
     ...WORKFLOW_CONTROL_TABLES.map((name) => `companyos.${name}`),
     ...KNOWLEDGE_TABLES.map((name) => `companyos_knowledge.${name}`),
     ...RECORDS_TABLES_PHASE_EIGHT.map((name) => `companyos_records.${name}`),
-    ...(vector ? ["companyos_knowledge.fragment_embeddings", "companyos_knowledge.retrieval_unit_embeddings"] : []),
   ];
-  const expectedIndexes = [...COMPANY_DATABASE_MANIFEST.requiredIndexes, ...(vector ? ["companyos_knowledge.knowledge_fragment_embeddings_hnsw_idx", "companyos_knowledge.knowledge_retrieval_unit_embeddings_hnsw_idx"] : [])];
+  // Compare in one read-only database snapshot. Healthy qualification returns no
+  // catalog names, regardless of how many unrelated objects the Instance holds.
+  const rows = await sql`with feature as (
+      select exists(select 1 from pg_extension where extname = 'vector') as vector
+    ), expected_tables as (
+      select jsonb_array_elements_text(${JSON.stringify(expectedTables)}::jsonb) as name
+      union all
+      select unnest(array['companyos_knowledge.fragment_embeddings', 'companyos_knowledge.retrieval_unit_embeddings'])
+      from feature where vector
+    ), expected_indexes as (
+      select jsonb_array_elements_text(${JSON.stringify(COMPANY_DATABASE_MANIFEST.requiredIndexes)}::jsonb) as name
+      union all
+      select unnest(array['companyos_knowledge.knowledge_fragment_embeddings_hnsw_idx', 'companyos_knowledge.knowledge_retrieval_unit_embeddings_hnsw_idx'])
+      from feature where vector
+    ), expected_constraints as (
+      select jsonb_array_elements_text(${JSON.stringify(COMPANY_DATABASE_MANIFEST.requiredConstraints)}::jsonb) as name
+    ), expected_page_types as (
+      select jsonb_array_elements_text(${JSON.stringify(COMPANY_DATABASE_MANIFEST.corePageTypes)}::jsonb) as name
+    ), active_page_types as (
+      select type_key from companyos_knowledge.page_type_registry
+      where origin = 'core' and lifecycle_status = 'active'
+    ), unexpected_page_types as (
+      select type_key from active_page_types
+      where not exists(select 1 from expected_page_types where name = type_key)
+    )
+    select feature.vector,
+      array(select name from expected_tables where not exists(
+        select 1 from pg_tables where schemaname || '.' || tablename = name
+      ) order by name) as missing_tables,
+      array(select name from expected_indexes where not exists(
+        select 1 from pg_indexes where schemaname || '.' || indexname = name
+      ) order by name) as missing_indexes,
+      array(select name from expected_constraints where not exists(
+        select 1 from pg_constraint c join pg_namespace n on n.oid = c.connamespace
+        where n.nspname || '.' || c.conname = name
+      ) order by name) as missing_constraints,
+      array(select name from expected_page_types where not exists(
+        select 1 from active_page_types where type_key = name
+      ) order by name) as missing_page_types,
+      array(select type_key from unexpected_page_types order by type_key limit 20) as unexpected_page_types,
+      (select count(*)::integer from unexpected_page_types) as unexpected_page_type_count,
+      exists(select 1 from companyos.schema_manifests
+        where manifest_id = ${COMPANY_DATABASE_MANIFEST.id}
+          and manifest_version = ${COMPANY_DATABASE_MANIFEST.version}
+          and manifest_digest = ${COMPANY_DATABASE_MANIFEST_DIGEST}) as manifest_matches
+    from feature`;
+  const result = rows[0];
+  const listFields = ["missing_tables", "missing_indexes", "missing_constraints", "missing_page_types", "unexpected_page_types"] as const;
+  if (rows.length !== 1 || !result || typeof result.vector !== "boolean"
+    || typeof result.manifest_matches !== "boolean"
+    || listFields.some((field) => !Array.isArray(result[field]) || result[field].some((value: unknown) => typeof value !== "string"))
+    || !Number.isSafeInteger(result.unexpected_page_type_count)
+    || result.unexpected_page_type_count < result.unexpected_page_types.length) {
+    throw qualificationError(["invalid database qualification evidence"]);
+  }
+  const vector = result.vector;
   const failures: string[] = [];
-  const missingTables = missing(expectedTables, tables);
-  const missingIndexes = missing(expectedIndexes, indexes);
-  const missingConstraints = missing(COMPANY_DATABASE_MANIFEST.requiredConstraints, constraints);
-  const missingPageTypes = missing(COMPANY_DATABASE_MANIFEST.corePageTypes, pageTypes);
-  const unexpectedPageTypes = missing(pageTypes, COMPANY_DATABASE_MANIFEST.corePageTypes);
+  const missingTables = result.missing_tables as string[];
+  const missingIndexes = result.missing_indexes as string[];
+  const missingConstraints = result.missing_constraints as string[];
+  const missingPageTypes = result.missing_page_types as string[];
+  const unexpectedPageTypes = result.unexpected_page_types as string[];
   if (missingTables.length > 0) failures.push(`missing tables ${missingTables.join(", ")}`);
   if (missingIndexes.length > 0) failures.push(`missing indexes ${missingIndexes.join(", ")}`);
   if (missingConstraints.length > 0) failures.push(`missing constraints ${missingConstraints.join(", ")}`);
   if (missingPageTypes.length > 0) failures.push(`missing Core Page types ${missingPageTypes.join(", ")}`);
-  if (unexpectedPageTypes.length > 0) failures.push(`unexpected Core Page types ${unexpectedPageTypes.join(", ")}`);
-  if (manifestRows[0]?.manifest_digest !== COMPANY_DATABASE_MANIFEST_DIGEST) failures.push("missing or mismatched schema manifest ledger entry");
+  if (result.unexpected_page_type_count > 0) failures.push(`unexpected Core Page types ${unexpectedPageTypes.join(", ")} (${result.unexpected_page_type_count} total)`);
+  if (!result.manifest_matches) failures.push("missing or mismatched schema manifest ledger entry");
   if (failures.length > 0) throw qualificationError(failures);
 
   const receipt: CompanyDatabaseQualificationReceipt = {

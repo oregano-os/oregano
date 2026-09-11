@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -42,6 +42,12 @@ answers. Real-model acceptance must check both the saved topic reference and
 the delivered conversation; synthetic SDK outputs alone do not prove this.
 
 ## Implemented and tested
+
+- Core 0.5.15 returns compact database qualification in one read-only SQL
+  statement while preserving every readiness check and the 2.1.0 manifest.
+  Isolated SQL tests cover drift and response size. Exact deployment adoption
+  remains a separate Instance check. Workflow Record consumers already use the
+  maintained complete-query path; the retired Sprint executor stays retired.
 
 - Common model execution supports `promptCaching` per selected model binding.
   Agent-profile calls enable supported prefix/conversation caching with the
