@@ -15,6 +15,13 @@ audience:
 
 # Current System Status
 
+Core 0.12.0 integrates declared Workflow Engine execution, shared conversation
+coordination, selective participation and the maintained Builder. It retires
+the legacy Sprint executor. Consumer adoption requires an explicit Workspace
+migration and Instance verification; a version label or local test result is
+not production acceptance. The [0.12 adoption guide](../operations/core-0-12-adoption.md)
+records state preparation, outstanding-work inventory and rollback boundaries.
+
 Core 0.11.4 corrects Builder test presentation: candidate conversations show the
 actual answer without a setup introduction, and readiness changes update the
 same result card while preserving distinct progress and release history.

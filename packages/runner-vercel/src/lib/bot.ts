@@ -5,6 +5,7 @@ import { boundedConversationHistory, linkConversationDraft, SharedConversationTu
 import { createPostgresConversationAttentionStore } from "../../../state-postgres/conversation-attention-store.ts";
 import { createPostgresConversationWorkSource } from "../../../state-postgres/conversation-work-source.ts";
 import { interpretConversation } from "./conversation-coordinator.ts";
+import { prepareConversationDelivery } from "./conversation-delivery.ts";
 import type { WorkflowAssignment } from "../../../state-store/workflow-engine.ts";
 import { publishConversationChoice } from "../../../runtime/conversation-choice.ts";
 import { retainSlackDecisionReview } from "./slack-decision-review.ts";
@@ -324,11 +325,9 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
     .map(r => ({ agentId: r.toAgentId, purpose: r.purpose, description: artifact.agents.find(a => a.id === r.toAgentId)?.description }));
   const { receipt, modelEvidence } = await interpretConversation({ turn, agent: entry.agent, specialists, signal: thread.signal });
   const routeKey = `conversation-dispatch:${sha256({ scope, eventId: turn.input.eventId })}`;
-  if (await state.get(`${routeKey}:complete`)) return true;
-  if (!await state.setIfNotExists(`${routeKey}:delivery-claim`, { eventId: turn.input.eventId, claimedAt: new Date().toISOString() }, 30 * DAY)) return true;
-  if (modelEvidence) await state.set(`${routeKey}:model`, modelEvidence, 30 * DAY);
   const replyThread = botInstance!.thread(sourceThread);
-  await replyThread.subscribe();
+  if (!await prepareConversationDelivery({ state, routeKey, eventId: turn.input.eventId,
+    now: new Date().toISOString(), ttlMs: 30 * DAY, modelEvidence, subscribe: () => replyThread.subscribe() })) return true;
   if (receipt.plan.participation === "context-only") {
     await state.appendToList(`conversation:${sourceThread}:${entry.agent.id}`, { role: "user", content: message.text,
       message_id: message.id, principal: requester, sender_name: member.name, sent_at: incoming.sentAt } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });

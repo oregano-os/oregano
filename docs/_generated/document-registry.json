@@ -922,6 +922,24 @@
     }
   },
   {
+    "document_id": "operations.core-0-12-adoption",
+    "title": "Adopt the integrated Core 0.12.0",
+    "path": "docs/operations/core-0-12-adoption.md",
+    "kind": "guide",
+    "status": "draft",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "reference.instance-configuration",
+        "specification.company-instance-release-promotion-v0.1"
+      ]
+    }
+  },
+  {
     "document_id": "operations.maintained-host-profile",
     "title": "Maintained Hosting and Communication Profile",
     "path": "docs/operations/maintained-host-profile.md",

@@ -456,6 +456,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.core-0-12-adoption",
+    "title": "Adopt the integrated Core 0.12.0",
+    "path": "docs/operations/core-0-12-adoption.md",
+    "kind": "guide",
+    "status": "draft",
+    "availability": "experimental"
+  },
+  {
     "document_id": "operations.maintained-host-profile",
     "title": "Maintained Hosting and Communication Profile",
     "path": "docs/operations/maintained-host-profile.md",

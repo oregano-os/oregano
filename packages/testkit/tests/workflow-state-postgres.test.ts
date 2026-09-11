@@ -73,6 +73,45 @@ test("candidate execution namespaces isolate workflow state, dispatch fences and
   assert.equal((await createPostgresWorkflowExecutionStore({ executionNamespace }).read(run.instanceId, run.runId))?.lease?.token, claimed.lease!.token);
 });
 
+test("candidate conversation lookups retain their namespace across restart and cannot read production or another candidate", { skip: !enabled }, async () => {
+  const executionNamespace = `builder-test-${sha256(randomUUID()).slice(0, 40)}`;
+  const candidate = createPostgresWorkflowExecutionStore({ executionNamespace });
+  const production = createPostgresWorkflowExecutionStore();
+  const otherCandidate = createPostgresWorkflowExecutionStore({ executionNamespace: `builder-test-${sha256(randomUUID()).slice(0, 40)}` });
+  const conversation = { surface: "mail", accountId: "example.test", channelId: `room-${randomUUID()}`,
+    threadId: "<shared@example.test>", subjectPrincipal: "mail:example.test:owner" };
+  const publish = async (store: ReturnType<typeof createPostgresWorkflowExecutionStore>, content: string) => {
+    const args = workflowStateFixture();
+    await store.putArtifact(args.artifact);
+    const run = await store.create(args), claimed = (await store.claim(lease(run)))!;
+    const assignment = { ...conversation, instanceId: run.instanceId, assignmentKey: workflowAssignmentKey(run.instanceId, conversation),
+      runId: run.runId, stepId: "open-close-thread", artifactHash: run.artifactHash, expiresAt: "2030-01-05T12:00:00.000Z" };
+    const format = "plain-text" as const;
+    const publication = { messageId: "<notice@example.test>", content, format, publishedAt: now, sequence: 1, contentDigest: sha256({ content, format }) };
+    const published = { ...assignment, assignmentKey: workflowPublicationKey(run.instanceId, conversation, publication.messageId), publication };
+    assert.ok(await store.commit({ instanceId: run.instanceId, runId: run.runId, expectedRevision: 0, leaseToken: claimed.lease!.token, now,
+      state: run.state, event: { name: "workflow.publication", stepId: assignment.stepId }, assignments: [assignment, published] }));
+    return { run, assignment, published };
+  };
+  const expectedCandidate = await publish(candidate, "Candidate-only publication.");
+  const channel = { instanceId: expectedCandidate.run.instanceId, ...conversation, now };
+  const publicationQuery = { instanceId: expectedCandidate.run.instanceId, conversation, now };
+  assert.deepEqual(await production.channelAssignments(channel), []);
+  assert.deepEqual(await production.publishedAssignments(publicationQuery), []);
+  const expectedProduction = await publish(production, "Production-only publication.");
+  const restarted = createPostgresWorkflowExecutionStore({ executionNamespace });
+  assert.deepEqual(await restarted.channelAssignments(channel), [expectedCandidate.assignment]);
+  assert.deepEqual(await restarted.publishedAssignments(publicationQuery), [expectedCandidate.published]);
+  assert.deepEqual(await production.channelAssignments(channel), [expectedProduction.assignment]);
+  assert.deepEqual(await production.publishedAssignments(publicationQuery), [expectedProduction.published]);
+  assert.deepEqual(await otherCandidate.channelAssignments(channel), []);
+  assert.deepEqual(await otherCandidate.publishedAssignments(publicationQuery), []);
+  assert.ok(await restarted.cancel({ instanceId: expectedCandidate.run.instanceId, runId: expectedCandidate.run.runId, principal: conversation.subjectPrincipal, now }));
+  assert.deepEqual(await restarted.channelAssignments(channel), []);
+  assert.deepEqual(await restarted.publishedAssignments(publicationQuery), [expectedCandidate.published]);
+  assert.deepEqual(await production.channelAssignments(channel), [expectedProduction.assignment]);
+});
+
 test("Postgres workflow create is atomic and redelivery survives JSONB reordering and store reconstruction", { skip: !enabled }, async () => {
   const { args, store, control, run } = await fixture();
   const restart = createPostgresWorkflowExecutionStore();

@@ -32,15 +32,19 @@ export function createPostgresConversationWorkSource(artifact: CompanyOSArtifact
     const pinned = await workflows.getArtifact(run.artifactHash);
     const definition = pinned?.workflows?.find(w => w.id === run.workflowId);
     if (!definition || !artifact.agents.some(agent => agent.id === definition.agentId)) return;
-    const published = await workflows.publishedAssignments({ instanceId: scope.instanceId, conversation: { ...address(a), subjectPrincipal: scope.principal }, now: new Date().toISOString() });
-    const publication = published.at(-1)?.publication ?? a.publication;
+    const now = new Date().toISOString();
+    const published = await workflows.publishedAssignments({ instanceId: scope.instanceId, conversation: { ...address(a), subjectPrincipal: scope.principal }, now });
+    const publication = published.at(-1)?.publication;
+    // Archived work remains addressable, but its delivery row cannot restore
+    // expired text through either the summary or the nested assignment context.
+    const assignment = a.publication && a.expiresAt <= now ? { ...a, publication: undefined } : a;
     const title = Object.entries(run.fields).find(([k]) => /(?:title|name)$/i.test(k))?.[1]
       ?? publication?.content.match(/\[([^\]]+)\]\(https?:\/\//)?.[1]
       ?? `${run.workflowId} · ${Object.values(run.fields).join(" · ")}`.slice(0, 250);
     const terminal = ["done", "cancelled", "failed"].includes(run.state.status);
     return { id: `workflow:${key}`, kind: "workflow", agentId: definition.agentId, title, status: run.state.blocked ? "blocked" : run.state.status,
       version: String(run.revision), address: address(a), summary: publication?.content.slice(0, 1500) ?? `${title}: ${run.state.cursor ?? run.state.status}`,
-      terminal, context: { assignment: a, runId: run.runId, fields: run.fields, cursor: run.state.cursor, status: run.state.status,
+      terminal, context: { assignment, runId: run.runId, fields: run.fields, cursor: run.state.cursor, status: run.state.status,
         blocked: run.state.blocked, publication, updatedAt: run.updatedAt } };
   }
   async function builder(scope: ConversationScope, id: string): Promise<WorkContext | undefined> {
