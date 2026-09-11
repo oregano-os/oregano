@@ -167,3 +167,26 @@ test("Postgres build discovery is isolated by company and requester and finds ol
   assert.deepEqual((await store.listForRequester(instance, "alice", "thread:a")).map(job => job.jobId), [older.jobId]);
   assert.deepEqual(await store.listForRequester(`${instance}-other`, "alice"), []);
 });
+
+test("Postgres silent candidate turns preserve the visible acceptance digest across reconstruction", { skip: !enabled }, async () => {
+  const f = builderFunctionalFixture();
+  try {
+    const prepared = { ...f.session, id: `builder-test-${sha256(randomUUID()).slice(0, 40)}`,
+      execution: { kind: "agent" as const, agentId: "test-reader", prompt: "Explain your role.", interaction: "interactive" as const } };
+    const store = createPostgresBuilderTestStore(), service = new BuilderFunctionalTests(store);
+    await store.create(prepared); await service.begin(prepared.id, f.candidate.artifactHash, "example:team:thread");
+    const result = { artifactHash: f.candidate.artifactHash, candidateCommit: prepared.candidateCommit, executionDigest: prepared.scopeDigest,
+      summary: "Visible candidate answer", completedAt: new Date().toISOString(), evidence: { synthetic: true } };
+    const visible = await service.recordResult(prepared.id, result), digest = builderTestResultDigest(visible);
+    const message = { id: "quiet", conversationId: "example:team:thread", senderId: prepared.requester, senderName: "Alex",
+      sentAt: new Date().toISOString(), text: "Bob, let's discuss tomorrow.", shared: true, mentioned: false };
+    await service.beginTurn(prepared.id, prepared.requester, message.id, message.text, message.conversationId, message);
+    const recovered = new BuilderFunctionalTests(createPostgresBuilderTestStore());
+    await recovered.recordTurn(prepared.id, message.id, { ...result, participation: "context-only", summary: "" });
+    const retained = (await createPostgresBuilderTestStore().get(prepared.id))!;
+    assert.equal(builderTestResultDigest(retained), digest);
+    assert.deepEqual(retained.conversation?.turns.at(-1)?.message, message);
+    await recovered.accept(prepared.id, { principal: prepared.requester, actionId: "existing-card", resultDigest: digest, acceptedAt: new Date().toISOString() });
+    assert.equal((await createPostgresBuilderTestStore().get(prepared.id))?.stage, "accepted");
+  } finally { f.cleanup(); }
+});

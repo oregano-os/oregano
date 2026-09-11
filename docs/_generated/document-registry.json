@@ -530,7 +530,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-09-11",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -929,7 +929,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-07",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -1123,7 +1123,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-10",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1257,7 +1257,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1286,6 +1286,23 @@
         "architecture.boundaries",
         "specification.companyos-core-v0.7",
         "specification.tool-architecture"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.conversation-participation",
+    "title": "Shared Conversation Participation",
+    "path": "docs/specifications/conversation-participation.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7"
       ]
     }
   },
@@ -1404,7 +1421,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-10",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {}

@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-09
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -481,3 +481,7 @@ The following are not silently decided by this draft:
 
 These questions are tracked in the Translation Exception Report and MUST remain
 visible in inspection until resolved by the appropriate authority.
+
+## Shared conversation participation
+
+All communication adapters follow [Shared Conversation Participation](conversation-participation.md). Ownership and permissions precede the existing Agent’s choice to respond or retain context silently. Unmentioned owned thread replies must not be discarded by a blanket provider filter.

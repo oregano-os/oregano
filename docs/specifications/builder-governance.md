@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-10
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -631,3 +631,12 @@ scoped. Simulation does not prove provider access, actual external writes or
 end-to-end production behavior. General simulation, separate Preview provisioning
 and bounded live-trial execution remain later capabilities, not currently
 available Builder options.
+
+## Team conversations during builds and tests
+
+Builder conversations and interactive candidate tests follow the Core
+[participation contract](conversation-participation.md). The existing Agent
+can retain human discussion silently; this neither starts a build nor revises
+a candidate. A clear follow-up can use the existing scoped Tools without another
+mention. Silent test turns preserve the last visible result and produce no
+card update. Completed authorized jobs still deliver their normal notifications.

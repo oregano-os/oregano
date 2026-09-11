@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-10
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -1549,3 +1549,13 @@ blocks a comment-only workflow. Workflows that use Records still require an
 immutable, correctly paired configuration snapshot. The installer also resolves
 the pinned pnpm package behind the shell shims used by CI. Neither correction
 changes provider authority or replaces actual functional acceptance evidence.
+
+## Shared conversation participation — source implementation
+
+The Core participation controller, existing Agent Tool loop and interactive
+candidate executor now support context-only turns, attributed recent history
+and unmentioned owned thread replies. A context-only choice emits no reply or
+new work and preserves the last visible candidate result. Exact shared-app
+ownership remains required. The source includes scripted-model and synthetic
+transport proofs; these do not establish real-model quality or a live company
+deployment. See [the contract](../specifications/conversation-participation.md).

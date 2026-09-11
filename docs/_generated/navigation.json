@@ -616,6 +616,14 @@
     "availability": null
   },
   {
+    "document_id": "specification.conversation-participation",
+    "title": "Shared Conversation Participation",
+    "path": "docs/specifications/conversation-participation.md",
+    "kind": "specification",
+    "status": "building",
+    "availability": null
+  },
+  {
     "document_id": "specification.core-workspace-upgrades-v0.1",
     "title": "Core-to-Workspace Upgrades v0.1",
     "path": "docs/specifications/core-workspace-upgrades-v0.1-draft.md",

@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { ignoreSlackChannelEvent } from "../../runner-vercel/src/lib/slack-channel-events.ts";
 const request = (event: unknown) => new Request("https://example.test/api/webhooks/slack", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "event_callback", event }) });
 
-test("staged channel events cannot wake the other shared-app deployment", async () => {
+test("legacy blanket ignore no longer drops owned thread follow-ups", async () => {
   for (const channel of ["C10001", "G10001"]) {
     const event = { type: "message", channel, channel_type: "group", thread_ts: "100.001", ts: "100.002", text: "A reply" };
     assert.equal(await ignoreSlackChannelEvent(request(event)), false);
     assert.equal(await ignoreSlackChannelEvent(request(event), "process"), false);
     const req = request(event), bytes = await req.clone().text();
-    assert.equal(await ignoreSlackChannelEvent(req, "ignore"), true);
+    assert.equal(await ignoreSlackChannelEvent(req, "ignore"), false);
     assert.equal(await req.text(), bytes);
   }
 });

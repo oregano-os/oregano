@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -38,3 +38,12 @@ Tool or access changes are security changes.
 The [Tool Architecture Specification](../../specifications/tool-architecture.md#5-deterministic-resolution)
 shows how the ToolSet Resolver combines catalogs, grants, scopes, policies, and
 Instance connections before the runtime registers any Tool.
+
+## Participate in shared conversations
+
+Use the Core conversation participation contract. An Agent should answer clear
+addresses, follow-ups and answers to its own questions, and remain quiet during
+human-to-human discussion. Do not instruct it to answer every channel message
+or demand an app mention for every thread reply. The existing Agent chooses
+participation; do not add a front Agent, attention timer or Workspace imitation
+of the Core controller. This choice never grants Tool or approval rights.

@@ -118,7 +118,8 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
       authenticatedPrincipal: principal, compile: async () => f.candidate, present,
       execute: async (_artifact, session) => { const messages = builderAgentTestMessages(session); histories.push(messages);
         return { artifactHash: f.candidate.artifactHash, candidateCommit: f.candidate.provenance.workspaceCommit, executionDigest: session.scopeDigest,
-          completedAt: new Date().toISOString(), summary: `Answer ${histories.length}`, evidence: { synthetic: true } }; },
+          completedAt: new Date().toISOString(), summary: session.conversation?.pending?.prompt === "Bob, we can discuss tomorrow." ? "" : `Answer ${histories.length}`,
+          participation: session.conversation?.pending?.prompt === "Bob, we can discuss tomorrow." ? "context-only" : "respond", evidence: { synthetic: true } }; },
       ready: release.notifier, fallback: { async deliver() { assert.fail("unexpected fallback"); } },
       transport: { async qualify() {}, async permalink() { return "https://example.slack.com/archives/C20002/p2000000"; } },
     });
@@ -148,6 +149,9 @@ test("interactive candidate chat, fresh user threads and exact Go Live acceptanc
     assert.doesNotMatch(JSON.stringify(t.messages), /Test version · Not live|This conversation stays on this version/);
     const newToken = [...t.values.keys()].filter((key) => key.startsWith("builder-release-candidate:")).at(-1)!.slice("builder-release-candidate:".length);
     assert.notEqual(newToken, oldToken);
+    const beforeQuiet = JSON.stringify(sourceCards());
+    await integration.receive({ ...message, messageId: "quiet-before-release", text: "Bob, we can discuss tomorrow." });
+    assert.equal(JSON.stringify(sourceCards()), beforeQuiet, "Silent context must not refresh the release card");
     await t.handlers.get("companyos.builder.release")!(event(newToken));
     assert.equal(accepted.length, 1); assert.equal((await f.store.get(id))?.stage, "accepted");
     assert.match(JSON.stringify(sourceCards().at(-1)), /Publishing/);
@@ -204,5 +208,41 @@ test("readiness changes update the existing result while later release messages 
     await show(f.job, { type: "card", title: "Publishing", children: [] } as any, "releasing");
     assert.equal(t.messages.length, 2);
     assert.match(JSON.stringify(t.messages[0]), /The exact changed result/);
+  } finally { f.cleanup(); }
+});
+
+test("ambient candidate messages stay silent, deduplicate and do not refresh cards; authorized notifications remain independent", async () => {
+  const f = builderFunctionalFixture(), t = transport();
+  try {
+    await f.store.create({ ...f.session, execution: { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" } });
+    const conversation = "slack:C20002:2.0";
+    await f.tests.begin(f.session.id, f.candidate.artifactHash, conversation);
+    const result = { artifactHash: f.candidate.artifactHash, candidateCommit: f.session.candidateCommit,
+      executionDigest: f.session.scopeDigest, completedAt: new Date().toISOString(), summary: "Initial answer", evidence: { synthetic: true } };
+    await f.tests.recordResult(f.session.id, result);
+    await t.state.set(`builder:test-conversation:${sha256(conversation)}`, f.session.id);
+    let executions = 0, notifications = 0;
+    const ready = { async deliver() { notifications++; } };
+    const integration = createBuilderFunctionalTestIntegration({ artifact: f.previous, chat: t.chat, state: t.state, tests: f.tests,
+      authenticatedPrincipal: () => f.session.requester, getJob: async () => f.job, compile: async () => f.candidate,
+      execute: async (_artifact, session) => {
+        executions++;
+        assert.equal(session.conversation?.pending?.message?.mentioned, false);
+        return { ...result, participation: "context-only", summary: "" };
+      }, ready, fallback: { async deliver() { assert.fail("No fallback"); } },
+    });
+    const message = { id: "ambient", conversationId: conversation, senderId: f.session.requester, senderName: "Alice",
+      text: "Bob, let us discuss this tomorrow.", sentAt: new Date().toISOString(), shared: true, mentioned: false };
+    const input = { conversation, author: { userId: "U10001" } as Author, messageId: message.id, text: message.text, occurredAt: message.sentAt, participation: message };
+    assert.equal(await integration.receive(input), true);
+    assert.equal(await integration.receive(input), true);
+    assert.equal(executions, 1);
+    assert.equal(t.messages.length, 0);
+    assert.equal(notifications, 0);
+    await ready.deliver();
+    assert.equal(notifications, 1, "Silence does not close an independently authorized job notification channel");
+    const retained = await f.store.get(f.session.id);
+    assert.equal(retained?.conversation?.turns.at(-1)?.result.participation, "context-only");
+    assert.deepEqual(builderAgentTestMessages(retained!).filter(m => m.role === "assistant").map(m => m.content), ["Initial answer"]);
   } finally { f.cleanup(); }
 });
