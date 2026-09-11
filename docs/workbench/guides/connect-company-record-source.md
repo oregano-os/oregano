@@ -5,7 +5,7 @@ kind: guide
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -22,6 +22,12 @@ relations:
 ---
 
 # Connect a Company Record Source
+
+The build declaration lives at `.companyos/instance.yaml` in company Git.
+The Record Source operation-binding and qualification files below use distinct
+schemas and commands; their external storage rules remain unchanged. They are
+not substitutes for, or top-level sections of, the build declaration. See
+[Instance configuration](../../reference/instance-configuration.md).
 
 Use this Guide when a company wants to mirror structured operational objects
 from a business provider into the existing Company Instance database so
@@ -200,7 +206,9 @@ stable roster IDs; unmatched identities and teams stay explicit. For raw
 provider IDs, use `columns.people_col` with `identity_list` and no resolution.
 People columns contain arrays, even when only one person is assigned.
 
-Slack Record Source `0.1.3` exposes `thread_reference` matching a published
+::: implementation-example
+
+Slack Record Source `0.1.4` exposes `thread_reference` matching a published
 root receipt, plus `author_principal`, `editor_principal`,
 `content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
 evaluation map `accepted_at`: it reflects the current content version, including
@@ -209,6 +217,10 @@ so the Workspace can reject another editor's content or a bot response. Do not
 resolve the unqualified `author_id`. Updating either Connector requires an
 explicit Instance version pin and a new synchronization of adopted fields;
 it does not activate the source or prove synchronization through a cutoff.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 For a reviewed complete table surface, map the built-in fields `object_kind`,
 `provider_id`, `provider_payload`, `root_board_id`, `board_id`, `group_id`, and
@@ -340,7 +352,7 @@ instance_id: example-staging
 source_id: coordination-conversation
 resource_binding: coordination-conversation
 connector: oregano/slack-record-source
-connector_version: 0.1.3
+connector_version: 0.1.4
 secret_ref: env:SLACK_BOT_TOKEN
 qualification:
   receipt_ref: ./slack-source-qualification.json
@@ -642,7 +654,9 @@ is the production freshness path.
 
 ## 9. Add another provider
 
-The maintained source bindings now select Slack `0.1.3` and Monday `0.3.3`.
+::: implementation-example
+
+The maintained source bindings now select Slack `0.1.4` and Monday `0.3.3`.
 Each inventory rereads the actual credential account/actor and exact resource
 metadata before content. The archived Slack qualification must name its bot
 user; Monday must name its account, member ID, member kind and confirmed
@@ -650,6 +664,10 @@ external-Agent mapping. Renew incomplete qualification with the maintained
 metadata-read flow, update the exact Instance binding version, rebuild the
 Artifact and synchronize that source generation. Do not overwrite historical
 Artifacts or evidence. A current identity check is not a time-coverage proof.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 Do not copy this command into `companyos notion sync` or
 `companyos clickup sync`. A maintained provider contribution implements the

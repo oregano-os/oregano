@@ -18,6 +18,11 @@ import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
 import { hasDeliveredCollectionReview } from "./workflow-conversation-presentation.ts";
 import { stepCountIs, ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
+import { type BuilderTurnIntent } from "../../../runtime/builder/turn-intent.ts";
+import { classifyBuilderTurn } from "./builder/turn-intent.ts";
+import { builderCurrentRequestKey, type BuilderRequestReference } from "../../../runtime/builder/experience.ts";
+import { readBuilderImages } from "../../../runtime/builder/attachments.ts";
+import { BUILDER_INTAKE_INSTRUCTIONS } from "../../../runtime/builder/brief.ts";
 import { Actions, Button, Card, CardText, Chat, type Author, type Message, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
@@ -38,11 +43,16 @@ import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builde
 import type { StateAdapter } from "chat";
 import { loadArtifact, resolvedAgentForConversation } from "./artifact.ts";
 import type { ResolvedConversationAgent } from "./artifact.ts";
-import { executeAgentHandoffControl } from "./agent-handoff-tools.ts";
+import { continuesInBuilder, executeAgentHandoffControl } from "./agent-handoff-tools.ts";
 import {
   createBuilderChatIntegration,
   type BuilderChatIntegration,
 } from "./builder/chat-integration.ts";
+import { createBuilderCardPresenter } from "./builder/card-presenter.ts";
+import { builderProgressCard } from "./builder/action-cards.ts";
+import type { BuilderJob } from "../../../state-store/builder-jobs.ts";
+import { createBuilderReleaseRuntime } from "./builder/release-provider.ts";
+import { createBuilderChatNotifier } from "./builder/chat-notifier.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
@@ -54,7 +64,7 @@ import {
 import { agentModelTask } from "./agent-model-task.ts";
 import { agentInstructionMessages } from "./agent-instructions.ts";
 import { COLLECTION_TOOL_DESCRIPTION } from "../../../runtime/workflow-engine/collection.ts";
-import { setupVerificationPrompt, setupVerificationResponse } from "./setup-verification.ts";
+import { setupVerificationPrompt, setupVerificationResponse, setupExchangeKey, type SetupExchange } from "./setup-verification.ts";
 import {
   abortRememberedSlackAgentSessionConversation,
   createSlackToolProgressReporter,
@@ -82,6 +92,7 @@ let state: StateAdapter;
 let artifact: CompanyOSArtifact;
 let runtime: CompanyOSRuntime;
 let builderChat: BuilderChatIntegration;
+let builderRelease: ReturnType<typeof createBuilderReleaseRuntime>;
 let assignmentStore: ConversationAssignmentStore;
 let handoffService: AgentHandoffService;
 let slackAgentExperience: SlackAgentExperienceConfiguration;
@@ -96,6 +107,10 @@ interface ConversationEntry extends ConversationContextEntry {
   role: "user" | "assistant";
   content: string;
   model_execution?: ModelExecutionEvidence;
+  message_id?: string;
+  in_reply_to?: string;
+  principal?: string;
+  artifact_hash?: string;
 }
 
 interface PendingApproval extends ExecuteToolRequest {
@@ -138,6 +153,7 @@ function resolvedTools(
   conversation: ResolvedConversationAgent,
   visibleGrantIds: ReadonlySet<string>,
   workflowSession?: WorkflowConversationSession,
+  builderIntent?: BuilderTurnIntent,
 ): ToolSet {
   const selectedRuntime = workflowSession?.runtime ?? runtime;
   const output: ToolSet = {};
@@ -208,7 +224,7 @@ function resolvedTools(
     .some((rule) => rule.fromAgentId === agent.id && rule.surfaces.includes(conversation.assignmentKey.surface));
   if (!agent.conversationCoordinator && (hasOutgoingHandoff || conversation.resolution.reason === "assignment")) {
     output.companyos_agent_handoff = tool({
-      description: "Request an allowlisted CompanyOS Agent handoff for this authenticated conversation, or return an assigned conversation to its deterministic route. This control changes only the next turn's Agent selection; it never copies Tool grants or proves a business effect.",
+      description: "Request an allowlisted CompanyOS Agent handoff for this authenticated conversation, or return to its deterministic route. A handoff to Builder continues the current human request immediately so the human need not repeat it. Other handoffs apply next turn. No Tool grants are copied.",
       inputSchema: jsonSchema({
         type: "object",
         additionalProperties: false,
@@ -228,11 +244,12 @@ function resolvedTools(
           resolution: conversation.resolution,
           artifactHash: artifact.artifactHash,
           messageId,
+          continueBuilderInTurn: agent.id !== "builder",
         },
       ),
     });
   }
-  Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId }));
+  Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId, intent: builderIntent }));
   return output;
 }
 
@@ -260,12 +277,12 @@ export async function recoverHostedWorkflowReply(reference: { threadId: string; 
   return result;
 }
 
-async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "isMention">>) {
+async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>, builderContinuation = false) {
   const { workflowSlackMessageTrace } = await import("./workflow-slack-diagnostics.ts");
   const trace = workflowSlackMessageTrace(thread.id, message.id);
   trace.emit("handler-entered");
   try {
-    await processConversationMessage(thread, message, trace);
+    await processConversationMessage(thread, message, trace, undefined, builderContinuation);
     trace.emit("handler-finished");
   } catch (error) { trace.emit("handler-failed"); throw error; }
 }
@@ -273,7 +290,7 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 interface CoordinatedTurn { agent: CompiledAgent; session?: WorkflowConversationSession; concern: CheckedConcern; }
 
 /** The Slack adapter only translates verified addresses. Interpretation and state are shared Core. */
-async function coordinateConversation(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "isMention">>, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
+async function coordinateConversation(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
   const member = rosterMember(message.author);
   if (!member) return false;
   const requester = principal(member);
@@ -373,9 +390,13 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   });
 }
 
-async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "isMention">>,
-  trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace, coordinated?: CoordinatedTurn) {
-  if (!coordinated && !setupVerificationResponse(message.text)) {
+async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>,
+  trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace, coordinated?: CoordinatedTurn, builderContinuation = false) {
+  const incomingMember = rosterMember(message.author);
+  const incoming = incomingMember ? slackConversationMessage(thread, message, { id: principal(incomingMember), name: incomingMember.name }) : undefined;
+  if (!builderContinuation && !coordinated && await builderRelease?.receive({ conversation: thread.id, author: message.author, participation: incoming,
+    messageId: message.id, text: message.text, occurredAt: message.metadata.dateSent.toISOString() })) return;
+  if (!builderContinuation && !coordinated && !setupVerificationResponse(message.text)) {
     try { if (await coordinateConversation(thread, message, trace)) return; }
     catch (error) {
       if (thread.isDM || message.isMention) await thread.post("I could not safely match or process this message. Please try again; your existing work remains available.");
@@ -384,7 +405,8 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   }
   let workflowSession: WorkflowConversationSession | undefined = coordinated?.session;
   let workflowNotice: string | undefined;
-  if (!coordinated && workflowHostingEnabled()) {
+  const entryAgent = !coordinated && incomingMember ? (await resolvedAgentForConversation({ threadId: thread.id, requesterPrincipal: principal(incomingMember), assignmentStore })).agent : undefined;
+  if (!builderContinuation && !coordinated && entryAgent?.id !== "builder" && workflowHostingEnabled()) {
     try {
       const { createWorkflowHost } = await import("./workflow-host.ts");
       const host = await createWorkflowHost();
@@ -434,12 +456,12 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   }
   const claimThreadId = workflowSession ? workflowInboundThreadId(thread.id, message.id) : thread.id;
   const claimKey = `message:${claimThreadId}:${message.id}${coordinated ? `:concern:${sha256({ agent: coordinated.agent.id, work: coordinated.concern.work?.id, text: coordinated.concern.text })}` : ""}`;
-  if (!await state.setIfNotExists(claimKey, true, 30 * DAY)) { trace.emit("deduplicated"); return; }
+  if (!builderContinuation && !await state.setIfNotExists(claimKey, true, 30 * DAY)) { trace.emit("deduplicated"); return; }
   try {
   await thread.subscribe();
   const requester = workflowSession?.principal ?? principal(member);
   const participation = slackParticipation(thread, message, { id: requester, name: member.name });
-  if (coordinated && participation.ambient) participation.choose("respond");
+  if ((coordinated || builderContinuation) && participation.ambient) participation.choose("respond");
   const conversation: ResolvedConversationAgent = workflowSession ? {
     agent: workflowSession.agent,
     resolution: { agentId: workflowSession.agent.id, reason: "assignment", assignmentId: workflowSession.runId },
@@ -451,6 +473,9 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     ...(coordinated ? {} : { assignmentStore }),
   });
   const agent = coordinated?.agent ?? conversation.agent;
+  if (builderContinuation && (agent.id !== "builder" || conversation.resolution.reason !== "assignment")) {
+    throw new Error("Builder handoff changed before the current request could be continued.");
+  }
   const sessionThreadId = workflowSession ? workflowReplyThreadId(workflowSession)
     : resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience);
   const deliveryThread = sessionThreadId === thread.id ? thread : botInstance!.thread(sessionThreadId);
@@ -464,7 +489,17 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   if (!participation.ambient || coordinated) await showSlackAgentWorking(deliveryThread, slackAgentExperience);
   const historyThreadId = workflowSession ? workflowReplyThreadId(workflowSession) : thread.id;
   const conversationKey = `conversation:${historyThreadId}:${agent.id}`;
-  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}`, message_id: message.id, principal: requester, sender_name: member.name, sent_at: message.metadata.dateSent.toISOString() } satisfies ConversationEntry, {
+  const recordSetupExchange = async (evidence: ModelExecutionEvidence) => {
+    if (agent.id !== 'oregano' || agent.toolSet.tools.length !== 0 || !evidence.responseId) return;
+    const receipt: SetupExchange = {
+      version: 1, artifact_hash: artifact.artifactHash, core_commit: artifact.provenance.coreCommit,
+      workspace_commit: artifact.provenance.workspaceCommit, principal: requester,
+      message_id: message.id, conversation_key: conversationKey, response_id: evidence.responseId,
+      model_route: evidence.route, model: evidence.model, delivered_at: new Date().toISOString(),
+    };
+    await state.setIfNotExists(setupExchangeKey(artifact.artifactHash, requester), receipt, 30 * DAY);
+  };
+  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}`, message_id: message.id, principal: requester, sender_name: member.name, sent_at: message.metadata.dateSent.toISOString(), artifact_hash: artifact.artifactHash } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
@@ -484,20 +519,37 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     thread.signal.throwIfAborted();
     const generated = probe.text.trim();
     if (generated !== verificationResponse) throw new Error("The selected model did not return the exact CompanyOS setup proof response.");
-    await state.appendToList(conversationKey, { role: "assistant", content: generated, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
+    await state.appendToList(conversationKey, { role: "assistant", content: generated, in_reply_to: message.id, artifact_hash: artifact.artifactHash, model_execution: modelExecutionEvidence(resolved.selection, probe) } satisfies ConversationEntry, {
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
     await deliveryThread.post(generated);
     trace.emit("reply-posted");
+    await recordSetupExchange(modelExecutionEvidence(resolved.selection, probe));
     return;
   }
   const history = boundedConversationHistory(await state.getList<ConversationEntry>(conversationKey));
   const runId = workflowSession?.runId ?? `slack-${sha256(`${thread.id}:${agent.id}`).slice(0, 24)}`;
   const visibleGrantIds = new Set(workflowSession?.allowedTools ?? agent.toolSet.tools.map((entry) => entry.grantId));
-  const tools = withConversationParticipation(workflowNotice ? {} : resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession), participation);
+  let builderIntent: BuilderTurnIntent | undefined;
+  if (agent.id === "builder" && !workflowNotice) {
+    const current = await state.get<BuilderRequestReference>(builderCurrentRequestKey(artifact.instance.id, requester, deliveryThread.id));
+    const classification = await classifyBuilderTurn({ messageId: message.id, currentMessage: message.text,
+      currentBuild: current ?? null, recentConversation: history.slice(-8).map(({ role, content }) => ({ role, content })) }, thread.signal);
+    builderIntent = classification.intent;
+    const reference = sha256([artifact.artifactHash, conversationKey, message.id]);
+    await state.set(`builder:intake:${reference}`, { artifactHash: artifact.artifactHash, messageId: message.id,
+      kind: builderIntent.kind, attempts: classification.attempts, failures: classification.failures, executions: classification.executions }, 30 * DAY);
+    console.info(JSON.stringify({ event: "builder.intake", reference, kind: builderIntent.kind, attempts: classification.attempts, failures: classification.failures }));
+    if (builderIntent.kind === "unavailable" && !participation.ambient) {
+      const response = `I could not process your build request because the request check failed. No build was started. Your conversation is retained; please retry in this thread with an app mention. Reference: ${reference.slice(0, 12)}`;
+      await state.appendToList(conversationKey, { role: "assistant", content: response, in_reply_to: message.id, artifact_hash: artifact.artifactHash } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
+      await deliveryThread.post(response);
+      return;
+    }
+  }
+  const tools = withConversationParticipation(workflowNotice ? {} : resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession, builderIntent), participation);
   if (coordinated) delete tools.companyos_agent_handoff;
-  if (coordinated?.concern.work?.kind === "builder") delete tools.builder_propose_change;
   const knowledgeRoute = resolveKnowledgeTurnRoute({
     text: message.text,
     requiresKnowledge: coordinated?.concern.knowledge,
@@ -514,20 +566,23 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       ? { configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64) }
       : {}),
   });
+  const attachments = agent.id === "builder" ? await readBuilderImages(message.attachments) : { images: [], notices: [] };
+  if (attachments.notices.length && !participation.ambient) await deliveryThread.post([...new Set(attachments.notices)].join("\n"));
   const participationOffset = participation.ambient && !participation.choice ? 1 : 0;
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...agentInstructionMessages(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
+    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...(agent.id === "builder" ? [{ role: "system" as const, content: [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`, ...attachments.notices].join("\n\n") }] : []), ...agentInstructionMessages(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
     tools,
     prepareStep: ({ stepNumber }) => participationStep(participation) ?? knowledgeStepChoice(knowledgeRoute, stepNumber - participationOffset),
-    stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? [])],
+    stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? []), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
   const messages: ModelMessage[] = [{ role: "user", content: conversationContext(participation.message, history) }];
+  if (attachments.images.length) messages[messages.length - 1] = { role: "user", content: [{ type: "text", text: conversationContext(participation.message, history) }, ...attachments.images] };
   const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
-  if ((!participation.ambient || coordinated) && shouldStreamSlackAgentResponse({
+  if ((!participation.ambient || coordinated) && !tools.companyos_agent_handoff && shouldStreamSlackAgentResponse({
     configuration: slackAgentExperience,
     agentId: agent.id,
     knowledgeRouteKind: knowledgeRoute.kind,
@@ -561,11 +616,13 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     await state.appendToList(conversationKey, {
       role: "assistant",
       content: response,
+      in_reply_to: message.id, sent_at: new Date().toISOString(), artifact_hash: artifact.artifactHash,
       model_execution: modelExecutionEvidence(resolved.selection, { response: responseMetadata, usage }),
     } satisfies ConversationEntry, {
       maxLength: 40,
       ttlMs: 30 * DAY,
     });
+    await recordSetupExchange(modelExecutionEvidence(resolved.selection, { response: responseMetadata, usage }));
     return;
   }
   const toolProgress = createSlackToolProgressReporter(deliveryThread, workflowSession?.collection || participation.ambient ? { ...slackAgentExperience, streamingEnabled: false } : slackAgentExperience);
@@ -603,6 +660,17 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     throw error;
   }
   thread.signal.throwIfAborted();
+  if (!builderContinuation && agent.id !== "builder" && continuesInBuilder(result.toolResults)) {
+    await toolProgress.complete({ waitingForHuman: false });
+    await state.appendToList(conversationKey, {
+      role: "assistant", content: "The current request was handed to Builder for process discovery and clarification.",
+      model_execution: modelExecutionEvidence(resolved.selection, result),
+    } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
+    // Forward the original authenticated input, never a model-written instruction
+    // or another Agent's private history. The target resolves its own read scope.
+    await handleMessage(thread, message, true);
+    return;
+  }
   const output = participation.finish(result.text);
   await state.set(`conversation-participation:${sha256([thread.id, message.id, agent.id])}`, { participation: output.participation, reason: output.reason, principal: requester, messageId: message.id }, 30 * DAY);
   if (output.participation === "context-only") return;
@@ -622,7 +690,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     : { historyResponse: response, visibleResponse: response };
   waitingForHuman ||= result.toolResults.some((entry) => toolResultNeedsHumanInput(entry.output));
   await toolProgress.complete({ waitingForHuman });
-  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, sent_at: new Date().toISOString(), in_reply_to: message.id, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
+  await state.appendToList(conversationKey, { role: "assistant", content: presentation.historyResponse, sent_at: new Date().toISOString(), in_reply_to: message.id, artifact_hash: artifact.artifactHash, model_execution: modelExecutionEvidence(resolved.selection, result) } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
@@ -635,6 +703,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       ? validatedSlackResponsePlan(presentation.visibleResponse, { suspended: waitingForHuman })
       : presentation.visibleResponse);
     trace.emit("reply-posted");
+    await recordSetupExchange(modelExecutionEvidence(resolved.selection, result));
   } else if (waitingForHuman && slackAgentExperience.streamingEnabled) {
     await deliveryThread.post(validatedSlackResponsePlan(
       "Waiting for your confirmation in the card above.",
@@ -649,9 +718,12 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
 }
 
 function registerHandlers(bot: Chat) {
-  bot.onNewMention(handleMessage);
-  bot.onSubscribedMessage(handleMessage);
-  if (process.env.COMPANYOS_WORKFLOW_ONLY === "true") bot.onNewMessage(/[\s\S]*/, handleMessage);
+  bot.onDirectMessage((thread, message) => handleMessage(thread, message));
+  bot.onNewMention((thread, message) => handleMessage(thread, message));
+  bot.onSubscribedMessage((thread, message) => handleMessage(thread, message));
+  const names = [...new Set([process.env.BOT_USERNAME ?? "oregano", ...artifact.agents.map(agent => agent.id)])];
+  const escapedNames = names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  bot.onNewMessage(process.env.COMPANYOS_WORKFLOW_ONLY === "true" ? /[\s\S]*/ : new RegExp(`(?:^|\\s)(?:${escapedNames.join("|")})(?:[,!:?]|\\s)`, "iu"), (thread, message) => handleMessage(thread, message));
   bot.onAgentSessionStopped(async (event) => {
     const bridgedLegacyConversation = await abortRememberedSlackAgentSessionConversation(
       bot,
@@ -761,10 +833,11 @@ let botInstance: Chat | undefined;
 
 export function createCompanyOSRuntimeConnectors(
   selectedAgentId = process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent",
-  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish },
+  options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish; onlyCapabilities?: readonly string[] },
 ) {
   const baseline = createUnifiedKnowledgeProvider({
-    handbook: createPostgresKnowledgeProvider(),
+    handbook: createPostgresKnowledgeProvider(process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && options?.artifact?.knowledge
+      ? { snapshotHash: options.artifact.knowledge.bundleHash } : {}),
     brain: new PostgresBrainKnowledgeProjectionStore(),
     accessAuditor: new PostgresKnowledgeAccessAuditor(),
   });
@@ -776,7 +849,7 @@ export function createCompanyOSRuntimeConnectors(
     new ArtifactPostgresConnector(),
     new KnowledgeProviderConnector(knowledge),
     ...(options?.artifact && options.chat
-      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat, beforeSlackDirectPublish: options.beforeSlackDirectPublish })
+      ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat, beforeSlackDirectPublish: options.beforeSlackDirectPublish, onlyCapabilities: options.onlyCapabilities })
       : []),
   ];
 }
@@ -803,7 +876,8 @@ export function getBot(): Chat {
         store: createPostgresConversationAttentionStore(), source: createPostgresConversationWorkSource(artifact), workId: `builder:${job.jobId}`,
         address: { surface, accountId, channelId, threadId }, eventId: `builder-linked:${job.jobId}`, now: new Date().toISOString() });
     },
-  });
+    refreshResult: job => builderRelease?.notifier.deliver(job) ?? Promise.resolve(),
+    present: (job, card, phase) => createBuilderCardPresenter(getBot(), state)(job, card, phase) });
   slackAgentExperience = resolveSlackAgentExperience();
   const candidateBot = new Chat({
     userName: process.env.BOT_USERNAME ?? "oregano",
@@ -832,8 +906,10 @@ export function getBot(): Chat {
     toolExecutionTimeoutMs: TOOL_EXECUTION_TIMEOUT_MS,
   });
   registerHandlers(candidateBot);
-  // Publish only a fully configured instance. A failed Connector constructor
-  // must never leave a cached Chat that acknowledges messages without handlers.
+  builderRelease = createBuilderReleaseRuntime({ chat: candidateBot, state,
+    authenticatedPrincipal: (author) => { const member = rosterMember(author); return member ? principal(member) : undefined; } });
+  builderRelease?.registerHandlers();
+  // Publish only after runtime construction and handler registration succeed.
   botInstance = candidateBot;
   return candidateBot;
 }
@@ -841,4 +917,16 @@ export function getBot(): Chat {
 export function getCompanyOSRuntime(): CompanyOSRuntime {
   getBot();
   return runtime;
+}
+
+export function getBuilderTerminalNotifier() {
+  const chat = getBot();
+  return builderRelease?.notifier ?? createBuilderChatNotifier(chat, createBuilderCardPresenter(chat, state));
+}
+export async function reportBuilderProgress(job: BuilderJob, phase: "preparing" | "coding" | "checking") {
+  await createBuilderCardPresenter(getBot(), state)(job, builderProgressCard(job, phase), phase);
+}
+export async function advanceBuilderRelease(workerId: string) {
+  getBot();
+  return builderRelease ? await builderRelease.advance(workerId) : { state: "idle", reason: "release-unconfigured" };
 }

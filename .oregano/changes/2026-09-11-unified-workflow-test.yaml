@@ -1,0 +1,349 @@
+version: 3
+plan_id: unified-workflow-test-2026-09-11
+created: 2026-09-11
+title: Combine maintained Builder and workflow conversation runtime for the
+  existing test environment
+objective: Reuse the existing custom test environment for ordinary
+  conversations, Builder and declared workflows without restoring retired Sprint
+  execution or changing production routing.
+non_goals:
+  - Create another project, credential or database.
+  - Change production or infer human test acceptance.
+placement: core
+change_class: security
+files_expected:
+  - .github/workflows/release.yml
+  - .oregano/changes/2026-09-07-slack-dm-ownership.yaml
+  - .oregano/changes/2026-09-07-slack-ingress-staging.yaml
+  - .oregano/changes/2026-09-08-builder-artifact-reference.yaml
+  - .oregano/changes/2026-09-08-builder-confirmed-merge.yaml
+  - .oregano/changes/2026-09-08-builder-functional-tests.yaml
+  - .oregano/changes/2026-09-08-builder-hosted-readiness.yaml
+  - .oregano/changes/2026-09-08-builder-hosted-startup.yaml
+  - .oregano/changes/2026-09-08-builder-intake-and-release.yaml
+  - .oregano/changes/2026-09-08-builder-live-execution.yaml
+  - .oregano/changes/2026-09-08-builder-records-diagnostics.yaml
+  - .oregano/changes/2026-09-08-builder-release-provider-qualification.yaml
+  - .oregano/changes/2026-09-08-builder-workspace-activation-and-preview.yaml
+  - .oregano/changes/2026-09-08-five-minute-setup-plan.yaml
+  - .oregano/changes/2026-09-08-setup-options-documentation.yaml
+  - .oregano/changes/2026-09-08-setup-provider-choice.yaml
+  - .oregano/changes/2026-09-08-setup-provider-compatibility.yaml
+  - .oregano/changes/2026-09-08-standard-setup-candidate-integration.yaml
+  - .oregano/changes/2026-09-08-standard-setup-implementation.yaml
+  - .oregano/changes/2026-09-08-unpublished-setup-testing.yaml
+  - .oregano/changes/2026-09-08-vercel-pro-setup-prerequisite.yaml
+  - .oregano/changes/2026-09-09-builder-test-experience-spec.yaml
+  - .oregano/changes/2026-09-09-release-builder-v0.9.0.yaml
+  - .oregano/changes/2026-09-09-workspace-instance-configuration.yaml
+  - .oregano/changes/2026-09-10-builder-intake-recovery.yaml
+  - .oregano/changes/2026-09-10-builder-release-continuity.yaml
+  - .oregano/changes/2026-09-10-builder-single-click-live.yaml
+  - .oregano/changes/2026-09-10-builder-test-conversation-cleanup.yaml
+  - .oregano/changes/2026-09-10-builder-user-tests.yaml
+  - .oregano/changes/2026-09-10-database-traffic.yaml
+  - .oregano/changes/2026-09-10-release-builder-v0.11.0.yaml
+  - .oregano/changes/2026-09-11-shared-conversation-participation.yaml
+  - .oregano/changes/2026-09-11-unified-workflow-test.yaml
+  - BOOTSTRAP_FOR_AGENTS.md
+  - INSTALL-COMPANYOS.md
+  - README.md
+  - docs/README.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-instance.md
+  - docs/architecture/company-workspace.md
+  - docs/architecture/system-boundaries.md
+  - docs/glossary.md
+  - docs/governance/agent-working-agreement.md
+  - docs/governance/versioning-policy.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/onboarding/setup-options.md
+  - docs/operations/maintained-host-profile.md
+  - docs/operations/vercel-connect-workflow-interactions.md
+  - docs/operations/vercel-slack-event-staging.md
+  - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
+  - docs/plans/2026-09-08-five-minute-setup.md
+  - docs/plans/2026-09-08-setup-integration-review.md
+  - docs/plans/2026-09-08-setup-provider-choice.md
+  - docs/reference/instance-configuration.md
+  - docs/specifications/builder-governance.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/specifications/company-record-normalization-v1.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/specifications/company-records-query-v1.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/conversation-participation.md
+  - docs/specifications/core-workspace-upgrades-v0.1-draft.md
+  - docs/specifications/workspace-generator-v0.1-draft.md
+  - docs/status/current.md
+  - docs/workbench/commands/bootstrap.md
+  - docs/workbench/commands/build.md
+  - docs/workbench/commands/create-workspace.md
+  - docs/workbench/commands/onboard.md
+  - docs/workbench/commands/records.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/validate.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/author-an-agent.md
+  - docs/workbench/guides/choose-placement.md
+  - docs/workbench/guides/configure-repository-protection.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/workbench/guides/connect-knowledge-source.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - docs/workbench/guides/prepare-builder-change.md
+  - docs/workbench/overview.md
+  - package.json
+  - packages/builder-worker/src/entrypoint.ts
+  - packages/cli/README.md
+  - packages/cli/content/guides/author-an-agent.md
+  - packages/cli/content/guides/choose-placement.md
+  - packages/cli/content/guides/configure-repository-protection.md
+  - packages/cli/content/guides/connect-company-record-source.md
+  - packages/cli/content/guides/connect-knowledge-source.md
+  - packages/cli/content/guides/operate-builder.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-builder-change.md
+  - packages/cli/package.json
+  - packages/cli/src/bootstrap.mjs
+  - packages/cli/src/builder-release-inspection.d.mts
+  - packages/cli/src/builder-release-inspection.mjs
+  - packages/cli/src/cli.mjs
+  - packages/cli/src/inspection.mjs
+  - packages/cli/src/live-database-proof.mjs
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/operating-starter.mjs
+  - packages/cli/src/setup-entry.mjs
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/cli/src/setup/release-defaults.mjs
+  - packages/cli/src/setup/standard-contract.mjs
+  - packages/cli/src/setup/standard-defaults.mjs
+  - packages/cli/src/setup/standard-setup.mjs
+  - packages/cli/src/workspace-generator.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/cli/tests/build-artifact-worker.test.mjs
+  - packages/cli/tests/builder-inspection.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/record-source-connect-identities.test.mjs
+  - packages/cli/tests/setup-bundle-resolution.test.mjs
+  - packages/cli/tests/standard-release.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/workspace-instance.test.mjs
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/types.ts
+  - packages/connectors/github-release.ts
+  - packages/connectors/github-repository.ts
+  - packages/connectors/release-continuity.ts
+  - packages/connectors/slack/records-source.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/connectors/vercel-release.ts
+  - packages/runner-vercel/src/app/api/builder/qualification/route.ts
+  - packages/runner-vercel/src/app/api/builder/worker/route.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/compounding/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/extract/route.ts
+  - packages/runner-vercel/src/app/api/knowledge/sources/granola/reconcile/route.ts
+  - packages/runner-vercel/src/app/api/records/operations/route.ts
+  - packages/runner-vercel/src/app/api/records/reconcile/route.ts
+  - packages/runner-vercel/src/app/api/workflows/records/route.ts
+  - packages/runner-vercel/src/app/api/workflows/steps/route.ts
+  - packages/runner-vercel/src/app/api/workflows/timers/route.ts
+  - packages/runner-vercel/src/app/layout.tsx
+  - packages/runner-vercel/src/instrumentation.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.test.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/artifact-reference.test.ts
+  - packages/runner-vercel/src/lib/artifact-reference.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/builder/action-cards.test.ts
+  - packages/runner-vercel/src/lib/builder/action-cards.ts
+  - packages/runner-vercel/src/lib/builder/card-presenter.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.ts
+  - packages/runner-vercel/src/lib/builder/chat-notifier.ts
+  - packages/runner-vercel/src/lib/builder/create-qualified-snapshot.ts
+  - packages/runner-vercel/src/lib/builder/create-trusted-git-snapshot.ts
+  - packages/runner-vercel/src/lib/builder/create-worker-snapshot.ts
+  - packages/runner-vercel/src/lib/builder/deployed-acp-crash-qualification.ts
+  - packages/runner-vercel/src/lib/builder/deployed-acp-qualification.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.test.ts
+  - packages/runner-vercel/src/lib/builder/deployed-trusted-git-qualification.ts
+  - packages/runner-vercel/src/lib/builder/functional-test-execution.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/functional-tests.ts
+  - packages/runner-vercel/src/lib/builder/guided-experience.test.ts
+  - packages/runner-vercel/src/lib/builder/intake-qualification.ts
+  - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
+  - packages/runner-vercel/src/lib/builder/live-release-functional-tests.test.ts
+  - packages/runner-vercel/src/lib/builder/presentation.ts
+  - packages/runner-vercel/src/lib/builder/provider-factory.ts
+  - packages/runner-vercel/src/lib/builder/release-environment.test.ts
+  - packages/runner-vercel/src/lib/builder/release-environment.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.ts
+  - packages/runner-vercel/src/lib/builder/release-provider.ts
+  - packages/runner-vercel/src/lib/builder/result-card.ts
+  - packages/runner-vercel/src/lib/builder/sandbox-execution-adapter.ts
+  - packages/runner-vercel/src/lib/builder/trusted-git-sandbox.ts
+  - packages/runner-vercel/src/lib/builder/turn-intent.ts
+  - packages/runner-vercel/src/lib/builder/worker-endpoint.ts
+  - packages/runner-vercel/src/lib/company-records-diagnostic.test.ts
+  - packages/runner-vercel/src/lib/company-records-diagnostic.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/runner-vercel/src/lib/production-worker-gate.test.ts
+  - packages/runner-vercel/src/lib/production-worker-gate.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/setup-verification.ts
+  - packages/runner-vercel/src/lib/workflow-connectors.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runtime/builder/acp-client.ts
+  - packages/runtime/builder/attachments.ts
+  - packages/runtime/builder/brief.ts
+  - packages/runtime/builder/build-artifact-worker.ts
+  - packages/runtime/builder/discard.ts
+  - packages/runtime/builder/execution.ts
+  - packages/runtime/builder/experience.ts
+  - packages/runtime/builder/functional-tests.ts
+  - packages/runtime/builder/presentation.ts
+  - packages/runtime/builder/service.ts
+  - packages/runtime/builder/test-integration.ts
+  - packages/runtime/builder/trusted-git-worker.ts
+  - packages/runtime/builder/trusted-proposal-validator.ts
+  - packages/runtime/builder/turn-intent.ts
+  - packages/runtime/builder/workbench-validator.ts
+  - packages/runtime/release/contracts.ts
+  - packages/runtime/release/coordinator.ts
+  - packages/runtime/release/policy.ts
+  - packages/runtime/repository/contracts.ts
+  - packages/state-postgres/builder-job-store.ts
+  - packages/state-postgres/builder-test-store.ts
+  - packages/state-postgres/durable-timer-store.ts
+  - packages/state-postgres/knowledge-store.ts
+  - packages/state-postgres/release-run-store.ts
+  - packages/state-postgres/store.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/state-store/builder-jobs.ts
+  - packages/state-store/release-runs.ts
+  - packages/testkit/adapter/in-memory-builder-jobs.ts
+  - packages/testkit/adapter/in-memory-release-runs.ts
+  - packages/testkit/builder-functional-fixture.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/acme-casas/package.json
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/workflow-engine-postgres.test.ts
+  - packages/testkit/tests/builder-execution.test.ts
+  - packages/testkit/tests/builder-functional-tests.test.ts
+  - packages/testkit/tests/builder-intake-recovery.test.ts
+  - packages/testkit/tests/builder-intake.test.ts
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+  - packages/testkit/tests/builder-release.test.ts
+  - packages/testkit/tests/builder-service.test.ts
+  - packages/testkit/tests/builder-user-tests.test.ts
+  - packages/testkit/tests/github-repository-provider.test.ts
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/runner-setup-verification.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-connector-selection.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - release-manifest.json
+  - scripts/build-setup-bundle.mjs
+  - scripts/install-companyos.mjs
+  - scripts/prepare-release-assets.mjs
+  - scripts/qualify-standard-setup.mjs
+  - scripts/test-database.mjs
+tests:
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/runner-vercel/src/lib/conversation-participation.test.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-instance
+    - architecture.company-workspace
+    - architecture.boundaries
+    - reference.glossary
+    - governance.agent-agreement
+    - governance.versioning
+    - onboarding.company-workspace
+    - onboarding.index
+    - onboarding.setup-options
+    - operations.maintained-host-profile
+    - operations.vercel-connect-workflow-interactions
+    - operations.vercel-slack-event-staging
+    - plan.builder-workspace-activation-and-preview
+    - plan.five-minute-setup
+    - plan.setup-integration-review
+    - plan.setup-provider-choice
+    - docs.index
+    - reference.instance-configuration
+    - specification.builder-governance
+    - specification.company-instance-release-promotion-v0.1
+    - specification.company-record-normalization-v1
+    - specification.company-records-sprint-v0.1
+    - specification.company-records-query-v1
+    - specification.companyos-core-v0.7
+    - specification.conversation-participation
+    - specification.core-workspace-upgrades-v0.1
+    - specification.workspace-generator-v0.1
+    - status.current
+    - command.bootstrap
+    - command.build
+    - command.create-workspace
+    - command.onboard
+    - command.records
+    - command.setup
+    - command.validate
+    - command.verify-live
+    - guide.author-agent
+    - guide.choose-placement
+    - guide.configure-repository-protection
+    - guide.connect-company-record-source
+    - guide.connect-knowledge-source
+    - guide.operate-builder
+    - guide.prepare-instance
+    - guide.prepare-builder-change
+    - workbench.overview
+architecture:
+  placement:
+    core: Integrate existing conversation participation, Builder and workflow
+      runtime entry points.
+    packages: Reuse existing adapters and qualification fixtures.
+    workspace: Retain declared workflows and current Builder configuration in the
+      reviewed test pairing.
+    instance: Reuse the existing custom environment, isolated state and explicitly
+      assigned secrets; keep production disjoint.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Retain deterministic routes and declared workflow selection alongside
+        current Builder handoff.
+    - mechanism: identity-and-authorization
+      reason: Preserve authenticated conversation ownership, recipients and per-user
+        scope.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Retain message claims, historical decisions and effects across
+        deployment.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the existing host and Connect custom-environment destination.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: One maintained runtime may host both ordinary chat and
+    declared workflow conversations for any company.
+rollback: Restore the previous exact deployment and routing metadata in the
+  existing test environment. Preserve all state and production destinations.
+open_decisions: []

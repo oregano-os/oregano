@@ -1,0 +1,75 @@
+version: 3
+plan_id: vercel-pro-setup-prerequisite-2026-09-08
+created: "2026-09-08"
+title: Require Vercel Pro for the maintained Oregano setup
+objective: >-
+  Make Vercel Pro the maintained profile prerequisite, accept Enterprise,
+  automatically inspect the selected team's billing plan before initial
+  resource creation and resumed runtime work, and return a resumable billing
+  action for Hobby without asking for cron frequencies or changing a plan.
+non_goals:
+  - Upgrade an account, accept billing terms, or deploy a real Instance.
+  - Change cron schedules, add a Hobby fallback, or implement another profile.
+  - Change model routing or other setup confirmation requirements.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-vercel-pro-setup-prerequisite.yaml
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - README.md
+  - INSTALL-COMPANYOS.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/onboarding/setup-options.md
+  - docs/workbench/commands/setup.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests:
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - onboarding.index
+    - onboarding.company-workspace
+    - onboarding.setup-options
+    - command.setup
+    - command.verify-live
+    - guide.prepare-instance
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - status.current
+  reason_if_none: ""
+architecture:
+  placement:
+    core: The maintained private setup profile owns the minimum plan and automatic provider preflight; runtime business behavior is unchanged.
+    packages: No Package or Blueprint changes and no new public provider contract.
+    workspace: No company operating policy, new question, or billing choice is added to Workspace files.
+    instance: The selected Vercel team owns billing; retain only non-secret plan and team evidence and never upgrade automatically.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing private Vercel setup binding with read-only plan detection and resumable prerequisite evidence.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    Every company using this profile receives the same scheduling prerequisite.
+    Exact team identities and observed billing plans remain setup state rather
+    than Core values. Other runtime profiles remain separate extensions.
+rollback: >-
+  Revert this change without altering any account or resource. Existing state
+  remains readable; the additional vercel-plan phase requires this CLI until
+  it advances to an existing phase. Old completed states are not deployment
+  authorization and the current verifier rechecks the provider prerequisite.

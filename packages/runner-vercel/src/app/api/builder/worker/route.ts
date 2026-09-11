@@ -1,6 +1,6 @@
+import { protectProductionWorker } from "../../../../lib/production-worker-gate.ts";
 import { getBuilderService } from "../../../../lib/builder/provider-factory.ts";
-import { getBot } from "../../../../lib/bot.ts";
-import { createBuilderChatNotifier } from "../../../../lib/builder/chat-notifier.ts";
+import { getBuilderTerminalNotifier, advanceBuilderRelease, reportBuilderProgress } from "../../../../lib/bot.ts";
 import { handleBuilderWorkerRequest } from "../../../../lib/builder/worker-endpoint.ts";
 import { loadArtifact } from "../../../../lib/artifact.ts";
 import { deliverNextBuilderNotification } from "../../../../../../runtime/builder/notifications.ts";
@@ -8,7 +8,7 @@ import { createPostgresBuilderJobStore } from "../../../../../../state-postgres/
 
 export const maxDuration = 300;
 
-export async function GET(request: Request): Promise<Response> {
+async function handleScheduledRequest(request: Request): Promise<Response> {
   return handleBuilderWorkerRequest(request, {
     cronSecret: process.env.CRON_SECRET,
     loadArtifact,
@@ -18,13 +18,15 @@ export async function GET(request: Request): Promise<Response> {
       process.env.VERCEL_REGION ?? "unknown",
       crypto.randomUUID(),
     ].join(":"),
-    advanceOne: (workerId) => getBuilderService().advanceOne(workerId),
+    advanceOne: (workerId) => getBuilderService().advanceOne(workerId, reportBuilderProgress),
+    advanceRelease: advanceBuilderRelease,
     deliverNotification: (workerId) => deliverNextBuilderNotification({
       jobs: createPostgresBuilderJobStore(),
-      notifier: createBuilderChatNotifier(getBot()),
+      notifier: getBuilderTerminalNotifier(),
       workerId,
     }),
   });
 }
 
+export const GET = protectProductionWorker(handleScheduledRequest);
 export const POST = GET;

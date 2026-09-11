@@ -1,0 +1,61 @@
+version: 3
+plan_id: builder-intake-recovery-2026-09-10
+created: "2026-09-10"
+title: Recover Builder clarification intake without treating model failures as questions
+objective: >-
+  Preserve explicit development requests across clarification turns, use typed
+  model output, distinguish unavailable classification from questions, and verify
+  the deployed model against synthetic conversational admission fixtures before
+  production adoption. Release the compatible correction as Core 0.11.1.
+non_goals:
+  - Broaden chat ingress, provider credentials or publication authority.
+  - Start development from screenshot questions or stale build permissions.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-10-builder-intake-recovery.yaml
+  - packages/runtime/builder/turn-intent.ts
+  - packages/runner-vercel/src/lib/builder/turn-intent.ts
+  - packages/runner-vercel/src/lib/builder/intake-qualification.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/app/api/builder/qualification/route.ts
+  - packages/testkit/tests/builder-intake-recovery.test.ts
+  - docs/specifications/builder-governance.md
+  - docs/status/current.md
+  - package.json
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/builder-intake-recovery.test.ts
+  - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/guided-experience.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - status.current
+architecture:
+  placement:
+    core: Typed current-message admission, failure outcomes and shared conversational qualification.
+    packages: Reuse the existing Workbench without a new package contract.
+    workspace: Company operating intent and acceptance policy remain unchanged.
+    instance: Reuse configured model recipes and repository and test bindings.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Execute typed Builder intake with the configured utility recipe and deployment evidence.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve current-message authority and existing request deduplication and publication decisions.
+    - mechanism: capability-contracts-and-connectors
+      reason: Use maintained structured-output model adapters and the existing protected qualification endpoint.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The correction is independent of company, chat provider, coding profile and deployment host.
+rollback: Restore the preceding exact Core and Workspace pairing without changing retained jobs or test evidence. The prior intake classification defect returns; stop new build requests until recovery.
+open_decisions: []

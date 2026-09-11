@@ -1,9 +1,28 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { loadInstanceBuildConfiguration } from "../../companyos-builder/instance-loader.ts";
+import { loadInstanceBuildConfiguration, resolveWorkspaceInstanceConfiguration } from "../../companyos-builder/instance-loader.ts";
+
+test("Workspace Instance discovery requires the canonical regular file even when external YAML exists", () => {
+  const root = mkdtempSync(join(tmpdir(), "companyos-instance-discovery-"));
+  try {
+    const workspace = join(root, "workspace");
+    mkdirSync(join(workspace, ".companyos"), { recursive: true });
+    const copy = join(root, "transport.yaml");
+    const raw = "version: 1\ninstance_id: example-production\nenvironment: production\nbindings: []\n";
+    assert.throws(() => resolveWorkspaceInstanceConfiguration(workspace), /Instance declaration is missing/);
+    writeFileSync(copy, raw);
+    assert.throws(() => resolveWorkspaceInstanceConfiguration(workspace), /Instance declaration is missing/);
+    const canonical = join(workspace, ".companyos/instance.yaml");
+    writeFileSync(canonical, `# Reviewed source\n${raw}`);
+    assert.equal(resolveWorkspaceInstanceConfiguration(workspace).path, canonical);
+    rmSync(canonical);
+    symlinkSync(copy, canonical);
+    assert.throws(() => resolveWorkspaceInstanceConfiguration(workspace), /must resolve inside/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 const withFile = (content: string, run: (path: string) => void) => {
   const root = mkdtempSync(join(tmpdir(), "companyos-instance-"));
@@ -158,4 +177,20 @@ builder:
     target_branch: ../main
 `, (path) => {
   assert.throws(() => loadInstanceBuildConfiguration(path), /bounded safe branch name/);
+}));
+
+test("Builder execution configuration no longer requires an enable flag", () => withFile(`
+version: 1
+instance_id: fixture-production
+environment: production
+bindings: []
+builder:
+  execution: { adapter: vercel-sandbox, profile: isolated-v1 }
+  coding_agent: { protocol: acp-v1, profile: claude-code }
+  repository:
+    repository_id: fixture/workspace
+    source_binding: workspace
+    proposal_publisher_binding: workspace
+`, (path) => {
+  assert.equal(loadInstanceBuildConfiguration(path).builder?.codingAgent.profile, "claude-code");
 }));

@@ -5,16 +5,11 @@ import { execFileSync } from "node:child_process";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { standardSetupMain } from "./setup-entry.mjs";
 import { inspectBootstrap, verifyBootstrap } from "./bootstrap.mjs";
 import { inspectCoreCheckout } from "./core-checkout.mjs";
 import { verifyLiveWorkflow } from "./workflow-verification.mjs";
 import {
-  advanceLiveSetup,
-  initializeLiveSetup,
-  LIVE_SETUP_PROFILE,
-  planLiveSetup,
-  readLiveSetupAnswers,
-  readLiveSetupState,
   verifyLiveSetup,
 } from "./live-setup.mjs";
 import {
@@ -58,7 +53,7 @@ import {
 import { WORKBENCH_VERSION } from "./workbench-version.mjs";
 import { CORE_VERSION } from "./core-version.mjs";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
-import { loadInstanceBuildConfiguration } from "../../companyos-builder/instance-loader.ts";
+import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 import { buildKnowledgeBundle, inspectKnowledgeWorkspace } from "../../knowledge/okf.ts";
 import { inspectCurationInbox, proposeKnowledgePromotion } from "../../knowledge/curation.ts";
 import { createPostgresKnowledgeProvider, decidePostgresKnowledgeReview, getPostgresKnowledgeReviewCandidate, listPersistedKnowledgeReviewCandidateIds, persistKnowledgeReviewCandidates, rebuildPostgresKnowledgeDerived } from "../../state-postgres/knowledge-store.ts";
@@ -108,10 +103,7 @@ Usage:
   companyos create workspace [--answers <yaml|json>] [--parent <directory>] [--preview|--confirm <hash>] [--format human|json]
   companyos bootstrap status [workspace] [--format human|json]
   companyos bootstrap verify [workspace] [--format human|json]
-  companyos setup --profile vercel-neon-slack --workspace <path> --answers <yaml|json> --plan [--state <file>] [--format human|json]
-  companyos setup --profile vercel-neon-slack --workspace <path> --answers <yaml|json> --apply <hash> [--state <file>] [--format human|json]
-  companyos setup --profile vercel-neon-slack --state <file> --resume [--operating-confirmation <hash>] [--merge-confirmation <hash>] [--production-confirmation <hash>] [--format human|json]
-  companyos setup --profile vercel-neon-slack --state <file> --status [--format human|json]
+  companyos setup [--directory <setup-folder>] [--reply <json>] [--format human|json]
   companyos verify-live --state <file> [--scope starter|workflow] [--format human|json]
   companyos records source inspect --workspace <path> [--source <id>] [--format human|json]
   companyos records projection inspect --workspace <path> [--projection <id>] [--format human|json]
@@ -136,7 +128,7 @@ Usage:
   companyos database branch-status --host <neon-host> [--format human|json]
   companyos database branch-prepare --host <neon-host> [--format human|json]
   companyos database branch-verify --host <neon-host> [--format human|json]
-  companyos build <workspace> --instance <file> --output <file> [--knowledge-output <file>]
+  companyos build <workspace> --output <file> [--knowledge-output <file>]
   companyos knowledge inspect <workspace> [--format human|json]
   companyos knowledge build <workspace> --output <file>
   companyos knowledge retrieval-v3-build [--format human|json]
@@ -740,21 +732,22 @@ try {
       } else throw new Error("Use `companyos knowledge observation record|review|expire|delete-request|legal-hold|delete-apply`.");
     } else throw new Error("Use `companyos knowledge inspect|build|review|decide|propose|stage|verify|activate|rebuild|regression|source|session|observation`.");
   } else if (command === "build") {
+    if (args.some((arg) => arg === "--instance" || arg.startsWith("--instance="))) throw new Error("--instance is no longer supported. Commit .companyos/instance.yaml in the Company Workspace.");
     const target = targetWorkspace(action);
-    const instanceIndex = args.indexOf("--instance");
     const outputIndex = args.indexOf("--output");
-    const instancePath = instanceIndex >= 0 ? resolve(args[instanceIndex + 1]) : undefined;
     const outputPath = outputIndex >= 0 ? resolve(args[outputIndex + 1]) : undefined;
-    if (!instancePath || !outputPath) throw new Error("companyos build requires --instance <file> and --output <file>.");
+    if (!outputPath) throw new Error("companyos build requires --output <file>.");
     const git = (cwd, ...gitArgs) => execFileSync("git", gitArgs, { cwd, encoding: "utf8" }).trim();
     const coreCommit = git(repoRoot, "rev-parse", "HEAD");
     const workspaceCommit = git(target, "rev-parse", "HEAD");
     if (git(repoRoot, "status", "--porcelain") || git(target, "status", "--porcelain")) {
       throw new Error("CompanyOS build requires clean Core and Workspace checkouts so the recorded SHA pair is reproducible.");
     }
+    const selectedInstance = resolveWorkspaceInstanceConfiguration(target);
+    git(target, "ls-files", "--error-unmatch", WORKSPACE_INSTANCE_PATH);
     const artifact = buildCompanyOSArtifact({
       workspaceRoot: target,
-      instance: loadInstanceBuildConfiguration(instancePath),
+      instance: selectedInstance.configuration,
       coreVersion: CORE_VERSION,
       coreCommit,
       workspaceCommit,
@@ -1120,74 +1113,8 @@ try {
       }
     }
   } else if (command === "setup") {
-    const profile = optionValue("--profile");
-    const statePath = optionValue("--state");
-    if (profile !== LIVE_SETUP_PROFILE) throw new Error(`Use --profile ${LIVE_SETUP_PROFILE}.`);
-    if (args.includes("--status")) {
-      if (!statePath) throw new Error("Setup status requires --state <file>.");
-      const state = readLiveSetupState(resolve(statePath));
-      const result = { ok: state.phase === "complete", state_path: resolve(statePath), phase: state.phase, history: state.history, resources: state.resources, operating: state.operating, artifact: state.artifact, deployment: state.deployment, verification: state.verification };
-      if (format === "json") process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-      else {
-        process.stdout.write(`Live setup phase: ${state.phase}\n`);
-        process.stdout.write(`State: ${resolve(statePath)}\n`);
-        process.stdout.write(state.phase === "complete" ? "The live starter is recorded as complete; run companyos verify-live for fresh checks.\n" : "Resume with the same state file; do not start a second installation.\n");
-      }
-    } else if (args.includes("--resume")) {
-      if (!statePath) throw new Error("Setup resume requires --state <file>.");
-      const result = await advanceLiveSetup({
-        statePath,
-        operatingConfirmation: optionValue("--operating-confirmation"),
-        mergeConfirmation: optionValue("--merge-confirmation"),
-        productionConfirmation: optionValue("--production-confirmation"),
-      });
-      if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
-      else {
-        exitWithDiagnostics(result.diagnostics, { format, summary: "Live CompanyOS setup" });
-        process.stdout.write(`\nPhase: ${result.state.phase}\n${result.message}\n`);
-        if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
-      }
-      if (result.status === "blocked") process.exitCode = 1;
-    } else {
-      const workspacePath = optionValue("--workspace");
-      const answersPath = optionValue("--answers");
-      if (!workspacePath || !answersPath) throw new Error("Setup planning and apply require --workspace <path> and --answers <yaml|json>.");
-      const checkout = inspectCoreCheckout(repoRoot, { requireClean: true });
-      const planResult = planLiveSetup({
-        workspaceRoot: workspacePath,
-        rawAnswers: readLiveSetupAnswers(resolve(answersPath)),
-        coreIdentity: checkout.identity,
-        statePath,
-      });
-      planResult.diagnostics = [...checkout.diagnostics, ...planResult.diagnostics];
-      if (args.includes("--plan")) {
-        if (format === "json") {
-          process.stdout.write(`${JSON.stringify({ ok: !hasErrors(planResult.diagnostics), ...planResult }, null, 2)}\n`);
-          if (hasErrors(planResult.diagnostics)) process.exitCode = 1;
-        } else {
-          exitWithDiagnostics(planResult.diagnostics, { format, summary: "Live setup plan" });
-          if (!hasErrors(planResult.diagnostics)) process.stdout.write(`\n${YAML.stringify(planResult.plan)}\n`);
-        }
-      } else {
-        const confirmationHash = optionValue("--apply");
-        if (!confirmationHash) throw new Error("Use --plan first, then --apply <confirmation-hash> after explicit human confirmation.");
-        const initialized = initializeLiveSetup({ planResult, confirmationHash });
-        if (!initialized.state) {
-          if (format === "json") process.stdout.write(`${JSON.stringify({ ok: false, ...initialized }, null, 2)}\n`);
-          else exitWithDiagnostics(initialized.diagnostics, { format, summary: "Live setup initialization" });
-          process.exitCode = 1;
-        } else {
-          const result = await advanceLiveSetup({ statePath: initialized.statePath });
-          if (format === "json") process.stdout.write(`${JSON.stringify({ ok: result.status === "complete", ...result }, null, 2)}\n`);
-          else {
-            exitWithDiagnostics(result.diagnostics, { format, summary: "Live CompanyOS setup" });
-            process.stdout.write(`\nPhase: ${result.state.phase}\n${result.message}\n`);
-            if (result.next_action) process.stdout.write(`${YAML.stringify({ next_action: result.next_action })}\n`);
-          }
-          if (result.status === "blocked") process.exitCode = 1;
-        }
-      }
-    }
+    if (args.some((arg) => arg === "--profile" || arg.startsWith("--profile="))) throw new Error("The legacy --profile setup flow is no longer supported. Use companyos setup for a new installation or resume its current setup session.");
+    await standardSetupMain(args.slice(1), repoRoot);
   } else if (command === "verify-live") {
     const statePath = optionValue("--state");
     if (!statePath) throw new Error("verify-live requires --state <file>.");

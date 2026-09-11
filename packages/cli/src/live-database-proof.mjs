@@ -1,5 +1,33 @@
 #!/usr/bin/env node
 import { neon } from "@neondatabase/serverless";
+import { setupExchangeKey, matchesSetupExchange } from '../../runner-vercel/src/lib/setup-verification.ts';
+import { setupModelProvider } from './setup/model-providers.ts';
+
+if (process.argv[2] === '--exchange') {
+  try {
+    const expected = JSON.parse(process.argv[3]);
+    const key = setupExchangeKey(expected.artifact_hash, expected.principal);
+    if (!process.env.DATABASE_URL) throw new Error('Runtime database is unavailable.');
+    const sql = neon(process.env.DATABASE_URL);
+    const rows = await sql`select value from companyos.chat_values where key = ${key} and (expires_at is null or expires_at > now())`;
+    const receipt = typeof rows[0]?.value === 'string' ? JSON.parse(rows[0].value) : rows[0]?.value;
+    if (!matchesSetupExchange(receipt, expected)) {
+      process.stdout.write(`${JSON.stringify({ ok: false })}\n`); process.exit(2);
+    }
+    const matches = await sql`select
+      count(*) filter (where value->>'role' = 'user' and value->>'message_id' = ${receipt.message_id} and value->>'principal' = ${receipt.principal})::int as users,
+      count(*) filter (where value->>'role' = 'assistant' and value->>'in_reply_to' = ${receipt.message_id}
+        and value->'model_execution'->>'responseId' = ${receipt.response_id}
+        and value->'model_execution'->>'route' = ${receipt.model_route}
+        and value->'model_execution'->>'model' = ${receipt.model})::int as responses
+      from companyos.chat_lists where key = ${receipt.conversation_key} and value->>'artifact_hash' = ${receipt.artifact_hash}`;
+    const ok = Number(matches[0]?.users) > 0 && Number(matches[0]?.responses) > 0;
+    process.stdout.write(`${JSON.stringify({ ok, conversation_entries: ok ? 2 : 0, assistant_entries: ok ? 1 : 0, model_evidence_entries: ok ? 1 : 0, first_response_at: ok ? receipt.delivered_at : null })}\n`);
+    process.exit(ok ? 0 : 2);
+  } catch {
+    process.stderr.write('The first Slack exchange could not be verified in the runtime database.\n'); process.exit(1);
+  }
+}
 
 const nonce = String(process.argv[2] ?? "").trim();
 const modelRoute = String(process.argv[3] ?? "").trim();
@@ -8,7 +36,7 @@ if (!/^oregano-[0-9a-f]{12}$/.test(nonce)) {
   process.stderr.write("Invalid CompanyOS Slack verification nonce.\n");
   process.exit(1);
 }
-if (!new Set(["vercel-ai-gateway", "anthropic-direct", "openai-direct", "google-direct"]).has(modelRoute) || !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(model)) {
+if (!setupModelProvider(modelRoute) || !/^[a-z0-9][a-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._:/-]*$/.test(model)) {
   process.stderr.write("Invalid CompanyOS model execution proof request.\n");
   process.exit(1);
 }

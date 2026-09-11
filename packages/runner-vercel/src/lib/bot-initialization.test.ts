@@ -3,6 +3,7 @@ import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildCompanyOSArtifact } from "../../../companyos-builder/build.ts";
+import { SLACK_RECORD_SOURCE_CONNECTOR_VERSION } from "../../../connectors/slack/records-source.ts";
 import type { CompanyRecordsRehearsalConfiguration } from "./company-records-rehearsal.ts";
 
 const configuration = (): CompanyRecordsRehearsalConfiguration => ({
@@ -34,7 +35,7 @@ const configuration = (): CompanyRecordsRehearsalConfiguration => ({
     schema_version: 1,
     id: "fixture-projection",
     record_type: "communication-message",
-    source_ids: ["fixture-items"],
+    selection: {},
     fields: [{ name: "text", path: "text" }],
     freshness: { max_age_minutes: 60 },
     access: { read_groups: ["fixture"] },
@@ -48,7 +49,7 @@ const configuration = (): CompanyRecordsRehearsalConfiguration => ({
       source_id: "fixture-items",
       resource_binding: "fixture-board",
       connector: "oregano/slack-record-source",
-      connector_version: "0.1.3",
+      connector_version: SLACK_RECORD_SOURCE_CONNECTOR_VERSION,
       secret_ref: "env:FIXTURE_PROVIDER_TOKEN",
       qualification: { receipt_ref: "qualification.json", digest: "d".repeat(64) },
       configuration: { team_id: "T12345", channel_id: "C12345", conversation_kind: "public-channel", oldest_at: "2030-01-01T00:00:00.000Z", include_threads: true },

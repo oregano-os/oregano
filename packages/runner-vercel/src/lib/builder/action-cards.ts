@@ -1,3 +1,5 @@
+import { builderProgressPresentation } from "../../../../runtime/builder/presentation.ts";
+import { renderBuilderCard } from "./result-card.ts";
 import { Actions, Button, Card, CardText, type ActionEvent, type CardElement } from "chat";
 import type { BuilderJob } from "../../../../state-store/builder-jobs.ts";
 
@@ -13,44 +15,30 @@ export function builderTerminalActionCard(job: BuilderJob): BuilderActionCard {
     throw new Error(`Builder job '${job.jobId}' is not terminal.`);
   }
   const outcome = job.state === "published"
-    ? "The checked draft proposal is ready for human review. Nothing was merged or deployed."
+    ? "Your build request is ready for review. Review the result before publication."
     : job.state === "cancelled"
       ? "The Builder job was cancelled. No proposal was published."
-      : `The Builder job failed closed. No proposal was published. Reason: ${job.terminalReason ?? "unknown"}`;
+      : "Development could not finish. No result was published. Ask Builder to review the recorded failure before trying again.";
   const proposalUrl = job.state === "published" ? proposalUrlFromEvidence(job.evidence) : undefined;
   return Card({
     title: job.state === "published"
-      ? "CompanyOS Builder proposal ready for review"
+      ? "Ready for review"
       : job.state === "cancelled"
-        ? "CompanyOS Builder proposal cancelled"
-        : "CompanyOS Builder proposal failed closed",
+        ? "Build request cancelled"
+        : "Build request stopped",
     children: [
-      CardText(`Job: ${job.jobId}`),
-      CardText(`Objective: ${job.objective}`),
-      CardText(`Repository: ${job.repositoryId}`),
-      CardText(`Exact base: ${job.baseCommit}`),
-      ...(job.targetBranchName ? [CardText(`Proposal target: ${job.targetBranchName}`)] : []),
+      CardText(job.objective),
       CardText(outcome),
-      ...(proposalUrl ? [CardText(`Draft proposal: ${proposalUrl}`)] : []),
+      ...(proposalUrl ? [CardText(`Technical details: ${proposalUrl}`)] : []),
     ],
   }) as CardElement;
 }
 
 export function builderQueuedActionCard(job: BuilderConfirmationDetails): BuilderActionCard {
-  return Card({
-    title: "CompanyOS Builder proposal queued",
-    children: [
-      CardText(`Job: ${job.jobId}`),
-      CardText(`Objective: ${job.objective}`),
-      CardText(`Repository: ${job.repositoryId}`),
-      CardText(`Exact base: ${job.baseCommit}`),
-      ...(job.targetBranchName ? [CardText(`Proposal target: ${job.targetBranchName}`)] : []),
-      CardText("The coding worker runs asynchronously; merge and deployment remain human decisions."),
-      Actions([
-        Button({ id: "companyos.builder.stop", label: "Request cancellation", style: "danger", value: job.jobId }),
-      ]),
-    ],
-  }) as CardElement;
+  return renderBuilderCard(builderProgressPresentation(job, "queued"));
+}
+export function builderProgressCard(job: BuilderJob, phase: "preparing" | "coding" | "checking" | "testing"): CardElement {
+  return renderBuilderCard(builderProgressPresentation(job, phase));
 }
 
 export function builderCancelledActionCard(

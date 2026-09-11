@@ -60,10 +60,11 @@ function actionIds(card: BuilderActionCard): string[] {
 test("queued Builder card resolves confirmation actions and retains cancellation", () => {
   const card = builderQueuedActionCard(job);
 
-  assert.equal(card.title, "CompanyOS Builder proposal queued");
+  assert.equal(card.title, "Build request received");
   assert.deepEqual(actionIds(card), ["companyos.builder.stop"]);
   assert.doesNotMatch(JSON.stringify(card), /companyos\.builder\.(confirm|cancel)/);
-  assert.match(JSON.stringify(card), /reviewed\/company-workspace/);
+  assert.match(JSON.stringify(card), /confirm when it starts/);
+  assert.doesNotMatch(JSON.stringify(card), /Exact base|Proposal target|is working/);
 });
 
 test("cancelled Builder card is terminal and contains no actions", () => {
@@ -84,7 +85,8 @@ test("terminal Builder cards contain no actions and retain outcome evidence", ()
   assert.deepEqual(actionIds(failed), []);
   assert.deepEqual(actionIds(cancelled), []);
   assert.match(JSON.stringify(published), /https:\/\/example\.invalid\/pull\/1/);
-  assert.match(JSON.stringify(failed), /checked fixture failure/);
+  assert.doesNotMatch(JSON.stringify(failed), /checked fixture failure/);
+  assert.match(JSON.stringify(failed), /could not finish/);
 });
 
 test("confirmation is consumed only after the original action message is replaced", async () => {
@@ -107,7 +109,7 @@ test("confirmation is consumed only after the original action message is replace
   });
 
   assert.deepEqual(calls, [
-    "edit:slack:channel:thread:message-123:CompanyOS Builder proposal queued",
+    "edit:slack:channel:thread:message-123:Build request received",
     "consume",
   ]);
 });

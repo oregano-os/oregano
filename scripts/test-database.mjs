@@ -11,6 +11,7 @@ const suites = [
   "packages/testkit/tests/record-query-postgres.test.ts",
   "packages/testkit/tests/approval-atomicity.test.ts",
   "packages/testkit/tests/durable-state-postgres.test.ts",
+  "packages/testkit/tests/builder-release-postgres.test.ts",
   "packages/testkit/tests/workflow-state-postgres.test.ts",
   "packages/testkit/tests/workflow-engine-postgres.test.ts",
   "packages/testkit/tests/company-database-bootstrap.test.ts",

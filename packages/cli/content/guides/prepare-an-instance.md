@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -15,6 +15,14 @@ availability: experimental
 ---
 
 # Prepare a Company Instance
+
+Prepare the non-secret build declaration at `.companyos/instance.yaml` in the
+Company Workspace. This allowed, security-reviewed configuration sits beside
+`governance.yaml` and `compatibility.yaml`; no `instances/` directory is used.
+Commit it before building. `companyos build` discovers it automatically, and
+alternative input paths are not supported. See
+[Workspace Instance Configuration](../../reference/instance-configuration.md)
+for the format, external dependencies and migration checklist.
 
 Assign a stable Instance ID and environment, then pin the exact Core and
 Workspace revisions. Provision environment-specific infrastructure, secrets,
@@ -46,25 +54,49 @@ provenance, evidence, state guarantees, observability, and rollback. An
 
 ## Maintained first-installation profile
 
-For a company that explicitly requests the complete Slack starter, use
-`companyos setup --profile vercel-neon-slack` rather than assembling provider
-commands from this Guide. Its read-only plan names the exact GitHub owner and
-repository, Vercel scope and project, Neon resource, Slack connector, model,
-create-or-adopt choice, cost or consent boundary, and rollback responsibility.
-The plan hash must be confirmed before any provider mutation.
+::: implementation-example
 
-The state machine pauses for browser login and provider consent, derives the
-consenting human's canonical Slack team and user IDs without retaining the
-short-lived credential, and moves the Workspace from `authoring-only` to one
-Tool-free supervised starter through a distinct preview and independently
-reviewed pull request. It then builds one immutable Artifact and requests a
-separate production-candidate confirmation before deployment.
+For a fresh Slack starter, use the release installer and `companyos setup`.
+The CLI discovers accounts, requires the explicit OpenAI-or-Anthropic choice,
+and shows one editable resource, cost, region and responsible-person summary.
+It uses the selected direct recipe and its maintained agent model. Other models
+or providers are available only on request. The provider key is entered in
+Vercel Sensitive Production settings through the existing browser action. One decision covers creation and the
+first production deployment. Vercel Pro/Enterprise is detected automatically;
+Hobby needs a human billing action. Oregano manages schedules.
 
-Run `companyos verify-live --state <file>` after the human sends the requested
-nonce in Slack. Success proves the exact deployment health and the persisted
-human and assistant entries in Neon for scope `live-starter-instance`. It does
-not certify a generic Effect Lane, an unattended workflow, or `enforced`
-readiness.
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+After provider consent and Slack identity resolution, the initializer creates a
+complete supervised operating Workspace at `0.1.0` and verifies its initial
+commit. No activation PR, authoring-only publication or second deployment
+confirmation belongs in this path. The same release payload supplies CI's
+Workbench, avoiding another developer dependency install for the initial check.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+An ordinary first Slack message is correlated with the real model response and
+persisted conversation for the exact Artifact and human. The CLI invokes
+`companyos verify-live` before completion. It proves `live-starter-instance`,
+not general unattended authority. Fresh cold live timing remains to be qualified.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+Resume current schema-5 sessions with `companyos setup`. The explicit
+`--profile` installer and state versions 1–4 are retired and fail before provider
+work. Existing installations use reviewed Workspace and Instance changes; they
+are not adopted through a fresh setup session. Select the supported model
+provider during the standard setup review.
 
 Before release, run `companyos build` against clean exact repository checkouts
 and a non-secret Instance declaration. The build records the Core and Workspace

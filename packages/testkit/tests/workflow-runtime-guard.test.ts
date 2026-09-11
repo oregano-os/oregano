@@ -258,7 +258,7 @@ test("a revoked dispatch claim stops before the provider", async () => {
 
 test("guard rejects risk above the compiled step and a changed resource binding", async () => {
   const ctx = context();
-  const tool = artifact.agents[0]!.tools.find((tool) => tool.contract.grantId === "oregano:communications/publish")!;
+  const tool = artifact.agents.find((agent) => agent.id === "sprint")!.tools.find((tool) => tool.contract.grantId === "oregano:communications/publish")!;
   await assert.rejects(guardWorkflowInvocation({ artifact, reader: { read: async () => ctx }, request: request(ctx), tool, risk: "R4" }), /risk exceeds/);
   const approved = approvedContext(), h = harness(approved), call = request(approved);
   await assert.rejects(h.runtime().execute({ ...call, input: { ...(call.input as object), resource_binding: "other-board" } }), /binding differs/);

@@ -24,6 +24,11 @@ export function runnerTurnPresentation(
   generatedText: string,
   toolResults: readonly ToolResultLike[],
 ): { readonly historyResponse: string; readonly visibleResponse?: string } {
+  if (toolResults.some(({ toolName, output }) => toolName === "builder_propose_change"
+    && !!output && typeof output === "object" && ((output as Record<string, unknown>).codingJobSubmitted === true || (output as Record<string, unknown>).codingJobStarted === true)
+    && (output as Record<string, unknown>).ok === true)) {
+    return { historyResponse: "The resolved Builder request was queued for isolated development. The eventual result still needs acceptance before release." };
+  }
   if (builderConfirmationWasPresented(toolResults)) {
     return { historyResponse: BUILDER_CONFIRMATION_HISTORY_RESPONSE };
   }

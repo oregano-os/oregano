@@ -1,13 +1,35 @@
-import { readFileSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { join, resolve, sep } from "node:path";
 import YAML from "yaml";
+import { parseBuilderTestResources } from "../runtime/builder/functional-tests.ts";
 import type { WorkflowInstanceBindings, InstanceBuildConfiguration } from "./types.ts";
 import { scanCredentialIndicators } from "../security/credential-scanner.ts";
 import type { AgentBinding } from "../runtime/agent-resolver.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { BuilderInstanceConfiguration, RuntimeConnectorConfiguration } from "./types.ts";
 
+export const WORKSPACE_INSTANCE_PATH = ".companyos/instance.yaml";
+
+/** Resolve the sole reviewed Instance declaration from the Company Workspace. */
+export function resolveWorkspaceInstanceConfiguration(workspaceRoot: string): {
+  path: string; configuration: InstanceBuildConfiguration;
+} {
+  const path = join(resolve(workspaceRoot), WORKSPACE_INSTANCE_PATH);
+  if (!existsSync(path)) throw new Error(`Instance declaration is missing at ${path}. Prepare and commit ${WORKSPACE_INSTANCE_PATH} before building.`);
+  const root = realpathSync(workspaceRoot);
+  if (!lstatSync(path).isFile()
+    || lstatSync(join(workspaceRoot, ".companyos")).isSymbolicLink()
+    || !realpathSync(path).startsWith(`${root}${sep}`)) {
+    throw new Error(`${WORKSPACE_INSTANCE_PATH} must resolve inside the Company Workspace as a regular file, without symbolic links.`);
+  }
+  return { path, configuration: loadInstanceBuildConfiguration(path) };
+}
+
 export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfiguration {
-  const raw = readFileSync(path, "utf8");
+  return parseInstanceBuildConfiguration(readFileSync(path, "utf8"), path);
+}
+
+export function parseInstanceBuildConfiguration(raw: string, path = "Instance binding"): InstanceBuildConfiguration {
   if (/\b(?:token|password|secret|private_key)\s*:/i.test(raw)) {
     throw new Error(`${path}: Instance build declarations contain SecretRefs and bindings, never resolved secret values.`);
   }
@@ -16,6 +38,10 @@ export function loadInstanceBuildConfiguration(path: string): InstanceBuildConfi
     throw new Error(`${path}: possible ${credentialIndicators[0].label} detected; Instance build declarations never contain resolved credentials.`);
   }
   const data = YAML.parse(raw);
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error(`${path}: Instance declaration must be an object.`);
+  const allowed = ["version", "instance_id", "environment", "bindings", "connectors", "agent_bindings", "default_agent", "sprint_runtimes", "workflow_bindings", "builder"];
+  const extra = Object.keys(data).find((key) => !allowed.includes(key));
+  if (extra) throw new Error(`${path}: unsupported Instance field '${extra}'.`);
   if (data?.version !== 1) throw new Error(`${path}: version must be 1.`);
   if (typeof data.instance_id !== "string" || !data.instance_id) throw new Error(`${path}: instance_id is required.`);
   if (typeof data.environment !== "string" || !data.environment) throw new Error(`${path}: environment is required.`);
@@ -119,7 +145,8 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
     throw new Error(`${path}: builder must be an object.`);
   }
   const builder = value as Record<string, any>;
-  if (builder.enabled !== true) throw new Error(`${path}: builder.enabled must be true when declared.`);
+  if (builder.test_inactivity_days !== undefined && (!Number.isInteger(builder.test_inactivity_days) || builder.test_inactivity_days < 1 || builder.test_inactivity_days > 90)) throw new Error(`${path}: builder.test_inactivity_days must be between 1 and 90.`);
+  if (builder.enabled !== undefined && builder.enabled !== true) throw new Error(`${path}: builder.enabled is obsolete; declare or remove the Builder in the Workspace instead.`);
   if (builder.coding_agent?.protocol !== "acp-v1") {
     throw new Error(`${path}: builder.coding_agent.protocol must be 'acp-v1'.`);
   }
@@ -127,7 +154,9 @@ function parseBuilder(value: unknown, path: string): BuilderInstanceConfiguratio
     throw new Error(`${path}: builder.coding_agent.profile must be 'claude-code' or 'codex'.`);
   }
   return {
+    ...(builder.test_inactivity_days !== undefined ? { testInactivityDays: builder.test_inactivity_days } : {}),
     enabled: true,
+    ...(builder.test_resources === undefined ? {} : { testResources: parseBuilderTestResources(builder.test_resources) }),
     execution: {
       adapter: requiredIdentifier(builder.execution?.adapter, `${path}: builder.execution.adapter`),
       profile: requiredIdentifier(builder.execution?.profile, `${path}: builder.execution.profile`),

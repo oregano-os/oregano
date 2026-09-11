@@ -1,0 +1,70 @@
+version: 3
+plan_id: builder-artifact-reference-2026-09-08
+created: 2026-09-08
+title: Release Core 0.6.2 with exact retained Artifact startup
+objective: Support full Company Workspaces beyond hosting environment-variable
+  limits by reusing the existing immutable Artifact store. Bind each deployment
+  to an exact hash and initialize its runtime before accepting requests. Preserve
+  legacy inline loading, verified content, company separation and release recovery.
+non_goals:
+  - Truncate company context or duplicate the Artifact database.
+  - Load a floating latest Workspace or start production work before promotion.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-artifact-reference.yaml
+  - package.json
+  - packages/state-postgres/workflow-store.ts
+  - packages/runner-vercel/src/instrumentation.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/artifact-reference.ts
+  - packages/runner-vercel/src/lib/artifact-reference.test.ts
+  - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
+  - packages/runner-vercel/src/lib/builder/release-provider.ts
+  - packages/connectors/vercel-release.ts
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/fixtures/workflow-engine-postgres.test.ts
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - docs/status/current.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/architecture/company-instance.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - packages/cli/content/guides/operate-builder.md
+  - docs/_generated/**
+tests:
+  - packages/runner-vercel/src/lib/artifact-reference.test.ts
+  - packages/testkit/tests/builder-live-adapters.test.ts
+  - packages/testkit/fixtures/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+    - guide.operate-builder
+    - architecture.company-instance
+    - specification.company-instance-release-promotion-v0.1
+architecture:
+  placement:
+    core: Exact retained Artifact validation, bounded startup and release staging.
+    packages: No new package or Workbench API is introduced.
+    workspace: Full company definitions and reviewed context remain unchanged.
+    instance: Existing Postgres retains immutable Artifacts; hosting stores only
+      their exact identity and existing secret references.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Retain and verify the exact accepted Artifact before staging its pointer.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the existing Artifact store and isolate hosting startup behavior.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company and coding profile can retain complete Workspace
+    context without depending on a provider's environment-variable size limit.
+rollback: Restore the previous deployment and its exact Artifact configuration.
+  Preserve immutable stored Artifacts and receipts. A missing or corrupt referenced
+  Artifact fails closed and never falls back to another company version.
+open_decisions: []

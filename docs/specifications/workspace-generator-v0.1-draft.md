@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-08-22
+updated: 2026-09-09
 owners:
   - oregano-maintainers
   - product-owner
@@ -36,8 +36,8 @@ bootstrap runbook.
 Normative requirements use stable `CWG-*` identifiers. The experimental local
 generator implements Workspace creation only. It does not authorize Git
 hosting changes, provider provisioning, deployment, or operating automation.
-Those responsibilities belong to the separately planned and confirmed
-`companyos setup --profile vercel-neon-slack` state machine; separating the two
+Those responsibilities belong to the separately confirmed `companyos setup`
+standard session; separating the two
 keeps an authoring-only request local while allowing the complete agent runbook
 to continue through a live supervised starter.
 
@@ -127,6 +127,12 @@ approvals, non-mandatory CODEOWNER review, and no bypass. This is a complete
 operating-capable review contract, not a temporary bootstrap exception.
 
 ## 3. Canonical generated baseline
+
+The authoring baseline does not invent an Instance before its target is
+prepared. Operating setup adds `.companyos/instance.yaml` beside governance
+and compatibility before the initial commit or activation review. Existing
+configuration is preserved and must match the selected target. See
+[the Instance configuration contract](../reference/instance-configuration.md).
 
 Version 0.1 produces exactly the minimum authoring structure:
 
@@ -350,16 +356,17 @@ The following remain open beyond the implemented generator slice:
 
 ## 9. Adjacent live-setup boundary
 
-The live setup profile may call the generator library and local bootstrap
-verifier, but it MUST preserve their exact preview and atomic-write evidence.
-It then creates a separate non-secret setup plan whose hash binds every external
-resource name, explicit create-or-adopt mode, cost or
-consent gate, and intended production target. External mutation starts only
-after that second plan is confirmed.
+The standard setup session reuses the generator and operating-starter libraries
+to render and validate one complete operating Workspace before its initial
+commit. Its single reviewed setup decision binds the named fresh resources,
+costs, model selection and first production deployment under the
+[fresh-initialization contract](company-instance-release-and-promotion-v0.1-draft.md#standard-fresh-initialization).
+Provider consent remains required. The initializer MUST record the exact checked
+initial commit, including `.companyos/instance.yaml`; it MUST NOT fabricate an
+activation pull request or merge receipt.
 
-The transition from `authoring-only` to `operating` is also separate: a pure
-operating-starter renderer produces a complete preview and confirmation hash;
-the resulting Workspace security change is proposed in GitHub and requires the
-CompanyOS check plus the Workspace Steward's exact merge confirmation. Local
-generation success never substitutes for that authorization, provider consent,
-deployment authorization, or `companyos verify-live` evidence.
+Local `companyos create workspace` remains an independent authoring-only path.
+Existing Workspaces follow their governed change and Instance release process;
+the retired `setup --profile` flow and state schemas 1–4 do not resume. Local
+generation success never substitutes for provider consent, applicable deployment
+authority or `companyos verify-live` evidence.

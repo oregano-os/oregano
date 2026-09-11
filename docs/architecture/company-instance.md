@@ -19,11 +19,39 @@ relations:
 
 # Company Instance
 
+The non-secret build declaration is versioned at `.companyos/instance.yaml`
+in the Company Workspace, beside governance and compatibility. Physical
+storage does not change Instance authority: credentials, deployment, provider
+receipts and operational state remain separately controlled. See the
+[Instance configuration reference](../reference/instance-configuration.md)
+for the complete format, build discovery, setup and migration contract.
+
 A Company Instance is one deployed pairing of an exact Oregano Core version
 and an exact Company Workspace version, connected to environment-specific
 infrastructure, configuration, secrets, integrations, and operational state.
 The environment is part of the identity, for example `acme-production` or
 `acme-staging`.
+
+::: implementation-example
+
+During setup, Slack human identity comes from `users.identity` with
+`identity.basic`. The maintained adapter checks the connector ID, UID, service,
+installation workspace and Slack app ID before producing the app Messages link.
+Only non-secret identifiers enter Instance receipts. The deployed Connector
+uses runtime authorization; the local personal CLI does not request its app
+credential. A production alias is a routing pointer, so health must match the
+recorded deployment ID as well as the complete Artifact provenance. Slack
+forwarding enablement is separate from its trigger destination. Instance checks
+require both the enabled source and an exact production-only project attachment
+and webhook destination; neither connector authentication nor health implies
+that incoming messages are delivered. Slack URL verification is a separate
+provider handshake, and its challenge is not conversational evidence. Explicit
+event selections must include direct messages. Readiness still requires a
+persisted, delivered model-backed reply.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ```mermaid
 flowchart LR
@@ -186,8 +214,10 @@ A replacement runtime host must preserve environment isolation, scoped
 deployment identity, secret injection, immutable deployment provenance,
 observable health, and rollback. A replacement StateStore must preserve the
 specified transactional, idempotency, evidence, retention, backup, and recovery
-contracts. Provider account IDs, project IDs, tokens, and secrets belong to the
-Instance configuration or CI secret store, never the Company Workspace.
+contracts. Non-secret Instance identifiers and bindings belong in the reviewed
+`.companyos/instance.yaml` in the Company Workspace where supported by its
+format. Tokens and resolved credentials remain in the Instance or CI secret
+store, never the Workspace or Git.
 
 Runtime secrets live in the target environment's secret store. Deployment
 credentials live in CI secrets. The Workspace declares required logical
@@ -208,7 +238,7 @@ General provider keys remain ordinary Instance secrets named
 `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`, not Builder-specific configuration.
 
 Database setup distinguishes resource provisioning from schema preparation.
-The State Service adapter first creates or explicitly adopts one database
+The State Service adapter creates one dedicated database
 resource. The runtime-host adapter then starts the provider-neutral
 `companyos database prepare` operation in a secret-bound process. Prepare
 detects whether the database is empty, behind the current manifest, or already
@@ -290,22 +320,68 @@ Workbench version, governance hash, resolved toolset hash, and build timestamp.
 A rollback points to an existing immutable artifact; it does not rebuild old
 sources with new dependencies.
 
-The reference Runner receives its immutable Artifact as a gzip-compressed
-deployment environment value. It recomputes the content hash before accepting
-traffic and refuses an Artifact whose declared environment is not
-`production`. The value is generated from clean exact checkouts and is never a
-source of editable operating truth.
+::: implementation-example
+
+The reference Runner can receive `COMPANYOS_ARTIFACT_HASH`, an exact SHA-256
+reference to an immutable Artifact retained in the existing Instance Postgres
+Artifact store. Its awaited Node startup hook reads and verifies that exact
+content before serving requests. Startup does not prepare database schemas,
+select a latest version, or fall back after a missing or corrupt reference.
+The cache belongs to one server process and cannot switch references.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+The legacy gzip-compressed deployment environment value remains supported when
+no reference is configured. Both paths verify the content hash and declared
+deployment environment. Artifacts originate from clean exact checkouts and
+are never editable operating truth. Retention removes the hosting environment
+size limit from Workspace content without adding another database or app.
 
 ## Maintained supervised starter
 
-The experimental `vercel-neon-slack` setup profile is the first bounded
-deployment path for a new company. It starts from the release-matched Codex or
-Claude Code runbook, creates or adopts one explicitly named private GitHub
-repository, Vercel project, Neon Marketplace resource, and Slack Vercel Connect
-resource, and converts the local baseline through a separately confirmed
-operating Workspace change. The change contains one supervised `oregano`
-Agent, one Slack workflow, a non-secret connection declaration, and an empty
-business ToolSet.
+::: implementation-example
+
+The experimental standard `companyos setup` journey uses GitHub, Vercel,
+Neon and Slack. Its private session owns account discovery, defaults, one
+editable scope/cost/responsibility decision and the first deployment. Schema
+`5` identifies `fresh-initialization`: the decision binds the session, verified
+human, provider scopes, release/template/configuration and create-only targets.
+It renders one complete operating Workspace at `0.1.0`, records the checked
+initial commit and resource receipts, and deploys the exact resulting Artifact.
+No activation PR or merge receipt is invented for a first commit.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+Only the schema-5 fresh setup lifecycle is maintained. The old `--profile`
+installer and versions 1–4 are retired. It produces one supervised `oregano`
+Agent, one Slack workflow and no business Tool grants. The release payload
+ships tooling for its declared platforms; fresh five-minute live qualification
+remains outstanding.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+The concrete Vercel profile requires Pro or Enterprise because its deployed
+configuration includes frequent background schedules. Setup reads the exact
+selected team's plan before hosted resource creation, on resume, and before
+production deployment; final verification also reads the current plan. Hobby
+returns a resumable billing action for the human. Unknown or unreadable plans
+require access/plan correction. Oregano does not change subscriptions or ask
+for cron frequencies. Only team identity, plan, and check time are retained
+as Instance setup evidence.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 Provider browser authentication and consent remain human actions. The setup
 state contains versioned write-ahead intents, immutable provider receipts,
@@ -319,12 +395,18 @@ consenting human's canonical team and user IDs exists only in memory and is
 discarded after the identity call.
 
 The maintained Vercel project is configured with `packages/runner-vercel` as
-its root, and setup refuses to overwrite a conflicting adopted root or
+its root, and setup refuses to overwrite conflicting existing configuration or
 production environment value. The Slack binding uses the fixed Connector UID
 `slack/oregano` and visible Agent name `Oregano`; provider-internal resource
 names may remain company-specific but do not become the Agent identity.
 
-Model execution resolves through the Core recipe registry. The maintained
+::: implementation-example
+
+Model execution resolves through the Core recipe registry. A new standard
+installation requires OpenAI or Anthropic selection, resolves its direct recipe
+and agent model, and includes the provider and key destination in its single
+review. Other routes or models need an explicit request. Gateway is not a fresh
+setup default; existing instances retain their reviewed binding. The maintained
 setup binds Gateway, native Anthropic/OpenAI/Google, or a named compatible
 cloud recipe. The registry also supports explicitly configured LiteLLM,
 Ollama, llama-server, and generic OpenAI-compatible endpoints; those endpoints
@@ -337,6 +419,10 @@ API-key values exist only as Sensitive Production runtime variables. Setup
 records the non-secret reference, presence, and Sensitive classification,
 never the key. Health, production confirmation, and response evidence bind the
 route and exact model.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 `COMPANYOS_MODEL_CONFIG_BASE64` may bind exact tasks, profiles, and a default.
 Those bindings override the simple `COMPANYOS_MODEL_ROUTE` and
@@ -363,17 +449,30 @@ deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus
 4.7. Embeddings and cross-encoder reranking remain separately configured
 capabilities.
 
-The path creates an immutable Artifact only from clean exact Core and Workspace
-commits, deploys only after an exact candidate confirmation, verifies current
-health, and requires one nonce-bound Slack input plus a real selected-model call
-that returns the exact reply `Setup-Test <nonce> successful.`. Both entries and
-non-secret model response evidence are persisted in the same Neon conversation. Live
-verification ties that proof to the immutable provider and deployment receipts
-and fails closed on unresolved setup intents. Its completion scope is
-`live-starter-instance` with derived readiness `validated`. This is not a
-general deployment or promotion orchestrator and does not prove `enforced`
-readiness, unattended eligibility, arbitrary Tool grants, or future provider
-effects.
+::: implementation-example
+
+Setup builds immutable Artifacts from exact clean commits and verify
+current health. Fresh setup uses its single initial decision and correlates an
+ordinary authorized Slack message, a delivered selected-model response and both
+persisted entries to the exact Artifact, Core, Workspace, principal and model.
+The verifier requires current checked-initialization evidence and rejects
+retired setup states and unresolved mutation receipts.
+Completion remains `live-starter-instance` with readiness `validated`; it is not
+general promotion, unattended operation, or business-Tool authority.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+### Unpublished setup provenance
+
+An explicit candidate installation binds the local bundle receipt digest and
+exact Core commit into the fresh setup scope. The Instance still uses the same
+resource, identity, artifact and deployment evidence. Candidate provenance is
+retained on resume and in timing reports; it cannot establish stable release
+qualification or an isolated Preview environment. Candidate connector names derive
+from the setup session and are bound into its reviewed scope, trigger attachment
+and runtime environment; they never reuse an existing company connector.
 
 ## Event-driven runtime and Gateway boundary
 

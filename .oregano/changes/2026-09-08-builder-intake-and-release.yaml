@@ -1,0 +1,101 @@
+version: 3
+plan_id: builder-intake-and-release-2026-09-08
+created: "2026-09-08"
+title: Implement grounded Builder intake and exact-candidate release coordination
+objective: >-
+  Give the company-facing Builder a scoped Workspace discovery and read path,
+  derive desired activation from Workspace presence, compile company acceptance
+  policy, require a resolved build brief before coding, and retain that brief in
+  durable jobs, correct actual-diff inspection, and implement a provider-neutral
+  exact-candidate release coordinator with explicit authorization and verified
+  live completion. Keep coding credentials separate from trusted release execution.
+non_goals:
+  - Activate a real company, create provider resources, merge a company change, or deploy production during this development task.
+  - Implement arbitrary company SQL migrations or require a Preview for every change.
+  - Add company-specific process decisions or provider credentials to Core.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-intake-and-release.yaml
+  - .oregano/changes/2026-09-08-builder-workspace-activation-and-preview.yaml
+  - packages/runtime/builder/**
+  - packages/runtime/release/**
+  - packages/runtime/repository/contracts.ts
+  - packages/companyos-builder/**
+  - packages/state-store/builder-jobs.ts
+  - packages/state-store/release-runs.ts
+  - packages/state-postgres/release-run-store.ts
+  - packages/runner-vercel/src/lib/builder/**
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.test.ts
+  - packages/cli/src/inspection.mjs
+  - packages/cli/src/workspace-generator.mjs
+  - packages/cli/src/workspace-validator.mjs
+  - packages/cli/content/guides/operate-builder.md
+  - packages/cli/content/guides/prepare-builder-change.md
+  - packages/cli/tests/builder-inspection.test.mjs
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/instance-loader.test.ts
+  - packages/testkit/tests/builder-intake.test.ts
+  - packages/testkit/tests/builder-release.test.ts
+  - packages/testkit/adapter/in-memory-release-runs.ts
+  - docs/specifications/builder-governance.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/workbench/guides/operate-builder.md
+  - docs/workbench/guides/prepare-builder-change.md
+  - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/_generated/architecture-index.md
+tests:
+  - packages/testkit/tests/builder-intake.test.ts
+  - packages/testkit/tests/builder-release.test.ts
+  - packages/cli/tests/builder-inspection.test.mjs
+  - packages/runner-vercel/src/lib/builder/chat-integration.test.ts
+  - packages/runner-vercel/src/lib/builder/release-integration.test.ts
+  - packages/runner-vercel/src/lib/agent-handoff-tools.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/instance-loader.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.builder-governance
+    - specification.company-instance-release-promotion-v0.1
+    - guide.operate-builder
+    - guide.prepare-builder-change
+    - plan.builder-workspace-activation-and-preview
+    - status.current
+architecture:
+  placement:
+    core: Versioned intake, scoped context evidence, job admission, independent inspection, and exact-candidate release contracts and execution.
+    packages: Reuse reviewed capabilities and the existing Workbench guidance distribution; no new company-controlled privileged runtime.
+    workspace: Each company owns process definitions, Builder read scope, user decisions, approval delegation, and test preferences.
+    instance: Each deployment owns provider bindings, secrets, supported release execution, infrastructure readiness, and live qualification.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Preserve governed Agent handoff and pass the source request as bounded context into Builder intake.
+    - mechanism: identity-and-authorization
+      reason: Bind intake and release to authenticated humans and current exact policy, with scoped requester or Steward acceptance.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Retain resolved briefs in immutable jobs and bind release steps, recovery, and live verification to one accepted candidate.
+    - mechanism: capability-contracts-and-connectors
+      reason: Define provider-neutral release operations and verify actual receipts instead of delegating authority to the coding agent.
+  new_core_mechanisms:
+    - Versioned grounded Builder brief with deterministic context-read and unresolved-decision admission checks.
+    - Exact-candidate release state machine over replaceable durable storage and provider execution.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    The same intake and release contracts serve every company and coding profile.
+    Context comes from the compiled Workspace scope, policy from company declarations,
+    and execution from qualified Instance adapters. Tests use synthetic companies.
+rollback: >-
+  Restore the previous Core pairing before activating this capability. Existing
+  legacy proposal jobs remain readable. Stop release admission before reverting
+  release execution; retain recorded decisions and receipts. Application rollback
+  does not undo a state migration or an already executed business effect.
+open_decisions: []

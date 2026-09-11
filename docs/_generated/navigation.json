@@ -376,6 +376,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "guide.prepare-builder-change",
+    "title": "Prepare a Builder Change",
+    "path": "docs/workbench/guides/prepare-builder-change.md",
+    "kind": "guide",
+    "status": "building",
+    "availability": "experimental"
+  },
+  {
     "document_id": "guide.prepare-instance",
     "title": "Prepare a Company Instance",
     "path": "docs/workbench/guides/prepare-an-instance.md",
@@ -440,6 +448,22 @@
     "availability": "experimental"
   },
   {
+    "document_id": "onboarding.setup-options",
+    "title": "Choose a CompanyOS Setup",
+    "path": "docs/onboarding/setup-options.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "operations.maintained-host-profile",
+    "title": "Maintained Hosting and Communication Profile",
+    "path": "docs/operations/maintained-host-profile.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
     "document_id": "operations.model-prompt-caching",
     "title": "Model Prompt Caching",
     "path": "docs/operations/model-prompt-caching.md",
@@ -462,6 +486,14 @@
     "kind": "guide",
     "status": "approved",
     "availability": "experimental"
+  },
+  {
+    "document_id": "operations.vercel-slack-event-staging",
+    "title": "Stage Slack channel events on a shared app",
+    "path": "docs/operations/vercel-slack-event-staging.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": null
   },
   {
     "document_id": "operations.vercel-workflow-runner",
@@ -488,9 +520,41 @@
     "availability": null
   },
   {
+    "document_id": "plan.builder-workspace-activation-and-preview",
+    "title": "Workspace-Declared Builder Activation, Configurable Review, and Preview Testing",
+    "path": "docs/plans/2026-09-08-builder-workspace-activation-and-preview.md",
+    "kind": "plan",
+    "status": "draft",
+    "availability": null
+  },
+  {
     "document_id": "plan.company-knowledge-implementation",
     "title": "Company Brain and Handbook Architecture and Delivery Plan",
     "path": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "kind": "plan",
+    "status": "approved",
+    "availability": null
+  },
+  {
+    "document_id": "plan.five-minute-setup",
+    "title": "Five-Minute Standard Setup",
+    "path": "docs/plans/2026-09-08-five-minute-setup.md",
+    "kind": "plan",
+    "status": "draft",
+    "availability": null
+  },
+  {
+    "document_id": "plan.setup-integration-review",
+    "title": "Setup Candidate Integration Review",
+    "path": "docs/plans/2026-09-08-setup-integration-review.md",
+    "kind": "plan",
+    "status": "draft",
+    "availability": null
+  },
+  {
+    "document_id": "plan.setup-provider-choice",
+    "title": "Explicit model provider choice in standard setup",
+    "path": "docs/plans/2026-09-08-setup-provider-choice.md",
     "kind": "plan",
     "status": "approved",
     "availability": null
@@ -502,6 +566,14 @@
     "kind": "reference",
     "status": "approved",
     "availability": null
+  },
+  {
+    "document_id": "reference.instance-configuration",
+    "title": "Workspace Instance Configuration",
+    "path": "docs/reference/instance-configuration.md",
+    "kind": "reference",
+    "status": "implemented",
+    "availability": "experimental"
   },
   {
     "document_id": "reference.translation-exceptions",

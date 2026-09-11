@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -17,6 +17,27 @@ relations:
 ---
 
 # System Boundaries and Placement
+
+The non-secret Instance build declaration is physically stored in the Company
+Workspace at `.companyos/instance.yaml`. Its ownership remains the Company
+Instance; its source changes use Workspace security review. The file may name
+exact accounts, resources, routes and SecretRefs, but cannot grant credentials,
+execute a provider call or activate a deployment. Runtime state and secrets
+remain outside Git. See the [format contract](../reference/instance-configuration.md).
+
+::: implementation-example
+
+The standard installation flow lives in the Workbench, not in a Codex/Claude
+prompt. Its session owns discovery, defaults, one initial setup decision and
+recovery; private provider adapters perform the effects. The fresh operating
+Workspace remains company-owned. Session decisions, resource receipts and live
+verification remain private Instance evidence. A release payload supplies exact
+Core and tooling without turning a harness into another setup implementation.
+This new path is experimental and its five-minute live qualification is pending.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Oregano Core owns
 
@@ -57,6 +78,8 @@ Capability Contracts remain provider-neutral, while exact provider mappings,
 IDs, schedules, roles, thresholds, and operating policy remain Workspace or
 Instance truth.
 
+::: implementation-example
+
 The Workbench may maintain a small private setup-adapter boundary for hosted
 installation. A setup profile composes exactly one typed adapter for each
 required role: source host, runtime host, state service, and communication
@@ -64,13 +87,48 @@ provider. A separate typed model-execution selection binds a Runner-supported
 route and credential reference without making model SDKs part of Workspace or
 provider-neutral Tool contracts. These adapters translate provider commands and receipts into the
 provider-neutral Instance evidence above. They are not a public plugin API and
-must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
+isolate provider-generated skills and transient OIDC files from the immutable
+Core checkout. Only validated non-secret project link fields survive that
+temporary context. Slack connector payloads remain private and are reduced to
+validated app/workspace identities; they are not general readiness evidence.
+Production aliases come from the exact provider deployment receipt, and current
+health must identify that deployment before the alias becomes verification input.
+Login redirects are not followed or interpreted as application health.
+The Slack adapter explicitly enables incoming triggers at creation and checks
+current forwarding, production attachment and webhook destination before the
+first-message gate and final verification. Explicit event selections must include
+direct messages. The adapter exposes exact-resource delivery recovery when a
+reply remains missing; provider synchronization and Slack URL verification
+remain separate from runtime model evidence and cannot grant additional scopes.
+The adapters must not leak Vercel, Neon, Slack, GitHub, or any future provider type into
 runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and
 profile, not a new Core execution model.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+Provider prerequisites belong to the concrete setup binding. The maintained
+Vercel binding declares Pro or Enterprise, checks the selected team's current
+plan automatically, and owns its background schedules. Team identity and plan
+receipts remain private Instance setup evidence; a Hobby upgrade is a human
+billing action. This does not make Vercel billing or cron frequency a generic
+Core runtime contract or a Company Workspace interview field.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 Core owns one model-recipe registry rather than a model installation role. The
-maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and
+standard setup exposes OpenAI and Anthropic as explicit direct-provider choices.
+Other providers and exact model overrides require a request; this selection
+reuses the recipe resolver and secret-entry adapter. Runtime defaults for
+existing installations remain separate. The maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and
 Google routes; named OpenAI-compatible cloud routes for OpenRouter, DeepSeek,
 Groq, Together AI, MiniMax, Zhipu AI, Moonshot AI, Mistral AI, and NVIDIA NIM;
 local or proxy routes for Ollama, llama-server, and LiteLLM; and one generic
@@ -82,6 +140,10 @@ Instance default. Adding another model provider extends the recipe and
 conformance set; it does not add a fifth installation role or permit
 credentials in Core, a Workspace, or an Artifact.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 The resolver may select documented Anthropic-then-OpenAI defaults from present
 keys only when no explicit task, profile, default, or legacy route binding
 exists. One resolved request never silently fails over to another provider.
@@ -89,7 +151,7 @@ Knowledge authorization remains upstream of model execution; the recipe layer
 does not duplicate it as a provider data-class engine or approval workflow.
 
 Database resource provisioning and CompanyOS schema preparation are separate
-setup responsibilities. The state-service adapter creates or adopts the
+setup responsibilities. In fresh setup, the state-service adapter creates the
 provider resource and identifies the runtime secret binding. Core owns the
 provider-neutral, versioned PostgreSQL manifest and the idempotent bootstrap
 and read-only qualification operations for `companyos` and
@@ -228,3 +290,19 @@ parallel mechanism when the existing contract has the same responsibility.
 - The Workbench owns inspect, build, regression, review preview, source
   operation, observation lifecycle, stage, verify, rebuild, and activate
   commands. A Blueprint may suggest examples but grants no access or binding.
+
+## Candidate distribution boundary
+
+::: implementation-example
+
+Packaging and verifying an unpublished installer belongs to Core. Candidate
+selection does not add authority: the existing single scoped setup decision
+still covers named fresh resources and first deployment. The Company Workspace
+records the source pin and candidate marker; the private acquisition receipt
+stays with the setup session, outside company Git. Core generates a separate
+Slack connector name for each candidate session; provider identity and trigger
+receipts must match that exact name throughout creation, resume and verification.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

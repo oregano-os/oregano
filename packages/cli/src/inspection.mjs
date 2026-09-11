@@ -13,22 +13,31 @@ export const CLASS_RANK = { content: 1, behavior: 2, security: 3 };
 
 export const changedFiles = (root, baseRef) => {
   const run = (...args) => spawnSync("git", ["-C", root, ...args], { encoding: "utf8" });
-  const tracked = baseRef
-    ? run("diff", "--name-only", `${baseRef}...HEAD`)
-    : run("diff", "--name-only", "HEAD");
+  // Include committed, staged and working-tree changes in the same candidate.
+  // Comparing base...HEAD alone silently omits an uncommitted Builder result.
+  let base = "HEAD";
+  if (baseRef) {
+    const ancestor = run("merge-base", baseRef, "HEAD");
+    if (ancestor.status !== 0) return null;
+    base = ancestor.stdout.trim();
+  }
+  const tracked = run("diff", "--name-only", "--no-renames", "-z", base, "--");
   if (tracked.status !== 0) return null;
-  const untracked = run("ls-files", "--others", "--exclude-standard");
+  const untracked = run("ls-files", "--others", "--exclude-standard", "-z");
   if (untracked.status !== 0) return null;
-  return [...new Set(`${tracked.stdout}\n${untracked.stdout}`.split("\n").map((item) => item.trim()).filter(Boolean))].sort();
+  return [...new Set(`${tracked.stdout}${untracked.stdout}`.split("\0").filter(Boolean))].sort();
 };
 
-export const classifyFiles = (files, governance) => {
+export const classifyFiles = (files, governance, options = {}) => {
   const classified = files.map((file) => {
     const matches = [];
     for (const [name, config] of Object.entries(governance?.change_classes ?? {})) {
-      if ((config.paths ?? []).some((pattern) => globToRegExp(pattern).test(file))) matches.push(name);
+      if ((config.paths ?? []).some((pattern) => globToRegExp(pattern).test(file)
+        && !(name === "security" && pattern === ".companyos/**" && options.planMetadataPaths?.has(file)))) matches.push(name);
     }
     matches.sort((left, right) => (CLASS_RANK[right] ?? 0) - (CLASS_RANK[left] ?? 0));
+    // Valid v3 plans contain intent and evidence, never approval authority.
+    if (matches.length === 0 && options.planMetadataPaths?.has(file)) matches.push("content");
     return { file, change_class: matches[0] ?? null, matches };
   });
   const effective = classified.reduce((highest, item) =>
@@ -76,7 +85,14 @@ export function inspectWorkspace(root, planPath, baseRef) {
   let diffClassification = null;
   if (files === null) diagnostics.push(diagnostic("FIT006", "info", "Changed-file inspection is unavailable because the target is not a readable Git worktree."));
   else {
-    diffClassification = classifyFiles(files, governance);
+    const planMetadataPaths = new Set(files.filter((file) => {
+      if (!/^\.companyos\/changes\/[^/]+\.ya?ml$/.test(file)) return false;
+      const path = join(root, file);
+      if (!existsSync(path)) return false;
+      try { return readChangePlan(path)?.version === 3 && !validateChangePlan(path).some((item) => item.severity === "error"); }
+      catch { return false; }
+    }));
+    diffClassification = classifyFiles(files, governance, { planMetadataPaths });
     facts.changed_files = files;
     facts.effective_change_class = diffClassification.effective;
     for (const item of diffClassification.classified.filter((entry) => !entry.change_class)) {

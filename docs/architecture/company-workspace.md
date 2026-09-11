@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,12 @@ audience:
 ---
 
 # Company Workspace
+
+The Workspace also versions its non-secret Instance build declaration at
+`.companyos/instance.yaml`. Exact provider identifiers, bindings and SecretRefs
+are allowed there under `.companyos/**` security review. This permission does
+not include resolved secrets, runtime state, receipts or deployment code.
+See [Workspace Instance Configuration](../reference/instance-configuration.md).
 
 A Company Workspace is the company-specific, version-controlled part of
 CompanyOS. It lives in one repository owned by the company or its appointed
@@ -31,6 +37,7 @@ company-workspace/
 ├── .companyos/
 │   ├── compatibility.yaml
 │   ├── governance.yaml
+│   ├── instance.yaml         # once an Instance is prepared
 │   └── repository-protection.yaml
 ├── AGENTS.md
 ├── package.json              # optional in Core-checkout mode
@@ -81,7 +88,9 @@ fine-grained authorization contract exists.
 A reviewed `connections/*.md` knowledge-source requirement may declare one
 repository document source, data owner, retention, path/size bounds, and
 freshness target. Provider identity, ref, scopes, and an `env:NAME` SecretRef
-live in the Company Instance binding, not the Workspace. Fetched material
+live in the separate Knowledge Source operation binding, which retains its
+external storage contract. That file is distinct from the versioned
+`.companyos/instance.yaml` build declaration. Fetched material
 remains a Source Envelope until human review produces and governance accepts an
 ordinary OKF Workspace diff.
 

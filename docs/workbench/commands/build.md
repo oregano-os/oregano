@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -20,8 +20,14 @@ relations:
 
 # `companyos build`
 
+The required input is the tracked `.companyos/instance.yaml` in the selected
+Workspace. Missing files and `--instance` overrides are rejected. The same path
+is used by the hosted Builder in its exact checked Workspace commit. See the
+[Instance configuration reference](../../reference/instance-configuration.md).
+The build never creates or rewrites the declaration.
+
 ```bash
-companyos build <workspace> --instance <instance.yaml> --output <artifact.json> [--knowledge-output <knowledge.json>]
+companyos build <workspace> --output <artifact.json> [--knowledge-output <knowledge.json>]
 ```
 
 The command compiles one exact CompanyOS pairing. Both the Oregano Core and

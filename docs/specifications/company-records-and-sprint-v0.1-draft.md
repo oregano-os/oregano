@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-08
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:

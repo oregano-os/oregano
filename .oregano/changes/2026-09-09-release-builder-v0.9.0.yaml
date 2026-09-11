@@ -1,0 +1,55 @@
+version: 3
+plan_id: release-builder-v0.9.0-2026-09-09
+created: "2026-09-09"
+title: Release guided Builder requests and interactive Agent tests
+objective: >-
+  Publish Core 0.9.0 and Workbench 0.1.0-experimental.19 from the reviewed Builder
+  implementation in PR 108. The minor increment introduces the user-facing
+  interactive candidate conversation contract, Finish/Restart controls and
+  exact completed-result acceptance. Distribute the matching updated Guides.
+non_goals:
+  - Add simulation, Tool-using interactive tests, live trials or a discard action.
+  - Change any Company Instance through the Core release commit alone.
+  - Treat synthetic tests as a human's functional acceptance or provider proof.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-09-release-builder-v0.9.0.yaml
+  - package.json
+  - packages/cli/package.json
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/runner-vercel/src/lib/builder/guided-experience.test.ts
+  - packages/testkit/tests/builder-release-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Version and distribute the reviewed generic Builder runtime and its matching Workbench.
+    packages: Keep existing Blueprint and Connector contracts; publish the updated Guides under a new Workbench version.
+    workspace: Adopt exact Core and Workbench pins in a separately reviewed company upgrade.
+    instance: Qualify the exact image and staged deployment before an explicitly authorized promotion.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies and coding profiles use the same released code and contract, with company policy and destinations supplied independently.
+rollback: >-
+  Existing automatic sessions remain compatible. No database DDL or provider
+  permission migration is required. Before an Instance rollback to Core 0.8.1,
+  stop new interactive sessions and resolve pending interactive work; retain all
+  histories and acceptance evidence. Incomplete interactive sessions must never
+  be reinterpreted as accepted automatic tests. Application rollback does not
+  undo provider effects. Preserve the preceding exact Artifact and deployment.
+open_decisions: []

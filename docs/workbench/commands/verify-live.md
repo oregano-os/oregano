@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -22,17 +22,57 @@ relations:
 
 # `companyos verify-live`
 
+Verification still proves the deployed Artifact and exact revision pair.
+After adopting `.companyos/instance.yaml`, its committed values and Artifact
+configuration digest identify the reviewed Instance configuration. Merely
+finding or validating the file does not prove deployment, provider access or
+live readiness. See [the configuration contract](../../reference/instance-configuration.md).
+
 ```bash
 companyos verify-live --state <file> [--scope starter|workflow] [--format human|json]
 ```
 
+::: implementation-example
+
+The standard `companyos setup` session invokes this command automatically.
+Its chosen direct provider, exact model and Sensitive Production credential
+metadata must match the reviewed binding and real response evidence. OpenAI
+and Anthropic are ordinary choices; an explicitly requested alternative has
+the same exact-binding requirements. Existing Gateway sessions retain their
+original route and installer.
+Fresh setup proves an ordinary first Slack exchange, including delivered model
+response and persisted entries bound to the principal and exact Artifact.
+Legacy states retain their nonce proof; they cannot use the fresh exception.
+The `identity.basic` human receipt and connector-derived app Messages link are
+setup inputs only. They cannot replace the delivered response or model evidence,
+and verification does not request a bot credential through the personal CLI.
+For fresh setups with a recorded production health alias, its current response
+must also match the immutable deployment ID. An alias moved to another
+deployment fails verification even if it serves an otherwise identical Artifact.
+A current provider read must also confirm the same Slack app, enabled incoming
+trigger forwarding, the production-only project attachment and exact webhook
+route. Explicit event selections must include `message.im`. Historical
+attachment receipts do not replace this check. Slack `Verified` plus saved URL
+configuration establishes a handshake only; neither it nor Vercel synchronization
+can replace the persisted model response. See [delivery recovery](setup.md#slack-delivery-recovery).
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
 The default `starter` scope is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:
 
+::: implementation-example
+
 - the GitHub Workspace repository is private and one hosted-protection attempt
   was recorded as `enforced` or `advisory`;
-- the operating change passed the required check and the Workspace Steward authorized its merge;
+- fresh schema-5 initialization has its single scoped setup decision, create
+  receipts, responsible human and exact checked initial commit;
 - the named Vercel, Neon, and Slack resources are present in setup evidence;
+- a fresh Vercel API read confirms Pro or Enterprise for the exact selected
+  team; Hobby, an unknown plan, or inaccessible plan evidence fails
+  verification even if a previous setup receipt recorded Pro;
 - the selected StateStore has a valid non-secret database qualification
   receipt, and current read-only health reports the same immutable schema
   manifest digest and required feature set without running schema DDL;
@@ -46,10 +86,14 @@ runbook. It fails unless fresh or recorded evidence proves:
 - direct-provider credential-presence and Sensitive-classification evidence
   exists when a direct recipe is selected, without a credential value in setup
   state; and
-- the nonce-bound human Slack message and Oregano's exact
-  `Setup-Test <nonce> successful.` response were persisted in the same Neon
-  conversation with a non-secret response ID, response model, and token-count
-  evidence from a real selected-model call.
+- the authorized human message and a delivered model-backed Oregano reply
+  have matching persisted conversation and model-response evidence. Fresh setup
+  binds the ordinary exchange to exact identity and deployment. Retired state
+  versions 1–4 are rejected.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 The current Core target receipt identifies additive manifest
 `companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14
@@ -66,14 +110,31 @@ evidence.
 `verify-live` for the Tool-free starter does not enable sensitive Sources or
 Agent-facing Brain retrieval.
 
+::: implementation-example
+
 Successful scope is exactly `live-starter-instance`, with readiness
 `validated`. This scope proves one supervised starter deployment. It does not
 authorize business Tools, provider effects, unattended execution, or a general
 claim that every Company Instance enforcement control has been exercised.
 Hosted GitHub protection is returned separately from readiness. Losing
 previously verified protection produces a warning; unavailable protection on a
-free plan produces informational evidence and does not fail this Tool-free
+free GitHub plan produces informational evidence and does not fail this Tool-free
 supervised scope.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+The result returns current team/plan evidence as `verification.vercel_plan`;
+`LIVE124` identifies a failed plan prerequisite. This read does not change
+billing, schedules, or the setup state, and applies to older state versions
+as well.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 `companyos bootstrap verify` remains the earlier `authoring-only-local`
 checkpoint. It is intentionally insufficient for the live runbook.
@@ -162,3 +223,19 @@ It does not independently prove provider history, replace actual source
 qualification and manual comparison, establish restart/rollback behavior, or
 complete the pilot weeks and production authorization. Preserve those separate
 receipts alongside this verification result.
+
+## Verifying unpublished candidates
+
+::: implementation-example
+
+The same `verify-live` checks apply to an explicitly installed unpublished
+candidate. A successful result proves the recorded candidate Instance and Slack
+exchange. It does not prove publication, stable-release timing qualification,
+or execution of the separate database integration suite. The private setup scope
+and generated initialization receipt retain the candidate distribution identity.
+Verification also requires the exact session-named test connector; a receipt
+from the ordinary Oregano connector cannot complete a candidate installation.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::

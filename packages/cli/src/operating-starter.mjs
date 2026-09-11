@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import YAML from "yaml";
 import { diagnostic } from "./diagnostics.mjs";
 import { validateWorkspace } from "./workspace-validator.mjs";
+import { parseInstanceBuildConfiguration, resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 
 export const OPERATING_STARTER_FIELDS = [
   "change_date",
@@ -87,7 +88,7 @@ const readWorkspaceSource = (root) => {
   return { company, roster, governance, repositoryProtection };
 };
 
-export function renderOperatingStarter(root, rawInput) {
+export function renderOperatingStarter(root, rawInput, { initialization, instanceId } = {}) {
   const normalized = normalizeOperatingStarterInput(rawInput);
   const diagnostics = [...normalized.diagnostics];
   const files = new Map();
@@ -111,7 +112,22 @@ export function renderOperatingStarter(root, rawInput) {
   }
   if (hasErrors(diagnostics)) return { input: normalized.input, files, deletions, diagnostics, workspaceVersion: null };
 
-  const workspaceVersion = nextMinorVersion(source.company.data.workspace_version);
+  try {
+    const path = join(root, WORKSPACE_INSTANCE_PATH);
+    const raw = existsSync(path) ? readFileSync(path, "utf8") : YAML.stringify({
+      version: 1, instance_id: instanceId ?? `${source.company.data.slug}-production`, environment: "production", bindings: [],
+    });
+    const instance = existsSync(path) ? resolveWorkspaceInstanceConfiguration(root).configuration : parseInstanceBuildConfiguration(raw);
+    if ((instanceId && instance.instanceId !== instanceId) || instance.environment !== "production") {
+      throw new Error("The existing Instance declaration does not match this production setup target. Review the Workspace configuration before setup.");
+    }
+    files.set(WORKSPACE_INSTANCE_PATH, raw);
+  } catch (error) {
+    diagnostics.push(diagnostic("OPS025", "error", error.message, { file: WORKSPACE_INSTANCE_PATH }));
+    return { input: normalized.input, files, deletions, diagnostics, workspaceVersion: null };
+  }
+
+  const workspaceVersion = initialization ? source.company.data.workspace_version : nextMinorVersion(source.company.data.workspace_version);
   const companyData = { ...source.company.data, workspace_version: workspaceVersion, workspace_mode: "operating" };
   files.set("company.md", document(companyData, `${source.company.body.trim()}\n\nIts first operating capability is the supervised Oregano Slack assistant.`));
 
@@ -193,7 +209,7 @@ export function renderOperatingStarter(root, rawInput) {
     placement: "workspace",
     change_class: "security",
     vision_principles_affected: ["Human authority is explicit", "Safety cannot be weakened from a Workspace", "Evidence beats claims"],
-    files_expected: ["company.md", "handbook/roster.md", ".companyos/governance.yaml", ".companyos/repository-protection.yaml", "agents/oregano/instructions.md", "workflows/slack-assistant.md", "connections/slack.md", planPath],
+    files_expected: ["company.md", "handbook/roster.md", ".companyos/governance.yaml", ".companyos/repository-protection.yaml", WORKSPACE_INSTANCE_PATH, "agents/oregano/instructions.md", "workflows/slack-assistant.md", "connections/slack.md", planPath],
     required_approvals: ["workspace-steward"],
     approvals: [{ role: "workspace-steward", approver: steward.id, approved_at: normalized.input.change_date, evidence: "explicit-human-bootstrap-confirmation" }],
     validation: ["companyos validate .", "companyos security .", "companyos inspect . --plan auto", "companyos onboard ."],
@@ -202,6 +218,50 @@ export function renderOperatingStarter(root, rawInput) {
     rollback: "Promote the previously recorded immutable Vercel deployment and detach the new Slack trigger. Do not delete Slack, Neon, or GitHub resources without separate approval.",
     open_decisions: ["Add business Tools only through a later approved operating-model change."],
   }));
+
+  if (initialization) {
+    if (!/^[0-9a-f]{64}$/.test(initialization.scope_hash ?? '') || !initialization.actor_login) throw new Error('Fresh initialization requires its exact setup decision.');
+    files.delete(planPath);
+    const corePin = YAML.parse(readFileSync(join(root, '.companyos/compatibility.yaml'), 'utf8')).core;
+    const template = readFileSync(join(root, '.github/workflows/check.yml'), 'utf8')
+      .replace('on: [pull_request]', 'on:\n  pull_request:\n  push:\n    branches: [main]')
+      .replace('\njobs:', '\npermissions:\n  contents: read\n\njobs:');
+    let workflow = template
+      .replace('on: [pull_request]', 'on:\n  pull_request:\n  push:\n    branches: [main]')
+      .replace(/      - name: Install pnpm[\s\S]*?      - name: Validate and inspect Company Workspace/, `      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Acquire verified release Workbench
+        working-directory: .companyos-core
+        run: |
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { installCompanyOS } from './scripts/install-companyos.mjs';
+          const response = await fetch('https://api.github.com/repos/${corePin.repository}/releases/tags/v${corePin.version}');
+          if (!response.ok) throw new Error('The pinned release is unavailable.');
+          const release = await response.json();
+          const installed = await installCompanyOS({ directory: join(process.env.RUNNER_TEMP, 'oregano-check'), releaseId: release.id, launch: false });
+          if (installed.installation.core_commit !== '${corePin.ref}') throw new Error('The release does not match the pinned Core.');
+          appendFileSync(process.env.GITHUB_ENV, 'COMPANYOS_CHECK_CLI=' + join(installed.coreRoot, 'packages/cli/src/cli.mjs') + '\\n');
+          JS
+      - name: Validate and inspect Company Workspace`)
+      .replaceAll('pnpm companyos ', 'companyos ')
+      .replace('          companyos validate', '          companyos() { node "$COMPANYOS_CHECK_CLI" "$@"; }\n          companyos validate');
+    if (initialization.distribution?.kind === 'candidate') {
+      if (!/^[0-9a-f]{64}$/.test(initialization.distribution.manifest_sha256 ?? '')) throw new Error('Candidate initialization requires its acquisition receipt.');
+      workflow = template.replace('Install pinned Workbench checkout', 'Install exact unpublished candidate Workbench')
+        .replace('run: pnpm install --frozen-lockfile', `run: |\n          test "$(git rev-parse HEAD)" = "${corePin.ref}"\n          pnpm install --frozen-lockfile`);
+    }
+    files.set('.github/workflows/check.yml', workflow);
+    files.set('.companyos/initialization.json', `${JSON.stringify({
+      version: 1, kind: 'fresh-initialization', scope_hash: initialization.scope_hash,
+      responsible_person: steward.id, github_login: initialization.actor_login,
+      accepted_at: initialization.accepted_at, initial_workspace_version: workspaceVersion,
+      distribution: initialization.distribution ?? { kind: 'stable' },
+    }, null, 2)}\n`);
+  }
 
   return { input: normalized.input, files, deletions, diagnostics, workspaceVersion, planPath };
 }
@@ -225,14 +285,14 @@ const applyRenderedFiles = (root, rendered) => {
   }
 };
 
-export function previewOperatingStarter({ workspaceRoot, rawInput }) {
+export function previewOperatingStarter({ workspaceRoot, rawInput, instanceId }) {
   let root;
   try { root = realpathSync(resolve(workspaceRoot)); }
   catch {
     return { preview: null, diagnostics: [diagnostic("OPS021", "error", `Company Workspace does not exist: ${resolve(workspaceRoot)}`)], validation: null };
   }
   const baseline = validateWorkspace(root);
-  const rendered = renderOperatingStarter(root, rawInput);
+  const rendered = renderOperatingStarter(root, rawInput, { instanceId });
   const diagnostics = [...baseline.diagnostics.filter((item) => item.severity === "error"), ...rendered.diagnostics];
   const sourceHashes = Object.fromEntries([...rendered.files.keys()].sort().map((relative) => {
     const path = join(root, relative);
@@ -250,6 +310,7 @@ export function previewOperatingStarter({ workspaceRoot, rawInput }) {
     deletions: [...rendered.deletions].sort(),
     source_hashes: sourceHashes,
     input: rendered.input,
+    instance_id: rendered.files.has(WORKSPACE_INSTANCE_PATH) ? parseInstanceBuildConfiguration(rendered.files.get(WORKSPACE_INSTANCE_PATH)).instanceId : null,
   };
   preview.confirmation_hash = createHash("sha256").update(JSON.stringify(preview)).digest("hex");
   if (hasErrors(diagnostics)) return { preview, diagnostics, validation: null, rendered };
@@ -266,8 +327,8 @@ export function previewOperatingStarter({ workspaceRoot, rawInput }) {
   }
 }
 
-export function applyOperatingStarter({ workspaceRoot, rawInput, confirmationHash }) {
-  const inspected = previewOperatingStarter({ workspaceRoot, rawInput });
+export function applyOperatingStarter({ workspaceRoot, rawInput, confirmationHash, instanceId }) {
+  const inspected = previewOperatingStarter({ workspaceRoot, rawInput, instanceId });
   if (!inspected.preview || hasErrors(inspected.diagnostics)) return { ...inspected, applied: false };
   if (confirmationHash !== inspected.preview.confirmation_hash) {
     return { ...inspected, applied: false, diagnostics: [...inspected.diagnostics, diagnostic("OPS022", "error", "Operating starter confirmation does not match the current preview.")] };

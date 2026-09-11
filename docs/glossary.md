@@ -5,7 +5,7 @@ kind: reference
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-02
+updated: 2026-09-10
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,11 @@ audience:
 ---
 
 # CompanyOS Glossary
+
+The canonical non-secret Instance declaration is `.companyos/instance.yaml`
+in the Company Workspace. Its physical placement does not turn secrets,
+deployment authority or operational state into Workspace content. See
+[Workspace Instance Configuration](reference/instance-configuration.md).
 
 ## Knowledge terms
 
@@ -234,8 +239,27 @@ Sprint Agent instructions, Workflows, Skills, templates, and synthetic
 fixtures. It declares requirements but cannot assign principals, grants,
 approvals, provider bindings, or runtime authority.
 
+### Build request
+The user-facing Builder task covering new development or a change to existing
+Company Workspace behavior. Ordinary conversation may call it "your request".
+Submission covers the resolved development scope, not result acceptance or
+publication. See the accepted experience direction in the
+[Builder specification](specifications/builder-governance.md#accepted-builder-experience-and-test-direction-2026-09-09).
+
+### Build brief
+The resolved objective, current and proposed behavior, scope, constraints,
+acceptance criteria and test instructions passed to the coding agent. Core binds
+it to the authenticated request and source-read evidence. It does not grant
+provider access or live-publication authority.
+
+### Selected test build
+The exact Builder candidate selected for one authenticated user in one Company
+Instance. New test-channel threads use that build; existing threads retain their
+candidate and independent conversation history. Selecting or resuming a test is
+not development, acceptance or publication.
+
 ### BuilderService
-The provider-neutral Core coordinator for confirmed proposal-only Builder jobs.
+The provider-neutral Core coordinator for grounded proposal-only Builder jobs.
 It controls immutable input, leases, recovery, cancellation, repository source,
 isolated coding, independent validation, and checked draft publication. It has
 no merge or deployment authority.
@@ -380,8 +404,10 @@ Contributor receives no authority from its model, prompt, or contributor type.
 ### Builder Agent
 The experimental governed CompanyOS agent under `agents/builder/` that proposes
 Company Workspace changes from authorized requests. Selecting it starts a
-normal Runner conversation; only the requester's explicit confirmation starts
-an isolated coding job. This name is reserved for that product component and
+normal Runner conversation. After current process context and material decisions
+are resolved, a clear development request starts an isolated coding job without
+a redundant confirmation. A separate trusted release coordinator implements
+company-governed acceptance and exact production adoption. This name is reserved for that product component and
 is not a synonym for Contributor or coding agent.
 
 ## Authority roles

@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { classifyBuilderRelease } from "../../cli/src/builder-release-inspection.mjs";
 import type { BuilderJob } from "../../state-store/builder-jobs.ts";
 import {
   checkedProposalFromInspection,
@@ -7,7 +8,7 @@ import {
   sha256,
 } from "../repository/proposal-inspection.ts";
 import type { CheckedProposal } from "../repository/contracts.ts";
-import type { TrustedGitExecutionAdapter } from "../repository/trusted-git-execution.ts";
+export { TrustedGitProposalValidator } from "./trusted-proposal-validator.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -64,26 +65,7 @@ export class CompanyOSWorkbenchProposalValidator implements BuilderProposalValid
         evidenceDigest: sha256(result.stdout),
       });
     }
-    return checkedProposalFromInspection(inspection, checks);
-  }
-}
-
-export class TrustedGitProposalValidator implements BuilderProposalValidator {
-  readonly #gitExecution: TrustedGitExecutionAdapter;
-
-  constructor(gitExecution: TrustedGitExecutionAdapter) {
-    this.#gitExecution = gitExecution;
-  }
-
-  async validate(args: BuilderProposalValidationRequest): Promise<CheckedProposal> {
-    if (!args.sourceBundlePath || !args.diff) {
-      throw new Error("Trusted Git proposal validation requires a source bundle and diff.");
-    }
-    return await this.#gitExecution.validate({
-      operationId: `${args.job.jobId}:validate`,
-      sourceBundlePath: args.sourceBundlePath,
-      baseCommit: args.job.baseCommit,
-      diff: args.diff,
-    });
+    return { ...checkedProposalFromInspection(inspection, checks),
+      releaseChangeClass: classifyBuilderRelease(args.workspacePath, args.job.baseCommit, inspection.changedPaths) };
   }
 }

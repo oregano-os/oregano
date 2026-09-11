@@ -9,7 +9,7 @@ implementation_scope: provider
 providers:
   - vercel
   - slack
-updated: 2026-09-06
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -84,3 +84,18 @@ The handler emits `workflow.button.host-ready` duration and
 host creation is measured separately. Compare provider ingress timing as well.
 No payload, credential, decision text or identity is included in these timings.
 A card update failure does not roll back a saved human decision.
+
+## Reuse an existing test environment
+
+An existing custom test environment can host both ordinary Agent chat and declared
+workflow conversations. Integrate and validate their current Core/Workspace pairing
+before replacing its deployment; do not restore an older Builder or retired executor
+merely to reuse the destination. Keep its retained workflow Artifacts, database,
+scheduler targets and explicitly assigned credentials. Add only the reviewed test
+channel bindings and keep production exclusions disjoint.
+
+Bind ordinary chat to `/api/webhooks/slack` using the existing custom environment ID.
+Keep the action-only `/api/workflows/slack` destination and production destination.
+Verify actual Connect delivery after deployment. A separate Vercel project is not
+required for this arrangement, and secrets assigned to the existing custom environment
+should be inherited instead of copied into another project.

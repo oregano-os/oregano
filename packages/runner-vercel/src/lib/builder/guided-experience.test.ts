@@ -1,0 +1,248 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import type { Author, Chat, StateAdapter } from "chat";
+import { rememberBuilderRequest, builderCurrentRequestKey } from "../../../../runtime/builder/experience.ts";
+import { sha256 } from "../../../../runtime/canonical.ts";
+import { builderFunctionalFixture } from "../../../../testkit/builder-functional-fixture.ts";
+import { builderTestSessionId } from "../../../../runtime/builder/functional-tests.ts";
+import type { ReleaseCandidate } from "../../../../runtime/release/contracts.ts";
+import { createBuilderCardPresenter } from "./card-presenter.ts";
+import { builderQueuedActionCard, builderProgressCard } from "./action-cards.ts";
+import { builderFeedbackKey, createBuilderFunctionalTestIntegration } from "./functional-tests.ts";
+import { createBuilderReleaseIntegration } from "./release-integration.ts";
+import { builderAgentTestMessages } from "./functional-test-execution.ts";
+
+function transport() {
+  const values = new Map<string, unknown>(), handlers = new Map<string, (event: any) => Promise<void>>();
+  const messages: { id: string; threadId: string; content: unknown }[] = [];
+  const adapter = { async editMessage(threadId: string, id: string, content: unknown) {
+    const found = messages.find((entry) => entry.id === id && entry.threadId === threadId);
+    assert.ok(found, "edits must target the original card"); found.content = content;
+  } };
+  const thread = (id: string) => ({ id, adapter, async subscribe() {}, async post(content: unknown) {
+    const message = { id: String(messages.length + 1), threadId: id, content, metadata: { dateSent: new Date() } };
+    messages.push(message); return message;
+  } });
+  const chat = { thread, channel: () => ({ async post(content: unknown) { return thread("slack:C20002:2.0").post(content); } }),
+    onAction: (name: string, handler: (event: any) => Promise<void>) => handlers.set(name, handler) } as unknown as Chat;
+  const locks = new Set<string>();
+  const state = { async get(key: string) { return structuredClone(values.get(key) ?? null); }, async set(key: string, value: unknown) { values.set(key, structuredClone(value)); },
+    async delete(key: string) { values.delete(key); }, async setIfNotExists(key: string, value: unknown) { if (values.has(key)) return false; values.set(key, structuredClone(value)); return true; },
+    async acquireLock(key: string) { if (locks.has(key)) return null; locks.add(key); return { threadId: key, token: "fixture", expiresAt: Date.now() + 120000 }; },
+    async releaseLock(lock: { threadId: string }) { locks.delete(lock.threadId); } } as unknown as StateAdapter;
+  return { values, handlers, messages, chat, state, thread, adapter };
+}
+
+test("durable progress preserves history without duplicate posts or stale updates", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const job = { ...f.job, objective: "Build a concise answer", codingAgent: { profileId: "claude-code" } } as typeof f.job;
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    await show(job, builderQueuedActionCard(job), "queued");
+    await show(job, builderQueuedActionCard(job), "queued");
+    assert.equal(t.messages.length, 1);
+    assert.match(JSON.stringify(t.messages), /confirm when it starts/);
+    await show(job, builderProgressCard(job, "coding"), "coding");
+    assert.equal(t.messages.length, 2); assert.match(JSON.stringify(t.messages), /Coding agent is working/);
+    const result = { type: "card", title: "Ready for review", children: [] } as const;
+    await show(job, result as any, "result");
+    await show(job, builderProgressCard(job, "checking"), "checking");
+    assert.equal(t.messages.length, 3); assert.match(JSON.stringify(t.messages), /Ready for review/);
+    assert.match(JSON.stringify(t.messages[0]), /confirm when it starts/);
+    await show(job, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages.length, 4);
+    assert.match(JSON.stringify(t.messages[2]), /Ready for review/);
+    assert.doesNotMatch(JSON.stringify(t.messages), /Checking your result/);
+  } finally { f.cleanup(); }
+});
+
+test("Request Changes closes candidate testing but does not treat the next question as development", async () => {
+  const f = builderFunctionalFixture(), t = transport();
+  try {
+    await f.store.create({ ...f.session, execution: { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" } });
+    await f.tests.begin(f.session.id, f.candidate.artifactHash, "slack:C20002:2.0");
+    await f.tests.recordResult(f.session.id, { artifactHash: f.candidate.artifactHash, candidateCommit: f.session.candidateCommit,
+      executionDigest: f.session.scopeDigest, completedAt: new Date().toISOString(), summary: "A test answer", evidence: { synthetic: true } });
+    const user = { userId: "U10001" } as Author;
+    const integration = createBuilderFunctionalTestIntegration({ artifact: f.previous, chat: t.chat, state: t.state, tests: f.tests,
+      authenticatedPrincipal: () => f.session.requester, getJob: async () => f.job, compile: async () => f.candidate,
+      execute: async () => { throw new Error("Feedback must not start a test execution"); },
+      ready: { async deliver() {} }, fallback: { async deliver() { assert.fail("unexpected fallback"); } },
+    });
+    integration.registerHandlers();
+    const event = { thread: t.thread(f.session.sourceConversation), value: f.session.id, user };
+    await t.state.set(builderCurrentRequestKey(f.job.instanceId, f.session.requester, f.session.sourceConversation), { jobId: "newer-build", sourceConversation: f.session.sourceConversation });
+    await t.handlers.get("companyos.builder.test.changes")!(event);
+    assert.equal((await t.state.get<{ jobId: string }>(builderCurrentRequestKey(f.job.instanceId, f.session.requester, f.session.sourceConversation)))?.jobId, f.job.jobId, "Request Changes targets the clicked older card, not a newer build");
+    await t.handlers.get("companyos.builder.test.changes")!(event);
+    assert.equal((await f.store.get(f.session.id))?.stage, "feedback-pending");
+    await assert.rejects(() => f.tests.finish(f.session.id, f.session.requester));
+    await assert.rejects(() => f.tests.beginTurn(f.session.id, f.session.requester, "late-question", "Continue?"));
+    assert.equal(await integration.receive({ conversation: f.session.sourceConversation, author: user, messageId: "feedback",
+      text: "Add a concrete example to the second point.", occurredAt: new Date().toISOString() }), false);
+    const revised = await f.store.get(f.session.id);
+    assert.equal(revised?.stage, "feedback-pending");
+    assert.equal(revised?.feedback, undefined);
+    await assert.rejects(() => f.tests.releaseEvidence(f.job, false), /no current/);
+  } finally { f.cleanup(); }
+});
+
+test("interactive candidate chat, fresh user threads and exact Go Live acceptance form one complete loop", async () => {
+  const f = builderFunctionalFixture(), t = transport();
+  try {
+    const job = { ...structuredClone(f.job), createdAt: new Date().toISOString(), codingAgent: { profileId: "claude-code" } } as typeof f.job;
+    (job.brief!.brief.test as any).execution = { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" };
+    const id = builderTestSessionId(job), actor = job.requesterPrincipal, accepted: ReleaseCandidate[] = [], histories: unknown[] = [];
+    const artifact = { ...f.previous, builder: { ...f.previous.builder!, testResources: f.resources }, connectors: [{ id: "slack", connector: "oregano/slack-communication", connectorVersion: "0.1.0",
+      configuration: { destinations: [{ id: "test-channel", kind: "channel", channel_id: "C20002", account_id: "T10001" }] } }] };
+    const principal = (author: Author) => author.userId === "U10001" ? actor : "slack:T10001:OTHER";
+    const present = createBuilderCardPresenter(t.chat, t.state);
+    const release = createBuilderReleaseIntegration({ chat: t.chat, state: t.state, present, authenticatedPrincipal: principal,
+      getTestSession: () => f.store.get(id), fallback: { async deliver() { assert.fail("no separate fallback card expected"); } },
+      async prepareCandidate() {
+        const evidence = await f.tests.releaseEvidence(job, false);
+        return { version: 1, id: job.jobId, instanceId: job.instanceId, repositoryId: job.repositoryId, targetBranch: "main", baseCommit: job.baseCommit,
+          candidateCommit: evidence.session.candidateCommit, candidateTree: "c".repeat(40), coreCommit: "d".repeat(40), configurationDigest: "1".repeat(64), policyDigest: "2".repeat(64),
+          diffDigest: "3".repeat(64), checksDigest: "4".repeat(64), previousArtifactHash: "5".repeat(64), requester: actor, sourceConversation: job.sourceConversationKey,
+          requiredChecks: ["companyos"], changeClass: "behavior", functionalTestDigest: evidence.digest } as ReleaseCandidate;
+      },
+      beforeAccept: async (candidate, who, actionId) => {
+        const evidence = await f.tests.releaseEvidence(job, false);
+        assert.equal(candidate.functionalTestDigest, evidence.digest);
+        await f.tests.accept(id, { principal: who, actionId, resultDigest: evidence.digest, acceptedAt: new Date().toISOString() });
+      },
+      coordinator: { async accept(candidate, who) { accepted.push(candidate); return { id: "release", candidate, candidateDigest: sha256(candidate), acceptedBy: who,
+        acceptedAt: new Date().toISOString(), stage: "approved", revision: 0, updatedAt: new Date().toISOString() }; }, async rollback() { throw new Error("unused"); } },
+    });
+    const integration = createBuilderFunctionalTestIntegration({ artifact, chat: t.chat, state: t.state, tests: f.tests, getJob: async () => job,
+      authenticatedPrincipal: principal, compile: async () => f.candidate, present,
+      execute: async (_artifact, session) => { const messages = builderAgentTestMessages(session); histories.push(messages);
+        return { artifactHash: f.candidate.artifactHash, candidateCommit: f.candidate.provenance.workspaceCommit, executionDigest: session.scopeDigest,
+          completedAt: new Date().toISOString(), summary: session.conversation?.pending?.prompt === "Bob, we can discuss tomorrow." ? "" : `Answer ${histories.length}`,
+          participation: session.conversation?.pending?.prompt === "Bob, we can discuss tomorrow." ? "context-only" : "respond", evidence: { synthetic: true } }; },
+      ready: release.notifier, fallback: { async deliver() { assert.fail("unexpected fallback"); } },
+      transport: { async qualify() {}, async permalink() { return "https://example.slack.com/archives/C20002/p2000000"; } },
+    });
+    release.registerHandlers(); integration.registerHandlers();
+    await rememberBuilderRequest(t.state, job);
+    await integration.notifier.deliver(job);
+    await integration.notifier.deliver(job);
+    const sourceCards = () => t.messages.filter((message) => message.threadId === job.sourceConversationKey);
+    assert.equal(histories.length, 1); assert.ok(sourceCards().length >= 1);
+    assert.doesNotMatch(JSON.stringify(sourceCards()), /Finish test|Restart test|More/);
+    for (const label of ["Go Live", "Discard Build", "Open Test Channel", "Request Changes"]) assert.ok(JSON.stringify(sourceCards()).includes(label));
+    const user = { userId: "U10001" } as Author;
+    await integration.receive({ conversation: "slack:C20002:2.0", author: { userId: "other" } as Author, messageId: "foreign", text: "Private?", occurredAt: new Date().toISOString() });
+    assert.equal(histories.length, 1);
+    const message = { conversation: "slack:C20002:2.0", author: user, messageId: "follow-up", text: "Explain your second point", occurredAt: new Date().toISOString() };
+    await integration.receive(message); await integration.receive(message);
+    assert.equal(histories.length, 2); assert.deepEqual(histories[1], [{ role: "user", content: "What can you do?" }, { role: "assistant", content: "Answer 1" }, { role: "user", content: message.text }]);
+    const event = (value: string) => ({ thread: t.thread(job.sourceConversationKey), threadId: job.sourceConversationKey, adapter: t.adapter, user, value, messageId: sourceCards().at(-1)!.id });
+    assert.ok(sourceCards().length >= 1); assert.match(JSON.stringify(sourceCards()), /Request Changes/); assert.match(JSON.stringify(sourceCards()), /Go Live/);
+    const oldToken = [...t.values.keys()].find((key) => key.startsWith("builder-release-candidate:"))!.slice("builder-release-candidate:".length);
+    await t.handlers.get("companyos.builder.release")!(event(oldToken));
+    assert.equal(accepted.length, 0);
+    await integration.receive({ ...message, conversation: "slack:C20002:fresh-question", messageId: "fresh-question", text: "Give me another example" });
+    assert.deepEqual(histories[2], [{ role: "user", content: "Give me another example" }]);
+    const freshReplies = t.messages.filter(entry => entry.threadId === "slack:C20002:fresh-question");
+    assert.equal(freshReplies.length, 1, "a fresh test thread receives only its actual candidate reply");
+    assert.doesNotMatch(JSON.stringify(t.messages), /Test version · Not live|This conversation stays on this version/);
+    const newToken = [...t.values.keys()].filter((key) => key.startsWith("builder-release-candidate:")).at(-1)!.slice("builder-release-candidate:".length);
+    assert.notEqual(newToken, oldToken);
+    const beforeQuiet = JSON.stringify(sourceCards());
+    await integration.receive({ ...message, messageId: "quiet-before-release", text: "Bob, we can discuss tomorrow." });
+    assert.equal(JSON.stringify(sourceCards()), beforeQuiet, "Silent context must not refresh the release card");
+    await t.handlers.get("companyos.builder.release")!(event(newToken));
+    assert.equal(accepted.length, 1); assert.equal((await f.store.get(id))?.stage, "accepted");
+    assert.match(JSON.stringify(sourceCards().at(-1)), /Publishing/);
+    assert.match(JSON.stringify(sourceCards().slice(0, -1)), /Ready to test/);
+    assert.doesNotMatch(JSON.stringify(sourceCards().slice(0, -1)), /companyos.builder.release"/);
+  } finally { f.cleanup(); }
+});
+
+test("legacy source message references never authorize overwriting the conversation", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const original = await t.thread(f.job.sourceConversationKey).post("The agreed instructions and test plan.");
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    await show({ ...f.job, sourceMessageId: original.id }, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages[0].content, "The agreed instructions and test plan.");
+    assert.equal(t.messages.length, 2);
+    await show({ ...f.job, sourceMessageId: original.id }, { type: "card", title: "Live", children: [] } as any, "live");
+    assert.equal(t.messages[0].content, "The agreed instructions and test plan.");
+    assert.match(JSON.stringify(t.messages[1]), /Publishing/);
+    assert.match(JSON.stringify(t.messages[2]), /Live/);
+  } finally { f.cleanup(); }
+});
+
+test("readiness button refreshes do not duplicate an unchanged result explanation", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    const card = (value: string) => ({ type: "card", title: "Ready to test", children: [
+      { type: "text", content: "The checked result and test instructions." },
+      { type: "actions", children: [{ type: "button", id: "release", label: "Go Live", value }] },
+    ] }) as any;
+    await show(f.job, card("first-token"), "result");
+    await show(f.job, card("fresh-token"), "result");
+    assert.equal(t.messages.length, 1);
+    assert.match(JSON.stringify(t.messages[0]), /The checked result and test instructions/);
+    assert.match(JSON.stringify(t.messages[0]), /fresh-token/);
+  } finally { f.cleanup(); }
+});
+
+
+test("readiness changes update the existing result while later release messages preserve it", async () => {
+  const t = transport(), f = builderFunctionalFixture();
+  try {
+    const show = createBuilderCardPresenter(t.chat, t.state);
+    const card = (pending: boolean) => ({ type: "card", title: "Ready to test", children: [
+      { type: "text", content: "The exact changed result and test link." },
+      ...(pending ? [{ type: "text", content: "Required checks are still running." }] : []),
+      { type: "actions", children: [{ type: "button", id: "release", label: "Go Live", value: pending ? "prepare" : "ready" }] },
+    ] }) as any;
+    await show(f.job, card(true), "result");
+    await show(f.job, card(false), "result");
+    assert.equal(t.messages.length, 1, "readiness updates must not post a second completion card");
+    assert.doesNotMatch(JSON.stringify(t.messages[0]), /still running/);
+    await show(f.job, { type: "card", title: "Publishing", children: [] } as any, "releasing");
+    assert.equal(t.messages.length, 2);
+    assert.match(JSON.stringify(t.messages[0]), /The exact changed result/);
+  } finally { f.cleanup(); }
+});
+
+test("ambient candidate messages stay silent, deduplicate and do not refresh cards; authorized notifications remain independent", async () => {
+  const f = builderFunctionalFixture(), t = transport();
+  try {
+    await f.store.create({ ...f.session, execution: { kind: "agent", agentId: "test-reader", prompt: "What can you do?", interaction: "interactive" } });
+    const conversation = "slack:C20002:2.0";
+    await f.tests.begin(f.session.id, f.candidate.artifactHash, conversation);
+    const result = { artifactHash: f.candidate.artifactHash, candidateCommit: f.session.candidateCommit,
+      executionDigest: f.session.scopeDigest, completedAt: new Date().toISOString(), summary: "Initial answer", evidence: { synthetic: true } };
+    await f.tests.recordResult(f.session.id, result);
+    await t.state.set(`builder:test-conversation:${sha256(conversation)}`, f.session.id);
+    let executions = 0, notifications = 0;
+    const ready = { async deliver() { notifications++; } };
+    const integration = createBuilderFunctionalTestIntegration({ artifact: f.previous, chat: t.chat, state: t.state, tests: f.tests,
+      authenticatedPrincipal: () => f.session.requester, getJob: async () => f.job, compile: async () => f.candidate,
+      execute: async (_artifact, session) => {
+        executions++;
+        assert.equal(session.conversation?.pending?.message?.mentioned, false);
+        return { ...result, participation: "context-only", summary: "" };
+      }, ready, fallback: { async deliver() { assert.fail("No fallback"); } },
+    });
+    const message = { id: "ambient", conversationId: conversation, senderId: f.session.requester, senderName: "Alice",
+      text: "Bob, let us discuss this tomorrow.", sentAt: new Date().toISOString(), shared: true, mentioned: false };
+    const input = { conversation, author: { userId: "U10001" } as Author, messageId: message.id, text: message.text, occurredAt: message.sentAt, participation: message };
+    assert.equal(await integration.receive(input), true);
+    assert.equal(await integration.receive(input), true);
+    assert.equal(executions, 1);
+    assert.equal(t.messages.length, 0);
+    assert.equal(notifications, 0);
+    await ready.deliver();
+    assert.equal(notifications, 1, "Silence does not close an independently authorized job notification channel");
+    const retained = await f.store.get(f.session.id);
+    assert.equal(retained?.conversation?.turns.at(-1)?.result.participation, "context-only");
+    assert.deepEqual(builderAgentTestMessages(retained!).filter(m => m.role === "assistant").map(m => m.content), ["Initial answer"]);
+  } finally { f.cleanup(); }
+});

@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-23
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -16,10 +16,17 @@ availability: experimental
 
 # Configure Repository Protection
 
+::: implementation-example
+
 Local governance files describe the intended Git workflow and hosted-hardening
-baseline. The maintained setup has one path: it always creates or adopts a
-private repository, follows a checked pull-request process, and automatically
-applies the following controls to `main` when GitHub supports them:
+baseline. The maintained setup creates a fresh private repository and checks
+its initial operating commit under the scoped setup decision. It automatically
+applies the following controls to `main` when GitHub supports them, protecting
+subsequent changes:
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 1. require a pull request before merging;
 2. require zero GitHub approvals in the default `steward` review mode;
@@ -31,12 +38,19 @@ applies the following controls to `main` when GitHub supports them:
 8. grant no ruleset bypass to Human Contributors, Agent Contributors,
    deployment keys, or contributor bots.
 
-The pull request, required check, and explicit Steward confirmation remain part
-of the installer whether hosted enforcement is available or not. When GitHub
+::: implementation-example
+
+The initial setup decision and checked first commit remain required whether
+hosted enforcement is available or not. Later protected changes use the governed
+pull-request and Steward review process. When GitHub
 enforces the baseline it additionally protects history from accidental direct
 pushes, force pushes, and deletion. An organization may explicitly select
 `independent-review`; that review policy requires exactly one CODEOWNER approval
 and declares `two_person_review: true` for security changes.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 ## One GitHub installation path
 
@@ -49,16 +63,16 @@ GitHub Free is sufficient for the Tool-free supervised starter. The installer
 does not ask the human to choose a protection mode or upgrade a plan. It first
 reads existing hosted protection. A baseline that is at least as strict is
 accepted unchanged. Any other existing provider policy is also left unchanged
-rather than overwritten. An adopted repository is never mutated by this
-hardening step. For a newly created repository without protection, the
+rather than overwritten. The current installer does not adopt repositories.
+For a newly created repository without protection, the
 installer attempts the solo-Steward baseline once.
 
 The resulting status is evidence, not configuration selected by the user:
 
 - `enforced` means GitHub reports the baseline or stricter controls as active;
 - `advisory` means GitHub did not expose or confirm the requested controls, so
-  the installer continues with its checked pull request and explicit Steward
-  merge evidence; and
+  the installer continues with its checked initial commit and scoped setup
+  decision; and
 - `pending` means the external attempt has not yet been checked.
 
 Professional organizations may enforce equivalent or stricter rules centrally.
@@ -68,11 +82,18 @@ it is not a completion requirement for the supervised starter.
 
 ## Review modes
 
+::: implementation-example
+
 The generated Workspace declares `review_mode: steward`. Its protection
 contract sets `required_approvals: 0`, `require_code_owner_review: false`, and
 `bypass: none`. The Steward supplies CompanyOS authority through the recorded
-Change Plan and the installer's explicit merge confirmation. GitHub supplies
-mechanical evidence that the pull request and required check passed.
+scoped setup decision for fresh initialization. Later protected changes use
+the recorded Change Plan and applicable Steward review. GitHub supplies
+mechanical evidence for the initial commit's check or a later checked pull request.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 For a company that deliberately wants separation of duties, set
 `review_mode: independent-review`, appoint the additional authorized person,

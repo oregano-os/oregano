@@ -93,7 +93,7 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
   readonly #configuration: VercelSandboxBuilderConfiguration;
 
   constructor(configuration: VercelSandboxBuilderConfiguration = {
-    workerSnapshotId: process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID,
+    workerSnapshotId: process.env.COMPANYOS_BUILDER_SNAPSHOT_ID ?? process.env.COMPANYOS_BUILDER_WORKER_SNAPSHOT_ID,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     openAiApiKey: process.env.OPENAI_API_KEY,
   }) {
@@ -206,7 +206,11 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
           ? "running"
           : "failed");
       if (isTerminal(record.state)) record.finishedAt ??= new Date().toISOString();
-      return { state: record.state, observedAt: new Date().toISOString() };
+      const progress = record.request?.operation ? await readWorkerProgress(record.sandbox, {
+        jobId: record.handle.jobId, requestId: record.request.operation.requestId, profileId: record.request.codingAgent.profileId,
+      }).catch(() => undefined) : undefined;
+      return { state: record.state, observedAt: new Date().toISOString(),
+        ...(progress ? { codingStarted: true as const } : {}) };
     }
     if (!isTerminal(record.state)) {
       record.state = stateFromSandbox(record.sandbox, record.timeoutMs);

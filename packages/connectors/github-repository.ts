@@ -32,6 +32,7 @@ import type {
   RepositoryInstallationStatus,
   RepositoryInstallationStore,
 } from "../state-store/repository-installations.ts";
+import type { GitHubReleaseClient } from "./github-release.ts";
 
 export interface GitHubAppConfiguration {
   readonly appId: string;
@@ -219,6 +220,32 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
         }
       },
     );
+  }
+
+  /** Trusted release only; credentials remain in this maintained Connector. */
+  async withReleaseClient<T>(input: { bindingId: string; repositoryId: string; instanceId: string }, use: (client: GitHubReleaseClient) => Promise<T>): Promise<T> {
+    const binding = await this.#installations.requireActive(input.bindingId, input.repositoryId);
+    this.#assertBindingEnvironment(binding);
+    if (binding.instanceId !== input.instanceId) throw new Error("Release repository belongs to another Instance.");
+    const prefix = `/repos/${encodeURIComponent(binding.owner)}/${encodeURIComponent(binding.name)}`;
+    return await this.#withInstallationToken(binding.installationId, binding.providerRepositoryId,
+      { contents: "write", pull_requests: "write", checks: "read", administration: "read" }, async (token) => use({
+        request: async <R>(method: "GET" | "PUT" | "PATCH", path: string, body?: unknown): Promise<R> => {
+          const pathname = decodeURIComponent(path.split("?")[0]!);
+          // GitHub comparisons contain `base...head`. Only actual path
+          // traversal is forbidden; encoded branch separators remain valid.
+          if (!path.startsWith("/") || path.startsWith("//") || path.includes("#")
+            || /[\\\\\u0000-\u0020]/.test(pathname)
+            || pathname.split("/").some((part) => part === "." || part === "..")) throw new Error("Invalid scoped release path.");
+          return await this.#installationRequest<R>(token, method, `${prefix}${path}`, body);
+        },
+        readyForReview: async (nodeId) => {
+          const result = await this.#installationRequest<{ errors?: unknown[] }>(token, "POST", "/graphql", {
+            query: "mutation($id:ID!){markPullRequestReadyForReview(input:{pullRequestId:$id}){pullRequest{id}}}", variables: { id: nodeId },
+          });
+          if (result.errors?.length) throw new Error("GitHub could not mark the checked pull request ready for review.");
+        },
+      }));
   }
 
   async publish(request: ProposalPublicationRequest): Promise<ProposalPublicationReceipt> {

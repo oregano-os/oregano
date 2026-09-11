@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { recordsOperatorDiagnostic } from "../../../../lib/company-records-diagnostic.ts";
 import { CompanyRecordsRehearsalError } from "../../../../lib/company-records-rehearsal.ts";
 import {
   authorizeCompanyRecordsProductionOperator,
@@ -26,9 +27,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof CompanyRecordsRehearsalError) {
       console.error(JSON.stringify({ event: "company-records.production.rejected", reason: error.code, errorDigest: errorDigest(error) }));
-      return Response.json({ ok: false, error: error.code, errorDigest: errorDigest(error) }, { status: error.status });
+      return Response.json({ ok: false, error: error.code, errorDigest: errorDigest(error), diagnostic: recordsOperatorDiagnostic(error) }, { status: error.status });
     }
     console.error(JSON.stringify({ event: "company-records.production.failed", errorDigest: errorDigest(error) }));
-    return Response.json({ ok: false, error: "records-operation-failed", errorDigest: errorDigest(error) }, { status: 503 });
+    return Response.json({ ok: false, error: "records-operation-failed", errorDigest: errorDigest(error), diagnostic: recordsOperatorDiagnostic(error) }, { status: 503 });
   }
 }

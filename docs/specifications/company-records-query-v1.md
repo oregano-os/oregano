@@ -127,7 +127,9 @@ inventory must carry the matching `binding_digest` supplied by its Connector;
 a missing or changed digest fails before database writes. Duplicate object
 identities also fail before synchronization begins.
 
-Maintained Slack `0.1.3` and Monday `0.3.3` source Connectors reread the actual
+::: implementation-example
+
+Maintained Slack `0.1.4` and Monday `0.3.3` source Connectors reread the actual
 credential identity and selected resource metadata before inventory data.
 Slack requires the reviewed team, bot user, conversation kind/membership and
 history/read scopes. Monday requires the reviewed account, member identity,
@@ -137,6 +139,10 @@ the mapping. A replaced SecretRef value cannot silently relabel another
 account's observations. Completed synchronization retains the content-free
 inventory/identity receipt as `provider_evidence` in its durable sync receipt.
 This identity check supplies no implicit `synced_through` value.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 Bound normalized versions include `source_digest` in their immutable identity
 and receipt. Identical provider values from a different binding therefore

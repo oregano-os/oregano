@@ -82,7 +82,8 @@ human message in diagnostics.
 Silent turns retain the human contribution but add no fictional Agent answer.
 Interactive candidate tests preserve the last visible result and current
 candidate identity when recording a silent turn. They do not refresh the build
-card. Requester, resource, expiry and release checks remain unchanged.
+card or invalidate its release token. The host retains the last visible result
+digest across silent context; a new visible answer clears that retained digest. Requester, resource, expiry and release checks remain unchanged.
 
 Notifications for previously authorized jobs, timers and publication remain
 independent: silence in a team conversation cannot suppress their completion.

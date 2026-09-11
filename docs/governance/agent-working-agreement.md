@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -13,6 +13,14 @@ audience:
 ---
 
 # Agent Working Agreement
+
+For an Instance configuration change, use the Company's tracked
+`.companyos/instance.yaml` beside governance and compatibility. Do not invent
+an `instances/` folder or edit a temporary/encoded copy as the source of truth.
+Read [the format and migration contract](../reference/instance-configuration.md),
+preserve unrelated bindings, and classify changes under `.companyos/**`
+security review. This allowed non-secret placement does not authorize new
+provider access, resolved secrets in Git or deployment.
 
 Before editing, an Agent Contributor reads the Vision, Glossary, relevant
 specification, relevant Workbench Guide, and the
@@ -44,7 +52,8 @@ Pause only when a human must:
 - approve a new or increased permission, cost, external resource, or secret
   placement not already covered by the confirmed plan;
 - approve or execute a protected merge, release, production deployment,
-  migration, externally visible effect, or destructive action; or
+  migration, externally visible effect, or destructive action whose exact
+  scope is not already authorized; or
 - decide a material scope or product question that the current request does
   not answer.
 
@@ -53,6 +62,23 @@ authorization while its scope and targets remain exact. When the Workbench
 requires multiple confirmation hashes or human actions that are already known,
 present them together in one concise request. Never fabricate, bypass, or
 silently broaden a required confirmation.
+
+::: implementation-example
+
+Fresh setup requires the human's model-provider choice, presenting OpenAI and
+Anthropic only. A supported alternative requires an explicit request. Do not
+infer a provider from the coding agent or substitute Gateway as a default.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+A fresh standard installation uses one concrete reviewed setup decision under
+the release/promotion specification. That decision includes the named new
+resources and first production deployment; do not add separate local, activation,
+merge or deployment questions. Later changes, adoption, changed scope and actual
+provider consent retain their applicable authority boundaries. The CLI records
+fresh initialization evidence; a prompt cannot manufacture it.
 
 The placement and reuse assessment is mandatory for newly created Change
 Plans. It records responsibilities at all four boundaries and reviews the

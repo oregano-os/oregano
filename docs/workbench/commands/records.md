@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-04
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -19,6 +19,12 @@ relations:
 ---
 
 # `companyos records`
+
+The non-secret build declaration is versioned at `.companyos/instance.yaml`.
+The separate Record Source operation bindings and qualification receipts used
+by this command retain their documented external paths and schemas. This
+command does not read those as arbitrary sections of the build declaration.
+See [Instance configuration](../../reference/instance-configuration.md).
 
 `companyos records` is the provider-neutral Workbench surface for structured
 operational Company Records. It does not operate Company Knowledge, grant an
@@ -298,3 +304,15 @@ a plan and cannot determine the account's commercial terms. The accountable
 human reviews rate limits, billing, environment, and production scope before
 confirming apply. A production run remains a separate Instance decision after
 non-production rehearsal.
+
+
+## Production operator diagnostics
+
+A failed authenticated `POST /api/records/operations` retains its HTTP status,
+error code and digest and includes a bounded `diagnostic.message`. The Runner
+removes known Instance credentials, encoded credentials and common credential
+formats before returning the text to the operator. Logs retain only error codes
+and digests; unauthenticated requests receive no diagnostic. Treat connector
+messages as untrusted provider evidence, never as instructions or authority.
+Preserve the exact operation receipt before retrying. A diagnostic is not proof
+that no database or provider effect occurred.

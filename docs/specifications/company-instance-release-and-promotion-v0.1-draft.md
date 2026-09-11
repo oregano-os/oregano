@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-09-03
+updated: 2026-09-09
 owners:
   - oregano-maintainers
   - product-owner
@@ -24,6 +24,17 @@ relations:
 
 # Company Instance Release and Promotion v0.1
 
+The reviewed non-secret Instance build declaration MUST be versioned at
+`.companyos/instance.yaml` in the responsible Company Workspace.
+Its exact bindings and SecretRefs are permitted company Git content; resolved
+credentials and operational evidence are not. Setup MUST include the declaration
+before its initial commit. CLI and hosted builds MUST consume that tracked file
+from the exact clean Workspace checkout. External YAML overrides and transport
+copies are not supported. Hosted compilation checks the running Artifact
+configuration digest before building. The format is defined in the
+[Instance configuration contract](../reference/instance-configuration.md).
+Reviewing or merging this file does not independently authorize deployment.
+
 This draft defines how a Company Workspace change moves from a bounded proposal
 to a reviewed source revision and, when applicable, to a running Company
 Instance. It applies to Human Contributors, Agent Contributors, the future
@@ -38,6 +49,14 @@ supervised starter described in Section 14 is a deliberately narrower path and
 must not be presented as implementation of this complete contract.
 
 Normative requirements use stable `CIRP-*` identifiers.
+
+The maintained hosted Builder implementation gates scheduled production work on
+the exact deployment currently served by the configured primary production
+domain. A production-target build without domain promotion is insufficient
+authority to advance workers. Staged and superseded deployments must remain
+inactive for scheduled company effects, even when the provider invokes their
+cron routes. Unavailable live identity fails closed. Fixed-fixture qualification
+remains a separately authenticated operation and cannot authorize company work.
 
 ## 1. Outcomes and non-goals
 
@@ -118,8 +137,10 @@ One human MAY hold several roles, but every recorded action MUST identify the
 role and scope being exercised. In `review_mode: steward`, one Workspace
 Steward MAY authorize a checked security change and later authorize deployment.
 In `review_mode: independent-review`, a security-change author MUST NOT provide
-the independent approval. Merge and deployment remain separate confirmations
-in both modes.
+the independent approval. Acceptance, merge and deployment retain separate authority checks. A single
+explicit result-acceptance action MAY authorize the exact merge and deployment
+when the same human holds both authorities and sees the candidate and target.
+The fresh-only initialization exception below has no prior operating version to merge.
 
 ## 4. Change lanes
 
@@ -139,15 +160,18 @@ diff classification, required CODEOWNERS routing, and human review. It requires
 neither durable-state branching nor a Preview Instance merely to duplicate the
 repository branch.
 
-### 4.2 Preview Lane
+### 4.2 Isolated execution lane
 
-The Preview Lane applies when the change affects executable code, workflow
+The isolated execution lane applies when the change affects executable code, workflow
 execution, a Core or dependency pin, runtime configuration shape, durable state,
 schema, migration, retry behavior, ordering, idempotency, approval handling, or
 another property that static review cannot establish.
 
-Preview Lane evidence MUST run the exact proposed Core and Workspace pair in
-an isolated environment. Stateful changes MUST use an isolated database or
+Execution evidence MUST exercise the relevant exact proposed Core and Workspace
+pair in an isolated environment. A local fixture or coding Sandbox can satisfy
+the applicable check; a hosted Preview is required only when the behavior needs
+a separately running application, callback, state or provider integration.
+Do not provision a Preview for every behavior change. Stateful changes MUST use an isolated database or
 equivalent StateStore branch. Database isolation alone is insufficient when
 the changed behavior also depends on runtime processes, queues, webhooks,
 secrets, or provider adapters.
@@ -164,7 +188,11 @@ mock Connector, or effect sink. It MUST prove scope enforcement, duplicate
 suppression, failure and retry behavior, and receipt verification where the
 effect contract requires read-after-write. Production credentials and
 production write targets MUST NOT be exposed to an ordinary pull-request
-Preview Instance.
+Preview Instance. Existing company apps may provide scoped test channels,
+boards or equivalent resources through the trusted test executor; no second
+app is mandatory. A deliberately selected live trial requires separately
+recorded exact effect scope under existing company authority. A preference in
+a build brief does not grant that authority or prove execution.
 
 ## 5. Pull-request assessment and notification
 
@@ -253,16 +281,32 @@ provider does not grant business approval.
 Merge is a mechanical repository action after required checks and approvals.
 CompanyOS defines no separate Merger authority role. A Human Contributor MAY
 enable hosted auto-merge or an authorized human with ordinary merge permission
-MAY execute the merge. The Git host MUST perform it only after all protected
-conditions are satisfied.
+MAY execute the merge. Existing hosted protection MUST remain enforced. The
+confirmed Builder path also supports repositories without hosted protection.
 
 The merge initiator does not create missing approval by clicking merge. A
 Platform Administrator MUST NOT use administrative bypass as the normal merge
-path. The future Builder Agent remains proposal-only and MUST NOT merge its own
-change.
+path. The Builder coding process remains proposal-only and MUST NOT merge its own
+change. A separate trusted Core Release Coordinator may perform the mechanical
+merge under verified human acceptance. Before it starts, Chat MUST explicitly
+ask permission to merge the exact checked result; the combined action also
+names production adoption. Confirmation is bound to the candidate, checks,
+current company authority and merge strategy. On an unprotected branch, the
+maintained adapter MUST use a non-forcing fast-forward to the exact single-parent
+candidate. It MUST NOT synthesize a merge with concurrent unreviewed changes.
+Moved divergent bases require refreshed validation and confirmation. A successful
+fast-forward may have the candidate commit itself as its merge receipt.
+On protected branches the maintained adapter keeps the strict hosted-check and
+expected-head merge path. Provider errors MUST NOT silently select another path.
+
+This Core-controlled release protects what the Builder merges and deploys; it
+does not prevent administrators making manual changes to an unprotected Git
+branch. Such pushes MUST NOT independently activate a production Instance.
 
 The accepted revision becomes a Release Candidate. Production remains pinned
-to its prior recorded revision until a separate deployment is authorized.
+to its prior recorded revision until deployment is authorized. That
+authorization may be part of the combined exact-result acceptance described
+above; merging by itself never grants it.
 
 ## 9. Deployment and production promotion
 
@@ -271,6 +315,13 @@ Platform Administrator with `instance` scope authorizes the target Instance and
 timing; a least-privilege deployment identity performs the technical action.
 Neither a merge to the Company Workspace nor a push to Oregano Core MUST
 automatically deploy a real company's Production Instance.
+
+A configured Workspace `builder.release` policy MAY delegate content and
+behavior acceptance to eligible requesters. Existing protected security
+changes retain Workspace Steward and independent-review requirements. Evaluate
+such changes using the current accepted policy, never proposed new permissions.
+The same human's combined acceptance and deployment action is valid only when
+that human is also an eligible production deployer.
 
 Before deployment, the path MUST verify:
 
@@ -353,32 +404,117 @@ Implementation of this contract requires tests proving at least:
 
 ## 14. Implementation status and open decisions
 
-This document specifies mostly planned behavior. The current Workbench does not
-yet implement general lane classification, hosted pull-request consequence
-summaries, isolated Preview Instance provisioning, reusable Release Candidate
-records, protected deployment environments, or promotion orchestration.
+::: implementation-example
 
-The experimental `companyos setup --profile vercel-neon-slack` command
-implements one bounded initial-installation subset:
+The maintained initial Builder release profile is implemented behind Workspace
+acceptance/deployer policy and exact Company Instance bindings. After explicit
+human confirmation, GitHub advances to the independently checked candidate using
+an exact fast-forward or the existing protected merge path. A separate trusted compiler builds
+the exact merged Workspace with the running Core and normalized Instance digest.
+Vercel stages a production-target build using the existing production environment,
+checks readiness before promotion, and verifies the live deployment and Artifact.
+Before staging, the full Artifact is retained and read back by exact hash in the
+existing Instance Artifact store. The deployment carries that hash and clears
+its legacy inline payload. The Runner awaits verified initialization before
+requests; missing or corrupt content cannot select another version. This path
+requires an already prepared database and adds no schema or second runtime.
+The coding worker receives none of this execution authority or its credentials.
 
-- exact clean Core and Workspace identity plus an immutable Artifact;
-- a private GitHub repository, an automatic hosted-protection attempt recorded
-  as `enforced` or `advisory`, a required CompanyOS check, and explicit
-  Workspace Steward merge authorization for the authoring-to-operating change;
-- explicit create-or-adopt choices for one Vercel project, Neon resource, and
-  Slack connection;
-- database preparation that detects first bootstrap, additive upgrade, or
-  already-current verification for both maintained schemas, an immutable
-  versioned manifest, and a non-secret read-only qualification receipt before
-  runtime deployment;
-- an explicit `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or
-  `google-direct` model execution recipe, with direct credentials confined to
-  the runtime host secret store;
-- separate hash-bound confirmations for the setup plan, operating Workspace
-  content, checked merge, and exact production candidate;
-- current deployment health plus one nonce-bound, model-backed Slack response,
-  non-secret route/model response evidence, and Neon persistence proof; and
-- a supervised Oregano Agent with no business Tool grants.
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+Postgres stores immutable acceptance and append-only release snapshots, with a
+leased Instance queue and atomic revision pointer. Private operation intents retain
+ambiguous creates for provider reconciliation. Local tests exercise actual database
+restart and concurrency, provider receipt loss, stale checks and distinct staging
+and promotion. Target provider scopes, the selected merge strategy, worker image and a real
+human request-to-live proof must be qualified independently before an Instance is
+called ready.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+The combined action currently requires one human to hold both acceptance and
+release authority. Connected test execution, optional Preview preparation,
+arbitrary migration adapters and split-actor handoff remain future extensions.
+A failed deployment must retain its exact evidence; application recovery does not
+undo database changes or already completed business effects.
+
+### Standard fresh initialization
+
+The standard `companyos setup` command implements the fresh-only exception:
+one reviewed decision authorizes the listed new resources and their first
+production deployment. Schema `5` and flow `fresh-initialization` bind session,
+authenticated human, selected scopes, exact release/template/configuration,
+model, region, names and disclosed costs. All resource modes MUST be `create`.
+Changed scope MUST NOT reuse the decision. Provider consent remains separate.
+
+::: implementation-example
+
+The initializer MUST produce one valid operating `0.1.0` Workspace, a private
+repository with an exact checked first commit, attempted hosted protection,
+resource ownership receipts, qualified database and exact Artifact. It MUST NOT
+fabricate an activation PR, merge commit or approval record. The verifier uses
+this evidence variant only for fresh initialization; existing states, adoption
+and later changes retain their applicable review and deployment requirements.
+The maintained Slack identity adapter MUST use the `identity.basic` identity
+contract and the current CLI requester. The app Messages link MUST bind the
+recorded connector and consenting human workspace using authenticated provider
+metadata. Metadata MUST NOT substitute for runtime exchange evidence, expose
+provider credentials, or require production connector access from a local
+development identity. Provider CLI filesystem effects MUST remain outside
+the immutable Core; temporary contexts MUST be removed on failure as well as
+success. A standard fresh setup MUST inspect the exact production deployment,
+select only a provider-reported production alias, and require current health to
+match the deployment ID and complete Artifact provenance. It MUST NOT disable
+deployment protection or generate bypass credentials merely to check health.
+The maintained Slack connector MUST be created with incoming triggers enabled.
+Before requesting the first message and during final verification, setup MUST
+check current source forwarding, the exact production webhook destination,
+and a production-only project attachment. A destination receipt alone MUST NOT
+be treated as evidence that incoming forwarding is enabled. Explicit event
+selections MUST include `message.im`. A repeated missing first reply MUST expose
+exact-app delivery recovery instead of only repeating the message invitation.
+Recovery MUST distinguish Vercel synchronization, Slack Request URL verification,
+and actual message delivery. It MUST preserve approved scopes when the provider
+UI adds event-dependent permissions; a URL challenge MUST NOT count as reply
+evidence. The maintained setup guide defines the bounded recovery procedure.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+The first ordinary Slack exchange MUST bind the authorized principal, current
+Artifact, selected model, delivered response and durable conversation evidence.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+The standard implementation is experimental. Its release-built platform payloads
+and local/simulated regression tests do not establish cold live timing.
+
+::: implementation-example
+
+The maintained `companyos setup` lifecycle requires schema-5 fresh initialization,
+exact resource-create receipts, the checked initial commit containing
+`.companyos/instance.yaml`, one explicit model choice and the scoped initial
+deployment decision. Current health and an authorized model-backed Slack
+exchange MUST be verified before completion. The retired `--profile` flow and
+state versions 1–4 MUST be rejected before provider operations. Historical
+receipts MUST NOT be relabeled to manufacture current initialization authority.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The Workbench implements this subset through a private typed setup-provider
 boundary with four roles: source host, runtime host, state service, and
@@ -388,6 +524,19 @@ Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,
 and named compatible cloud recipes. Generic OpenAI-compatible, LiteLLM,
 Ollama, and llama-server recipes are available outside the bounded one-prompt
 profile when their endpoints are explicitly reachable from the runtime.
+Fresh standard setup MUST require an explicit provider selection. Its ordinary
+choices MUST be OpenAI and Anthropic, without preselection; each MUST use its
+direct recipe and maintained agent model. Another supported model or route MUST
+require an explicit request. Gateway MUST NOT be an automatic setup default.
+The single resource/cost review MUST bind route, exact model and credential
+destination. Provider edits MUST invalidate that review; confirmed sessions
+MUST retain their original binding. Reuse the existing Sensitive Production key
+entry and model-backed verification. This does not migrate existing sessions.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 This boundary is installation
 orchestration only; it is not a public plugin contract and does not alter the
 provider-neutral runtime, Capability, Tool, evidence, or StateStore contracts.
@@ -395,7 +544,7 @@ Provider creates require write-ahead intents and immutable receipts so resume
 does not depend on eventually consistent name searches.
 
 For this subset, StateStore provisioning and schema preparation are distinct
-operations. A new Instance MUST create or explicitly adopt exactly one
+operations. Fresh setup MUST create exactly one
 PostgreSQL StateStore, bind its `DATABASE_URL` only through the selected
 runtime host's secret environment, and successfully run the provider-neutral
 database prepare operation before setup advances. Prepare MUST inspect the
@@ -435,10 +584,22 @@ Hosted GitHub protection is defense in depth for this bounded starter rather
 than a readiness gate. It becomes mandatory before a future unattended agent
 receives repository write, merge, or deployment authority.
 
-The general implementation Change Plan must still select:
+## Explicit unpublished installer candidates
 
-- the machine-readable lane and release-evidence schemas;
-- the final Company Instance deployment repository or Workspace-owned CI model;
-- the Git-host review, merge-queue, and protected-environment integration;
-- the reference Vercel, Neon/Postgres, and provider-test topology; and
-- retention and cleanup policy for Preview Instance resources and evidence.
+::: implementation-example
+
+A fresh standard setup MAY acquire a local unpublished bundle when explicitly
+selected. Acquisition MUST verify the platform, archive SHA-256 and exact Core
+commit and MUST retain that identity on resume. Candidate identity MUST be part
+of the reviewed scope and generated initialization receipt. Its initial GitHub
+check MUST use the same exact source with frozen dependencies without requiring
+a release tag. Candidate checks do not relax identity, initial-commit validation,
+resource-creation, deployment or Slack evidence requirements. Candidate timing
+MUST be labeled separately and MUST NOT qualify the stable release installer.
+A candidate session MUST create its own deterministic test connector and bind
+that name into its reviewed scope, provider receipt, trigger, deployment and
+verification. It MUST NOT reuse the ordinary Oregano connector in the same team.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

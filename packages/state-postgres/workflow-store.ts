@@ -18,18 +18,26 @@ const runRow = (row: Record<string, any>): WorkflowRun => ({
   ...(row.lease_token ? { lease: { token: String(row.lease_token), owner: String(row.lease_owner), expiresAt: postgresTimestampToIso(row.lease_expires_at) } } : {}),
 });
 
+/** Logical execution namespaces isolate test runs without changing Artifact identity. */
+export function workflowStorageInstance(instanceId: string, namespace?: string): string {
+  if (namespace === undefined) return instanceId;
+  if (!/^builder-test-[a-f0-9]{40}$/.test(namespace)) throw new Error("Invalid workflow execution namespace.");
+  return `${namespace}:${instanceId}`;
+}
+
 /** Every state transition, associated event and delivered assignment is one SQL transaction boundary. */
-export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
+export function createPostgresWorkflowExecutionStore(options: { prepareArtifactSchema?: boolean; executionNamespace?: string } = {}): WorkflowExecutionStore {
+  const scoped = (instanceId: string) => workflowStorageInstance(instanceId, options.executionNamespace);
   const store: WorkflowExecutionStore = {
     async putArtifact(artifact) {
       assertWorkflowArtifact(artifact);
-      await ensureWorkflowExecutionSchema();
+      if (options.prepareArtifactSchema !== false) await ensureWorkflowExecutionSchema();
       await connection()`insert into companyos.workflow_artifacts(artifact_hash, instance_id, artifact_json)
         values (${artifact.artifactHash}, ${artifact.instance.id}, ${JSON.stringify(artifact)}::jsonb)
         on conflict (artifact_hash) do nothing`;
     },
     async getArtifact(hash) {
-      await ensureWorkflowExecutionSchema();
+      if (options.prepareArtifactSchema !== false) await ensureWorkflowExecutionSchema();
       const rows = await connection()`select artifact_json from companyos.workflow_artifacts where artifact_hash = ${hash}`;
       if (!rows[0]) return undefined;
       const artifact = json<CompanyOSArtifact>(rows[0].artifact_json);
@@ -58,7 +66,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
         ), created as (
           insert into companyos.workflow_executions(run_id, instance_id, workflow_id, artifact_hash, manifest_hash,
             origin_key, origin_digest, identity_json, state_json, updated_at)
-          select ${id.runId}, ${id.instanceId}, ${id.workflowId}, ${id.artifactHash}, ${id.manifestHash},
+          select ${id.runId}, ${scoped(id.instanceId)}, ${id.workflowId}, ${id.artifactHash}, ${id.manifestHash},
             ${id.originKey}, ${id.originDigest}, ${JSON.stringify(id)}::jsonb, ${JSON.stringify(args.state)}::jsonb, ${id.createdAt}
           from eligible limit 1 on conflict do nothing returning *
         ), evidence as (
@@ -73,20 +81,20 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
     },
     async read(instanceId, runId) {
       await ensureWorkflowExecutionSchema();
-      const rows = await connection()`select * from companyos.workflow_executions where instance_id = ${instanceId} and run_id = ${runId}`;
+      const rows = await connection()`select * from companyos.workflow_executions where instance_id = ${scoped(instanceId)} and run_id = ${runId}`;
       return rows[0] && runRow(rows[0]);
     },
     async findOrigin(instanceId, workflowId, originKey) {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select * from companyos.workflow_executions
-        where instance_id = ${instanceId} and workflow_id = ${workflowId} and origin_key = ${originKey}`;
+        where instance_id = ${scoped(instanceId)} and workflow_id = ${workflowId} and origin_key = ${originKey}`;
       return rows[0] && runRow(rows[0]);
     },
     async list(args) {
       if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 200) throw new Error("Workflow listing limit must be from 1 to 200");
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select * from companyos.workflow_executions
-        where instance_id = ${args.instanceId} and (${args.status ?? null}::text is null or state_json->>'status' = ${args.status ?? null})
+        where instance_id = ${scoped(args.instanceId)} and (${args.status ?? null}::text is null or state_json->>'status' = ${args.status ?? null})
         and (${args.afterRunId ?? null}::text is null or run_id > ${args.afterRunId ?? null})
         and (${args.activeOnly ?? false} = false or state_json->>'status' in ('running','waiting'))
         order by run_id limit ${args.limit}`;
@@ -95,7 +103,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
     async hasActiveArtifact(args) {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select exists(select 1 from companyos.workflow_executions
-        where instance_id = ${args.instanceId} and artifact_hash = ${args.artifactHash}
+        where instance_id = ${scoped(args.instanceId)} and artifact_hash = ${args.artifactHash}
         and workflow_id in (select jsonb_array_elements_text(${JSON.stringify(args.workflowIds)}::jsonb))
         and state_json->>'status' in ('running', 'waiting')) as active`;
       return rows[0]?.active === true;
@@ -105,7 +113,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`update companyos.workflow_executions
         set lease_owner = ${args.owner}, lease_token = ${args.token}, lease_expires_at = ${args.expiresAt}
-        where instance_id = ${args.instanceId} and run_id = ${args.runId}
+        where instance_id = ${scoped(args.instanceId)} and run_id = ${args.runId}
           and state_json->>'status' in ('running', 'waiting')
           and (lease_token is null or lease_expires_at <= ${args.now}) returning *`;
       return rows[0] && runRow(rows[0]);
@@ -114,7 +122,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`update companyos.workflow_executions
         set lease_owner = null, lease_token = null, lease_expires_at = null
-        where instance_id = ${args.instanceId} and run_id = ${args.runId} and lease_token = ${args.leaseToken} returning run_id`;
+        where instance_id = ${scoped(args.instanceId)} and run_id = ${args.runId} and lease_token = ${args.leaseToken} returning run_id`;
       return rows.length === 1;
     },
     async commit(args) {
@@ -128,7 +136,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
       const rows = await connection()`with advanced as (
           update companyos.workflow_executions set state_json = ${JSON.stringify(args.state)}::jsonb,
             revision = revision + 1, lease_owner = null, lease_token = null, lease_expires_at = null, updated_at = ${args.now}
-          where instance_id = ${args.instanceId} and run_id = ${args.runId} and revision = ${args.expectedRevision}
+          where instance_id = ${scoped(args.instanceId)} and run_id = ${args.runId} and revision = ${args.expectedRevision}
             and lease_token = ${args.leaseToken} and lease_expires_at > greatest(${args.now}::timestamptz, clock_timestamp())
             and state_json->>'status' in ('running','waiting') returning *
         ), metadata as (
@@ -160,7 +168,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
           update companyos.workflow_executions
           set state_json = jsonb_set(state_json - 'wait', '{status}', '"cancelled"'::jsonb), revision = revision + 1,
             lease_owner = null, lease_token = null, lease_expires_at = null, updated_at = ${args.now}
-          where instance_id = ${args.instanceId} and run_id = ${args.runId}
+          where instance_id = ${scoped(args.instanceId)} and run_id = ${args.runId}
             and state_json->>'status' in ('running','waiting') returning *
         ), metadata as (
           update companyos.workflow_runs set status = 'cancelled' where run_id in (select run_id from cancelled)
@@ -174,7 +182,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
     async deliveredAssignment(args) {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select assignment_json from companyos.workflow_thread_assignments
-        where instance_id = ${args.instanceId} and assignment_key = ${workflowAssignmentKey(args.instanceId, args.conversation)}
+        where instance_id = ${scoped(args.instanceId)} and assignment_key = ${workflowAssignmentKey(args.instanceId, args.conversation)}
           and (not (assignment_json ? 'subjectPrincipal') or assignment_json->>'subjectPrincipal' = ${args.conversation.subjectPrincipal ?? null})`;
       return rows[0] && json<WorkflowAssignment>(rows[0].assignment_json);
     },
@@ -208,7 +216,7 @@ export function createPostgresWorkflowExecutionStore(): WorkflowExecutionStore {
       await ensureWorkflowExecutionSchema();
       const rows = await connection()`select assignment_json from companyos.workflow_thread_assignments assigned
         join companyos.workflow_executions runs on assigned.run_id = runs.run_id and assigned.instance_id = runs.instance_id
-        where assigned.instance_id = ${args.instanceId} and assignment_key = ${workflowAssignmentKey(args.instanceId, args.conversation)}
+        where assigned.instance_id = ${scoped(args.instanceId)} and assignment_key = ${workflowAssignmentKey(args.instanceId, args.conversation)}
           and assigned.expires_at > ${args.now} and runs.state_json->>'status' in ('running','waiting')
           and (not (assignment_json ? 'subjectPrincipal') or assignment_json->>'subjectPrincipal' = ${args.conversation.subjectPrincipal ?? null})`;
       return rows[0] && json<WorkflowAssignment>(rows[0].assignment_json);

@@ -1,16 +1,19 @@
+import type { ToolSet } from "ai";
 import type { CompiledAgent } from "../../../companyos-builder/types.ts";
 import type { PublishedConversationContext } from "../../../runtime/published-conversation-context.ts";
 import { knowledgeTurnInstructions, type KnowledgeTurnRoute } from "./knowledge-turn-routing.ts";
 
 /** Shared by hosted conversations and isolated model qualification. */
 function instructionParts(
-  agent: Pick<CompiledAgent, "instructions" | "materials">,
+  agent: Pick<CompiledAgent, "instructions" | "materials"> & Partial<Pick<CompiledAgent, "id">>,
   knowledgeRoute: KnowledgeTurnRoute,
   registeredToolNames: readonly string[],
   collectionContext?: unknown,
   publishedContext?: PublishedConversationContext["evidence"],
 ): string[] {
-  const materials = Object.entries(agent.materials)
+  const materials = agent.id === "builder"
+    ? "Use builder_list_context to discover scoped Workspace definitions and builder_read_context to inspect their current content."
+    : Object.entries(agent.materials)
     .map(([path, content]) => `\n<material path="${path}">\n${content}\n</material>`)
     .join("\n");
   const registeredTools = registeredToolNames.join(", ") || "none";
@@ -28,4 +31,8 @@ export function agentInstructions(...args: Parameters<typeof instructionParts>):
 /** Stable instructions precede separately changing work/evidence blocks. */
 export function agentInstructionMessages(...args: Parameters<typeof instructionParts>) {
   return instructionParts(...args).filter(Boolean).map(content => ({ role: "system" as const, content }));
+}
+
+export function systemInstructions(agent: CompiledAgent, knowledgeRoute: KnowledgeTurnRoute, tools: ToolSet): string {
+  return agentInstructions(agent, knowledgeRoute, Object.keys(tools));
 }

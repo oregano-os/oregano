@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -15,6 +15,13 @@ availability: experimental
 ---
 
 # `companyos validate`
+
+When `.companyos/instance.yaml` exists, validation checks its version-1 shape
+and non-secret content using the build parser. Unknown top-level fields and
+invalid declarations are errors. Absence remains compatible with authoring-only
+and unmigrated Workspaces; a normal build requires the file. Full Agent, Tool
+and Capability resolution still happens during build. See
+[the format reference](../../reference/instance-configuration.md).
 
 Runs deterministic, LLM-free, non-mutating checks against a Company Workspace.
 

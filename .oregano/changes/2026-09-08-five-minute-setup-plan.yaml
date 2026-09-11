@@ -1,0 +1,65 @@
+version: 3
+plan_id: five-minute-setup-plan-2026-09-08
+created: "2026-09-08"
+proposal: true
+title: Plan the complete five-minute standard installation
+objective: >-
+  Consolidate the requested onboarding simplification into one implementation
+  plan: connect accounts, confirm one understandable summary including the
+  first deployment, and use Oregano in Slack. Specify automatic discovery and
+  defaults, CLI-owned orchestration, direct fresh initialization, automatic
+  recovery, release delivery, and measurable five-minute acceptance. Preserve
+  the implemented Vercel Pro prerequisite as completed baseline work.
+non_goals:
+  - Implement or activate the proposed installer in this planning-only change.
+  - Rewrite completed change records or claim the simplified flow already exists.
+  - Change a live account, subscription, resource, Workspace, or deployment.
+  - Add managed hosting or an unimplemented alternative infrastructure profile.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-five-minute-setup-plan.yaml
+  - docs/plans/2026-09-08-five-minute-setup.md
+  - docs/onboarding/setup-options.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+tests: []
+documentation_impact:
+  required: true
+  affected_documents:
+    - plan.five-minute-setup
+    - onboarding.setup-options
+    - status.current
+architecture:
+  placement:
+    core: >-
+      The proposed Workbench owns discovery, defaults, one scoped setup decision,
+      fresh initialization, provider orchestration, recovery, and verification.
+      This diff only records that plan and its documentation links.
+    packages: Reuse the maintained starter and provider bindings; no new Package runtime or workflow engine.
+    workspace: Company identity, the named responsible human, operating starter, and later governance remain versioned company truth.
+    instance: Provider accounts, billing, region, credentials, resource receipts, deployment identity, and setup evidence stay private.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Resolve authenticated identities and bind one initial human decision to the responsible person and exact setup scope.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Replace repeated fresh-install decisions with one scoped authorization receipt while retaining mutation intents, resource receipts, and recovery.
+    - mechanism: model-recipe-resolver
+      reason: Select the maintained Gateway default from release-matched metadata without an onboarding model interview.
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing four-role setup boundary with account discovery and automatic lifecycle operations; preserve Vercel Pro detection.
+  new_core_mechanisms:
+    - A versioned fresh-initialization evidence variant within the existing setup state and verifier, distinct from later governed changes and legacy PR-based installations.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: >-
+    One standard installer serves every new company through maintained defaults
+    and private account discovery. The fresh-install authorization cannot be
+    used to change an adopted production system or grant later business effects.
+rollback: >-
+  Remove this proposal and its links and regenerate documentation. No running
+  behavior changes in this diff. Implementation must retain legacy state readers,
+  exact receipts, and recovery without deleting or recreating user resources.

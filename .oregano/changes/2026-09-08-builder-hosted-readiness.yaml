@@ -1,0 +1,53 @@
+version: 3
+plan_id: builder-hosted-readiness-2026-09-08
+created: 2026-09-08
+title: Correct hosted workflow dependencies and installer package resolution
+objective: Allow a bounded hosted workflow to start with its actual declared
+  capabilities, without requiring an immutable Records snapshot for an unused
+  Connector, and resolve the pinned package manager behind CI executable shims.
+non_goals:
+  - Relax snapshot identity for workflows that use Company Records.
+  - Add provider rights, alter human acceptance or claim live functional proofs.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-builder-hosted-readiness.yaml
+  - docs/status/current.md
+  - package.json
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/setup-bundle-resolution.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/workflow-connectors.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - packages/testkit/tests/workflow-connector-selection.test.ts
+  - scripts/build-setup-bundle.mjs
+tests:
+  - packages/testkit/tests/workflow-connector-selection.test.ts
+  - packages/cli/tests/setup-bundle-resolution.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - status.current
+architecture:
+  placement:
+    core: Resolve required hosted Connector dependencies and pinned installer
+      packages.
+    packages: Preserve all existing Tool and Workbench contracts.
+    workspace: Retain declared workflow owners and their resolved Tool grants.
+    instance: Reuse existing configured bindings and credentials without widening access.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Resolve only the configured Connectors required by enabled workflow
+        owners.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Both corrections apply to every company and supported coding profile.
+rollback: Restore the previous exact Core pairing; retain execution and
+  deployment evidence. No database or provider-data migration is introduced.
+open_decisions: []

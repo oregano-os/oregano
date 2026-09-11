@@ -39,6 +39,8 @@ export const VERCEL_NEON_SLACK_PROFILE = defineSetupProviderProfile({
     role: "runtime-host",
     provider: "vercel",
     cliVersion: "56.3.2",
+    requiredPlan: "pro",
+    acceptedPlans: ["pro", "enterprise"] as const,
     projectRoot: "packages/runner-vercel",
     framework: "nextjs",
     sourceFilesOutsideRootDirectory: true,
@@ -94,7 +96,7 @@ export const VERCEL_NEON_SLACK_PROFILE = defineSetupProviderProfile({
       return resourceReceipt(payload, this.agentDisplayName);
     },
     userAuthorizationArguments(connector) {
-      return ["connect", "token", connector, "--subject", "user", "--scopes", this.userAuthorizationScopes.join(","), "--format", "json", "--yes"];
+      return ["connect", "token", connector, "--scopes", this.userAuthorizationScopes.join(","), "--format", "json", "--yes"];
     },
     triggerAttachmentArguments(connector, project) {
       return ["connect", "attach", connector, "--project", project, "--environment", "production", "--triggers", "--trigger-path", this.triggerPath, "--yes", "--format", "json"];

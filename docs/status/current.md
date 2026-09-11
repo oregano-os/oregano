@@ -15,6 +15,34 @@ audience:
 
 # Current System Status
 
+Core 0.11.4 corrects Builder test presentation: candidate conversations show the
+actual answer without a setup introduction, and readiness changes update the
+same result card while preserving distinct progress and release history.
+
+Builder test conversations show candidate replies without an extra test-version
+introduction. Readiness changes refresh the existing result card instead of
+posting a second completion card; later release messages retain earlier history.
+
+Go Live on Builder cards without a precomputed release token now prepares and
+accepts the exact version in one authenticated click. The click is functional
+acceptance; no separate test-review action is required. Failures retain technical
+controls and report known blockers or a safe diagnostic reference.
+
+
+Builder Workspace releases preserve deployment-local runtime settings and reject
+promotion if the staged Instance loses its Builder configuration. Builder status
+messages retain earlier conversation content instead of replacing result text.
+
+
+Core 0.10.0 and Workbench 0.1.0-experimental.20 require CLI and hosted Builder builds to read the tracked `.companyos/instance.yaml`
+from the exact checked Workspace commit. External YAML overrides and the hosted
+YAML environment copy are removed; hosted compilation retains the running
+Artifact configuration-digest authority check. Setup writes the declaration
+before its initial commit. Only current schema-5 fresh setup sessions resume;
+the old explicit installer and schemas 1–4 are retired. This is implemented
+source behavior, not evidence of a live deployment. See
+[the reference](../reference/instance-configuration.md).
+
 This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
@@ -81,6 +109,190 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   multipart receipts. Workspace templates remain provider independent. Transport
   tests do not replace verification of formatting in a deployed Slack client.
 
+
+- Core 0.11.1 corrects Builder intake after clarification. Typed model output
+  replaces free-text JSON parsing. Invalid output and execution failures are
+  retried once and then reported as unavailable, never as a normal question.
+  Current-message and literal-quote checks still gate development. Retained
+  intake receipts distinguish questions from failures without storing message
+  text. A protected hosted qualification exercises the configured model on
+  synthetic clarification, explicit-start and negative cases without creating
+  jobs. Source checks do not prove a company deployment or human acceptance;
+  adoption must pass this hosted gate. No provider permission or DDL changes.
+
+::: implementation-example
+
+- Core 0.11.0 and Workbench 0.1.0-experimental.21 replace the 0.9.0 Finish/Restart workflow with one
+  four-action result card: **Go Live**, **Discard Build**, **Open Test Channel** and
+  **Request Changes**. Current-message intent separates questions from coding.
+  Users can start new builds while earlier drafts remain open and create fresh
+  test-channel threads directly, with selection per Instance/user and pinned
+  existing conversations. Seven-day configurable inactivity pauses tests without
+  deleting history. Trusted discard closes an exact unmerged proposal; uncertain
+  closure blocks publication and remains retryable. Shared Core routing and
+  presentation accept a synthetic non-Slack test surface; maintained deployed
+  adapters remain Slack/Vercel and the same Claude Code/Codex ACP profiles.
+  The hosted integration is the maintained Slack webhook/action route, Builder
+  worker and functional-test controller. PR 112 passed CI, including 72 mandatory
+  Postgres proofs; the updated source has synthetic multi-user and alternative
+  communication-adapter coverage. Exact hosted model/provider qualification
+  remains an Instance adoption gate; this release does not claim a new customer
+  deployment or human acceptance. No DDL or provider permission change is needed.
+  Preserve test histories and decision evidence and stop tests/publication before
+  rolling back to 0.10.0. The historical 0.9.0 limits below describe that release.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+- Core 0.9.0 and Workbench 0.1.0-experimental.19 release the reviewed Builder
+  experience from PR 108: a retained request card, confirmed
+  coding-start progress and one result card with **Request changes** and **Go live**.
+  The Agent recommends and explains a supported test without a mandatory menu.
+  Interactive Agent tests without Tools reuse the existing app and exact candidate,
+  with separate multi-turn history, requester-only finish/restart controls, twenty
+  replies maximum and 24-hour open-session expiry. Restarting preserves the code
+  candidate while invalidating earlier acceptance evidence. The updated code has
+  synthetic lifecycle coverage; adoption and real provider/human proofs of this
+  revision remain separate. Simulation, full workflow dialogs, general Preview
+  provisioning and bounded live trials remain deferred.
+  Hosted entrypoints are the maintained Slack webhook/action route and Builder
+  worker, wired to the same functional-test controller and release coordinator.
+  PR 108 passed 1,079 general tests and 70 mandatory Postgres proofs without
+  database skips; synthetic Chat tests exercise request, follow-up, finish,
+  restart, feedback and stale acceptance. Real hosted proofs of this new revision
+  remain an Instance adoption gate and are not claimed by this release note.
+  Upgrade from 0.8.1 requires matching Core/Workbench pins and a newly qualified
+  image/deployment, with no DDL, provider grants or business-file migration.
+  Before rollback, stop or resolve interactive sessions and preserve their
+  evidence; legacy automatic tests remain readable.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+- Core 0.8.0 adds a bounded connected Builder functional-test profile. It compiles
+  the exact unmerged proposal, executes a read-only Agent reply or an immediate
+  operator workflow, and retains exact resource scope, execution and delivery
+  evidence before presenting merge/live acceptance. Feedback invalidates the old
+  result; acceptance and feedback use a durable atomic revision. The same test
+  digest is checked again before merge. Test workflow state, dispatch fences and
+  timers have separate storage namespaces while retaining exact Artifact identity.
+  The employee uses the existing provider app and designated test resources.
+  Timed workflows, intermediate decisions, conversational Tools, general resource
+  remapping, live trials and migrations remain outside this initial test profile.
+  Synthetic compiler/engine/Chat tests and actual Postgres isolation tests do not
+  establish a customer's two requested human-feedback-to-live proofs.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+- Standard setup now requires an explicit choice of OpenAI or Anthropic and
+  binds its direct recipe, maintained model and Sensitive Production key
+  destination to the single resource/cost review. Other models/providers require
+  a request. Gateway is not selected automatically; existing installed sessions
+  retain their original binding. The provider-compatibility repairs are included.
+  The new choice is covered by synthetic lifecycles; fresh live qualification of
+  this revision is still outstanding.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+- The setup adapter corrects the `identity.basic` endpoint and personal CLI
+  token-subject mismatch. It validates connector metadata for the Slack Messages
+  link and isolates provider-generated OIDC/skill files from immutable source.
+  Synthetic regressions cover mismatched identities, secret reduction, cleanup
+  on failure and resumed setup without duplicate deployment. These checks do
+  not establish fresh external candidate qualification. A further regression
+  checks production aliases and exact deployment IDs while refusing login
+  redirects; deployment protection remains enabled. Slack creation now enables
+  incoming triggers explicitly; both the first-message gate and final verification
+  check forwarding plus the exact production attachment and webhook destination.
+  Regressions reject disabled forwarding and wrong project, route or environment.
+  Missing replies on retry now expose exact Slack URL-verification and Connect
+  delivery recovery; explicit subscriptions without `message.im` are refused.
+  Provider synchronization and URL challenges do not qualify a model reply.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+- The repository qualification correction fixes the repository-scoped release client to allow GitHub's
+  exact `base...head` comparison while rejecting literal or encoded path
+  traversal. The hosted trusted Git fixture uses the current Change Plan and
+  Workspace document contracts, explicitly governed paths and an executable scope test.
+  It is tested through actual Workspace validation and final release classification.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+- Core 0.7.0 adds explicit human-confirmed Builder merges for unprotected
+  repositories. A non-forcing fast-forward adopts only the exact single-parent
+  checked candidate; concurrent divergent changes stop rather than entering an
+  unchecked merge. Existing protected merges remain supported. Strategy and
+  checks are bound to confirmation, and showing the result grants no authority.
+  Lost responses reconcile from immutable branch/commit evidence. The coding
+  process still has no repository or release credential; production adoption
+  uses the same trusted compiler, staged health and explicit promotion path.
+  This capability does not prevent manual changes to an unprotected Git branch.
+
+::: implementation-example
+
+- The Core 0.6.0 Builder release adds scoped definition discovery and
+  reads, a versioned before/after brief, unresolved-decision admission checks,
+  original-message continuation through an allowlisted Builder handoff, and
+  automatic isolated job submission after clarification. Workspace Builder
+  presence now declares intent; Instance execution bindings remain separate
+  and `enabled: true` is no longer required. The generator supplies process
+  context for new Workspaces; existing read scope is not broadened.
+- Builder diff inspection now includes uncommitted and mixed changes, including
+  staged, new, renamed and deleted paths. Valid v3 evidence plans no longer
+  cause automatic security classification solely through `.companyos/**`;
+  actual governance and explicit protected-path rules remain protected.
+- The Builder release path now has maintained GitHub/Vercel adapters and default
+  Runner wiring behind explicit company policy and Instance bindings. It checks
+  exact candidate/base/tree, producer-pinned protected CI, current human authority,
+  offline Artifact compilation, staged production health, domain promotion and
+  exact live health. Exact Knowledge snapshots and retained Records/Workflow
+  bindings follow the new pairing; changed provider or knowledge access policy
+  needs renewed Instance qualification. Lost provider create responses retain an intent rather than
+  repeating deployment. Postgres restart, lease expiry and concurrent revision
+  races pass in an isolated database. A shared image recipe packages pinned coding
+  profiles, CLI and Guides for separate coding and trusted executions. Actual
+  company provider access and request-to-live qualification are still required;
+  this source status does not claim a customer deployment. General simulations,
+  live-trial execution, optional Preview orchestration, arbitrary migrations and
+  split-actor acceptance/deployment remain outside the initial automatic profile.
+- The Core 0.6.1 hosting correction separates remote proposal validation from
+  local Workbench metadata imports. Scheduled production workers verify that
+  the production domain serves their exact deployment before executing; staged
+  and superseded deployments cannot advance jobs or scheduled business effects.
+  A cold-start regression imports every maintained scheduled route without local
+  checkout metadata and verifies refusal before effects. Shared-image model
+  qualification accepts the same snapshot setting as normal Builder execution.
+- Authenticated Records operators receive bounded, credential-redacted error
+  diagnostics alongside the existing error code and digest. Public responses
+  and runtime logs retain their existing content-free behavior. Diagnostic text
+  is provider evidence, never an instruction or permission to retry effects.
+- Core 0.6.2 retains complete deployment Artifacts in the existing Instance
+  Artifact store. Production builds carry an exact hash instead of a large
+  environment payload. Awaited startup verifies the retained content before
+  requests, with no schema preparation, floating latest version, or fallback.
+  Legacy inline configuration remains supported. This removes the hosting
+  environment size limit from company context without introducing another app.
 - Manual hosted openings accept an optional bounded `triggerVariant` index.
   It selects only parameters from an existing matching trigger in the retained
   Workspace calendar. Tests exercise both branches through the request parser
@@ -88,6 +300,10 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   selectors, preserved real opening times and delayed business-day delivery.
   No arbitrary parameters, clock override or business-specific host is exposed;
   actual provider and human acceptance remain separate.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 - Ordinary publication fixtures verify the exact Agent, Tool, Instance, run,
   step and effect identity at the provider boundary. A pending handoff retains
@@ -181,11 +397,17 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   does not activate schedules or replace real human acceptance. See the
   [workflow guard contract](../specifications/workflow-execution-v1-draft.md#implemented-runtime-guard).
 
+::: implementation-example
+
 - JSON Record mappings can declare a bounded, self-contained `value_schema`.
   Ingestion enforces it before consuming an event identity; compiler consumers
-  can use the actual structured contract. Slack Record Source `0.1.3` also
+  can use the actual structured contract. Slack Record Source `0.1.4` also
   emits the exact publication `thread_reference` for receipt-bound queries.
   Source coverage remains a separate, unfinished integration requirement.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 - The governed `oregano:directory/members` standard Tool reads bounded facts
   from the frozen Artifact roster through an explicit Instance read-group
@@ -768,10 +990,10 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   alert delivery, and backup/restore
   evidence remain Instance-specific and cannot be inferred from repository
   tests.
-- Database setup state version 4 now separates StateStore resource provisioning
-  from schema preparation. New runs use the `database-prepare` phase; legacy
-  pending `database-bootstrap` phases resume compatibly through the same
-  idempotent preparation entrypoint. The deterministic
+- Historical setup state version 4 introduced separate StateStore resource
+  provisioning and schema preparation. Current schema-5 fresh runs retain the
+  `database-prepare` phase; setup states 1–4 no longer resume. The following
+  database-manifest and qualification evidence remains historical. The deterministic
   `companyos-postgres@1.9.0` additive manifest preserves the immutable `1.8.0`,
   `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` identities and
   prepares `companyos`, `companyos_knowledge`, and `companyos_records`, records an immutable
@@ -818,9 +1040,11 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   retains every predecessor through `1.3.0`. No credential value entered setup
   state, logs, receipts, or repository files.
 
+::: implementation-example
+
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- The source package version remains `0.5.14`; the declared-workflow migration
+- The source package version is `0.12.0`; the declared-workflow migration
   and executor removal are unreleased changes pinned by exact commit. Earlier
   published releases keep their historical contents. Publishing new Core
   source does not activate a Company Workspace or Company Instance.
@@ -898,7 +1122,7 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
 - The experimental Workbench implements Guides, Change Plans, Core and
   Workspace inspection, Workspace validation, documentation checks, local
   security checks, onboarding, Package inspection, and Instance artifact
-  builds. Its repository release candidate is `0.1.0-experimental.15`; no
+  builds. Its repository release candidate is `0.1.0-experimental.21`; no
   public package release is claimed.
 - Newly generated Change Plans use version 3. They carry no status and no
   approvals: the pull request that carries a plan is its approval and its
@@ -919,15 +1143,29 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   intake and a bounded agent answers-file transport, complete preview,
   confirmed atomic materialization, and a deterministic
   `authoring-only-local` bootstrap checkpoint.
-- The experimental `companyos setup --profile vercel-neon-slack` state machine
-  continues from that checkpoint through explicit create-or-adopt GitHub,
-  Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a
-  private GitHub repository, automatic best-effort hosted protection with no
-  paid-plan requirement, a separately confirmed operating-starter diff,
-  required-check and Steward merge evidence, immutable Artifact injection, current
-  health verification, and nonce-bound Slack plus Neon persistence proof.
-  `companyos verify-live` reports only `live-starter-instance` with readiness
-  `validated`.
+- Standard `companyos setup` owns the fresh private GitHub, Vercel, Neon and
+  Slack installation under one scoped initial decision. It writes the canonical
+  Instance declaration into the checked initial operating Workspace commit and
+  verifies live health plus the ordinary first Slack exchange. Only schema-5
+  fresh sessions resume; the explicit installer and state schemas 1–4 are
+  retired before provider work. Existing installations follow governed upgrades.
+- The maintained setup now requires Vercel Pro or Enterprise. It detects the
+  selected team's plan before hosted resource creation, rechecks on resume
+  and before deployment, and verifies the current plan in `verify-live`.
+  Hobby receives a billing link and can resume after a human upgrade; missing
+  plan access receives a separate diagnostic. No cron-frequency question or
+  automatic billing change is introduced. Synthetic provider tests cover the
+  prerequisite and resume behavior; fresh external setup qualification remains
+  outstanding.
+- The [five-minute standard setup](../plans/2026-09-08-five-minute-setup.md)
+  is implemented: CLI-owned account/default discovery,
+  one initial decision including deployment, direct operating initialization,
+  checked first commit, private resumable state and an ordinary first Slack
+  exchange with model/persistence evidence. Release CI builds checksummed platform payloads;
+  client setup and initial CI use bundled tools. Model metadata comes from one
+  registry. Local and simulated tests establish these contracts; fresh cold live
+  qualification remains outstanding. A five-minute claim
+  requires five qualifying cold runs per harness and advertised platform.
 - Setup and the maintained Runner select Gateway, native Anthropic/OpenAI/Google,
   or a named compatible cloud recipe through the same resolver. Generic
   OpenAI-compatible and local/proxy recipes remain available to explicitly
@@ -970,6 +1208,10 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
   approved artifacts through a restrictive public Vercel route. This proves
   one real Connector path; it does not prove Meta, Monday, or another provider
   effect.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Reference-only or historical
 
@@ -1346,5 +1588,79 @@ and sender identity; they do not prove a live provider deployment. See
 
 An authorized model-only hosted check exercised eight synthetic participation
 cases with the configured model: all returned the expected respond or
+
+## Unpublished installer test path
+
+::: implementation-example
+
+The working source supports local candidate bundles with exact commit/platform
+and checksum verification, pinned resume, a labeled setup review, and initial
+GitHub checks using the exact pushed source without a release lookup. Candidate
+timing cannot qualify the stable release installer. No live provider run or real
+database integration result is claimed by this implementation.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+The candidate integration branch includes Core `0.7.0` from `main`.
+It preserves the newer Builder release and Workflow behavior, resolves the setup
+conflicts, and automatically gives each candidate a separate Slack connector.
+The maintained database suite passed all 67 tests on disposable local PostgreSQL
+15.18 with zero skips. This is real database evidence, not a live Slack/Vercel
+setup or timing claim. See the
+[setup integration review](../plans/2026-09-08-setup-integration-review.md).
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+Slack Record Source `0.1.4` accepts the provider's legacy system bot identity
+`B01` while preserving bot authorship and rejecting malformed identifiers.
+A synthetic inventory regression covers successful system-message ingestion
+and prevents its attribution to an authenticated human.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+## Hosted readiness correction
+
+Core 0.8.1 resolves hosted Connector dependencies from enabled workflow owners
+and their retained Tool grants. An unrelated Company Records Connector no longer
+blocks a comment-only workflow. Workflows that use Records still require an
+immutable, correctly paired configuration snapshot. The installer also resolves
+the pinned pnpm package behind the shell shims used by CI. Neither correction
+changes provider authority or replaces actual functional acceptance evidence.
+
+## Core 0.12.0 shared conversation participation — release preparation
+
+The Core participation controller, existing Agent Tool loop and interactive
+candidate executor now support context-only turns, attributed recent history
+and unmentioned owned thread replies. A context-only choice emits no reply or
+new work and preserves the last visible candidate result. Exact shared-app
+ownership remains required. The source includes scripted-model and synthetic
+transport proofs; these do not establish real-model quality or a live company
+deployment. See [the contract](../specifications/conversation-participation.md).
+
+Core 0.12.0 introduces the shared conversation participation contract and retires
+the blanket channel-message ignore behavior. Before Instance adoption, verify
+exclusive channel/recipient ownership on every shared-app destination. Roll back
+the exact Core/Workspace/Instance pairing and restore compatible ingress settings
+together; preserve conversation and execution evidence. A Git merge or version
+field alone is neither a published release nor a deployed Instance.
+
+::: implementation-example
+
+An authorized model-only hosted check exercised eight synthetic participation
+cases with `anthropic/claude-sonnet-5`: all returned the expected respond or
 context-only choice in one model step. This qualifies those cases only; it does
 not establish incoming communication delivery or company acceptance.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

@@ -126,11 +126,11 @@ test("source, Tool, template, calendar and config changes alter the pinned evide
     assert.notEqual(next.manifestHash, original.manifestHash, path);
   }
   const agents = structuredClone(artifact.agents);
-  const tool = agents[0]!.tools.find((tool) => tool.contract.grantId === "company:participant-view")!;
+  const tool = agents.find((agent) => agent.id === "sprint")!.tools.find((tool) => tool.contract.grantId === "company:participant-view")!;
   const declarationPath = "agents/sprint/tools/participant-view/TOOL.md";
   files[declarationPath] = files[declarationPath]!.replace("version: 1.0.0", "version: 1.0.1");
   Object.assign(tool, loadCompanyTool(files, "sprint", "participant-view"));
-  const resolved = agents[0]!.toolSet.tools.find((tool) => tool.grantId === "company:participant-view")!;
+  const resolved = agents.find((agent) => agent.id === "sprint")!.toolSet.tools.find((tool) => tool.grantId === "company:participant-view")!;
   resolved.version = tool.contract.version; resolved.contractDigest = sha256(tool.contract);
   assert.notEqual(compile(files, agents).find((workflow) => workflow.id === "friday-close")!.manifestHash, original.manifestHash);
 });
@@ -155,7 +155,7 @@ test("compiler revalidates captured bytes and refuses stale resolved contracts",
   editWorkflow(files, (data) => { data.steps[0].injected_option = "forged"; });
   assert.throws(() => compile(files), /unknown option/);
   const agents = structuredClone(artifact.agents);
-  agents[0]!.tools[0]!.contract.version = "9.0.0";
+  agents.find((agent) => agent.id === "sprint")!.tools[0]!.contract.version = "9.0.0";
   assert.throws(() => compile({ ...readWorkspaceFiles(fixture) }, agents), /resolved Artifact contract/);
 });
 
@@ -187,7 +187,7 @@ test("a changed Company Tool implementation cannot be compiled with a stale Agen
 
 test("a forged lower resolved risk cannot weaken the workflow manifest", () => {
   const agents = structuredClone(artifact.agents);
-  agents[0]!.toolSet.tools.find((tool) => tool.grantId === "oregano:work-items/batch-update")!.risk = "R0";
+  agents.find((agent) => agent.id === "sprint")!.toolSet.tools.find((tool) => tool.grantId === "oregano:work-items/batch-update")!.risk = "R0";
   assert.throws(() => compile({ ...readWorkspaceFiles(fixture) }, agents), /resolved risk differs/);
 });
 

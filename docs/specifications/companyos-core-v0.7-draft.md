@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-01
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -93,6 +93,7 @@ company.md
 AGENTS.md
 .companyos/
   governance.yaml
+  instance.yaml       # once an Instance is prepared
   changes/
 agents/
   roster.md
@@ -106,6 +107,12 @@ handbook/
 connections/
 brain/
 ```
+
+The non-secret Instance build declaration MUST use `.companyos/instance.yaml`
+when prepared or migrated, beside governance and compatibility. It remains
+Instance-owned configuration under Workspace security review. Exact identifiers
+and SecretRefs are allowed; resolved secrets and runtime state are not. See
+[the format and migration contract](../reference/instance-configuration.md).
 
 Additional directories MAY be introduced by an approved specification or
 Workspace governance. Agents MUST NOT invent an alternative location for data
@@ -517,3 +524,7 @@ The following are not silently decided by this draft:
 
 These questions are tracked in the Translation Exception Report and MUST remain
 visible in inspection until resolved by the appropriate authority.
+
+## Shared conversation participation
+
+All communication adapters follow [Shared Conversation Participation](conversation-participation.md). Ownership and permissions precede the existing Agent’s choice to respond or retain context silently. Unmentioned owned thread replies must not be discarded by a blanket provider filter.

@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -21,44 +21,85 @@ relations:
 
 # CompanyOS Onboarding
 
+Instance preparation records non-secret configuration in the Company's
+`.companyos/instance.yaml`, directly beside governance and compatibility.
+The maintained operating setup includes it before the initial commit or
+activation review, and deployment reads that reviewed file. Existing
+installations adopt their exact declaration without changing bindings. See
+[the format, migration and compatibility rules](../reference/instance-configuration.md).
+
+Start with [Choose a setup](setup-options.md) to distinguish the available
+live profile and model variants from local authoring and future provider
+combinations. There is currently one implemented infrastructure profile;
+the provider-adapter boundary does not make every combination installable.
+
 Onboarding is a maintained product contract, not a one-time setup note. A Human
 Contributor or Agent Contributor must be able to enter a Company Workspace,
 discover the correct path, establish a deterministic local baseline, and see
 which remaining actions require a Platform Administrator with `repository` or
 `instance` scope.
 
-For a new Workspace, Codex and Claude Code use the same plugin-free Release
-runbook, `INSTALL-COMPANYOS.md`, reached through the compatibility entrypoint
-`BOOTSTRAP_FOR_AGENTS.md`. It collects confirmed non-secret answers in chat,
-routes them through `companyos create workspace`, and treats
-`companyos bootstrap verify` as an internal local checkpoint. The maintained
-live path then uses `companyos setup --profile vercel-neon-slack` and finishes
-only when `companyos verify-live` proves the narrow supervised starter scope.
-The agent pauses for the human's browser authentication, provider consent,
-hash-bound Steward merge authorization, and production confirmation; it does
-not obtain those authorities from the chat prompt. One confirmed setup plan
-covers all unchanged-scope inspection, local work, retries, resume operations,
-branch publication, and pull-request preparation. The agent does not ask for
-separate conversational permission for those steps. It groups all currently
-available human actions or confirmation hashes into one concise request and
-continues until the next actual authority boundary.
+::: implementation-example
 
-Start with [Onboard a Company Workspace](company-workspace.md), then run:
+For a new installation, Codex and Claude Code use the same release-matched
+`INSTALL-COMPANYOS.md` and `companyos setup` session. The CLI reuses account
+logins, proposes defaults, asks the company name only when needed, requires an
+OpenAI-or-Anthropic choice, and shows
+one editable resource/cost/responsibility summary. That single decision covers
+new resources and the first production deployment. The human completes actual
+provider login and consent. Routine technical work proceeds automatically.
 
-```bash
-companyos onboard /path/to/company-workspace
-companyos bootstrap verify /path/to/company-workspace
-companyos setup --profile vercel-neon-slack --workspace /path/to/company-workspace --answers /path/to/live-answers.yaml --state /path/to/setup-state.json --plan
-companyos verify-live --state /path/to/setup-state.json
-```
+See the [maintained host profile](../operations/maintained-host-profile.md).
 
-The first two commands check the local Workspace contract, immutable Core and
-Workbench pin, governance, CODEOWNERS, CI, and the declared
-repository-protection baseline. They deliberately report hosted facts as
-manual because repository files cannot prove external state. The setup state
-machine then attempts hosted protection automatically and records `enforced` or
-`advisory` alongside the other provider and runtime evidence without placing
-credentials in the Workspace or state file.
+:::
+
+::: implementation-example
+
+The selected Vercel team must use Pro or Enterprise, detected automatically.
+Hobby gets a resumable billing action; Oregano never changes a subscription or
+asks about cron frequency. After consent, the fresh initializer generates one
+complete operating Workspace and checks its first commit. It does not publish
+an authoring-only intermediate version or request an activation PR/merge.
+The first ordinary Slack message supplies real model and persistence evidence.
+The CLI runs `companyos verify-live` before reporting completion. Slack identity
+consent verifies the human; the connector app link opens its Messages tab.
+Neither identity consent nor opening Slack proves that Oregano has replied.
+Production health uses an alias reported for the exact deployment; protected
+deployment URLs do not need to be made public. A healthy application alone does
+not prove Slack delivery: setup also checks enabled incoming trigger forwarding
+and the exact production attachment before requesting the first message.
+An unanswered retry returns [delivery recovery](../workbench/commands/setup.md#slack-delivery-recovery),
+including Slack URL verification and saving. Provider synchronization alone
+cannot replace a real reply.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+Existing Workspaces still use `companyos onboard /path/to/workspace` for local
+inspection. `companyos create workspace` and `companyos bootstrap verify` remain
+local authoring commands; they are not extra steps in the standard installer.
+Only current schema-5 fresh setup sessions can resume. The retired
+`setup --profile` flow and schemas 1–4 are unsupported; historical receipts
+must not be converted into fresh-installation authority.
+
+The release includes checksummed platform tooling instead of a full developer
+installation on the client. This flow is experimental; see the
+[five-minute plan](../plans/2026-09-08-five-minute-setup.md) for pending live
+qualification and timing criteria.
+
+::: implementation-example
+
+Core 0.7.0 also supports confirmed Builder releases with advisory repository
+protection. After independent checks, the authorized human explicitly confirms
+the exact merge and live adoption. Core uses a non-forcing fast-forward on an
+unprotected branch and preserves hosted rules on a protected branch. GitHub Free
+is sufficient for this path; the Instance still needs qualified repository,
+coding and release bindings. See [Operate the Builder](../workbench/guides/operate-builder.md).
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 The maintained setup profile composes private typed adapters for four roles:
 source host, runtime host, state service, and communication provider. GitHub,
@@ -68,8 +109,10 @@ intent before each provider mutation and an immutable resource receipt after
 it. A resumed run reconciles an unresolved intent by immutable provider
 identity and never creates a second resource from a name-only lookup.
 
+::: implementation-example
+
 A new Company Instance does not need a database before setup begins. The state
-service adapter first creates or explicitly adopts one PostgreSQL resource and
+service adapter creates one dedicated PostgreSQL resource and
 binds its connection only in the runtime host's secret environment. The next
 phase invokes the provider-neutral `companyos database prepare` operation
 through that environment. Prepare detects an empty, older, or current database
@@ -93,26 +136,48 @@ records. Unresolved policies and ACL mappings remain
 in quarantine. Schema qualification does not authorize retrieval; runtime
 subject and policy conformance remain separate gates.
 
-Model execution is selected separately as `vercel-ai-gateway`,
-`anthropic-direct`, `openai-direct`, or `google-direct`. Gateway needs no
-provider key from the human. Direct recipes bypass AI Gateway and pause while
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
+The standard setup asks which provider to use: OpenAI or Anthropic. Neither is
+preselected; its exact agent model comes from the maintained recipe. Other
+models and providers, including Gateway, require an explicit request and are
+not displayed as ordinary choices. Direct recipes bypass AI Gateway and pause while
 the human enters a dedicated provider key only in the Vercel project UI under
 the documented Sensitive Production variable; setup records only its
 reference, presence, and Sensitive classification. Completion
 proves the exact route and model through a real model-backed Slack response.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The maintained communication binding always uses the logical Connector UID
 `slack/oregano` and the visible Slack Agent name `Oregano`, independently of
-the Company Workspace name. Live acceptance requires the human's
-nonce-bearing Slack message and the exact Agent reply
-`Setup-Test <nonce> successful.` in the same conversation, both persisted in
-the Instance StateStore.
+the Company Workspace name. Fresh live acceptance requires an ordinary authorized Slack message and a
+real model reply, both persisted and correlated to the exact deployment.
+Legacy states retain the nonce-bound `Setup-Test` exchange.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 An authoring-only Workspace is valid with no operating agents and no executable
-workflows. It must not invent automation merely to pass onboarding. The live
-starter makes the move to `operating` as a separate hash-bound, checked, and
-Steward-confirmed change: one supervised Oregano Agent, one Slack workflow, one
+workflows. It must not invent automation merely to pass onboarding. The standard initializer produces `operating` directly. Existing authoring
+Workspaces use the explicit checked and Steward-confirmed activation change.
+Both result in one supervised Oregano Agent, one Slack workflow, one
 non-secret connection declaration, and no business Tool grants.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Maintenance contract
 
@@ -144,27 +209,31 @@ maximum-three human review queue. Hybrid retrieval requires no external
 credential: the default adapter is local, and optional vector-index failure is
 reported while lexical retrieval stays available.
 
-## Optional proposal-only Builder activation
+## Builder availability and live adoption
 
-The normal starter does not activate the Builder. Activation is a separate,
-explicit Instance decision and requires all of the following together:
+A valid Workspace Builder definition expresses desired availability. The Instance
+supplies the actual coding and repository access; a redundant `builder.enabled`
+flag is unnecessary. Route conversations with an explicit binding or an authorized
+handoff from the normal company Agent. Reading and clarification remain possible
+before coding access is ready.
 
-- an exact Agent Binding for the `builder` Agent and one trusted channel;
-- an enabled non-secret Builder declaration in the immutable Artifact;
-- a verified repository installation and exact source/publisher bindings;
-- qualified isolated coding and trusted Git snapshots;
-- the general `ANTHROPIC_API_KEY` and/or `OPENAI_API_KEY` in the Instance secret
-  store; and
-- successful checks from the version-matched [Operate the
-  Builder](../workbench/guides/operate-builder.md) Guide.
+Configure each company's requester or Steward acceptance rules and deployment
+delegation in `.companyos/governance.yaml`. Preserve security and independent-review
+requirements. A resolved implementation request starts isolated coding without a
+second start confirmation. A checked result needs its authorized acceptance before
+release; the same human may accept and release in one action when holding both roles.
 
-Selecting the Builder opens a normal Runner conversation. The coding agent
-starts only after the authenticated requester confirms the exact objective,
-repository, and base commit. A successful job creates a checked draft proposal;
-human review, merge, and deployment remain outside Builder authority. Removing
-the Agent Binding and Builder declaration returns the Instance to normal Agent
-operation without a Core migration or database rollback.
+Use the version-matched [Operate the Builder](../workbench/guides/operate-builder.md)
+Guide to bind the shared qualified image, selected coding profile, service App,
+repository installation and production executor. One image contains CLI and Guides;
+coding and trusted operations use separate executions. Reuse existing production
+apps and connections. No Preview or second app is required for simple changes.
 
+The maintained initial release profile combines Workbench checks, protected CI,
+human acceptance, staged production health and exact live verification. Other test
+strategies and data migrations require qualified evidence/execution before automatic
+release. Missing hosted enforcement or provider rights must be reported explicitly;
+neither a Workspace declaration nor a passing local test supplies those rights.
 
 For generic executable workflows, follow
 [Hosted Workflow Engine Operations](../operations/workflow-engine.md).
@@ -186,3 +255,17 @@ A successful starter chat, outgoing card, build or health response does not
 qualify incoming button delivery. Check actual routing to the exact test
 Instance, then a real rejection and a separately bounded approval. Report
 unverified external steps explicitly; never present them as passing tests.
+
+## Unpublished installer tests
+
+::: implementation-example
+
+A maintainer can test a packaged exact commit before publishing a release.
+Follow [the candidate setup path](../workbench/commands/setup.md#test-an-unpublished-candidate)
+with fresh resources and an automatically named test Slack connector; both agent
+harnesses use the same session and one review. Existing company connectors stay
+bound to their original deployments.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

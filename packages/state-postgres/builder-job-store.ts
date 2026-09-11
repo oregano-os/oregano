@@ -46,6 +46,15 @@ export function createPostgresBuilderJobStore(): BuilderJobStore {
       return rows[0] ? rowToJob(rows[0]) : undefined;
     },
 
+    async listForRequester(instanceId, requester, conversation) {
+      await ensureCompanyOSSchema();
+      const rows = await connection()`select * from companyos.builder_jobs
+        where input->>'instanceId' = ${instanceId} and input->>'requesterPrincipal' = ${requester}
+          and (${conversation ?? null}::text is null or input->>'sourceConversationKey' = ${conversation ?? null})
+        order by created_at desc, job_id desc limit 30`;
+      return rows.map(rowToJob);
+    },
+
     async getByRequestId(requestId) {
       await ensureCompanyOSSchema();
       const rows = await connection()`select * from companyos.builder_jobs where request_id = ${requestId} limit 1`;

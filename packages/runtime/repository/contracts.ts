@@ -40,6 +40,7 @@ export interface RepositorySourceAdapter {
 }
 
 export interface CheckedProposal {
+  readonly releaseChangeClass?: "content" | "behavior" | "security";
   readonly validationPassed: true;
   readonly validatedDiffDigest: string;
   readonly changedPaths: readonly string[];
