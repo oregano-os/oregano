@@ -21,17 +21,7 @@ const contract: CompanyToolContract = {
   dataClass: "business",
   idempotency: "input-hash",
   capabilities: ["communication.message.publish"],
-  inputSchema: {
-    type: "object",
-    required: ["destination_binding", "content"],
-    additionalProperties: false,
-    properties: {
-      destination_binding: { type: "string", minLength: 1, maxLength: 63 },
-      content: { type: "string", minLength: 1, maxLength: 20_000 },
-      thread_reference: { type: "string", minLength: 1, maxLength: 1_000 },
-      format: { type: "string", enum: ["plain-text", "provider-markdown"] },
-    },
-  },
+  inputSchema: CORE_CAPABILITY_CATALOG.find((capability) => capability.id === "communication.message.publish")!.inputSchema,
   outputSchema: CORE_CAPABILITY_CATALOG.find((capability) => capability.id === "communication.message.publish")!.outputSchema,
   evidence: ["destination_binding", "message_id", "thread_reference", "published_at", "connector"],
   failure: "Fail closed for unbound destinations, ambiguous provider receipts, or missing idempotency claims; never broaden the configured audience.",

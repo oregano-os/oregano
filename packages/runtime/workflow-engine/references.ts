@@ -64,6 +64,6 @@ export function workflowOpeningFields(workflow: CompiledWorkflow): string[] {
     else if (Array.isArray(value)) value.forEach(visit);
     else if (value && typeof value === "object") Object.values(value).forEach(visit);
   };
-  for (const step of workflow.steps) [step.input, step.message, step.route?.on, step.decision?.binds, step.decision?.via, step.forEach?.over].forEach(visit);
+  for (const step of workflow.steps) [step.start?.fields, step.collect?.from, step.collect?.context, step.input, step.message, step.route?.on, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.forEach?.over].forEach(visit);
   return [...fields].sort();
 }

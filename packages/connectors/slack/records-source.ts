@@ -8,6 +8,7 @@ import { qualifySlackRecordSource } from "./record-source-qualification.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
 export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.4";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS = ["0.1.3", SLACK_RECORD_SOURCE_CONNECTOR_VERSION] as const;
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -158,12 +159,14 @@ const normalizeMessage = (args: {
 /** Read-only Slack implementation of the provider-neutral Record Source boundary. */
 export class SlackRecordSourceConnector implements RecordSourceConnector {
   readonly id = SLACK_RECORD_SOURCE_CONNECTOR_ID;
-  readonly version = SLACK_RECORD_SOURCE_CONNECTOR_VERSION;
+  readonly version: typeof SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS[number];
   readonly resolveSecret: (secretRef: string) => string | Promise<string>;
   readonly fetcher?: SlackFetch;
   readonly now: () => Date;
 
-  constructor(args: { resolveSecret: (secretRef: string) => string | Promise<string>; fetcher?: SlackFetch; now?: () => Date }) {
+  constructor(args: { version?: typeof SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS[number]; resolveSecret: (secretRef: string) => string | Promise<string>; fetcher?: SlackFetch; now?: () => Date }) {
+    this.version = args.version ?? SLACK_RECORD_SOURCE_CONNECTOR_VERSION;
+    if (!SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS.includes(this.version)) throw new Error("Unsupported Slack Record Source version");
     this.resolveSecret = args.resolveSecret;
     this.fetcher = args.fetcher;
     this.now = args.now ?? (() => new Date());
@@ -198,6 +201,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
       for (const scope of receipt.scopes) scopes.add(scope);
     };
     const remember = (message: Record<string, unknown>, rootTs?: string) => {
+      if (this.version === "0.1.3" && message.bot_id === "B01") throw new Error("Slack message has an invalid bot identity");
       const normalized = normalizeMessage({ sourceId: args.source.id, teamId: config.teamId, channelId: config.channelId, message, ...(rootTs ? { rootTs } : {}) });
       const id = String(normalized.id);
       const existing = messages.get(id);

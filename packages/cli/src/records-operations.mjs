@@ -238,6 +238,7 @@ export function createMaintainedRecordSourceConnectorRegistry({ resolveSecret = 
   return new RecordSourceConnectorRegistry([
     new MondayRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
     new SlackRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
+    new SlackRecordSourceConnector({ version: "0.1.3", resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
   ]);
 }
 

@@ -70,7 +70,7 @@ const withFixture = (fn) => {
 };
 
 test("the Workbench exposes its exact running version", () => {
-  assert.equal(CORE_VERSION, "0.11.5");
+  assert.equal(CORE_VERSION, "0.12.0");
   assert.equal(WORKBENCH_VERSION, "0.1.0-experimental.21");
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "--version"], { encoding: "utf8" });
   assert.equal(result.status, 0);
@@ -218,7 +218,7 @@ test("the neutral Company Workspace fixture passes validation", () => {
   assert.equal(result.summary.company_tools, 1);
 });
 
-test("Workspace validation accepts provider-neutral Company Records and Sprint declarations", () => withFixture((workspace) => {
+test("Workspace validation accepts provider-neutral Company Records and workflow declarations", () => withFixture((workspace) => {
   mkdirSync(join(workspace, "records", "sources"), { recursive: true });
   mkdirSync(join(workspace, "records", "projections"), { recursive: true });
   mkdirSync(join(workspace, "workflows", "sprint"), { recursive: true });
@@ -259,7 +259,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
     materialization: { mode: "database-view" },
   }));
   writeFileSync(join(workspace, "workflows", "sprint", "config.yaml"), YAML.stringify({
-    schema_version: 1,
+    schema_version: 2,
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
     work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready", closed_statuses: ["done"] },
@@ -286,7 +286,7 @@ test("Workspace validation accepts provider-neutral Company Records and Sprint d
   assert.equal(result.diagnostics.filter((item) => item.severity === "error").length, 0);
   assert.equal(result.summary.record_sources, 2);
   assert.equal(result.summary.record_projections, 2);
-  assert.equal(result.summary.sprint_configurations, 1);
+  assert.equal(Object.hasOwn(result.summary, "sprint_configurations"), false);
 }));
 
 test("Workspace validation rejects unsafe or unresolved structured declarations", () => withFixture((workspace) => {
@@ -316,9 +316,7 @@ test("Workspace validation rejects unsafe or unresolved structured declarations"
 
   const codes = new Set(validateWorkspace(workspace).diagnostics.filter((item) => item.severity === "error").map((item) => item.code));
   assert.ok(codes.has("WS047"));
-  assert.ok(codes.has("WS049"));
-  assert.ok(codes.has("WS050"));
-  assert.ok(codes.has("WS051"));
+  assert.ok(codes.has("WS061"));
 }));
 
 test("Workspace validation rejects the unreleased top-level Sprint domain path", () => withFixture((workspace) => {
@@ -327,14 +325,14 @@ test("Workspace validation rejects the unreleased top-level Sprint domain path",
 
   const result = validateWorkspace(workspace);
   assert.ok(result.diagnostics.some((item) => item.code === "WS052" && item.severity === "error"));
-  assert.equal(result.summary.sprint_configurations, 0);
+  assert.equal(Object.hasOwn(result.summary, "sprint_configurations"), false);
 }));
 
 test("Core and Workspace versions are exact SemVer and visible through the Workbench", () => withFixture((workspace) => {
   const result = spawnSync("node", [join(REPO, "packages/cli/src/cli.mjs"), "versions", workspace, "--format", "json"], { encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.deepEqual(JSON.parse(result.stdout), {
-    core: "0.11.5",
+    core: "0.12.0",
     workspace: "0.1.0",
     workbench: "0.1.0-experimental.21",
     companyos_spec: "0.7-draft",
@@ -1078,7 +1076,7 @@ test("the Workbench exposes the version-matched Package authoring Guide", () => 
 const TEST_CORE_IDENTITY = {
   repository: "oregano-os/oregano",
   ref: "1234567890abcdef1234567890abcdef12345678",
-  core_version: "0.11.5",
+  core_version: "0.12.0",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 };

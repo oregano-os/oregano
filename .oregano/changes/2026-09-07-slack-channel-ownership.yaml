@@ -1,91 +1,52 @@
-version: 2
+version: 3
 plan_id: slack-channel-ownership-2026-09-07
-created: 2026-09-07
-title: Assign one shared-app channel exclusively to its test destination
-objective: Exclude an explicitly configured channel from ordinary messages and
-  mentions on the primary webhook, preserving other mentions, DMs and controls.
+created: "2026-09-07"
+title: Route explicit mentions to assigned workflow conversations
+objective: Let assigned workflow conversations receive explicit mentions while an exact channel exclusion prevents the other shared-app destination from also answering; recover an existing channel-root answer only after a provider reread verifies its author and unique active question.
 non_goals:
-  - Enable new business workflows or change grants, artifacts, storage or
-    providers.
+  - Add provider events, scopes, credentials or business authority.
+  - Change direct-message routing or enable production workflows.
 placement: core
 change_class: security
 files_expected:
   - .oregano/changes/2026-09-07-slack-channel-ownership.yaml
-  - packages/runner-vercel/src/app/api/webhooks/**
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
   - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/runner-vercel/src/lib/workflow-reply-recovery.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
   - packages/testkit/tests/slack-channel-events.test.ts
-  - docs/operations/vercel-slack-event-staging.md
-  - docs/_generated/**
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - docs/operations/vercel-workflow-runner.md
 tests:
   - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
 documentation_impact:
   required: true
   affected_documents:
-    - operations.vercel-slack-event-staging
-rollback: Stop the test destination from accepting mentions before removing its
-  exact channel exclusion on the primary destination. Preserve existing event subscriptions.
-status: review
-author: codex-agent
-required_approvals:
-  - oregano-maintainer
-approvals: []
-validation:
-  - pnpm check
-  - pnpm runner:build
-  - pnpm companyos inspect-core --plan
-    .oregano/changes/2026-09-07-slack-channel-ownership.yaml --base
-    abcbf8a6d8d59a1775f731b59ff8537d7e5a7f76
-  - git diff --check
-open_decisions: []
-architecture_assessment:
-  responsibilities:
-    core:
-      - Provider-specific ingress filtering only; retain signature verification
-        for processed events.
-    packages:
-      - No package or business policy.
-    workspace:
-      - No Workspace change or workflow activation.
-    instance:
-      - Opt in to retaining mention and direct-message behavior during an event
-        rollout.
-  existing_mechanisms:
-    - mechanism: agent-resolver
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing agent-resolver behavior
-        intact.
-    - mechanism: toolset-resolver
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing toolset-resolver behavior
-        intact.
-    - mechanism: model-recipe-resolver
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing model-recipe-resolver
-        behavior intact.
-    - mechanism: company-records
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing company-records behavior
-        intact.
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Select Slack transport events without changing authentication, assignment, collection or decision authority.
+    packages: No new Package behavior.
+    workspace: Retain business conversations and human decisions in existing declarations.
+    instance: Own exact excluded channels and review disjoint event destinations before a shared-app test.
+  mechanisms_extended:
     - mechanism: identity-and-authorization
-      decision: extend
-      reason: An exact channel exclusion drops message and mention events before bot
-        processing; all other processed events retain existing verification.
-    - mechanism: timers-and-business-time
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing timers-and-business-time
-        behavior intact.
-    - mechanism: approvals-effects-and-idempotency
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing
-        approvals-effects-and-idempotency behavior intact.
-    - mechanism: capability-contracts-and-connectors
-      decision: reuse
-      reason: This narrow ingress filter leaves the existing
-        capability-contracts-and-connectors behavior intact.
+      reason: Preserve SDK verification and assigned-recipient checks when accepting explicit mentions; narrow the other destination by exact channel ID.
   new_core_mechanisms: []
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
     public_fixtures: synthetic-only
-  core_reusability: Any Instance sharing an app with a staged destination may
-    retain its existing event behavior.
+  core_reusability: Any company sharing a Slack app across instances can assign channel-message handling without domain-specific routing or a second authorization mechanism.
+rollback: Restore previous ingress selectors and the corresponding environment configuration together. Preserve all conversations and decisions; never reopen a completed run.

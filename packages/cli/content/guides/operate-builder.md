@@ -137,6 +137,8 @@ commit and compares it with the running Artifact configuration digest. No YAML
 copy is supplied through the environment. Keep these host values in the Company
 Instance:
 
+::: implementation-example
+
 - `COMPANYOS_BUILDER_RELEASE_BINDING_BASE64`: base64 JSON containing `projectId`,
   `teamId` and the existing `productionUrl` for the maintained Vercel host.
 - `COMPANYOS_VERCEL_RELEASE_TOKEN`: the service credential for that deployment
@@ -145,6 +147,12 @@ Instance:
   for the staged health probe. Do not disable protection or create bypass access
   implicitly during a probe.
 
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The GitHub App requires Contents and Pull requests write, plus Checks and
 Administration read for release inspection. Customers select the exact repository.
 Existing branch protection remains enforced. An unprotected private target uses
@@ -152,6 +160,10 @@ Core's exact non-forcing fast-forward and human-confirmed merge path; it require
 no paid hosting plan. The default target is `main`; explicitly bind a different
 verified company target where applicable. Company repository pushes must not
 independently activate a new production Artifact.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 The trusted host reuses the exact current Core deployment as the build source.
 It compiles the merged Workspace in a separate offline sandbox, builds with the
@@ -167,6 +179,8 @@ probe complete the release. Preserve the final Artifact hash in Instance deploym
 configuration and retain its database content when an operator performs a later manual deployment; a Workspace
 merge alone never publishes it.
 
+::: implementation-example
+
 Production-target staging may receive scheduled worker calls before domain
 promotion. Core workers therefore read the exact deployment identity from the
 primary production health endpoint before advancing any scheduled work. The
@@ -175,6 +189,10 @@ workers use Vercel's `VERCEL_PROJECT_PRODUCTION_URL`. Unavailable identity fails
 closed, and staged or superseded deployments do no work. Qualification endpoints
 remain separate, protected, fixed-fixture operations. Verify the actual primary
 domain rather than inferring it from an automatically generated alias.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 Hosted provider orchestration must import only the remote validator. Local
 Workbench validation and checkout metadata stay inside their separate trusted
@@ -365,11 +383,17 @@ retain both redacted digests for diagnosis.
 
 ## Current qualification status
 
+::: implementation-example
+
 Local tests cover grounded intake, both coding profile contracts, exact-candidate
 policy, protected and exact fast-forward inspection, ambiguous merge/deploy reconciliation,
 separate staging and promotion, and actual Postgres persistence, concurrent saves
 and expired leases. The initial Stage-0 Slack-to-draft tests predate this release
 path and do not qualify its new image or production executor.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 Each Company Instance still needs its selected App installation and scopes, a
 qualified merge strategy, model/worker qualification, staged production health access,
@@ -409,6 +433,8 @@ A ready action accepts the current exact result; company policy still decides wh
 can approve and deploy. Discard closes only the unchanged unmerged proposal and
 retains its evidence. If closure is uncertain, retry the same discard operation.
 
+::: implementation-example
+
 Core 0.7.0 and Workbench 0.1.0-experimental.17 support unprotected private
 repositories without a paid GitHub plan.
 The trusted coordinator advances the target only to the exact single-parent
@@ -419,6 +445,10 @@ Workbench inspection, validation and security checks remain mandatory, and every
 observed hosted check must pass. Existing branch protection is preserved through
 the protected merge path; permission errors do not trigger a fallback.
 
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
 The Core release controls Builder operations and production adoption. It does
 not prevent manual Git changes on an unprotected branch. Keep automatic
 production deployment from company-repository pushes disabled; deployment uses
@@ -426,10 +456,16 @@ only the confirmed immutable Artifact. Rollback to an older Core requires
 stopping releases from unprotected repositories. Pending old confirmations must
 be refreshed because merge-strategy evidence is now part of their digest.
 
+::: implementation-example
+
 Manual deployments must carry the current exact Artifact and rebound non-secret
 configurations forward. The Builder stores them durably with its release; it
 does not silently overwrite project-level environment variables. Production
 verification also compares Vercel's actual Git source commit with Core provenance.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 
 ## Configure and prove a connected functional test
@@ -449,12 +485,18 @@ builder:
       match: { resource_binding: existing-test-board, work_item_id: "42" }
 ```
 
+::: implementation-example
+
 These are fictional values. Use already qualified resources for the company.
 The list grants no new provider scope and contains no credentials. The first
 profile requires one existing Slack channel for result delivery and supports
 single or interactive Agent replies without Tools and immediate operator workflow graphs with bounded
 work-item capabilities. It excludes workflow messages, timers, intermediate
 human decisions and automatic production-to-test resource remapping.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 1. Builder reads the current definitions and Instance capabilities, resolves the
    test and starts coding from the grounded brief.

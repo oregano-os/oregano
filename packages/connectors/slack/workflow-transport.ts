@@ -4,8 +4,10 @@ import type { WorkflowConversation } from "../../state-store/workflow-engine.ts"
 import { findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "../../state-store/roster.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 
+export type WorkflowSlackChannelKind = "direct-message" | "private-channel" | "public-channel";
 export interface WorkflowSlackApi {
-  call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies" | "chat.getPermalink", args: Record<string, string>): Promise<Record<string, any>>;
+  qualifyReplies?(kind: WorkflowSlackChannelKind, principal?: string): Promise<void>;
+  call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies" | "conversations.history" | "chat.getPermalink", args: Record<string, string>): Promise<Record<string, any>>;
 }
 export interface WorkflowSlackDestination { id: string; accountId: string; channelId?: string; userId?: string; kind: "channel" | "direct-message" }
 
@@ -49,24 +51,39 @@ export class WorkflowSlackTransport {
     return principal;
   }
   /** Reread the exact provider object; a caller's text/user/account is never approval evidence. */
-  async reply(args: { conversation: WorkflowConversation; messageId: string; roster: RosterMember[] }): Promise<{ principal: string; text: string; eventId: string }> {
+  async reply(args: { conversation: WorkflowConversation; messageId: string; roster: RosterMember[]; channelReply?: boolean }): Promise<{ principal: string; text: string; eventId: string }> {
     const { conversation: c, messageId } = args;
     if (c.surface !== "slack" || !/^[A-Z0-9]{5,32}$/.test(c.channelId) || !/^\d+\.\d+$/.test(c.threadId)
       || !/^\d+\.\d+$/.test(messageId) || messageId === c.threadId || c.accountId !== await this.account()) throw new Error("Workflow reply identity is invalid");
-    const response = await this.#api.call("conversations.replies", { channel: c.channelId, ts: c.threadId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" });
+    if (args.channelReply && (!/^[CDG]/.test(c.channelId) || Number(messageId) <= Number(c.threadId))) throw new Error("Root reply predates its question");
+    const response = args.channelReply
+      ? await this.#api.call("conversations.history", { channel: c.channelId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" })
+      : await this.#api.call("conversations.replies", { channel: c.channelId, ts: c.threadId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" });
     const matches = Array.isArray(response.messages) ? response.messages.filter((message: any) => message.ts === messageId) : [];
     if (response.ok !== true || response.has_more === true || response.response_metadata?.next_cursor || matches.length !== 1) throw new Error("The exact workflow reply could not be read completely");
     const message = matches[0];
-    if (message.thread_ts !== c.threadId || message.type !== "message" || message.bot_id || message.app_id || message.subtype || message.edited
+    if ((args.channelReply ? message.thread_ts && message.thread_ts !== messageId : message.thread_ts !== c.threadId) || message.type !== "message" || message.bot_id || message.app_id || message.subtype || message.edited
       || typeof message.text !== "string" || typeof message.user !== "string") throw new Error("Workflow reply is not an original attributable human message");
     const principal = await this.human(c.accountId, message.user, args.roster);
     if (c.subjectPrincipal && c.subjectPrincipal !== principal) throw new Error("Workflow reply belongs to another private recipient");
     return { principal, text: message.text, eventId: `slack:${c.accountId}:${c.channelId}:${messageId}` };
   }
+  private async channelRecipient(artifact: CompanyOSArtifact, destination: string, accountId: string, roster: RosterMember[]): Promise<string | undefined> {
+    const recipients = artifact.workflowBindings?.directRecipients.filter((entry) => entry.destinationBinding === destination) ?? [];
+    if (!recipients.length) return undefined;
+    const ids = [...new Set(recipients.map((entry) => entry.memberId))];
+    if (ids.length !== 1) throw new Error("Recipient-bound channel requires one exact member");
+    const members = roster.filter((entry) => entry.id === ids[0]);
+    if (members.length !== 1) throw new Error("Channel recipient has no exact member identity");
+    const principals = members[0]!.principals?.filter((value) => value.startsWith(`slack:${accountId}:`)) ?? [];
+    if (principals.length !== 1) throw new Error("Channel recipient has no exact account identity");
+    return this.human(accountId, principals[0]!.split(":")[2]!, roster);
+  }
   async qualify(artifact: CompanyOSArtifact, destination: string, roster: RosterMember[]): Promise<JsonValue> {
     const binding = workflowSlackDestination(artifact, destination), account = await this.account();
     if (account !== binding.accountId) throw new Error("Slack credential account differs from the pinned destination");
     let principal: string | undefined;
+    let kind: WorkflowSlackChannelKind = "direct-message";
     if (binding.kind === "direct-message") {
       principal = await this.human(account, binding.userId!, roster);
       const member = findByCanonicalPrincipal(roster, principal)!;
@@ -75,7 +92,11 @@ export class WorkflowSlackTransport {
     } else {
       const response = await this.#api.call("conversations.info", { channel: binding.channelId! }), channel = response.channel;
       if (response.ok !== true || channel?.id !== binding.channelId || channel.is_archived !== false || channel.is_im !== false || channel.is_mpim === true) throw new Error("Slack channel binding is unavailable or has the wrong kind");
+      principal = await this.channelRecipient(artifact, destination, account, roster);
+      if (principal && this.#api.qualifyReplies && typeof channel.is_private !== "boolean") throw new Error("Slack channel visibility could not be verified");
+      kind = channel.is_private ? "private-channel" : "public-channel";
     }
+    if (principal) await this.#api.qualifyReplies?.(kind, principal);
     return { provider: "slack", artifact_hash: artifact.artifactHash, destination_binding: destination, binding_digest: sha256(binding), account_id: account,
       ...(principal ? { principal } : { channel_id: binding.channelId! }), verified_at: new Date().toISOString() };
   }
@@ -86,6 +107,8 @@ export class WorkflowSlackTransport {
     const channelId = match[1]!;
     if (binding.kind === "channel") {
       if (channelId !== binding.channelId) throw new Error("Workflow root receipt belongs to another channel");
+      const principal = await this.channelRecipient(artifact, destination, binding.accountId, roster);
+      if (principal) return { surface: "slack", accountId: binding.accountId, channelId, threadId: match[2]!, subjectPrincipal: principal };
       return { surface: "slack", accountId: binding.accountId, channelId, threadId: match[2]! };
     }
     const response = await this.#api.call("conversations.info", { channel: channelId });

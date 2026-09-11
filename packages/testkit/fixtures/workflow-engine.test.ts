@@ -39,7 +39,7 @@ test("actual Engine runs frozen Company Tools, waits, report and a bound synthet
   const messages = h.calls.filter((c) => c.capability === "communication.message.publish");
   assert.equal(Object.hasOwn(messages[0]!.input, "thread_reference"), false);
   for (const message of messages.slice(1, 4)) assert.equal(message.input.thread_reference, (run.state.steps["open-close-thread"]!.output as any).thread_reference);
-  assert.match(messages.at(-1)!.input.content, /Complete bound payload/);
+  assert.match(messages.at(-1)!.input.content, /Exact proposed changes/);
   assert.match(messages.at(-1)!.input.content, /item-1/);
   const decision = response(h, run);
   run = await h.engine().decide(decision);
@@ -241,4 +241,17 @@ test("current human eligibility is checked again after notice delivery and befor
   await h.engine().decide(reply); h.roster.find((m) => m.id === "jonas-owner")!.mayApprove = [];
   const blocked = (await h.engine().advance(run.runId))!; assert.ok(blocked.state.blocked);
   assert.equal(h.calls.filter((c) => c.capability === "work-item.batch-update").length, 0);
+});
+
+test("transient feedback runs only after exact human authorization and never on redelivery", async () => {
+  const h = engineFixture(), run = await atDecision(h), decision = response(h, run);
+  let calls = 0;
+  const feedback = async () => { calls++; };
+  await assert.rejects(h.engine().decide({ ...decision, requestId: "wrong" }, feedback));
+  await assert.rejects(h.engine().decide({ ...decision, principal: ENGINE_OPERATOR }, feedback));
+  assert.equal(calls, 0);
+  await h.engine().decide(decision, async () => { calls++; throw new Error("presentation failure"); });
+  assert.equal(calls, 1);
+  await h.engine().decide(decision, feedback);
+  assert.equal(calls, 1);
 });

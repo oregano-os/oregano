@@ -1,3 +1,5 @@
+import { ConversationChoiceService } from "../../../runtime/conversation-choice.ts";
+import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { loadArtifact } from "./artifact.ts";
 import { createCompanyOSRuntimeConnectors, getBot } from "./bot.ts";
 import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "./workflow-configuration.ts";
@@ -13,6 +15,7 @@ import { createPostgresWorkflowExecutionStore } from "../../../state-postgres/wo
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import { qualifyCompanyDatabase } from "../../../state-postgres/database-bootstrap.ts";
 import type { CompanyOSArtifact } from "../../../companyos-builder/types.ts";
+import { verifySlackPublicationNotSent } from "../../../connectors/slack/publication-recovery.ts";
 import { createHostedWorkflowConnectors } from "./workflow-connectors.ts";
 
 export async function createWorkflowHost() {
@@ -31,12 +34,19 @@ export async function createWorkflowHost() {
   // Validate required bindings and non-secret snapshots before persisting any opening.
   await connectors(artifact);
   const engine = new WorkflowEngine({ artifact, store, control, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
+    verifyPublicationNotSent: verifySlackPublicationNotSent,
     operatorPrincipals: configuration.operators.map((operator) => operator.principal), currentRoster: roster, connectors,
     qualifyMessageDestinations: (pinned, inputs) => qualifyWorkflowMessageInputs({ scope: slack, artifact: pinned, inputs, roster }),
-    conversationForReceipt: ({ artifact: pinned, destinationBinding, output }) => slack(async (transport) => transport.conversation(pinned, destinationBinding, output, await roster())) });
+    conversationForReceipt: ({ artifact: pinned, destinationBinding, output }) => slack(async (transport) => {
+      const conversation = await transport.conversation(pinned, destinationBinding, output, await roster());
+      if (conversation.subjectPrincipal && !conversation.channelId.startsWith("D")) {
+        await getBot().thread(`slack:${conversation.channelId}:${conversation.threadId}`).subscribe();
+      }
+      return conversation;
+    }) });
   const workers = new WorkflowWorkers({ artifact, engine, store, timers, configuration });
   const records = new WorkflowRecordWorkers({ artifact, store, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
     recordSync: configuration.recordSync, synchronizeSource: createWorkflowRecordSynchronizer() });
-  const conversations = new WorkflowConversationHost({ artifact, engine, store, control, connectors, roster, slack, enabledWorkflowIds: configuration.enabledWorkflowIds });
+  const conversations = new WorkflowConversationHost({ choices: new ConversationChoiceService(createPostgresChatState()), artifact, engine, store, control, connectors, roster, slack, enabledWorkflowIds: configuration.enabledWorkflowIds });
   return { artifact, configuration, store, engine, workers, records, conversations };
 }

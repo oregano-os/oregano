@@ -1,0 +1,92 @@
+version: 3
+plan_id: workflow-decision-buttons-2026-09-06
+created: "2026-09-06"
+title: Share decision cards and add verified workflow button actions
+objective: >-
+  Add Workspace-owned decision explanations and labels, a provider-neutral
+  decision presentation contract and Slack button delivery. Reuse existing
+  card primitives without replacing distinct Tool and workflow authorization.
+  Replace resolved controls only after a durable decision and distinguish
+  delivery or card-update failures from authorization outcomes. Show a transient
+  processing notice only after exact decision authorization and measure handler
+  phases. Localize system feedback from the existing Workspace language.
+non_goals:
+  - Activate production or change Slack production ingress without its deployment gate.
+  - Remove Tool approval semantics or weaken bound decisions and delivery identity.
+  - Implement Teams or Telegram adapters.
+placement: core
+change_class: security
+files_expected:
+  - packages/runtime/decision-feedback.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/testkit/tests/decision-feedback.test.ts
+  - .oregano/changes/2026-09-06-workflow-decision-buttons.yaml
+  - packages/standard-tools/communication.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/capabilities/catalog.ts
+  - packages/capabilities/decision-presentation.ts
+  - packages/companyos-builder/workflow-*.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/connectors/slack/communication.ts
+  - packages/runner-vercel/src/lib/decision-cards.ts
+  - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/*decision*.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/testkit/fixtures/workflow-engine.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/onboarding/README.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/governance/documentation-rules.md
+  - docs/governance/documentation-scope-baseline.json
+  - packages/cli/src/docs-scope.mjs
+  - packages/cli/src/docs-control.mjs
+  - packages/cli/tests/docs-scope.test.mjs
+  - docs/operations/vercel-connect-workflow-interactions.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/cli/tests/docs-scope.test.mjs
+  - packages/testkit/tests/workflow-decision-presentation.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+    - onboarding.index
+    - operations.vercel-workflow-runner
+    - governance.documentation
+    - operations.vercel-connect-workflow-interactions
+    - status.current
+architecture:
+  placement:
+    core: Bind explanations and actions to persisted authorized decisions.
+    packages: No Sprint-specific package or company values.
+    workspace: Own templates and optional action labels.
+    instance: Bind the authenticated interaction ingress to its exact Instance.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing communication capability with bounded decision metadata.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse workflow decisions and Tool approvals through a shared presentation layer.
+    - mechanism: identity-and-authorization
+      reason: Check authenticated human identity and exact delivered message for clicks.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Workspace can render a decision through a supporting Connector.
+rollback: Retain legacy compiled notice rendering and old action IDs until pending requests expire.

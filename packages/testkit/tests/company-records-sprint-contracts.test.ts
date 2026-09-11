@@ -10,7 +10,7 @@ import { STANDARD_WORK_ITEM_TOOLS } from "../../standard-tools/work-items.ts";
 
 const schema = (name: string): JsonSchema => JSON.parse(readFileSync(new URL(`../../schema/${name}`, import.meta.url), "utf8")) as JsonSchema;
 
-test("Company Records and Sprint JSON Schemas accept generic declarations and reject provider secrets", () => {
+test("Company Records and workflow JSON Schemas accept generic declarations and reject provider secrets", () => {
   const source = {
     schema_version: 1,
     id: "fixture-items",
@@ -26,8 +26,8 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
   const errors = validateJsonSchemaValue(schema("company-record-source-v1.schema.json"), { ...source, api_token: "forbidden" });
   assert.ok(errors.some((error) => error.includes("api_token") && error.includes("not allowed")));
 
-  const sprint = {
-    schema_version: 1,
+  const workflow = {
+    schema_version: 2,
     id: "weekly-delivery",
     participants: { projection: "participants", absence_policy: "exclude-approved" },
     work_items: { projection: "sprint-items", master_group: "current", ready_status: "ready", closed_statuses: ["done"] },
@@ -38,7 +38,7 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
     rollover: { eligible: "all-open" },
     delivery: { shared_thread: true, channel_binding: "sprint-channel", direct_binding: "sprint-direct" },
   };
-  assert.deepEqual(validateJsonSchemaValue(schema("sprint-configuration-v1.schema.json"), sprint), []);
+  assert.deepEqual(validateJsonSchemaValue(schema("workflow-config-v2.schema.json"), workflow), []);
 
   const schedule = {
     schema_version: 1,
@@ -54,8 +54,8 @@ test("Company Records and Sprint JSON Schemas accept generic declarations and re
       { id: "friday-report", weekdays: ["friday"], at: "17:00", holiday_shift: "previous-business-day" },
     ],
   };
-  assert.deepEqual(validateJsonSchemaValue(schema("sprint-schedule-v1.schema.json"), schedule), []);
-  const scheduleErrors = validateJsonSchemaValue(schema("sprint-schedule-v1.schema.json"), { ...schedule, token: "forbidden" });
+  assert.deepEqual(validateJsonSchemaValue(schema("schedule-v1.schema.json"), schedule), []);
+  const scheduleErrors = validateJsonSchemaValue(schema("schedule-v1.schema.json"), { ...schedule, token: "forbidden" });
   assert.ok(scheduleErrors.some((error) => error.includes("token") && error.includes("not allowed")));
 });
 
@@ -82,7 +82,7 @@ test("the Core catalog owns provider-neutral records, work-item, and communicati
   }), []);
 });
 
-test("the reusable Sprint standard Tools are available for Artifact ToolSet resolution", () => {
+test("the reusable operational standard Tools are available for Artifact ToolSet resolution", () => {
   assert.deepEqual(STANDARD_RECORDS_TOOLS.map((tool) => tool.contract.runtimeId), ["oregano:records/query"]);
   assert.deepEqual(STANDARD_WORK_ITEM_TOOLS.map((tool) => tool.contract.runtimeId), [
     "oregano:work-items/read",

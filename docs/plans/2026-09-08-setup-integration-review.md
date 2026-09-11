@@ -11,6 +11,8 @@ owners:
 audience:
   - human
   - agent
+implementation_scope: provider
+providers: [vercel, neon, slack, github, openai, anthropic]
 ---
 
 # Setup candidate integration review

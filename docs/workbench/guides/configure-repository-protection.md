@@ -16,11 +16,17 @@ availability: experimental
 
 # Configure Repository Protection
 
+::: implementation-example
+
 Local governance files describe the intended Git workflow and hosted-hardening
 baseline. The maintained setup creates a fresh private repository and checks
 its initial operating commit under the scoped setup decision. It automatically
 applies the following controls to `main` when GitHub supports them, protecting
 subsequent changes:
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 1. require a pull request before merging;
 2. require zero GitHub approvals in the default `steward` review mode;
@@ -32,6 +38,8 @@ subsequent changes:
 8. grant no ruleset bypass to Human Contributors, Agent Contributors,
    deployment keys, or contributor bots.
 
+::: implementation-example
+
 The initial setup decision and checked first commit remain required whether
 hosted enforcement is available or not. Later protected changes use the governed
 pull-request and Steward review process. When GitHub
@@ -39,6 +47,10 @@ enforces the baseline it additionally protects history from accidental direct
 pushes, force pushes, and deletion. An organization may explicitly select
 `independent-review`; that review policy requires exactly one CODEOWNER approval
 and declares `two_person_review: true` for security changes.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 ## One GitHub installation path
 
@@ -70,12 +82,18 @@ it is not a completion requirement for the supervised starter.
 
 ## Review modes
 
+::: implementation-example
+
 The generated Workspace declares `review_mode: steward`. Its protection
 contract sets `required_approvals: 0`, `require_code_owner_review: false`, and
 `bypass: none`. The Steward supplies CompanyOS authority through the recorded
 scoped setup decision for fresh initialization. Later protected changes use
 the recorded Change Plan and applicable Steward review. GitHub supplies
 mechanical evidence for the initial commit's check or a later checked pull request.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 For a company that deliberately wants separation of duties, set
 `review_mode: independent-review`, appoint the additional authorized person,

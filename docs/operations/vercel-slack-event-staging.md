@@ -7,36 +7,36 @@ authority: canonical
 language: en
 implementation_scope: provider
 providers: [vercel, slack]
-updated: 2026-09-07
+updated: 2026-09-11
 owners: [oregano-maintainers]
 audience: [human, agent]
 ---
 
 # Stage Slack channel events on a shared app
 
-A shared Slack app can forward the same event to several deployments. Before
-adding channel message subscriptions, protect any destination that must retain
-its current mention and direct-message behavior.
+A shared Slack app can forward one event to several deployments. Each destination
+must claim exact channels or recipients before admitting a conversation. The
+legacy `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` blanket filter is retired: both
+`ignore` and `process` now preserve ordinary message events for downstream
+subscription and participation routing. Unknown flag values still fail startup.
 
-Set `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` on that destination and deploy it first.
-The main Slack webhook then ignores ordinary public/private channel message
-events. Direct messages, `app_mention` events and interactive controls retain
-their existing authenticated path. The default `process` behavior is unchanged.
+Before upgrading, configure and verify the exact exclusions below on every
+shared-app destination. Without them, blanket-ignore deployments may start
+receiving duplicate conversation events. Keep ordinary message subscriptions
+available so an owned thread can continue without another app mention.
 
-Verify this guard before enabling the additional app event. A separate workflow
-test endpoint can process assigned test threads. This setting does not activate
-a workflow, grant a capability or change the Company Workspace. Do not add
-subscriptions or deploy production without the corresponding authorization.
-
-On rollback, remove the added channel subscription first, then restore the
-previous deployment and setting. An outbound message receipt does not prove
-that an incoming reply will be delivered; test both directions with an authorized
-participant.
+Core decides participation after ownership. Team discussion can be retained
+without posting; a clear follow-up reaches the existing Agent. This adds no
+workflow, grant or provider permission. Verify with an authorized thread:
+mention, answer, unmentioned follow-up, human-to-human exchange, then another
+explicit address. Require one answer when addressed and no answer to the human
+exchange. On rollback restore a compatible ingress/receiver pairing; retain
+all conversation and execution evidence.
 
 ## Assign a test channel to one destination
 
-The ordinary-message guard intentionally preserves `app_mention`. If a separate
-workflow destination accepts mentions too, both deployments could answer.
+Both ordinary messages and app mentions require exclusive ownership. If a separate
+workflow destination accepts the same conversation, both deployments could answer.
 Set `SLACK_IGNORED_CHANNEL_IDS` on the primary destination to a comma-separated
 list of exact channel IDs owned by the test destination. Deploy and verify this
 exclusion before enabling mention handling on the test destination.
@@ -85,3 +85,19 @@ exactly one assigned response. A working button does not prove text delivery.
 The reservation covers the person's whole DM during the test; ordinary chat
 there is temporarily unavailable. Remove the paired settings when the test ends.
 Never enable only one side or treat configuration as proof of actual delivery.
+
+## Isolated conversation acceptance deployment
+
+Set `SLACK_OWNED_CHANNEL_IDS` on an isolated receiver to its exact test channels.
+The primary receiver must exclude those same channels before the separate
+Connect destination is enabled. Ordinary messages, mentions and channel-bound
+interactive controls follow this allowlist; channel-less controls are rejected
+rather than guessed. Provider signature verification still follows admission.
+The normal primary receiver leaves the allowlist unset. Use a separate database
+for the test Instance. On retirement, disconnect the test destination before
+returning its channel ownership to the primary deployment.
+
+A model-only preview can qualify synthetic participation cases using an existing
+secret assignment inside the host. Sensitive provider keys need not leave that
+host. Such a check has no conversation destination and does not prove actual
+incoming-message or interactive-control delivery.

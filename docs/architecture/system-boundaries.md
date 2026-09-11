@@ -25,6 +25,8 @@ exact accounts, resources, routes and SecretRefs, but cannot grant credentials,
 execute a provider call or activate a deployment. Runtime state and secrets
 remain outside Git. See the [format contract](../reference/instance-configuration.md).
 
+::: implementation-example
+
 The standard installation flow lives in the Workbench, not in a Codex/Claude
 prompt. Its session owns discovery, defaults, one initial setup decision and
 recovery; private provider adapters perform the effects. The fresh operating
@@ -32,6 +34,10 @@ Workspace remains company-owned. Session decisions, resource receipts and live
 verification remain private Instance evidence. A release payload supplies exact
 Core and tooling without turning a harness into another setup implementation.
 This new path is experimental and its five-minute live qualification is pending.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Oregano Core owns
 
@@ -72,6 +78,8 @@ Capability Contracts remain provider-neutral, while exact provider mappings,
 IDs, schedules, roles, thresholds, and operating policy remain Workspace or
 Instance truth.
 
+::: implementation-example
+
 The Workbench may maintain a small private setup-adapter boundary for hosted
 installation. A setup profile composes exactly one typed adapter for each
 required role: source host, runtime host, state service, and communication
@@ -97,12 +105,24 @@ runtime Capability, Tool, evidence, or StateStore contracts. A Docker,
 Hetzner, Railway, Supabase, or other installation becomes a new adapter and
 profile, not a new Core execution model.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 Provider prerequisites belong to the concrete setup binding. The maintained
 Vercel binding declares Pro or Enterprise, checks the selected team's current
 plan automatically, and owns its background schedules. Team identity and plan
 receipts remain private Instance setup evidence; a Hobby upgrade is a human
 billing action. This does not make Vercel billing or cron frequency a generic
 Core runtime contract or a Company Workspace interview field.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 Core owns one model-recipe registry rather than a model installation role. The
 standard setup exposes OpenAI and Anthropic as explicit direct-provider choices.
@@ -119,6 +139,10 @@ credential value. Exact task bindings override profile bindings and the
 Instance default. Adding another model provider extends the recipe and
 conformance set; it does not add a fifth installation role or permit
 credentials in Core, a Workspace, or an Artifact.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 The resolver may select documented Anthropic-then-OpenAI defaults from present
 keys only when no explicit task, profile, default, or legacy route binding
@@ -269,6 +293,8 @@ parallel mechanism when the existing contract has the same responsibility.
 
 ## Candidate distribution boundary
 
+::: implementation-example
+
 Packaging and verifying an unpublished installer belongs to Core. Candidate
 selection does not add authority: the existing single scoped setup decision
 still covers named fresh resources and first deployment. The Company Workspace
@@ -276,3 +302,7 @@ records the source pin and candidate marker; the private acquisition receipt
 stays with the setup session, outside company Git. Core generates a separate
 Slack connector name for each candidate session; provider identity and trigger
 receipts must match that exact name throughout creation, resume and verification.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

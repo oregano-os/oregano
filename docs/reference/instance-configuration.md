@@ -80,7 +80,6 @@ bindings: []
 | `agent_bindings` | No | Exact incoming communication routes. Each entry needs `id`, `agent`, `surface`, `account_id`, `channel_id`. |
 | `builder` | No | Coding execution, coding profile, repository bindings and optional bounded test resources. |
 | `workflow_bindings` | No | `direct_recipients` entries containing `binding`, `member_id`, `destination_binding`. |
-| `sprint_runtimes` | No | Existing Sprint runtime bindings supported by this Core line; keep their version-matched Sprint contract during migration. |
 
 Unknown top-level fields are rejected. YAML keys use the names above; provider
 configuration follows the chosen Connector's contract. Quote numeric provider
@@ -88,7 +87,15 @@ identifiers so they remain strings. Workspace validation checks present files
 using the same parser as builds, including the credential scanner. The full
 build additionally resolves Agents, Tools, Capabilities and deployment inputs.
 
+::: implementation-example
+
 For example, this optional section selects Builder for one exact Slack route:
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 ```yaml
 agent_bindings:
@@ -99,18 +106,34 @@ agent_bindings:
     channel_id: C012345
 ```
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 This is incoming Agent selection. Outgoing channel or DM destinations belong
 to the Slack entry in `connectors`. Neither declaration grants a Tool or starts
 a coding job. See [Operate the Builder](../workbench/guides/operate-builder.md)
 for its complete execution, repository and test-resource format.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 ## Stored values and external dependencies
+
+::: implementation-example
 
 Allowed values include exact company account, board, channel, user and
 repository identifiers; Connector and contract versions; resource and
 destination mappings; declared scopes; and SecretRefs such as
 `env:MONDAY_API_TOKEN`. These identifiers belong only in the responsible
 Company Workspace, never real-company examples in public Core or Packages.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 Actual credentials, database URLs containing credentials, private keys,
 provider receipts, mutable runtime state and generated Artifacts remain
@@ -140,11 +163,17 @@ configuration digest. The Runner consumes that Artifact, not a live YAML file
 or Git checkout. Editing or merging the file does not change a running
 installation until the corresponding Artifact is deployed.
 
+::: implementation-example
+
 Slack bindings remain the same when only hosting changes. A different runtime
 host requires a qualified adapter and setup profile; adding `provider:
 hetzner` or `provider: railway` is not a supported migration. Builder worker
 hosting is separate: `builder.execution.adapter: vercel-sandbox` may remain
 when the normal runtime moves to another qualified host.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 To migrate an existing installation, copy its exact non-secret declaration
 into `.companyos/instance.yaml`, validate and review the diff, and build from

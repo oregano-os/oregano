@@ -14,49 +14,22 @@ const searchTool = {
   toolName: "oregano_knowledge_search",
 };
 
-test("the failed German Slack request requires Knowledge search on the first model step", () => {
-  const route = resolveKnowledgeTurnRoute({
-    text: "@Oregano Durchsuche das Company Knowledge nach „Company Brain“. Nutze dafür die Wissenssuche.",
-    tools: [searchTool],
-  });
-  assert.deepEqual(route, {
-    kind: "required-search",
-    grantId: "oregano:knowledge/search",
-    toolName: "oregano_knowledge_search",
-    reason: "explicit-search",
-  });
-  assert.deepEqual(knowledgeStepChoice(route, 0), {
-    toolChoice: { type: "tool", toolName: "oregano_knowledge_search" },
-    activeTools: ["oregano_knowledge_search"],
-  });
-  assert.deepEqual(knowledgeStepChoice(route, 1), { toolChoice: "auto" });
-});
-
-test("explicit English lookup and company evidence questions require the granted search Tool", () => {
-  const explicit = resolveKnowledgeTurnRoute({
-    text: "Search Company Knowledge for Project Cedar and cite the results.",
-    tools: [searchTool],
-  });
-  assert.equal(explicit.kind, "required-search");
-
-  const evidenceQuestion = resolveKnowledgeTurnRoute({
-    text: "Welche Entscheidungen wurden in unseren Granola-Gesprächen festgehalten?",
-    tools: [searchTool],
-  });
-  assert.equal(evidenceQuestion.kind, "required-search");
-  if (evidenceQuestion.kind === "required-search") assert.equal(evidenceQuestion.reason, "company-evidence-question");
-
-  const reproducedCompanyOsQuestion = resolveKnowledgeTurnRoute({
-    text: "Was wurde alles zum Thema CompanyOS in den letzten Wochen besprochen? Alle Quellen.",
-    tools: [searchTool],
-  });
-  assert.equal(reproducedCompanyOsQuestion.kind, "required-search");
+test("keyword phrases do not force search; the Agent can select a knowledge turn", () => {
+  for (const text of ["Search Company Knowledge for Project Cedar", "Welche Entscheidungen wurden besprochen?", "ordinary message"] ) {
+    const automatic = resolveKnowledgeTurnRoute({ text, tools: [searchTool] });
+    assert.deepEqual(automatic, { kind: "auto", searchToolName: searchTool.toolName });
+    assert.deepEqual(knowledgeStepChoice(automatic, 0), { toolChoice: "auto" });
+    const selected = resolveKnowledgeTurnRoute({ text, tools: [searchTool], requiresKnowledge: true });
+    assert.deepEqual(selected, { kind: "required-search", grantId: searchTool.grantId, toolName: searchTool.toolName, reason: "agent-selected" });
+    assert.deepEqual(knowledgeStepChoice(selected, 0), { toolChoice: { type: "tool", toolName: searchTool.toolName }, activeTools: [searchTool.toolName] });
+    assert.deepEqual(knowledgeStepChoice(selected, 1), { toolChoice: "auto" });
+  }
 });
 
 test("required Knowledge turns use deep cited synthesis and receive the answer contract", () => {
   const route = resolveKnowledgeTurnRoute({
     text: "Fasse die CompanyOS-Entscheidungen aus den letzten Meetings zusammen.",
-    tools: [searchTool],
+    tools: [searchTool], requiresKnowledge: true,
   });
   assert.deepEqual(knowledgeTurnModelTask(route), {
     profile: "deep",
@@ -118,7 +91,7 @@ test("the Knowledge-only task binding can select Opus without changing ordinary 
 });
 
 test("ordinary conversation and an Agent without the search grant retain automatic Tool choice", () => {
-  assert.deepEqual(resolveKnowledgeTurnRoute({ text: "Hallo Oregano, wie geht es dir?", tools: [searchTool] }), { kind: "auto" });
+  assert.deepEqual(resolveKnowledgeTurnRoute({ text: "Hallo Oregano, wie geht es dir?", tools: [searchTool] }), { kind: "auto", searchToolName: searchTool.toolName });
   assert.deepEqual(resolveKnowledgeTurnRoute({
     text: "Durchsuche das Company Knowledge nach Company Brain.",
     tools: [{ grantId: "oregano:knowledge/get", toolName: "oregano_knowledge_get" }],
@@ -128,7 +101,7 @@ test("ordinary conversation and an Agent without the search grant retain automat
 test("a required search must have a successful Tool result before rendering", () => {
   const route = resolveKnowledgeTurnRoute({
     text: "Search Company Knowledge for Company Brain.",
-    tools: [searchTool],
+    tools: [searchTool], requiresKnowledge: true,
   });
   assert.match(renderKnowledgeTurnResponse({ route, modelText: "I cannot search.", toolResults: [] }), /Diagnosecode: missing-tool-result/u);
   assert.match(renderKnowledgeTurnResponse({
@@ -160,7 +133,7 @@ test("a required search must have a successful Tool result before rendering", ()
 test("a grounded model answer with a returned citation is retained", () => {
   const route = resolveKnowledgeTurnRoute({
     text: "Search Company Knowledge for Company Brain.",
-    tools: [searchTool],
+    tools: [searchTool], requiresKnowledge: true,
   });
   const response = renderKnowledgeTurnResponse({
     route,
@@ -181,7 +154,7 @@ test("a grounded model answer with a returned citation is retained", () => {
 test("a false Tool-unavailable answer is replaced with authorized cited excerpts", () => {
   const route = resolveKnowledgeTurnRoute({
     text: "Durchsuche das Company Knowledge nach Company Brain.",
-    tools: [searchTool],
+    tools: [searchTool], requiresKnowledge: true,
   });
   const response = renderKnowledgeTurnResponse({
     route,
@@ -207,7 +180,7 @@ test("a false Tool-unavailable answer is replaced with authorized cited excerpts
 test("a completed search without hits returns an explicit grounded no-result response", () => {
   const route = resolveKnowledgeTurnRoute({
     text: "Search Company Knowledge for absent topic.",
-    tools: [searchTool],
+    tools: [searchTool], requiresKnowledge: true,
   });
   const response = renderKnowledgeTurnResponse({
     route,
@@ -219,4 +192,11 @@ test("a completed search without hits returns an explicit grounded no-result res
   });
   assert.match(response, /keine autorisierten Treffer/u);
   assert.match(response, /no lexical match/u);
+});
+
+test("autonomous search still validates returned evidence", () => {
+  const route = resolveKnowledgeTurnRoute({ text: "No keyword", tools: [searchTool] });
+  assert.match(renderKnowledgeTurnResponse({ route, modelText: "Unsupported claim", toolResults: [
+    { toolName: searchTool.toolName, output: { query: "policy", hits: [] } },
+  ] }), /keine autorisierten Treffer/);
 });

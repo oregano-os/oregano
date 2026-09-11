@@ -186,6 +186,31 @@ export function createPostgresWorkflowExecutionStore(options: { prepareArtifactS
           and (not (assignment_json ? 'subjectPrincipal') or assignment_json->>'subjectPrincipal' = ${args.conversation.subjectPrincipal ?? null})`;
       return rows[0] && json<WorkflowAssignment>(rows[0].assignment_json);
     },
+    async channelAssignments(args) {
+      workflowInstant(args.now);
+      await ensureWorkflowExecutionSchema();
+      const rows = await connection()`select assignment_json from companyos.workflow_thread_assignments assigned
+        join companyos.workflow_executions runs on assigned.run_id = runs.run_id and assigned.instance_id = runs.instance_id
+        where assigned.instance_id = ${scoped(args.instanceId)} and assigned.expires_at > ${args.now} and not (assignment_json ? 'publication')
+          and runs.state_json->>'status' in ('running','waiting')
+          and assignment_json->>'surface' = ${args.surface} and assignment_json->>'accountId' = ${args.accountId}
+          and assignment_json->>'channelId' = ${args.channelId} and assignment_json->>'subjectPrincipal' = ${args.subjectPrincipal}
+        order by assignment_key limit 21`;
+      return rows.map((row) => json<WorkflowAssignment>(row.assignment_json));
+    },
+    async publishedAssignments(args) {
+      workflowInstant(args.now);
+      await ensureWorkflowExecutionSchema();
+      const c = args.conversation;
+      const rows = await connection()`select assignment_json from companyos.workflow_thread_assignments
+        where instance_id = ${scoped(args.instanceId)} and expires_at > ${args.now} and assignment_json ? 'publication'
+          and assignment_json->>'surface' = ${c.surface} and assignment_json->>'accountId' = ${c.accountId}
+          and assignment_json->>'channelId' = ${c.channelId} and assignment_json->>'threadId' = ${c.threadId}
+          and (not (assignment_json ? 'subjectPrincipal') or assignment_json->>'subjectPrincipal' = ${c.subjectPrincipal ?? null})
+        order by assignment_json->'publication'->>'publishedAt' desc, run_id,
+          (assignment_json->'publication'->>'sequence')::bigint desc, assignment_key limit 41`;
+      return rows.map((row) => json<WorkflowAssignment>(row.assignment_json));
+    },
     async assignment(args) {
       workflowInstant(args.now);
       await ensureWorkflowExecutionSchema();

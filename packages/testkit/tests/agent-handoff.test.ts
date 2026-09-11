@@ -257,3 +257,12 @@ test("Conversation Assignment tables are additive, mirrored, and contain no raw 
   assert.doesNotMatch(`${migration}\n${schema}`, /raw_(?:message|prompt|transcript)|message_body/i);
   assert.doesNotMatch(`${migration}\n${schema}`, /\b(?:drop|truncate)\b/i);
 });
+
+test("concern delegation validates the existing policy without installing an inbox assignment", async () => {
+  const { service, store } = createService();
+  const proof = service.authorizeConcern({ ...key, activeAgentId: "oregano", targetAgentId: "sprint", purpose: "sprint", artifactHash, requestedAt: at });
+  assert.equal(proof.ruleId, "oregano-to-sprint");
+  assert.equal(await store.getActive(key, at), undefined);
+  assert.throws(() => service.authorizeConcern({ ...key, activeAgentId: "oregano", targetAgentId: "sprint", purpose: "anything", artifactHash, requestedAt: at }), /No compiled/);
+  assert.throws(() => service.authorizeConcern({ ...key, activeAgentId: "oregano", targetAgentId: "sprint", purpose: "sprint", artifactHash: "wrong", requestedAt: at }), /different Artifact/);
+});

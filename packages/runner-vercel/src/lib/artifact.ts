@@ -1,4 +1,4 @@
-import { gunzipSync } from "node:zlib";
+import { decodeArtifactPayload } from "./artifact-payload.ts";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../companyos-builder/types.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { resolveAgent } from "../../../runtime/agent-resolver.ts";
@@ -43,9 +43,7 @@ export function loadArtifact(): CompanyOSArtifact {
   const reference = process.env.COMPANYOS_ARTIFACT_HASH;
   if (reference) return referencedArtifact().get(reference);
   if (cachedArtifact) return cachedArtifact;
-  const encoded = process.env.COMPANYOS_ARTIFACT_GZIP_BASE64;
-  if (!encoded) throw new Error("COMPANYOS_ARTIFACT_GZIP_BASE64 is not configured.");
-  const parsed = JSON.parse(gunzipSync(Buffer.from(encoded, "base64")).toString("utf8")) as CompanyOSArtifact;
+  const parsed = decodeArtifactPayload(process.env) as CompanyOSArtifact;
   verifyArtifact(parsed);
   cachedArtifact = parsed;
   return parsed;
@@ -67,6 +65,10 @@ function verifyArtifact(parsed: CompanyOSArtifact): void {
   };
   const actualHash = sha256(hashInput);
   if (actualHash !== artifactHash) throw new Error(`Artifact integrity failure: expected ${artifactHash}, got ${actualHash}.`);
+  const retired = (parsed as unknown as { sprints?: unknown }).sprints;
+  if (retired !== undefined && (!Array.isArray(retired) || retired.length > 0)) {
+    throw new Error("Artifact contains retired Sprint execution; rebuild with declared workflows before activation.");
+  }
   assertArtifactDeploymentEnvironment(parsed.instance.environment);
 }
 

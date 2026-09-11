@@ -474,7 +474,7 @@ export const COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST = createHash("sha256")
   .digest("hex");
 
 const WORKFLOW_CONTROL_TABLES = Object.freeze([...CONTROL_TABLES, "workflow_artifacts", "workflow_executions", "workflow_thread_assignments"].sort());
-export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+export const COMPANY_DATABASE_MANIFEST_PHASE_TEN = Object.freeze({
   ...COMPANY_DATABASE_MANIFEST_PHASE_NINE,
   version: "2.0.0",
   predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_NINE.version,
@@ -485,6 +485,23 @@ export const COMPANY_DATABASE_MANIFEST = Object.freeze({
   requiredIndexes: Object.freeze([...COMPANY_DATABASE_MANIFEST_PHASE_NINE.requiredIndexes,
     "companyos.workflow_executions_status_idx", "companyos.workflow_thread_assignments_run_idx"]),
   requiredConstraints: Object.freeze([...COMPANY_DATABASE_MANIFEST_PHASE_NINE.requiredConstraints,
+    "companyos.workflow_execution_origin_unique", "companyos.workflow_execution_revision_check", "companyos.workflow_execution_lease_check"]),
+});
+export const COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST = createHash("sha256").update(JSON.stringify(COMPANY_DATABASE_MANIFEST_PHASE_TEN)).digest("hex");
+
+// Retired executor tables may remain as historical audit data. New installations
+// neither create nor require them, and qualification never drops existing data.
+export const COMPANY_DATABASE_MANIFEST = Object.freeze({
+  ...COMPANY_DATABASE_MANIFEST_PHASE_TEN,
+  version: "2.1.0",
+  predecessorVersion: COMPANY_DATABASE_MANIFEST_PHASE_TEN.version,
+  schemas: Object.freeze({
+    ...COMPANY_DATABASE_MANIFEST_PHASE_TEN.schemas,
+    companyos_records: Object.freeze({ tables: Object.freeze(RECORDS_TABLES_PHASE_EIGHT) }),
+  }),
+  requiredIndexes: Object.freeze([...REQUIRED_INDEXES, ...RECORDS_REQUIRED_INDEXES_PHASE_EIGHT,
+    "companyos.workflow_executions_status_idx", "companyos.workflow_thread_assignments_run_idx"]),
+  requiredConstraints: Object.freeze([...REQUIRED_CONSTRAINTS,
     "companyos.workflow_execution_origin_unique", "companyos.workflow_execution_revision_check", "companyos.workflow_execution_lease_check"]),
 });
 export const COMPANY_DATABASE_MANIFEST_DIGEST = createHash("sha256").update(JSON.stringify(COMPANY_DATABASE_MANIFEST)).digest("hex");
@@ -560,6 +577,7 @@ const SUPPORTED_MANIFEST_DIGESTS = new Map<string, string>([
   [COMPANY_DATABASE_MANIFEST_PHASE_SEVEN.version, COMPANY_DATABASE_MANIFEST_PHASE_SEVEN_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_EIGHT.version, COMPANY_DATABASE_MANIFEST_PHASE_EIGHT_DIGEST],
   [COMPANY_DATABASE_MANIFEST_PHASE_NINE.version, COMPANY_DATABASE_MANIFEST_PHASE_NINE_DIGEST],
+  [COMPANY_DATABASE_MANIFEST_PHASE_TEN.version, COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST],
   [COMPANY_DATABASE_MANIFEST.version, COMPANY_DATABASE_MANIFEST_DIGEST],
 ]);
 
@@ -631,7 +649,7 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
   if (receipt.schemas?.companyos?.tableCount !== WORKFLOW_CONTROL_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos table count.");
   const expectedKnowledgeTables = KNOWLEDGE_TABLES.length + (receipt.features?.vector ? 2 : 0);
   if (receipt.schemas?.companyosKnowledge?.tableCount !== expectedKnowledgeTables) throw new Error("Database qualification receipt has the wrong companyos_knowledge table count.");
-  if (receipt.schemas?.companyosRecords?.tableCount !== RECORDS_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos_records table count.");
+  if (receipt.schemas?.companyosRecords?.tableCount !== RECORDS_TABLES_PHASE_EIGHT.length) throw new Error("Database qualification receipt has the wrong companyos_records table count.");
   if (receipt.corePageTypeCount !== CORE_PAGE_TYPE_KEYS.length) throw new Error("Database qualification receipt has the wrong Core Page type count.");
   if (typeof receipt.features?.vector !== "boolean") throw new Error("Database qualification receipt requires explicit vector feature evidence.");
 }
@@ -641,7 +659,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
   const expectedTables = [
     ...WORKFLOW_CONTROL_TABLES.map((name) => `companyos.${name}`),
     ...KNOWLEDGE_TABLES.map((name) => `companyos_knowledge.${name}`),
-    ...RECORDS_TABLES.map((name) => `companyos_records.${name}`),
+    ...RECORDS_TABLES_PHASE_EIGHT.map((name) => `companyos_records.${name}`),
   ];
   // Compare in one read-only database snapshot. Healthy qualification returns no
   // catalog names, regardless of how many unrelated objects the Instance holds.
@@ -723,7 +741,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
     schemas: {
       companyos: { tableCount: WORKFLOW_CONTROL_TABLES.length },
       companyosKnowledge: { tableCount: KNOWLEDGE_TABLES.length + (vector ? 2 : 0) },
-      companyosRecords: { tableCount: RECORDS_TABLES.length },
+      companyosRecords: { tableCount: RECORDS_TABLES_PHASE_EIGHT.length },
     },
     corePageTypeCount: CORE_PAGE_TYPE_KEYS.length,
     features: { vector },

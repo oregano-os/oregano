@@ -1,0 +1,47 @@
+version: 3
+plan_id: exclusive-workflow-routing-2026-09-10
+created: "2026-09-10"
+title: Admit only owned conversations before workflow coordination
+objective: Prevent a shared-app workflow-only Instance from responding to channels or DMs owned by another destination, before initializing its general Agent.
+non_goals:
+  - Change business workflows, permissions, state, or model configuration.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-10-exclusive-workflow-routing.yaml
+  - packages/runner-vercel/src/lib/slack-conversation-ownership.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/tests/slack-conversation-ownership.test.ts
+  - docs/operations/vercel-workflow-runner.md
+  - docs/status/current.md
+tests:
+  - packages/testkit/tests/slack-conversation-ownership.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-workflow-runner
+    - status.current
+architecture:
+  placement:
+    core: Select exact owned conversations before SDK dispatch on both Slack entrypoints.
+    packages: Preserve transport and signature verification contracts.
+    workspace: Preserve Agent and workflow definitions.
+    instance: Reuse compiled exact Agent channel bindings and reserved DM principals.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Reuse exact compiled bindings for workflow-only ingress ownership; default Agent is not ownership.
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend existing Slack ingress selection without bypassing SDK authentication.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any shared-app deployment can reuse its existing exact bindings without company-specific code.
+rollback: Restore the preceding exact Core deployment only with workflow conversation ingress disabled to avoid duplicate responders; retain all workflow and conversation state.
+open_decisions: []

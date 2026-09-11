@@ -32,6 +32,8 @@ defines the fields and migration from external declaration files.
 
 ## Agent-guided complete starter setup
 
+::: implementation-example
+
 Codex and Claude Code share the verified release installer and the same
 `companyos setup` session. The human pastes the short prompt and sees connected
 accounts, a required OpenAI-or-Anthropic choice, one editable setup summary,
@@ -43,11 +45,23 @@ destination, and direct keys stay in Vercel Sensitive Production variables. One 
 includes the first deployment; the direct fresh initializer produces the whole
 operating Workspace at `0.1.0` with one named Steward and no business Tools.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The installer does not publish an authoring-only intermediate version or ask
 for an activation PR, merge, or second deployment decision. Required checks
 still run on the initial commit. A real first Slack reply and Neon persistence
 must pass before `complete`. The source implementation is experimental and
 awaits fresh cold-run qualification; see [setup choices](setup-options.md).
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The reference checklist below describes the resulting account, Workspace and
 governance contract. It is not a questionnaire to repeat during standard setup.
@@ -67,7 +81,13 @@ still missing on retry, use the [delivery recovery](../workbench/commands/setup.
 for the exact app and connector. Check Slack URL verification separately from
 Vercel synchronization, and preserve approved permissions when saving in Slack.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 ### Candidate initialization
+
+::: implementation-example
 
 An explicitly selected unpublished installer candidate initializes the same
 operating Workspace and records its candidate identity in the setup decision
@@ -77,12 +97,18 @@ Its first GitHub check uses pinned source and a
 frozen dependency install; it does not depend on a release tag. See
 [testing before release](../workbench/commands/setup.md#test-an-unpublished-candidate).
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 ## 1. Verify external account prerequisites
 
 Use individual human identities; never share one provider login between
 Contributors. The company or its appointed custodian must retain billing,
 recovery, and administrator access instead of depending on a Contributor's
 personal account.
+
+::: implementation-example
 
 | Layer | Maintained reference setup | Required when | Acceptance |
 |---|---|---|---|
@@ -93,6 +119,10 @@ personal account.
 | Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |
 | Connected systems | For example Slack or Monday provider connections | Only when declared by an approved connection or Tool grant | Each connection has a named owner, minimum access, revocation path, and no secrets in Git. |
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 For the maintained hosted Monday Connector, the Instance declaration pins the
 reviewed account, authenticated member, external-Agent kind and provider Agent
 subject in `credential_identity`; `actor_id` equals that member ID. Obtain these
@@ -101,6 +131,8 @@ Artifact needs its own reviewed configuration; a missing identity blocks access.
 The host rechecks the same credential and current resource permissions before
 invocation. This external check remains `manual` in local onboarding and does
 not make the Workspace a credential or provider-identity authority.
+
+::: implementation-example
 
 Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider
 account. The maintained complete starter requires a Vercel Pro or Enterprise
@@ -115,6 +147,10 @@ the human enters the provider key only under its documented Sensitive
 Production variable in the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the
 human never pastes a password, provider token, database URL, or private key into
 chat.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## 2. Assign accountable roles
 
@@ -186,6 +222,8 @@ provide the feature, setup records `advisory` and continues. This is detected
 state, not a user-selected installation mode, and the agent never asks for a
 GitHub upgrade.
 
+::: implementation-example
+
 Fresh setup waits for the initial commit's `check` under its single setup
 decision. Later operating changes retain the Workspace Steward’s release authority. GitHub enforcement adds protection against accidental
 direct pushes, force pushes, and deletion. It becomes a prerequisite only
@@ -193,6 +231,10 @@ before an unattended agent receives repository write, merge, or deployment
 authority. Follow the version-matched [repository protection
 Guide](../workbench/guides/configure-repository-protection.md) for the recorded
 status and professional organization controls.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## 7. Complete an existing authoring Workspace when requested
 
@@ -236,6 +278,8 @@ existing Source and Claim evidence remains under the reserved quarantine
 policy. Applying schema never grants access by itself; runtime subject
 resolution and authorization conformance remain mandatory.
 
+::: implementation-example
+
 Knowledge Source activation follows database preparation; it is not a database
 migration step. A new setup may begin with no database at all: the State
 Service first creates the dedicated PostgreSQL resource, `database prepare`
@@ -245,6 +289,10 @@ handlers, obtain provider qualification evidence, change the binding to
 `active`, run the initial backfill, and verify aggregate object and watermark
 state. Each runtime profile supplies its own secret and scheduler adapters; the
 Source contract itself does not require Vercel.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 Before each external create operation, setup writes a non-secret intent to the
 state file; after the provider returns an immutable identity, setup records an
@@ -270,6 +318,8 @@ contract](../specifications/company-instance-release-and-promotion-v0.1-draft.md
 
 ## 8. Acceptance
 
+::: implementation-example
+
 Onboarding is locally ready when `companyos onboard` has no errors. The complete
 starter is ready only when `companyos verify-live --state <file>` succeeds with
 scope `live-starter-instance`: the repository is private, the exact initial
@@ -282,6 +332,10 @@ fails closed on an unresolved setup intent. Hosted GitHub protection is
 reported separately as `enforced` or `advisory`; either status is valid for
 this Tool-free supervised starter. This is bounded evidence, not certification
 of future Tools, unattended workflows, or generic production enforcement.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## 9. Add Company Knowledge when needed
 

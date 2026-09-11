@@ -90,11 +90,17 @@ The machine contract lives in `packages/runtime/builder/brief.ts`. It contains:
 | `deploymentIntent` | Prepare only, or request adoption after acceptance. |
 | `openQuestions` | Remaining material decisions; must be empty before coding. |
 
+::: implementation-example
+
 Core adds the Artifact hash, Workspace commit, independently recorded content
 read digests and a digest of the whole resolved brief. The model cannot supply
 read receipts in its Tool arguments. Evidence is scoped to the current
 Artifact, authenticated requester and conversation. The durable job retains
 the brief; both Claude Code and Codex receive the same contract.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 ## Select the smallest useful test
 

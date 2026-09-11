@@ -3,8 +3,6 @@ import type { CompanyToolContract } from "../tool-sdk/contracts.ts";
 import type { ResolvedToolSet } from "../toolset-resolver/resolver.ts";
 import type { RosterMember } from "../state-store/roster.ts";
 import type { AgentBinding, CompiledAgentRouting } from "../runtime/agent-resolver.ts";
-import type { BusinessCalendar } from "../domains/sprint/business-time.ts";
-import type { SprintDomainDeclaration, Weekday } from "../domains/sprint/contracts.ts";
 import type { WorkspaceReleasePolicy } from "../runtime/release/contracts.ts";
 import type { BuilderTestResource } from "../runtime/builder/functional-tests.ts";
 
@@ -41,37 +39,6 @@ export interface RuntimeConnectorConfiguration {
   configuration: { [key: string]: JsonValue };
 }
 
-export interface SprintRuntimeInstanceConfiguration {
-  definitionId: string;
-  agentId: string;
-  execution: "active-capable" | "shadow-only";
-  servicePrincipal: string;
-  participantIdentityPrefix: string;
-  directDestinations: Record<string, string>;
-  workItem?: {
-    resourceBinding: string;
-    rolloverField: string;
-    readinessField?: string;
-  };
-  testPublication?: {
-    testOnly: true;
-    communicationBinding: string;
-    forbiddenChannelIds: string[];
-  };
-  replay?: {
-    messageProjection: string;
-    testPublication?: {
-      testOnly: true;
-      publisherAgentId: string;
-      communicationBinding: string;
-      workItemBinding: string;
-      workItemId: string;
-      forbiddenChannelIds: string[];
-      forbiddenBoardIds: string[];
-    };
-  };
-}
-
 export interface WorkflowInstanceBindings {
   /** Exact member-to-destination pairs; provider identity qualification is required before activation. */
   directRecipients: Array<{ bindingId: string; memberId: string; destinationBinding: string }>;
@@ -85,86 +52,8 @@ export interface InstanceBuildConfiguration {
   connectors?: RuntimeConnectorConfiguration[];
   agentBindings: AgentBinding[];
   defaultAgentId?: string;
-  sprintRuntimes?: SprintRuntimeInstanceConfiguration[];
   workflowBindings?: WorkflowInstanceBindings;
   builder?: BuilderInstanceConfiguration;
-}
-
-export interface CompiledSprintTemplate {
-  path: string;
-  content: string;
-  digest: string;
-}
-
-export interface CompiledSprintScheduleManifest {
-  schemaVersion: 1;
-  id: string;
-  sourcePath: string;
-  activation: "blocked" | "active";
-  timeZone: string;
-  businessDays: Weekday[];
-  holidaysByYear: Record<string, string[]>;
-  missingYearPolicy: "assume-no-holidays" | "block";
-  deliveryWindow: { opensAt: string; closesAt: string };
-  triggers: Array<{
-    id: string;
-    weekdays: Weekday[];
-    at: string;
-    holidayShift?: "previous-business-day" | "next-business-day" | "none";
-  }>;
-  sourceDigest: string;
-  provenance: {
-    instanceId: string;
-    coreCommit: string;
-    workspaceCommit: string;
-    workbenchVersion: string;
-  };
-}
-
-export interface CompiledSprintRuntime {
-  definitionId: string;
-  agentId: string;
-  execution: "active-capable" | "shadow-only";
-  servicePrincipal: string;
-  participantIdentityPrefix: string;
-  policy: SprintDomainDeclaration;
-  calendar: BusinessCalendar;
-  schedule: CompiledSprintScheduleManifest;
-  templates: {
-    reminder: CompiledSprintTemplate;
-    chase: CompiledSprintTemplate;
-    closeReport: CompiledSprintTemplate;
-    retro: CompiledSprintTemplate;
-    replayReport?: CompiledSprintTemplate;
-    mondayHandoff?: CompiledSprintTemplate;
-    weekdayDigest?: CompiledSprintTemplate;
-    directQuestion?: CompiledSprintTemplate;
-  };
-  directDestinations: Record<string, string>;
-  directAssignments: Record<string, {
-    fromAgentId: string;
-    purpose: string;
-  }>;
-  workItem?: {
-    resourceBinding: string;
-    rolloverField: string;
-    readinessField?: string;
-  };
-  testPublication?: {
-    testOnly: true;
-    communicationBinding: string;
-  };
-  replay?: {
-    messageProjection: string;
-    testPublication?: {
-      testOnly: true;
-      publisherAgentId: string;
-      communicationBinding: string;
-      workItemBinding: string;
-      workItemId: string;
-    };
-  };
-  modelTask: string;
 }
 
 export interface CompiledCompanyTool {
@@ -176,6 +65,9 @@ export interface CompiledCompanyTool {
 export interface CompiledAgent {
   id: string;
   instructions: string;
+  description?: string;
+  modelTask?: string;
+  conversationCoordinator?: boolean;
   materials: Record<string, string>;
   /** Builder-only existence inventory. Read scope still controls file content. */
   sourcePaths?: readonly string[];
@@ -187,6 +79,7 @@ export interface CompanyOSArtifact {
   builderReleasePolicy?: WorkspaceReleasePolicy;
   schemaVersion: 1;
   company: string;
+  language?: string;
   instance: { id: string; environment: string };
   provenance: {
     instanceConfigurationDigest?: string;
@@ -214,7 +107,6 @@ export interface CompanyOSArtifact {
   roster: RosterMember[];
   agents: CompiledAgent[];
   agentRouting: CompiledAgentRouting;
-  sprints?: CompiledSprintRuntime[];
   workflows?: import("./workflow-types.ts").CompiledWorkflow[];
   workflowBindings?: WorkflowInstanceBindings;
   builder?: BuilderInstanceConfiguration;

@@ -1,3 +1,4 @@
+import type { ConversationMessage, Participation } from "../conversation-participation.ts";
 import type { CapabilityCallContext, Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { BuilderJob } from "../../state-store/builder-jobs.ts";
 import type { CheckedProposal, ProposalPublicationReceipt } from "../repository/contracts.ts";
@@ -15,6 +16,7 @@ export interface BuilderTestResource {
 }
 
 export interface BuilderTestResult {
+  participation?: Participation;
   artifactHash: string;
   candidateCommit: string;
   executionDigest: string;
@@ -46,14 +48,16 @@ export interface BuilderTestSession {
   stage: "prepared" | "running" | "interactive" | "responding" | "expired" | "reviewable" | "feedback-pending" | "changes-requested" | "accepted" | "failed" | "discarded";
   conversation?: {
     expiresAt: string;
-    turns: { messageId: string; prompt: string; result: BuilderTestResult }[];
-    pending?: { messageId: string; prompt: string };
+    turns: { messageId: string; prompt: string; message?: ConversationMessage; result: BuilderTestResult }[];
+    pending?: { messageId: string; prompt: string; message?: ConversationMessage; previousResultDigest?: string };
     generation: number;
   };
   artifactHash?: string;
   testConversation?: string;
   testUrl?: string;
   result?: BuilderTestResult;
+  /** Silent context does not invalidate the last visible result card. Cleared by a new answer. */
+  retainedResultDigest?: string;
   feedback?: { principal: string; messageId: string; text: string; receivedAt: string };
   acceptance?: { principal: string; actionId: string; resultDigest: string; acceptedAt: string };
   failureDigest?: string;
@@ -140,6 +144,7 @@ export function prepareBuilderTestSession(args: { job: BuilderJob; coreCommit: s
 
 export function builderTestResultDigest(session: BuilderTestSession): string {
   if (!session.result || !session.artifactHash || !session.testConversation) throw new Error("This candidate has no completed functional test.");
+  if (session.retainedResultDigest) return session.retainedResultDigest;
   return sha256({ id: session.id, previousTestSessionId: session.previousTestSessionId, candidateCommit: session.candidateCommit, artifactHash: session.artifactHash,
     coreCommit: session.coreCommit, checksDigest: session.checksDigest, briefDigest: session.briefDigest,
     scopeDigest: session.scopeDigest, testConversation: session.testConversation, testUrl: session.testUrl, result: session.result,
@@ -183,7 +188,7 @@ export class BuilderFunctionalTests {
   }
   async recordResult(id: string, result: BuilderTestResult) {
     return this.#update(id, (session) => {
-      if (session.stage !== "running" || result.artifactHash !== session.artifactHash || result.candidateCommit !== session.candidateCommit
+      if (result.participation === "context-only" || session.stage !== "running" || result.artifactHash !== session.artifactHash || result.candidateCommit !== session.candidateCommit
         || result.executionDigest !== session.scopeDigest || !bounded(result.summary, 8000) || !Number.isFinite(Date.parse(result.completedAt))
         || JSON.stringify(result.evidence).length > 100_000) throw new Error("Test result does not prove this exact execution.");
       if (session.conversation && session.execution.kind === "agent") {
@@ -193,19 +198,21 @@ export class BuilderFunctionalTests {
       return { ...session, stage: "reviewable", result: structuredClone(result) };
     });
   }
-  async beginTurn(id: string, principal: string, messageId: string, prompt: string, conversationReference?: string) {
+  async beginTurn(id: string, principal: string, messageId: string, prompt: string, conversationReference?: string, message?: ConversationMessage) {
     return this.#update(id, (session) => {
       if (session.stage !== "interactive" || !session.conversation || principal !== session.requester
         || !bounded(messageId, 512) || !bounded(prompt, 4000)
         || Date.parse(session.conversation.expiresAt) <= this.now().getTime()) throw new Error("This test cannot accept another message. Ask Builder to resume an available build or select another test.");
       const reference = conversationReference ?? session.testConversation!;
+      if (message && (message.id !== messageId || message.senderId !== principal || message.conversationId !== reference
+        || message.text !== prompt || !Number.isFinite(Date.parse(message.sentAt)))) throw new Error("Test conversation identity does not match the authenticated message.");
       const histories = session.testConversations ?? { [session.testConversation!]: session.conversation };
       if (!bounded(reference, 512) || (!histories[reference] && Object.keys(histories).length >= 20)) throw new Error("This build has reached its test conversation limit.");
       const conversation = histories[reference] ?? { expiresAt: this.#expiry(session), turns: [], generation: 0 };
       if (conversation.turns.length >= 20 || conversation.turns.some(turn => turn.messageId === messageId)) throw new Error("Test reply is duplicated or this conversation is full.");
       return { ...session, stage: "responding", activeTestConversation: reference,
         testConversations: { ...histories, [reference]: conversation },
-        conversation: { ...conversation, expiresAt: this.#expiry(session), pending: { messageId, prompt } } };
+        conversation: { ...conversation, expiresAt: this.#expiry(session), pending: { messageId, prompt, previousResultDigest: session.result ? builderTestResultDigest(session) : undefined, ...(message ? { message: structuredClone(message) } : {}) } } };
     });
   }
   async recordTurn(id: string, messageId: string, result: BuilderTestResult) {
@@ -214,11 +221,13 @@ export class BuilderFunctionalTests {
       if (session.stage !== "responding" || !conversation || pending?.messageId !== messageId
         || Date.parse(conversation.expiresAt) <= this.now().getTime()
         || result.artifactHash !== session.artifactHash || result.candidateCommit !== session.candidateCommit
-        || result.executionDigest !== session.scopeDigest || !bounded(result.summary, 8000)
+        || result.executionDigest !== session.scopeDigest || (result.participation === "context-only" ? result.summary !== "" : !bounded(result.summary, 8000))
         || !Number.isFinite(Date.parse(result.completedAt)) || JSON.stringify(result.evidence).length > 100_000) throw new Error("This reply does not belong to the active candidate test turn.");
+      const { previousResultDigest, ...input } = pending;
       const completed = { ...conversation, expiresAt: this.#expiry(session), pending: undefined,
-        turns: [...conversation.turns, { ...pending, result: structuredClone(result) }] };
-      return { ...session, stage: "interactive", result: structuredClone(result), conversation: completed,
+        turns: [...conversation.turns, { ...input, result: structuredClone(result) }] };
+      return { ...session, stage: "interactive", result: result.participation === "context-only" ? session.result : structuredClone(result),
+        retainedResultDigest: result.participation === "context-only" ? previousResultDigest : undefined, conversation: completed,
         testConversations: { ...session.testConversations, [session.activeTestConversation ?? session.testConversation!]: completed } };
     });
   }
@@ -234,7 +243,7 @@ export class BuilderFunctionalTests {
       if (!["interactive", "reviewable", "expired"].includes(session.stage) || !session.conversation || principal !== session.requester) {
         throw new Error("Only the requester can restart an unaccepted interactive test.");
       }
-      return { ...session, stage: "interactive", result: undefined, conversation: {
+      return { ...session, stage: "interactive", result: undefined, retainedResultDigest: undefined, conversation: {
         expiresAt: this.#expiry(session), turns: [], generation: session.conversation.generation + 1,
       } };
     });

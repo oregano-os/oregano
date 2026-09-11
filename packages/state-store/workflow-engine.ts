@@ -11,6 +11,8 @@ export interface WorkflowStepState {
   /** Only actual completed item outputs, indexed by the canonical typed key digest. */
   items?: Record<string, { key: string | number; output: JsonValue }>;
   evidence?: JsonValue;
+  /** One operator-authorized no-send recovery per decision recipient. Prior effects stay immutable. */
+  publicationRecoveries?: Record<string, { priorEffectKey: string; inputDigest: string; proof: JsonValue; principal: string; authorizedAt: string }>;
 }
 export interface WorkflowStoredDecision {
   stepId: string;
@@ -70,6 +72,8 @@ export interface WorkflowRun extends WorkflowRunIdentity {
   lease?: { owner: string; token: string; expiresAt: string };
 }
 export interface WorkflowConversation {
+  /** Exact review notice within a parent conversation; omitted for historical root deliveries. */
+  decisionMessageId?: string;
   surface: string;
   accountId: string;
   channelId: string;
@@ -84,6 +88,15 @@ export interface WorkflowAssignment extends WorkflowConversation {
   stepId: string;
   artifactHash: string;
   expiresAt: string;
+  /** Read-only publication evidence; never an active workflow assignment. */
+  publication?: {
+    messageId: string;
+    content: string;
+    format: "plain-text" | "provider-markdown";
+    publishedAt: string;
+    sequence: number;
+    contentDigest: string;
+  };
 }
 export interface WorkflowStateCommit {
   instanceId: string;
@@ -112,5 +125,9 @@ export interface WorkflowExecutionStore {
   cancel(args: { instanceId: string; runId: string; principal: string; now: string }): Promise<boolean>;
   /** Retained delivery proof only; it never grants active conversational authority. */
   deliveredAssignment(args: { instanceId: string; conversation: WorkflowConversation }): Promise<WorkflowAssignment | undefined>;
+  /** Latest 41 exact-conversation publications, including terminal runs. The extra row proves truncation. */
+  publishedAssignments(args: { instanceId: string; conversation: WorkflowConversation; now: string }): Promise<WorkflowAssignment[]>;
+  /** At most 21 active exact-recipient candidates. A full page is ambiguous, never unique. */
+  channelAssignments(args: { instanceId: string; surface: string; accountId: string; channelId: string; subjectPrincipal: string; now: string }): Promise<WorkflowAssignment[]>;
   assignment(args: { instanceId: string; conversation: WorkflowConversation; now: string }): Promise<WorkflowAssignment | undefined>;
 }

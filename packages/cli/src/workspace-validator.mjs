@@ -116,7 +116,7 @@ export function validateWorkspace(root) {
     if (workflow.data?.execution_mode === "unattended") diagnostics.push(diagnostic("WS035", "info", "Unattended execution is declared; deployment readiness still requires resolved Tools, compiled enforcement, Instance controls, and runtime evidence.", { file: workflow.relative }));
     for (const match of workflow.body.matchAll(/\[human:([^,\]\s]+)(?:,\s*(R[0-4]))?\]/g)) {
       const role = match[1];
-      if (!activeRoles.has(role)) diagnostics.push(diagnostic("WS014", "error", `Human step references unknown or inactive role '${role}'.`, { file: workflow.relative, line: workflow.bodyOffset + lineOf(workflow.body, match[0]) }));
+      if (!(role === "subject" && workflow.data?.steps) && !activeRoles.has(role)) diagnostics.push(diagnostic("WS014", "error", `Human step references unknown or inactive role '${role}'.`, { file: workflow.relative, line: workflow.bodyOffset + lineOf(workflow.body, match[0]) }));
       if (match[2]) diagnostics.push(diagnostic("WS015", "warning", `Human step '${match[0]}' should not carry a risk level; the human action is not an agent effect.`, { file: workflow.relative }));
     }
     for (const line of workflow.body.split("\n").filter((item) => /^\s*\d+[a-z]?\./.test(item))) {
@@ -249,7 +249,6 @@ export function validateWorkspace(root) {
       knowledge_fragments: knowledge.bundle?.fragmentCount ?? 0,
       record_sources: structured.summary.record_sources,
       record_projections: structured.summary.record_projections,
-      sprint_configurations: structured.summary.sprint_configurations,
     },
   };
 }

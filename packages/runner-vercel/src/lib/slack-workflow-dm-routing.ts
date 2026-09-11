@@ -1,3 +1,5 @@
+import type { WorkflowSlackChannelKind } from "../../../connectors/slack/workflow-transport.ts";
+
 /** Routing ownership only. Neither this declaration nor event selection authenticates a person. */
 export function workflowDmRecipients(value = process.env.SLACK_WORKFLOW_DM_RECIPIENTS): readonly string[] {
   if (value === undefined) return [];
@@ -15,3 +17,11 @@ export function ownsWorkflowDm(payload: any, recipients: readonly string[]): boo
     && recipients.includes(`${payload.team_id}:${payload.event?.user}`);
 }
 
+/** Fail before publishing a question into a DM that this endpoint cannot receive. */
+export function requireWorkflowReplyRoute(kind: WorkflowSlackChannelKind, principal: string | undefined,
+  workflowOnly = process.env.COMPANYOS_WORKFLOW_ONLY === "true", recipients = workflowDmRecipients()): void {
+  if (kind !== "direct-message" || !workflowOnly) return;
+  if (!principal?.startsWith("slack:") || !recipients.includes(principal.slice("slack:".length))) {
+    throw new Error("Workflow direct-message replies are not routed to this Instance. Configure and verify an exclusive account:user route on both shared-app destinations before sending a question, or use the qualified test channel.");
+  }
+}

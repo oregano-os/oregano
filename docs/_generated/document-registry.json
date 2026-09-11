@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-10",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -530,7 +530,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-09-11",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -560,7 +560,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-09-08",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -778,7 +778,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-11",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -922,6 +922,76 @@
     }
   },
   {
+    "document_id": "operations.core-0-12-adoption",
+    "title": "Adopt the integrated Core 0.12.0",
+    "path": "docs/operations/core-0-12-adoption.md",
+    "kind": "guide",
+    "status": "draft",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "reference.instance-configuration",
+        "specification.company-instance-release-promotion-v0.1"
+      ]
+    }
+  },
+  {
+    "document_id": "operations.maintained-host-profile",
+    "title": "Maintained Hosting and Communication Profile",
+    "path": "docs/operations/maintained-host-profile.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "operations.model-prompt-caching",
+    "title": "Model Prompt Caching",
+    "path": "docs/operations/model-prompt-caching.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-10",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "operations.slack-communication",
+    "title": "Slack Communication Delivery",
+    "path": "docs/operations/slack-communication.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-09",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "operations.vercel-connect-workflow-interactions",
+    "title": "Vercel Connect Workflow Interaction Qualification",
+    "path": "docs/operations/vercel-connect-workflow-interactions.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "operations.vercel-slack-event-staging",
     "title": "Stage Slack channel events on a shared app",
     "path": "docs/operations/vercel-slack-event-staging.md",
@@ -929,8 +999,21 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-07",
+    "updated": "2026-09-11",
     "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "operations.vercel-workflow-runner",
+    "title": "Vercel Workflow Runner Operations",
+    "path": "docs/operations/vercel-workflow-runner.md",
+    "kind": "guide",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-08",
+    "availability": "experimental",
     "migration_sources": [],
     "relations": {}
   },
@@ -942,7 +1025,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-06",
+    "updated": "2026-09-09",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -1123,7 +1206,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-10",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1236,7 +1319,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-10",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1257,7 +1340,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1286,6 +1369,23 @@
         "architecture.boundaries",
         "specification.companyos-core-v0.7",
         "specification.tool-architecture"
+      ]
+    }
+  },
+  {
+    "document_id": "specification.conversation-participation",
+    "title": "Shared Conversation Participation",
+    "path": "docs/specifications/conversation-participation.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "normative",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.companyos-core-v0.7"
       ]
     }
   },
@@ -1404,7 +1504,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-10",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {}

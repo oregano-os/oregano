@@ -1,0 +1,201 @@
+version: 3
+plan_id: workflow-collection-2026-09-07
+created: 2026-09-07
+title: Collect typed facts in an assigned workflow conversation
+objective: Collect bounded facts with the declared Agent model, route
+  authenticated conversation replies, qualify model responses without effects,
+  and obtain a separate human decision before the existing effect; start enabled
+  leaf workflows from Workspace intake selections. Remove the retired domain
+  executor after preserving its reusable assertions in the declared-workflow
+  coverage.
+non_goals:
+  - Add business selection rules or a provider-specific conversation engine.
+  - Infer consent from model output or activate production.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-10-readable-reviews-and-question-selection.yaml
+  - packages/runtime/conversation-choice.ts
+  - .oregano/changes/2026-09-09-clear-decision-feedback.yaml
+  - packages/testkit/tests/workflow-review-dependency.test.ts
+  - packages/connectors/slack/communication.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/connectors/slack/publication-recovery.ts
+  - packages/testkit/tests/slack-publication-recovery.test.ts
+  - packages/testkit/tests/workflow-decision-recovery.test.ts
+  - .oregano/changes/2026-09-09-slack-dm-thread-publication.yaml
+  - docs/operations/slack-communication.md
+  - .oregano/changes/2026-09-08-scheduled-occurrence-identity.yaml
+  - packages/testkit/tests/workflow-occurrence-identity.test.ts
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - .oregano/changes/2026-09-08-published-conversation-context.yaml
+  - packages/runtime/published-conversation-context.ts
+  - packages/testkit/tests/published-conversation-context.test.ts
+  - .oregano/changes/2026-09-08-bundled-instance-artifact.yaml
+  - .vercelignore
+  - packages/runner-vercel/next.config.ts
+  - .oregano/changes/2026-09-08-workflow-language-generation.yaml
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/capabilities/catalog.ts
+  - packages/cli/content/guides/author-a-company-tool.md
+  - packages/connectors/language-model.ts
+  - packages/language/contracts.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - .oregano/changes/2026-09-07-workflow-direct-replies.yaml
+  - packages/runner-vercel/src/lib/slack-workflow-dm-routing.ts
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+  - .oregano/changes/2026-09-07-decision-review-retention.yaml
+  - packages/runner-vercel/src/lib/slack-decision-review.ts
+  - packages/testkit/tests/slack-decision-review.test.ts
+  - .oregano/changes/2026-09-07-conversation-presentation.yaml
+  - packages/runner-vercel/src/lib/workflow-conversation-presentation.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/testkit/tests/workflow-conversation-presentation.test.ts
+  - .oregano/changes/2026-09-07-threaded-decisions.yaml
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
+  - .oregano/changes/2026-09-07-slack-channel-ownership.yaml
+  - .oregano/changes/2026-09-07-agent-model-parity.yaml
+  - .oregano/changes/2026-09-07-chat-initialization.yaml
+  - .oregano/changes/2026-09-07-workflow-channel-replies.yaml
+  - .oregano/changes/2026-09-07-workflow-reply-recovery.yaml
+  - .oregano/changes/2026-09-07-workflow-slack-diagnostics.yaml
+  - docs/operations/workflow-engine.md
+  - docs/workbench/guides/author-an-agent.md
+  - package.json
+  - packages/cli/content/guides/author-an-agent.md
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/agent-model-task.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-check.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/workflow-reply-recovery.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.ts
+  - packages/runner/model-execution.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/testkit/tests/agent-model-task.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/workflow-collection-fixture.ts
+  - packages/runner-vercel/src/app/api/webhooks/**
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack.ts
+  - packages/runner-vercel/src/lib/workflow-slack-events.ts
+  - packages/testkit/tests/workflow-slack-events.test.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/src/lib/workflow-configuration.ts
+  - packages/runner-vercel/src/lib/workflow-action-ingress.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/tests/workflow-action-ingress.test.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/lib/artifact-payload.ts
+  - packages/testkit/tests/artifact-payload.test.ts
+  - docs/operations/vercel-workflow-runner.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - packages/cli/src/workspace-validator.mjs
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/companyos-builder/workflow-*.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/runtime/workflow-engine/**
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - docs/status/current.md
+  - docs/_generated/**
+  - .oregano/changes/2026-09-08-retire-sprint-executor.yaml
+  - packages/domains/sprint/**
+  - packages/runtime/sprint-*.ts
+  - packages/runtime/memory-sprint-orchestration.ts
+  - packages/companyos-builder/instance-loader.ts
+  - packages/companyos-builder/sprint-loader.ts
+  - packages/runner-vercel/src/lib/sprint-runtime.ts
+  - packages/runner-vercel/src/lib/stage0-qualification.ts
+  - packages/runner-vercel/src/app/api/sprint/**
+  - packages/runner-vercel/src/app/api/stage0/**
+  - packages/state-store/sprint-orchestration.ts
+  - packages/state-postgres/sprint-orchestration-store.ts
+  - packages/state-postgres/records-schema.sql
+  - packages/state-postgres/records-migrate.ts
+  - packages/state-postgres/database-bootstrap.ts
+  - packages/schema/sprint-*.schema.json
+  - packages/schema/README.md
+  - packages/cli/src/structured-declarations.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/**
+  - packages/testkit/fixtures/**
+  - packages/runner-vercel/vercel.json
+  - vercel.json
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - packages/cli/content/guides/prepare-an-instance.md
+tests:
+  - packages/testkit/tests/published-conversation-context.test.ts
+  - packages/testkit/tests/artifact-payload.test.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/agent-model-task.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.slack-communication
+    - operations.vercel-workflow-runner
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - status.current
+    - operations.workflow-engine
+    - guide.author-agent
+    - specification.company-records-sprint-v0.1
+    - guide.prepare-instance
+architecture:
+  placement:
+    core: Reuse delivered assignments, leases, typed outputs, decisions and effects;
+      retain Agent model tasks and expose isolated qualification using the
+      shared prompt.
+    packages: No business package.
+    workspace: Own eligible items, requested fields, questions and proposals.
+    instance: Bind exact authenticated conversations and isolated resources.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Permit bounded output submission only from the frozen recipient-bound
+        conversation.
+    - mechanism: model-recipe-resolver
+      reason: Preserve declared Agent tasks across normal and workflow conversations
+        and record the actual selection during qualification.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Collecting facts advances to an ordinary decision without approving it.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any workflow can collect fields before its independently authorized effect.
+rollback: Disable new workflow openings and retain pinned artifacts and history
+  for pending runs.

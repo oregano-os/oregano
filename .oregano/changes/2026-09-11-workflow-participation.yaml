@@ -1,0 +1,61 @@
+version: 3
+plan_id: workflow-participation-2026-09-11
+created: "2026-09-11"
+title: Reuse shared Core participation in the existing workflow conversation path
+objective: Retain team discussion silently and answer clear follow-ups through the existing coordinator and Agent loops, without adding a classifier or Agent.
+non_goals:
+  - Add another model routing stage or broaden business permissions.
+  - Replace the independent job, timer, approval or publication lifecycle.
+placement: core
+change_class: security
+files_expected:
+  - packages/runner-vercel/src/app/api/webhooks/[platform]/route.ts
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - .oregano/changes/2026-09-11-workflow-participation.yaml
+  - packages/runtime/conversation-participation.ts
+  - packages/runtime/shared-conversation.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/conversation-model-tools.ts
+  - packages/runner-vercel/src/lib/conversation-participation.ts
+  - packages/runner-vercel/src/lib/conversation-participation.test.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - packages/testkit/adapter/conversation-participation.ts
+  - packages/testkit/tests/conversation-participation.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - docs/specifications/conversation-participation.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - package.json
+tests:
+  - packages/testkit/tests/conversation-participation.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - packages/runner-vercel/src/lib/conversation-participation.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.conversation-participation, operations.workflow-engine, status.current]
+architecture:
+  placement:
+    core: Shared normalized conversation identity, participation policy and quiet output control.
+    packages: Synthetic adapter and model-boundary conformance fixtures.
+    workspace: Existing Agent language, coordinator declaration and business grants remain authoritative.
+    instance: Existing exact channel and recipient ownership; no new provider permissions or timers.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: The existing conversation pass may retain context without selecting an Agent concern.
+    - mechanism: identity-and-authorization
+      reason: Preserve authenticated sender facts in the bounded conversation context.
+    - mechanism: capability-contracts-and-connectors
+      reason: Every adapter uses the same Core quiet-output and normalized-input contract.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Same controller and semantic policy as the primary Core line; no coding Agent, deployment host or company-specific behavior.
+rollback: Restore the preceding exact Core and Artifact pairing while retaining message, job and decision evidence. No database migration.
+open_decisions: []

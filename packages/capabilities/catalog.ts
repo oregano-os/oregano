@@ -1,6 +1,7 @@
 import type { CapabilityContract, JsonSchema } from "./contracts.ts";
 import { RECORD_QUERY_INPUT_SCHEMA, RECORD_QUERY_OUTPUT_SCHEMA } from "../records/query-schema.ts";
 import { DIRECTORY_QUERY_INPUT_SCHEMA, DIRECTORY_QUERY_OUTPUT_SCHEMA } from "../directory/contracts.ts";
+import { LANGUAGE_GENERATE_INPUT, LANGUAGE_GENERATE_OUTPUT } from "../language/contracts.ts";
 
 const object = (required: string[], properties: Record<string, JsonSchema>): JsonSchema => ({
   type: "object" as const,
@@ -14,6 +15,13 @@ const object = (required: string[], properties: Record<string, JsonSchema>): Jso
  * intentionally smaller than any provider SDK. Additions are Core changes.
  */
 export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
+  {
+    id: "language.generate", version: "1.0.0",
+    description: "Generate bounded text from a frozen, scoped Skill and supplied evidence using the owning Agent model task.",
+    mode: "read", minimumRisk: "R0", idempotency: "none",
+    inputSchema: LANGUAGE_GENERATE_INPUT, outputSchema: LANGUAGE_GENERATE_OUTPUT,
+    evidence: ["prompt_digest", "context_digest", "output_digest", "model_execution", "connector"],
+  },
   {
     id: "directory.members.query", version: "1.0.0",
     description: "Read bounded reviewed directory facts under explicit access policy.",
@@ -290,6 +298,11 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
       content: { type: "string", minLength: 1, maxLength: 20_000 },
       thread_reference: { type: "string", minLength: 1, maxLength: 1_000 },
       format: { type: "string", enum: ["plain-text", "provider-markdown"] },
+      decision: object(["request_id", "approve_label", "reject_label"], {
+        request_id: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        approve_label: { type: "string", minLength: 1, maxLength: 75, pattern: "^[^\\u0000-\\u001f]+$" },
+        reject_label: { type: "string", minLength: 1, maxLength: 75, pattern: "^[^\\u0000-\\u001f]+$" },
+      }),
     }),
     outputSchema: object(["message_id", "destination_binding", "published_at"], {
       message_id: { type: "string" },

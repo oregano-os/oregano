@@ -4,19 +4,22 @@ import { authenticateWorkflowOperator, authenticateWorkflowScheduler, decodeWork
 import type { WorkflowWorkerKind } from "../../../runtime/workflow-engine/workers.ts";
 import type { WorkflowRun } from "../../../state-store/workflow-engine.ts";
 import { parseWorkflowVerificationRequirements, type WorkflowVerificationRequirement } from "../../../runtime/workflow-engine/verification-requirements.ts";
+import { parseConversationCheck, type ConversationCheck } from "./workflow-conversation-check.ts";
 
 export type WorkflowOperatorRequest =
+  | ConversationCheck
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
-  | { action: "read" | "resume" | "cancel"; runId: string }
+  | { action: "read" | "resume" | "cancel" | "recover-unpublished-decision"; runId: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
-  | { action: "receive-reply"; threadId: string; messageId: string };
+  | { action: "receive-reply" | "recover-reply"; threadId: string; messageId: string; authorId?: string };
 
 export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Workflow operator request must be an object");
   const input = value as Record<string, unknown>;
+  if (input.action === "check-conversation") return parseConversationCheck(input);
   const exact = (allowed: string[]) => { if (Object.keys(input).some((key) => !["action", ...allowed].includes(key))) throw new Error("Unsupported workflow operator request field"); };
   const text = (key: string, pattern = /^[^\u0000-\u001f]{1,255}$/) => { if (typeof input[key] !== "string" || !pattern.test(input[key])) throw new Error(`Invalid workflow operator ${key}`); return input[key] as string; };
   if (input.action === "open" || input.action === "schedule") {
@@ -36,14 +39,21 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     return { action: "verify", runId: text("runId", /^workflow:[a-f0-9]{64}$/),
       ...(input.requirements === undefined ? {} : { requirements: parseWorkflowVerificationRequirements(input.requirements) }) };
   }
-  if (input.action === "read" || input.action === "resume" || input.action === "cancel") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
+  if (input.action === "read" || input.action === "resume" || input.action === "cancel" || input.action === "recover-unpublished-decision") { exact(["runId"]); return { action: input.action, runId: text("runId", /^workflow:[a-f0-9]{64}$/) }; }
   if (input.action === "review") {
     exact(["runId", "offset"]);
     if (input.offset !== undefined && (!Number.isSafeInteger(input.offset) || Number(input.offset) < 0 || Number(input.offset) >= 10000)) throw new Error("Invalid workflow review offset");
     return { action: "review", runId: text("runId", /^workflow:[a-f0-9]{64}$/), ...(input.offset === undefined ? {} : { offset: input.offset as number }) };
   }
   if (input.action === "list") { exact(["afterRunId"]); return { action: "list", ...(input.afterRunId === undefined ? {} : { afterRunId: text("afterRunId", /^workflow:[a-f0-9]{64}$/) }) }; }
-  if (input.action === "receive-reply") { exact(["threadId", "messageId"]); return { action: "receive-reply", threadId: text("threadId", /^slack:[A-Z0-9]{5,32}:\d+\.\d+$/), messageId: text("messageId", /^\d+\.\d+$/) }; }
+  if (input.action === "receive-reply" || input.action === "recover-reply") {
+    exact(["threadId", "messageId", ...(input.action === "recover-reply" ? ["authorId"] : [])]);
+    const reference = { action: input.action, threadId: text("threadId", /^slack:[A-Z0-9]{5,32}:\d+\.\d+$/), messageId: text("messageId", /^\d+\.\d+$/) };
+    if (input.authorId === undefined) return reference as WorkflowOperatorRequest;
+    const authorId = text("authorId", /^[UW][A-Z0-9]{4,31}$/);
+    if (!/^slack:[CDG][A-Z0-9]{4,31}:/.test(reference.threadId) || !reference.threadId.endsWith(`:${reference.messageId}`)) throw new Error("A recovery author hint is only valid for an original channel-root or direct-message root");
+    return { ...reference, authorId } as WorkflowOperatorRequest;
+  }
   throw new Error("Unsupported workflow operator action");
 }
 
@@ -90,6 +100,10 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
     let action: WorkflowOperatorRequest;
     try { action = parseWorkflowOperatorRequest(await boundedRequest(request)); }
     catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : "Invalid request" }, { status: 400 }); }
+    if (action.action === "check-conversation") {
+      const { checkWorkflowConversation } = await import("./workflow-conversation-check.ts");
+      return Response.json(await checkWorkflowConversation(artifact, action));
+    }
     const { createWorkflowHost } = await import("./workflow-host.ts");
     const host = await createWorkflowHost();
     if (action.action === "open") return Response.json({ ok: true, run: summary(await host.engine.openOperator({ ...action, principal })) });
@@ -112,6 +126,12 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
     }
     if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
+    if (action.action === "recover-unpublished-decision") return Response.json({ ok: true, run: summary(await host.engine.recoverUnpublishedDecision(action.runId, principal)) });
+    if (action.action === "recover-reply") {
+      const { recoverHostedWorkflowReply } = await import("./bot.ts");
+      const result = await recoverHostedWorkflowReply(action);
+      return Response.json({ ok: true, source: "operator-provider-reread", ...result });
+    }
     if (action.action === "receive-reply") {
       const result = await host.conversations.receive(action);
       // This endpoint can recover actual decisions through the existing app.

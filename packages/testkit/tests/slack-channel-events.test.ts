@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { ignoreSlackChannelEvent } from "../../runner-vercel/src/lib/slack-channel-events.ts";
 const request = (event: unknown) => new Request("https://example.test/api/webhooks/slack", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "event_callback", event }) });
 
-test("staged channel events cannot wake the other shared-app deployment", async () => {
+test("legacy blanket ignore no longer drops owned thread follow-ups", async () => {
   for (const channel of ["C10001", "G10001"]) {
     const event = { type: "message", channel, channel_type: "group", thread_ts: "100.001", ts: "100.002", text: "A reply" };
     assert.equal(await ignoreSlackChannelEvent(request(event)), false);
     assert.equal(await ignoreSlackChannelEvent(request(event), "process"), false);
     const req = request(event), bytes = await req.clone().text();
-    assert.equal(await ignoreSlackChannelEvent(req, "ignore"), true);
+    assert.equal(await ignoreSlackChannelEvent(req, "ignore"), false);
     assert.equal(await req.text(), bytes);
   }
 });
@@ -65,4 +65,20 @@ test("DM reservations reject broad or ambiguous configured identities", async ()
   for (const value of ["", "*", "U10002", "T10001:*", "T10001:D10001", "T10001:U10002,", "T10001:U10002,T10001:U10002"]) {
     assert.throws(() => workflowDmRecipients(value), /SLACK_WORKFLOW_DM_RECIPIENTS/);
   }
+});
+
+
+test("an isolated receiver admits only exact owned channel events and controls", async () => {
+  const owns = (input: Request) => ignoreSlackChannelEvent(input, "process", undefined, [], "C10001,G10001");
+  for (const type of ["message", "app_mention"]) {
+    for (const channel of ["C10001", "G10001"]) assert.equal(await owns(request({ type, channel })), false);
+    for (const channel of ["C20001", "D10001"]) assert.equal(await owns(request({ type, channel })), true);
+  }
+  const control = (channel?: string) => new Request("https://example.test", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ payload: JSON.stringify({ type: "block_actions", ...(channel ? { channel: { id: channel } } : {}) }) }).toString() });
+  const input = control("C10001"), bytes = await input.clone().text();
+  assert.equal(await owns(input), false); assert.equal(await input.text(), bytes);
+  assert.equal(await owns(control("C20001")), true);
+  assert.equal(await owns(control()), true);
+  for (const ids of ["", "*", "D10001", "C10001,C10001"]) await assert.rejects(ignoreSlackChannelEvent(request({}), "process", undefined, [], ids), /SLACK_OWNED_CHANNEL_IDS/);
 });

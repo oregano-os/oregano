@@ -6,6 +6,7 @@ if (process.env.COMPANYOS_SKIP_DATABASE_TESTS === "1") throw new Error("Required
 const connectionString = process.env.COMPANYOS_TEST_DATABASE_URL;
 if (!connectionString) throw new Error("COMPANYOS_TEST_DATABASE_URL is required; no environment-file or production fallback is allowed.");
 const suites = [
+  "packages/testkit/tests/conversation-state-postgres.test.ts",
   "packages/testkit/tests/database-transport.test.ts",
   "packages/testkit/tests/record-query-postgres.test.ts",
   "packages/testkit/tests/approval-atomicity.test.ts",

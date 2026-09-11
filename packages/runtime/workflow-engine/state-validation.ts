@@ -4,6 +4,7 @@ import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, Wo
 import { canonicalJson, sha256, jsonDigest } from "../canonical.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
 import { workflowReviewDeliveryDigest } from "./review-notice.ts";
+import { workflowReviewDecision } from "./review-dependency.ts";
 
 export function workflowInstant(value: string): void {
   if (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) throw new Error("Workflow state requires an exact UTC ISO instant");
@@ -23,8 +24,13 @@ export const workflowOriginDigest = (identity: WorkflowRunIdentity): string => s
   subjectPrincipal: identity.subjectPrincipal, trigger: identity.trigger, fields: identity.fields,
 });
 export const workflowAssignmentKey = (instanceId: string, conversation: WorkflowConversation): string => sha256({
+  ...(conversation.decisionMessageId === undefined ? {} : { decisionMessageId: conversation.decisionMessageId }),
   instanceId, surface: conversation.surface, accountId: conversation.accountId, channelId: conversation.channelId, threadId: conversation.threadId,
 });
+
+/** Publication indexes cannot be mistaken for executable assignments. */
+export const workflowPublicationKey = (instanceId: string, conversation: WorkflowConversation, messageId: string): string =>
+  sha256({ conversation: workflowAssignmentKey(instanceId, conversation), publicationMessageId: messageId });
 
 export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: WorkflowMutableState, meta: RunMeta, artifact: CompanyOSArtifact): void {
   assertWorkflowArtifact(artifact);
@@ -68,6 +74,18 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     if (prior?.status === "succeeded" && canonicalJson(prior) !== canonicalJson(step)) throw new Error("Completed workflow output is immutable");
     if (prior?.inputDigest && prior.inputDigest !== step.inputDigest) throw new Error("Workflow step input identity is immutable");
     for (const [key, item] of Object.entries(prior?.items ?? {})) if (canonicalJson(step.items?.[key]) !== canonicalJson(item)) throw new Error("Completed workflow item output is immutable");
+    for (const [recipient, recovery] of Object.entries(prior?.publicationRecoveries ?? {})) {
+      if (canonicalJson(step.publicationRecoveries?.[recipient]) !== canonicalJson(recovery)) throw new Error("Publication recovery history is immutable");
+    }
+    for (const [recipient, recovery] of Object.entries(step.publicationRecoveries ?? {})) {
+      const decision = state.decisions[id], priorDecision = previous?.decisions[id];
+      identifier(recipient); identifier(recovery.principal); digest(recovery.inputDigest); workflowInstant(recovery.authorizedAt);
+      if (!/^workflow:[a-f0-9]{64}$/.test(recovery.priorEffectKey) || recovery.proof === undefined || !decision?.recipients.includes(recipient)) throw new Error("Invalid publication recovery evidence");
+      if (!prior?.publicationRecoveries?.[recipient] && (previous?.blocked?.stepId !== id || previous.blocked.code !== "step-failed"
+        || previous.status !== "waiting" || previous.cursor !== id || state.cursor !== id || state.status !== "running" || state.blocked
+        || priorDecision?.status !== "pending" || priorDecision.expiresAt <= recovery.authorizedAt || Object.hasOwn(priorDecision.deliveries, recipient)
+        || canonicalJson(priorDecision) !== canonicalJson(decision))) throw new Error("Publication recovery requires its unchanged blocked pending decision");
+    }
   }
   for (const [id, decision] of Object.entries(state.decisions)) {
     const declaration = workflow.steps.find((step) => step.id === id)?.decision;
@@ -93,7 +111,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
   if (priorDelivery && !delivery) throw new Error("Effect review delivery history cannot be removed");
   if (delivery) {
     const failed = workflow.steps.find((step) => step.id === delivery.blockedStepId), decision = state.decisions[delivery.decisionStepId];
-    if (!failed?.requiresDecisions.some((requirement) => requirement.stepId === delivery.decisionStepId)
+    if (!failed || workflowReviewDecision(workflow, failed, state) !== delivery.decisionStepId
       || decision?.status !== "approved" || decision.approvingPrincipal !== delivery.principal || !decision.recipients.includes(delivery.memberId)) throw new Error("Effect review must retain its original approved decision");
     if (!priorDelivery && (state.status !== "waiting" || state.blocked?.stepId !== delivery.blockedStepId || state.cursor !== delivery.blockedStepId)) throw new Error("Effect review must start from the stopped business step");
     const receipt = decision.deliveries[delivery.memberId] as Record<string, unknown> | undefined;
@@ -129,9 +147,21 @@ export function validateWorkflowLease(args: { owner: string; token: string; now:
 
 export function validateWorkflowAssignment(assignment: WorkflowAssignment, identity: WorkflowRunIdentity, artifact: CompanyOSArtifact, now: string): void {
   identifier(assignment.surface);
-  for (const value of [assignment.accountId, assignment.channelId, assignment.threadId]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error("Invalid workflow conversation identifier");
+  for (const value of [assignment.accountId, assignment.channelId, assignment.threadId, ...(assignment.decisionMessageId === undefined ? [] : [assignment.decisionMessageId])]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error("Invalid workflow conversation identifier");
   if (assignment.subjectPrincipal) identifier(assignment.subjectPrincipal);
   workflowInstant(assignment.expiresAt);
   if (assignment.expiresAt <= now || !artifact.workflows?.find((workflow) => workflow.id === identity.workflowId)?.steps.some((step) => step.id === assignment.stepId)) throw new Error("Workflow assignment must bind a current deadline and compiled step");
-  if (assignment.assignmentKey !== workflowAssignmentKey(assignment.instanceId, assignment) || assignment.runId !== identity.runId || assignment.instanceId !== identity.instanceId || assignment.artifactHash !== identity.artifactHash) throw new Error("Workflow assignment differs from the exact delivered conversation and run");
+  const publication = assignment.publication;
+  if (publication) {
+    const step = artifact.workflows?.find((workflow) => workflow.id === identity.workflowId)?.steps.find((step) => step.id === assignment.stepId);
+    if (!step?.message && !step?.decision) throw new Error("Publication evidence must belong to a compiled message or decision");
+    if (typeof publication.messageId !== "string" || !publication.messageId.length || publication.messageId.length > 1000
+      || /[\u0000-\u001f\u007f]/.test(publication.messageId) || typeof publication.content !== "string" || publication.content.length > 20_000
+      || !["plain-text", "provider-markdown"].includes(publication.format)) throw new Error("Invalid bounded publication evidence");
+    workflowInstant(publication.publishedAt);
+    if (!Number.isSafeInteger(publication.sequence) || publication.sequence < 1) throw new Error("Invalid publication commit sequence");
+    if (publication.contentDigest !== sha256({ content: publication.content, format: publication.format })) throw new Error("Publication content digest differs from delivered text");
+  }
+  const expected = publication ? workflowPublicationKey(assignment.instanceId, assignment, publication.messageId) : workflowAssignmentKey(assignment.instanceId, assignment);
+  if (assignment.assignmentKey !== expected || assignment.runId !== identity.runId || assignment.instanceId !== identity.instanceId || assignment.artifactHash !== identity.artifactHash) throw new Error("Workflow assignment differs from the exact delivered conversation and run");
 }

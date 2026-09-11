@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-10
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -22,8 +22,9 @@ relations:
 
 # Company Records and Sprint Foundation v0.1
 
-This specification defines the reusable operational-record and Sprint
-foundation implemented by Oregano Core. It does not define one company's
+This specification defines the reusable operational-record foundation.
+Its former domain executor has been retired; declared workflow execution is
+specified in [Workflow Execution](workflow-execution-v1-draft.md). It does not define one company's
 Sprint policy, provider resources, people, calendar, channel, column mapping,
 model, credentials, or rollout decision.
 
@@ -32,7 +33,7 @@ model, credentials, or rollout decision.
 **CRS-001 — Four locations.** The foundation has four distinct locations:
 
 - Core owns validated provider-neutral contracts, deterministic record and
-  Sprint behavior, durable-state interfaces, standard Tools, and maintained
+  workflow behavior, durable-state interfaces, standard Tools, and maintained
   Connector implementations;
 - the Sprint Blueprint owns reusable declarative Agent instructions,
   Workflows, Skills, assets, and synthetic fixtures;
@@ -51,7 +52,7 @@ data configuration lives under `records/sources/` and
 `records/projections/`. Company-specific Sprint configuration lives at
 `workflows/sprint/config.yaml` beside its owned Workflow material. A Company
 Workspace has no top-level `domains/` directory: executable provider-neutral
-Sprint Domain code remains in Core under `packages/domains/sprint/`.
+business behavior belongs in declared Workflows, not a Core domain executor.
 
 **CRS-002 — No second authority.** Synchronized Company Records are versioned
 operational evidence and rebuildable read models. They are not curated Company
@@ -102,7 +103,7 @@ idempotent. It MUST NOT store provider credentials.
 provider remains authoritative for its declared objects. A Company Instance
 Connector ingests normalized immutable observations and rebuildable projections
 into the records StateStore; the maintained reference stores them in
-Neon/Postgres `companyos_records`. Normal Agent and Sprint Domain reads use
+the retained Records store. Normal Agent and Workflow reads use
 authorized projections through `records.query`. Direct provider reads are
 reserved for discovery, synchronization, freshness recovery, reconciliation,
 and required read-before-write or read-after-write checks. A stale or
@@ -169,159 +170,18 @@ Agent callback as board-change evidence. The maintained database manifest MUST
 qualify the exact additive records tables and indexes before readiness is
 claimed.
 
-## 3. Sprint domain
+## 3. Retired domain executor
 
-**CRS-020 — Pure decision boundary.** The Sprint domain accepts one validated
-declaration, prior state, one normalized event, and a controlled clock. It
-returns new state, evidence, and zero or more provider-neutral intents. It MUST
-NOT import a provider SDK, access the network, read environment credentials,
-execute SQL, invoke a model, or perform an external effect.
+CRS-020 through CRS-029 describe the retired executor in historical revisions.
+They no longer provide an execution contract. Core no longer loads domain
+configuration, creates domain event/intent tables, or exposes domain workers,
+operator, simulation, replay, or Stage-0 routes. Existing audit rows remain
+readable in the company's retained database; removal does not delete them.
 
-**CRS-021 — Durable event truth.** Sprint events are append-only and deduplicated
-by stable event identity. Reuse of an event identity with different content
-MUST fail closed. An accepted event, its resulting monotonic state version,
-decision evidence, and newly created intents MUST commit atomically or not at
-all. Concurrent events use optimistic state-version control; an exact retry
-returns the original durable outcome. Participant, work-item, submission,
-completeness, effort, and Rollover views are derived. A model conversation is
-never durable Sprint state.
-
-**CRS-022 — Business time.** Business-time calculation uses only the Workspace
-timezone, business calendar, excluded dates, delivery window, and holiday-shift
-rule. It is deterministic under a controlled clock and covered by weekend,
-holiday, and daylight-saving fixtures.
-
-**CRS-023 — Friday Close.** The close uses one frozen participant snapshot and
-the committed-task set for each included participant. Approved absence is
-handled only according to declared policy. Submission classification uses the
-provider-accepted timestamp. A report is frozen at its configured instant;
-later submissions do not rewrite it. Actual effort and Rollover eligibility use
-the exact declared policy and never an inferred substitute.
-
-The hosted Sprint reader uses the existing `all_pages: true` Records query
-for each full projection read, including replay message projections. It MUST
-retain the query's authorization, source-provenance validation, freshness
-evidence and 10,000-row snapshot bound, and reject partial results. Freezing
-still requires two consecutive full reads with the same canonical row digest,
-with at most three reads when reconciliation changes the projection. Paging
-inside one immutable Records query MUST NOT reload the database projection for
-each page. No cache or synchronization protocol is introduced.
-
-**CRS-024 — Intents, not effects.** Close-thread reminder, chase, report,
-retrospective, reconciliation, and Rollover outputs are stable intents with
-deterministic idempotency identities. Friday Close messages freeze the exact
-shared-channel binding; every reply also freezes the provider-returned root
-thread reference. A Rollover intent freezes the expected provider version of
-every work item it proposes to change.
-The runtime resolves and authorizes a Tool before an intent can become an
-effect. A failed, stale, ambiguous, or unbound intent remains an explicit
-no-effect result. A provider effect whose complete receipt cannot be verified
-MUST remain `unknown` with bounded partial evidence and MUST NOT be retried as
-though no effect occurred.
-
-**CRS-025 — Orchestration boundary.** Normalized provider events and due durable
-timers MUST enter the same validated event-processing path. Due timers complete
-only after their resulting Sprint outcome is durable. Intent workers claim
-bounded batches with expiring leases and record explicit success, retry,
-failure, or cancellation outcomes. A maintained dispatcher MUST resolve the
-exact compiled Agent, Tool grant, destination or resource binding, and Tool
-input, then execute through `CompanyOSRuntime`; it MUST NOT call a provider
-directly or treat persisted intent state as Tool authority. Missing policy,
-calendar, state identity, dispatcher, Agent, grant, destination, or resource
-binding fails before an effect.
-
-**CRS-026 — Maintained hosted profile.** Workbench MUST compile each hosted
-Sprint from an exact Workspace declaration and non-secret Instance bindings.
-The immutable Artifact MUST include the reviewed schedule and template
-digests, logical Agent, service principal, participant identity namespace, and
-destination/resource bindings. The maintained Runner MUST expose a separately
-authenticated operator action and bounded timer and intent wake-up routes.
-Opening MUST use fresh projections through the standard `records.query` Tool;
-Slack submissions MUST enter only after provider authentication, roster
-authorization, and deterministic Agent routing. Shadow mode MUST retain only
-non-effect dispatch evidence. Active mode MUST use `CompanyOSRuntime`; a
-Rollover without the ordinary frozen-proposal confirmation path MUST fail
-closed. The initial profile uses bounded polling for Monday-backed records and
-Slack for interaction. Monday board-change webhooks and Monday card chat are
-deferred extensions, not initial-rollout dependencies.
-
-**CRS-027 — Historical Sprint replay.** An Instance MAY compile one exact
-`communication-message` projection for historical replay. That projection MUST
-expose stable message, team, author, thread, text, and occurrence fields.
-Replay MUST use an isolated definition, explicit date range, immutable input
-versions, and controlled clock. Its durable timers MUST use a deterministic
-replay-specific schedule namespace: an exact replay retry reuses the same timer
-identities, while an independent replay of the same Sprint period cannot
-conflict with them. Persisted timer payload identity MUST be compared by
-canonical JSON value because PostgreSQL JSONB does not preserve object-key
-order; key-order changes alone MUST NOT create a conflict, while any changed
-value MUST still fail closed. It MUST resolve a provider author only through
-one tenant-scoped canonical roster principal; message content and display names
-MUST NOT select an Agent, establish identity, approve an action, or grant an
-effect. The Sprint Domain MAY derive a typed submission and exact work-item
-references from authorized projection rows. Its accepted event MUST retain the
-source projection, record, and version identities. The maintained hosted mode
-is proof-only and MUST refuse every compiled live communication and work-item
-binding. A test publication MUST be a separate authenticated operator action.
-It MUST recompute the proof-only replay, match one exact previously reviewed
-output digest before the first effect, and render only a Workspace-owned
-template. Dynamic provider and roster values MUST be escaped as data before
-provider-markdown rendering. Its publisher Agent MUST have exactly the two
-publication grants and MUST NOT be a default Agent, appear in any
-conversational Agent binding, or be reachable through an Agent handoff. The Instance MUST bind one exact test channel,
-one exact read-write test work-item resource, and one exact report item while
-also declaring protected live provider resource ids. Workbench MUST reject
-logical or physical equality between any test and protected live target.
-Publication MUST cross the ordinary `communication.message.publish` and
-`work-item.comment` Capability boundaries, use one deterministic effect
-identity per output digest, and retain both provider receipts in System of
-Proof. A retry MUST reuse prior successful effects rather than duplicate them.
-
-**CRS-028 — Hosted Sprint scenario runner.** The authenticated Sprint operator
-MAY execute one bounded full-week scenario using an exact compiled Sprint and
-twice-stabilized current participant and work-item projections. The runner MUST
-derive an isolated definition and schedule namespace from the immutable input,
-force the hosted runtime to proof-only Shadow mode, and exercise the maintained
-timer, event, decision, renderer, dispatch, and persistence paths without a
-provider call. Operator input MUST NOT supply an event, intent, template,
-destination, Tool, grant, provider payload, or execution mode. Synthetic Friday
-outcomes MAY select only `complete`, `needs-reformat`, or `missing` for a known
-frozen participant and MUST be identified as a limitation rather than a parsed
-Slack submission. The durable report MUST omit rendered message bodies and
-include exact source versions, event and intent types, timer and terminal
-states, active-binding readiness, unsupported planned scenarios, full evidence
-counts and digests, and one stable output digest. Returned evidence rows MUST
-be bounded while complete proof remains durable. The maintained catalog MUST
-NOT call Triage, Briefing,
-inactivity nudging, or blocker follow-up executable until those conversational
-workflows have a real durable hosted runtime. An exact retry MUST reuse its
-events, intents, timers, state, and output digest and MUST NOT touch the source
-Sprint definition.
-
-**CRS-029 — Digest-bound scenario publication.** An Instance MAY compile one
-test-only communication destination for a `shadow-only` Sprint runtime. The
-live Sprint destination's exact provider channel id MUST appear in the
-Instance's forbidden set, and Workbench MUST reject logical or physical
-test/live equality. A separate authenticated operator action MUST rerun the
-same scenario and match an exact reviewed output digest before any effect. It
-MAY select one existing durable `message.monday-handoff` intent by id. A
-separate Friday Close publication action MUST accept no intent id and MUST
-resolve exactly one succeeded `message.close-reminder`,
-`message.close-chase`, and `message.close-report` intent from the reviewed
-durable scenario. It MUST publish them in that order, use the reminder's
-provider thread receipt for both replies, and fail closed on a missing,
-duplicate, non-succeeded, unproved, or thread-mismatched intent. Agent id,
-service principal, Tool grant, templates, rendered content, destination, and
-thread reference MUST come exclusively from the immutable Artifact, durable
-intents, and provider receipt; none may be supplied by the operator. Every
-effect MUST cross the ordinary `communication.message.publish` Capability
-boundary with its own deterministic identity and retain the provider receipt
-in System of Proof. A retry MUST reuse successful effect identities rather
-than duplicate messages. Retro and all non-test destinations MUST remain
-ineligible. While the runtime is `shadow-only`, this publication grant MUST NOT
-be exposed in a conversational model ToolSet. Optional weekly
-features MUST compile independently; enabling Monday hand-off MUST NOT require
-a Company to invent weekday digest or readiness policy.
+Use declared Workflows, Company Tools, Records, general durable timers,
+communication and work-item contracts, and normal human decisions. The Sprint
+Blueprint remains portable authored material, not an execution dependency.
+See [Workflow operation](../operations/workflow-engine.md) for migration.
 
 ## 4. Tools and Connectors
 
@@ -461,20 +321,15 @@ reviewed.
 
 ## 6. Current qualification boundary
 
-Repository tests prove schemas, deterministic in-memory and Postgres contracts,
-atomic Sprint event/state/decision/intent persistence, optimistic replay,
-leased intent outcomes, due-timer consumption through the same event path,
-controlled-clock Sprint decisions, Tool resolution inputs, signed callback
-verification, replay and echo controls, Connector behavior with synthetic
-responses, hosted Artifact compilation, operator parsing and authentication,
-Slack qualification and bounded threaded-history normalization, historical
-proof-only replay, isolated full-week Sprint scenario execution, Slack Friday normalization after resolved identity and Agent routing, shadow
-rendering without effects, exact-scope OAuth 2.1 PKCE planning, bounded read-only resource
-discovery, credential-free qualification receipts, and read-only Blueprint
-inspection. They do not prove a real
-provider installation, exact account permission, provider cost, production
-message, production database migration, scheduled execution, or Company
-Workspace rollout. Those claims require separate Instance consent, non-
-production qualification, staged activation, and live evidence. The Runner
-implementation is inactive without a compiled Sprint binding, runtime mode,
-operator/scheduler secrets, database, and explicit schedule activation.
+The maintained checks exercise Records identity, source synchronization,
+version conflicts, general workflow state and leasing, decisions, confirmed
+work-item writes, Connector scope and replay protection, published conversation
+context, and duplicate-safe message delivery. Synthetic fixtures contain no
+company people, credentials or live resource identifiers.
+
+The retired domain executor and its hosted simulation, replay and Stage-0
+routes are no longer maintained. General workflow fixtures preserve the
+reusable guarantees; [workflow operation](../operations/workflow-engine.md)
+describes current qualification. Every Company Instance still needs its own
+exact deployment, provider delivery, permitted write and recovery evidence.
+Repository checks alone do not activate a company schedule or prove a rollout.

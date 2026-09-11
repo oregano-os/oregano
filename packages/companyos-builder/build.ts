@@ -14,7 +14,6 @@ import { loadCompanyWorkspace, scopedMaterials } from "./workspace-loader.ts";
 import { validateAgentRouting } from "../runtime/agent-resolver.ts";
 import { validateWorkflowInstanceBindings } from "./instance-loader.ts";
 import { compileWorkflows } from "./workflow-compiler.ts";
-import { compileSprintRuntimes } from "./sprint-loader.ts";
 import YAML from "yaml";
 import { compileWorkspaceReleasePolicy } from "../runtime/release/policy.ts";
 
@@ -28,6 +27,7 @@ export function buildCompanyOSArtifact(args: {
   builtAt?: string;
 }): CompanyOSArtifact {
   args = { ...args, instance: structuredClone(args.instance) };
+  if (Object.hasOwn(args.instance, "sprintRuntimes")) throw new Error("Retired sprintRuntimes configuration: migrate to declared workflows and workflowBindings.");
   if (args.instance.workflowBindings) validateWorkflowInstanceBindings(args.instance.workflowBindings);
   const standardTools = [
     ...STANDARD_KNOWLEDGE_TOOLS,
@@ -65,6 +65,9 @@ export function buildCompanyOSArtifact(args: {
       id: agent.id,
       ...(agent.id === "builder" ? { sourcePaths: Object.keys(workspace.allFiles).sort() } : {}),
       instructions: agent.instructions,
+      ...(agent.description === undefined ? {} : { description: agent.description }),
+      ...(agent.modelTask === undefined ? {} : { modelTask: agent.modelTask }),
+      ...(agent.conversationCoordinator === undefined ? {} : { conversationCoordinator: agent.conversationCoordinator }),
       materials: scopedMaterials(workspace, agent.scopeRead, {
         excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
       }),
@@ -76,22 +79,16 @@ export function buildCompanyOSArtifact(args: {
   const operatingAgents = agents.filter((agent) => agent.id !== "builder");
   const agentRouting = {
     bindings: [...args.instance.agentBindings].sort((a, b) => a.id.localeCompare(b.id)),
-    handoffs: workspace.agents.flatMap((agent) => agent.handoffs).sort((a, b) => a.id.localeCompare(b.id)),
-    // Preserve the prior single operating Agent's implicit route when adding
-    // Builder. Its presence must not divert ordinary company conversations.
+    handoffs: workspace.agents.flatMap((agent) => agent.handoffs)
+      .filter(rule => !rule.whenAvailable || agents.some(agent => agent.id === rule.toAgentId))
+      .map(({ whenAvailable: _optional, ...rule }) => rule).sort((a, b) => a.id.localeCompare(b.id)),
     defaultAgentId: args.instance.defaultAgentId ?? (operatingAgents.length === 1 ? operatingAgents[0].id : undefined),
   };
   validateAgentRouting(agentRouting, agents.map((agent) => agent.id));
-  const sprints = compileSprintRuntimes({
-    workspace,
-    instance: args.instance,
-    coreCommit: args.coreCommit,
-    workspaceCommit: args.workspaceCommit,
-    workbenchVersion,
-  });
   const withoutHash = {
     schemaVersion: 1 as const,
     company: workspace.company,
+    ...(workspace.language ? { language: workspace.language } : {}),
     instance: { id: args.instance.instanceId, environment: args.instance.environment },
     provenance: {
       instanceConfigurationDigest: sha256(args.instance),
@@ -119,7 +116,6 @@ export function buildCompanyOSArtifact(args: {
     roster: workspace.roster,
     agents,
     agentRouting,
-    sprints,
     ...(args.instance.workflowBindings ? { workflowBindings: args.instance.workflowBindings } : {}),
     workflows: compileWorkflows({ files: workspace.allFiles, agents, provenance: { coreCommit: args.coreCommit, workspaceCommit: args.workspaceCommit, workbenchVersion, instanceId: args.instance.instanceId } }),
     builder: args.instance.builder,

@@ -1,0 +1,65 @@
+version: 3
+plan_id: published-conversation-context-2026-09-08
+created: "2026-09-08"
+title: Preserve published messages as provider-neutral conversation evidence
+objective: Let authenticated follow-up questions use exact delivered messages and their owning Agent after workflow completion without gaining execution authority.
+non_goals:
+  - Add company reporting rules, provider SDKs or address parsing to the generic context reader.
+  - Grant new effects, reopen completed workflows or infer decisions from ordinary replies.
+  - Claim unimplemented communication providers are production-ready or reconstruct old publications from mutable facts.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-08-published-conversation-context.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/runtime/workflow-engine/memory-store.ts
+  - packages/runtime/published-conversation-context.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/published-conversation-context.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/published-conversation-context.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.workflow-execution-v1, operations.workflow-engine, operations.vercel-workflow-runner, guide.author-workflow, status.current]
+architecture:
+  placement:
+    core: Resolve bounded publication evidence independently of execution context using existing delivery state.
+    packages: No new business template or Skill.
+    workspace: Own Agent instructions, report content and business policy.
+    instance: Authenticate transport input and retain exact delivered conversation identities and private recipients.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Reuse the proven publication owner for read-only discussion and reject ambiguous or removed owners.
+    - mechanism: identity-and-authorization
+      reason: Scope retained context to the exact authenticated conversation and human recipient after completion.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Commit immutable delivered text beside the existing receipt without reopening workflows or granting effects.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse qualified receipt adapters for opaque provider addresses; synthetic adapters prove cross-provider behavior.
+  new_core_mechanisms:
+    - Bounded published conversation context reader over existing workflow delivery state.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company workflow and authenticated communication adapter can use the same read-only publication context; no provider or Sprint semantics enter the mechanism.
+rollback: Restore the previous exact Core and Artifact pair; optional publication entries remain retained but cannot authorize old execution readers. No database migration or business-data write.

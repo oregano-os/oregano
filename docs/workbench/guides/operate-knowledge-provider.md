@@ -323,3 +323,16 @@ lexical retrieval remains active and returns explicit degradation evidence.
 Restore and rollback are Instance operations and require live evidence beyond
 repository tests. See the recovery and source-connection Guides for those
 procedures.
+
+
+### Agent prompt caching
+
+The selected model binding accepts `promptCaching: "auto" | "provider-default"`.
+Ordinary Agent-profile calls default to `auto`; other profiles preserve provider
+behavior. Exact task/profile/default selection is unchanged and bindings are not
+merged. No lifetime override is introduced. Cache behavior belongs to the model
+adapter, not to Skills or messaging adapters. Stable instructions precede
+changing work evidence; content-free cache token counts include all Tool steps.
+
+See [provider behavior, configuration and qualification](../../operations/model-prompt-caching.md)
+for supported adapters, a configuration example, measured usage and rollback.

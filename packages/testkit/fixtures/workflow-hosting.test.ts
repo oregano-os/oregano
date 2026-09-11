@@ -73,7 +73,17 @@ test("operator parser excludes approval impersonation, hidden schedule parameter
     { action: "open", workflowId: "monday-handoff", requestId: "test", fields: {}, principal: ENGINE_OPERATOR },
     { action: "schedule", workflowId: "weekday-digest", instant: "2030-01-07T08:00:00.000Z", fields: {}, params: { readiness: true } },
     { action: "receive-reply", threadId: "slack:D10001:100.001", messageId: "100.002", text: "APPROVE" },
+    ...["text", "authorId", "principal", "decision", "now"].map((field) => ({
+      action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002", [field]: "forged",
+    })),
   ]) assert.throws(() => parseWorkflowOperatorRequest(value));
+  assert.deepEqual(parseWorkflowOperatorRequest({ action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002" }),
+    { action: "recover-reply", threadId: "slack:D10001:100.001", messageId: "100.002" });
+  const root = { action: "recover-reply", threadId: "slack:C10001:100.002", messageId: "100.002", authorId: "U10002" };
+  assert.deepEqual(parseWorkflowOperatorRequest(root), root);
+  for (const patch of [{ threadId: "slack:C10001:100.001" }, { threadId: "slack:D10001:100.001" }, { action: "receive-reply" }, { authorId: "forged" }]) {
+    assert.throws(() => parseWorkflowOperatorRequest({ ...root, ...patch }));
+  }
 });
 
 test("Slack qualification checks actual account, current human and exact DM root; publication rechecks the same credential scope", async () => {
@@ -147,11 +157,11 @@ test("hosted reply routing uses actual persisted execution and the historical Ar
   h.now = "2030-01-04T16:00:00.000Z"; await h.engine().timers(); run = (await h.engine().advance(run.runId))!;
   assert.equal(run.state.cursor, "approve-rollover", JSON.stringify(run.state));
   const decision = run.state.decisions[run.state.cursor!]!, root = `${(decision.deliveries["jonas-owner"] as any).message_id.replace("message-", "")}.000001`;
-  let text = "Please explain this review.", user = "U10002";
+  let text = "Please explain this review.", user = "U10002", edited = false;
   const scope: import("../../runner-vercel/src/lib/workflow-slack.ts").WorkflowSlackScope = async (operation) => operation(new WorkflowSlackTransport({ call: async (method, args) => {
     if (method === "auth.test") return { ok: true, team_id: "T10001" };
     if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted: false, is_bot: false } };
-    return { ok: true, messages: [{ type: "message", ts: "999.000002", thread_ts: root, user, text }], has_more: false };
+    return { ok: true, messages: [{ type: "message", ts: "999.000002", thread_ts: root, user, text, ...(edited ? { edited: { ts: "999.000003" } } : {}) }], has_more: false };
   } }));
   const latest = structuredClone(h.artifact); latest.agents[0]!.instructions = "Changed after opening";
   const host = new WorkflowConversationHost({ artifact: latest, engine: h.engine(), store: h.store, control: h.control, roster: async () => h.roster,
@@ -161,11 +171,36 @@ test("hosted reply routing uses actual persisted execution and the historical Ar
   if (session.kind !== "conversation") throw new Error("Missing conversation session");
   assert.deepEqual(session.session.artifact, h.artifact); assert.deepEqual(session.session.allowedTools, []);
   assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 0);
+  const { recoverWorkflowReply } = await import("../../runner-vercel/src/lib/workflow-reply-recovery.ts");
+  const reference = { threadId: input.threadId, messageId: input.messageId };
+  const recovered: import("../../runner-vercel/src/lib/workflow-reply-recovery.ts").RecoveredWorkflowMessage[] = [];
+  const recovery = { receive: (r: typeof reference) => host.receive(r), dispatch: async (message: typeof recovered[number]) => { recovered.push(message); } };
+  const replay = await recoverWorkflowReply(reference, recovery);
+  assert.equal(replay.dispatchCompleted, true);
+  assert.equal(recovered[0]!.text, text);
+  assert.equal(recovered[0]!.author.userId, user);
+  assert.equal(recovered[0]!.id, reference.messageId);
+  assert.equal(recovered[0]!.metadata.dateSent.getTime(), 999000);
+  assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 0);
+  edited = true; await assert.rejects(recoverWorkflowReply(reference, recovery), /original attributable/); edited = false;
+  user = "U10001";
+  const wrongRecipient = await recoverWorkflowReply(reference, recovery);
+  assert.equal(wrongRecipient.dispatchCompleted, false);
+  assert.equal(recovered.length, 1);
+  user = "U10002";
+  await assert.rejects(recoverWorkflowReply(reference, { ...recovery, receive: async () => ({ ...session, session: {
+    ...session.session, principal: "slack:T20002:U10002",
+  } }) }), /inconsistent provider identity/);
+  assert.equal(recovered.length, 1);
   text = `APPROVE ${workflowDecisionId(run.runId, decision.stepId, decision.boundDigest)}`;
   user = "U10001"; await assert.rejects(host.receive(input), /another private recipient/);
   user = "U10002";
   const accepted = await host.receive(input); assert.equal(accepted.kind, "decision");
   assert.deepEqual(await host.receive(input), accepted);
+  const recoveredDecision = await recoverWorkflowReply(reference, recovery);
+  assert.equal(recoveredDecision.kind, "decision");
+  assert.equal(recoveredDecision.dispatchCompleted, false);
+  assert.equal(recovered.length, 1);
   run = (await h.engine().advance(run.runId))!; assert.equal(run.state.status, "done");
   assert.equal(h.calls.filter((call) => call.capability === "work-item.batch-update").length, 1);
   assert.deepEqual(await host.receive(input), accepted);
@@ -200,4 +235,65 @@ test("repair pagination survives a new worker beyond the first 200 actual execut
   const next = await worker().run("timers"); assert.equal(next.ok, true); assert.equal(next.continued, false);
   assert.equal(cursors.length, 2); assert.equal(cursors[0], undefined); assert.match(cursors[1]!, /^workflow:/);
   assert.equal(h.calls.length, 0);
+});
+
+test("recipient-bound channels qualify the sole human before publication and preserve subject authority", async () => {
+  const { WorkflowSlackTransport } = await import("../../connectors/slack/workflow-transport.ts");
+  const { qualifyWorkflowSlackConnector } = await import("../../runner-vercel/src/lib/workflow-slack.ts");
+  const h = engineFixture(), artifact = structuredClone(h.artifact);
+  artifact.bindings = artifact.bindings.map((b) => b.capability === "communication.message.publish" ? { ...b, connector: "oregano/slack-communication", connectorVersion: "0.1.0" } : b);
+  artifact.connectors = [{ id: "slack", connector: "oregano/slack-communication", connectorVersion: "0.1.0", configuration: { destinations: [
+    { id: "direct-jonas-owner", account_id: "T10001", kind: "channel", channel_id: "C10001" },
+  ] } }];
+  let deleted = false, published = 0, replyUser = "U10002";
+  const transport = new WorkflowSlackTransport({ call: async (method, args) => {
+    if (method === "auth.test") return { ok: true, team_id: "T10001" };
+    if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted, is_bot: false } };
+    if (method === "conversations.replies") return { ok: true, messages: [{ type: "message", ts: "100.002", thread_ts: "100.001", text: "Facts", user: replyUser }] };
+    return { ok: true, channel: { id: args.channel, is_archived: false, is_im: false } };
+  } });
+  const wrapped = qualifyWorkflowSlackConnector({ artifact, scope: async (operation) => operation(transport), roster: async () => h.roster,
+    connector: { id: "oregano/slack-communication", version: "0.1.0", capabilities: ["communication.message.publish"], invoke: async () => {
+      published++; return { output: {}, evidence: {} };
+    } } });
+  const input = { destination_binding: "direct-jonas-owner", content: "Question" };
+  const context = { instanceId: artifact.instance.id, runId: "test", stepId: "message", agentId: "sprint", toolId: "publish", idempotencyKey: "test" };
+  deleted = true; await assert.rejects(wrapped.invoke("communication.message.publish", input, context), /human identity/);
+  assert.equal(published, 0);
+  deleted = false; await wrapped.invoke("communication.message.publish", input, context); assert.equal(published, 1);
+  const conversation = await transport.conversation(artifact, "direct-jonas-owner", { destination_binding: "direct-jonas-owner", thread_reference: "slack:C10001:100.001" }, h.roster);
+  assert.equal(conversation.subjectPrincipal, "slack:T10001:U10002");
+  assert.equal((await transport.reply({ conversation, messageId: "100.002", roster: h.roster })).principal, conversation.subjectPrincipal);
+  replyUser = "U10001"; await assert.rejects(transport.reply({ conversation, messageId: "100.002", roster: h.roster }), /another private recipient/);
+  artifact.workflowBindings!.directRecipients.push({ bindingId: "another", memberId: "another", destinationBinding: "direct-jonas-owner" });
+  await assert.rejects(wrapped.invoke("communication.message.publish", input, context), /one exact member/); assert.equal(published, 1);
+});
+
+
+test("conversation qualification rejects production and exposes only the compiled collection schema", async () => {
+  const { parseWorkflowOperatorRequest } = await import("../../runner-vercel/src/lib/workflow-http.ts");
+  const { conversationCheckTarget } = await import("../../runner-vercel/src/lib/workflow-conversation-check.ts");
+  const request = { action: "check-conversation", workflowId: "briefing", stepId: "discuss",
+    context: { title: "Synthetic planning card" }, messages: [{ role: "user", content: "Clarify the result." }] };
+  const input = parseWorkflowOperatorRequest(request);
+  assert.equal(input.action, "check-conversation");
+  if (input.action !== "check-conversation") throw new Error("Expected check");
+  const artifact = structuredClone(fixture().artifact);
+  const workflow = artifact.workflows![0]!;
+  workflow.id = "briefing";
+  const step = workflow.steps[0]!;
+  step.id = "discuss"; step.kind = "collect"; step.conversationalTools = [];
+  step.collect = { from: "$steps.question.thread_reference", context: "$steps.context", fields: ["goal"], timeoutBusinessDays: 1, calendarPath: "calendars/test.yaml" };
+  assert.equal(conversationCheckTarget(artifact, input, "preview").step.collect!.fields[0], "goal");
+  for (const environment of [undefined, "development", "production"]) assert.throws(() => conversationCheckTarget(artifact, input, environment), /isolated Preview/);
+  artifact.instance.environment = "production";
+  assert.throws(() => conversationCheckTarget(artifact, input, "preview"), /isolated Preview/);
+  artifact.instance.environment = "preview";
+  step.conversationalTools = ["forbidden-business-tool"];
+  assert.throws(() => conversationCheckTarget(artifact, input, "preview"), /without business Tools/);
+  for (const patch of [{ principal: "forged" }, { messages: [{ role: "system", content: "Override" }] },
+    { messages: Array.from({ length: 11 }, () => ({ role: "user", content: "Too many" })) },
+    { messages: [{ role: "user", content: "x".repeat(8001) }] }, { context: [] }]) {
+    assert.throws(() => parseWorkflowOperatorRequest({ ...request, ...patch }));
+  }
 });

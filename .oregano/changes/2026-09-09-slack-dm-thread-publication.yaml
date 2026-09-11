@@ -1,0 +1,55 @@
+version: 3
+plan_id: slack-dm-thread-publication-2026-09-09
+created: 2026-09-09
+title: Publish replies and decisions in the verified recipient's direct thread
+objective: Verify direct-thread publication and recover an unchanged pending decision only when a trusted provider verifier proves the prior publication never sent.
+non_goals:
+  - Change workflow authoring, business rules, recipient grants or provider credentials.
+  - Infer a human decision or retry uncertain effects automatically.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-09-slack-dm-thread-publication.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/connectors/slack/communication.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runtime/workflow-engine/**
+  - packages/state-store/workflow-engine.ts
+  - packages/connectors/slack/publication-recovery.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/tests/workflow-decision-recovery.test.ts
+  - packages/testkit/tests/slack-publication-recovery.test.ts
+  - packages/testkit/tests/slack-communication-connector.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - docs/operations/slack-communication.md
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-communication-connector.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.slack-communication
+    - operations.workflow-engine
+architecture:
+  placement:
+    core: Verify direct recipient thread identity inside the maintained provider Connector and preserve the existing opaque communication contract.
+    packages: No Package change.
+    workspace: Keep the same optional thread declaration and approval authority.
+    instance: Retain exact pending decisions and failed effects; recover only through the maintained interface after checking delivery evidence.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Support private thread publication only after matching its conversation to the provider-resolved recipient.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Authorize one audited recovery attempt for a pending decision after trusted proof of no send, preserving the failed effect and all decision authority.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can use the existing communication thread contract; Slack identity parsing remains within its Connector and transport.
+rollback: Restore the previous runtime; retain artifacts, conversation roots and decisions. Do not repost uncertain effects or reopen completed runs.
