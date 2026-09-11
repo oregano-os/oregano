@@ -83,7 +83,7 @@ const coreIdentity = (root) => ({
   root,
   repository: "oregano-os/oregano",
   ref: CORE_REF,
-  core_version: "0.11.4",
+  core_version: "0.11.5",
   workbench_version: WORKBENCH_VERSION,
   clean: true,
 });

@@ -1,7 +1,7 @@
 version: 3
 plan_id: database-traffic-2026-09-10
 created: 2026-09-10
-title: Reduce redundant database reads in Core 0.11.4
+title: Reduce redundant database reads in Core 0.11.5
 objective: Return compact database qualification evidence and read each Sprint
   projection once per consistency pass through the existing all_pages query.
 non_goals:
