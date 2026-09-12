@@ -103,7 +103,14 @@ export function compileWorkflows(args: {
       if (raw.tool === "start") return { ...base, kind: "start", start: { workflowId: raw.workflow, fields: raw.input } };
       if (raw.tool === "collect") {
         const path = calendar(); usedSchedules.add(path);
-        return { ...base, kind: "collect", collect: { from: raw.from, context: raw.context, fields: raw.fields, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path } };
+        let validator;
+        if (raw.validate !== undefined) {
+          const checked = resolveTool(raw.validate, raw.id);
+          if (!raw.validate.startsWith("company:") || checked.resolved.risk !== "R0" || checked.tool.contract.capabilities.length)
+            throw new Error(`${data.id}/${raw.id}: collection validation requires a granted pure R0 Company Tool without capabilities`);
+          validator = structuredClone(checked.resolved);
+        }
+        return { ...base, kind: "collect", collect: { from: raw.from, context: raw.context, fields: raw.fields, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, ...(validator ? { validator } : {}) } };
       }
       if (raw.tool === "wait") {
         if (typeof raw.for === "string") {

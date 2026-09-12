@@ -1,4 +1,4 @@
-import { validateCollection } from "./collection.ts";
+import { validateCollection, validateCollectionCandidate } from "./collection.ts";
 import { randomUUID } from "node:crypto";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
@@ -381,13 +381,15 @@ export class WorkflowEngine {
     if (!run) throw new Error("Workflow collection is busy or closed");
     try {
       this.#enabled(run.workflowId);
-      const { workflow, step } = await this.#definition(run);
+      const { artifact, workflow, step } = await this.#definition(run);
       const roster = await this.#options.currentRoster(), member = findByCanonicalPrincipal(roster, args.principal);
       if (!member || !isHumanRosterMember(member) || !/^(active|aktiv)$/i.test(member.status)) throw new Error("Collection requires an active human");
       const source = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect?.from));
       if (!step.collect || !source || assignment.stepId !== source[1] || run.state.status !== "waiting" || run.state.blocked
         || !run.state.wait || run.state.wait.dueAt <= now) throw new Error("Collection is not waiting for this conversation");
       validateCollection(step, args.output);
+      await validateCollectionCandidate({ artifact, agentId: workflow.agentId, runId: run.runId, step,
+        context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)), facts: args.output });
       const state = structuredClone(run.state);
       this.#finish(state, step, args.output, now);
       return await this.#save(run, state, "workflow.facts-collected", { response_event_id: args.eventId, output_digest: jsonDigest(args.output) }, undefined, args.principal);

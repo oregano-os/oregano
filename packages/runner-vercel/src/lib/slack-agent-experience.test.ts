@@ -298,3 +298,19 @@ test("coordinator layout repair preserves code, literal paths and already-correc
   assert.deepEqual(coordinatorSlackMessage(literal), { markdown: literal });
   assert.equal(coordinatorSlackMessage(String.raw`Intro.\r\n\r\n1. One\r\n2. Two`).markdown, "Intro.\n\n1. One\n2. Two");
 });
+
+test('specialist turns finish after tool-owned delivery, missing-input questions and terminal failures', async () => {
+  for (const outcome of ['workflow-copy', 'needs-input', 'review', 'failure', 'cancelled']) {
+    const events: string[] = [];
+    const adapter = { endTyping: async (_id: string, status?: string) => { events.push(status!); } };
+    const thread = { id: 'specialist-thread', adapter, startTyping: async () => { events.push('processing'); } };
+    const operation = withSlackAgentWorking(thread as any, coordinatorConfiguration, async finish => {
+      if (outcome === 'failure' || outcome === 'cancelled') throw new Error(outcome);
+      if (outcome === 'review') await finish('suspended');
+      return { visibleResponse: outcome === 'needs-input' ? 'What did you learn?' : '' };
+    });
+    if (outcome === 'failure' || outcome === 'cancelled') await assert.rejects(operation);
+    else await operation;
+    assert.deepEqual(events, ['processing', outcome === 'review' ? 'suspended' : 'active']);
+  }
+});

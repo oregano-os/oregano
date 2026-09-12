@@ -555,3 +555,29 @@ visible continuation link. It cannot select another run, widen the audience,
 reopen terminal work or infer a decision. If no unique current delivery is
 available, the old publication remains discussable without collection controls.
 Opening a conversation pane is client UI behavior, not a workflow delivery proof.
+
+### Optional collection validation before completion
+
+A workflow collection MAY name one `validate: company:<tool-id>` reference.
+Authoring and compilation MUST require an existing explicitly granted pure R0
+Company Tool with no capabilities. The compiled collection pins its resolved
+Tool contract. The engine MUST recheck this grant and contract, validate Tool
+inputs and outputs, and execute through the existing isolated sandbox without
+provider or state capabilities. Its fixed input is `{context, facts}`, where
+context is resolved from the historical run and facts are the candidate.
+
+The output MUST contain exactly `accepted` (boolean) and `feedback` (string,
+at most 2,000 characters; nonempty on rejection). Rejection MUST precede any
+collection completion or downstream publication and MUST preserve the current
+waiting step, assignment and deadline. The conversation host MUST return the
+feedback internally to the Agent with `collected: false`; it MUST NOT publish
+validator diagnostics as a workflow message. Acceptance stores the unchanged
+candidate using ordinary collection evidence. This check confers no approval or
+external effect authority. An absent validator preserves the existing contract.
+No new case store, retry workflow, message router or conversation owner exists.
+
+The maintained chat turn presentation MUST end processing after every completed,
+failed or cancelled specialist turn, including turns whose workflow delivers the
+visible message. Finishing a coordinator or originating Agent before delegation
+MUST NOT overwrite the target Agent's later status. Human-input waiting is a
+workflow state, not evidence that model execution is still in progress.

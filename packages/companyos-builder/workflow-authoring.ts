@@ -490,6 +490,16 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each) err(f, `${s.id}: collect requires a prior private root message with one explicit recipient`);
         const checkReferences = (value: any): void => { if (typeof value === "string" && value.startsWith("$")) resolveReference(value, s.id); else if (value && typeof value === "object") Object.values(value).forEach(checkReferences); };
         checkReferences(s.context);
+        if (s.validate !== undefined) {
+          const declaration = companyTools.get(s.validate), validator = toolSchemas(s.validate);
+          if (!grants.has(s.validate) || !declaration || validator?.risk !== "R0" || declaration.capabilities?.length !== 0)
+            err(f, `${s.id}: collection validation requires a granted pure R0 Company Tool without capabilities`);
+          else {
+            const contextSchema = typeof s.context === "string" && s.context.startsWith("$") ? resolveReference(s.context, s.id) : literalSchema(s.context);
+            compatible({ type: "object", additionalProperties: false, required: ["context", "facts"], properties: { context: contextSchema, facts: outputOf.get(s.id) } }, validator.input, s.id, "/validate/input");
+            compatible(validator.output, { type: "object", additionalProperties: false, required: ["accepted", "feedback"], properties: { accepted: { type: "boolean" }, feedback: { type: "string", maxLength: 2000 } } }, s.id, "/validate/output");
+          }
+        }
       }
       // decision binds
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
@@ -580,7 +590,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
-  else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout");
+  else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout", "validate");
   else if (step.tool === "wait") allowed.push("for");
   else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");

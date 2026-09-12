@@ -344,3 +344,27 @@ for (const channelId of ["C10001", "D10001"]) test(`a selected reply to an earli
   assert.equal(discussed.kind, "conversation"); if (discussed.kind !== "conversation") return;
   assert.equal(discussed.session.collection, undefined);
 });
+
+test('rejected collection returns feedback to the Agent and does not advance or publish', async t => {
+  const { CollectionNeedsInput } = await import('../../runtime/workflow-engine/collection.ts');
+  const { WorkflowEngine } = await import('../../runtime/workflow-engine/engine.ts');
+  const { hasSubmittedCollection } = await import('../../runner-vercel/src/lib/workflow-conversation-presentation.ts');
+  const { h, host, input, runs } = await setup();
+  const received = await host.receiveChannel(input);
+  assert.equal(received.kind, 'conversation'); if (received.kind !== 'conversation') return;
+  const original = WorkflowEngine.prototype.collect;
+  let reject = true;
+  t.mock.method(WorkflowEngine.prototype, 'collect', async function(this: InstanceType<typeof WorkflowEngine>, args: Parameters<typeof original>[0]) {
+    if (reject) throw new CollectionNeedsInput('The intended outcome is missing.');
+    return original.call(this, args);
+  });
+  const state = structuredClone(runs[0]!.state);
+  const result = await received.session.collection!.submit({ summary: 'partial' });
+  assert.equal((result as any).collected, false);
+  assert.equal((result as any).feedback, 'The intended outcome is missing.');
+  assert.equal(hasSubmittedCollection([{toolName:'companyos_collect_facts',output:result}]),false);
+  assert.deepEqual((await h.store.read(h.artifact.instance.id,runs[0]!.runId))!.state,state);
+  reject = false;
+  const done = await received.session.collection!.submit({summary:'The complete discussed outcome'});
+  assert.equal(hasSubmittedCollection([{toolName:'companyos_collect_facts',output:done}]),true);
+});

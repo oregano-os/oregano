@@ -75,7 +75,6 @@ import {
   resolveSlackAgentSessionThreadId,
   resolveSlackTurnAbortSignal,
   shouldStreamSlackAgentResponse,
-  showSlackAgentWorking,
   withSlackAgentWorking,
   toolResultNeedsHumanInput,
   validatedSlackResponsePlan,
@@ -485,7 +484,9 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     thread.id,
     slackAgentExperience,
   );
-  if (!participation.ambient || coordinated) await showSlackAgentWorking(deliveryThread, slackAgentExperience);
+  return await withSlackAgentWorking(deliveryThread,
+    participation.ambient && !coordinated ? { ...slackAgentExperience, enabled: false } : slackAgentExperience,
+    async finishWorking => {
   const historyThreadId = workflowSession ? workflowReplyThreadId(workflowSession) : thread.id;
   const conversationKey = `conversation:${historyThreadId}:${agent.id}`;
   const recordSetupExchange = async (evidence: ModelExecutionEvidence) => {
@@ -667,6 +668,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
     // Forward the original authenticated input, never a model-written instruction
     // or another Agent's private history. The target resolves its own read scope.
+    await finishWorking();
     await handleMessage(thread, message, true);
     return;
   }
@@ -695,7 +697,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     ttlMs: 30 * DAY,
   });
   if (reviewDelivered) {
-    try { await deliveryThread.adapter.endTyping?.(deliveryThread.id, "suspended"); } catch { /* Presentation cannot veto delivery or consent. */ }
+    await finishWorking("suspended");
     return;
   }
   if (presentation.visibleResponse) {
@@ -711,6 +713,8 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     ));
     trace.emit("reply-posted");
   }
+  if (waitingForHuman) await finishWorking("suspended");
+  });
   } catch (error) {
     await state.delete(claimKey);
     throw error;

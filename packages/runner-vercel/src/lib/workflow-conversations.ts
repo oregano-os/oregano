@@ -2,7 +2,7 @@ import { sha256 } from "../../../runtime/canonical.ts";
 import { ConversationChoiceService, type ConversationChoiceScope } from "../../../runtime/conversation-choice.ts";
 import { subjectDecisionReply, workflowDecisionId } from "../../../runtime/workflow-engine/decision-notice.ts";
 import { collectionReviewDelivery } from "./workflow-conversation-presentation.ts";
-import { collectionSchema } from "../../../runtime/workflow-engine/collection.ts";
+import { collectionSchema, CollectionNeedsInput } from "../../../runtime/workflow-engine/collection.ts";
 import { resolveWorkflowValue } from "../../../runtime/workflow-engine/references.ts";
 import { workflowContext } from "../../../runtime/workflow-engine/readers.ts";
 import type { JsonValue } from "../../../capabilities/contracts.ts";
@@ -286,7 +286,14 @@ export class WorkflowConversationHost {
         ...(published ? { publishedContext: published.evidence } : {}),
         ...(step.collect && run.state.status === "waiting" && !run.state.blocked ? { collection: {
           schema: collectionSchema(step.collect.fields), context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)),
-          submit: async (output: JsonValue) => { const saved = await this.#args.engine.collect({ principal, conversation: qualifiedConversation, eventId: reply.eventId, output });
+          submit: async (output: JsonValue) => {
+            let saved;
+            try { saved = await this.#args.engine.collect({ principal, conversation: qualifiedConversation, eventId: reply.eventId, output }); }
+            catch (error) {
+              if (!(error instanceof CollectionNeedsInput)) throw error;
+              return { collected: false, authorized: false, feedback: error.feedback,
+                message: "The conversation remains open. Use this internal feedback to revise the draft or ask one natural question for missing facts. Do not display validator diagnostics or claim completion." };
+            }
             const advanced = await this.#args.engine.advance(saved.runId);
             const reviewDelivery = collectionReviewDelivery(advanced, member.id!, String(resolveWorkflowValue(step.collect!.from, workflow, workflowContext(run, roster))));
             return { collected: true, authorized: false, ...(reviewDelivery ? { reviewDelivery } : {}),

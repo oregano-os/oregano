@@ -276,13 +276,13 @@ export async function showSlackAgentWorking(
 export async function withSlackAgentWorking<T>(
   thread: Pick<Thread, "id" | "adapter" | "startTyping">,
   configuration: SlackAgentExperienceConfiguration,
-  operation: (finish: () => Promise<void>) => Promise<T>,
+  operation: (finish: (status?: "active" | "suspended") => Promise<void>) => Promise<T>,
 ): Promise<T> {
   let finished = false;
-  const finish = async () => {
+  const finish = async (status: "active" | "suspended" = "active") => {
     if (finished || !configuration.enabled) return;
     finished = true;
-    try { await thread.adapter.endTyping?.(thread.id, "active"); }
+    try { await thread.adapter.endTyping?.(thread.id, status); }
     catch { /* Optional presentation must not replace the operation's result or error. */ }
   };
   await showSlackAgentWorking(thread, configuration);

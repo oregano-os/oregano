@@ -365,3 +365,33 @@ The navigation reference is optional and distinct from `thread`, which places
 the decision notice itself inside a conversation. Omitted navigation preserves
 historical notice inputs and verification. Workspace chooses the conversation
 and its content; provider navigation rendering belongs to the Connector.
+
+## Keep draft validation inside the conversation
+
+A `collect` step may declare `validate: company:<tool-id>`. The Tool must be
+explicitly granted to the workflow Agent, have risk R0 and no capabilities.
+Core calls its pinned isolated implementation with `{context, facts}` only after
+checking the active human, exact private assignment, waiting step and lease.
+The Tool returns exactly `{accepted: boolean, feedback: string}`; feedback is
+bounded to 2,000 characters and must explain a rejection. Business format and
+completeness rules stay in the Workspace.
+
+A rejection leaves the same collection, deadline, run and conversation waiting.
+It does not publish, advance, create a repair thread or consume a repair round.
+The maintained host returns `collected: false` with internal feedback to the
+Agent, which revises or asks a natural follow-up. Only accepted facts finish the
+step. Validators cannot alter the candidate or authorize an effect. A Tool
+failure leaves the waiting state intact and is reported as a Tool error.
+Older collections without a validator retain their existing behavior.
+
+The maintained chat host now owns the working indicator around every actual
+specialist model turn, including buffered and Tool-delivered replies. It clears
+that indicator in `finally` on success, error and cancellation. Explicit approval
+waiting uses suspended status; ordinary waiting for another answer is not ongoing
+processing. The coordinator finishes its own indicator before delegation, and a
+specialist does the same before a further handoff. No shared multi-Agent routing,
+work identity, permissions or conversation storage is replaced.
+
+Qualify early candidate rejection followed by a corrected answer in the same
+thread, private delivery recovery, model dialogue and status cleanup separately.
+A synthetic engine or model test does not establish live provider acceptance.

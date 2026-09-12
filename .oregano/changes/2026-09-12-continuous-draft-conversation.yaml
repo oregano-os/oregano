@@ -1,0 +1,73 @@
+version: 3
+plan_id: continuous-draft-conversation-2026-09-12
+created: 2026-09-12
+title: Keep incomplete drafts in their Agent conversation
+objective: Reuse collection with an optional pure Workspace validator that
+  rejects incomplete submissions before advancing, and finish the working
+  indicator on every specialist turn exit.
+non_goals:
+  - Replace or weaken shared multi-Agent conversation coordination.
+  - Add company reporting rules, new conversation storage, provider permissions
+    or production activation.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-continuous-draft-conversation.yaml
+  - packages/companyos-builder/workflow-types.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/runtime/workflow-engine/collection.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/testkit/tests/workflow-collection*.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-collection-validation.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.companyos-core-v0.7
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Generic optional pre-completion validation and bounded turn presentation
+      lifecycle.
+    packages: Synthetic qualification fixtures only.
+    workspace: Conversation instructions, report format and pure draft validation
+      stay in the Company Workspace.
+    instance: Existing run, assignment, timer, history, provider and deployment
+      state is reused.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Preserve current shared coordinator, exact selected work and scoped
+        specialist delegation.
+    - mechanism: identity-and-authorization
+      reason: Validate only inside an already authenticated, assigned, leased
+        collection step.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the isolated Company Tool sandbox for an explicitly granted R0
+        validator with no capabilities.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Company Agent may check a draft using its own pure
+    validation Tool. No report fields, business phases or Slack routing enter
+    the collection contract.
+rollback: Redeploy the preceding pinned pair. Existing runs retain their
+  historical definitions; no migration is required. New validator workflows
+  require this Core.

@@ -1699,3 +1699,14 @@ visible continuation link. It cannot select another run, widen the audience,
 reopen terminal work or infer a decision. If no unique current delivery is
 available, the old publication remains discussable without collection controls.
 Opening a conversation pane is client UI behavior, not a workflow delivery proof.
+
+### Continuous draft conversation correction — September 12, 2026
+
+Core supports optional pure Workspace validation before a collection completes.
+Rejected drafts stay in the same waiting conversation and return internal Agent
+feedback; older unvalidated collections are unchanged. Specialist chat turns
+reuse the coordinator's bounded working-status lifecycle, including silent
+Tool-delivery branches, errors and cancellation. Shared multi-Agent work
+selection, source-message forwarding and delegation remain unchanged. Synthetic
+regressions qualify these contracts; live deployment and human chat acceptance
+must be recorded separately for each pinned Instance pair.
