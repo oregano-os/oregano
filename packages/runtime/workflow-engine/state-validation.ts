@@ -134,7 +134,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     for (const output of delivery.outputs as Record<string, unknown>[]) if (typeof output?.message_id !== "string" || output.destination_binding !== receipt?.destination_binding || output.thread_reference !== receipt?.thread_reference) throw new Error("Effect review receipt differs from the original conversation");
   }
   if (state.wait) {
-    if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision", "start"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
+    if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision", "start", "records"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
     workflowInstant(state.wait.dueAt); identifier(state.wait.timerId);
   }
 }

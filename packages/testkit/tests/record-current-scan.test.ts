@@ -10,6 +10,7 @@ import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { RECORD_QUERY_OUTPUT_SCHEMA } from "../../records/query-schema.ts";
 import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 import type { CompanyRecordSourceBinding } from "../../records/source-connector.ts";
+import { RecordScanPendingError } from "../../records/current-scan.ts";
 
 const deadline = "2031-01-03T17:00:00.000000100Z";
 const completed = "2031-01-03T17:01:00.000Z";
@@ -43,7 +44,7 @@ function fixture(bound = false) {
 
 for (const bound of [false, true]) test(`complete current scans exclude absent objects and preserve observed edits (${bound ? "bound generation" : "unbound source"})`, async () => {
   const h = fixture(bound);
-  await assert.rejects(h.query(), /no matching complete current scan/);
+  await assert.rejects(h.query(), RecordScanPendingError);
   await h.sync("first", [object("one", "original"), object("two", "later absent")]);
   const first = await h.query();
   assert.equal(first.rows.length, 2);
@@ -72,7 +73,7 @@ test("current scan gates reject old starts, invented coverage and conflicting qu
   await h.sync("ordinary", [], "");
   await assert.rejects(h.query(), /no matching complete current scan/);
   await h.sync("too-early", [], "2031-01-03T17:00:00.000000099Z");
-  await assert.rejects(h.query(), /started at or after/);
+  await assert.rejects(h.query(), RecordScanPendingError);
   await h.sync("exact", [], "2031-01-03T18:00:00.000000100+01:00");
   assert.deepEqual((await h.query()).rows, []);
   await assert.rejects(h.query({ require_synced_through: deadline }), /not both/);

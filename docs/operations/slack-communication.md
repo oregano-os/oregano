@@ -8,7 +8,7 @@ language: en
 implementation_scope: provider
 providers:
   - slack
-updated: 2026-09-09
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -35,6 +35,15 @@ A new DM message creates and subscribes its own reply root. A reply or decision
 inside an existing DM thread retains that parent and returns the new message
 ID separately. The same rule applies to a later completion message. The
 Connector must not silently move a failed reply to the main DM conversation.
+
+An original human thread reply can also be shared to the main conversation.
+Slack labels this representation [`thread_broadcast`](https://docs.slack.dev/reference/events/message/thread_broadcast/).
+The transport accepts it only when rereading the exact message in its original
+thread. It retains the same provider event identity, account, human-author and
+private-recipient checks; bot/app authors, edits and unrelated subtypes remain
+rejected. A broadcast reference cannot be substituted for a new root answer.
+The Agent continues in the original thread rather than posting a second answer
+for the shared reference. This applies to all Agents using the Connector.
 
 ## Test the complete route
 

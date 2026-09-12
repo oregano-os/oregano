@@ -2,7 +2,7 @@ import { sha256 } from "../../../runtime/canonical.ts";
 import { ConversationChoiceService, type ConversationChoiceScope } from "../../../runtime/conversation-choice.ts";
 import { subjectDecisionReply, workflowDecisionId } from "../../../runtime/workflow-engine/decision-notice.ts";
 import { collectionReviewDelivery } from "./workflow-conversation-presentation.ts";
-import { collectionSchema } from "../../../runtime/workflow-engine/collection.ts";
+import { collectionSchema, CollectionNeedsInput } from "../../../runtime/workflow-engine/collection.ts";
 import { resolveWorkflowValue } from "../../../runtime/workflow-engine/references.ts";
 import { workflowContext } from "../../../runtime/workflow-engine/readers.ts";
 import type { JsonValue } from "../../../capabilities/contracts.ts";
@@ -215,7 +215,7 @@ export class WorkflowConversationHost {
 
   /** Reread the source independently, then resume only the selected delivered work.
    * Routing an excerpt cannot turn ordinary prose into a workflow decision. */
-  async receiveSelected(args: { source: { threadId: string; messageId: string; authorId: string }; target: WorkflowAssignment; text: string; version: string }): Promise<WorkflowInboundResult> {
+  async receiveSelected(args: { source: { threadId: string; messageId: string; authorId: string }; target: WorkflowAssignment; text?: string; version: string }): Promise<WorkflowInboundResult> {
     const match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.source.threadId);
     if (!match || args.target.surface !== "slack" || args.target.channelId !== match[1]) throw new Error("Selected work crosses the verified conversation audience");
     return this.#args.slack(async transport => {
@@ -223,10 +223,13 @@ export class WorkflowConversationHost {
       const principal = await transport.human(accountId, args.source.authorId, roster);
       if (accountId !== args.target.accountId || (args.target.subjectPrincipal && args.target.subjectPrincipal !== principal)) throw new Error("Selected work belongs to another recipient");
       const reply = await transport.reply({ conversation: { surface: "slack", accountId, channelId: match[1]!, threadId: args.source.messageId === match[2] ? args.target.threadId : match[2]!, subjectPrincipal: principal },
-        messageId: args.source.messageId, roster, channelReply: args.source.messageId === match[2] });
-      if (!args.text.trim() || !reply.text.includes(args.text)) throw new Error("Selected answer is not an excerpt of the provider source");
+        messageId: args.source.messageId, roster, channelReply: args.source.messageId === match[2], ...(args.text === undefined ? {} : { representation: "conversation" as const }) });
+      // Ordinary routing forwards the verified provider message, never model-authored text.
+      // Only a split concern needs an excerpt check, in the same presentation as ingress.
+      const text = args.text ?? reply.text;
+      if (!text.trim() || (args.text !== undefined && !reply.text.includes(text))) throw new Error("Selected answer is not an excerpt of the provider source");
       return this.#receive({ threadId: `slack:${args.target.channelId}:${args.target.threadId}`, messageId: args.source.messageId, authorId: args.source.authorId }, true,
-        { reply: { ...reply, text: args.text, eventId: `${reply.eventId}:concern:${sha256({ target: args.target.assignmentKey, text: args.text })}` }, version: args.version });
+        { reply: { ...reply, text, eventId: `${reply.eventId}:concern:${sha256({ target: args.target.assignmentKey, text })}` }, version: args.version });
     });
   }
 
@@ -275,7 +278,21 @@ export class WorkflowConversationHost {
       if (step.collect && (!run.state.wait || run.state.wait.dueAt <= now)) return { kind: "closed" };
       if (channelReply && (!step.collect || run.state.status !== "waiting" || run.state.blocked))
         return selected ? this.#discussion(qualifiedConversation, principal, reply.text, { eventId: reply.eventId, messageId: args.messageId }) : { kind: "closed" };
-      if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) return { kind: "closed" };
+      if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) {
+        // The coordinator selected this run, but the person answered an earlier
+        // question. Only its current delivered collection, in the same audience,
+        // can receive that original verified answer. Never guess another run.
+        if (selected && run.state.status === "waiting" && !run.state.blocked) {
+          const sourceStep = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1];
+          const assignments = await store.channelAssignments({ instanceId: artifact.instance.id, surface: conversation.surface,
+            accountId, channelId: conversation.channelId, subjectPrincipal: principal, now });
+          const candidates = assignments.filter(a => a.runId === run.runId && a.artifactHash === run.artifactHash && a.stepId === sourceStep
+              && a.subjectPrincipal === principal && a.surface === conversation.surface && a.accountId === accountId
+              && a.channelId === conversation.channelId);
+          if (assignments.length < 21 && candidates.length === 1) return this.#receive({ ...args, threadId: `slack:${candidates[0]!.channelId}:${candidates[0]!.threadId}` }, true, selected);
+        }
+        return this.#discussion(qualifiedConversation, principal, reply.text, { eventId: reply.eventId, messageId: args.messageId });
+      }
       const runtime = new CompanyOSRuntime({ artifact: pinned, state: this.#args.control, connectors: await this.#args.connectors(pinned),
         workflowContext: new WorkflowConversationContextReader({ store, instanceId: artifact.instance.id, conversation, subjectPrincipal: principal,
           roster: this.#args.roster, clock: () => this.#args.clock?.() ?? new Date().toISOString() }) });
@@ -285,7 +302,14 @@ export class WorkflowConversationHost {
         ...(published ? { publishedContext: published.evidence } : {}),
         ...(step.collect && run.state.status === "waiting" && !run.state.blocked ? { collection: {
           schema: collectionSchema(step.collect.fields), context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)),
-          submit: async (output: JsonValue) => { const saved = await this.#args.engine.collect({ principal, conversation: qualifiedConversation, eventId: reply.eventId, output });
+          submit: async (output: JsonValue) => {
+            let saved;
+            try { saved = await this.#args.engine.collect({ principal, conversation: qualifiedConversation, eventId: reply.eventId, output }); }
+            catch (error) {
+              if (!(error instanceof CollectionNeedsInput)) throw error;
+              return { collected: false, authorized: false, feedback: error.feedback,
+                message: "The conversation remains open. Use this internal feedback to revise the draft or ask one natural question for missing facts. Do not display validator diagnostics or claim completion." };
+            }
             const advanced = await this.#args.engine.advance(saved.runId);
             const reviewDelivery = collectionReviewDelivery(advanced, member.id!, String(resolveWorkflowValue(step.collect!.from, workflow, workflowContext(run, roster))));
             return { collected: true, authorized: false, ...(reviewDelivery ? { reviewDelivery } : {}),

@@ -80,6 +80,42 @@ test("only explicit approval and confirmation Tool outputs require suspended Age
   assert.equal(toolResultNeedsHumanInput(null), false);
 });
 
+test("validated streams preserve Unicode at chunk boundaries through the actual adapter", async t => {
+  const adapter = createSlackAdapter({ botToken: "synthetic", signingSecret: "synthetic", agentView: true });
+  const requests: string[] = [];
+  const transport = (adapter as any)._client;
+  t.mock.method(adapter as any, "resolveOutgoingMentions", async (text: string) => text);
+  t.mock.method(transport, "chatStream", () => ({
+    append: async (args: { markdown_text?: string }) => {
+      if (args.markdown_text) requests.push(args.markdown_text);
+      return { ok: true, ts: "1893492001.000001" };
+    },
+    stop: async () => ({ ok: true, ts: "1893492001.000001" }),
+  }));
+  for (const icon of ["📊", "🔴", "🟡", "👩🏽‍💻", "𠮷"]) {
+    for (const offset of [318, 319, 320, 638, 639, 640]) {
+      const prefix = "Review this draft:\n\n```text\n";
+      const response = prefix + "x".repeat(offset - prefix.length) + icon + " result\n```\n\nIs this correct?";
+      requests.length = 0;
+      const plan = validatedSlackResponsePlan(response);
+      const stream = (async function* () {
+        for await (const chunk of plan.getPostData().stream) {
+          if (typeof chunk === "string") yield chunk;
+          else if (chunk.type === "markdown_text" && "text" in chunk && typeof chunk.text === "string")
+            yield { type: "markdown_text" as const, text: chunk.text };
+          else assert.fail("A validated response must contain only text chunks");
+        }
+      })();
+      await adapter.stream("slack:D12345:1893492000.000001", stream);
+      assert.equal(requests.join(""), response);
+      for (const request of requests) {
+        assert.equal(Buffer.from(request, "utf8").toString("utf8"), request,
+          `Every provider request must be valid Unicode: ${icon} at ${offset}`);
+      }
+    }
+  }
+});
+
 test("Tool progress is presentation-only and provider failures remain best effort", async () => {
   let posts = 0;
   const reporter = createSlackToolProgressReporter({
@@ -287,4 +323,20 @@ test("coordinator layout repair preserves code, literal paths and already-correc
   const literal = "Code: `\\n\\n` and C:\\new\\notes\\file.txt\n\n```json\n{\"text\":\"\\n\\n\"}\n```\n\n[Continue](https://example.com/thread)";
   assert.deepEqual(coordinatorSlackMessage(literal), { markdown: literal });
   assert.equal(coordinatorSlackMessage(String.raw`Intro.\r\n\r\n1. One\r\n2. Two`).markdown, "Intro.\n\n1. One\n2. Two");
+});
+
+test('specialist turns finish after tool-owned delivery, missing-input questions and terminal failures', async () => {
+  for (const outcome of ['workflow-copy', 'needs-input', 'review', 'failure', 'cancelled']) {
+    const events: string[] = [];
+    const adapter = { endTyping: async (_id: string, status?: string) => { events.push(status!); } };
+    const thread = { id: 'specialist-thread', adapter, startTyping: async () => { events.push('processing'); } };
+    const operation = withSlackAgentWorking(thread as any, coordinatorConfiguration, async finish => {
+      if (outcome === 'failure' || outcome === 'cancelled') throw new Error(outcome);
+      if (outcome === 'review') await finish('suspended');
+      return { visibleResponse: outcome === 'needs-input' ? 'What did you learn?' : '' };
+    });
+    if (outcome === 'failure' || outcome === 'cancelled') await assert.rejects(operation);
+    else await operation;
+    assert.deepEqual(events, ['processing', outcome === 'review' ? 'suspended' : 'active']);
+  }
 });

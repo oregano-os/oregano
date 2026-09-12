@@ -230,3 +230,32 @@ test("workflow decision cards render native links and retain fixed bound buttons
     ["companyos.workflow.approve", "Apply changes", "a".repeat(64)], ["companyos.workflow.reject", "Keep unchanged", "a".repeat(64)],
   ]);
 });
+
+test("an affirmative decision can navigate to its verified conversation and still send the exact approval identity", async () => {
+  const { createSlackAdapter } = await import(new URL("../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js", import.meta.url).href);
+  const adapter = createSlackAdapter({ botToken: async () => "xoxb-synthetic", signingSecret: "synthetic" });
+  await adapter.withBotToken("xoxb-synthetic", async () => {
+  const requests: any[] = [], subscriptions: string[] = [];
+  adapter.webClient.chat.postMessage = async (request: any) => { requests.push(request); return { ok: true, channel: request.channel, ts: "1893492000.000002" }; };
+  const publisher = createSlackMessagePublisher(() => ({ getAdapter: () => adapter,
+    channel() { throw new Error("not used"); },
+    async openDM() { return { id: "slack:D12345:", async post() { throw new Error("native combined control required"); } }; },
+    thread(id: string) { return { async subscribe() { subscriptions.push(id); } }; },
+  }) as any);
+  const direct = await publisher.openDirect("U12345");
+  const decision = { request_id: "a".repeat(64), approve_label: "Yes, help me", reject_label: "No, thanks", conversation_reference: "slack:D12345:1893492000.000001" };
+  const receipt = await direct.publish("Would you like help?", decision);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].thread_ts, undefined);
+  const [yes, no] = requests[0].blocks.find((block: any) => block.type === "actions").elements;
+  assert.equal(yes.url, "https://slack.com/archives/D12345/p1893492000000001?thread_ts=1893492000.000001&cid=D12345");
+  assert.equal(yes.action_id, "companyos.workflow.approve"); assert.equal(yes.value, decision.request_id);
+  assert.equal(no.url, undefined); assert.equal(no.action_id, "companyos.workflow.reject"); assert.equal(no.value, decision.request_id);
+  assert.equal(receipt.threadReference, "slack:D12345:1893492000.000002");
+  assert.deepEqual(subscriptions, [receipt.threadReference]);
+  for (const reference of ["slack:D99999:1893492000.000001", "https://example.test/steal", "slack:D12345:", "slack:D12345:1.0:extra"]) {
+    await assert.rejects(direct.publish("Help?", { ...decision, conversation_reference: reference }), /does not belong/);
+  }
+  assert.equal(requests.length, 1, "invalid navigation cannot send anything");
+  });
+});

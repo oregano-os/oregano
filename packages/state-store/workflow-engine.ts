@@ -35,7 +35,7 @@ export interface WorkflowMutableState {
   logicalInstant: string;
   steps: Record<string, WorkflowStepState>;
   decisions: Record<string, WorkflowStoredDecision>;
-  wait?: { stepId: string; kind: "step" | "delivery" | "decision" | "start"; timerId: string; dueAt: string };
+  wait?: { stepId: string; kind: "step" | "delivery" | "decision" | "start" | "records"; timerId: string; dueAt: string };
   blocked?: { stepId: string; code: string; errorDigest: string };
   /** Frozen control notice pages; advancing them never advances the business cursor. */
   reviewDelivery?: WorkflowReviewDelivery;

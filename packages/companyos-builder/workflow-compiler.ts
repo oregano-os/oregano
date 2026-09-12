@@ -103,7 +103,14 @@ export function compileWorkflows(args: {
       if (raw.tool === "start") return { ...base, kind: "start", start: { workflowId: raw.workflow, fields: raw.input } };
       if (raw.tool === "collect") {
         const path = calendar(); usedSchedules.add(path);
-        return { ...base, kind: "collect", collect: { from: raw.from, context: raw.context, fields: raw.fields, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path } };
+        let validator;
+        if (raw.validate !== undefined) {
+          const checked = resolveTool(raw.validate, raw.id);
+          if (!raw.validate.startsWith("company:") || checked.resolved.risk !== "R0" || checked.tool.contract.capabilities.length)
+            throw new Error(`${data.id}/${raw.id}: collection validation requires a granted pure R0 Company Tool without capabilities`);
+          validator = structuredClone(checked.resolved);
+        }
+        return { ...base, kind: "collect", collect: { from: raw.from, context: raw.context, fields: raw.fields, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, ...(validator ? { validator } : {}) } };
       }
       if (raw.tool === "wait") {
         if (typeof raw.for === "string") {
@@ -127,7 +134,7 @@ export function compileWorkflows(args: {
         const path = calendar(); usedSchedules.add(path);
         const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);
         if (Number(resolved.risk.slice(1)) >= 3) throw new Error(`${data.id}/${raw.id}: human decision notices require an R2 communication Tool`);
-        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { ...(raw.thread ? { thread: raw.thread } : {}), ...(raw.recipient ? { recipient: raw.recipient } : {}), presentation, role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
+        return { ...base, kind: "decision", owner: raw.tool, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, evidence: [...tool.contract.evidence], next: [...new Set([raw.approve, raw.reject, "end"])], decision: { ...(raw.continue_in ? { continueIn: raw.continue_in } : {}), ...(raw.thread ? { thread: raw.thread } : {}), ...(raw.recipient ? { recipient: raw.recipient } : {}), presentation, role: raw.tool.slice(6), binds: raw.binds, via: raw.via, timeoutBusinessDays: raw.timeout.business_days, calendarPath: path, targets: { approve: raw.approve, reject: raw.reject, timeout: "end" } } };
       }
       const { resolved, tool, effectful } = resolveTool(raw.tool, raw.id);
       const result: CompiledWorkflowStep = { ...base, tool: structuredClone(resolved), allowedTools: [resolved.runtimeId], maxRisk: resolved.risk, kind: effectful ? "effect" : "compute", evidence: [...tool.contract.evidence] };
@@ -148,7 +155,7 @@ export function compileWorkflows(args: {
       return result;
     });
     for (const step of steps) {
-      const consumed = [step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
+      const consumed = [step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
         const match = reference.exec(text);
         if (!match) return;

@@ -1,0 +1,98 @@
+version: 3
+plan_id: sprint-main-integration-2026-09-12
+created: 2026-09-12
+title: Integrate tested conversation continuity and workflow fixes on current main
+objective: Integrate the seven tested follow-up commits after d4860d1 while retaining current main Records, communication ownership and Handbook architecture.
+non_goals:
+  - Restore retired Knowledge or Brain mechanisms.
+  - Introduce company-specific policy or activate operating schedules.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-sprint-main-integration.yaml
+  - docs/_generated/document-registry.json
+  - docs/operations/slack-communication.md
+  - docs/operations/workflow-engine.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/capabilities/catalog.ts
+  - packages/capabilities/decision-presentation.ts
+  - packages/cli/content/guides/author-a-workflow.md
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/records/current-scan.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-presentation.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-slack.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/runtime/shared-conversation.ts
+  - packages/runtime/workflow-engine/collection.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/tests/record-current-scan.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-collection-presentation.test.ts
+  - packages/testkit/tests/workflow-collection-validation.test.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-current-scans.test.ts
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+tests:
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
+  - packages/testkit/tests/record-current-scan.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-collection-presentation.test.ts
+  - packages/testkit/tests/workflow-collection-validation.test.ts
+  - packages/testkit/tests/workflow-collection.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-current-scans.test.ts
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - operations.slack-communication
+    - specification.companyos-core-v0.7
+    - specification.workflow-execution-v1
+    - status.current
+    - guide.author-workflow
+architecture:
+  placement:
+    core: Preserve verified message identity, collection continuity, delivery completion and durable Records waits.
+    packages: Reuse transport adapters, compiler contracts and existing workflow persistence.
+    workspace: Keep conversation content, readiness definitions and operating policy in the Workspace.
+    instance: Preserve deployment bindings and independently configured schedules.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Reuse persisted waits and semantic child identity.
+    - mechanism: company-records
+      reason: Distinguish pending complete scans from invalid evidence.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Applies to any Agent using shared conversations, collection or Records across supported transports.
+rollback: Revert this integration for new runs; drain persisted Records waits with the compatible runtime before downgrading.

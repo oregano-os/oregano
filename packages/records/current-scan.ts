@@ -4,6 +4,18 @@ import { canonicalRecordInstant, compareRecordInstants, recordInstant } from "./
 import { projectRecord } from "./projection.ts";
 import { sha256 } from "../runtime/canonical.ts";
 
+/** No qualifying inventory yet; never a substitute for complete-scan proof. */
+export class RecordScanPendingError extends Error {
+  readonly projectionId: string;
+  readonly requiredAfter: string;
+  constructor(projectionId: string, requiredAfter: string, message: string) {
+    super(message);
+    this.projectionId = projectionId;
+    this.requiredAfter = requiredAfter;
+    this.name = "RecordScanPendingError";
+  }
+}
+
 /** Select one completed inventory per exact source, never mutable current rows. */
 export function currentScanSnapshot(args: {
   snapshot: RecordReadSnapshot;
@@ -31,6 +43,8 @@ export function currentScanSnapshot(args: {
   for (const sourceId of sourceIds) {
     const receipts = snapshot.sourceReceipts.filter((receipt) => receipt.source_id === sourceId);
     const receipt = receipts[0];
+    if (!receipt) throw new RecordScanPendingError(projection.id, args.requiredAfter,
+      `Projection '${projection.id}' has no matching complete current scan for '${sourceId}'; synchronize its exact source and retry`);
     if (receipt && receipt.observed > limit) throw new Error("Current scan exceeds the immutable inventory bound; narrow the declared source scope");
     if (receipts.length !== 1 || !receipt?.scan_started_at || !receipt.watermark || !receipt.run_id
       || receipt.errors !== 0 || receipt.source_digest !== sourceDigests[sourceId]
@@ -39,9 +53,7 @@ export function currentScanSnapshot(args: {
       throw new Error(`Projection '${projection.id}' has no matching complete current scan for '${sourceId}'; synchronize its exact source and retry`);
     }
     const start = recordInstant(receipt.scan_started_at, "Scan start");
-    if (start < required || start > recordInstant(receipt.completed_at, "Scan completion")) {
-      throw new Error(`Projection '${projection.id}' requires a complete scan started at or after ${args.requiredAfter}; synchronize and retry`);
-    }
+    if (start > recordInstant(receipt.completed_at, "Scan completion")) throw new Error("Current scan start exceeds its completion");
     const ids = receipt.scan_version_ids;
     const expected = new Set(ids);
     const selected = versions.filter((version) => version.source_id === sourceId);
@@ -54,6 +66,8 @@ export function currentScanSnapshot(args: {
     if (args.boundSourceIds?.includes(sourceId) && selected.some((version) => version.source_receipt.source_digest !== sourceDigests[sourceId])) {
       throw new Error("Current scan lacks exact source-binding provenance");
     }
+    if (start < required) throw new RecordScanPendingError(projection.id, args.requiredAfter,
+      `Projection '${projection.id}' requires a complete scan started at or after ${args.requiredAfter}; synchronize and retry`);
     for (const version of selected) {
       const row = projectRecord({ projection, version, projectedAt: canonicalRecordInstant(receipt.completed_at) });
       if (row) rows.push(row);

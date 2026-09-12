@@ -128,6 +128,7 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
           if (!decision || bindings.length !== 1) throw new Error("Decision binding is absent");
           input = renderWorkflowDecisionNotice({ runId: run.runId, workflowId: workflow!.id, stepId: step.id, role: decision.role,
             threadReference: workflowDecisionThread(workflow!, step, itemContext, bindings[0]!.destinationBinding),
+            conversationReference: workflowDecisionThread(workflow!, step, itemContext, bindings[0]!.destinationBinding, "continueIn"),
             presentation: workflowDecisionPresentation(workflow!, step, itemContext), expiresAt: decision.expiresAt, bound: decision.bound, destinationBinding: bindings[0]!.destinationBinding });
           output = decision.deliveries[String(item.key)];
         } else {

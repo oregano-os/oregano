@@ -422,7 +422,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "d684643912ac17c78873991ac1c5de1e54aea6b9a01767ab011d00c2a3b9bb81"
+        "contractDigest": "8397e935ff7cb997417a99e58a5cb19f5b692d191bfd9bf8fef720e4f0ac4f7e"
       },
       "message": {
         "template": "agents/sprint/skills/sprint-sop/assets/friday-update-template.md",
@@ -718,7 +718,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "d684643912ac17c78873991ac1c5de1e54aea6b9a01767ab011d00c2a3b9bb81"
+        "contractDigest": "8397e935ff7cb997417a99e58a5cb19f5b692d191bfd9bf8fef720e4f0ac4f7e"
       },
       "message": {
         "template": "agents/sprint/skills/sprint-sop/assets/close-chase-template.md",
@@ -991,7 +991,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "d684643912ac17c78873991ac1c5de1e54aea6b9a01767ab011d00c2a3b9bb81"
+        "contractDigest": "8397e935ff7cb997417a99e58a5cb19f5b692d191bfd9bf8fef720e4f0ac4f7e"
       },
       "message": {
         "template": "agents/sprint/skills/sprint-sop/assets/friday-completeness-template.md",
@@ -1053,7 +1053,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "d684643912ac17c78873991ac1c5de1e54aea6b9a01767ab011d00c2a3b9bb81"
+        "contractDigest": "8397e935ff7cb997417a99e58a5cb19f5b692d191bfd9bf8fef720e4f0ac4f7e"
       },
       "message": {
         "template": "agents/sprint/skills/sprint-sop/assets/retro-template.md",
@@ -1192,7 +1192,7 @@
             "connectorVersion": "1.0.0"
           }
         ],
-        "contractDigest": "d684643912ac17c78873991ac1c5de1e54aea6b9a01767ab011d00c2a3b9bb81"
+        "contractDigest": "8397e935ff7cb997417a99e58a5cb19f5b692d191bfd9bf8fef720e4f0ac4f7e"
       },
       "decision": {
         "presentation": {
@@ -1283,5 +1283,5 @@
     "oregano:communications/publish",
     "oregano:work-items/batch-update"
   ],
-  "manifestHash": "4932ffc454a0f048e051ac660542cea6771ef7eab7bcea32d6cd4f1492d3ba37"
+  "manifestHash": "80047c6a3463bdb6caea7e0e2a345eeaaa604ea611cd73ef3ae2e36f69d6c1eb"
 }
