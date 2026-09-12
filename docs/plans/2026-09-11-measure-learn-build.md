@@ -5,7 +5,7 @@ kind: plan
 status: draft
 authority: informative
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners: [oregano-maintainers]
 audience: [human, agent]
 availability: planned
@@ -123,20 +123,14 @@ activation. A generic query cannot manufacture missing history.
 
 ## 3. Prove the evidence before building the loop
 
-First trace a few real items from the selected cohort, including direct Sprint
-entry where present. Establish what can actually be read:
+First inspect a few current Sprint cards and their saved briefs. Verify current
+source coverage, actual activation, selector coverage, owner contact, delivery,
+replies and saved-brief receipts before explaining missing briefs. Test-cohort
+acceptance, merged source and live operation are different facts.
 
-`item/Sprint entry → workflow opening → request → owner decision → saved brief`.
-
-Record the exact source/run/decision/effect references, times, deployed Artifact
-and gaps. Verify actual activation, selector coverage and delivery before
-attributing missing briefs to unanswered requests. Test-cohort acceptance,
-merged source and live operation are different facts.
-
-If essential history is unavailable, the first deliverable is a truthful
-baseline or the smallest missing instrumentation change. Begin measurement from
-an explicit boundary; do not reconstruct past events from current text or invent
-a backfill. This evidence check determines the actual Core work needed.
+Missing historical contact evidence limits cause analysis; it does not prevent
+measuring current briefing coverage. The pilot does not reconstruct Sprint entry
+or require historical owner confirmation to count an existing brief.
 
 ### Single target and measurement
 
@@ -146,8 +140,7 @@ planning overview. Add this to the existing migrated v2 Sprint configuration:
 ```yaml
 desired_state:
   description: >
-    Every new Sprint item has an owner-confirmed implementation
-    brief saved before it enters IN SPRINT.
+    Every card currently in IN SPRINT has a saved briefing.
   target_ratio: 1
 ```
 
@@ -156,34 +149,30 @@ Artifact/digest. The measurement Tool validates the business shape. Legacy v1
 rejects extra fields: complete the real migration, not a version-number edit.
 Agent instructions and Skills reference this target rather than duplicate it.
 
-The Workspace defines population, successful evidence and ordering in reviewed
-Company Tool logic. Domain terms such as `briefing.saved` are interpreted there
-from exact decisions and save receipts, not hardcoded in Core. Configuration
-names logical sources/workflows, never SQL tables or physical store names. Core
-adapters own physical retrieval. A storage-only change should preserve the read
-contract; a change in evidence meaning requires review of the Workspace mapping.
-No general `measurement:` YAML rule interpreter is needed for the pilot.
+The Workspace defines the current population and what constitutes a stored
+brief. The pilot accepts either an attachment in the selected briefing field or
+a non-empty card comment with the existing briefing heading. Both together count
+once. Core returns current fields/comments and retained process evidence without
+interpreting their business meaning. No general measurement-rule interpreter is
+needed.
 
-The reviewed measurement Tool, not the model, defines the calculation:
+The reviewed Company Tool defines the calculation:
 
-- Freeze `(start, end]` from the calendar and explicit monitoring start; delayed
-  or retried runs retain the same window. Missing intervals remain visible.
-- Include all eligible entries, including items that bypass planning intake.
-  Count the first entry per item/Sprint; same-Sprint re-entry does not count
-  twice. New-Sprint recommitment needs period evidence; continuous carryover is
-  reported separately.
-- Success requires the accountable owner's confirmation of the exact brief and
-  a verified matching save, both before entry. Current text or a generic update
-  does not establish this. Late repair does not rewrite an on-time failure.
-- Compute successes / eligible entries only with sufficient population and
-  classification evidence. Retain known failures and unknowns. Incomplete history,
-  scans or ordering yield `not-measurable`; zero entries yield `not-applicable`,
-  not 100%. Never drop unknown items from the denominator to improve the ratio.
+- Read a complete fresh population of cards currently in IN SPRINT, including
+  cards that bypassed planning intake. Count each current card once.
+- A current briefing counts regardless of when it was created or whether an
+  owner-confirmation receipt exists. Later additions count in the next review;
+  deleted briefs and cards no longer in Sprint are reflected by the next read.
+- Compute cards with a briefing / all current Sprint cards. An empty Sprint is
+  `not-applicable`, not 100%. Missing or truncated current data cannot establish
+  absence; retain unknowns rather than improving the denominator.
+- Retain the current scan, per-card read references and observation times. Read
+  operating history separately to explain missing briefs, not to establish the
+  current numerator or denominator.
 
-Confirm the entry/window defaults in the concrete implementation plan. Retain
-metric, target and operating versions. Target or metric changes require the
-normal human review and a new comparable series; the Agent cannot lower the
-standard to make an intervention appear successful.
+Use a new metric version for this current-coverage series. Older before-entry
+measurements are not comparable evidence of an intervention's effect. The Agent
+cannot lower the target or alter the presence rule to manufacture improvement.
 
 ## 4. Trigger, files and process context
 
@@ -237,8 +226,7 @@ Expose a general Evidence Read Capability through the existing SDK and
 Agent/ToolSet grants. `evidence.query` is a proposed name, not an installed API
 or a special Improvement-Agent privilege. Other Agents may receive this same
 Capability with their own scopes; availability grants no automatic access. Start
-with required run/step outcomes, exact decisions, effect receipts and qualified
-business-entry history. Read Builder/release links through existing mechanisms
+with required run/step outcomes, exact decisions, effect receipts and current Company Records. Read Builder/release links through existing mechanisms
 for outcome evaluation. Do not require every store or provider to implement a
 universal federated query before this pilot can run.
 
@@ -261,7 +249,7 @@ contract is:
 
 Join by retained qualified references, never similar titles, display names or a
 model guess. An untrusted URL is not relationship proof. A chat “yes” is not an
-exact-candidate approval; a document update is not a confirmed brief; provider
+exact-candidate approval; a current document is not proof of past confirmation; provider
 message acceptance is not human reading. Business interpretation stays in the
 Company Tool. A single `verified: true` cannot replace these distinctions.
 
@@ -485,8 +473,9 @@ Required checks cover the real boundaries:
 
 - Compile the actual Workspace; selected Workflow/owner/context only, no inherited
   specialist Tools, denied cross-process reads and explicit missing/versioned context.
-- Metric cases: direct entry, exact window, re-entry/carryover, missing history,
-  zero population, late repair and unchanged target semantics.
+- Metric cases: mixed attachment/comment coverage, no double counting, later
+  additions and deletion, cards leaving Sprint, zero population, missing current
+  data and no dependency on historical confirmation or entry time.
 - Previous context: skip the current/in-flight run; survive a quiet intervening
   review or failed attempt; follow exact delivery/reply/Build links, including
   later feedback, and expose missing or truncated history.
@@ -571,13 +560,12 @@ one calendar review and private delivery through the existing recipient binding.
 The Skill owns semantic novelty and evaluation pacing. No finding store or
 cross-run notification subsystem has been introduced.
 
-The first installed source still supplies observations, without a qualified
-complete Sprint-entry population and period identity. Its executable baseline
-therefore retains known observations and confirmed/saved briefing evidence while
-reporting the target as `not-measurable`. It does not implement a fictional
-percentage calculator over snapshots. A qualified entry-history mapping is
-required before the numerical metric acceptance cases can pass against live
-facts. Direct entry, re-entry and carryover cannot be guessed from current text.
+The revised pilot measures current coverage using a fresh existing Records scan
+and keyed current work-item reads. The existing read contract gains opt-in bounded
+comments; business identification of a brief stays in the Workspace. Files and
+saved briefing comments count equally, regardless of creation or confirmation
+history. The metric no longer requires Sprint-entry history. Current-source and
+provider-read qualification remain necessary for a real run.
 
 Local tests exercise the actual compiler, sandbox, workflow, private report,
 quiet subsequent review, linked feedback, unknown-effect refusal and failed

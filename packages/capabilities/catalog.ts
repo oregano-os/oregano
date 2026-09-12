@@ -221,6 +221,7 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
       resource_binding: { type: "string", minLength: 1, maxLength: 63 },
       work_item_id: { type: "string", minLength: 1, maxLength: 255 },
       fields: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 127 } },
+      include_comments: { type: "boolean" },
     }),
     outputSchema: object(["work_item", "provider_version", "observed_at"], {
       work_item: { type: "object" },

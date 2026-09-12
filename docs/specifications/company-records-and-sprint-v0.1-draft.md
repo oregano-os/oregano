@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -190,6 +190,28 @@ See [Workflow operation](../operations/workflow-engine.md) for migration.
 `communication.message.publish`. Their standard Tools expose no database or
 provider client. A Company Workspace grant alone does not resolve them; the
 Company Instance MUST bind an exact compatible Connector implementation.
+
+The existing `work-item.read` contract optionally accepts `include_comments`.
+An explicit true value returns `work_item.comments`, containing current root
+comments as `items: [{id, body}]` and an explicit `complete` flag. It adds no
+write authority, time-of-entry semantics, owner-confirmation requirement or new
+storage. An omitted or false value retains the ordinary field-only read.
+Callers must not treat truncated comments as proof of absence.
+
+::: implementation-example
+
+The maintained comment reader checks the exact item and board on every page,
+reads at most ten pages of one hundred updates and 120,000 body characters,
+and returns `complete: false` on either limit. Duplicate IDs across pages or
+malformed/foreign responses fail rather than producing a misleading count.
+Provider denial fails the read; it never becomes an empty successful result.
+The configured identity needs the provider's `updates:read` access. See the
+[provider updates contract](https://developer.monday.com/api-reference/reference/updates).
+Hosted binding and credential ownership follow the
+[maintained implementation profile](../operations/maintained-host-profile.md).
+Comment bodies are untrusted business data, never Agent instructions.
+
+:::
 
 **CRS-031 — Effect controls.** Work-item updates and comments require a claimed
 idempotency identity and an exact resource binding. Updates additionally

@@ -6,7 +6,9 @@ objective: Implement bounded evidence.query reads over retained workflow outcome
   communication effects and Records versions with current grants, trusted invocation scope and
   explicit coverage. Supply selected Artifact materials and preserve attributable feedback in
   existing events. Expose review health through the authenticated operator path independently of the
-  model. The private Workspace owns the metric, Skill and review workflow.
+  model. Add opt-in bounded current comments to the existing work-item read path, without
+  interpreting their business meaning. The private Workspace owns the metric, Skill and review
+  workflow, and counts current coverage rather than historical entry compliance.
 non_goals:
   - Activate an Instance, deploy, send business messages or change a live process.
   - Add a second workflow engine, scheduler, roster, approval system or knowledge database.
@@ -32,10 +34,14 @@ files_expected:
   - docs/operations/workflow-engine.md
   - docs/plans/2026-09-11-measure-learn-build.md
   - docs/specifications/companyos-packages-v0.1-draft.md
+  - docs/specifications/company-records-and-sprint-v0.1-draft.md
   - packages/capabilities/catalog.ts
   - packages/capabilities/contracts.ts
   - packages/capabilities/evidence.ts
   - packages/connectors/historical-evidence.ts
+  - packages/connectors/monday/client.ts
+  - packages/connectors/monday/connector.ts
+  - packages/connectors/monday/contracts.ts
   - packages/records/generation-store.ts
   - packages/records/memory-store.ts
   - packages/records/service.ts
@@ -50,12 +56,15 @@ files_expected:
   - packages/state-postgres/workflow-store.ts
   - packages/state-store/records.ts
   - packages/state-store/workflow-engine.ts
+  - packages/standard-tools/work-items.ts
   - packages/testkit/tests/builder-release-postgres.test.ts
   - packages/testkit/tests/historical-evidence.test.ts
+  - packages/testkit/tests/work-item-comment-read.test.ts
   - packages/testkit/tests/record-query-postgres.test.ts
   - packages/testkit/tests/workflow-channel-replies.test.ts
   - packages/testkit/tests/workflow-state-postgres.test.ts
 tests:
+  - packages/testkit/tests/work-item-comment-read.test.ts
   - packages/testkit/tests/builder-release-postgres.test.ts
   - packages/testkit/tests/historical-evidence.test.ts
   - packages/testkit/tests/record-query-postgres.test.ts
@@ -66,6 +75,7 @@ documentation_impact:
   affected_documents:
     - architecture.system-of-proof
     - specification.companyos-packages-v0.1
+    - specification.company-records-sprint-v0.1
     - operations.workflow-engine
     - plan.measure-learn-build
 architecture:
@@ -115,8 +125,8 @@ rollback: Disable new review openings and restore the prior paired Core/Workspac
   the evidence grants and binding when no retained run needs them. Keep feedback, decisions and
   effects; no database migration or external-effect compensation is implied.
 open_decisions:
-  - Qualify complete entry and period history before numerical business scoring; the installed
-    source supports an explicit not-measurable baseline.
+  - Qualify the selected current source scan and the bounded current-comment read with the
+    existing provider identity. Entry history is not required for the Workspace's current-coverage metric.
   - Qualify real recipient delivery, the independent operations monitor and its alert route before
     unattended activation.
   - The responsible human separately approves the first actual intervention and exact release;
