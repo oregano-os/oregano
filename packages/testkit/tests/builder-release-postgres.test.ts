@@ -79,27 +79,6 @@ test("Postgres private release intents and artifacts survive reconstruction and 
 });
 
 
-test("release Knowledge selects its verified snapshot without changing the legacy live selection", { skip: !enabled }, async () => {
-  const { buildKnowledgeBundle } = await import("../../knowledge/okf.ts");
-  const { createPostgresKnowledgeProvider } = await import("../../state-postgres/knowledge-store.ts");
-  const { resolve } = await import("node:path");
-  const workspaceRoot = resolve(import.meta.dirname, "../fixtures/acme-casas");
-  const old = buildKnowledgeBundle({ workspaceRoot, workspaceCommit: "a".repeat(40) });
-  const next = buildKnowledgeBundle({ workspaceRoot, workspaceCommit: "b".repeat(40) });
-  const legacy = createPostgresKnowledgeProvider();
-  await legacy.stage(old); await legacy.verify(old.bundleHash); await legacy.activate(old.bundleHash);
-  await legacy.stage(next);
-  const selected = createPostgresKnowledgeProvider({ snapshotHash: next.bundleHash });
-  assert.equal(await selected.activeSnapshot(), undefined, "unverified staging is not a readable release");
-  await legacy.verify(next.bundleHash);
-  assert.equal((await selected.activeSnapshot())?.snapshotHash, next.bundleHash);
-  assert.equal((await legacy.activeSnapshot())?.snapshotHash, old.bundleHash);
-  assert.equal((await selected.search({ query: "company" })).snapshotHash, next.bundleHash);
-  const missing = createPostgresKnowledgeProvider({ snapshotHash: "f".repeat(64) });
-  assert.equal(await missing.activeSnapshot(), undefined);
-  assert.equal(await missing.get({ path: "index.md" }), undefined);
-  assert.equal((await missing.search({ query: "company" })).snapshotHash, null);
-});
 
 test("Postgres interactive history survives reconstruction and restart invalidates the old test digest", { skip: !enabled }, async () => {
   const f = builderFunctionalFixture();

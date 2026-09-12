@@ -16,7 +16,7 @@ Use a normalized, tenant-scoped record with:
 - `participants`: authorized roles or pseudonymous identifiers when identity is unnecessary;
 - `evidence`: ordered segments with stable `evidence_id`, speaker role, and text or approved summary;
 - `authorization`: tenant, purpose, allowed data classes, and retention context;
-- optional related conversation references supplied by the Company Brain.
+- optional related conversation references supplied in the approved input.
 
 Do not continue when tenant scope, source attribution, or authorization is
 missing. Do not persist the source transcript as part of the analysis output.

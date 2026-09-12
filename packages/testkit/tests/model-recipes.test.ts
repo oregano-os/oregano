@@ -55,17 +55,17 @@ test("task bindings override profiles and defaults deterministically", () => {
     version: 1,
     default: { route: "vercel-ai-gateway", model: "openai/gpt-5.4-nano" },
     profiles: { reasoning: { route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6", maxOutputTokens: 8_000 } },
-    tasks: { "knowledge.claim-extraction": { route: "openai-direct", model: "openai/gpt-5.4-mini", timeoutMs: 30_000, retries: 1 } },
+    tasks: { "agent.summarize": { route: "openai-direct", model: "openai/gpt-5.4-mini", timeoutMs: 30_000, retries: 1 } },
   }));
   const task = resolveModelExecutionSelection({
     profile: "reasoning",
-    task: "knowledge.claim-extraction",
+    task: "agent.summarize",
     configuration,
     environment: { OPENAI_API_KEY: "test-openai", ANTHROPIC_API_KEY: "test-anthropic" },
   });
   assert.equal(task.route, "openai-direct");
   assert.equal(task.timeoutMs, 30_000);
-  const profile = resolveModelExecutionSelection({ profile: "reasoning", task: "knowledge.conflict-judgment", configuration, environment: {} });
+  const profile = resolveModelExecutionSelection({ profile: "reasoning", task: "sprint.reasoning", configuration, environment: {} });
   assert.equal(profile.route, "anthropic-direct");
   assert.equal(profile.maxOutputTokens, 8_000);
   const fallback = resolveModelExecutionSelection({ profile: "utility", configuration, environment: {} });

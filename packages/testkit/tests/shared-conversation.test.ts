@@ -62,13 +62,13 @@ for (const surface of ["slack", "telegram", "mcp"]) {
     assert.deepEqual((await f.store.read(f.scope))?.pending, []);
   });
 }
-test("knowledge questions do not create work; knowledge research can stay inside a workflow", async () => {
+test("questions do not create work; research can stay inside a workflow", async () => {
   const f = fixture(), turn = await f.open({ text: "What is our policy?" });
-  const receipt = await turn.commit({ reply: "", routes: [{ text: "What is our policy?", knowledge: true }] });
+  const receipt = await turn.commit({ reply: "", routes: [{ text: "What is our policy?" }] });
   assert.equal(receipt.concerns[0]?.work, undefined); assert.equal((await f.store.read(f.scope))?.drafts.length, 0);
   const next = await f.open({ eventId: "e2", address: f.items[0]!.address }); await next.initialContext();
-  const result = await next.commit({ reply: "", routes: [{ text: f.input.text, workId: "work-0", knowledge: true }] });
-  assert.equal(result.concerns[0]?.work?.id, "work-0"); assert.equal(result.concerns[0]?.knowledge, true);
+  const result = await next.commit({ reply: "", routes: [{ text: f.input.text, workId: "work-0" }] });
+  assert.equal(result.concerns[0]?.work?.id, "work-0");
 });
 test("separate concerns retain separate excerpts and original work references", async () => {
   const f = fixture(), turn = await f.open({ text: "Sales starts Friday. Invoicing starts Monday." }); await turn.search({ limit: 6 });

@@ -15,7 +15,7 @@ scope:
 # Ops agent (fixture)
 
 The fixture company's only working agent. Its scope deliberately EXCLUDES
-`brain/**`, `connections/**` and the other agent — the scope-allowlist test
+`connections/**` and the other agent — the scope-allowlist test
 asserts that those never reach the model sandbox.
 
 Two grants on purpose: one `oregano:` (granted, never copied) and one

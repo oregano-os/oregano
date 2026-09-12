@@ -115,7 +115,7 @@ const environment = {
 const identity = { instance_id: "fixture-production", core_ref: coreRef, workspace_ref: workspaceRef };
 
 const dependencies = (overrides: Partial<CompanyRecordsProductionDependencies> = {}): CompanyRecordsProductionDependencies => ({
-  prepareDatabase: async () => ({ operation: "upgrade", manifest: "1.9.0" }),
+  prepareDatabase: async () => ({ operation: "upgrade", manifest: "2.0.0" }),
   readInventory: async () => { throw new Error("not reached"); },
   inspectReceipt: async () => undefined,
   inspectStatus: async () => ({ status: { available: true, current_objects: 2 }, projections: [] }),

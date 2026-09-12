@@ -28,7 +28,7 @@ export async function createWorkflowHost() {
   const roster = async () => structuredClone(loadArtifact().roster), slack = createWorkflowSlackScope(getBot);
   const connectors = async (pinned: CompanyOSArtifact) => {
     return createHostedWorkflowConnectors({ artifact: pinned, enabledWorkflowIds: configuration.enabledWorkflowIds,
-      create: (onlyCapabilities) => createCompanyOSRuntimeConnectors(undefined, { artifact: pinned, chat: getBot, onlyCapabilities }) })
+      create: (onlyCapabilities) => createCompanyOSRuntimeConnectors({ artifact: pinned, chat: getBot, onlyCapabilities }) })
       .map((connector) => qualifyWorkflowSlackConnector({ connector, artifact: pinned, scope: slack, roster }));
   };
   // Validate required bindings and non-secret snapshots before persisting any opening.

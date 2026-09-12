@@ -165,20 +165,18 @@ export function resolveSlackAgentExperience(
 
 /**
  * Stream only text whose provider-visible form cannot be changed by a later
- * CompanyOS trust check. Granted business Tool loops, required Knowledge
- * grounding, and Builder turns remain buffered until their final presentation
- * has been validated. An internal Agent-handoff control is not a business Tool.
+ * CompanyOS trust check. Granted business Tool loops and Builder turns remain
+ * buffered until their final presentation has been validated. An internal
+ * Agent-handoff control is not a business Tool.
  */
 export function shouldStreamSlackAgentResponse(input: {
   configuration: SlackAgentExperienceConfiguration;
   agentId: string;
-  knowledgeRouteKind: "auto" | "required-search";
   businessToolCount: number;
   hasCollectionControl?: boolean;
 }): boolean {
   return input.configuration.streamingEnabled
     && input.agentId !== "builder"
-    && input.knowledgeRouteKind === "auto"
     && input.businessToolCount === 0
     && !input.hasCollectionControl;
 }

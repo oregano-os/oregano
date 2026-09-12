@@ -27,7 +27,7 @@ command does not read those as arbitrary sections of the build declaration.
 See [Instance configuration](../../reference/instance-configuration.md).
 
 `companyos records` is the provider-neutral Workbench surface for structured
-operational Company Records. It does not operate Company Knowledge, grant an
+operational Company Records. It does not edit the Handbook, grant an
 Agent a Tool, write to a provider, infer a company mapping, activate a
 schedule, commit a Workspace file, or turn synchronized evidence into company
 authority.
@@ -184,8 +184,8 @@ credential. Put the returned content-free receipt outside the Workspace, pin
 its digest in the binding, and then use the same generic sync, reconcile, and
 status operations as every other Record Source.
 
-Preview migration prepares and qualifies the complete additive Company Instance
-database manifest before synchronization. This includes the control, knowledge,
+Preview migration prepares and qualifies the complete Company Instance
+database manifest before synchronization. This includes the control
 and records schemas required by the deployed Core; it preserves existing data
 and returns the database preparation receipt.
 

@@ -256,7 +256,7 @@ resource and binds its `DATABASE_URL` only in the runtime secret environment.
 The next phase runs `companyos database prepare` through that runtime profile.
 Prepare detects an empty, older, or current database and selects `bootstrap`,
 `upgrade`, or read-only `verify`; callers do not have to guess which lifecycle
-operation applies. It creates or upgrades `companyos`, `companyos_knowledge`,
+operation applies. It creates or upgrades `companyos`
 and `companyos_records`, records the exact version-manifest entry, and performs
 read-only qualification before setup may continue. Setup records only the
 selected operation, previous manifest versions, and non-secret manifest,
@@ -265,32 +265,16 @@ maintained Vercel path uses
 `vercel env run`; this is an adapter detail rather than a requirement for other
 runtime hosts.
 
-The current additive manifest is `companyos-postgres@1.9.0`, succeeding the
-immutable `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions. It qualifies 67
-required Knowledge tables and 14 Record Source and Sprint tables, including stable groups, durable Source Events, ACL
-snapshots, pipeline receipts, completed watermarks, lifecycle requests, an
-integrity-linked change stream, durable synchronization leases, compounding
-receipts, review-only Claim-pair proposals, explicit grading requests,
-model-task results, spend reservations, execution ledger rows, rebuildable
-Retrieval V3 projections, payload-free benchmark and rollout receipts, and
-atomic Sprint event, state, decision, and intent records. Unresolved
-existing Source and Claim evidence remains under the reserved quarantine
-policy. Applying schema never grants access by itself; runtime subject
-resolution and authorization conformance remain mandatory.
-
 ::: implementation-example
 
-Knowledge Source activation follows database preparation; it is not a database
-migration step. A new setup may begin with no database at all: the State
-Service first creates the dedicated PostgreSQL resource, `database prepare`
-creates the current schemas, and read-only verification qualifies them. Only
-then may setup install a SecretRef-only Source binding, deploy its runtime
-handlers, obtain provider qualification evidence, change the binding to
-`active`, run the initial backfill, and verify aggregate object and watermark
-state. Each runtime profile supplies its own secret and scheduler adapters; the
-Source contract itself does not require Vercel.
+The current manifest is `companyos-postgres@3.0.0`. Historical manifest
+identities through `2.1.0` remain immutable. Preparation qualifies 15 control
+and Workflow tables plus 11 current Records tables. Legacy Sprint audit tables
+remain untouched when present. No Knowledge schema or ingestion is created;
+retirement of existing Knowledge state uses the separate
+[retirement procedure](../workbench/guides/retire-knowledge.md).
 
-See the [maintained host profile](../operations/maintained-host-profile.md).
+See the [maintained implementation](../workbench/guides/retire-knowledge.md).
 
 :::
 
@@ -337,37 +321,17 @@ See the [maintained host profile](../operations/maintained-host-profile.md).
 
 :::
 
-## 9. Add Company Knowledge when needed
+## 9. Keep the Handbook as Workspace Markdown
 
-1. Write reviewed OKF concepts under `handbook/` and update
-   `handbook/index.md` in the same change.
-2. Keep unverified source material in `brain/inbox/`; exclude credentials.
-   Personal or otherwise sensitive raw input remains in administrator-only
-   quarantine until policy mapping and human review are complete.
-3. Run `companyos knowledge inspect .` and `companyos knowledge review .`.
-4. Permit `knowledge.search`/`knowledge.get` and optionally
-   `knowledge.traverse`, grant the corresponding standard Tools to selected
-   Agents, and bind those Capabilities to
-   `oregano/knowledge-postgres@3.0.0` in the Instance.
-5. Build the control Artifact and separate Knowledge Bundle, then stage,
-   verify, and activate the bundle through the existing `DATABASE_URL`.
-6. Prove one cited query, one exact get, one explicit zero-result gap, and one
-   negative access case for every declared authorization group.
+Write company content under `handbook/`. A human navigation index is optional;
+articles need no special metadata or registration. Keep the structured roster
+for identity, groups, roles and general approvals. Existing Agent read scopes
+control which files enter their compiled materials; review these scopes when
+migrating previously restricted documents. Do not broaden them automatically.
 
-7. Optionally add one reviewed repository Source requirement, bind
-   `oregano/github-repository-source@1.0.0` through an `env:NAME` SecretRef,
-   verify it, and run an explicit sync. Treat every resulting envelope as raw
-   review input.
-8. Run a retrieval regression ledger and record backup/rebuild evidence before
-   relying on hybrid or source-backed operation.
-
-Declare stable `groups` on roster members. A new Workspace assigns its Steward
-to `companyos:knowledge-admin`; keep that group tightly held because it may
-review quarantined candidates. Restricted OKF uses `visibility` plus
-`allowed_groups` or `allowed_principals`. Never use display names, paths, tags,
-or prompt text as access control. A sensitive Source Connector remains disabled
-until its external-principal and provider-ACL mappings pass negative conformance
-tests, even when the Core authorization tests pass.
+Use the ordinary Workspace validation, review and build flow described in
+[Author the Handbook](../workbench/guides/author-handbook.md). No source import,
+search service or dedicated Handbook approval role is part of onboarding.
 
 ## Builder availability and live adoption
 

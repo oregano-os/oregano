@@ -8,7 +8,7 @@ import { gzipSync } from "node:zlib";
 import { loadInstanceBuildConfiguration } from "../../companyos-builder/instance-loader.ts";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import { sha256 } from "../../runtime/canonical.ts";
-import { COMPANY_DATABASE_MANIFEST, COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST } from "../../state-postgres/database-bootstrap.ts";
+import { COMPANY_DATABASE_MANIFEST, LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS } from "../../state-postgres/database-bootstrap.ts";
 
 const root = resolve(import.meta.dirname, "../../..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -53,5 +53,5 @@ test("retired routes and fresh-database definitions are absent while generic wor
   }
   assert.deepEqual(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.filter((table) => table.startsWith("sprint_")), []);
   assert.ok(COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.includes("workflow_executions"));
-  assert.equal(COMPANY_DATABASE_MANIFEST_PHASE_TEN_DIGEST, "c18e31ab0729557a1e073f19fe2c83cdde3ff4b88cb4105e7799fdf6470cc925");
+  assert.equal(LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS["2.0.0"], "c18e31ab0729557a1e073f19fe2c83cdde3ff4b88cb4105e7799fdf6470cc925");
 });

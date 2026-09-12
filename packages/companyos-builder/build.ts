@@ -3,8 +3,6 @@ import { assertValidJsonSchema } from "../capabilities/validation.ts";
 import { sha256 } from "../runtime/canonical.ts";
 import { resolveToolSet } from "../toolset-resolver/resolver.ts";
 import { requireExactSemanticVersion } from "../runtime/semantic-version.ts";
-import { buildKnowledgeBundle } from "../knowledge/okf.ts";
-import { STANDARD_KNOWLEDGE_TOOLS } from "../standard-tools/knowledge.ts";
 import { STANDARD_RECORDS_TOOLS } from "../standard-tools/records.ts";
 import { STANDARD_DIRECTORY_TOOLS } from "../standard-tools/directory.ts";
 import { STANDARD_WORK_ITEM_TOOLS } from "../standard-tools/work-items.ts";
@@ -30,7 +28,6 @@ export function buildCompanyOSArtifact(args: {
   if (Object.hasOwn(args.instance, "sprintRuntimes")) throw new Error("Retired sprintRuntimes configuration: migrate to declared workflows and workflowBindings.");
   if (args.instance.workflowBindings) validateWorkflowInstanceBindings(args.instance.workflowBindings);
   const standardTools = [
-    ...STANDARD_KNOWLEDGE_TOOLS,
     ...STANDARD_RECORDS_TOOLS,
     ...STANDARD_DIRECTORY_TOOLS,
     ...STANDARD_WORK_ITEM_TOOLS,
@@ -49,7 +46,6 @@ export function buildCompanyOSArtifact(args: {
   if (args.instance.builder && !workspace.agents.some((agent) => agent.id === "builder")) {
     throw new Error("Builder execution bindings require a Workspace Builder definition.");
   }
-  const knowledgeBundle = buildKnowledgeBundle({ workspaceRoot: args.workspaceRoot, workspaceCommit: args.workspaceCommit });
   const agents = workspace.agents.map((agent) => {
     const toolSet = resolveToolSet({
       agentId: agent.id,
@@ -68,9 +64,7 @@ export function buildCompanyOSArtifact(args: {
       ...(agent.description === undefined ? {} : { description: agent.description }),
       ...(agent.modelTask === undefined ? {} : { modelTask: agent.modelTask }),
       ...(agent.conversationCoordinator === undefined ? {} : { conversationCoordinator: agent.conversationCoordinator }),
-      materials: scopedMaterials(workspace, agent.scopeRead, {
-        excludeKnowledgeDocuments: agent.grants.some((grant) => grant.startsWith("oregano:knowledge/")),
-      }),
+      materials: scopedMaterials(workspace, agent.scopeRead),
       toolSet,
       tools: [...agent.tools, ...standardTools].filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
     };
@@ -105,14 +99,6 @@ export function buildCompanyOSArtifact(args: {
     capabilityCatalog: [...CORE_CAPABILITY_CATALOG],
     bindings: [...args.instance.bindings].sort((a, b) => a.capability.localeCompare(b.capability)),
     connectors: [...(args.instance.connectors ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
-    knowledge: {
-      bundleSchemaVersion: knowledgeBundle.schemaVersion,
-      okfVersion: knowledgeBundle.okfVersion,
-      bundleHash: knowledgeBundle.bundleHash,
-      policyHash: knowledgeBundle.policyHash,
-      documentCount: knowledgeBundle.documentCount,
-      fragmentCount: knowledgeBundle.fragmentCount,
-    },
     roster: workspace.roster,
     agents,
     agentRouting,

@@ -53,7 +53,7 @@ export async function checkWorkflowConversation(artifact: CompanyOSArtifact, inp
       validateCollection(step, value); collected.push(structuredClone(value));
       return { ok: true, evaluationOnly: true, collected: true, approvalRecorded: false, externalWrite: false };
     } }) };
-  const instructions = agentInstructions(agent, { kind: "auto" }, Object.keys(tools), input.context);
+  const instructions = agentInstructions(agent, Object.keys(tools), input.context);
   const modelAgent = new ToolLoopAgent({ id: "companyos-conversation-check", model: resolved.model,
     instructions, tools, stopWhen: stepCountIs(3), maxOutputTokens: Math.min(resolved.selection.maxOutputTokens ?? 4096, 8192), maxRetries: 0 });
   const result = await modelAgent.generate({ messages: input.messages,

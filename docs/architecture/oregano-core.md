@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-03
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -76,7 +76,7 @@ conformance, and live evidence are complete.
 
 The Runner imports only a thin Builder chat integration. Removing or disabling
 that integration does not replace `CompanyOSRuntime`, the normal model loop,
-Knowledge Tools, or Agent routing. Concrete provider SDKs and credentials stay
+or Agent routing. Concrete provider SDKs and credentials stay
 inside adapters or the Company Instance.
 
 Core changes are rare for Workspace Contributors. A Workspace Contributor who
@@ -187,24 +187,10 @@ preflights every item before the first write, and a partial dispatch becomes an
 unknown effect outcome. The generic intent worker never turns a proposal
 directly into an effect.
 
-## Native Company Knowledge
+## Handbook files
 
-Core implements the OKF parser, deterministic heading-aware fragmenter,
-Knowledge Bundle and link graph, lexical/hybrid retrieval and citation shape,
-bounded graph traversal and curation, the embedding and provider interfaces,
-three read Capability contracts, and the explicitly granted
-`oregano:knowledge/search`, `oregano:knowledge/get`, and
-`oregano:knowledge/traverse` standard Tools. The maintained Postgres provider
-and repository Source Connector are adapters behind Core contracts; neither is
-a second Agent runtime or a second Agent-facing knowledge surface.
-
-When an Agent receives a Knowledge Tool grant, searchable Handbook documents
-are omitted from its compiled prompt materials. The immutable control Artifact
-records the bundle hash and policy hash while the separate Knowledge Bundle is
-staged, verified, and activated in the Instance. The roster stays in the Agent
-definition because runtime authorization remains a Core control.
-
-The default embedding adapter is local and has no data egress. Optional
-`pgvector` state is derived; adapter or index failure retains lexical retrieval
-with explicit degradation. Source Envelopes and Runtime Observations feed the
-same bounded human review boundary and cannot activate OKF directly.
+Core validates the Workspace and builds one control Artifact containing only
+the files selected by each Agent's existing read scope. Handbook articles are
+ordinary Markdown. Core retains structured roster validation and general
+identity, Tool grants and approval enforcement. There is no Handbook retrieval
+service, special curation lifecycle or separate content activation.

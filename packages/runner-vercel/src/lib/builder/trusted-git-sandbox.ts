@@ -3,7 +3,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Sandbox, type NetworkPolicy } from "@vercel/sandbox";
 import type { CompanyOSArtifact } from "../../../../companyos-builder/types.ts";
-import type { KnowledgeBundle } from "../../../../knowledge/contracts.ts";
 import type { CheckedProposal } from "../../../../runtime/repository/contracts.ts";
 import { sha256, type ProposalInspection } from "../../../../runtime/repository/proposal-inspection.ts";
 import {
@@ -169,7 +168,7 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
   async compileArtifact(request: {
     operationId: string; sourceBundlePath: string; workspaceCommit: string;
     coreCommit: string; instanceId: string; configurationDigest: string;
-  }): Promise<{ artifact: CompanyOSArtifact; knowledgeBundle: KnowledgeBundle }> {
+  }): Promise<{ artifact: CompanyOSArtifact }> {
     assertOperationId(request.operationId);
     if (!/^[a-f0-9]{64}$/.test(request.configurationDigest)) throw new Error("Production build requires the accepted Instance configuration digest.");
     assertCommit(request.workspaceCommit); assertCommit(request.coreCommit);

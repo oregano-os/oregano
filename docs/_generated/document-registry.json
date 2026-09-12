@@ -55,7 +55,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -74,7 +74,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-03",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -87,7 +87,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-01",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -151,7 +151,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-31",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -266,10 +266,10 @@
   {
     "document_id": "command.knowledge",
     "title": "companyos knowledge",
-    "path": "docs/workbench/commands/knowledge.md",
+    "path": "docs/archive/retired-knowledge/knowledge.md",
     "kind": "command",
-    "status": "building",
-    "authority": "canonical",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-26",
     "availability": "experimental",
@@ -538,10 +538,10 @@
   {
     "document_id": "guide.author-company-knowledge",
     "title": "Author Company Knowledge",
-    "path": "docs/workbench/guides/author-company-knowledge.md",
+    "path": "docs/archive/retired-knowledge/author-company-knowledge.md",
     "kind": "guide",
-    "status": "building",
-    "authority": "canonical",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-25",
     "availability": null,
@@ -562,6 +562,19 @@
     "language": "en",
     "updated": "2026-09-08",
     "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.author-handbook",
+    "title": "Author the Handbook",
+    "path": "docs/workbench/guides/author-handbook.md",
+    "kind": "guide",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
     "migration_sources": [],
     "relations": {}
   },
@@ -666,19 +679,19 @@
         "architecture.company-instance"
       ],
       "related": [
-        "guide.connect-knowledge-source"
+        "guide.author-handbook"
       ]
     }
   },
   {
     "document_id": "guide.connect-knowledge-source",
     "title": "Connect a Repository Knowledge Source",
-    "path": "docs/workbench/guides/connect-knowledge-source.md",
+    "path": "docs/archive/retired-knowledge/connect-knowledge-source.md",
     "kind": "guide",
-    "status": "implemented",
-    "authority": "canonical",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-08-26",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -724,10 +737,10 @@
   {
     "document_id": "guide.operate-knowledge-provider",
     "title": "Operate the Knowledge Provider",
-    "path": "docs/workbench/guides/operate-knowledge-provider.md",
+    "path": "docs/archive/retired-knowledge/operate-knowledge-provider.md",
     "kind": "guide",
-    "status": "building",
-    "authority": "canonical",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-31",
     "availability": null,
@@ -786,10 +799,10 @@
   {
     "document_id": "guide.recover-company-knowledge",
     "title": "Recover Company Knowledge",
-    "path": "docs/workbench/guides/recover-company-knowledge.md",
+    "path": "docs/archive/retired-knowledge/recover-company-knowledge.md",
     "kind": "guide",
-    "status": "implemented",
-    "authority": "canonical",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-26",
     "availability": null,
@@ -800,6 +813,32 @@
         "guide.operate-knowledge-provider"
       ]
     }
+  },
+  {
+    "document_id": "guide.retain-granola",
+    "title": "Preserve Granola during Knowledge retirement",
+    "path": "docs/workbench/guides/retain-granola.md",
+    "kind": "guide",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
+    "document_id": "guide.retire-knowledge",
+    "title": "Retire Knowledge from an existing Instance",
+    "path": "docs/workbench/guides/retire-knowledge.md",
+    "kind": "guide",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
   },
   {
     "document_id": "guide.review-change",
@@ -817,10 +856,10 @@
   {
     "document_id": "guide.review-company-knowledge",
     "title": "Review Company Knowledge",
-    "path": "docs/workbench/guides/review-company-knowledge.md",
+    "path": "docs/archive/retired-knowledge/review-company-knowledge.md",
     "kind": "guide",
-    "status": "building",
-    "authority": "canonical",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-25",
     "availability": null,
@@ -860,6 +899,19 @@
         "governance.versioning"
       ]
     }
+  },
+  {
+    "document_id": "history.retired-knowledge-implementation",
+    "title": "Retired Knowledge implementation history",
+    "path": "docs/archive/retired-knowledge/implementation-history.md",
+    "kind": "reference",
+    "status": "frozen",
+    "authority": "historical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
   },
   {
     "document_id": "onboarding.company-workspace",
@@ -1078,10 +1130,10 @@
   {
     "document_id": "plan.company-knowledge-implementation",
     "title": "Company Brain and Handbook Architecture and Delivery Plan",
-    "path": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "path": "docs/archive/retired-knowledge/2026-08-25-company-knowledge-implementation.md",
     "kind": "plan",
-    "status": "approved",
-    "authority": "informative",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-27",
     "availability": null,
@@ -1110,7 +1162,7 @@
     "status": "draft",
     "authority": "informative",
     "language": "en",
-    "updated": "2026-09-08",
+    "updated": "2026-09-11",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1124,6 +1176,26 @@
         "governance.agent-agreement",
         "governance.versioning",
         "guide.prepare-instance"
+      ]
+    }
+  },
+  {
+    "document_id": "plan.google-meet-knowledge-source",
+    "title": "Google Meet Evidence Ingestion and Scoped Meeting Retrieval",
+    "path": "docs/archive/retired-knowledge/2026-09-07-google-meet-knowledge-source.md",
+    "kind": "plan",
+    "status": "frozen",
+    "authority": "historical",
+    "language": "en",
+    "updated": "2026-09-07",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "plan.company-knowledge-implementation",
+        "specification.company-knowledge-v0.2",
+        "specification.company-records-sprint-v0.1",
+        "architecture.ecosystem-packages"
       ]
     }
   },
@@ -1262,10 +1334,10 @@
   {
     "document_id": "specification.company-knowledge-v0.1",
     "title": "Company Knowledge v0.1 Specification",
-    "path": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "path": "docs/archive/retired-knowledge/company-knowledge-v0.1-draft.md",
     "kind": "specification",
-    "status": "implemented",
-    "authority": "normative",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-26",
     "availability": null,
@@ -1281,10 +1353,10 @@
   {
     "document_id": "specification.company-knowledge-v0.2",
     "title": "Company Knowledge v0.2 Specification",
-    "path": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "path": "docs/archive/retired-knowledge/company-knowledge-v0.2-draft.md",
     "kind": "specification",
-    "status": "approved",
-    "authority": "normative",
+    "status": "frozen",
+    "authority": "historical",
     "language": "en",
     "updated": "2026-08-31",
     "availability": null,
@@ -1450,6 +1522,19 @@
         "governance.roles"
       ]
     }
+  },
+  {
+    "document_id": "specification.model-recipes",
+    "title": "Model recipes and task resolution",
+    "path": "docs/specifications/model-recipes.md",
+    "kind": "specification",
+    "status": "implemented",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-11",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
   },
   {
     "document_id": "specification.tool-architecture",

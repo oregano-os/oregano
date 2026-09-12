@@ -33,7 +33,7 @@ export interface ConversationAttention {
 export interface ConcernRoute {
   /** Exact excerpt of the verified current or pending original message. */
   text: string; workId?: string; draftId?: string; agentId?: string; purpose?: string; title?: string;
-  newDiscussion?: boolean; closeDraft?: boolean; knowledge?: boolean;
+  newDiscussion?: boolean; closeDraft?: boolean;
 }
 export interface ConversationPlan {
   participation?: Participation;
@@ -42,7 +42,7 @@ export interface ConversationPlan {
 }
 export interface CheckedConcern {
   text: string; source: ConversationInput; work?: WorkContext; agentId: string;
-  delegation?: { ruleId: string; expiresAt: string }; needsAcknowledgement: boolean; knowledge?: boolean;
+  delegation?: { ruleId: string; expiresAt: string }; needsAcknowledgement: boolean;
 }
 export interface ConversationReceipt {
   digest: string; plan: ConversationPlan; concerns: CheckedConcern[]; recordedAt: string;
@@ -214,7 +214,7 @@ export class SharedConversationTurn {
         const draft = next.drafts.find(d => d.id === work!.id)!;
         draft.expiresAt = new Date(Date.parse(this.#args.now) + 7 * 86400000).toISOString();
       }
-      concerns.push({ text: route.text, source, work: work && { ...work, context: undefined }, agentId, delegation, knowledge: route.knowledge, needsAcknowledgement: !!work && (!!pending || !sameAddress(work.address, this.input.address)) });
+      concerns.push({ text: route.text, source, work: work && { ...work, context: undefined }, agentId, delegation, needsAcknowledgement: !!work && (!!pending || !sameAddress(work.address, this.input.address)) });
     }
     if (plan.clarify) {
       const { candidates, question } = plan.clarify;

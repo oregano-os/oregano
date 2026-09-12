@@ -22,7 +22,6 @@ requires:
   capabilities:
     - communication.message.publish
     - conversation.read
-    - knowledge.record
 permissions:
   runtime_code: false
   network: []

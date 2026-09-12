@@ -105,7 +105,6 @@ workflows/
 policies/
 handbook/
 connections/
-brain/
 ```
 
 The non-secret Instance build declaration MUST use `.companyos/instance.yaml`

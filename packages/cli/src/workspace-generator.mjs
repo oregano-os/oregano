@@ -49,8 +49,6 @@ export const GENERATED_WORKSPACE_PATHS = [
   ".gitignore",
   "AGENTS.md",
   "agents/builder/instructions.md",
-  "brain/archive/.gitkeep",
-  "brain/inbox/.gitkeep",
   "company.md",
   "connections/.gitkeep",
   "handbook/index.md",
@@ -227,7 +225,7 @@ export function renderWorkspace(input, coreIdentity) {
     },
     change_classes: {
       content: {
-        paths: ["handbook/**", "brain/**", "agents/*/skills/**"],
+        paths: ["handbook/**", "agents/*/skills/**"],
         approval: "process-steward",
       },
       behavior: {
@@ -326,7 +324,6 @@ jobs:
       identities: { github: codeowner.slice(1) },
       may_approve: ["R1", "R2", "R3", "R4"],
       may_see: ["business", "personal"],
-      groups: ["companyos:knowledge-admin"],
     }],
   }, `# Roster\n\nThe initial Workspace Steward is declared in this document's structured data.\nProvider identities must be verified through their provider before they\nauthorize a hosted change.`));
   files.set("policies/risk-levels.md", document({
@@ -343,7 +340,7 @@ jobs:
     tools: [],
   }, `# Builder\n\nRead the relevant current process and its referenced definitions before\nproposing a change. Clarify ambiguous workflow steps, participants, approval\nand access decisions with the requester. Preserve documented choices when\nunchanged. Prepare a resolved build brief with before/after behavior and tests,\nthen start isolated development under the existing request. The finished\nresult needs the configured human acceptance before live adoption.\n\nThis definition declares that Builder is wanted in this Workspace. Instance\nbindings supply coding execution and repository access separately. The\nBuilder has no business Tool grants or production deployment credentials.`));
 
-  for (const path of [".companyos/changes/.gitkeep", "brain/inbox/.gitkeep", "brain/archive/.gitkeep", "workflows/.gitkeep", "schedules/.gitkeep", "connections/.gitkeep"]) files.set(path, "");
+  for (const path of [".companyos/changes/.gitkeep", "workflows/.gitkeep", "schedules/.gitkeep", "connections/.gitkeep"]) files.set(path, "");
   return files;
 }
 

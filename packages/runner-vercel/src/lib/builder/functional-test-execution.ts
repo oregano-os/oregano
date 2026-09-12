@@ -11,7 +11,6 @@ import { createPostgresWorkflowExecutionStore } from "../../../../state-postgres
 import { createPostgresStateStore } from "../../../../state-postgres/store.ts";
 import { createPostgresDurableTimerStore } from "../../../../state-postgres/durable-timer-store.ts";
 import { systemInstructions } from "../agent-instructions.ts";
-import { resolveKnowledgeTurnRoute } from "../knowledge-turn-routing.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "../model-execution.ts";
 import { createConfiguredRuntimeConnectors } from "../runtime-connectors.ts";
 import { sha256 } from "../../../../runtime/canonical.ts";
@@ -82,7 +81,7 @@ export async function executeBuilderFunctionalTest(args: {
     const modelAgent = new ToolLoopAgent({ model: resolved.model,
       tools: withConversationParticipation({}, participation),
       stopWhen: [() => participation.complete, stepCountIs(3)], prepareStep: () => participationStep(participation),
-      instructions: [CONVERSATION_PARTICIPATION_INSTRUCTIONS, systemInstructions(agent, resolveKnowledgeTurnRoute({ text: session.conversation?.pending?.prompt ?? session.execution.prompt, tools: [] }), {})].join("\n\n"),
+      instructions: [CONVERSATION_PARTICIPATION_INSTRUCTIONS, systemInstructions(agent, {})].join("\n\n"),
       maxOutputTokens: 1500,
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
     });

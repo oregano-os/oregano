@@ -5,8 +5,6 @@ import { getBot } from "../../../lib/bot.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
 import { agentModelTask } from "../../../lib/agent-model-task.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
-import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
-import { createPostgresKnowledgeProvider } from "../../../../../state-postgres/knowledge-store.ts";
 
 import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "../../../lib/workflow-configuration.ts";
 
@@ -16,24 +14,14 @@ export async function GET() {
   try {
     const artifact = loadArtifact();
     const primaryAgent = selectedAgent();
-    const primaryTask = agentModelTask(primaryAgent, { kind: "auto" });
+    const primaryTask = agentModelTask(primaryAgent);
     const modelExecution = resolveModelExecution({ profile: primaryTask.profile, task: primaryTask.task, requiredCapability: "tools" });
-    const knowledgeAnswerModelExecution = resolveModelExecution({
-      profile: "deep",
-      task: "knowledge.cited-synthesis",
-      requiredCapability: "tools",
-      configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64),
-    });
     const database = await qualifyCompanyDatabase();
     // Construction checks Connector configuration and registers handlers. It
     // does not initialize provider clients, send messages or invoke a model.
     getBot();
     const workflowsEnabled = workflowHostingEnabled();
     const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
-    const knowledgeSnapshot = process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64
-      ? await createPostgresKnowledgeProvider({ snapshotHash: artifact.knowledge!.bundleHash }).activeSnapshot() : undefined;
-    if (process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && (!knowledgeSnapshot
-      || knowledgeSnapshot.bundle.workspaceCommit !== artifact.provenance.workspaceCommit)) throw new Error("The release Knowledge snapshot is not available for the exact Workspace.");
     return Response.json({
       ok: true,
       status: "ready",
@@ -41,7 +29,7 @@ export async function GET() {
       company: artifact.company,
       agent: primaryAgent.id,
       agents: artifact.agents.map((agent) => {
-        const task = agentModelTask(agent, { kind: "auto" });
+        const task = agentModelTask(agent);
         const { selection } = resolveModelExecution({ profile: task.profile, task: task.task, requiredCapability: "tools" });
         return { id: agent.id, toolCount: agent.toolSet.tools.length,
           modelTask: task.task, modelProfile: task.profile, model: selection.model, modelRoute: selection.route };
@@ -55,7 +43,6 @@ export async function GET() {
       sourceCoreCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       configurationDigest: builderConfigurationDigest() ?? null,
       releaseContinuityDigest: releaseContinuityDigest(process.env),
-      knowledgeSnapshotHash: knowledgeSnapshot?.snapshotHash ?? null,
       builder: {
         desired: artifact.agents.some((agent) => agent.id === "builder"),
         codingConfigured: Boolean(artifact.builder),
@@ -70,9 +57,6 @@ export async function GET() {
       modelRoute: modelExecution.selection.route,
       modelProvider: modelExecution.selection.provider,
       model: modelExecution.selection.model,
-      knowledgeAnswerModelRoute: knowledgeAnswerModelExecution.selection.route,
-      knowledgeAnswerModelProvider: knowledgeAnswerModelExecution.selection.provider,
-      knowledgeAnswerModel: knowledgeAnswerModelExecution.selection.model,
       databaseManifestId: database.manifestId,
       databaseManifestVersion: database.manifestVersion,
       databaseManifestDigest: database.manifestDigest,

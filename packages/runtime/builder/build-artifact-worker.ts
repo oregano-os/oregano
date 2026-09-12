@@ -6,7 +6,6 @@ import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
 import { sha256 } from "../canonical.ts";
 import YAML from "yaml";
-import { buildKnowledgeBundle } from "../../knowledge/okf.ts";
 
 interface BuildRequest { coreCommit: string; workspaceCommit: string; instanceId: string; configurationDigest: string; }
 interface CoreProvenance { coreCommit: string; coreVersion: string; workbenchVersion: string; }
@@ -24,8 +23,7 @@ export function compileWorkspaceArtifact(workspaceRoot: string, request: BuildRe
   if (instance.instanceId !== request.instanceId || instance.environment !== "production") throw new Error("Build target is not the accepted production Instance.");
   if (!/^[a-f0-9]{64}$/.test(request.configurationDigest) || sha256(instance) !== request.configurationDigest) throw new Error("Workspace Instance declaration differs from the running Artifact's accepted configuration.");
   const artifact = buildCompanyOSArtifact({ workspaceRoot, instance, ...provenance, workspaceCommit: request.workspaceCommit });
-  const knowledgeBundle = buildKnowledgeBundle({ workspaceRoot, workspaceCommit: request.workspaceCommit });
-  return { artifact, knowledgeBundle };
+  return { artifact };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

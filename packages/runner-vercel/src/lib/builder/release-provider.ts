@@ -13,7 +13,6 @@ import { getGitHubRepositoryProvider, getTrustedGitExecution } from "./provider-
 import { HostedBuilderReleaseAdapter } from "./live-release-adapter.ts";
 import { createBuilderReleaseIntegration } from "./release-integration.ts";
 import { createBuilderChatNotifier } from "./chat-notifier.ts";
-import { createPostgresKnowledgeProvider } from "../../../../state-postgres/knowledge-store.ts";
 import { createPostgresWorkflowExecutionStore } from "../../../../state-postgres/workflow-store.ts";
 import { createPostgresBuilderTestStore } from "../../../../state-postgres/builder-test-store.ts";
 import { BuilderFunctionalTests, builderTestSessionId } from "../../../../runtime/builder/functional-tests.ts";
@@ -42,7 +41,7 @@ export function createBuilderReleaseRuntime(args: {
   const host = new VercelProductionReleaseHost({ binding, state, environment: process.env, token: process.env.COMPANYOS_VERCEL_RELEASE_TOKEN ?? "",
     ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? { healthHeaders: { "x-vercel-protection-bypass": process.env.VERCEL_AUTOMATION_BYPASS_SECRET } } : {}) });
   const execution = new HostedBuilderReleaseAdapter({ artifact, state, host, functionalTests, revisionPending,
-    knowledge: createPostgresKnowledgeProvider(), environment: process.env,
+    environment: process.env,
     artifacts: createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false }),
     github: getGitHubRepositoryProvider(), compiler: getTrustedGitExecution() });
   const coordinator = new ReleaseCoordinator({ store: createPostgresReleaseRunStore(), execution,

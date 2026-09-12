@@ -117,7 +117,7 @@ binds its connection only in the runtime host's secret environment. The next
 phase invokes the provider-neutral `companyos database prepare` operation
 through that environment. Prepare detects an empty, older, or current database
 and selects `bootstrap`, `upgrade`, or read-only `verify`. It creates or
-upgrades the `companyos`, `companyos_knowledge`, and `companyos_records`
+upgrades the `companyos` and `companyos_records`
 schemas, records their
 immutable schema manifest, and returns a bounded non-secret qualification
 receipt. Runtime health and
@@ -125,16 +125,15 @@ receipt. Runtime health and
 manifest or required schema objects are missing. The maintained Vercel profile
 uses `vercel env run`; another runtime profile must provide an equivalent
 secret-bound command without making Vercel part of the database contract.
-The current manifest is additive `companyos-postgres@1.9.0`: it preserves the
-immutable `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` definitions, qualifies 67 required
-Knowledge tables and 14 Record Source and Sprint tables, and adds durable Source event, ACL, receipt, watermark,
-change-stream, synchronization-lease, lifecycle, compounding-receipt,
-Claim-pair-proposal, grading-request, model-result-cache, spend-reservation, and
-execution-ledger, Retrieval V3 projection, benchmark, shadow-comparison,
-productization-receipt, and atomic Sprint event, state, decision, and intent
-records. Unresolved policies and ACL mappings remain
-in quarantine. Schema qualification does not authorize retrieval; runtime
-subject and policy conformance remain separate gates.
+The current manifest is `companyos-postgres@3.0.0`. It qualifies 15 control/Workflow
+and 14 Company Records/Sprint tables, and recognizes the immutable identities
+of supported `1.0.0` through `2.0.0` predecessors. Qualification receipt version
+2 covers only `companyos` and `companyos_records`. General identity,
+authorization, approvals, Records, Sprint and model routing remain in Core.
+Preparation preserves existing data; it neither creates nor deletes a Knowledge
+schema. Existing Instances use the separately targeted
+[retirement procedure](../workbench/guides/retire-knowledge.md), then rebuild
+the Artifact and refresh their qualification evidence.
 
 See the [maintained host profile](../operations/maintained-host-profile.md).
 
@@ -192,22 +191,13 @@ and traceability, while reviewers remain responsible for checking that the
 documented behavior matches the implementation rather than merely listing a
 document identifier.
 
-## Optional Company Knowledge adoption
+## Handbook files
 
-New Workspaces contain empty `brain/inbox/` and `brain/archive/` directories.
-To adopt Company Knowledge, author indexed OKF in `handbook/`, validate with
-`companyos knowledge inspect`, and confirm that all content is suitable for the
-shared active-roster scope. Operating adoption builds a separate bundle,
-applies `companyos_knowledge` through the existing Neon connection, stages and
-verifies the bundle, and activates its exact hash.
-
-After the local corpus is operating, an approved Workspace may declare one
-read-only repository knowledge source. Its Instance binding uses an
-`env:NAME` SecretRef and `contents:read`; verify it before the first explicit
-sync. Synced objects remain raw review envelopes and never bypass the
-maximum-three human review queue. Hybrid retrieval requires no external
-credential: the default adapter is local, and optional vector-index failure is
-reported while lexical retrieval stays available.
+New Workspaces keep their Handbook under `handbook/` as ordinary Markdown.
+An index is optional human navigation; articles need no special metadata.
+`handbook/roster.md` remains structured because it defines general identity and
+approval authority. Agent read scopes and governed Workspace editing remain
+in effect. See [Author the Handbook](../workbench/guides/author-handbook.md).
 
 ## Builder availability and live adoption
 

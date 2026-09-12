@@ -40,7 +40,7 @@ test verifies typed results and rollback after a failed transaction.
 Required coverage includes approval consumption with competing clicks,
 atomic effect claims, persisted effect receipts, unknown-outcome redispatch
 refusal, timer leases and recovery, canonical JSONB identity, additive schema
-bootstrap, and Brain persistence/identity. The ordinary unit suite may skip
+bootstrap, Workflow execution, and retained Builder persistence. The ordinary unit suite may skip
 database cases without a local database; it cannot satisfy this separate gate.
 
 This is real database and store evidence, not a hosted Neon qualification or

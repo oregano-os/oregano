@@ -147,15 +147,15 @@ See the [maintained host profile](../operations/maintained-host-profile.md).
 The resolver may select documented Anthropic-then-OpenAI defaults from present
 keys only when no explicit task, profile, default, or legacy route binding
 exists. One resolved request never silently fails over to another provider.
-Knowledge authorization remains upstream of model execution; the recipe layer
-does not duplicate it as a provider data-class engine or approval workflow.
+Identity, scoped inputs, Tool grants and effect authority remain in their
+existing Core layers; model configuration does not grant access or approval.
 
 Database resource provisioning and CompanyOS schema preparation are separate
 setup responsibilities. In fresh setup, the state-service adapter creates the
 provider resource and identifies the runtime secret binding. Core owns the
 provider-neutral, versioned PostgreSQL manifest and the idempotent bootstrap
 and read-only qualification operations for `companyos` and
-`companyos_knowledge`. The runtime-host adapter executes bootstrap with the
+`companyos_records`. The runtime-host adapter executes bootstrap with the
 resolved `DATABASE_URL` in process memory; neither Core nor setup state may
 receive the credential value. The non-secret qualification receipt crosses
 the adapter boundary and is bound to setup and health evidence. Runtime health
@@ -163,22 +163,17 @@ MUST verify the manifest without performing schema DDL. A new host or database
 provider may replace the maintained Vercel and Neon bindings only after its
 secret transport and PostgreSQL behavior satisfy the same contract.
 
-The current `companyos-postgres@1.9.0` manifest is an additive Instance storage
-contract over immutable predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0`.
-Core defines and qualifies 67 required Knowledge relations and 14 required
-Record Source and Sprint relations, including stable groups,
-memberships, durable Source Events, provider ACL snapshots, pipeline receipts,
-completed watermarks, per-stream synchronization leases, lifecycle requests,
-and a payload-free integrity-linked change stream, compounding receipts,
-review-only Claim-pair proposals, explicit grading requests, atomic Sprint
-events, monotonic Sprint state, leased Sprint intents, a policy-bound
-model-result cache, spend reservations, a rated execution ledger, rebuildable
-Retrieval V3 projections, and payload-free benchmark and productization evidence. Schema
-presence alone never grants access: the Runtime supplies
-a Core-resolved subject, and the Knowledge Provider applies policy intersection
-before candidates, ranks, graph structure, citations, review content, or model
-context. Sensitive-source activation remains a separate provider-ACL
-conformance gate.
+::: implementation-example
+
+The current `companyos-postgres@3.0.0` manifest qualifies 15 control/Workflow and 11
+Records/Sprint tables. Historical identities are recognized for upgrade but
+obsolete schema constructors are removed. Knowledge retirement is an explicit
+one-time migration, separate from normal initialization and read-only health.
+Schema presence never grants identity, Tool or effect authority.
+
+See the [maintained implementation](../workbench/guides/retire-knowledge.md).
+
+:::
 
 The Builder execution host is a private adapter behind Core control, not a new
 CompanyOS authority plane. Its coding process receives no Git-host, deployment,
@@ -272,24 +267,14 @@ business time, approval and effect controls, and existing Capability or
 Connector contracts cannot be reused as-is. Extension is preferred to a
 parallel mechanism when the existing contract has the same responsibility.
 
-## Company Knowledge boundaries
+## Handbook boundary
 
-- Oregano Core owns OKF, Knowledge Bundle, graph, snapshot,
-  search/get/traverse, citation, embedding-policy, Source Envelope, Runtime
-  Observation, and review-state contracts plus the maintained provider
-  interfaces.
-- A Company Workspace owns curated `handbook/` content and raw
-  `brain/inbox/`/`brain/archive/` review evidence.
-- A Company Instance owns the `companyos_knowledge` projections, optional
-  vector rows, source versions/receipts/cursors, observations, review rows,
-  active snapshot pointer, legal holds, and rollback evidence in its existing
-  database.
-- The maintained repository Source Connector owns provider authentication,
-  verification, enumeration, and fetching only. It feeds versioned envelopes
-  to the raw review boundary and cannot write authoritative OKF directly.
-- The Workbench owns inspect, build, regression, review preview, source
-  operation, observation lifecycle, stage, verify, rebuild, and activate
-  commands. A Blueprint may suggest examples but grants no access or binding.
+The Company Workspace owns Handbook Markdown and the structured roster.
+Core retains generic scoped file material, identity and approval enforcement.
+The Workbench applies ordinary validation and governed editing. No Knowledge
+service, source registry, database projection, search or promotion path remains.
+General Records connectors, model recipes, Builder and workflow behavior remain
+independent and unchanged.
 
 ## Candidate distribution boundary
 

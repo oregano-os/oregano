@@ -27,15 +27,9 @@ import { BUILDER_INTAKE_INSTRUCTIONS } from "../../../runtime/builder/brief.ts";
 import { Actions, Button, Card, CardText, Chat, type Author, type Message, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
 import { ArtifactPostgresConnector } from "../../../connectors/artifact-postgres.ts";
-import { KnowledgeProviderConnector } from "../../../connectors/knowledge.ts";
-import { createUnifiedKnowledgeProvider } from "../../../knowledge/unified-provider.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { CompanyOSRuntime, type ExecuteToolRequest } from "../../../runtime/companyos-runtime.ts";
 import { AgentHandoffService } from "../../../runtime/agent-handoff.ts";
-import { PostgresBrainKnowledgeProjectionStore } from "../../../state-postgres/brain-retrieval-store.ts";
-import { PostgresKnowledgeAccessAuditor } from "../../../state-postgres/knowledge-access-store.ts";
-import { createPostgresKnowledgeCanaryProvider, resolveKnowledgeRetrievalRuntimeSelection } from "../../../state-postgres/knowledge-canary-provider.ts";
-import { createPostgresKnowledgeProvider } from "../../../state-postgres/knowledge-store.ts";
 import { createPostgresStateStore } from "../../../state-postgres/store.ts";
 import { createPostgresConversationAssignmentStore } from "../../../state-postgres/conversation-assignment-store.ts";
 import type { ConversationAssignmentStore } from "../../../state-store/conversation-assignments.ts";
@@ -57,11 +51,6 @@ import { createBuilderChatNotifier } from "./builder/chat-notifier.ts";
 import { findActiveHumanRosterMember } from "./identity.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
-import {
-  knowledgeStepChoice,
-  renderKnowledgeTurnResponse,
-  resolveKnowledgeTurnRoute,
-} from "./knowledge-turn-routing.ts";
 import { agentModelTask } from "./agent-model-task.ts";
 import { agentInstructionMessages } from "./agent-instructions.ts";
 import { COLLECTION_TOOL_DESCRIPTION } from "../../../runtime/workflow-engine/collection.ts";
@@ -81,7 +70,7 @@ import {
   validatedSlackResponsePlan,
   type SlackAgentExperienceConfiguration,
 } from "./slack-agent-experience.ts";
-import { decodeModelRuntimeConfiguration, type ModelExecutionEvidence } from "../../../runner/model-execution.ts";
+import type { ModelExecutionEvidence } from "../../../runner/model-execution.ts";
 import { createConfiguredRuntimeConnectors } from "./runtime-connectors.ts";
 import { workflowHostingEnabled } from "./workflow-configuration.ts";
 import { workflowReplyThreadId, type WorkflowConversationSession } from "./workflow-conversations.ts";
@@ -549,31 +538,20 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   }
   const tools = withConversationParticipation(workflowNotice ? {} : resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession, builderIntent), participation);
   if (coordinated) delete tools.companyos_agent_handoff;
-  const knowledgeRoute = resolveKnowledgeTurnRoute({
-    text: message.text,
-    requiresKnowledge: coordinated?.concern.knowledge,
-    tools: (workflowNotice ? [] : agent.toolSet.tools)
-      .filter((entry) => visibleGrantIds.has(entry.grantId))
-      .map((entry) => ({ grantId: entry.grantId, toolName: toolName(entry.grantId) })),
-  });
-  const modelTask = agentModelTask(agent, knowledgeRoute);
+  const modelTask = agentModelTask(agent);
   const resolved = resolveModelExecution({
     profile: modelTask.profile,
     task: modelTask.task,
     requiredCapability: "tools",
-    ...(modelTask.configuration === "knowledge"
-      ? { configuration: decodeModelRuntimeConfiguration(process.env.COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64) }
-      : {}),
   });
   const attachments = agent.id === "builder" ? await readBuilderImages(message.attachments) : { images: [], notices: [] };
   if (attachments.notices.length && !participation.ambient) await deliveryThread.post([...new Set(attachments.notices)].join("\n"));
-  const participationOffset = participation.ambient && !participation.choice ? 1 : 0;
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...(agent.id === "builder" ? [{ role: "system" as const, content: [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`, ...attachments.notices].join("\n\n") }] : []), ...agentInstructionMessages(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
+    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...(agent.id === "builder" ? [{ role: "system" as const, content: [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`, ...attachments.notices].join("\n\n") }] : []), ...agentInstructionMessages(agent, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
     tools,
-    prepareStep: ({ stepNumber }) => participationStep(participation) ?? knowledgeStepChoice(knowledgeRoute, stepNumber - participationOffset),
+    prepareStep: () => participationStep(participation),
     stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? []), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
@@ -584,7 +562,6 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   if ((!participation.ambient || coordinated) && !tools.companyos_agent_handoff && shouldStreamSlackAgentResponse({
     configuration: slackAgentExperience,
     agentId: agent.id,
-    knowledgeRouteKind: knowledgeRoute.kind,
     businessToolCount: visibleGrantIds.size,
     hasCollectionControl: !!workflowSession?.collection,
   })) {
@@ -592,23 +569,14 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     const result = await modelAgent.stream({ messages, abortSignal });
     await deliveryThread.post(result.fullStream);
     thread.signal.throwIfAborted();
-    const [modelText, toolResults, content, responseMetadata, usage] = await Promise.all([
+    const [modelText, responseMetadata, usage] = await Promise.all([
       result.text,
-      result.toolResults,
-      result.content,
       result.response,
       result.totalUsage,
     ]);
     trace.emit("model-finished");
     trace.emit("reply-posted");
-    const response = renderKnowledgeTurnResponse({
-      route: knowledgeRoute,
-      modelText,
-      toolResults,
-      toolFailures: content
-        .filter((part) => part.type === "tool-error")
-        .map((part) => ({ toolName: part.toolName, error: part.error })),
-    });
+    const response = modelText.trim();
     if (response !== modelText.trim()) {
       throw new Error("A streamed Slack response did not satisfy the final CompanyOS presentation contract.");
     }
@@ -673,14 +641,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   const output = participation.finish(result.text);
   await state.set(`conversation-participation:${sha256([thread.id, message.id, agent.id])}`, { participation: output.participation, reason: output.reason, principal: requester, messageId: message.id }, 30 * DAY);
   if (output.participation === "context-only") return;
-  const response = renderKnowledgeTurnResponse({
-    route: knowledgeRoute,
-    modelText: output.text ?? "",
-    toolResults: result.toolResults,
-    toolFailures: result.content
-      .filter((part) => part.type === "tool-error")
-      .map((part) => ({ toolName: part.toolName, error: part.error })),
-  });
+  const response = (output.text ?? "").trim();
   const reviewDelivered = !!workflowSession?.collection && hasDeliveredCollectionReview(result.toolResults);
   const presentation = reviewDelivered
     ? { historyResponse: "Review card delivered in this conversation. Awaiting the human decision.", visibleResponse: "" }
@@ -831,22 +792,10 @@ function registerHandlers(bot: Chat) {
 let botInstance: Chat | undefined;
 
 export function createCompanyOSRuntimeConnectors(
-  selectedAgentId = process.env.COMPANYOS_AGENT_ID ?? "unresolved-agent",
   options?: { artifact?: CompanyOSArtifact; chat?: () => Chat; beforeSlackDirectPublish?: BeforeSlackDirectPublish; onlyCapabilities?: readonly string[] },
 ) {
-  const baseline = createUnifiedKnowledgeProvider({
-    handbook: createPostgresKnowledgeProvider(process.env.COMPANYOS_BUILDER_RELEASE_BINDING_BASE64 && options?.artifact?.knowledge
-      ? { snapshotHash: options.artifact.knowledge.bundleHash } : {}),
-    brain: new PostgresBrainKnowledgeProjectionStore(),
-    accessAuditor: new PostgresKnowledgeAccessAuditor(),
-  });
-  const knowledge = createPostgresKnowledgeCanaryProvider({
-    baseline,
-    selection: resolveKnowledgeRetrievalRuntimeSelection({ environment: process.env, selectedAgentId }),
-  });
   return [
     new ArtifactPostgresConnector(),
-    new KnowledgeProviderConnector(knowledge),
     ...(options?.artifact && options.chat
       ? createConfiguredRuntimeConnectors({ artifact: options.artifact, chat: options.chat, beforeSlackDirectPublish: options.beforeSlackDirectPublish, onlyCapabilities: options.onlyCapabilities })
       : []),
@@ -891,14 +840,11 @@ export function getBot(): Chat {
     state,
     concurrency: { strategy: "queue", maxQueueSize: 20 },
   });
-  const connectorAgentId = process.env.COMPANYOS_AGENT_ID
-    ?? artifact.agentRouting?.defaultAgentId
-    ?? "multi-agent";
   runtime = new CompanyOSRuntime({
     artifact,
     state: createPostgresStateStore(),
     workflowContext: { read: async () => undefined },
-    connectors: createCompanyOSRuntimeConnectors(connectorAgentId, {
+    connectors: createCompanyOSRuntimeConnectors({
       artifact,
       chat: () => candidateBot,
     }),

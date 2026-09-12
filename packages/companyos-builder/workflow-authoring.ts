@@ -9,7 +9,6 @@ import { STANDARD_DIRECTORY_TOOLS } from "../standard-tools/directory.ts";
 import { STANDARD_RECORDS_TOOLS } from "../standard-tools/records.ts";
 import { STANDARD_WORK_ITEM_TOOLS } from "../standard-tools/work-items.ts";
 import { STANDARD_COMMUNICATION_TOOLS } from "../standard-tools/communication.ts";
-import { STANDARD_KNOWLEDGE_TOOLS } from "../standard-tools/knowledge.ts";
 import { inspectAndCompileCompanyTool } from "../tool-sdk/source-inspector.ts";
 import { validateJsonSchemaValue } from "../capabilities/validation.ts";
 import { validateRecordSource, recordFieldSchema } from "../records/source-validation.ts";
@@ -17,7 +16,7 @@ import { validateRecordFilters } from "../records/query.ts";
 import { recordInstant } from "../records/instant.ts";
 
 type Schema = any;
-const standardTools = [...STANDARD_DIRECTORY_TOOLS, ...STANDARD_RECORDS_TOOLS, ...STANDARD_WORK_ITEM_TOOLS, ...STANDARD_COMMUNICATION_TOOLS, ...STANDARD_KNOWLEDGE_TOOLS];
+const standardTools = [...STANDARD_DIRECTORY_TOOLS, ...STANDARD_RECORDS_TOOLS, ...STANDARD_WORK_ITEM_TOOLS, ...STANDARD_COMMUNICATION_TOOLS];
 const schemas = new Map<string, any>();
 const loadSchema = (name: string): any => {
   if (!schemas.has(name)) schemas.set(name, JSON.parse(readFileSync(new URL(`../schema/${name}`, import.meta.url), "utf8")));

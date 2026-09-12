@@ -276,43 +276,20 @@ catalog listings. Missing or mismatched objects still fail readiness; unexpected
 Core Page types return at most 20 names with their full count. The public receipt,
 qualification frequency and current schema manifest remain unchanged.
 
-The current additive database manifest is `companyos-postgres@2.0.0`. It
-retains the immutable `1.9.0`, `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`, `1.1.0`, and `1.0.0` ledger identities,
-contains 67 required `companyos_knowledge` tables, and contains 14 required
-`companyos_records` tables for provider-neutral Record Source and Sprint state. Phase 3 adds durable Source
-Events, provider ACL snapshots, bounded pipeline receipts, completed
-watermarks, an integrity-linked Knowledge change stream, and governed source
-lifecycle requests. Phase 4 adds a durable lease per Source reconciliation
-stream so overlapping schedules cannot process the same partition concurrently.
-Phase 5 adds durable compounding leases and receipts, review-only Claim-pair
-proposals, and explicit grading requests. Phase 6 adds policy-bound model-task
-results, atomic spend reservations, and a rated execution ledger. Phase 7 adds
-rebuildable Retrieval V3 projection runs and Units plus payload-free
-KnowledgeBench, shadow-comparison, and productization receipts. When `pgvector`
-is available, the two optional vector tables retain Handbook-fragment and
-Retrieval-Unit embeddings; neither is durable company authority.
-Phase 8 adds provider-neutral Record Source state. Phase 9 adds atomic Sprint
-event, monotonic state, decision, and intent persistence plus a bounded leased
-intent queue. Manifest 2.0.0 adds retained workflow Artifacts, generic execution
-snapshots with leases, and exact conversation assignments in the control
-schema. Atomic dispatch fencing shares the execution lock with cancellation.
-The step interpreter and hosted assignment integration remain pending.
-Installing or qualifying these relations does not start a Sprint,
-schedule a timer, dispatch a message, or enable a provider effect.
-The reusable activation path qualifies a fully isolated non-production
-Instance. Oregano HQ also has one explicit internal-dogfood production-canary
-path: a Neon point-in-time branch rehearses the additive migration, production
-V3 is built verified but inactive, shadow execution continues serving V2, and
-an exact Agent allowlist plus projection hash gates canary service. This path
-does not require duplicate Slack, Granola, model, or Vercel bindings, does not
-permit external-user traffic, and does not weaken the generic isolation
-contract. Invalid mode, projection, allowlist, or candidate execution falls
-back to V2. Database projection activation separately requires a persisted
-qualification receipt.
-Runtime readiness is a separate gate: the Core-resolved
-subject and groups must pass policy intersection before retrieval, graph
-traversal, review hydration, citations, or model context. Unknown mappings and
-quarantine fail closed.
+::: implementation-example
+
+The current manifest is `companyos-postgres@3.0.0`. It preserves the immutable
+historical `2.0.0` identity and qualifies 15 required control/Workflow tables
+and 11 Records tables. Existing Builder, repository and conversation
+state remains intact. Qualification receipt version 2 contains no Knowledge
+schema, taxonomy or vector feature. Preparation neither creates nor deletes
+Knowledge state; the [retirement procedure](../workbench/guides/retire-knowledge.md)
+removes that schema only after the replacement runtime is ready and old writers
+are stopped. General authorization and effect controls remain unchanged.
+
+See the [maintained implementation](../workbench/guides/retire-knowledge.md).
+
+:::
 
 Every release records at least the Instance ID, environment, Core version and
 commit, Workspace version and commit, deployment ID, specification version,
@@ -438,16 +415,8 @@ retain native provider behavior. Instance
 configuration chooses this behavior; Agent Skills and communication adapters do
 not implement caches. Cache reads/writes are content-free execution evidence,
 aggregated across Tool steps, and do not grant access or replace context storage.
-See [model operation](../workbench/guides/operate-knowledge-provider.md#agent-prompt-caching)
+See [model operation](../operations/model-prompt-caching.md)
 for exact route support and rollback.
-
-`COMPANYOS_KNOWLEDGE_MODEL_CONFIG_BASE64` accepts the same provider-neutral
-shape and overrides the shared bindings only for registered Knowledge prompts.
-This permits retained evidence to use a direct provider without changing the
-interactive Agent. The maintained setup preset pins utility, reasoning, and
-deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus
-4.7. Embeddings and cross-encoder reranking remain separately configured
-capabilities.
 
 ::: implementation-example
 
@@ -500,7 +469,7 @@ Webhook and scheduled execution enter the same provider-neutral module path.
 
 The maintained records foundation uses an additive `companyos_records` schema
 inside the existing Company Instance database. It is isolated from the
-`companyos` and `companyos_knowledge` schemas and contains immutable source
+`companyos` control schema and contains immutable source
 events and object versions, current pointers, rebuildable projection rows,
 access decisions, synchronization receipts and watermarks, leases, durable
 timers, Connector echo receipts, and callback replay claims. The schema is
@@ -625,7 +594,7 @@ relations from version `1.8.0` and Sprint orchestration relations from version
 `1.9.0`, plus generic workflow control state from `2.0.0`. Production migration remains an
 explicit exact-plan Instance effect; deploying Core alone does not apply it.
 Database qualification and `/api/health` then prove the exact records table and
-index set along with the control and knowledge schemas.
+index set along with the control schema.
 
 The maintained Vercel Runner hosts the reusable Sprint orchestration library.
 An authenticated operator action may inspect or open one compiled Sprint from
@@ -712,29 +681,12 @@ external checks. Only deployment and runtime evidence can establish
 readiness for unattended execution is evaluated against the stricter workflow
 and effect requirements instead of inferred from a global profile.
 
-## Knowledge state in the Company Instance database
+## Handbook and retained state
 
-Company Knowledge V1 does not create a second database. The existing
-`DATABASE_URL` contains `companyos` for control state and
-`companyos_knowledge` for snapshots, documents, fragments, lexical/graph and
-optional vector projections, index receipts, review candidates, source
-bindings/receipts/object versions/inventory, and Runtime Observation lifecycle
-evidence. Its inactive Brain foundation additionally owns versioned Pages,
-Claims, Holders, entity identity, ACL records, raw assets, timelines, sourced
-and inferred edges, syntheses, promotion and decision evidence, sessions,
-extraction runs, cursors, calibration, merge, and export ledgers. Every query
-qualifies its schema. Source bindings persist SecretRefs, never resolved
-credentials.
-
-A bundle is staged idempotently by hash, verified against stored counts, and
-only then activated. Exactly one verified snapshot is active. Documents,
-fragments, graph edges, lexical indexes, and embeddings are rebuildable
-projections; review decisions, source receipts and versions, observation
-events, deletion requests, legal holds, and activation receipts are durable
-Instance evidence. Rollback explicitly reactivates a prior verified snapshot.
-`pgvector` creation is optional and its absence keeps lexical retrieval active
-with a recorded degradation.
-
+Handbook Markdown belongs to the Workspace and enters each Agent's compiled
+materials only through its existing read scope. No database snapshot or search
+service is required. Control, Builder, Records and Workflow state retain their
+own contracts and qualification. Shared model and provider bindings remain.
 
 ## Generic workflow hosting
 
@@ -756,3 +708,11 @@ separate from source completeness, real human acceptance and production readines
 
 See [Hosted Workflow Engine Operations](../operations/workflow-engine.md) for
 configuration, recovery, existing-app test ingress and rollout limitations.
+
+
+### Retained Granola integration
+
+The existing Granola connection and SecretRefs survive Knowledge retirement.
+Core retains the provider client independently of Brain storage; no replacement
+consumer or background import is activated. See
+[Preserve Granola](../workbench/guides/retain-granola.md) for the exact boundary.
