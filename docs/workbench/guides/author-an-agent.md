@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -51,7 +51,7 @@ existing model configuration. Resolution uses the task binding, then the Agent
 profile, then the Instance default and existing environment/default rules.
 Omitting the declaration preserves existing routing. A malformed declaration
 fails compilation. An explicit Agent task takes precedence over automatic
-model-task routing; required knowledge Tools and answer checks still apply.
+model-task routing; ordinary Tool grants and effect approvals still apply.
 
 Before human testing, compare the effective model and route with the intended
 Instance binding. Retain the selected task and actual response-model evidence.
@@ -93,9 +93,9 @@ Use a short discussion draft for new multi-step work before a workflow or job
 exists. Confirmed Builder jobs replace that reference; the job store retains
 its status. "Discuss first; do not create a card" still warrants an internal
 discussion reference, which carries no external effect or approval.
-Finished drafts can close. Ordinary knowledge questions create no
-draft. Company Knowledge search is selected from meaning or by an Agent Tool
-call, not a keyword list; successful source evidence is still checked.
+Finished drafts can close. Ordinary questions create no draft. Agents use their
+scoped Workspace materials and explicitly granted Tools. Handbook content stays
+in ordinary Markdown files; Core provides no separate Knowledge search.
 
 The shared runtime uses opaque communication addresses and an injected verified
 work source. The maintained chat host retrieves only the current channel's
