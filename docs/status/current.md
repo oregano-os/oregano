@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,15 @@ audience:
 ---
 
 # Current System Status
+
+Core 0.13.0 adds the explicitly scoped `evidence.query` contract over existing
+stores, opt-in bounded current work-item comments, attributable report feedback
+and authenticated model-independent workflow health. The implementation and
+compiler/engine tests are complete. Per-Instance current-source access, hosted
+review execution and actual delivery still require qualification before claiming
+production readiness. Business metrics and notification relevance remain in the
+Workspace. The database manifest remains 2.1.0; adoption requires an exact new
+Core/Workspace pairing, without a schema migration.
 
 Core 0.12.0 integrates declared Workflow Engine execution, shared conversation
 coordination, selective participation and the maintained Builder. It retires
