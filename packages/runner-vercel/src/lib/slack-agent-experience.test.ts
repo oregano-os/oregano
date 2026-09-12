@@ -90,6 +90,42 @@ test("only explicit approval and confirmation Tool outputs require suspended Age
   assert.equal(toolResultNeedsHumanInput(null), false);
 });
 
+test("validated streams preserve Unicode at chunk boundaries through the actual adapter", async t => {
+  const adapter = createSlackAdapter({ botToken: "synthetic", signingSecret: "synthetic", agentView: true });
+  const requests: string[] = [];
+  const transport = (adapter as any)._client;
+  t.mock.method(adapter as any, "resolveOutgoingMentions", async (text: string) => text);
+  t.mock.method(transport, "chatStream", () => ({
+    append: async (args: { markdown_text?: string }) => {
+      if (args.markdown_text) requests.push(args.markdown_text);
+      return { ok: true, ts: "1893492001.000001" };
+    },
+    stop: async () => ({ ok: true, ts: "1893492001.000001" }),
+  }));
+  for (const icon of ["📊", "🔴", "🟡", "👩🏽‍💻", "𠮷"]) {
+    for (const offset of [318, 319, 320, 638, 639, 640]) {
+      const prefix = "Review this draft:\n\n```text\n";
+      const response = prefix + "x".repeat(offset - prefix.length) + icon + " result\n```\n\nIs this correct?";
+      requests.length = 0;
+      const plan = validatedSlackResponsePlan(response);
+      const stream = (async function* () {
+        for await (const chunk of plan.getPostData().stream) {
+          if (typeof chunk === "string") yield chunk;
+          else if (chunk.type === "markdown_text" && "text" in chunk && typeof chunk.text === "string")
+            yield { type: "markdown_text" as const, text: chunk.text };
+          else assert.fail("A validated response must contain only text chunks");
+        }
+      })();
+      await adapter.stream("slack:D12345:1893492000.000001", stream);
+      assert.equal(requests.join(""), response);
+      for (const request of requests) {
+        assert.equal(Buffer.from(request, "utf8").toString("utf8"), request,
+          `Every provider request must be valid Unicode: ${icon} at ${offset}`);
+      }
+    }
+  }
+});
+
 test("Tool progress is presentation-only and provider failures remain best effort", async () => {
   let posts = 0;
   const reporter = createSlackToolProgressReporter({

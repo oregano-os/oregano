@@ -1710,3 +1710,13 @@ Tool-delivery branches, errors and cancellation. Shared multi-Agent work
 selection, source-message forwarding and delegation remain unchanged. Synthetic
 regressions qualify these contracts; live deployment and human chat acceptance
 must be recorded separately for each pinned Instance pair.
+
+### Unicode response streaming correction — September 12, 2026
+
+Validated response chunks now preserve Unicode code points at every provider
+request boundary. A UTF-16 slice could previously split an emoji into invalid
+strings even though joining the chunks locally reproduced the original text.
+Synthetic regressions exercise the actual maintained chat adapter with fenced
+drafts and supplementary characters around chunk boundaries. Conversation
+selection, collection, approval and working-status lifecycle are unchanged;
+native client rendering still requires a live acceptance check.
