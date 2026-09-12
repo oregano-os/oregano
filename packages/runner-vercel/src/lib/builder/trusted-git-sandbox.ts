@@ -1,3 +1,4 @@
+import { validateRecordsBuildInputs, type RecordsBuildInputs } from "../../../../companyos-builder/records-build-input.ts";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -167,9 +168,10 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
 
   async compileArtifact(request: {
     operationId: string; sourceBundlePath: string; workspaceCommit: string;
-    coreCommit: string; instanceId: string; configurationDigest: string;
+    coreCommit: string; instanceId: string; configurationDigest: string; recordsBuildInputs?: RecordsBuildInputs;
   }): Promise<{ artifact: CompanyOSArtifact }> {
     assertOperationId(request.operationId);
+    validateRecordsBuildInputs(request.recordsBuildInputs ?? {});
     if (!/^[a-f0-9]{64}$/.test(request.configurationDigest)) throw new Error("Production build requires the accepted Instance configuration digest.");
     assertCommit(request.workspaceCommit); assertCommit(request.coreCommit);
     assertTrustedGitBundlePath(request.sourceBundlePath, "Production build bundle");
@@ -181,7 +183,7 @@ export class VercelSandboxTrustedGitExecutionAdapter implements TrustedGitExecut
       await sandbox.writeFiles([
         { path: SOURCE_BUNDLE_PATH, content: bundle, mode: 0o600 },
         { path: `${INPUT_ROOT}/build.json`, content: JSON.stringify({ coreCommit: request.coreCommit,
-          workspaceCommit: request.workspaceCommit, instanceId: request.instanceId, configurationDigest: request.configurationDigest }), mode: 0o600 },
+          workspaceCommit: request.workspaceCommit, instanceId: request.instanceId, configurationDigest: request.configurationDigest, ...(request.recordsBuildInputs ? { recordsBuildInputs: request.recordsBuildInputs } : {}) }), mode: 0o600 },
       ]);
       await requireSuccess(await sandbox.runCommand({ cmd: "git", args: ["clone", "--no-checkout", SOURCE_BUNDLE_PATH, WORKSPACE_PATH], timeoutMs: 60000 }), "Production source checkout");
       await runGit(sandbox, ["checkout", "--detach", request.workspaceCommit]);

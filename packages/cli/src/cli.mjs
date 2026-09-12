@@ -288,10 +288,16 @@ try {
       throw new Error("CompanyOS build requires clean Core and Workspace checkouts so the recorded SHA pair is reproducible.");
     }
     const selectedInstance = resolveWorkspaceInstanceConfiguration(target);
+    const recordsIndex = args.indexOf("--records-build-inputs");
+    if (recordsIndex >= 0 && (!args[recordsIndex + 1] || args[recordsIndex + 1].startsWith("--"))) throw new Error("--records-build-inputs requires a file.");
+    const recordsPath = recordsIndex < 0 ? undefined : resolve(args[recordsIndex + 1]);
+    if (recordsPath && statSync(recordsPath).size > 2_000_000) throw new Error("Records build input file exceeds 2 MB.");
+    const recordsBuildInputs = recordsPath ? JSON.parse(readFileSync(recordsPath, "utf8")) : undefined;
     git(target, "ls-files", "--error-unmatch", WORKSPACE_INSTANCE_PATH);
     const artifact = buildCompanyOSArtifact({
       workspaceRoot: target,
       instance: selectedInstance.configuration,
+      recordsBuildInputs,
       coreVersion: CORE_VERSION,
       coreCommit,
       workspaceCommit,

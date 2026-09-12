@@ -1,3 +1,4 @@
+import { retainedRecordsBuildInputs } from "../../../../companyos-builder/records-build-input.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -160,7 +161,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
       if (!source.transfer) throw new Error("Test compilation requires the credential-free source bundle.");
       const { artifact: compiled } = await compiler.compileArtifact({ operationId: `${job.jobId}:test`,
         sourceBundlePath: source.transfer.path, workspaceCommit: proposal.proposalCommit, coreCommit: artifact.provenance.coreCommit,
-        instanceId: job.instanceId, configurationDigest: this.configurationDigest });
+        instanceId: job.instanceId, configurationDigest: this.configurationDigest, recordsBuildInputs: retainedRecordsBuildInputs(artifact) });
       const { artifactHash, ...content } = compiled;
       if (sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } }) !== artifactHash
         || compiled.provenance.workspaceCommit !== proposal.proposalCommit || compiled.provenance.coreCommit !== artifact.provenance.coreCommit
@@ -187,7 +188,7 @@ export class HostedBuilderReleaseAdapter implements ReleaseExecutionAdapter {
         if (!source.transfer) throw new Error("Hosted release requires a credential-free source bundle.");
         const { artifact: compiled } = await compiler.compileArtifact({ operationId: context.operationId, sourceBundlePath: source.transfer.path,
           workspaceCommit: context.merge.mergedCommit, coreCommit: context.candidate.coreCommit,
-          instanceId: context.candidate.instanceId, configurationDigest: this.configurationDigest });
+          instanceId: context.candidate.instanceId, configurationDigest: this.configurationDigest, recordsBuildInputs: retainedRecordsBuildInputs(artifact) });
         const { artifactHash, ...content } = compiled;
         if (sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } }) !== artifactHash
           || compiled.provenance.workspaceCommit !== context.merge.mergedCommit || compiled.provenance.coreCommit !== context.candidate.coreCommit

@@ -770,3 +770,12 @@ original-message evidence and an unchanged live target. Numbering is immutable
 across retries; the first selection is atomic and later replies cannot switch
 target. Only the original message enters the selected collection, and ordinary
 decision validation remains separate. Selection expires after one day.
+
+### Digest-pinned Records build admission
+
+An Instance may pin an external non-secret Records template by digest. The trusted
+compiler accepts only that template and binds Core/Workspace identities from its
+verified build request. Existing Artifact snapshots retain the resulting complete
+configuration for historical runs. Subsequent Builder builds reuse the retained
+template; they cannot change its content or discover provider scope. This does
+not replace source qualification, effect approval or fresh synchronization.

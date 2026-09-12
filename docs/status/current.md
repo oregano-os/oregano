@@ -1264,3 +1264,16 @@ not establish incoming communication delivery or company acceptance.
 See the [maintained host profile](../operations/maintained-host-profile.md).
 
 :::
+
+## Records snapshot compilation
+
+The compiler supports digest-pinned, non-secret Records build templates and binds
+the exact Core/Workspace identities into existing Artifact snapshots. The CLI and
+isolated Builder compiler share this path; later Builder releases reuse retained
+inputs. Synthetic tests cover altered/missing inputs, identity binding, credential
+rejection and historical snapshot preservation. A deployment still requires
+explicit Instance adoption and a verified fresh source scan.
+
+Core 0.15.0 and Workbench experimental.23 introduce this opt-in build-input
+contract. Existing literal snapshots and environment references remain compatible;
+no database manifest change is required.

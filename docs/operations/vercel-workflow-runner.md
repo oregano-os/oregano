@@ -811,3 +811,14 @@ selection service supports other verified communication adapters; Slack supplies
 only provider identity, message proof, links and existing key/value persistence.
 Selection is never a decision approval. Existing link-only notices are not
 silently reconstructed as authenticated choice snapshots.
+
+### Compile an externally retained Records admission
+
+Do not put a containing Workspace commit SHA or provider receipt into its own
+tracked Instance file. Use the digest-pinned `configuration_snapshot_input`
+form described in the Instance reference and supply its approved input map to
+the trusted build. The result must contain a full exact-identity
+`configuration_snapshot`; the Runner does not resolve build inputs at runtime.
+Verify this before activation, then verify a fresh complete provider scan before
+opening a review. The same immutable input is carried through later Builder
+compilations; a changed admission needs renewed Instance review.

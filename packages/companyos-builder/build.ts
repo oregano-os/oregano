@@ -1,3 +1,4 @@
+import { compileRecordsBuildInputs, type RecordsBuildInputs } from "./records-build-input.ts";
 import { CORE_CAPABILITY_CATALOG } from "../capabilities/catalog.ts";
 import { assertValidJsonSchema } from "../capabilities/validation.ts";
 import { sha256 } from "../runtime/canonical.ts";
@@ -23,6 +24,7 @@ export function buildCompanyOSArtifact(args: {
   workspaceCommit: string;
   workbenchVersion: string;
   builtAt?: string;
+  recordsBuildInputs?: RecordsBuildInputs;
 }): CompanyOSArtifact {
   args = { ...args, instance: structuredClone(args.instance) };
   if (Object.hasOwn(args.instance, "sprintRuntimes")) throw new Error("Retired sprintRuntimes configuration: migrate to declared workflows and workflowBindings.");
@@ -98,7 +100,7 @@ export function buildCompanyOSArtifact(args: {
     },
     capabilityCatalog: [...CORE_CAPABILITY_CATALOG],
     bindings: [...args.instance.bindings].sort((a, b) => a.capability.localeCompare(b.capability)),
-    connectors: [...(args.instance.connectors ?? [])].sort((a, b) => a.id.localeCompare(b.id)),
+    connectors: compileRecordsBuildInputs(args.instance.connectors ?? [], args.recordsBuildInputs ?? {}, { instanceId: args.instance.instanceId, coreCommit: args.coreCommit, coreVersion, workspaceCommit: args.workspaceCommit, workbenchVersion }).sort((a, b) => a.id.localeCompare(b.id)),
     roster: workspace.roster,
     agents,
     agentRouting,
