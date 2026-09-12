@@ -395,3 +395,37 @@ work identity, permissions or conversation storage is replaced.
 Qualify early candidate rejection followed by a corrected answer in the same
 thread, private delivery recovery, model dialogue and status cleanup separately.
 A synthetic engine or model test does not establish live provider acceptance.
+
+## Wait for a complete current inventory
+
+The standard Records query can wait when no matching complete source scan exists
+yet, or its start precedes the requested `require_scan_started_after`. The
+maintained Records service raises a typed pending-read signal; Company Tool text
+cannot request retries. The Runtime preserves that signal across its isolated
+Tool boundary only for `oregano:records/query`.
+
+The engine retains the prepared input, original logical instant and scan deadline.
+It schedules the same read through a durable `records` wait every 30 seconds,
+for at most 15 minutes from step preparation. Timer repair after a host restart
+restores a missing timer. Completion continues the original run without an
+operator resume. The independent Records worker must still synchronize the exact
+configured source; waiting does not start another source or relax its scope.
+
+Authorization, malformed inventory, ordinary provider errors and unknown effect
+outcomes remain blocked. Exhausting the wait also blocks for inspection without
+substituting stale rows. Effects are not automatically retried by this mechanism.
+Before downgrading to a runtime that predates `records` waits, drain those waits
+on the newer runtime; immutable old artifacts and completed runs are unchanged.
+
+## Inspect a deduplicated child from a scanner
+
+The existing `start` step returns `run_id`, `status`, `blocked` and
+`succeeded_steps` for the child at the time of selection. Repeated starts with
+the same workflow and opening fields reuse the same child, including terminal
+children. No message bodies or child outputs are copied to the parent.
+
+Workspace policy interprets that snapshot. A `done` child can have ended through
+a rejection or skip branch, so successful business completion may additionally
+require a particular verification step in `succeeded_steps`. A scanner never
+reopens a rejected or cancelled child merely by starting it again. The child
+keeps its original conversation, pinned artifact, approvals and receipts.

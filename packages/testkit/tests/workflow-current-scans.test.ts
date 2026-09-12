@@ -9,8 +9,79 @@ import { completedVerificationFixture } from "../fixtures/workflow-verification-
 import { verifyCompletedWorkflow } from "../../runtime/workflow-engine/verification.ts";
 import { validateWorkflowFiles } from "../../companyos-builder/workflow-authoring.ts";
 import { readWorkspaceFiles, workspaceDocument } from "../../companyos-builder/workspace-files.ts";
+import { RecordScanPendingError } from "../../records/current-scan.ts";
+import { CapabilityEffectOutcomeUnknownError } from "../../capabilities/contracts.ts";
+import { sha256 } from "../../runtime/canonical.ts";
 
 const closePath = "workflows/friday-close.compact.md";
+async function pendingFixture(root: string, error?: Error) {
+  const path = join(root, closePath), { data } = workspaceDocument(readWorkspaceFiles(root), closePath);
+  data.steps = [{ inventory: "oregano:records/query", input: { projection_id: "sprint-work-items" }, all_pages: true, require_scan_started_after: "$trigger.instant" }];
+  writeFileSync(path, `---\n${YAML.stringify(data)}---\n# Pending inventory\n\n1. [sprint, R0] Read the complete inventory. <!-- step:inventory -->\n`);
+  let ready = false;
+  const h = engineFixture({ artifact: engineArtifact("pending-scan", root), recordsConnector: {
+    id: "test/engine", version: "1.0.0", capabilities: ["records.query"], async invoke(_, raw) {
+      const input = raw as Record<string, string>;
+      if (!ready) throw error ?? new RecordScanPendingError(input.projection_id!, input.require_scan_started_after!, "A complete current scan is pending");
+      const rows: [] = [], digest = sha256(rows);
+      return { output: { projection_id: input.projection_id!, rows, observed_at: h.now, fresh_until: h.now,
+        snapshot_id: digest, scan_started_at: input.require_scan_started_after!, source_proofs: [],
+        source_scan_proofs: [{ source_id: "synthetic", source_digest: digest, run_id: "synthetic-sync",
+          scan_started_at: input.require_scan_started_after!, scan_completed_at: h.now, inventory_digest: digest, watermark: "synthetic" }],
+        access_decision: { allowed: true, projection_id: input.projection_id!, principal_id: ENGINE_OPERATOR, policy_digest: "synthetic", reason: "role-allowed", decided_at: h.now },
+      }, evidence: { synthetic: true } };
+    },
+  } });
+  const opened = await h.engine().openOperator({ workflowId: "friday-close", requestId: "pending-scan", principal: ENGINE_OPERATOR, fields: { sprint_id: "one", next_sprint_id: "two" } });
+  return { h, opened, ready: () => { ready = true; } };
+}
+
+test("pending complete scans survive restart and timer repair, preserving the original read exactly once", async () => withCurrentWorkspace(async root => {
+  const { h, opened, ready } = await pendingFixture(root);
+  let run = (await h.engine().advance(opened.runId))!;
+  assert.equal(run.state.blocked, undefined); assert.equal(run.state.wait?.kind, "records");
+  const input = structuredClone(h.calls[0]!.input), digest = run.state.steps.inventory!.inputDigest;
+  assert.equal(h.calls.length, 1);
+  // Simulate the host losing the schedule write after the durable run commit.
+  (h.timerStore as any).rows.clear();
+  await h.engine().repairTimers();
+  h.now = run.state.wait!.dueAt;
+  assert.equal((await h.engine().timers()).completed, 1);
+  run = (await h.engine().advance(opened.runId))!;
+  assert.equal(run.state.wait?.kind, "records");
+  assert.deepEqual(h.calls[1]!.input, input);
+  ready(); h.now = run.state.wait!.dueAt;
+  await h.engine().timers(); run = (await h.engine().advance(opened.runId))!;
+  assert.equal(run.state.status, "done"); assert.equal(run.state.logicalInstant, opened.state.logicalInstant);
+  assert.equal(run.state.steps.inventory!.inputDigest, digest);
+  assert.deepEqual(h.calls[2]!.input, input);
+  await h.engine().timers(); await h.engine().advance(opened.runId);
+  assert.equal(h.calls.length, 3, "duplicate ticks do not repeat the successful read");
+  assert.ok(h.calls.every(call => call.capability === "records.query"), "waiting never dispatches a provider effect");
+}));
+
+test("pending complete scans stop after a bounded wait without inventing evidence", async () => withCurrentWorkspace(async root => {
+  const { h, opened } = await pendingFixture(root);
+  await h.engine().advance(opened.runId);
+  h.now = "2030-01-04T14:45:00.000Z";
+  await h.engine().timers();
+  const run = (await h.engine().advance(opened.runId))!;
+  assert.equal(run.state.blocked?.code, "step-failed"); assert.equal(run.state.wait, undefined);
+  assert.equal(run.state.steps.inventory!.output, undefined);
+}));
+
+for (const error of [
+  new Error("A complete current scan is pending"),
+  new Error("Reader cannot access this projection"),
+  new Error("Current scan immutable inventory membership is incomplete"),
+  new CapabilityEffectOutcomeUnknownError("Provider outcome requires review", { synthetic: true }),
+]) test("only the trusted pending-read class is retryable: " + error.message, async () => withCurrentWorkspace(async root => {
+  const { h, opened } = await pendingFixture(root, error);
+  const run = (await h.engine().advance(opened.runId))!;
+  assert.ok(run.state.blocked); assert.equal(run.state.wait, undefined);
+  h.now = "2030-01-04T14:31:00.000Z"; await h.engine().timers(); await h.engine().advance(opened.runId);
+  assert.equal(h.calls.length, 1);
+}));
 async function withCurrentWorkspace<T>(run: (root: string) => Promise<T>): Promise<T> {
   const root = mkdtempSync(join(tmpdir(), "workflow-current-scan-"));
   try {

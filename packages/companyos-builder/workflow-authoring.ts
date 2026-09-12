@@ -254,7 +254,10 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         } else err(f, `${s.id}: records.query projection_id must be a literal or a $config path to a projection id`);
         outputOf.set(s.id, output);
       } else if (schemas) outputOf.set(s.id, schemas.output);
-      else if (s.tool === "start") outputOf.set(s.id, { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } } });
+      else if (s.tool === "start") outputOf.set(s.id, { type: "object", required: ["run_id", "status", "blocked", "succeeded_steps"], properties: {
+        run_id: { type: "string" }, status: { type: "string", enum: ["running", "waiting", "done", "cancelled", "failed"] }, blocked: { type: "boolean" },
+        succeeded_steps: { type: "array", items: { type: "string" } },
+      } });
       else if (s.tool === "collect") outputOf.set(s.id, { type: "object", additionalProperties: false, required: s.fields, properties: Object.fromEntries((s.fields ?? []).map((field: string) => [field, { type: "string", minLength: 1, maxLength: 4000 }])) });
       else if (s.tool === "wait") outputOf.set(s.id, { type: "object", required: ["instant"], properties: { instant: { type: "string", format: "date-time" } } });
       else if (s.tool === "route") outputOf.set(s.id, { type: "object", properties: {} });

@@ -11,6 +11,7 @@ import type { StateStore } from "../state-store/interface.ts";
 import { authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "../state-store/roster.ts";
 import { executeIsolatedCompanyTool } from "../tool-sdk/isolated-runner.ts";
 import { LANGUAGE_TOOL_TIMEOUT_MS } from "../language/contracts.ts";
+import { RecordScanPendingError } from "../records/current-scan.ts";
 
 export interface ExecuteToolRequest {
   runId: string;
@@ -251,6 +252,9 @@ export class CompanyOSRuntime {
     const approvingPrincipal = guard ? authorizeWorkflowDecisions(guard, request.input, risk as RiskLevel, new Date(Math.max(Date.now(), Date.parse(guard.context.dispatchFence?.now ?? new Date().toISOString())))) : request.approvingPrincipal;
     const capabilityEvidence: Record<string, unknown>[] = [];
     const unknownCapabilityEffects: unknown[] = [];
+    // Retain the trusted host error across the Tool subprocess's text-only IPC.
+    // Company Tool errors and messages cannot opt themselves into automatic retry.
+    let pendingScan: RecordScanPendingError | undefined;
     const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal, guard?.context.currentRoster ?? this.#roster);
     const invoke = async () => {
       try {
@@ -284,10 +288,13 @@ export class CompanyOSRuntime {
               return result.output;
             } catch (error) {
               if (error instanceof CapabilityEffectOutcomeUnknownError) unknownCapabilityEffects.push(error.evidence);
+              if (error instanceof RecordScanPendingError && capability === "records.query"
+                && tool.contract.runtimeId === "oregano:records/query") pendingScan = error;
               throw error;
             }
           },
         });
+        if (pendingScan) throw pendingScan;
         const outputErrors = validateJsonSchemaValue(tool.contract.outputSchema, output);
         if (outputErrors.length > 0) throw new Error(`Invalid Tool output: ${outputErrors.join("; ")}`);
         return { output, capabilityEvidence, ...(guard ? { workflow: guard.evidence } : {}) };
@@ -299,7 +306,7 @@ export class CompanyOSRuntime {
             { capability_effects: structuredClone([...successfulEffects, ...unknownCapabilityEffects]), ...(guard ? { workflow: guard.evidence } : {}) },
           );
         }
-        throw error;
+        throw pendingScan ?? error;
       }
     };
 
