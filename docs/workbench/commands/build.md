@@ -61,3 +61,14 @@ content-addressed workflow manifests with exact resolved Tools, literal config,
 Skill templates, calendars and execution constraints. Compilation does not yet
 provide the pending generic runtime guard or durable engine. See the
 [workflow contract](../../specifications/workflow-execution-v1-draft.md).
+
+## Non-secret Records build inputs
+
+`--records-build-inputs <file>` supplies a JSON object keyed by the SHA-256
+digests declared as `configuration_snapshot_input` in the tracked Instance.
+Values are non-secret Records templates produced by `recordsBuildTemplate`.
+The compiler checks the digest, explicit identity placeholders, Instance identity,
+credential exclusion and a 2 MB total size bound before constructing snapshots.
+Keep this file outside Git because it can contain provider qualification receipts.
+The output Artifact retains the complete resolved snapshot and exact build pair.
+Missing or changed inputs fail; there is no environment fallback.

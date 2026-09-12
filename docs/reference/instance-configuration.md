@@ -193,3 +193,27 @@ Builder declaration alongside execution, coding-agent and repository bindings.
 New test threads select a candidate per Instance and authenticated user; exact
 communication destinations still come from `builder.test_resources` and the
 corresponding Connector configuration. No additional app or Preview is required.
+
+## Immutable Records build inputs
+
+Hosted workflows require a retained Records configuration snapshot. A tracked
+Instance may declare `configuration_snapshot_input: <sha256>` as the only
+configuration key of its `oregano/company-records` Connector. This digest pins
+a separately supplied, non-secret Records build template. Provider qualification
+receipts stay outside Git. The template retains source declarations, bindings,
+qualifications, source confirmations and roster content; it contains only
+SecretRefs, never credentials.
+
+`recordsBuildTemplate` replaces only Core ref/version, Workbench version and
+Workspace ref with explicit `$build.*` identity placeholders. The trusted
+compiler validates the input digest and Instance identity, substitutes its exact
+accepted build identities and writes the full `configuration_snapshot` into
+the immutable Artifact. The Instance configuration digest continues to identify
+the original tracked declaration. No caller may substitute different source
+content under the same digest. Qualification and fresh reads remain separate.
+
+The CLI accepts the digest-keyed input map via `--records-build-inputs <file>`.
+Later governed Builder compilations reconstruct the same approved templates from
+the running Artifact's retained snapshots and pass them to the isolated compiler.
+They do not read mutable deployment configuration or discover new provider access.
+Changing the pinned input requires the existing Instance review and adoption path.

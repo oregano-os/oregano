@@ -1,0 +1,54 @@
+version: 3
+plan_id: records-build-admission-2026-09-12
+created: 2026-09-12
+title: Compile approved Records evidence without self-referential Git pins
+objective: Release Core 0.15.0 and Workbench experimental.23 for the new canonical Records build-input contract. Let the canonical Instance declaration pin a non-secret Records build input by digest. Resolve exact build identities into the existing immutable Artifact snapshot, keeping provider receipts outside Git and preserving the same admission in later Builder releases.
+non_goals:
+  - Add provider access, invent qualification, change business semantics or mutate the database schema.
+  - Accept ambient unpinned configuration or weaken historical Artifact identity checks.
+placement: core
+change_class: security
+files_expected:
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - package.json
+  - packages/cli/package.json
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - .oregano/changes/2026-09-12-records-build-admission.yaml
+  - packages/companyos-builder/records-build-input.ts
+  - packages/companyos-builder/build.ts
+  - packages/cli/src/cli.mjs
+  - packages/runtime/builder/build-artifact-worker.ts
+  - packages/runner-vercel/src/lib/builder/trusted-git-sandbox.ts
+  - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
+  - packages/testkit/tests/records-build-input.test.ts
+  - docs/reference/instance-configuration.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/workbench/commands/build.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/records-build-input.test.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/testkit/tests/workflow-connector-selection.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [reference.instance-configuration, operations.vercel-workflow-runner, command.build, specification.workflow-execution-v1, status.current]
+architecture:
+  placement:
+    core: Extend the existing trusted compiler with digest-pinned non-secret Records inputs and deterministic build-identity binding.
+    packages: Preserve connector and Artifact snapshot contracts; no new provider adapter.
+    workspace: Pin the approved input digest in the canonical Instance file; continue to own source semantics.
+    instance: Supply existing qualified admission evidence outside Git; retain full resolved snapshots in existing Artifacts.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company using hosted Records workflows needs a reproducible snapshot without its containing Git commit referring to itself.
+rollback: Keep affected workflows disabled and use the preceding compatible deployment. Preserve records and run evidence. No schema migration or provider writes.
+open_decisions: []
