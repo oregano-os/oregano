@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -95,20 +95,17 @@ See the [maintained host profile](../../operations/maintained-host-profile.md).
 
 :::
 
-The current Core target receipt identifies additive manifest
-`companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14
-required Record Source and Sprint tables. The linked
-`oregano-hq-companyos` Instance last applied predecessor `1.6.0` and passed a separate
-read-only verification on 2026-08-27 with digest
-`b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`;
-vector availability brings that predecessor's observed Knowledge table count
-to 63. Manifest `1.7.0` with its second optional Retrieval-Unit vector table is
-not implied by that historical receipt. Another Instance remains on its exact
-older manifest until `database prepare` records an additive upgrade and a
-separate read-only verification. This is schema evidence, not authorization
-evidence.
-`verify-live` for the Tool-free starter does not enable sensitive Sources or
-Agent-facing Brain retrieval.
+The current Core target uses database manifest 3.0.0. Health verifies the
+required control and Company Records tables without creating schemas or
+running migrations. Existing historical tables and shared extensions may remain.
+Knowledge is not required for a valid current receipt.
+
+An older Instance stays on its recorded manifest until explicit database
+preparation and deployment establish the new target. Preparation preserves
+existing data. Retiring an obsolete Knowledge schema is a separate authorized
+step after the old runtime and source jobs stop; follow
+[Retire Knowledge](../guides/retire-knowledge.md). Starter verification does not
+authorize provider access or enable business Tools.
 
 ::: implementation-example
 

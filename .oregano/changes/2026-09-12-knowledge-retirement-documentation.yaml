@@ -1,0 +1,40 @@
+version: 3
+plan_id: knowledge-retirement-documentation-2026-09-12
+created: 2026-09-12
+title: Complete active documentation alignment after Knowledge retirement
+objective: Correct three remaining descriptions of removed Knowledge search, cost accounting and database requirements, and regenerate the distributed Agent guide.
+non_goals:
+  - Change runtime behavior, compatibility versions, provider configuration or a Company Workspace.
+  - Rewrite frozen historical Knowledge documentation.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-knowledge-retirement-documentation.yaml
+  - docs/operations/model-prompt-caching.md
+  - docs/workbench/guides/author-an-agent.md
+  - docs/workbench/commands/verify-live.md
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - packages/cli/content/guides/author-an-agent.md
+tests:
+  - packages/cli/tests/docs-scope.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.model-prompt-caching
+    - guide.author-agent
+    - command.verify-live
+architecture:
+  placement:
+    core: Align active documentation with the already released retirement behavior.
+    packages: Regenerate the bundled Workbench guide from its canonical source.
+    workspace: Preserve Handbook Markdown, existing Tool grants and operating authority.
+    instance: Describe read-only health qualification separately from authorized schema retirement.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: These corrections describe generic released behavior and add no company-specific operating rules.
+rollback: Revert only this documentation correction; deployed runtime versions and Instance state remain unchanged.
