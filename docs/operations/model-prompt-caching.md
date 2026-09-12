@@ -7,7 +7,7 @@ authority: canonical
 language: en
 implementation_scope: provider
 providers: [anthropic, openai, vercel]
-updated: 2026-09-10
+updated: 2026-09-12
 owners: [oregano-maintainers]
 audience: [human, agent]
 availability: experimental
@@ -59,8 +59,8 @@ Tool-loop usage is summed across steps, including streamed calls. These are
 provider usage facts, not claimed discounts or stored prompt text. Qualify
 reuse with repeated real calls inside the provider lifetime and compare cache
 reads/writes; a mocked SDK response proves transport wiring, not a cache hit.
-This does not change separate Knowledge cost estimates or CLI-managed coding
-sessions. Restore `provider-default` on the selected binding for rollback.
+This does not change CLI-managed coding sessions. Restore `provider-default`
+on the selected binding for rollback.
 
 Provider references: [Anthropic prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
 and [OpenAI prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
