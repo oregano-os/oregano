@@ -1,0 +1,50 @@
+version: 3
+plan_id: collection-conversation-continuity-2026-09-12
+created: 2026-09-12
+title: Preserve conversation continuity across collection steps
+objective: Keep incomplete collection in conversation and route replies to the current delivered collection of the same verified workflow, with an explicit destination acknowledgement.
+non_goals:
+  - Change identity, work authorization, or effect approval rules.
+  - Add fuzzy matching, another routing mechanism, or company-specific behavior.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-collection-conversation-continuity.yaml
+  - packages/runtime/workflow-engine/collection.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-presentation.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-collection-presentation.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/companyos-core-v0.7-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-channel-replies.test.ts
+  - packages/testkit/tests/workflow-collection-presentation.test.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.companyos-core-v0.7, operations.workflow-engine, status.current]
+architecture:
+  placement:
+    core: Generic collection completion semantics and current-step delivery resolution; no business field rules.
+    packages: Synthetic workflow and presentation regression fixtures.
+    workspace: Agent purposes, business questions, and destination policy remain in the Workspace.
+    instance: Existing authenticated transport credentials and private receipts remain Instance state.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Continue only the same verified workflow when its waiting collection has a newer delivered question.
+    - mechanism: identity-and-authorization
+      reason: Retain provider identity, audience, exact revision, pinned definition and current delivery checks.
+    - mechanism: capability-contracts-and-connectors
+      reason: Resolve the current assignment within the existing authenticated transport scope.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Collection guidance is provider-neutral and applies to every Agent. The maintained Slack receiver resolves same-workflow delivery using existing assignment contracts; no new routing database or company rules.
+rollback: Restore the previous Core and Artifact pair. Existing receipts remain readable and no state migration or authorization change is required.

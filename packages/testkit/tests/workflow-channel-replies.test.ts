@@ -9,12 +9,23 @@ import { WorkflowSlackTransport } from "../../connectors/slack/workflow-transpor
 import { recoverWorkflowReply } from "../../runner-vercel/src/lib/workflow-reply-recovery.ts";
 import { createSlackAdapter } from "../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js";
 
-async function setup(count = 1, channelId = "C10001", reportOnly = false) {
+async function setup(count = 1, channelId = "C10001", reportOnly = false, followup = false) {
   const artifact = collectionFixture().artifact;
   if (reportOnly) {
     const workflow = artifact.workflows!.find((w) => w.id === "monday-handoff")!;
     workflow.steps = [workflow.steps[0]!]; workflow.steps[0]!.next = ["end"];
     workflow.steps[0]!.message!.thread = "slack:C10001:50.000001";
+    const { manifestHash, ...manifest } = workflow; workflow.manifestHash = sha256(manifest);
+    const { artifactHash, ...content } = artifact; artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
+  }
+  if (followup) {
+    const workflow = artifact.workflows!.find(w => w.id === "monday-handoff")!;
+    const ask = structuredClone(workflow.steps[0]!);
+    ask.id = "followup"; ask.next = ["more-facts"];
+    const collect = structuredClone(workflow.steps[1]!);
+    collect.id = "more-facts"; collect.collect!.from = "$steps.followup.thread_reference";
+    workflow.steps[1]!.next = ["followup"];
+    workflow.steps.push(ask, collect);
     const { manifestHash, ...manifest } = workflow; workflow.manifestHash = sha256(manifest);
     const { artifactHash, ...content } = artifact; artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
   }
@@ -304,4 +315,32 @@ test("split excerpts use the ingress representation while preserving provider id
   await assert.rejects(host.receiveSelected({ ...args, text: "APPROVE invented" }), /excerpt/);
   setMessage({ edited: { ts: "999.000002" } }); await assert.rejects(host.receiveSelected(args), /original attributable/);
   setMessage({ edited: undefined, user: "U10001" }); await assert.rejects(host.receiveSelected(args));
+});
+
+for (const channelId of ["C10001", "D10001"]) test(`a selected reply to an earlier collection continues only the same run's current delivered question (${channelId})`, async () => {
+  const { h, host, input, setMessage, runs } = await setup(1, channelId, false, true);
+  const initial = await host.receiveChannel(input);
+  assert.equal(initial.kind, "conversation"); if (initial.kind !== "conversation") return;
+  const oldConversation = { ...initial.session.conversation, subjectPrincipal: ENGINE_OWNER };
+  const original = (await h.store.deliveredAssignment({ instanceId: h.artifact.instance.id, conversation: oldConversation }))!;
+  await initial.session.collection!.submit({ summary: "Partial account retained by the workflow" });
+  const run = (await h.store.read(h.artifact.instance.id, runs[0]!.runId))!;
+  assert.equal(run.state.cursor, "more-facts");
+  setMessage({ ts: "999.000004", thread_ts: oldConversation.threadId, text: "Here is the requested result" });
+  const source = { threadId: workflowReplyThreadId(initial.session), messageId: "999.000004", authorId: "U10002" };
+  const result = await host.receiveSelected({ source, target: original, version: String(run.revision) });
+  assert.equal(result.kind, "conversation"); if (result.kind !== "conversation") return;
+  assert.equal(result.session.runId, run.runId);
+  assert.equal(result.session.stepId, "more-facts");
+  assert.equal(result.session.text, "Here is the requested result");
+  assert.notEqual(result.session.conversation.threadId, oldConversation.threadId);
+  assert.ok(result.session.collection);
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, run.runId))!.state.decisions, {});
+  await assert.rejects(host.receiveSelected({ source, target: original, version: String(run.revision - 1) }), /changed before dispatch/);
+  await assert.rejects(host.receiveSelected({ source, target: { ...original, subjectPrincipal: "slack:T10001:U10001" }, version: String(run.revision) }), /another recipient/);
+  await result.session.collection!.submit({ summary: "Completed account" });
+  const done = (await h.store.read(h.artifact.instance.id, run.runId))!;
+  const discussed = await host.receiveSelected({ source, target: original, version: String(done.revision) });
+  assert.equal(discussed.kind, "conversation"); if (discussed.kind !== "conversation") return;
+  assert.equal(discussed.session.collection, undefined);
 });

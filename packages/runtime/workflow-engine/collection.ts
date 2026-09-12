@@ -1,7 +1,7 @@
 import type { CompiledWorkflowStep } from "../../companyos-builder/workflow-types.ts";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 
-export const COLLECTION_TOOL_DESCRIPTION = "Submit the complete discussed facts for the current workflow. This does not approve or write any external change. Never invent missing facts.";
+export const COLLECTION_TOOL_DESCRIPTION = "Finish the current conversation step by submitting ALL complete discussed facts. This immediately advances the workflow and closes this question; it is NOT a tool for saving partial notes. If any required answer, clarification, or Workspace-required preview agreement is still missing, ask the person and DO NOT call this tool. Keep partial facts in conversation history. Never fill unanswered fields with placeholders such as not yet asked, pending, or a made-up answer. This does not approve or write any external change.";
 
 /** Flat, bounded facts are data. They cannot name Tools, targets or decisions. */
 export function collectionSchema(fields: readonly string[]) {

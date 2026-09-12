@@ -19,3 +19,10 @@ export function hasDeliveredCollectionReview(results: readonly { toolName: strin
       && typeof receipt.threadReference === "string" && receipt.threadReference.length > 0;
   });
 }
+
+/** Collection advances the engine. A later model sentence must not reopen it. */
+export function hasSubmittedCollection(results: readonly { toolName: string; output?: unknown }[]): boolean {
+  return results.some(result => result.toolName === "companyos_collect_facts" && !!result.output
+    && typeof result.output === "object" && (result.output as Record<string, unknown>).collected === true
+    && (result.output as Record<string, unknown>).authorized === false);
+}

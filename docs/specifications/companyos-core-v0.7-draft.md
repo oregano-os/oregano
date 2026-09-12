@@ -533,3 +533,25 @@ visible in inspection until resolved by the appropriate authority.
 ## Shared conversation participation
 
 All communication adapters follow [Shared Conversation Participation](conversation-participation.md). Ownership and permissions precede the existing Agent’s choice to respond or retain context silently. Unmentioned owned thread replies must not be discarded by a blanket provider filter.
+
+## Collection conversation continuity
+
+Collection is a terminal submission for the current question, not a partial-note
+operation. The model receives explicit guidance to retain incomplete facts in
+conversation history, ask only for remaining facts, and satisfy any Workspace
+preview requirement before submitting. Missing facts must not become placeholders.
+After a successful collection receipt, the host ends that model turn and lets the
+workflow deliver the next question or review; it suppresses contradictory trailing
+prose that could send the person back to an already completed question. Business
+completeness checks remain in Workspace Tools; prompt guidance alone is not proof
+that the facts are complete.
+
+If the coordinator selects a workflow through an older delivered question while
+the same run awaits a newer collection, the maintained receiver can forward the
+original verified message to that current question. It requires one current
+delivery for the same run, pinned Artifact, step, recipient and transport audience,
+and rereads the exact revision before dispatch. The original thread receives a
+visible continuation link. It cannot select another run, widen the audience,
+reopen terminal work or infer a decision. If no unique current delivery is
+available, the old publication remains discussable without collection controls.
+Opening a conversation pane is client UI behavior, not a workflow delivery proof.

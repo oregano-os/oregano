@@ -262,7 +262,21 @@ export class WorkflowConversationHost {
       if (step.collect && (!run.state.wait || run.state.wait.dueAt <= now)) return { kind: "closed" };
       if (channelReply && (!step.collect || run.state.status !== "waiting" || run.state.blocked))
         return selected ? this.#discussion(qualifiedConversation, principal, reply.text) : { kind: "closed" };
-      if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) return { kind: "closed" };
+      if (step.collect && active.stepId !== /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1]) {
+        // The coordinator selected this run, but the person answered an earlier
+        // question. Only its current delivered collection, in the same audience,
+        // can receive that original verified answer. Never guess another run.
+        if (selected && run.state.status === "waiting" && !run.state.blocked) {
+          const sourceStep = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect.from))?.[1];
+          const assignments = await store.channelAssignments({ instanceId: artifact.instance.id, surface: conversation.surface,
+            accountId, channelId: conversation.channelId, subjectPrincipal: principal, now });
+          const candidates = assignments.filter(a => a.runId === run.runId && a.artifactHash === run.artifactHash && a.stepId === sourceStep
+              && a.subjectPrincipal === principal && a.surface === conversation.surface && a.accountId === accountId
+              && a.channelId === conversation.channelId);
+          if (assignments.length < 21 && candidates.length === 1) return this.#receive({ ...args, threadId: `slack:${candidates[0]!.channelId}:${candidates[0]!.threadId}` }, true, selected);
+        }
+        return this.#discussion(qualifiedConversation, principal, reply.text);
+      }
       const runtime = new CompanyOSRuntime({ artifact: pinned, state: this.#args.control, connectors: await this.#args.connectors(pinned),
         workflowContext: new WorkflowConversationContextReader({ store, instanceId: artifact.instance.id, conversation, subjectPrincipal: principal,
           roster: this.#args.roster, clock: () => this.#args.clock?.() ?? new Date().toISOString() }) });

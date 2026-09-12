@@ -17,7 +17,7 @@ import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { connectSlackAdapter } from "@vercel/connect/chat";
-import { hasDeliveredCollectionReview } from "./workflow-conversation-presentation.ts";
+import { hasSubmittedCollection, hasDeliveredCollectionReview } from "./workflow-conversation-presentation.ts";
 import { stepCountIs, ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
 import { type BuilderTurnIntent } from "../../../runtime/builder/turn-intent.ts";
 import { classifyBuilderTurn } from "./builder/turn-intent.ts";
@@ -364,10 +364,10 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
         if (!current) throw new Error("The selected job is no longer accessible");
         concern.work = { ...current, context: JSON.stringify(current.context).slice(0, 10000) };
       }
-      const destination = concern.work?.address ?? turn.input.address;
+      const destination = session?.conversation ?? concern.work?.address ?? turn.input.address;
       const target = concern.work ? botInstance!.thread(`slack:${destination.channelId}:${destination.threadId}`) : thread;
       await target.subscribe();
-      if (concern.needsAcknowledgement && !await state.get(`${routeKey}:${index}:ack`)) {
+      if ((concern.needsAcknowledgement || (session && destination.threadId !== concern.source.address.threadId)) && !await state.get(`${routeKey}:${index}:ack`)) {
         const link = `https://slack.com/archives/${destination.channelId}/p${destination.threadId.replace(".", "")}`;
         const title = concern.work!.title.replace(/[\\[\]<>]/g, " ");
         await replyThread.post(coordinatorSlackMessage(`${receipt.plan.reply || "I have assigned your answer to the matching conversation."}\n\nContinue here: [${title}](${link}).`));
@@ -574,7 +574,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...(agent.id === "builder" ? [{ role: "system" as const, content: [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`, ...attachments.notices].join("\n\n") }] : []), ...agentInstructionMessages(agent, knowledgeRoute, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
     tools,
     prepareStep: ({ stepNumber }) => participationStep(participation) ?? knowledgeStepChoice(knowledgeRoute, stepNumber - participationOffset),
-    stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasDeliveredCollectionReview(steps.at(-1)?.toolResults ?? []), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
+    stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasSubmittedCollection(steps.at(-1)?.toolResults ?? []), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
@@ -682,8 +682,9 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       .map((part) => ({ toolName: part.toolName, error: part.error })),
   });
   const reviewDelivered = !!workflowSession?.collection && hasDeliveredCollectionReview(result.toolResults);
-  const presentation = reviewDelivered
-    ? { historyResponse: "Review card delivered in this conversation. Awaiting the human decision.", visibleResponse: "" }
+  const collected = !!workflowSession?.collection && hasSubmittedCollection(result.toolResults);
+  const presentation = collected
+    ? { historyResponse: reviewDelivered ? "Review card delivered in this conversation. Awaiting the human decision." : "Complete facts submitted; the workflow owns the next delivery.", visibleResponse: "" }
     : agent.id === "builder"
     ? builderChat.presentTurn(response, result.toolResults)
     : { historyResponse: response, visibleResponse: response };
