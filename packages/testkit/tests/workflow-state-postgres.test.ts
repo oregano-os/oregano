@@ -235,3 +235,16 @@ test("Postgres retains parent conversation and separate review notices across re
   for (const changed of [{ ...notices[1]!, threadId: "9.000001" }, { ...notices[1]!, decisionMessageId: "9.000001" }, { ...notices[1]!, subjectPrincipal: "slack:T10001:U10003" }])
     assert.equal(await restarted.deliveredAssignment({ instanceId: run.instanceId, conversation: changed }), undefined);
 });
+
+
+test("Postgres evidence history is bounded, chronological, scoped and excludes the current run", { skip: !enabled }, async () => {
+  const { args, store, run } = await fixture();
+  const query = { instanceId: run.instanceId, workflowIds: [run.workflowId], from: "2030-01-01T00:00:00.000Z", to: now, limit: 101 };
+  const rows = await store.history(query);
+  assert.ok(rows.some(row => row.runId === run.runId));
+  assert.equal((await store.history({ ...query, excludeRunId: run.runId })).some(row => row.runId === run.runId), false);
+  assert.deepEqual(await store.history({ ...query, instanceId: "foreign" }), []);
+  assert.deepEqual(await store.history({ ...query, workflowIds: ["foreign"] }), []);
+  assert.deepEqual(await store.history({ ...query, from: now }), []);
+  assert.ok((await createPostgresWorkflowExecutionStore().history(query)).some(row => row.artifactHash === args.artifact.artifactHash));
+});

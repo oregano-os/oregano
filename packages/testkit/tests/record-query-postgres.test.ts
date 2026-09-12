@@ -203,3 +203,21 @@ test("Postgres retains sub-microsecond proof ordering and exact gates after rest
   await assert.rejects(query("2031-02-01T16:59:59.123456703Z"), /not completely synchronized/);
   assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_OUTPUT_SCHEMA, result), []);
 });
+
+
+test("Postgres evidence history retains immutable versions under exact source generation and current ACL", { skip }, async () => {
+  const instanceId = `history-${randomUUID()}`, registry = new CompanyRecordsRegistry();
+  registry.registerSource(source); registry.registerProjection(projection);
+  registry.bindSource({ schema_version: 1, instance_id: instanceId, source_id: source.id,
+    resource_binding: source.resource_binding, connector: "fixture", connector_version: "1.0.0", secret_ref: "FIXTURE",
+    qualification: { receipt_ref: "fixture", digest: "fixture" }, configuration: {} }, {});
+  const service = new CompanyRecordsService({ instanceId, registry, store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) });
+  for (const [id, at] of [["first", "2031-02-01T10:00:00Z"], ["second", "2031-02-01T11:00:00Z"]]) await service.ingest({
+    event: { source_id: source.id, event_id: id!, object_id: "item", kind: "updated", observed_at: at!, receipt: {} }, raw: { id: "item", payload: { id } } });
+  const query = { sourceId: source.id, from: "2031-02-01T09:00:00Z", to: instant, limit: 10, subject };
+  const rows = await service.history(query);
+  assert.equal(rows.length, 2); assert.equal(rows[0]!.values.payload && (rows[0]!.values.payload as any).id, "second");
+  assert.equal((await service.history({ ...query, from: "2031-02-01T10:00:00Z" })).length, 1);
+  await assert.rejects(service.history({ ...query, subject: { ...subject, group_ids: [] } }), /access denied/);
+  assert.deepEqual(await createPostgresCompanyRecordsStore().readHistory({ instanceId, sourceId: source.id, from: query.from, to: instant, limit: 10 }), []);
+});

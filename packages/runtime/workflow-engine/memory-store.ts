@@ -69,6 +69,13 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
     return [...this.#runs.values()].filter((run) => run.instanceId === args.instanceId && (!args.status || run.state.status === args.status) && (!args.afterRunId || run.runId > args.afterRunId) && (!args.activeOnly || active(run)))
       .sort((a, b) => a.runId.localeCompare(b.runId)).slice(0, args.limit).map((run) => structuredClone(run));
   }
+  async history(args: Parameters<WorkflowExecutionStore["history"]>[0]): Promise<WorkflowRun[]> {
+    if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 101 || !args.workflowIds.length) throw new Error("Invalid workflow history bound");
+    return [...this.#runs.values()].filter(run => run.instanceId === args.instanceId && args.workflowIds.includes(run.workflowId)
+      && run.runId !== args.excludeRunId && Date.parse(run.trigger.instant) > Date.parse(args.from) && Date.parse(run.trigger.instant) <= Date.parse(args.to))
+      .sort((a, b) => Date.parse(b.trigger.instant) - Date.parse(a.trigger.instant) || b.runId.localeCompare(a.runId))
+      .slice(0, args.limit).map(run => structuredClone(run));
+  }
   async hasActiveArtifact(args: Parameters<WorkflowExecutionStore["hasActiveArtifact"]>[0]): Promise<boolean> {
     return [...this.#runs.values()].some((run) => run.instanceId === args.instanceId && run.artifactHash === args.artifactHash
       && args.workflowIds.includes(run.workflowId) && active(run));

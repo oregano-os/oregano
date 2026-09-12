@@ -46,6 +46,7 @@ export function createRecordGenerationStore(registry: CompanyRecordsRegistry, st
     };
   };
   const scoped: CompanyRecordsStore = {
+    readHistory: async (args) => (await store.readHistory({ ...args, sourceId: source(args.sourceId) })).map(value => version(value, args.sourceId)!),
     appendSourceEvent: (event) => store.appendSourceEvent({ ...event, source_id: source(event.source_id) }),
     putObjectVersion: (value) => store.putObjectVersion({ ...value, source_id: source(value.source_id) }),
     getObjectVersion: async (instanceId, sourceId, versionId) => version(await store.getObjectVersion(instanceId, source(sourceId), versionId), sourceId),

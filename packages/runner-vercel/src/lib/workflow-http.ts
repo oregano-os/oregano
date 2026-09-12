@@ -7,6 +7,7 @@ import { parseWorkflowVerificationRequirements, type WorkflowVerificationRequire
 import { parseConversationCheck, type ConversationCheck } from "./workflow-conversation-check.ts";
 
 export type WorkflowOperatorRequest =
+  | { action: "health"; workflowId: string; graceMinutes: number }
   | ConversationCheck
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
@@ -22,6 +23,11 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
   if (input.action === "check-conversation") return parseConversationCheck(input);
   const exact = (allowed: string[]) => { if (Object.keys(input).some((key) => !["action", ...allowed].includes(key))) throw new Error("Unsupported workflow operator request field"); };
   const text = (key: string, pattern = /^[^\u0000-\u001f]{1,255}$/) => { if (typeof input[key] !== "string" || !pattern.test(input[key])) throw new Error(`Invalid workflow operator ${key}`); return input[key] as string; };
+  if (input.action === "health") {
+    exact(["workflowId", "graceMinutes"]);
+    if (!Number.isInteger(input.graceMinutes) || Number(input.graceMinutes) < 5 || Number(input.graceMinutes) > 1440) throw new Error("Health graceMinutes must be from 5 to 1440");
+    return { action: "health", workflowId: text("workflowId", /^[a-z][a-z0-9-]{1,62}$/), graceMinutes: Number(input.graceMinutes) };
+  }
   if (input.action === "open" || input.action === "schedule") {
     exact(["workflowId", "fields", ...(input.action === "open" ? ["requestId", "triggerVariant"] : ["instant"])]);
     const fields = input.fields;
@@ -103,6 +109,13 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
     if (action.action === "check-conversation") {
       const { checkWorkflowConversation } = await import("./workflow-conversation-check.ts");
       return Response.json(await checkWorkflowConversation(artifact, action));
+    }
+    if (action.action === "health") {
+      const { inspectWorkflowHealth } = await import("../../../runtime/workflow-engine/health.ts");
+      const { createPostgresWorkflowExecutionStore } = await import("../../../state-postgres/workflow-store.ts");
+      const health = await inspectWorkflowHealth({ artifact, configuration, store: createPostgresWorkflowExecutionStore(),
+        workflowId: action.workflowId, graceMinutes: action.graceMinutes, now: new Date().toISOString() });
+      return Response.json(health, { status: health.ok ? 200 : 503 });
     }
     const { createWorkflowHost } = await import("./workflow-host.ts");
     const host = await createWorkflowHost();

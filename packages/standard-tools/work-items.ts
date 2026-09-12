@@ -15,7 +15,7 @@ export const STANDARD_WORK_ITEM_TOOLS: readonly CompiledCompanyTool[] = [
     grantId: "oregano:work-items/read", runtimeId: "oregano:work-items/read", agentId: "*", toolId: "work-item-read", version: "1.0.0",
     description: "Read one bounded work item through an exact Instance resource binding.", risk: "R0", dataClass: "business", idempotency: "input-hash",
     capabilities: ["work-item.read"],
-    inputSchema: { type: "object", required: ["resource_binding", "work_item_id"], additionalProperties: false, properties: { resource_binding: { type: "string", minLength: 1, maxLength: 63 }, work_item_id: { type: "string", minLength: 1, maxLength: 255 }, fields: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 127 } } } },
+    inputSchema: { type: "object", required: ["resource_binding", "work_item_id"], additionalProperties: false, properties: { resource_binding: { type: "string", minLength: 1, maxLength: 63 }, work_item_id: { type: "string", minLength: 1, maxLength: 255 }, fields: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 127 } }, include_comments: { type: "boolean" } } },
     outputSchema: { type: "object" }, evidence: ["resource_binding", "work_item_id", "provider_version", "observed_at"],
     failure: "Fail closed when the item is outside the bound resource or a requested field is not exposed.",
   }, call("work-item.read")),

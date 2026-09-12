@@ -23,6 +23,8 @@ export interface RecordReadSnapshot {
 
 /** Durable Company Records boundary. Agents never receive this interface. */
 export interface CompanyRecordsStore {
+  /** Retained observations, not a guarantee of complete provider event history. */
+  readHistory(args: { instanceId: string; sourceId: string; from: string; to: string; limit: number }): Promise<RecordObjectVersion[]>;
   appendSourceEvent(event: RecordSourceEvent): Promise<boolean>;
   putObjectVersion(version: RecordObjectVersion): Promise<boolean>;
   getObjectVersion(instanceId: string, sourceId: string, versionId: string): Promise<RecordObjectVersion | undefined>;
