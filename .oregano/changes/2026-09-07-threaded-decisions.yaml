@@ -1,0 +1,59 @@
+version: 3
+plan_id: threaded-decisions-2026-09-07
+created: "2026-09-07"
+title: Keep human decisions in their conversation and resume accepted runs
+objective: Let Workspaces explicitly target an existing private conversation for a human decision, bind both parent and notice identity, and resume the persisted run after recording a button decision.
+non_goals:
+  - Add provider events, scopes, credentials or business authority.
+  - Change direct-message routing or enable production workflows.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-threaded-decisions.yaml
+  - .oregano/changes/2026-09-07-workflow-collection.yaml
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runner-vercel/src/lib/workflow-button-response.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - docs/operations/vercel-workflow-runner.md
+tests:
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+  - packages/testkit/tests/workflow-button-response.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - guide.author-workflow
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Extend decision delivery identity and resume the existing engine after durable human acceptance.
+    packages: No new Package behavior.
+    workspace: Choose the prior conversation explicitly on Triage and Briefing human steps.
+    instance: Retain exact delivery receipts and runnable cursors; qualify immediate continuation and recurring recovery in the isolated environment.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Bind the exact parent, review message and human without replacing the existing conversation assignment.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Resume the existing persisted cursor after acceptance and preserve effect claims on retries.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company workflow can place human review in its existing conversation and resume through maintained effect controls.
+rollback: Restore prior host and Workspace declarations together; retain stored Artifacts, decisions and receipts. Never reopen completed runs.

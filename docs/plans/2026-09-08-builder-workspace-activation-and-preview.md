@@ -18,6 +18,8 @@ relations:
     - architecture.validation-inspection
     - governance.roles
     - guide.operate-builder
+implementation_scope: provider
+providers: [vercel, neon, slack, github, openai, anthropic]
 ---
 
 # Workspace-Declared Builder Activation, Configurable Review, and Preview Testing

@@ -1,4 +1,6 @@
-import { generateText } from "ai";
+import { ToolLoopAgent, stepCountIs } from "ai";
+import { ConversationParticipation, CONVERSATION_PARTICIPATION_INSTRUCTIONS, conversationContext, type ConversationContextEntry } from "../../../../runtime/conversation-participation.ts";
+import { withConversationParticipation, participationStep } from "../conversation-model-tools.ts";
 import type { Chat } from "chat";
 import type { CompanyOSArtifact } from "../../../../companyos-builder/types.ts";
 import type { BuilderTestResult, BuilderTestSession, BuilderTestStore, BuilderTestResource } from "../../../../runtime/builder/functional-tests.ts";
@@ -69,19 +71,31 @@ export async function executeBuilderFunctionalTest(args: {
   const base = { artifactHash: artifact.artifactHash, candidateCommit: session.candidateCommit, executionDigest: session.scopeDigest };
   if (session.execution.kind === "agent") {
     const agentId = session.execution.agentId, agent = artifact.agents.find((entry) => entry.id === agentId)!;
-    const resolved = resolveModelExecution({ profile: "utility", task: "chat.response", requiredCapability: "language" });
-    const response = await generateText({ model: resolved.model,
-      system: systemInstructions(agent, {}),
-      messages: builderAgentTestMessages(session), maxOutputTokens: 1500,
-      abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs ?? 60000),
+    const resolved = resolveModelExecution({ profile: "utility", task: "chat.response", requiredCapability: "tools" });
+    const pending = session.conversation?.pending;
+    const participation = new ConversationParticipation(pending?.message ?? {
+      id: pending?.messageId ?? "initial", conversationId: session.activeTestConversation ?? session.testConversation!,
+      senderId: session.requester, senderName: member.name, sentAt: new Date().toISOString(),
+      text: pending?.prompt ?? session.execution.prompt, shared: false, mentioned: true,
+    });
+    const modelAgent = new ToolLoopAgent({ model: resolved.model,
+      tools: withConversationParticipation({}, participation),
+      stopWhen: [() => participation.complete, stepCountIs(3)], prepareStep: () => participationStep(participation),
+      instructions: [CONVERSATION_PARTICIPATION_INSTRUCTIONS, systemInstructions(agent, {})].join("\n\n"),
+      maxOutputTokens: 1500,
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
     });
-    if (!response.text.trim()) throw new Error("The candidate Agent returned no test response.");
+    const response = await modelAgent.generate({
+      messages: [{ role: "user", content: conversationContext(participation.message, builderAgentTestContext(session)) }],
+      abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs ?? 60000),
+    });
+    const output = participation.finish(response.text);
+    if (output.participation === "respond" && !output.text) throw new Error("The candidate Agent returned no test response.");
     await assertActive();
-    return { ...base, completedAt: new Date().toISOString(), summary: response.text.slice(0, 8000),
+    return { ...base, completedAt: new Date().toISOString(), summary: output.text?.slice(0, 8000) ?? "", participation: output.participation,
       evidence: JSON.parse(JSON.stringify({ kind: "agent", agentId, promptDigest: sha256(session.conversation?.pending?.prompt ?? session.execution.prompt),
         conversationDigest: sha256(builderAgentTestMessages(session)),
-        responseDigest: sha256(response.text), model: modelExecutionEvidence(resolved.selection, response) })) };
+        participation: output.participation, participationReason: output.reason, responseDigest: sha256(output.text ?? ""), model: modelExecutionEvidence(resolved.selection, response) })) };
   }
   const executionNamespace = session.id;
   const store = args.workflowExecution?.store ?? createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false, executionNamespace });
@@ -113,8 +127,18 @@ export function builderAgentTestMessages(session: BuilderTestSession): { role: "
   if (session.execution.kind !== "agent") throw new Error("Agent test messages require an Agent execution.");
   return [
     ...(session.conversation?.turns ?? []).flatMap((turn) => [
-      { role: "user" as const, content: turn.prompt }, { role: "assistant" as const, content: turn.result.summary },
+      { role: "user" as const, content: turn.prompt }, ...(turn.result.participation === "context-only" ? [] : [{ role: "assistant" as const, content: turn.result.summary }]),
     ]),
     { role: "user", content: session.conversation?.pending?.prompt ?? session.execution.prompt },
   ];
+}
+
+/** Retain silent human contributions with their original sender and time. */
+export function builderAgentTestContext(session: BuilderTestSession): ConversationContextEntry[] {
+  return (session.conversation?.turns ?? []).flatMap(turn => [
+    { role: "user" as const, content: turn.prompt, message_id: turn.messageId, principal: turn.message?.senderId ?? session.requester,
+      sender_name: turn.message?.senderName, sent_at: turn.message?.sentAt, in_reply_to: turn.message?.replyToId },
+    ...(turn.result.participation === "context-only" ? [] : [{ role: "assistant" as const, content: turn.result.summary,
+      in_reply_to: turn.messageId, sent_at: turn.result.completedAt }]),
+  ]);
 }

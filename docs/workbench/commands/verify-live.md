@@ -32,6 +32,8 @@ live readiness. See [the configuration contract](../../reference/instance-config
 companyos verify-live --state <file> [--scope starter|workflow] [--format human|json]
 ```
 
+::: implementation-example
+
 The standard `companyos setup` session invokes this command automatically.
 Its chosen direct provider, exact model and Sensitive Production credential
 metadata must match the reviewed binding and real response evidence. OpenAI
@@ -54,8 +56,14 @@ attachment receipts do not replace this check. Slack `Verified` plus saved URL
 configuration establishes a handshake only; neither it nor Vercel synchronization
 can replace the persisted model response. See [delivery recovery](setup.md#slack-delivery-recovery).
 
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
 The default `starter` scope is the completion boundary for the full Codex and Claude Code starter
 runbook. It fails unless fresh or recorded evidence proves:
+
+::: implementation-example
 
 - the GitHub Workspace repository is private and one hosted-protection attempt
   was recorded as `enforced` or `advisory`;
@@ -83,14 +91,26 @@ runbook. It fails unless fresh or recorded evidence proves:
   binds the ordinary exchange to exact identity and deployment. Retired state
   versions 1–4 are rejected.
 
-The current manifest is `companyos-postgres@3.0.0`. It preserves the immutable
-historical `2.0.0` identity and qualifies 15 required control/Workflow tables
-and 14 Records/Sprint tables. Existing Builder, repository and conversation
-state remains intact. Qualification receipt version 2 contains no Knowledge
-schema, taxonomy or vector feature. Preparation neither creates nor deletes
-Knowledge state; the [retirement procedure](../guides/retire-knowledge.md)
-removes that schema only after the replacement runtime is ready and old writers
-are stopped. General authorization and effect controls remain unchanged.
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+The current Core target receipt identifies additive manifest
+`companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14
+required Record Source and Sprint tables. The linked
+`oregano-hq-companyos` Instance last applied predecessor `1.6.0` and passed a separate
+read-only verification on 2026-08-27 with digest
+`b9ba518e64d39e754e917348dd67b2bad7aa200d533af8343fba0c6f3774c4b1`;
+vector availability brings that predecessor's observed Knowledge table count
+to 63. Manifest `1.7.0` with its second optional Retrieval-Unit vector table is
+not implied by that historical receipt. Another Instance remains on its exact
+older manifest until `database prepare` records an additive upgrade and a
+separate read-only verification. This is schema evidence, not authorization
+evidence.
+`verify-live` for the Tool-free starter does not enable sensitive Sources or
+Agent-facing Brain retrieval.
+
+::: implementation-example
 
 Successful scope is exactly `live-starter-instance`, with readiness
 `validated`. This scope proves one supervised starter deployment. It does not
@@ -101,10 +121,20 @@ previously verified protection produces a warning; unavailable protection on a
 free GitHub plan produces informational evidence and does not fail this Tool-free
 supervised scope.
 
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The result returns current team/plan evidence as `verification.vercel_plan`;
 `LIVE124` identifies a failed plan prerequisite. This read does not change
 billing, schedules, or the setup state, and applies to older state versions
 as well.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 `companyos bootstrap verify` remains the earlier `authoring-only-local`
 checkpoint. It is intentionally insufficient for the live runbook.
@@ -196,6 +226,8 @@ receipts alongside this verification result.
 
 ## Verifying unpublished candidates
 
+::: implementation-example
+
 The same `verify-live` checks apply to an explicitly installed unpublished
 candidate. A successful result proves the recorded candidate Instance and Slack
 exchange. It does not prove publication, stable-release timing qualification,
@@ -203,3 +235,7 @@ or execution of the separate database integration suite. The private setup scope
 and generated initialization receipt retain the candidate distribution identity.
 Verification also requires the exact session-named test connector; a receipt
 from the ordinary Oregano connector cannot complete a candidate installation.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::

@@ -22,6 +22,8 @@ relations:
     - governance.agent-agreement
     - governance.versioning
     - guide.prepare-instance
+implementation_scope: provider
+providers: [vercel, neon, slack, github, openai, anthropic]
 ---
 
 # Five-minute standard setup

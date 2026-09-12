@@ -100,3 +100,20 @@ test("recipe validation rejects mismatched models, unsupported capability, and u
   );
   assert.throws(() => decodeModelRuntimeConfiguration(encoded({ version: 1, surprise: true })), /unsupported shape/);
 });
+
+
+test("prompt caching follows the selected binding and rejects unsupported settings", async () => {
+  const { resolvePromptCachingMode, normalizeModelBinding } = await import("../../runner/model-execution.ts");
+  const configuration = decodeModelRuntimeConfiguration(encoded({ version: 1,
+    default: { route: "anthropic-direct", model: "anthropic/claude-sonnet-5", promptCaching: "provider-default" },
+    profiles: { agent: { route: "anthropic-direct", model: "anthropic/claude-sonnet-5", promptCaching: "auto" } },
+    tasks: { "specialist.chat": { route: "openai-direct", model: "openai/gpt-5.4-mini", promptCaching: "provider-default" } },
+  }));
+  assert.equal(resolvePromptCachingMode(resolveModelExecutionSelection({ configuration, profile: "agent", environment: {} })), "auto");
+  assert.equal(resolvePromptCachingMode(resolveModelExecutionSelection({ configuration, profile: "agent", task: "specialist.chat", environment: {} })), "provider-default");
+  assert.equal(resolvePromptCachingMode({ profile: "agent" }), "auto");
+  assert.equal(resolvePromptCachingMode({ profile: "utility" }), "provider-default");
+  const binding = { route: "anthropic-direct", model: "anthropic/claude-sonnet-5" };
+  for (const promptCaching of [false, "off", { ttl: "1h" }]) assert.throws(() => normalizeModelBinding({ ...binding, promptCaching }), /promptCaching/);
+  assert.throws(() => normalizeModelBinding({ ...binding, ttl: "1h" }), /unsupported field/);
+});

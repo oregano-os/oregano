@@ -91,7 +91,7 @@ test("competing calendar triggers and unreadable discovery candidates fail close
 
 test("complete fixture builds four workflows; full close manifest matches reviewed expectation", () => {
   assert.equal(artifact.workflows!.length, 4);
-  assert.deepEqual(artifact.sprints, []);
+  assert.equal(Object.hasOwn(artifact, "sprints"), false);
   const close = artifact.workflows!.find((workflow) => workflow.id === "friday-close")!;
   assert.deepEqual(JSON.parse(JSON.stringify(close)), JSON.parse(readFileSync(join(fixture, "compiler-expectations/friday-close.json"), "utf8")));
   assert.equal(close.steps.length, 20);
@@ -213,4 +213,26 @@ test("one approval cannot be reused across R3 foreach item effects", () => {
     effect.for_each = { over: "$steps.prepare-rollover.updates", key: "work_item_id" };
   });
   assert.throws(() => compile(files), /R3|R4|approval|batch/);
+});
+
+test("readable decision reviews are explicit, validated and preserved in the compiled Artifact", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  editWorkflow(files, (data) => {
+    const decision = data.steps.find((entry: any) => Object.values(entry)[0] === "human:sprint-owner");
+    assert.ok(decision);
+    decision.review_format = "message";
+    decision.message = { template: "friday-close-sop/close-status.md", vars: {} };
+    decision.labels = { approve: "Approve", reject: "Keep" };
+  });
+  // Resolve a known valid, existing template from the workflow instead of inventing a new contract.
+  editWorkflow(files, (data) => {
+    const publication = data.steps.find((entry: any) => Object.values(entry)[0] === "oregano:communications/publish");
+    const decision = data.steps.find((entry: any) => entry.review_format);
+    decision.message = { template: publication.template, vars: publication.vars };
+  });
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  const compiled = compile(files).find((workflow) => workflow.steps.some((step) => step.decision?.presentation?.reviewFormat));
+  assert.equal(compiled?.steps.find((step) => step.decision?.presentation?.reviewFormat)?.decision?.presentation?.reviewFormat, "message");
+  editWorkflow(files, (data) => { delete data.steps.find((entry: any) => entry.review_format).message; });
+  assert.match(validateWorkflowFiles(files).join("\n"), /message-only review/);
 });

@@ -201,3 +201,23 @@ test("publication and a new test reply race through the same atomic session revi
   ]);
   assert.equal(results.filter(result => result.status === "fulfilled").length, 1);
 });
+
+test("a silent candidate turn retains context without replacing the last visible result or weakening identity", async () => {
+  const f = await interactiveFixture(), id = f.session.id, actor = f.session.requester;
+  const previousSession = (await f.store.get(id))!;
+  const previous = previousSession.result, previousDigest = builderTestResultDigest(previousSession);
+  const message = { id: "ambient", conversationId: "slack:TEST:2.0", senderId: actor, senderName: "Alice",
+    text: "Bob, we can discuss this tomorrow.", sentAt: "2026-09-09T10:01:00Z", shared: true, mentioned: false };
+  await assert.rejects(() => f.service.beginTurn(id, actor, message.id, message.text, message.conversationId, { ...message, senderId: "person:other" }));
+  await f.service.beginTurn(id, actor, message.id, message.text, message.conversationId, message);
+  await assert.rejects(() => f.service.recordTurn(id, message.id, { ...f.result("Leaked text"), participation: "context-only" }));
+  const retained = await f.service.recordTurn(id, message.id, { ...f.result(""), participation: "context-only" });
+  assert.deepEqual(retained.result, previous);
+  assert.equal(builderTestResultDigest(retained), previousDigest, "Silent context must not stale the existing Go Live card");
+  await f.service.beginTurn(id, actor, "visible", "Please explain");
+  const visible = await f.service.recordTurn(id, "visible", f.result("A new answer"));
+  assert.notEqual(builderTestResultDigest(visible), previousDigest);
+  assert.deepEqual(retained.conversation?.turns.at(-1)?.message, message);
+  assert.equal(retained.stage, "interactive");
+  await assert.rejects(() => f.service.beginTurn(id, actor, message.id, message.text));
+});

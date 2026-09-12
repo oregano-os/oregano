@@ -3,8 +3,8 @@ import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
 import { builderConfigurationDigest } from "../../../lib/builder/release-provider.ts";
 import { getBot } from "../../../lib/bot.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
+import { agentModelTask } from "../../../lib/agent-model-task.ts";
 import { qualifyCompanyDatabase } from "../../../../../state-postgres/database-bootstrap.ts";
-import { decodeModelRuntimeConfiguration } from "../../../../../runner/model-execution.ts";
 
 import { decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "../../../lib/workflow-configuration.ts";
 
@@ -14,37 +14,26 @@ export async function GET() {
   try {
     const artifact = loadArtifact();
     const primaryAgent = selectedAgent();
-    const modelExecution = resolveModelExecution({ profile: "agent", task: "agent.chat", requiredCapability: "tools" });
+    const primaryTask = agentModelTask(primaryAgent);
+    const modelExecution = resolveModelExecution({ profile: primaryTask.profile, task: primaryTask.task, requiredCapability: "tools" });
     const database = await qualifyCompanyDatabase();
+    // Construction checks Connector configuration and registers handlers. It
+    // does not initialize provider clients, send messages or invoke a model.
+    getBot();
     const workflowsEnabled = workflowHostingEnabled();
     const workflowConfig = workflowsEnabled ? decodeWorkflowHostingConfiguration(artifact) : undefined;
-    // Validate Connector configuration without initializing provider clients.
-    getBot();
-    const sprintMode = process.env.COMPANYOS_SPRINT_RUNTIME_MODE ?? "disabled";
-    if (!["disabled", "shadow", "active"].includes(sprintMode)) throw new Error("Invalid Sprint runtime mode.");
-    const sprintRuntimes = (artifact.sprints ?? []).map((sprint) => {
-      const model = resolveModelExecution({ profile: "reasoning", task: sprint.modelTask, requiredCapability: "tools" });
-      return {
-        definitionId: sprint.definitionId,
-        agentId: sprint.agentId,
-        modelTask: sprint.modelTask,
-        modelRoute: model.selection.route,
-        modelProvider: model.selection.provider,
-        model: model.selection.model,
-        scheduleActivation: sprint.schedule.activation,
-        scheduleDigest: sprint.schedule.sourceDigest,
-      };
-    });
     return Response.json({
       ok: true,
       status: "ready",
       instance: artifact.instance,
       company: artifact.company,
       agent: primaryAgent.id,
-      agents: artifact.agents.map((agent) => ({
-        id: agent.id,
-        toolCount: agent.toolSet.tools.length,
-      })),
+      agents: artifact.agents.map((agent) => {
+        const task = agentModelTask(agent);
+        const { selection } = resolveModelExecution({ profile: task.profile, task: task.task, requiredCapability: "tools" });
+        return { id: agent.id, toolCount: agent.toolSet.tools.length,
+          modelTask: task.task, modelProfile: task.profile, model: selection.model, modelRoute: selection.route };
+      }),
       agentRouting: {
         bindingCount: artifact.agentRouting?.bindings.length ?? 0,
         defaultAgentId: artifact.agentRouting?.defaultAgentId ?? null,
@@ -84,11 +73,6 @@ export async function GET() {
         autoOpenWorkflowIds: workflowConfig?.autoOpenWorkflowIds ?? [],
         compiledCount: artifact.workflows?.length ?? 0,
         activatedAt: workflowConfig?.activatedAt ?? null,
-      },
-      sprint: {
-        mode: sprintMode,
-        runtimeCount: sprintRuntimes.length,
-        runtimes: sprintRuntimes,
       },
       meta: "disabled-until-real-connector-binding",
     });

@@ -1,15 +1,21 @@
+import { SlackFormatConverter } from "@chat-adapter/slack";
+import { decisionCard } from "./decision-cards.ts";
+import type { DecisionPresentation } from "../../../capabilities/decision-presentation.ts";
 import type { Chat } from "chat";
 import { gzipSync } from "node:zlib";
 import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } from "../../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
 import { CompanyRecordsConnector } from "../../../connectors/company-records.ts";
 import { CompanyDirectoryConnector } from "../../../connectors/company-directory.ts";
+import { LanguageModelConnector, type LanguagePromptBinding } from "../../../connectors/language-model.ts";
+import { generateLanguage } from "./language-generation.ts";
 import { MondayClient } from "../../../connectors/monday/client.ts";
 import { MondayWorkItemConnector } from "../../../connectors/monday/connector.ts";
 import { mondayCredentialIdentity, qualifyMondayWorkItemCredential } from "../../../connectors/monday/work-item-qualification.ts";
 import type { MondayResourceBinding } from "../../../connectors/monday/contracts.ts";
 import {
   SlackCommunicationConnector,
+  verifySlackDirectThread,
   type BeforeSlackDirectPublish,
   type SlackDestinationBinding,
   type SlackMessagePublisher,
@@ -138,6 +144,21 @@ function parseMondayConfiguration(
 
 type SlackChatClient = Pick<Chat, "channel" | "thread" | "openDM">;
 
+// Slack's native Markdown payload is bounded independently of plain text.
+// Reject before sending: the capability receipt represents exactly one message.
+function slackMarkdown(content: string): { markdown: string } {
+  if (content.length > 12_000) {
+    throw new Error("Slack report exceeds the 12,000-character Markdown limit. Shorten the report or publish a summary with a link; nothing was sent.");
+  }
+  return { markdown: content };
+}
+
+function slackPublication(content: string, decision?: DecisionPresentation) {
+  return decision ? decisionCard({ title: "Approval required", content: new SlackFormatConverter().toResponseUrlText({ markdown: content }), value: decision.request_id,
+    approve: { id: "companyos.workflow.approve", label: decision.approve_label },
+    reject: { id: "companyos.workflow.reject", label: decision.reject_label } }) : slackMarkdown(content);
+}
+
 /**
  * Adapts Chat SDK transport primitives to the provider-neutral Slack
  * publisher. A newly opened channel thread is subscribed before its receipt
@@ -145,16 +166,17 @@ type SlackChatClient = Pick<Chat, "channel" | "thread" | "openDM">;
  */
 export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackMessagePublisher {
   return {
-    async publishChannel(channelId, content, threadReference) {
+    async publishChannel(channelId, content, threadReference, decision) {
       if (threadReference) {
         const [surface, threadChannelId] = threadReference.split(":");
         if (surface !== "slack" || threadChannelId !== channelId) {
           throw new Error("Slack thread reference does not belong to the configured channel destination.");
         }
       }
+      const payload = slackPublication(content, decision);
       const client = chat();
       const destination = threadReference ? client.thread(threadReference) : client.channel(`slack:${channelId}`);
-      const message = await destination.post(content);
+      const message = await destination.post(payload);
       const receipt = { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
       if (!threadReference) {
         try {
@@ -180,18 +202,21 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
       const thread = await chat().openDM(userId);
       return {
         threadReference: thread.id,
-        async publish(content: string) {
-          const message = await thread.post(content);
+        async publish(content: string, decision?: DecisionPresentation, threadReference?: string) {
+          if (threadReference !== undefined) verifySlackDirectThread(thread.id, threadReference);
+          const destination = threadReference === undefined ? thread : chat().thread(threadReference);
+          const message = await destination.post(slackPublication(content, decision));
           // Chat SDK openDM targets `slack:<channel>:`. Its post receipt keeps
           // that conversation-wide ID; use Slack's returned message timestamp
           // to bind each new root and its replies independently.
           const match = /^slack:(D[A-Z0-9]+):$/.exec(thread.id);
-          if (!match || message.threadId !== thread.id || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
-            "Slack published a direct message without a verifiable root identity.",
+          if (!match || message.threadId !== (threadReference ?? thread.id) || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
+            "Slack published a direct message without a verifiable conversation identity.",
             { provider: "slack", message_id: message.id, thread_reference: message.threadId },
           );
-          const root = `slack:${match[1]}:${message.id}`;
+          const root = threadReference ?? `slack:${match[1]}:${message.id}`;
           const receipt = { messageId: message.id, threadReference: root, publishedAt: message.metadata.dateSent.toISOString() };
+          if (threadReference !== undefined) return receipt;
           try { await chat().thread(root).subscribe(); }
           catch (error) {
             throw new CapabilityEffectOutcomeUnknownError("Slack direct message was published but its reply subscription is unverified.",
@@ -249,6 +274,12 @@ export function createConfiguredRuntimeConnectors(args: {
       && binding.connector === entry.connector && binding.connectorVersion === entry.connectorVersion)) continue;
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
+    if (entry.connector === "oregano/language-model" && entry.connectorVersion === "1.0.0") {
+      exactKeys(entry.configuration, ["prompts"], `Connector instance '${entry.id}'`);
+      connectors.push(new LanguageModelConnector({ artifact: args.artifact,
+        prompts: entry.configuration.prompts as unknown as LanguagePromptBinding[], generate: generateLanguage }));
+      continue;
+    }
     if (entry.connector === "oregano/company-directory" && entry.connectorVersion === "1.0.0") {
       exactKeys(entry.configuration, ["read_groups"], `Connector instance '${entry.id}'`);
       const groups = entry.configuration.read_groups;

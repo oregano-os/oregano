@@ -7,45 +7,56 @@ authority: canonical
 language: en
 implementation_scope: provider
 providers: [vercel, slack]
-updated: 2026-09-07
+updated: 2026-09-11
 owners: [oregano-maintainers]
 audience: [human, agent]
 ---
 
 # Stage Slack channel events on a shared app
 
-A shared Slack app can forward the same event to several deployments. Before
-adding channel message subscriptions, protect any destination that must retain
-its current mention and direct-message behavior.
+A shared Slack app can forward one event to several deployments. Each destination
+must claim exact channels or recipients before admitting a conversation. The
+legacy `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` blanket filter is retired: both
+`ignore` and `process` now preserve ordinary message events for downstream
+subscription and participation routing. Unknown flag values still fail startup.
 
-Set `SLACK_CHANNEL_MESSAGE_EVENTS=ignore` on that destination and deploy it first.
-The main Slack webhook then ignores ordinary public/private channel message
-events. Direct messages, `app_mention` events and interactive controls retain
-their existing authenticated path. The default `process` behavior is unchanged.
+Before upgrading, configure and verify the exact exclusions below on every
+shared-app destination. Without them, blanket-ignore deployments may start
+receiving duplicate conversation events. Keep ordinary message subscriptions
+available so an owned thread can continue without another app mention.
 
-Verify this guard before enabling the additional app event. A separate workflow
-test endpoint can process assigned test threads. This setting does not activate
-a workflow, grant a capability or change the Company Workspace. Do not add
-subscriptions or deploy production without the corresponding authorization.
-
-On rollback, remove the added channel subscription first, then restore the
-previous deployment and setting. An outbound message receipt does not prove
-that an incoming reply will be delivered; test both directions with an authorized
-participant.
+Core decides participation after ownership. Team discussion can be retained
+without posting; a clear follow-up reaches the existing Agent. This adds no
+workflow, grant or provider permission. Verify with an authorized thread:
+mention, answer, unmentioned follow-up, human-to-human exchange, then another
+explicit address. Require one answer when addressed and no answer to the human
+exchange. On rollback restore a compatible ingress/receiver pairing; retain
+all conversation and execution evidence.
 
 ## Assign a test channel to one destination
 
-The ordinary-message guard intentionally preserves `app_mention`. If a separate
-workflow destination accepts mentions too, both deployments could answer.
+Both ordinary messages and app mentions require exclusive ownership. If a separate
+workflow destination accepts the same conversation, both deployments could answer.
 Set `SLACK_IGNORED_CHANNEL_IDS` on the primary destination to a comma-separated
 list of exact channel IDs owned by the test destination. Deploy and verify this
 exclusion before enabling mention handling on the test destination.
 
-The primary webhook then drops both `message` and `app_mention` for those channels.
-Other mentions, direct messages and interactive controls retain their existing
-path. IDs must identify channels; empty entries, duplicate IDs, direct-message
+Both `/api/webhooks/slack` and `/api/workflows/slack` then drop `message`,
+`app_mention`, and channel-bound `block_actions` for those channels before
+initializing a responder. The exclusion recognizes JSON and form-encoded actions
+using either `channel.id` or `container.channel_id`. Other channels, direct
+messages and channel-less controls retain their existing admission and SDK
+signature verification. Channel exclusions do not change DM reservations.
+IDs must identify channels; empty entries, duplicate IDs, direct-message
 IDs and wildcards are rejected. Leave the variable unset to exclude no channels.
 Keep company-specific IDs in Instance configuration, outside Core source.
+
+Receivers with channel exclusions, channel allowlists or DM reservations inspect
+at most 100,000 request-body characters. Larger JSON or form requests are
+acknowledged without dispatch, because their ownership cannot be established
+within that limit. This also applies to otherwise ordinary production payloads
+above the limit. The ordinary webhook's behavior without any routing rules is
+unchanged; the workflow endpoint retains its existing inspection limit.
 
 This needs no new Slack subscription, scope or installation. The test destination
 still verifies provider signatures, human identity and the active conversation
@@ -74,9 +85,13 @@ prove incoming Slack delivery or a model response. Complete a real reply test.
 A shared Slack app can deliver a person's direct message to both deployments.
 Before testing a workflow in a DM, reserve its route on both destinations.
 Set `SLACK_WORKFLOW_DM_RECIPIENTS` to the same exact `account:user` list, for
-example `T10001:U10002`. This maintenance guard excludes those DM messages from
-the ordinary webhook. Other accounts, people, channels and controls retain
-their existing behavior. No credential, grant or workflow changes.
+example `T10001:U10002`. This maintenance guard excludes those DM messages and
+DM-bound `block_actions` from the ordinary webhook. The alternate
+`/api/workflows/slack` endpoint also excludes reserved DM actions unless it runs
+in workflow-only mode. Actions identify the account and person through `team.id`
+and `user.id`, and the DM through `channel.id` or `container.channel_id`, in JSON
+or form payloads. Other accounts, people and channels retain their existing
+behavior. No credential, grant or workflow changes.
 
 The workflow destination must run a compatible receiver that accepts the same
 list and verifies its existing recipient-bound questions. Verify the exclusion
@@ -85,3 +100,19 @@ exactly one assigned response. A working button does not prove text delivery.
 The reservation covers the person's whole DM during the test; ordinary chat
 there is temporarily unavailable. Remove the paired settings when the test ends.
 Never enable only one side or treat configuration as proof of actual delivery.
+
+## Isolated conversation acceptance deployment
+
+Set `SLACK_OWNED_CHANNEL_IDS` on an isolated receiver to its exact test channels.
+The primary receiver must exclude those same channels before the separate
+Connect destination is enabled. Ordinary messages, mentions and channel-bound
+interactive controls follow this allowlist; channel-less controls are rejected
+rather than guessed. Provider signature verification still follows admission.
+The normal primary receiver leaves the allowlist unset. Use a separate database
+for the test Instance. On retirement, disconnect the test destination before
+returning its channel ownership to the primary deployment.
+
+A model-only preview can qualify synthetic participation cases using an existing
+secret assignment inside the host. Sensitive provider keys need not leave that
+host. Such a check has no conversation destination and does not prove actual
+incoming-message or interactive-control delivery.

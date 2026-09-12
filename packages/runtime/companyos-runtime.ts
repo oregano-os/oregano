@@ -10,6 +10,7 @@ import { executeApprovedAction } from "../state-store/action-approval.ts";
 import type { StateStore } from "../state-store/interface.ts";
 import { authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "../state-store/roster.ts";
 import { executeIsolatedCompanyTool } from "../tool-sdk/isolated-runner.ts";
+import { LANGUAGE_TOOL_TIMEOUT_MS } from "../language/contracts.ts";
 
 export interface ExecuteToolRequest {
   runId: string;
@@ -265,7 +266,9 @@ export class CompanyOSRuntime {
             toolId: tool.contract.runtimeId,
           },
           allowedCapabilities: tool.contract.capabilities,
-          ...(this.#toolExecutionTimeoutMs === undefined ? {} : { timeoutMs: this.#toolExecutionTimeoutMs }),
+          ...(this.#toolExecutionTimeoutMs === undefined
+            ? (tool.contract.capabilities.includes("language.generate") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
+            : { timeoutMs: this.#toolExecutionTimeoutMs }),
           invokeCapability: async (capability, input) => {
             try {
               const result = await this.#connectors.invoke(capability, input, {

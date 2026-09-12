@@ -1,3 +1,4 @@
+import { parseDecisionPresentation, type DecisionPresentation } from "../../capabilities/decision-presentation.ts";
 import type { CapabilityCallContext, CapabilityResult, Connector } from "../../capabilities/contracts.ts";
 
 export interface SlackDestinationBinding {
@@ -15,10 +16,10 @@ export interface SlackMessageReceipt {
 }
 
 export interface SlackMessagePublisher {
-  publishChannel(channelId: string, content: string, threadReference?: string): Promise<SlackMessageReceipt>;
+  publishChannel(channelId: string, content: string, threadReference?: string, decision?: DecisionPresentation): Promise<SlackMessageReceipt>;
   openDirect(userId: string): Promise<{
     threadReference: string;
-    publish(content: string): Promise<SlackMessageReceipt>;
+    publish(content: string, decision?: DecisionPresentation, threadReference?: string): Promise<SlackMessageReceipt>;
   }>;
 }
 
@@ -27,6 +28,15 @@ export type BeforeSlackDirectPublish = (args: {
   threadReference: string;
   context: CapabilityCallContext;
 }) => Promise<void>;
+
+/** A caller's parent is usable only inside the provider-resolved recipient DM. */
+export function verifySlackDirectThread(directReference: string, threadReference: string): void {
+  const direct = /^slack:(D[A-Z0-9]+):$/.exec(directReference);
+  const parent = /^slack:(D[A-Z0-9]+):(\d+\.\d+)$/.exec(threadReference);
+  if (!direct || !parent || direct[1] !== parent[1]) {
+    throw new Error("Slack thread reference does not belong to the resolved direct-message recipient.");
+  }
+}
 
 const object = (value: unknown, label: string): Record<string, unknown> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -62,18 +72,19 @@ export class SlackCommunicationConnector implements Connector {
     const binding = this.#bindings.get(bindingId);
     if (!binding) throw new Error(`Slack destination binding '${bindingId}' is not available to this Connector`);
     const content = String(value.content);
+    const decision = value.decision === undefined ? undefined : parseDecisionPresentation(value.decision);
     const threadReference = value.thread_reference === undefined ? undefined : String(value.thread_reference);
     let receipt: SlackMessageReceipt;
     if (binding.kind === "channel") {
-      receipt = await this.#publisher.publishChannel(binding.channelId!, content, threadReference);
+      receipt = await this.#publisher.publishChannel(binding.channelId!, content, threadReference, decision);
     } else {
-      if (threadReference !== undefined) throw new Error("A direct-message destination cannot accept an unverified thread reference");
       const target = await this.#publisher.openDirect(binding.userId!);
       if (!target.threadReference) throw new Error("Slack provider returned an incomplete direct-message target");
+      if (threadReference !== undefined) verifySlackDirectThread(target.threadReference, threadReference);
       if (this.#beforeDirectPublish) {
         await this.#beforeDirectPublish({ binding: structuredClone(binding), threadReference: target.threadReference, context: structuredClone(context) });
       }
-      receipt = await target.publish(content);
+      receipt = await target.publish(content, decision, threadReference);
     }
     if (!receipt.messageId || !receipt.threadReference || !receipt.publishedAt) throw new Error("Slack provider returned an incomplete message receipt");
     return {

@@ -13,7 +13,7 @@ contracts, JSON Schemas, deterministic documentation checks, and invariant
 tests. This package remains the graduation point when internal schemas become
 stable reusable public contracts.
 
-The first versioned Company Records and Sprint declarations are:
+The first versioned Company Records and workflow declarations are:
 
 - `company-record-source-v1.schema.json` for provider-neutral source mappings;
 - `company-record-source-binding-v1.schema.json` for non-secret Company
@@ -21,10 +21,9 @@ The first versioned Company Records and Sprint declarations are:
   Connector and SecretRef;
 - `company-record-projection-v1.schema.json` for rebuildable, access-scoped
   projections; and
-- `sprint-configuration-v1.schema.json` for company policy consumed by the pure
-  Sprint Domain; and
-- `sprint-schedule-v1.schema.json` for reviewed company cadence, business days,
-  holiday coverage, delivery windows, and immutable trigger compilation.
+- `workflow-config-v2.schema.json` for Workspace-owned workflow configuration; and
+- `schedule-v1.schema.json` for reviewed business days, holiday coverage,
+  delivery windows, and immutable trigger compilation.
 
 These schemas intentionally contain logical binding names, not provider
 resource identifiers, credentials, grants, or deployment state. Exact

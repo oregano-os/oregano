@@ -1,0 +1,46 @@
+version: 3
+plan_id: conversation-completion-2026-09-11
+created: 2026-09-11
+title: Require completion of the existing conversation coordinator
+objective: Prevent an addressed conversation from ending after a lookup without a checked routing or reply result, and qualify ordinary Slack reply delivery separately from mentions.
+non_goals:
+  - Add another Agent or a participation classifier.
+  - Widen company permissions, change production, or create another test environment.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-11-conversation-completion.yaml
+  - packages/runner-vercel/src/lib/conversation-coordinator.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - docs/specifications/conversation-participation.md
+tests:
+  - packages/runner-vercel/src/lib/conversation-coordinator.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/testkit/tests/conversation-participation.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.conversation-participation
+architecture:
+  placement:
+    core: Enforce the existing coordinator completion contract in its model loop.
+    packages: No new reusable package is necessary.
+    workspace: Preserve Agent instructions, language and domain grants.
+    instance: Reuse existing model bindings, Slack app and test environment; verify transport independently.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Keep the resolved Agent and its existing coordinator; do not add a classifier.
+    - mechanism: identity-and-authorization
+      reason: Retain authorized work lookups and checked plan validation.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve receipt replay and prevent duplicate routing or business authority from recovery.
+    - mechanism: capability-contracts-and-connectors
+      reason: Use the model provider's required Tool choice behind the existing model recipe.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The completion contract applies to every company, conversation adapter and supported tool-capable model.
+rollback: Redeploy the previous exact Core and Workspace pairing in the existing test environment. Preserve receipts and conversation state.
+open_decisions: []

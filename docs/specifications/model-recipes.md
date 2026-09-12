@@ -23,7 +23,7 @@ shared model/provider configuration.
 A recipe declares route, transport, credential environment reference and
 requirement, default or overridden base URL, model namespace, capabilities,
 and advisory defaults. Native recipes use their provider adapters; named
-compatible recipes share an OpenAI-compatible transport while keeping their
+compatible recipes share a common API transport while keeping their
 own route, endpoint, credentials and namespace.
 
 The maintained profiles are `agent`, `utility`, `reasoning`, `deep`,

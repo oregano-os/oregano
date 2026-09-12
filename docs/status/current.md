@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-10
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,13 @@ audience:
 ---
 
 # Current System Status
+
+Core 0.12.0 integrates declared Workflow Engine execution, shared conversation
+coordination, selective participation and the maintained Builder. It retires
+the legacy Sprint executor. Consumer adoption requires an explicit Workspace
+migration and Instance verification; a version label or local test result is
+not production acceptance. The [0.12 adoption guide](../operations/core-0-12-adoption.md)
+records state preparation, outstanding-work inventory and rollback boundaries.
 
 Core 0.11.4 corrects Builder test presentation: candidate conversations show the
 actual answer without a setup introduction, and readiness changes update the
@@ -46,17 +53,69 @@ source behavior, not evidence of a live deployment. See
 This page distinguishes implemented Core mechanisms, executable reference
 evidence, historical prototypes, and production gaps.
 
+The experimental workflow-only host rejects unowned channels and DMs before
+either communication entrypoint can initialize a general Agent. Ownership reuses exact
+compiled Instance channel bindings and reserved DM principals; accepted events
+retain provider authentication. Synthetic partition and signed-ingress tests cover
+roots, thread replies, mentions and cross-account isolation. Live delivery still
+requires separate exact-deployment verification.
+
+Channel answers can now join one exact recipient-bound fact collection in the
+experimental workflow-only host. Multiple open questions require clarification;
+channel answers never record a human decision. Live inbound delivery must be
+verified separately from message publication and provider read access.
+
+The Workspace `conversation_coordinator` option introduces a shared entry Agent
+with bounded work lookup, semantic concern selection and retained clarification
+sources. The maintained chat path resumes checked workflow replies and retains
+their original destination; the provider-neutral contract is exercised with
+synthetic messaging and MCP-style addresses. Live deployment and additional
+provider qualification remain separate from these local checks.
+Coordinator instructions distinguish internal discussion bookmarks from
+external cards and keep routing acknowledgments separate from substantive
+answers. Real-model acceptance must check both the saved topic reference and
+the delivered conversation; synthetic SDK outputs alone do not prove this.
+
 ## Implemented and tested
 
-- Core 0.11.4 reduces redundant database transfer behind existing contracts.
-  Qualification compares the catalog inside one read-only SQL statement and
-  returns compact failure evidence. Hosted Sprint consumes the existing bounded
-  complete Records query once per consistency pass, retaining two matching
-  reads and one retry. Qualification frequency, authorization, schema manifest,
-  scheduling and deployment fences remain unchanged. Synthetic tests cover
-  catalog drift, complete reads, stale and unauthorized results, and row bounds.
-  This patch adds no development database, cache or migration. Source validation
-  does not establish production adoption or a monthly traffic saving.
+- Core 0.5.15 returns compact database qualification in one read-only SQL
+  statement while preserving every readiness check and the 2.1.0 manifest.
+  Isolated SQL tests cover drift and response size. Exact deployment adoption
+  remains a separate Instance check. Workflow Record consumers already use the
+  maintained complete-query path; the retired Sprint executor stays retired.
+
+- Common model execution supports `promptCaching` per selected model binding.
+  Agent-profile calls enable supported prefix/conversation caching with the
+  provider-default TTL; other routes retain native defaults.
+  Stable Agent instructions are separate from changing work evidence. SDK
+  transport tests cover ordinary generation, streaming, Tool-loop totals,
+  explicit-strategy preservation, configuration precedence, and provider request
+  isolation. See [exact adapter support](../operations/model-prompt-caching.md). Provider cache reads/writes are recorded without prompt content;
+  actual savings and deployment remain Instance qualification, not unit-test
+  claims.
+
+- Workflow publications retain their exact sent text for bounded, read-only
+  follow-up context after completion or cancellation. The generic reader uses
+  opaque provider identities and existing delivery state. Synthetic mail and
+  messenger adapters cover private/shared isolation; the
+  [maintained host](../operations/vercel-workflow-runner.md#follow-up-questions-on-workflow-messages)
+  supplies this context for thread replies. Additional live providers remain
+  unqualified. Older publications without retained text are not backfilled, and
+  discussion never grants execution authority.
+
+- Experimental `language.generate` lets a governed Company Tool request text
+  from an explicitly bound, scoped Skill and supplied evidence. The owning
+  Agent's model task applies. Tests cover scope, identity, bounds, model failure
+  and response evidence. Business assessment rules and output validation belong
+  to the Workspace; provider wiring is documented separately. Real model quality
+  and deployment acceptance remain Instance checks.
+
+- The hosted Slack capability publisher sends explicit Markdown for channel,
+  thread and direct publications. Reports longer than 12,000 UTF-16 code units
+  fail before message publication rather than silently truncating or introducing
+  multipart receipts. Workspace templates remain provider independent. Transport
+  tests do not replace verification of formatting in a deployed Slack client.
+
 
 - Core 0.11.1 corrects Builder intake after clarification. Typed model output
   replaces free-text JSON parsing. Invalid output and execution failures are
@@ -67,6 +126,8 @@ evidence, historical prototypes, and production gaps.
   synthetic clarification, explicit-start and negative cases without creating
   jobs. Source checks do not prove a company deployment or human acceptance;
   adoption must pass this hosted gate. No provider permission or DDL changes.
+
+::: implementation-example
 
 - Core 0.11.0 and Workbench 0.1.0-experimental.21 replace the 0.9.0 Finish/Restart workflow with one
   four-action result card: **Go Live**, **Discard Build**, **Open Test Channel** and
@@ -86,6 +147,12 @@ evidence, historical prototypes, and production gaps.
   deployment or human acceptance. No DDL or provider permission change is needed.
   Preserve test histories and decision evidence and stop tests/publication before
   rolling back to 0.10.0. The historical 0.9.0 limits below describe that release.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 - Core 0.9.0 and Workbench 0.1.0-experimental.19 release the reviewed Builder
   experience from PR 108: a retained request card, confirmed
@@ -109,6 +176,12 @@ evidence, historical prototypes, and production gaps.
   Before rollback, stop or resolve interactive sessions and preserve their
   evidence; legacy automatic tests remain readable.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 - Core 0.8.0 adds a bounded connected Builder functional-test profile. It compiles
   the exact unmerged proposal, executes a read-only Agent reply or an immediate
   operator workflow, and retains exact resource scope, execution and delivery
@@ -122,6 +195,12 @@ evidence, historical prototypes, and production gaps.
   Synthetic compiler/engine/Chat tests and actual Postgres isolation tests do not
   establish a customer's two requested human-feedback-to-live proofs.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 - Standard setup now requires an explicit choice of OpenAI or Anthropic and
   binds its direct recipe, maintained model and Sensitive Production key
   destination to the single resource/cost review. Other models/providers require
@@ -129,6 +208,12 @@ evidence, historical prototypes, and production gaps.
   retain their original binding. The provider-compatibility repairs are included.
   The new choice is covered by synthetic lifecycles; fresh live qualification of
   this revision is still outstanding.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 - The setup adapter corrects the `identity.basic` endpoint and personal CLI
   token-subject mismatch. It validates connector metadata for the Slack Messages
@@ -145,11 +230,21 @@ evidence, historical prototypes, and production gaps.
   delivery recovery; explicit subscriptions without `message.im` are refused.
   Provider synchronization and URL challenges do not qualify a model reply.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 - The repository qualification correction fixes the repository-scoped release client to allow GitHub's
   exact `base...head` comparison while rejecting literal or encoded path
   traversal. The hosted trusted Git fixture uses the current Change Plan and
   Workspace document contracts, explicitly governed paths and an executable scope test.
   It is tested through actual Workspace validation and final release classification.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 - Core 0.7.0 adds explicit human-confirmed Builder merges for unprotected
   repositories. A non-forcing fast-forward adopts only the exact single-parent
@@ -160,6 +255,8 @@ evidence, historical prototypes, and production gaps.
   process still has no repository or release credential; production adoption
   uses the same trusted compiler, staged health and explicit promotion path.
   This capability does not prevent manual changes to an unprotected Git branch.
+
+::: implementation-example
 
 - The Core 0.6.0 Builder release adds scoped definition discovery and
   reads, a versioned before/after brief, unresolved-decision admission checks,
@@ -209,6 +306,10 @@ evidence, historical prototypes, and production gaps.
   selectors, preserved real opening times and delayed business-day delivery.
   No arbitrary parameters, clock override or business-specific host is exposed;
   actual provider and human acceptance remain separate.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 - Ordinary publication fixtures verify the exact Agent, Tool, Instance, run,
   step and effect identity at the provider boundary. A pending handoff retains
@@ -302,11 +403,17 @@ evidence, historical prototypes, and production gaps.
   does not activate schedules or replace real human acceptance. See the
   [workflow guard contract](../specifications/workflow-execution-v1-draft.md#implemented-runtime-guard).
 
+::: implementation-example
+
 - JSON Record mappings can declare a bounded, self-contained `value_schema`.
   Ingestion enforces it before consuming an event identity; compiler consumers
   can use the actual structured contract. Slack Record Source `0.1.4` also
   emits the exact publication `thread_reference` for receipt-bound queries.
   Source coverage remains a separate, unfinished integration requirement.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 - The governed `oregano:directory/members` standard Tool reads bounded facts
   from the frozen Artifact roster through an explicit Instance read-group
@@ -360,7 +467,7 @@ evidence, historical prototypes, and production gaps.
   an isolated CI database and exercises the maintained HTTP driver and real
   stores without optional repository secrets. Missing or skipped required
   database tests fail PR and release acceptance. Retained store integration checks cover persistence, restart, concurrency,
-  and qualification against the actual PostgreSQL driver.
+  and qualification against the maintained database driver.
 
 - Company Records v0.1 implements validated generic source and projection
   declarations, immutable deduplicated source events and object versions,
@@ -445,112 +552,23 @@ evidence, historical prototypes, and production gaps.
   performs only due complete-inventory reconciliation under the existing lease.
   Exact production deployment, Artifact, Core, Workspace, and Instance identity
   must agree; mutations and the scheduler have independent kill switches. The
-  database manifest is now `2.0.0` and qualifies `companyos_records` alongside
-  the retained `companyos` control schema. Synthetic tests do not claim a real production
+  database manifest is now `2.1.0` and qualifies `companyos_records` alongside
+  the existing schemas. Synthetic tests do not claim a real production
   migration, provider read, schedule activation, provider event, provider
   write, or message.
 - Workspace inspection now rejects projection and selection paths that are not
   materialized by the exact selected Record Source set, preventing a declared
   field from silently remaining empty at runtime.
-- The provider-neutral Sprint domain implements validated policy, append-only
-  event reduction, controlled-clock business-time and holiday calculation,
-  frozen-participant Friday completeness, actual-effort and open-work read
-  models, deterministic shared-thread reminder/chase/report/retro/Rollover
-  intents, and durable timer
-  interfaces with in-memory and Postgres implementations. The reusable
-  orchestration library now atomically persists one normalized event, its
-  monotonic resulting state, decision evidence, and intents; consumes due
-  timers through the same event path; leases bounded intent work; and enters
-  provider execution only through an exact `CompanyOSRuntime`-backed adapter.
-  Workbench now compiles reviewed Sprint policy, schedule and template digests,
-  participant identity namespace, logical Agent and service principal, and
-  exact destination/resource bindings into the immutable Artifact. The
-  maintained Vercel Runner hosts authenticated inspect/open actions, bounded
-  timer and intent workers, fresh projection resolution through
-  `records.query`, Slack Friday-update normalization after roster and Agent
-  resolution, a generic template renderer, and `disabled`, `shadow`, and
-  `active` modes. The hosted Friday path creates one shared Close thread,
-  accepts submissions only in that exact thread, and orders chase, report,
-  retro, then Rollover preparation using provider-delivery events. Timer kinds
-  are isolated per Sprint definition. Shadow mode stores digest evidence
-  without effects; active messages still cross the standard Tool boundary. An
-  explicit `shadow-only` Instance runtime can compile exact destination
-  metadata without granting provider-effect Tools, and the hosted Runner
-  rejects active startup for that Artifact.
-  The authenticated Stage-0 Preview surface can invoke those same hosted
-  workers at one exact controlled timestamp, allowing schedule, leasing, and
-  duplicate behavior to be qualified without waiting for wall-clock time; the
-  action is unavailable outside Vercel Preview.
-  Weekly Monday handoff, weekday movement digest, configured readiness
-  questions, derived reversible readiness-field maintenance, and structured
-  `NEXT WEEK` carry-forward use the same hosted
-  timer and intent path. Before each due weekly timer, the Runner resolves one
-  twice-stabilized current work-item projection while retaining the Sprint's
-  frozen participant scope. The immutable source version identifies an exact
-  replay, while the resulting refresh event uses the hosted refresh clock so
-  a valid source observation from before Sprint opening cannot regress durable
-  event chronology. Replaying the same source version is a no-op.
-  Briefing updates use an exact active-human subject confirmation and the
-  dedicated confirmed-update Tool. Rollover remains proposal-only until one
-  frozen batch passes the ordinary R3 approval path; the maintained batch Tool
-  preflights every item before the first write and treats a partial provider
-  dispatch as an unknown outcome rather than retrying it. The initial profile
-  uses Monday polling and Slack interaction; Monday board-change webhooks and
-  card chat remain deferred. No real Company Instance runtime, schedule,
-  message, work-item effect, or production activation is claimed. Public
-  fixtures are synthetic and contain no company people, resources, policy, or
-  credentials.
-- The hosted Sprint surface now makes the reviewed weekly and Friday Close
-  paths executable in controlled tests. This is implementation evidence, not
-  Company rollout evidence: the final candidate still requires full Stage-0
-  qualification with exact test bindings, and each Company must then complete
-  Shadow, Pilot, and Team-rhythm gates over the periods declared by its rollout
-  policy before production completion may be claimed.
-- The hosted Sprint operator can now run a proof-only historical replay when
-  an Instance compiles one exact `communication-message` projection. The
-  Sprint Domain recognizes template-shaped Friday submissions, resolves the
-  author only through a tenant-scoped roster principal, links exact card URLs
-  only to already authorized work-item records, and stores source-version
-  lineage on durable Sprint events. The replay uses an isolated definition,
-  controlled clock, and deterministic replay-specific timer namespace, so an
-  exact retry is idempotent and independent replays of one historical period
-  cannot conflict in a shared Instance timer store. It reports
-  current-snapshot limitations and refuses every
-  compiled live Slack and work-item binding. A separately authenticated,
-  digest-bound `publish-replay` action can render one Workspace-owned report
-  and deliver it through an exact test Slack channel plus an exact test-board
-  report item. Workbench rejects a conversational publisher Agent and rejects
-  any logical or physical test/live target equality. Both effects use the
-  ordinary CompanyOS Capability, idempotency, receipt, and System-of-Proof
-  boundaries; a changed digest fails before the first provider effect.
-- The authenticated Sprint operator also has a proof-only `simulate` action.
-  It freezes the same current Company Records projections, derives an isolated
-  definition and timer namespace, and runs the real hosted weekly and Friday
-  lifecycle with a controlled clock while forcibly remaining in Shadow mode.
-  Its content-free report covers Monday handoff, weekday digest, readiness,
-  Friday Close, Retro, and an optional Rollover proposal, including durable
-  event, intent, timer, binding-readiness, and source-version evidence. The
-  catalog explicitly marks Triage, Briefing, inactivity nudging, and blocker
-  follow-up unavailable until their durable conversational runtime exists.
-  Simulation cannot accept a destination, Tool, grant, template, arbitrary
-  event, or provider payload and cannot call Slack or a work-item provider.
-  A separate digest-bound `publish-simulation` action may publish one stored
-  Monday hand-off intent through the actual compiled Sprint Agent and exact
-  test-only Slack binding. It reruns the scenario, rejects changed output,
-  derives the Workspace template and content from durable state, and records
-  the ordinary provider receipt. Workbench rejects a live-channel alias and
-  requires the runtime itself to remain `shadow-only`. The Slack adapter hides
-  that operator-only publication grant from conversational model turns. A
-  companion `publish-friday-close-simulation` action accepts no intent id and
-  publishes only the fixed succeeded reminder, chase, and report sequence from
-  the reviewed scenario. The real reminder receipt becomes the one Slack
-  thread reference for both replies, and deterministic per-message effect
-  identities make partial retries non-duplicating. Content and destination
-  still come only from the compiled Workspace and Instance; Retro and live
-  targets remain ineligible.
-- Weekly Sprint declarations now compile independently. Monday hand-off can be
-  enabled without also enabling daily digest and readiness; readiness retains
-  its stricter planning, template, Tool, and direct-destination prerequisites.
+- The retired Sprint executor, dedicated state stores, loader, workers,
+  operator, simulation/replay and Stage-0 routes have been removed. Declared
+  Workflows use the general engine, Company Tools, Records, calendars,
+  conversations and human-decision controls. Old Instance declarations and
+  active legacy Artifacts fail with an explicit migration message. New builds
+  omit the legacy runtime list.
+- Database manifest `2.1.0` retains workflow execution and all general Records
+  requirements. New databases create no legacy Sprint tables; existing audit
+  rows and immutable `1.9.0` / `2.0.0` manifest digests remain untouched.
+  Test and production activation still require exact Instance evidence.
 - Core now maintains `records.query`, `work-item.read`, `work-item.update`,
   `work-item.batch-update`, `work-item.comment`, and
   `communication.message.publish` Capability contracts
@@ -564,17 +582,10 @@ evidence, historical prototypes, and production gaps.
   only from those entries. It verifies the Records configuration against the
   Artifact identity, resolves Monday credentials
   only through an environment SecretRef, and restricts provider calls to exact
-  board/field or channel/DM bindings. The protected Preview-only Stage-0 surface
-  adds digest-bound reversible Monday and exact Slack delivery qualification,
-  including read-after-write, duplicate, echo, restoration, unbound-resource,
-  provider-receipt, signature, and replay evidence. Repository tests prove the
-  generic contracts. One supervised non-production Instance additionally
-  produced real Slack `app_mention` and `message.im` deliveries with HTTP 200,
-  exact `sprint` and `oregano` routing, visible single responses under provider
-  retries, exact outbound channel and direct-message receipts, and one
-  reversible Monday test-board write with read-after-write and restoration.
-  This is Instance qualification evidence, not Core authority or production
-  activation.
+  board/field or channel/DM bindings. The retired Stage-0 test routes are no longer available. Repository tests
+  continue to prove the general Connector, identity, version, idempotency and
+  receipt contracts. Actual delivery and reversible-write qualification remain
+  separate Instance acceptance checks.
 - The maintained Monday work-item adapter uses explicit API versioning, exact
   resource and field bindings, minimum permissions, optimistic version checks,
   read-after-write evidence, durable echo suppression, raw-body callback
@@ -584,9 +595,8 @@ evidence, historical prototypes, and production gaps.
   conformance, or production activation.
 - Monday Record Source inventory normalizes both populated and empty People
   cells to stable provider-id lists while retaining the raw provider value as
-  evidence. Hosted Sprint snapshots preserve mirrored work items with an empty
-  provider status as an empty canonical status; they do not invent a status or
-  drop the item.
+  evidence. Generic Records retain empty statuses; Workspace interpretation must not
+  invent a provider state or silently omit those items.
 - The maintained Vercel Runner now has an optional fail-closed Monday
   external-Agent ingress. It verifies the raw callback body, timestamp,
   signature, configured Agent identity, and digest-only durable replay claim
@@ -623,9 +633,11 @@ evidence, historical prototypes, and production gaps.
   Its first published Workspace surface keeps shared operational declarations
   under `records/sources/` and `records/projections/`, places company Sprint
   policy at `workflows/sprint/config.yaml`, and introduces no top-level
-  Workspace `domains/` directory. Executable Sprint Domain code remains in Core.
+  Workspace `domains/` directory. Business execution now uses declared Workflows.
 
-- Core 0.12.0 and Workbench 0.1.0-experimental.22 retire Brain, Knowledge,
+::: implementation-example
+
+- Core 0.14.0 and Workbench 0.1.0-experimental.22 retire Brain, Knowledge,
   Handbook search, special document ACLs and curation,
   source ingestion into Brain and its background jobs. The Granola provider
   client, connection configuration and credentials remain available for later
@@ -634,26 +646,15 @@ evidence, historical prototypes, and production gaps.
   roster and existing file scopes. Generic model recipes, Builder tests and
   releases, hosted Workflows, Records, approvals and conversation state remain.
 - The successor database manifest is `companyos-postgres@3.0.0`. It preserves
-  the published `2.0.0` identity and retained Workflow/control/Records contracts.
+  the published `2.0.0` and `2.1.0` identities and retained Workflow/control/Records contracts.
   Qualified runtime rollout must precede the explicit Knowledge schema deletion.
   Local repository changes do not constitute a live migration receipt.
 - Real company operating truth lives in a separate Company Workspace. Oregano
   Core contains only generic mechanisms and fictional fixtures.
-- Core 0.12.0 is the prepared incompatible release candidate for Knowledge
-  retirement. Core 0.11.5 remains the latest published release until the exact
-  0.12.0 protected release commit and immutable tag pass release checks. The
-  current release line covers the experimental Sprint and Company Records
-  lifecycle, declarative Sprint
-  Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed
-  external-Agent ingress, resumable source connection, and separately guarded
-  production records operator and scheduler runtime, including reuse of an
-  existing app-scoped Slack Vercel Connect installation for a governed Slack
-  Record Source, plus isolated durable timer identities for independent
-  historical Sprint replays, plus proof-only full-week Sprint simulation using
-  the compiled Agent, templates, schedules, records, and durable evidence.
-  Existing consumers may remain on `v0.5.13` until they adopt the new exact Core
-  authority, and publishing the Core does not activate a Company Workspace or
-  Company Instance.
+- The source package version is `0.12.0`; the declared-workflow migration
+  and executor removal are unreleased changes pinned by exact commit. Earlier
+  published releases keep their historical contents. Publishing new Core
+  source does not activate a Company Workspace or Company Instance.
 - Deterministic Agent Bindings and `AgentResolver` select normal Company Agents,
   including `builder`, from exact trusted surface identities. The Builder is
   opt-in: an Instance without both its non-secret Builder declaration and exact
@@ -676,10 +677,6 @@ evidence, historical prototypes, and production gaps.
   deployment, live handoff, or live return evidence exists. Publishing Core
   v0.5.4 supplies this reusable behavior but does not deploy it to a Company
   Instance.
-- Sprint close read models now distinguish unavailable effort from zero and
-  calculate only the explicitly declared actual-hours or planned-effort basis.
-  An absent required observation makes the derived participant and total metric
-  unavailable instead of silently substituting zero or another metric.
 - The experimental Builder control path persists immutable proposal jobs,
   supports leases, cancellation, recovery, and terminal Slack-card delivery,
   and separates exact repository source, credential-free coding, independent
@@ -818,6 +815,14 @@ evidence, historical prototypes, and production gaps.
   approved artifacts through a restrictive public Vercel route. This proves
   one real Connector path; it does not prove Meta, Monday, or another provider
   effect.
+
+See the [maintained implementation](../workbench/guides/retire-knowledge.md).
+
+:::
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Reference-only or historical
 
@@ -1108,13 +1113,88 @@ multi-source view is not narrowed implicitly. Synthetic end-to-end setup cases
 prove hosted principal resolution, changed-roster confirmation invalidation,
 preserved old mappings and compatibility for sources without identity resolution.
 
+## Decision presentation extension
+
+Workflow human steps support captured Workspace explanations and optional
+approve/reject labels. The Slack publisher and existing Tool approval cards
+share native card rendering. Workflow clicks enter the existing bound-decision
+engine through a signature-verified SDK callback, with provider account, current
+human and exact delivery checks. Legacy Artifact text inputs remain verifiable.
+Live button acceptance still requires qualified interactivity ingress into the
+owning Instance; a shared production app does not automatically route Preview
+clicks. No Teams or Telegram Connector is implied by the neutral contract.
+
+The dedicated `/api/workflows/slack` endpoint supports action-only trigger
+fan-out to a Preview without processing ordinary shared-installation chat.
+
+A successful workflow button decision replaces the original card with an
+explicit recorded approval or rejection and no action controls. Approval
+confirmation does not claim that downstream effects have executed. The durable
+engine decision precedes this transport projection; a failed card edit is
+reported separately and must not be represented as a failed decision. An exact
+provider redelivery can retry the projection through the engine's existing
+idempotent response path. Rejected or unverified requests never close a card.
+
+### Workflow interaction qualification guidance
+
+Public onboarding now links the provider-neutral hosted interaction acceptance
+gate. Concrete destination and environment troubleshooting are documented in
+the [provider operations guide](../operations/vercel-connect-workflow-interactions.md). This is an explicit
+operator qualification, not a newly implemented automatic setup diagnostic.
+Local contract tests and a healthy deployment cannot qualify a new provider
+installation or replace its real human decision test.
+
+Decision response presentation now includes authorized transient processing and
+uncertain-result handling, without adding a Workflow step. New Artifacts retain
+the existing company language for English/German system feedback; unsupported or
+older language metadata falls back to English. Hosted latency improvement still
+requires measurement on the deployed candidate and a real user click; local
+response tests alone do not prove a perceptible improvement.
+
+## Assigned workflow conversations
+
+Typed fact collection, recipient-bound reversible confirmations and deduplicated
+child openings are implemented. Their contracts and limits are described in the
+[Workflow Execution specification](../specifications/workflow-execution-v1-draft.md).
+Local execution tests do not replace actual host, human and provider acceptance.
+
+### Readable review and conversation-choice correction
+
+The workflow authoring contract supports opt-in complete readable reviews with
+internal bound payloads. The hosted conversation path supports finite numbered
+selection of an open question and forwards the original verified answer; its
+selection service is provider-neutral. Synthetic coverage checks preservation,
+expiry, identity isolation and duplicate selection. Hosted deployment and human
+acceptance remain separate evidence; these source changes do not activate an
+Instance.
+
+## Selective team participation — source change
+
+The existing coordinator can record context-only team messages with no concern
+dispatch, draft or visible output. Ordinary Agent turns share the Core output
+controller and attributed context. The same-message routing and read-only
+source checks remain in force. Synthetic tests exercise silence, follow-ups
+and sender identity; they do not prove a live provider deployment. See
+[the participation contract](../specifications/conversation-participation.md).
+
+An authorized model-only hosted check exercised eight synthetic participation
+cases with the configured model: all returned the expected respond or
+
 ## Unpublished installer test path
+
+::: implementation-example
 
 The working source supports local candidate bundles with exact commit/platform
 and checksum verification, pinned resume, a labeled setup review, and initial
 GitHub checks using the exact pushed source without a release lookup. Candidate
 timing cannot qualify the stable release installer. No live provider run or real
 database integration result is claimed by this implementation.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The candidate integration branch includes Core `0.7.0` from `main`.
 It preserves the newer Builder release and Workflow behavior, resolves the setup
@@ -1124,10 +1204,20 @@ The maintained database suite passed all 67 tests on disposable local PostgreSQL
 setup or timing claim. See the
 [setup integration review](../plans/2026-09-08-setup-integration-review.md).
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 Slack Record Source `0.1.4` accepts the provider's legacy system bot identity
 `B01` while preserving bot authorship and rejecting malformed identifiers.
 A synthetic inventory regression covers successful system-message ingestion
 and prevents its attribution to an authenticated human.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Hosted readiness correction
 
@@ -1137,3 +1227,31 @@ blocks a comment-only workflow. Workflows that use Records still require an
 immutable, correctly paired configuration snapshot. The installer also resolves
 the pinned pnpm package behind the shell shims used by CI. Neither correction
 changes provider authority or replaces actual functional acceptance evidence.
+
+## Core 0.12.0 shared conversation participation — release preparation
+
+The Core participation controller, existing Agent Tool loop and interactive
+candidate executor now support context-only turns, attributed recent history
+and unmentioned owned thread replies. A context-only choice emits no reply or
+new work and preserves the last visible candidate result. Exact shared-app
+ownership remains required. The source includes scripted-model and synthetic
+transport proofs; these do not establish real-model quality or a live company
+deployment. See [the contract](../specifications/conversation-participation.md).
+
+Core 0.12.0 introduces the shared conversation participation contract and retires
+the blanket channel-message ignore behavior. Before Instance adoption, verify
+exclusive channel/recipient ownership on every shared-app destination. Roll back
+the exact Core/Workspace/Instance pairing and restore compatible ingress settings
+together; preserve conversation and execution evidence. A Git merge or version
+field alone is neither a published release nor a deployed Instance.
+
+::: implementation-example
+
+An authorized model-only hosted check exercised eight synthetic participation
+cases with `anthropic/claude-sonnet-5`: all returned the expected respond or
+context-only choice in one model step. This qualifies those cases only; it does
+not establish incoming communication delivery or company acceptance.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

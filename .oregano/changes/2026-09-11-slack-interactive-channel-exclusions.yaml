@@ -1,0 +1,47 @@
+version: 3
+plan_id: slack-interactive-channel-exclusions-2026-09-11
+created: "2026-09-11"
+title: Apply exact Slack channel and DM ownership to interactive actions
+objective: Prevent either Slack ingress from initializing a responder for interactive controls belonging to an excluded channel or a reserved DM owned by another Instance, while preserving SDK verification.
+non_goals:
+  - Change Workspace definitions, existing workflow-test ownership, or production channel assignments.
+  - Change Slack permissions, configured DM reservation pairs, action authorization, or the unpublished Core 0.12.0 version.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-11-slack-interactive-channel-exclusions.yaml
+  - packages/runner-vercel/src/lib/slack-channel-events.ts
+  - packages/runner-vercel/src/lib/slack-workflow-dm-routing.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.ts
+  - packages/runner-vercel/src/app/api/workflows/slack/route.ts
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+  - docs/operations/vercel-slack-event-staging.md
+  - docs/operations/vercel-workflow-runner.md
+tests:
+  - packages/testkit/tests/slack-channel-events.test.ts
+  - packages/runner-vercel/src/lib/workflow-slack-diagnostics.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.vercel-slack-event-staging
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Apply existing exact channel exclusions and DM reservations before dispatch at both Slack entrypoints, retaining reserved DMs on the workflow-only receiver and rejecting over-limit bodies when routing rules are configured.
+    packages: Preserve original request bytes and the Slack SDK signature verifier and action handler.
+    workspace: Preserve Agent, workflow, and source definitions.
+    instance: Keep excluded channel IDs in existing deployment configuration.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse the Slack ingress guard for JSON and form actions and the alternate workflow endpoint.
+    - mechanism: identity-and-authorization
+      reason: Extend existing exact DM reservations to interactive envelopes using their account and person, without changing grants or SDK authentication.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any shared Slack app can isolate channel and reserved-DM actions within a bounded inspection limit without company-specific code or a new configuration mechanism.
+rollback: Restore the preceding compatible Core only after disabling the overlapping Slack destination; retain all workflow and conversation state.
+open_decisions: []

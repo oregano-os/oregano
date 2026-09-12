@@ -73,15 +73,18 @@ test("real PostgreSQL bootstrap, upgrade and atomic retirement preserve Core/Rec
     assert.equal((await prepareCompanyDatabase()).operation, "verify");
     run(`INSERT INTO companyos.chat_values(key,value) VALUES ('preserved', '{"retained":true}');
       INSERT INTO companyos_records.source_watermarks VALUES ('fixture','source','preserved',now());
-      DELETE FROM companyos.schema_manifests;
-      INSERT INTO companyos.schema_manifests(manifest_id,manifest_version,manifest_digest,features)
-        VALUES ('companyos-postgres','1.9.0','${LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS["1.9.0"]}','{"vector":true}');
       CREATE SCHEMA companyos_knowledge;
       CREATE TABLE companyos_knowledge.pages(id integer primary key, parent_id integer REFERENCES companyos_knowledge.pages(id));
       CREATE TABLE companyos_knowledge.claims(id integer primary key, page_id integer REFERENCES companyos_knowledge.pages(id));
       INSERT INTO companyos_knowledge.pages VALUES (1, NULL);
       INSERT INTO companyos_knowledge.claims VALUES (1, 1);`);
-    assert.equal((await prepareCompanyDatabase()).operation, "upgrade");
+    for (const version of ["1.9.0", "2.0.0", "2.1.0"]) {
+      run(`DELETE FROM companyos.schema_manifests;
+        INSERT INTO companyos.schema_manifests(manifest_id,manifest_version,manifest_digest,features)
+          VALUES ('companyos-postgres','${version}','${LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS[version]}','{"vector":true}');`);
+      assert.equal((await prepareCompanyDatabase()).operation, "upgrade", version);
+      assert.equal(run("SELECT count(*) FROM companyos_knowledge.claims;").stdout.trim(), "1");
+    }
     assert.equal(run("SELECT count(*) FROM companyos_knowledge.claims;").stdout.trim(), "1", "normal preparation must not delete old data");
     run(migration);
     run(migration);

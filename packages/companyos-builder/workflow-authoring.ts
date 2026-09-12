@@ -174,7 +174,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
     if (idsSeen.has(data.id)) err(f, "Workflow id is declared more than once");
     idsSeen.add(data.id);
     if (data.calendar && !schedules.some((entry) => entry.path === data.calendar)) err(f, "calendar must name a declared schedule file");
-    const needsCalendar = data.steps.some((step: any) => Object.values(step)[0]?.toString().startsWith("human:") || step.for?.business_days);
+    const needsCalendar = data.steps.some((step: any) => Object.values(step)[0]?.toString().startsWith("human:") || step.for?.business_days || Object.values(step)[0] === "collect");
     if (needsCalendar && data.trigger === "operator" && !data.calendar) err(f, "operator business-day waits and decisions require calendar");
   }
   if (errors.length) return errors;
@@ -253,6 +253,8 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         } else err(f, `${s.id}: records.query projection_id must be a literal or a $config path to a projection id`);
         outputOf.set(s.id, output);
       } else if (schemas) outputOf.set(s.id, schemas.output);
+      else if (s.tool === "start") outputOf.set(s.id, { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } } });
+      else if (s.tool === "collect") outputOf.set(s.id, { type: "object", additionalProperties: false, required: s.fields, properties: Object.fromEntries((s.fields ?? []).map((field: string) => [field, { type: "string", minLength: 1, maxLength: 4000 }])) });
       else if (s.tool === "wait") outputOf.set(s.id, { type: "object", required: ["instant"], properties: { instant: { type: "string", format: "date-time" } } });
       else if (s.tool === "route") outputOf.set(s.id, { type: "object", properties: {} });
       else if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
@@ -409,7 +411,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         const key = schemaAt(itemSchema, itemSchema, [s.for_each.key]);
         if (key && (key.__optional || !["string", "integer"].includes(key.type))) err(f, `${s.id}: for_each key must be a required string or integer`);
       }
-      const expectedRisk = schemas ? schemas.risk : (["wait", "route"].includes(s.tool) ? "R0" : null);
+      const expectedRisk = schemas ? schemas.risk : (["wait", "route", "collect", "start"].includes(s.tool) ? "R0" : null);
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         if (!grants.has("oregano:communications/publish")) err(f, `${s.id}: human decision delivery requires the communication Tool grant`);
         if (!marker.startsWith("human:")) err(f, `${s.id}: decision step must carry a [human:<role>] marker, found [${marker}]`);
@@ -440,34 +442,67 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       }
 
       // message steps
-      if (s.tool === "oregano:communications/publish") {
-        if (!s.template) err(f, `${s.id}: message step needs template:`);
-        if (s.input) err(f, `${s.id}: message step must use vars:, not input:`);
-        if (!s.vars) err(f, `${s.id}: message step needs vars:`);
-        if (!s.destination && !data.defaults?.destination) err(f, `${s.id}: no destination and no defaults.destination`);
-        if (s.vars) for (const value of Object.values(s.vars)) validateInput(value, { type: ["string", "number", "boolean"] }, s.id, itemSchema);
+      if (s.tool === "oregano:communications/publish" || (s.tool.startsWith("human:") && s.message)) {
+        const m = s.message ?? s;
+        if (s.message && (typeof s.message !== "object" || Array.isArray(s.message) || Object.keys(s.message).some((key) => !["template", "vars"].includes(key)))) err(f, `${s.id}: decision message supports only template and vars`);
+        if (!m.template) err(f, `${s.id}: message step needs template:`);
+        if (!s.message && s.input) err(f, `${s.id}: message step must use vars:, not input:`);
+        if (!m.vars) err(f, `${s.id}: message step needs vars:`);
+        if (!s.message && !s.destination && !data.defaults?.destination) err(f, `${s.id}: no destination and no defaults.destination`);
+        if (m.vars) for (const value of Object.values(m.vars)) validateInput(value, { type: ["string", "number", "boolean"] }, s.id, itemSchema);
         for (const value of [s.thread ?? data.defaults?.thread, s.destination ?? data.defaults?.destination, s.recipient]) {
           if (value !== undefined) validateInput(value, { type: "string", minLength: 1 }, s.id, itemSchema);
         }
-        if (s.template) {
-          const match = String(s.template).match(/^([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*\.md)$/);
+        if (m.template) {
+          const match = String(m.template).match(/^([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*\.md)$/);
           const path = match ? `${data.owner}/skills/${match[1]}/assets/${match[2]}` : "";
           if (!path || !Object.hasOwn(files, path)) err(f, `${s.id}: template must name an existing owner Skill asset`);
           else {
             const template = workspaceDocument(files, path);
             if (!["plain-text", "provider-markdown"].includes(template.data?.format)) err(f, `${s.id}: template format is not supported`);
             const names = new Set([...template.body.matchAll(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_.]*)\s*\}\}/g)].map((value) => value[1]));
-            for (const name of names) if (!Object.hasOwn(s.vars ?? {}, name)) err(f, `${s.id}: template variable '${name}' is not supplied`);
-            for (const name of Object.keys(s.vars ?? {})) if (!names.has(name)) err(f, `${s.id}: unused template variable '${name}'`);
+            for (const name of names) if (!Object.hasOwn(m.vars ?? {}, name)) err(f, `${s.id}: template variable '${name}' is not supplied`);
+            for (const name of Object.keys(m.vars ?? {})) if (!names.has(name)) err(f, `${s.id}: unused template variable '${name}'`);
           }
         }
-        continue;
+        if (!s.message) continue;
       }
       if (s.template || s.vars) err(f, `${s.id}: template/vars are only valid on message steps`);
 
+      if (s.labels !== undefined) {
+        if (!s.labels || typeof s.labels !== "object" || Array.isArray(s.labels)
+          || Object.entries(s.labels).some(([key, value]) => !["approve", "reject"].includes(key) || typeof value !== "string" || !/^[^\u0000-\u001f]{1,75}$/.test(value))) err(f, `${s.id}: labels must contain bounded approve/reject text`);
+      }
+      if (s.tool === "start") {
+        const target = parsed.find((entry) => entry.data.id === s.workflow)?.data;
+        if (!target || target.trigger !== "operator" || target.id === data.id) err(f, `${s.id}: start requires another declared operator workflow`);
+        else {
+          const fields = target.instance?.fields ?? [];
+          validateInput(s.input, { type: "object", additionalProperties: false, required: fields, properties: Object.fromEntries(fields.map((field: string) => [field, { type: "string", minLength: 1 }])) }, s.id, itemSchema);
+          if (target.steps.some((entry: any) => Object.values(entry)[0] === "start")) err(f, `${s.id}: child workflows cannot start further workflows`);
+        }
+      }
+      if (s.tool === "collect") {
+        validateInput(s.from, { type: "string" }, s.id);
+        const match = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s.from ?? "");
+        const source = steps.find((candidate: any) => candidate.id === match?.[1]);
+        if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each) err(f, `${s.id}: collect requires a prior private root message with one explicit recipient`);
+        const checkReferences = (value: any): void => { if (typeof value === "string" && value.startsWith("$")) resolveReference(value, s.id); else if (value && typeof value === "object") Object.values(value).forEach(checkReferences); };
+        checkReferences(s.context);
+      }
       // decision binds
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         validateInput(s.via, { type: "string", minLength: 1 }, s.id);
+        if (s.recipient !== undefined) validateInput(s.recipient, { type: "string", minLength: 1 }, s.id);
+        if (s.thread !== undefined) {
+          validateInput(s.thread, { type: "string", minLength: 1 }, s.id);
+          const sourceId = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s.thread)?.[1];
+          const source = steps.find((entry: any) => entry.id === sourceId);
+          if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each || !s.recipient || JSON.stringify(source.recipient) !== JSON.stringify(s.recipient) || !s.labels)
+            err(f, `${s.id}: threaded decision requires controls and a prior private root publication to the same explicit recipient`);
+        }
+        if (s.review_format !== undefined && (s.review_format !== "message" || !s.message || !s.labels)) err(f, `${s.id}: message-only review requires a complete message template and decision labels`);
+        if (s.tool === "human:subject" && !s.recipient) err(f, `${s.id}: subject confirmation requires one exact recipient`);
         if (!s.binds) err(f, `${s.id}: decision needs binds:`);
         else if (!/^\$steps\.[a-z][a-z0-9-]*(?:\.[A-Za-z0-9_-]+)*$/.test(String(s.binds))) err(f, `${s.id}: decision must bind a prior step output, found ${s.binds}`);
         continue;
@@ -543,14 +578,17 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     const values = schema?.enum ?? (schema?.type === "boolean" ? [true, false] : undefined);
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
-  } else if (step.tool === "wait") allowed.push("for");
-  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject"];
+  } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
+  else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout");
+  else if (step.tool === "wait") allowed.push("for");
+  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "review_format"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");
     if (step.tool === "oregano:records/query") allowed.push("all_pages", "require_synced_through", "require_scan_started_after");
   }
   for (const key of Object.keys(step)) if (!allowed.includes(key)) err(file, `${step.id}: unknown option '${key}' for ${step.tool}`);
+  if (step.tool === "collect") for (const key of ["from", "context", "fields", "timeout"]) if (step[key] === undefined) err(file, `${step.id}: collect requires ${key}`);
   if (step.tool === "wait" && !step.for) err(file, `${step.id}: wait requires for`);
   if (step.tool.startsWith("human:")) for (const key of ["binds", "via", "timeout", "approve", "reject"]) if (step[key] === undefined) err(file, `${step.id}: decision requires ${key}`);
 }

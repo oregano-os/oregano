@@ -14,6 +14,7 @@ export function workflowContext(run: WorkflowRun, roster: RosterMember[]): Workf
   return {
     mode: "engine", runId: run.runId, workflowId: run.workflowId, stepId: run.state.cursor,
     artifactHash: run.artifactHash, manifestHash: run.manifestHash, status: run.state.status, subjectPrincipal: run.subjectPrincipal,
+    publicationRecoveries: structuredClone(run.state.steps[run.state.cursor]?.publicationRecoveries),
     steps: Object.fromEntries(Object.entries(run.state.steps).filter(([, step]) => step.status === "succeeded").map(([id, step]) => [id, structuredClone(step.output!)])),
     trigger: structuredClone(run.trigger), instance: structuredClone(run.fields), currentRoster: structuredClone(roster),
     decisions: Object.fromEntries(Object.entries(run.state.decisions).map(([id, decision]) => [id, {

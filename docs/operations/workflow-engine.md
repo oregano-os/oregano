@@ -5,7 +5,8 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-06
+implementation_scope: general
+updated: 2026-09-09
 owners:
   - oregano-maintainers
 audience:
@@ -14,307 +15,309 @@ audience:
 availability: experimental
 ---
 
-# Hosted Workflow Engine Operations
+# Workflow operations
 
-The Vercel host runs compiled Workspace workflows through the generic durable
-engine. Configuration, calendar activation, operator authentication, human
-decisions and provider effects remain separate controls. These endpoints do not
-establish provider data completeness or authorize production activation.
+Use this guide to check whether a hosted workflow is ready for human testing.
+It defines the evidence required, independently of the hosting or chat provider.
 
-## Prepare an exact Instance
+For a concrete Connector example, see [Slack communication delivery](slack-communication.md).
+Its provider-specific identity checks implement the general conversation contract.
 
-1. Compile the reviewed Workspace and its non-secret Instance bindings. Include
-   exact logical message destinations and stable-member direct recipient
-   mappings. An existing Slack app may serve an isolated test Instance; use its
-   approved test channel and recipients. Do not repoint production webhook
-   ingress or share the production database for test execution.
-2. Prepare and qualify the Company database through the maintained bootstrap,
-   including manifest `3.0.0`. Workers qualify before use; they do not apply an
-   unapproved migration. One deployment uses one `DATABASE_URL`; never switch
-   databases inside a running function.
-3. For each `oregano/company-records` Connector, put the complete non-secret
-   Records runtime configuration in `configuration.configuration_snapshot`.
-   It replaces `configuration_ref` for hosted workflows. Existing validation
-   checks declarations, bindings, qualification and exact Core/Workspace refs.
-   Raw credentials are rejected; SecretRefs remain references. Retain matching
-   source projections and evidence for open runs. New source declarations cannot
-   silently satisfy old source digests. Synchronization and qualified cutoff
-   coverage remain separate requirements; a snapshot manufactures neither.
-4. Configure `SLACK_CONNECTOR` with the existing Vercel Connect installation
-   reference. Its app credential must support `auth.test`, `users.info`,
-   `conversations.info`, exact `conversations.replies` reads, message publishing
-   and required history scopes. Qualify these against the actual installation.
-   Missing history access and ambiguous identities fail closed. Cross-workspace
-   Slack Connect humans are not supported by the current identity check.
-5. Set `COMPANYOS_WORKFLOW_CONFIG_GZIP_BASE64` to gzip-compressed, base64-encoded
-   JSON matching the configuration below. Use a separate secret for each human
-   operator and `CRON_SECRET`, each at least 32 characters. Never put their values
-   in an Artifact or repository.
-6. Set `COMPANYOS_WORKFLOW_ENABLED=true` only for the approved Instance; the
-   default is `false`. `/api/health` reports enablement without exposing operator
-   credentials. The cron configuration invokes the workers every minute.
-   Preview tests must invoke these same protected endpoints through their
-   approved driver when the host does not schedule Preview cron invocations.
+## Migrating from the retired domain executor
 
-Example shape; replace all illustrative IDs and the hash:
+Core now runs declared Workflows only. Remove `sprint_runtimes` from the
+Instance declaration and replace old version-1 Sprint configuration with the
+Workspace's declared Workflows and version-2 workflow configuration. The
+builder rejects the retired declaration instead of silently disabling it.
+Artifacts containing active legacy definitions are also rejected. An older
+Artifact with an empty legacy list remains readable for retained workflow
+receipts; new builds omit the list entirely.
 
-```json
-{
-  "version": 1,
-  "instanceId": "example-preview",
-  "artifactHash": "<exact Artifact hash>",
-  "environment": "preview",
-  "enabledWorkflowIds": ["daily-summary", "period-close"],
-  "autoOpenWorkflowIds": ["daily-summary"],
-  "schedulePrincipal": "slack:TEXAMPLE:UEXAMPLE",
-  "activatedAt": "2030-01-01T00:00:00.000Z",
-  "maxLatenessMinutes": 60,
-  "recordSync": {
-    "intervalMinutes": 5,
-    "targets": [
-      { "artifactHash": "<exact Artifact hash>", "sourceIds": ["work-items"] }
-    ]
-  },
-  "operators": [
-    { "principal": "slack:TEXAMPLE:UEXAMPLE", "secretRef": "env:WORKFLOW_OPERATOR_SECRET" }
-  ]
-}
+Prepare and qualify database manifest `2.1.0` before deployment. It retains all
+general workflow and Records tables. New databases do not create the three
+retired Sprint tables; existing audit data and historical manifest identities
+are preserved. No table is dropped and no old worker is kept as a fallback.
+
+Rebuild from clean pinned Core and Workspace commits. Check conversation
+routing, decisions, scheduled opening, message intake, and recovery on that
+exact candidate before activation. Hosting steps belong in the linked provider
+guide below. Do not delete installations or credentials as part of source
+cleanup.
+
+## Replies to delivered reports
+
+When a workflow publishes an addressable message, Core retains the exact sent
+text alongside its verified receipt and conversation address. A later reply can use that text
+even after the workflow finishes or is cancelled. This is evidence for an
+explanation, not permission to resume work or execute a Tool.
+
+The context reader accepts opaque surface, account, conversation and thread
+identities from an authenticated adapter. It contains no provider address parser
+or SDK. The maintained host passes the resulting evidence to the owning Agent
+alongside ordinary chat history. Another communication adapter must authenticate
+its own inbound messages and normalize its receipts to the same contract. A
+receipt's `thread_reference` is an opaque conversation reference; it need not
+represent a threaded user interface. Without a stable reply reference, a
+successful send alone cannot establish follow-up context.
+
+Check these cases before inviting a tester:
+
+- Reply to a newly delivered message after its workflow completes. The Agent
+  should explain the message without asking the person to paste it again.
+- Repeat the question after a host restart. The sent text must still be available.
+- Verify that another private recipient, account or conversation cannot read it.
+- Verify that discussion does not record a decision, reopen a run or grant Tools.
+
+Context uses at most 40 messages and 80,000 content characters and reports
+truncation. It expires with its delivery assignment, which defaults to 30 days.
+The reader uses the current active human roster, enabled workflow list and
+current Agent definition; it rejects conflicting Agent ownership. Text is a
+snapshot of what was sent, not a claim about later external edits. Existing
+publications from before this correction lack the retained text and are not
+silently reconstructed from changed business data. Publish a new report through
+the normal authorized workflow to test the complete path.
+
+Provider-specific setup is described in the
+[maintained runner guide](vercel-workflow-runner.md). Synthetic adapter tests
+prove the shared contract; they do not qualify an additional live provider.
+
+Before inviting a human tester, verify the effective model task, model and
+provider route for each participating Agent. Compare them with the intended
+Instance configuration; a successful health response with the wrong model is
+not acceptance. Test conversation quality using the compiled instructions and
+Skills, including irrelevant, incomplete and contradictory answers. Preserve
+the actual response-model evidence. Schema checks and simulated collection
+objects prove structure, not the quality of a model conversation.
+
+## Choose the provider guide
+
+- [Vercel Runner setup and recovery](vercel-workflow-runner.md)
+- [Vercel Connect interaction routing](vercel-connect-workflow-interactions.md)
+
+These guides describe the maintained reference implementation. Other adapters
+must provide equivalent identity, decision, persistence and effect checks.
+
+## Check startup before inviting a tester
+
+The deployed Artifact and any separately stored configuration must identify the
+same Core commit, Workspace commit and Instance. Prepare, deploy and roll back
+that set together. A successful build does not check the settings in a running
+Instance.
+
+The runtime must finish configuration validation and register its message
+handlers before it reports ready or stores a shared instance for later requests.
+A failed start must fail again on the next request, rather than return a partly
+initialized runtime. Automated tests must cover that failure and recovery after
+the configuration is corrected.
+
+Keep three results separate: the build passed, the deployed runtime is ready,
+and an actual person received an answer. Only the last result proves a working
+conversation on the tested route. Test each required route, such as a direct
+conversation and a shared-channel reply; success on one does not qualify another.
+
+## What a successful decision means
+
+Save the authenticated human decision before updating the displayed card.
+Replace its buttons with a clear confirmation. A saved approval authorizes the
+bound change; it does not prove that the change has executed. Verify that
+separately through the effect receipt and a read of the target system.
+
+## Hosted interaction acceptance gate
+
+Treat these as separate checks; do not call a hosted human test ready because
+only build, health, or outgoing message delivery passed:
+
+1. Verify exact Core, Workspace, Artifact and deployment identities, isolated
+   state, permitted write resources and intended recipients. Stop if any differ.
+2. Verify the provider installation destination resolves to that deployment.
+   Send a clearly labelled non-decision diagnostic only to an authorized test
+   recipient. Check actual provider forwarding and the receiving endpoint log.
+   HTTP health checks and operator calls do not exercise this path.
+3. Verify unsigned interaction requests fail authentication. Never disable
+   signature verification to make the test work. A diagnostic message does not
+   prove button authorization; qualify that separately with a real human click.
+4. Start with a real rejection: correlate the delivered request, authenticated
+   human response, persisted rejection, terminal run and absent write effects.
+   Confirm the original message has no remaining action controls.
+5. Test a separately bound positive decision. A recorded approval is not proof
+   of a completed write: inspect the effect receipt and read the target resource
+   back through the qualified provider integration. Test idempotent redelivery
+   and stale-input rejection with automated contract tests as well.
+
+For each checkpoint report `passed`, `failed`, or `not verified`, its observed
+version and evidence. Missing external credentials or skipped database tests are
+not a passing hosted qualification. Repeat affected checks when deployment,
+routing, credential placement, or recipient bindings change. Never repeatedly
+ask a user to click without locating the failed checkpoint first.
+
+If a click times out, inspect ingress delivery before assuming a decision was
+lost. If controls remain visible, inspect durable decision state before asking
+for another decision: authorization may have succeeded while the message edit
+failed. Report these failures separately to the operator. Never manufacture a
+human response or use model conversation as an approval fallback.
+
+The response regression suite covers durable-save-before-edit, removal of
+controls after approve/reject, no edit after failed authorization, and preserved
+decision state after a presentation failure. These tests cannot establish a
+customer's external installation routing. The hosted gate above remains an
+explicit operator qualification; it is not an automatic universal setup doctor.
+
+## Feedback while saving a decision
+
+After the current user and exact request pass authorization, the interface may
+show “Processing your decision…”. This is temporary feedback, not a new
+Workflow step or a saved decision. Once approval is stored, keep the reviewed
+proposal, remove the controls and show only “Approved”. A separate completion
+message requires a verified result. If storage fails, show that the result could not be confirmed
+and direct the user to an administrator; do not claim rejection or success.
+
+System feedback uses the existing working language from the Workspace's company
+file. New Artifacts retain it; no new required Workspace field is introduced.
+The current system-message catalog supports English and German, including
+regional language tags. Older Artifacts without this field, unsupported languages
+and invalid tags fall back to English. Business explanations and button labels
+remain authored in the Workspace. Runtime decisions stay in the Instance store.
+
+A continuation failure shows a short explanation while retaining the saved
+approval. A stopped write or dependent verification also uses the existing
+durable notice in the original approver's conversation. The notice says that
+completion could not be confirmed and asks the person not to submit again until
+the result is checked. Raw errors remain in operator diagnostics. Declared
+output dependencies must identify one approved decision; ambiguous audiences
+remain available for operator review. A notification never retries the write.
+
+## Check model-generated steps
+
+For a Tool using `language.generate`, verify the exact scoped Skill binding,
+Agent model task, evidence selection and output checks. Exercise the real model
+through the deployed workflow before accepting the result; a mocked response
+checks plumbing only. Confirm that model failure or rejected output stops
+publication and remains visible in the run. Save response-model evidence and
+the prompt, context and output digests with the run.
+
+Completed generation is retained with the step, so resuming a finished run must
+not generate or publish it again. An interrupted, uncommitted model call can be
+repeated and incur cost. Test any publication separately for duplicate effects.
+
+
+## More than one scheduled run per day
+
+Daily workflows keep the default key `trigger_id` plus `run_date`. For repeated
+checks within one day, declare `trigger_instant` as an instance field and use it
+in the key:
+
+```yaml
+instance:
+  key: [trigger_id, trigger_instant]
+  fields: [trigger_instant]
 ```
 
-Configuration pins the exact Artifact, Instance and deployment environment.
-Operators resolve to current active humans. The schedule principal identifies
-an accountable configured operator. Automatic opening allows only workflows
-whose required fields are supplied by trigger identity and run date. Otherwise
-prepare exact future occurrences using `schedule` and explicit Workspace-defined
-fields. The engine persists a start wait; Core does not invent business periods.
+Core fills this field from the validated scheduled occurrence. Different
+occurrences produce different runs; retrying the same occurrence reuses its run.
+Callers and child steps cannot supply or override this trusted field. Operator
+retries retain the first opening time. Existing workflows that do not declare
+it keep their prior fields and identity. Business period fields still require
+Workspace computation or explicitly reviewed inputs.
 
-## Worker and operator calls
+## Recover a decision that was never published
 
-| Endpoint | Authentication | Operation |
-|---|---|---|
-| `GET /api/workflows/timers` | Scheduler bearer credential | Open automatic occurrences, repair waits and wake claimed timers. |
-| `GET /api/workflows/steps` | Scheduler bearer credential | Advance bounded pages of enabled running workflows. |
-| `GET /api/workflows/records` | Scheduler bearer credential | Synchronize explicitly retained Artifact/source pairs through the existing Records service. |
-| `POST /api/workflows/operator` | Configured human bearer credential | Open, prepare, inspect, cancel or resume runs; reread a provider reply. |
+An authorized operator may request `recover-unpublished-decision` with the run
+ID. Recovery requires a trusted Connector verifier to prove that the failed
+publication sent nothing. The decision must still be pending and unexpired,
+with its exact text, recipient and thread unchanged. The host qualifies the
+destination again before committing the recovery authorization.
 
-Operator bodies are strict JSON, at most 32 KiB. Each example is a separate
-request. Callers cannot supply a principal, approval decision, arbitrary schedule
-parameters or replacement Artifact:
+Core records one recovery attempt per recipient under the run lease and keeps
+the original failed effect. The normal worker then delivers the notice and waits
+for the human decision. Recovery does not approve anything or retry business
+writes. A timeout, unknown outcome or second failed attempt stays blocked.
+Hosts without a verifier cannot use this operation. Provider-specific proof
+rules are documented with their Connector.
 
-```json
-{"action":"open","workflowId":"period-close","requestId":"independent-request-1","fields":{"period_id":"period-1"}}
-{"action":"open","workflowId":"daily-summary","requestId":"independent-request-2","fields":{},"triggerVariant":1}
-{"action":"schedule","workflowId":"period-close","instant":"2030-01-04T16:00:00.000Z","fields":{"period_id":"period-1"}}
-{"action":"read","runId":"workflow:<64 hexadecimal characters>"}
-{"action":"list"}
-{"action":"cancel","runId":"workflow:<64 hexadecimal characters>"}
-{"action":"resume","runId":"workflow:<64 hexadecimal characters>"}
-{"action":"receive-reply","threadId":"slack:DEXAMPLE:100.000001","messageId":"100.000002"}
-```
+## Readable decisions and conversation selection
 
-`open` uses a stable caller-generated request ID. Repeating it is a redelivery;
-a different ID creates an independent run. Changed fields under the same ID
-fail. `schedule` requires an exact active calendar occurrence. `list` returns
-at most 200 summaries and an `afterRunId` continuation. Summaries expose state,
-blocked-error digest, pinned hashes and deadlines. Full events and effect
-receipts remain in the database. Refused requests return an evidence digest
-correlated with host logs. Unknown or failed effects cannot be blindly resumed:
-review retained provider evidence and resolve the incident before authorizing
-any new effect. There is no automatic unknown-effect reconciliation action.
+A human decision may declare `review_format: message` with a complete readable
+message template and button labels. The exact bound object remains in decision
+state, hashes and effect checks; technical serialization is omitted from the
+presentation. Retained Artifacts without this declaration preserve their exact
+historical notices and receipt verification.
 
-For a manual opening that needs declared trigger parameters, supply
-`triggerVariant` (integer 0–999). It indexes only the retained schedule entries
-whose ID matches the selected workflow's trigger, starting at zero in declaration
-order. For example, `1` selects the second matching entry's parameters. Inspect
-the actual compiled Artifact before choosing; a missing entry is rejected.
-The operator cannot replace those parameters. The run opens at the actual time,
-keeps all later delivery windows and deadlines, and needs the same enabled
-workflow and authenticated operator as any other opening. Automatic scheduling
-may remain blocked. Retrying the same request reuses its opening; selecting
-different parameters under that request ID fails. Omission preserves the
-existing behavior without inferring a variant.
+Conversation choice snapshots bind one original message reference to a frozen
+numbered list, scoped by Instance, provider, account, channel, thread and human.
+They expire after one day; content-free records remain for 30 days to explain
+late replies. The generic service requires verified inputs and target
+revalidation from its adapter. It cannot create an assignment, grant Tools or
+authorize an effect.
 
-## Human decisions and conversations
 
-Each notice contains the complete bound JSON, expiry and exact request ID.
-Humans reply in that notice's thread with `APPROVE <request ID>` or
-`REJECT <request ID>`. A DM root uses Slack's returned message timestamp, never
-the whole DM conversation ID. Delivery subscribes the exact root before
-returning its receipt. An unverified subscription retains partial publication
-proof and blocks automatic retries.
+## Shared conversation coordination
 
-The host checks the actual app account and current human identity, then rereads
-the exact provider reply and verifies its root, author, original unedited text
-and complete response. Decisions are processed before model invocation.
-`receive-reply` performs the same read so a test Instance can use an existing app
-without moving production ingress. Its caller cannot substitute text or an
-approver. An edited decision needs a new original human reply. Missing provider
-access is a failed qualification, never a simulated human decision.
+A Workspace can opt its entry Agent into `conversation_coordinator: true`.
+The hosted chat then interprets ordinary messages before the legacy collection
+selector. Existing signed button handlers retain their exact decision path.
+The coordinator searches existing delivery assignments and Builder jobs, then
+resumes the selected work using its source revision and a provider-reread source
+excerpt. Direct replies continue in the original workflow thread. A different
+source thread receives an acknowledgment and verified destination link.
+The interpretation pass chooses routes rather than composing substantive
+answers; routed replies contain only a short destination acknowledgment when
+needed. New ongoing ideas receive an internal discussion bookmark even when
+the human explicitly wants no card or external change yet. Live qualification
+must inspect persisted drafts as well as the visible response.
 
-Exact workflow assignments take precedence over ordinary routing. Agent,
-materials, bindings and Tool definitions come from the opening Artifact; human
-eligibility comes from the current deployed roster. Only the waiting step's
-conversational Tool allowlist is visible and authorized; it is empty by default.
-Ordinary model requests outside an assignment cannot call workflow-reserved
-effects. Terminal or expired assignments retain proof but grant no conversation
-authority. Concurrent conversations do not switch a shared Runtime's Artifact.
+Coordinator replies, clarifications and destination acknowledgments are delivered
+as Markdown. Human-facing prose uses real paragraphs and lists; the delivery
+boundary repairs double-escaped paragraph/list separators while preserving code
+and literal paths. It does not rewrite retained answers or structured work data.
+The configured provider's working indicator ends after direct delivery, replay, failure
+or cancellation. Before delegation, the coordinator ends its own indicator;
+the selected Agent then owns its status, including suspended approval state.
+Optional provider status failures cannot replace the accepted turn's result.
 
-All message destinations, including all foreach members, are qualified before
-preparing the collection. Each publication repeats qualification within the
-same resolved credential scope used to send. Changed accounts or recipients
-block dispatch. These reads do not promise provider-side atomicity between a
-metadata check and publication.
+The Instance reuses `chat_values` for attention and immutable routing receipts.
+Attention is scoped by instance, principal, surface, account and channel; an
+atomic revision comparison prevents concurrent turns replacing each other.
+Retention is 30 days. Clarifications expire after one day; draft discussions
+become dormant after seven days without use. Closed, dormant or linked drafts
+are pruned when room is needed within the eight-draft limit. Retained drafts
+hold no business-effect authority.
+The working context keeps at most three focus references, eight recent bounded
+exchanges, eight drafts and four pending clarifications. Search pages contain
+six existing records; at most eight additional read calls and three explicit
+concerns are accepted per turn. Selected detail is capped at 10,000 characters
+and reports truncation. Current conversation history is limited to 12,000
+characters; the selected Agent receives at most twelve messages and 32,000
+characters from its existing transcript. Pending answers expose a 4,000-character
+preview and require an explicit full read before routing longer text (maximum
+16,000 characters). There is no background transcript summarizer or new search
+index.
 
-## Recovery and rollout evidence
+Dispatch retains per-concern running/completed/failed receipts alongside the
+existing workflow or Builder execution. The same original source is reused on
+retry. Provider and model errors remain visible; routing completion never proves
+a business write. Source changes require fresh interpretation. Builder job
+creation links its preceding discussion draft to the actual job, whose existing
+worker leases, deadlines and notifications remain in force.
 
-Step and repair scans retain run-ID continuations in durable timers. Schedule
-scans retain their window, configuration digest and occurrence cursor. Bounded
-lateness prevents unlimited catch-up; expired scans are reported. Superseded
-configurations cannot open old automatic schedules. Claims have five-minute
-leases; workers stop starting transitions after their time budget. Interrupted
-runs recover completed effect receipts without republishing.
+Disabling the Workspace flag restores legacy entry behavior without removing
+workflow state. Previously issued button decisions and publications remain
+readable. Unresolved legacy numbered choices import only after the adapter
+rereads and verifies the retained original answer and candidate order.
+Compile and deploy an exact Core/Workspace pair before live acceptance;
+local synthetic transport tests do not constitute provider delivery acceptance or
+production qualification of another adapter.
 
-Disable `COMPANYOS_WORKFLOW_ENABLED` to stop new hosted work. The per-workflow
-enabled list controls step dispatch; calendar activation separately controls
-new scheduled openings. Cancel specific runs before retiring their definitions.
-Retain Artifacts, state, receipts and database history through rollback. Do not
-erase evidence to make a retry appear fresh.
+## Selective participation in shared conversations
 
-Synthetic host tests exercise real engine execution, historical routing, one
-bound response, exactly one subsequent write and identity refusals. They are not
-installation qualification, real human acceptance or pilot evidence. Qualified
-Slack/Monday source cutoff coverage, real test-Instance acceptance, complete
-legacy parity/removal and production rollout gates remain mandatory.
+The existing conversation coordinator follows the shared Core participation
+policy. It records `participation: context-only` with no reply, routes or
+clarification when humans discuss among themselves. This retains attributed
+context without starting another Agent, creating a draft, posting status or
+changing business state. Clear unmentioned follow-ups can still route to the
+existing work. Native mentions and DMs use the normal response path. The
+ordinary Agent loop uses the same output controller when no coordinator applies.
 
-Records completeness and row versions bind to the exact non-secret Instance
-source binding and qualification. Changing an account, resource or identity
-mapping requires new evidence; a new receipt cannot authorize old retained
-rows. Source state and projection definitions have independent storage
-generations, so the opening Artifact can still read its own materialized
-projection after a binding/schema change. A new projection requires its own
-successful materialization receipt; empty rows alone are insufficient. Keep
-the old Artifact and Records generations, and continue qualified synchronization
-through all cutoffs needed by its active runs before retiring them. See the
-[Records query contract](../specifications/company-records-query-v1.md).
-
-`recordSync` is optional and disabled when absent. Its current Instance
-allowlist contains at most 100 unique Artifact/source pairs and an explicit
-polling interval of 1–1440 minutes. Include the deployed Artifact to prepare
-its source generations before opening a run. Retained Artifacts additionally
-need a currently running or waiting execution of an enabled workflow in the
-same Instance. Terminal executions and disabled workflows do not keep their
-sources active. Removing a pair revokes future polling without deleting data.
-An already-started read can finish; revocation does not retract provider reads.
-
-The worker loads each source from exactly one non-secret Records snapshot in
-that Artifact. It reuses current provider credential qualification, generation
-storage, source leases and `synchronizeRecordSnapshot`. The installed Core must
-still support the exact source Connector version; no implicit adapter upgrade
-or configuration fallback is allowed. Polling appends observations without
-inferring deletion from absence. Existing explicit reconciliation is separate.
-
-Each invocation starts at most three source synchronizations and stops starting
-them after 150 seconds. A durable cursor continues larger sets on a subsequent
-invocation. Already-started scans survive interval boundaries; obsolete unopened
-polls are coalesced. The interval is a minimum cadence, not a promise of provider
-throughput or a completion deadline. A source failure records a payload-free
-error digest and does not stop independent sources; a later poll retries it.
-Completed source receipts are reused after a crash before timer completion.
-Per-source leases protect concurrent synchronization. No provider write, schema
-migration, missing-message inference or `synced_through` value is created by
-this worker. A failed or unqualified source still blocks completeness queries.
-
-## Inspect a stopped effect
-
-An authenticated operator can list stopped executions, then submit
-`{"action":"review","runId":"workflow:<digest>"}` to the existing operator
-endpoint. A keyed collection returns one effect per page; supply the returned
-`nextOffset` as `offset` for the next page. Each report identifies the retained
-Artifact, manifest, run revision, step, effect claim and evidence digests.
-The human operator must inspect every page. The operator report remains
-available when automated delivery is unavailable or requires its own review.
-
-For a stopped approval-bound scalar effect, the step worker also prepares
-control-notice pages from the retained normalized outcome. It sends them through
-the pinned R2 publication Tool to the actual approving human's original decision
-thread. The current human role, exact recipient mapping and retained delivery
-receipt must still agree. No replacement recipient or destination is inferred.
-These notices respect the historical delivery window. An expired business
-approval may receive an outcome notice; the approval is never renewed by it.
-
-Pages contain at most 40 normalized evidence lines and 20,000 characters; at most
-256 pages may be prepared. Every page is frozen before publication, has a
-separate effect identity and retains its publication receipt. The existing
-bounded step worker drains them while the business cursor remains stopped.
-Restart after provider success recovers the ordinary Runtime receipt. Missing
-eligibility or qualification leaves delivery pending for later inspection;
-uncertain publication is retained as blocked and is never blindly repeated.
-Cancellation or Instance disablement stops new notice dispatch. The separate
-review dispatch fence cannot authorize a business Tool or changed page input.
-
-The `review` response includes page count, delivered count and any delivery
-error digest. It excludes notice content. Cases without exactly one recorded
-approving human, without a usable original delivery, or exceeding the automatic
-size bound remain in the authenticated operator queue. Inspect any explicitly
-reported additional Capability receipts there; no omitted receipt is success.
-
-For a partially completed batch, `verified` identifies a retained write/readback
-receipt, `unknown` requires checking the provider outcome, and `not-attempted`
-requires explicit Connector evidence that dispatch had not reached that item.
-Missing or malformed item evidence remains unknown. Raw provider exceptions,
-message content, tokens and arbitrary evidence fields are excluded. A later
-provider change is still possible; the receipt is not a current-state lock.
-No report authorizes replay, changes approval scope or silently retries the
-unattempted suffix. The complete effect stays stopped pending a separately
-qualified recovery action. Current `resume` continues to refuse unresolved
-unknown, failed or claimed effects.
-
-## Pin provider write identity
-
-Every retained Artifact using the maintained hosted Monday Connector must carry
-the reviewed `credential_identity` in its Instance configuration. Copy its
-account ID, authenticated member ID, external-Agent kind and provider Agent
-subject from the completed external-Agent qualification receipt; `actor_id`
-is the authenticated member ID. Do not infer these values from a newly supplied
-token. The host rechecks identity, active resource, current minimum access and
-mapped columns before each invocation using the same client credential.
-
-A missing identity on a retained Artifact blocks provider access. Prepare the
-qualified Instance declaration before migrating to this Core release; pin it
-with the Artifact and preserve its prior evidence. Token rotation to a different
-identity needs reviewed Instance configuration. Qualification metadata is
-retained with success and unknown-effect receipts, but is not proof of write
-success or atomicity. This setup change does not activate production.
-
-## Verify one completed run
-
-Use `companyos verify-live --scope workflow --state <file>` after the ordinary
-workflow completes. See [the command contract](../workbench/commands/verify-live.md)
-for its non-secret exact-candidate file. The CLI sends only the authenticated
-operator action `verify`. Operator authentication and the configured hosting
-boundary remain required; missing or disabled hosting fails explicitly.
-
-The optional `requirements` array on `verify` selects a nonempty unique subset
-of `wait`, `human-decision`, `record-source`, and `approved-batch`. Omission
-requires all four. The receipt binds the normalized set; it never disables
-checks on executed steps. The corresponding CLI state field is
-`required_evidence`. Require actual batch evidence on a workflow that performs
-one rather than adding a redundant write to a review-only workflow. Retain the
-separate complete acceptance plan across exact-candidate runs.
-
-The operator response can inspect a historical run, but live candidate
-acceptance requires that run's Artifact and Core identity to match the exact
-current deployment. A later deployment does not inherit acceptance from a run
-on an earlier Artifact. Verification never repairs audit gaps or retries an
-effect. Preserve the returned receipt with the separate real-provider,
-restart, deactivation, rollback and human-participation evidence.
-
-For a CLI deployment from a Git worktree, verify the provider source metadata.
-Vercel CLI versions that read `.git/config` directly may omit the Git provider
-when `.git` is a worktree file. Supply the documented GitHub metadata from the
-actual clean checkout (`githubDeployment=1`, exact `githubCommitSha`,
-`githubCommitRef`, repository and owner), then compare deployment metadata and
-runtime identity. Do not invent a source ref, alter identity tokens, or disable
-the runtime's exact-commit comparison. The [Vercel metadata guide](https://vercel.com/kb/guide/branch-variables-and-domains-not-linked-to-cli-deployments)
-documents this CLI mechanism. This does not require connecting a production
-Git webhook or promoting a Preview.
+See [Shared Conversation Participation](../specifications/conversation-participation.md).
+Exact provider ownership, current sender permissions and independent authorized
+job notifications remain mandatory. This source change needs an exact Instance
+adoption and configured-model qualification; unit tests are not live evidence.

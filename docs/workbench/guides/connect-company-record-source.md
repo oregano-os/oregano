@@ -205,6 +205,8 @@ stable roster IDs; unmatched identities and teams stay explicit. For raw
 provider IDs, use `columns.people_col` with `identity_list` and no resolution.
 People columns contain arrays, even when only one person is assigned.
 
+::: implementation-example
+
 Slack Record Source `0.1.4` exposes `thread_reference` matching a published
 root receipt, plus `author_principal`, `editor_principal`,
 `content_author_principal`, precise `occurred_at` and `accepted_at`. For deadline
@@ -214,6 +216,10 @@ so the Workspace can reject another editor's content or a bot response. Do not
 resolve the unqualified `author_id`. Updating either Connector requires an
 explicit Instance version pin and a new synchronization of adopted fields;
 it does not activate the source or prove synchronization through a cutoff.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 For a reviewed complete table surface, map the built-in fields `object_kind`,
 `provider_id`, `provider_payload`, `root_board_id`, `board_id`, `group_id`, and
@@ -648,6 +654,8 @@ is the production freshness path.
 
 ## 9. Add another provider
 
+::: implementation-example
+
 The maintained source bindings now select Slack `0.1.4` and Monday `0.3.3`.
 Each inventory rereads the actual credential account/actor and exact resource
 metadata before content. The archived Slack qualification must name its bot
@@ -656,6 +664,10 @@ external-Agent mapping. Renew incomplete qualification with the maintained
 metadata-read flow, update the exact Instance binding version, rebuild the
 Artifact and synchronize that source generation. Do not overwrite historical
 Artifacts or evidence. A current identity check is not a time-coverage proof.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::
 
 Do not copy this command into `companyos notion sync` or
 `companyos clickup sync`. A maintained provider contribution implements the

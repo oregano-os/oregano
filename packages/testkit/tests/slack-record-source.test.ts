@@ -328,3 +328,18 @@ test("Slack refuses replies naming a foreign root or an invalid thread timestamp
     await assert.rejects(connector.readCompleteInventory({ source, binding: binding(qualification.evidence.discovery.discovery_hash), qualification: { ...qualification } }), /different thread|timestamp.*invalid/);
   }
 });
+
+test("retained Slack 0.1.3 inventories remain executable without changing their binding", async () => {
+  const { fetcher } = fixture();
+  const qualification = await qualified(fetcher as typeof fetch);
+  const selected = binding(qualification.evidence.discovery.discovery_hash);
+  selected.connector_version = "0.1.3";
+  const { createMaintainedRecordSourceConnectorRegistry } = await import(new URL("../../cli/src/records-operations.mjs", import.meta.url).href);
+  const registry = createMaintainedRecordSourceConnectorRegistry({ resolveSecret: () => "fixture-secret", fetcher });
+  const connector = registry.validate(source, selected, qualification as unknown as Record<string, unknown>);
+  assert.equal(connector.version, "0.1.3");
+  const inventory = await connector.readCompleteInventory({ source, binding: selected, qualification: qualification as unknown as Record<string, unknown> });
+  assert.equal(inventory.complete, true);
+  assert.ok(inventory.objects.length > 0);
+  assert.equal(selected.connector_version, "0.1.3");
+});

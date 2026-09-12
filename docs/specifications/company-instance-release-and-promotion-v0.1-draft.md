@@ -404,6 +404,8 @@ Implementation of this contract requires tests proving at least:
 
 ## 14. Implementation status and open decisions
 
+::: implementation-example
+
 The maintained initial Builder release profile is implemented behind Workspace
 acceptance/deployer policy and exact Company Instance bindings. After explicit
 human confirmation, GitHub advances to the independently checked candidate using
@@ -418,6 +420,12 @@ requests; missing or corrupt content cannot select another version. This path
 requires an already prepared database and adds no schema or second runtime.
 The coding worker receives none of this execution authority or its credentials.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 Postgres stores immutable acceptance and append-only release snapshots, with a
 leased Instance queue and atomic revision pointer. Private operation intents retain
 ambiguous creates for provider reconciliation. Local tests exercise actual database
@@ -425,6 +433,10 @@ restart and concurrency, provider receipt loss, stale checks and distinct stagin
 and promotion. Target provider scopes, the selected merge strategy, worker image and a real
 human request-to-live proof must be qualified independently before an Instance is
 called ready.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 The combined action currently requires one human to hold both acceptance and
 release authority. Connected test execution, optional Preview preparation,
@@ -440,6 +452,8 @@ production deployment. Schema `5` and flow `fresh-initialization` bind session,
 authenticated human, selected scopes, exact release/template/configuration,
 model, region, names and disclosed costs. All resource modes MUST be `create`.
 Changed scope MUST NOT reuse the decision. Provider consent remains separate.
+
+::: implementation-example
 
 The initializer MUST produce one valid operating `0.1.0` Workspace, a private
 repository with an exact checked first commit, attempted hosted protection,
@@ -470,11 +484,23 @@ and actual message delivery. It MUST preserve approved scopes when the provider
 UI adds event-dependent permissions; a URL challenge MUST NOT count as reply
 evidence. The maintained setup guide defines the bounded recovery procedure.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The first ordinary Slack exchange MUST bind the authorized principal, current
 Artifact, selected model, delivered response and durable conversation evidence.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 The standard implementation is experimental. Its release-built platform payloads
 and local/simulated regression tests do not establish cold live timing.
+
+::: implementation-example
 
 The maintained `companyos setup` lifecycle requires schema-5 fresh initialization,
 exact resource-create receipts, the checked initial commit containing
@@ -483,6 +509,12 @@ deployment decision. Current health and an authorized model-backed Slack
 exchange MUST be verified before completion. The retired `--profile` flow and
 state versions 1–4 MUST be rejected before provider operations. Historical
 receipts MUST NOT be relabeled to manufacture current initialization authority.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The Workbench implements this subset through a private typed setup-provider
 boundary with four roles: source host, runtime host, state service, and
@@ -500,6 +532,10 @@ The single resource/cost review MUST bind route, exact model and credential
 destination. Provider edits MUST invalidate that review; confirmed sessions
 MUST retain their original binding. Reuse the existing Sensitive Production key
 entry and model-backed verification. This does not migrate existing sessions.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 This boundary is installation
 orchestration only; it is not a public plugin contract and does not alter the
@@ -525,6 +561,8 @@ MUST match the receipt's manifest digest, and MUST NOT perform schema DDL. The
 maintained Vercel profile's `vercel env run` transport is one adapter binding,
 not a requirement on a conforming alternative runtime host.
 
+::: implementation-example
+
 The current manifest is `companyos-postgres@3.0.0`. It qualifies 15 control/Workflow
 and 14 Company Records/Sprint tables, and recognizes the immutable identities
 of supported `1.0.0` through `2.0.0` predecessors. Qualification receipt version
@@ -534,6 +572,10 @@ Preparation preserves existing data; it neither creates nor deletes a Knowledge
 schema. Existing Instances use the separately targeted
 [retirement procedure](../workbench/guides/retire-knowledge.md), then rebuild
 the Artifact and refresh their qualification evidence.
+
+See the [maintained implementation](../workbench/guides/retire-knowledge.md).
+
+:::
 
 Runtime authorization and provider qualification for retained Record Sources
 remain separate release evidence. Database readiness alone MUST NOT authorize
@@ -551,6 +593,8 @@ receives repository write, merge, or deployment authority.
 
 ## Explicit unpublished installer candidates
 
+::: implementation-example
+
 A fresh standard setup MAY acquire a local unpublished bundle when explicitly
 selected. Acquisition MUST verify the platform, archive SHA-256 and exact Core
 commit and MUST retain that identity on resume. Candidate identity MUST be part
@@ -562,3 +606,7 @@ MUST be labeled separately and MUST NOT qualify the stable release installer.
 A candidate session MUST create its own deterministic test connector and bind
 that name into its reviewed scope, provider receipt, trigger, deployment and
 verification. It MUST NOT reuse the ordinary Oregano connector in the same team.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

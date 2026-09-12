@@ -8,6 +8,8 @@ import { authorizeWorkflowDecisionPrincipal } from "./decision-notice.ts";
 import type { WorkflowInvocationContext } from "./context.ts";
 import { resolveWorkflowValue } from "./references.ts";
 import { workflowEffectReview } from "./effect-review.ts";
+import { workflowReviewDecision } from "./review-dependency.ts";
+import { decisionFeedback } from "../decision-feedback.ts";
 
 export const workflowReviewStepId = (stepId: string, page: number): string => `review:${stepId}:${page}`;
 export const workflowReviewEffectKey = (instanceId: string, runId: string, executionStepId: string): string => `workflow-review:${sha256({ instanceId, runId, executionStepId })}`;
@@ -19,19 +21,29 @@ export function workflowReviewDeliveryDigest(delivery: Omit<WorkflowReviewDelive
 /** Freeze only normalized outcome evidence, never raw errors or provider payloads. */
 export function prepareWorkflowReviewDelivery(args: {
   run: WorkflowRun; workflow: CompiledWorkflow; step: CompiledWorkflowStep;
-  roster: RosterMember[]; effect: Record<string, unknown>; input: JsonValue;
+  roster: RosterMember[]; effect?: Record<string, unknown>; input: JsonValue; language?: string;
 }): WorkflowReviewDelivery | undefined {
   const { run, workflow, step } = args;
-  const decisions = [...new Set(step.requiresDecisions.map((requirement) => requirement.stepId))];
-  if (decisions.length !== 1 || !run.state.blocked || args.effect.status === "succeeded") return undefined;
-  const decisionStepId = decisions[0]!, decision = run.state.decisions[decisionStepId];
+  const decisionStepId = workflowReviewDecision(workflow, step, run.state);
+  if (!decisionStepId || !run.state.blocked) return undefined;
+  const decision = run.state.decisions[decisionStepId];
   const declared = workflow.steps.find((entry) => entry.id === decisionStepId);
   if (!declared?.decision || decision?.status !== "approved" || !decision.approvingPrincipal) return undefined;
   const member = authorizeWorkflowDecisionPrincipal(args.roster, decision.approvingPrincipal, workflow, declared);
   if (!member.id || !decision.recipients.includes(member.id)) throw new Error("Effect review has no exact original human recipient");
   const receipt = decision.deliveries[member.id] as Record<string, JsonValue> | undefined;
   if (typeof receipt?.destination_binding !== "string" || typeof receipt.thread_reference !== "string") throw new Error("Effect review requires the retained decision delivery receipt");
-  const review = workflowEffectReview(args.effect, args.input), evidenceDigest = jsonDigest(review);
+  const review = workflowEffectReview(args.effect, args.input), evidenceDigest = jsonDigest({ review, blocked: run.state.blocked });
+  const feedback = decisionFeedback("execution", args.language);
+  // Large partial batches retain their per-item evidence. Ordinary failures use
+  // a short user message; full diagnostics remain in the authenticated review.
+  if (!review.capabilities.some((capability) => capability.items?.length)) {
+    const content = `${feedback.title}\n\n${feedback.content}`;
+    const input = { destination_binding: receipt.destination_binding!, thread_reference: receipt.thread_reference!, format: "plain-text", content };
+    const immutable = { blockedStepId: step.id, decisionStepId, memberId: member.id, principal: decision.approvingPrincipal, evidenceDigest,
+      pages: [{ input, inputDigest: jsonDigest(input) }] };
+    return { ...immutable, digest: workflowReviewDeliveryDigest(immutable), outputs: [] };
+  }
   const lines = [`Effect status: ${review.status}`, "Item states: verified = retained receipt; unknown = inspect provider; not-attempted = explicit Connector evidence."];
   for (const capability of review.capabilities) {
     lines.push(`Capability: ${capability.capability}; evidence: ${capability.evidenceDigest}`);
@@ -45,7 +57,7 @@ export function prepareWorkflowReviewDelivery(args: {
   if (chunks.length > 256) throw new Error("Effect review exceeds the bounded automatic delivery size; inspect all operator review pages");
   const pages = chunks.map((chunk, index) => {
     const content = ["Workflow stopped: effect outcome requires review", `Workflow: ${workflow.id}`, `Run: ${run.runId}`, `Step: ${step.id}`,
-      `Evidence: ${evidenceDigest}`, `Page: ${index + 1}/${chunks.length}`, "", ...chunk, "",
+      `Evidence: ${evidenceDigest}`, `Page: ${index + 1}/${chunks.length}`, "", feedback.content, "", ...chunk, "",
       "Execution remains stopped. Do not repeat this action. Check the provider and retained receipts before a separate recovery decision. This message does not authorize retry."].join("\n");
     if (content.length > 20_000) throw new Error("Effect review page exceeds the publication bound");
     const input = { destination_binding: receipt.destination_binding!, thread_reference: receipt.thread_reference!, format: "plain-text", content };

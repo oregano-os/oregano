@@ -6,7 +6,7 @@ objective: Remove the complete Knowledge and Brain subsystem, including database
   search, special curation and authorization, imports, runtime jobs, and Workbench commands. Keep
   ordinary Handbook Markdown, the structured authorization roster, scoped Workspace materials, and
   all unrelated Core mechanisms. Update setup, onboarding, documentation, and migration evidence.
-  Target Core 0.12.0 and Workbench 0.1.0-experimental.22. Preserve the current Workflow, Builder
+  Target Core 0.14.0 and Workbench 0.1.0-experimental.22. Preserve the current Workflow, Builder
   release and bounded database qualification contracts. Introduce database manifest 3.0.0 without
   changing the published 2.0.0 identity. Preserve the independent Granola provider integration for
   later use; retire only its Brain consumer.

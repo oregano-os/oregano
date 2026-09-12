@@ -34,6 +34,8 @@ The current repository release candidate is `0.1.0-experimental.20`. Verify the
 validator in use with `companyos --version`. This identifier is an exact local
 contract version; it does not claim that a public package has been published.
 
+::: implementation-example
+
 | Command | Purpose | Availability |
 |---|---|---|
 | `companyos guide` | Discover and read version-matched Guides | experimental |
@@ -53,6 +55,10 @@ contract version; it does not claim that a public package has been published.
 | `companyos create workspace` | Interactively or through the agent answers-file transport, preview and create one valid authoring-only Company Workspace | experimental |
 | `companyos create` for other objects | Scaffold valid CompanyOS objects inside an existing Workspace | deferred |
 | `companyos analyze` | Analyze workflow structure and behavior | planned |
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 The version-matched [Operate the Builder](guides/operate-builder.md) Guide
 documents the experimental proposal-only path. The isolated worker currently

@@ -1,3 +1,4 @@
+import type { ConversationMessage } from "../conversation-participation.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { BuilderJob } from "../../state-store/builder-jobs.ts";
 import type { BuilderTerminalNotifier } from "./notifications.ts";
@@ -157,7 +158,7 @@ export function createBuilderFunctionalTestIntegration<Author, Lock>(args: {
         await event.thread.post("Tell Builder what to change in your next message here. The previous publication action is no longer available.");
       });
     },
-    async receive(argsIn: { conversation: string; author: Author; messageId: string; text: string; occurredAt: string }): Promise<boolean> {
+    async receive(argsIn: { conversation: string; author: Author; messageId: string; text: string; occurredAt: string; participation?: ConversationMessage }): Promise<boolean> {
       const actor = args.authenticatedPrincipal(argsIn.author);
       if (!actor) return false;
       let assigned = await args.state.get<string>(`builder:test-conversation:${sha256(argsIn.conversation)}`);
@@ -193,7 +194,7 @@ export function createBuilderFunctionalTestIntegration<Author, Lock>(args: {
       try {
         let session = await args.tests.store.get(assigned);
         if (!session || session.requester !== actor || session.instanceId !== args.artifact.instance.id) {
-          await thread.post("This test conversation belongs to its original requester."); return true;
+          if (!argsIn.participation?.shared || argsIn.participation.mentioned) await thread.post("This test conversation belongs to its original requester."); return true;
         }
         if (await args.state.get(builderDecisionKey(session.jobId))) {
           await thread.post("This build has a pending or completed decision. Its test is closed."); return true;
@@ -212,9 +213,13 @@ export function createBuilderFunctionalTestIntegration<Author, Lock>(args: {
         const candidate = await args.compile(job);
         args.assertSupported(candidate, session);
         // Claim the turn durably before invoking a model. A replay cannot spend again.
-        session = await args.tests.beginTurn(session.id, actor, argsIn.messageId, argsIn.text, argsIn.conversation);
+        session = await args.tests.beginTurn(session.id, actor, argsIn.messageId, argsIn.text, argsIn.conversation, argsIn.participation);
         try {
           const result = await args.execute(candidate, session);
+          if (result.participation === "context-only") {
+            await args.tests.recordTurn(session.id, argsIn.messageId, result);
+            return true;
+          }
           const delivered = await thread.post(result.summary);
           session = await args.tests.recordTurn(session.id, argsIn.messageId, { ...result,
             evidence: JSON.parse(JSON.stringify({ execution: result.evidence,

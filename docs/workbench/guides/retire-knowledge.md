@@ -2,6 +2,10 @@
 document_id: guide.retire-knowledge
 title: Retire Knowledge from an existing Instance
 kind: guide
+implementation_scope: provider
+providers:
+  - PostgreSQL
+  - Neon
 status: implemented
 authority: canonical
 language: en
@@ -15,11 +19,11 @@ audience:
 
 # Retire Knowledge from an existing Instance
 
-In Core 0.12.0 and Workbench 0.1.0-experimental.22, the entire
+In Core 0.13.0 and Workbench 0.1.0-experimental.22, the entire
 Brain/Knowledge subsystem, including Handbook search, has been
 removed. Handbook source files and the structured roster remain in the
 Workspace. The current database manifest is `companyos-postgres@3.0.0` and
-qualifies 15 control/Workflow tables and 14 Records/Sprint tables with receipt version
+qualifies 15 control/Workflow tables and 11 Records tables with receipt version
 `2`. Historical `1.0.0` through `2.0.0` identities remain recognizable for
 upgrade; their schema constructors are not retained.
 

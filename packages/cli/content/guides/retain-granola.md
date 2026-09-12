@@ -2,6 +2,9 @@
 document_id: guide.retain-granola
 title: Preserve Granola during Knowledge retirement
 kind: guide
+implementation_scope: provider
+providers:
+  - Granola
 status: implemented
 authority: canonical
 language: en

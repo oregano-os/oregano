@@ -432,12 +432,60 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.core-0-12-adoption",
+    "title": "Adopt the integrated Core 0.12.0",
+    "path": "docs/operations/core-0-12-adoption.md",
+    "kind": "guide",
+    "status": "draft",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "operations.maintained-host-profile",
+    "title": "Maintained Hosting and Communication Profile",
+    "path": "docs/operations/maintained-host-profile.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "operations.model-prompt-caching",
+    "title": "Model Prompt Caching",
+    "path": "docs/operations/model-prompt-caching.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
+    "document_id": "operations.slack-communication",
+    "title": "Slack Communication Delivery",
+    "path": "docs/operations/slack-communication.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": null
+  },
+  {
+    "document_id": "operations.vercel-connect-workflow-interactions",
+    "title": "Vercel Connect Workflow Interaction Qualification",
+    "path": "docs/operations/vercel-connect-workflow-interactions.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
     "document_id": "operations.vercel-slack-event-staging",
     "title": "Stage Slack channel events on a shared app",
     "path": "docs/operations/vercel-slack-event-staging.md",
     "kind": "guide",
     "status": "approved",
     "availability": null
+  },
+  {
+    "document_id": "operations.vercel-workflow-runner",
+    "title": "Vercel Workflow Runner Operations",
+    "path": "docs/operations/vercel-workflow-runner.md",
+    "kind": "guide",
+    "status": "approved",
+    "availability": "experimental"
   },
   {
     "document_id": "operations.workflow-engine",
@@ -563,6 +611,14 @@
     "document_id": "specification.companyos-packages-v0.1",
     "title": "CompanyOS Packages Specification v0.1",
     "path": "docs/specifications/companyos-packages-v0.1-draft.md",
+    "kind": "specification",
+    "status": "building",
+    "availability": null
+  },
+  {
+    "document_id": "specification.conversation-participation",
+    "title": "Shared Conversation Participation",
+    "path": "docs/specifications/conversation-participation.md",
     "kind": "specification",
     "status": "building",
     "availability": null

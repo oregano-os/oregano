@@ -23,7 +23,7 @@ test("database contract retains execution and Records and requires no retired sc
   assert.equal(COMPANY_DATABASE_MANIFEST.version, "3.0.0");
   assert.deepEqual(Object.keys(COMPANY_DATABASE_MANIFEST.schemas).sort(), ["companyos", "companyos_records"]);
   assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length, 15);
-  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length, 14);
+  assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length, 11);
   assert.deepEqual(COMPANY_DATABASE_MANIFEST.optionalFeatures, []);
   assert.equal(createHash("sha256").update(JSON.stringify(COMPANY_DATABASE_MANIFEST)).digest("hex"), COMPANY_DATABASE_MANIFEST_DIGEST);
 });
@@ -42,7 +42,7 @@ test("qualification rejects obsolete receipts and retained-schema identity or co
 
 test("upgrades recognize frozen historical manifest identities without accepting modified or unknown history", () => {
   const rows = Object.entries(LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS).map(([manifest_version, manifest_digest]) => ({ manifest_version, manifest_digest }));
-  assert.equal(assertSupportedCompanyDatabaseManifestHistory(rows).length, 11);
+  assert.equal(assertSupportedCompanyDatabaseManifestHistory(rows).length, 12);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ ...rows[0], manifest_digest: "0".repeat(64) }]), /conflicting/);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: "9.0.0", manifest_digest: "0".repeat(64) }]), /unsupported/);
 });
@@ -69,6 +69,21 @@ test("Postgres bootstrap is idempotent and qualification reads the same manifest
   const stable = (receipt: typeof first) => ({ ...receipt, qualifiedAt: undefined });
   assert.deepEqual(stable(second), stable(first));
   assert.deepEqual(stable(verified), stable(first));
+});
+
+test("retirement upgrades a known manifest without deleting historical domain audit rows", { skip: !runDatabaseTests }, async () => {
+  const { neon } = await import("@neondatabase/serverless");
+  const sql = neon(process.env.DATABASE_URL!);
+  await bootstrapCompanyDatabase();
+  // A minimal historical audit relation is enough to detect destructive cleanup.
+  await sql`create table if not exists companyos_records.sprint_events (id text primary key, payload jsonb not null)`;
+  await sql`insert into companyos_records.sprint_events (id, payload) values ('retained-audit-fixture', '{"historical":true}'::jsonb) on conflict (id) do nothing`;
+  await sql`insert into companyos.schema_manifests (manifest_id, manifest_version, manifest_digest, features) values (${COMPANY_DATABASE_MANIFEST.id}, ${"2.1.0"}, ${LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS["2.1.0"]}, '{"vector":false}'::jsonb) on conflict do nothing`;
+  const upgraded = await bootstrapCompanyDatabase();
+  assert.equal(upgraded.manifestVersion, "3.0.0");
+  assertCompanyDatabaseQualificationReceipt(await qualifyCompanyDatabase());
+  const rows = await sql`select payload from companyos_records.sprint_events where id = 'retained-audit-fixture'`;
+  assert.deepEqual(rows[0]?.payload, { historical: true });
 });
 
 test("Postgres qualification returns compact evidence and rejects every maintained drift category", { skip: !runDatabaseTests }, async (t) => {
@@ -119,19 +134,19 @@ test("Postgres qualification returns compact evidence and rejects every maintain
   // Each mutation is restored before the next assertion, in the isolated test database.
   const cases = [
     {
-      change: () => sql`alter table companyos_records.sprint_states rename to traffic_sprint_states`,
-      restore: () => sql`alter table companyos_records.traffic_sprint_states rename to sprint_states`,
-      error: /missing tables companyos_records\.sprint_states/,
+      change: () => sql`alter table companyos.workflow_thread_assignments rename to traffic_workflow_thread_assignments`,
+      restore: () => sql`alter table companyos.traffic_workflow_thread_assignments rename to workflow_thread_assignments`,
+      error: /missing tables companyos\.workflow_thread_assignments/,
     },
     {
-      change: () => sql`alter index companyos_records.records_sprint_events_sequence_idx rename to traffic_events_idx`,
-      restore: () => sql`alter index companyos_records.traffic_events_idx rename to records_sprint_events_sequence_idx`,
-      error: /missing indexes companyos_records\.records_sprint_events_sequence_idx/,
+      change: () => sql`alter index companyos.workflow_thread_assignments_run_idx rename to traffic_events_idx`,
+      restore: () => sql`alter index companyos.traffic_events_idx rename to workflow_thread_assignments_run_idx`,
+      error: /missing indexes companyos\.workflow_thread_assignments_run_idx/,
     },
     {
-      change: () => sql`alter table companyos_records.sprint_intents rename constraint records_sprint_intents_event_fk to traffic_event_fk`,
-      restore: () => sql`alter table companyos_records.sprint_intents rename constraint traffic_event_fk to records_sprint_intents_event_fk`,
-      error: /missing constraints companyos_records\.records_sprint_intents_event_fk/,
+      change: () => sql`alter table companyos.workflow_executions rename constraint workflow_execution_origin_unique to traffic_event_fk`,
+      restore: () => sql`alter table companyos.workflow_executions rename constraint traffic_event_fk to workflow_execution_origin_unique`,
+      error: /missing constraints companyos\.workflow_execution_origin_unique/,
     },
     {
       change: () => sql`update companyos.schema_manifests set manifest_digest = ${"0".repeat(64)}

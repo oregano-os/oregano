@@ -37,7 +37,7 @@ const RECORDS_TABLES_PHASE_EIGHT = [
   "sync_receipts",
 ] as const;
 
-const RECORDS_TABLES = [...RECORDS_TABLES_PHASE_EIGHT, "sprint_events", "sprint_intents", "sprint_states"].sort();
+const RECORDS_TABLES = [...RECORDS_TABLES_PHASE_EIGHT].sort();
 
 const RECORDS_REQUIRED_INDEXES_PHASE_EIGHT = [
   "companyos_records.records_access_decisions_principal_idx",
@@ -50,24 +50,16 @@ const RECORDS_REQUIRED_INDEXES_PHASE_EIGHT = [
   "companyos_records.records_sync_leases_due_idx",
 ] as const;
 
-const RECORDS_REQUIRED_INDEXES = [
-  ...RECORDS_REQUIRED_INDEXES_PHASE_EIGHT,
-  "companyos_records.records_sprint_events_sequence_idx",
-  "companyos_records.records_sprint_intents_due_idx",
-].sort();
+const RECORDS_REQUIRED_INDEXES = [...RECORDS_REQUIRED_INDEXES_PHASE_EIGHT].sort();
 
-const RECORDS_REQUIRED_CONSTRAINTS = [
-  "companyos_records.records_sprint_intents_completion_check",
-  "companyos_records.records_sprint_intents_event_fk",
-  "companyos_records.records_sprint_intents_lease_check",
-] as const;
+const RECORDS_REQUIRED_CONSTRAINTS: readonly string[] = [];
 
 /** The retired subsystem is removed through a separate explicit migration. */
 export const COMPANY_DATABASE_MANIFEST = Object.freeze({
   schemaVersion: 2,
   id: "companyos-postgres",
   version: "3.0.0",
-  predecessorVersion: "2.0.0",
+  predecessorVersion: "2.1.0",
   migrationMode: "explicit-retirement",
   schemas: Object.freeze({
     companyos: Object.freeze({ tables: CONTROL_TABLES }),
@@ -90,6 +82,7 @@ export const COMPANY_DATABASE_MANIFEST_DIGEST = createHash("sha256")
 
 // Frozen identities allow existing instances to upgrade without carrying old schema constructors.
 export const LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS: Readonly<Record<string, string>> = Object.freeze({
+  "2.1.0": "2e9d59368faaf6e69ffd333658ba9799242cf2b9ff0af25a4cbcaf6c4fb805d9",
   "2.0.0": "c18e31ab0729557a1e073f19fe2c83cdde3ff4b88cb4105e7799fdf6470cc925",
   "1.0.0": "0bbe79c8c2f5a6f370f35a7e4f09f1aa7440ded33f0548aa5778fad70aa42cc0",
   "1.1.0": "9ffe70ef8836fba556b213b2b55a68a670c347a2ecbd747daf5677f57a9271f0",

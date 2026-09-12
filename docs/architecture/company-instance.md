@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-10
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -32,6 +32,8 @@ infrastructure, configuration, secrets, integrations, and operational state.
 The environment is part of the identity, for example `acme-production` or
 `acme-staging`.
 
+::: implementation-example
+
 During setup, Slack human identity comes from `users.identity` with
 `identity.basic`. The maintained adapter checks the connector ID, UID, service,
 installation workspace and Slack app ID before producing the app Messages link.
@@ -46,6 +48,10 @@ that incoming messages are delivered. Slack URL verification is a separate
 provider handshake, and its challenge is not conversational evidence. Explicit
 event selections must include direct messages. Readiness still requires a
 persisted, delivered model-backed reply.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ```mermaid
 flowchart LR
@@ -263,28 +269,35 @@ Production health is read-only with respect to schema. It verifies the exact
 recorded manifest and required schema objects and cannot create or alter tables
 as a side effect of a readiness request.
 
-Qualification compares the required tables, indexes, constraints, active Core
-Page types, optional vector objects and exact manifest ledger inside one
-read-only SQL statement. It returns compact evidence instead of complete catalog
-listings. Missing objects, unexpected active Core Page types and missing or
-mismatched manifests still fail readiness; unexpected type diagnostics include
-at most 20 names and the full count. The receipt and qualification frequency
-are unchanged. This optimization adds no cache, schema migration or database.
+Qualification compares required tables, indexes, constraints, active Core Page
+types, optional vector objects and the exact manifest ledger in one read-only
+SQL statement. Successful responses contain compact evidence rather than full
+catalog listings. Missing or mismatched objects still fail readiness; unexpected
+Core Page types return at most 20 names with their full count. The public receipt,
+qualification frequency and current schema manifest remain unchanged.
+
+::: implementation-example
 
 The current manifest is `companyos-postgres@3.0.0`. It preserves the immutable
 historical `2.0.0` identity and qualifies 15 required control/Workflow tables
-and 14 Records/Sprint tables. Existing Builder, repository and conversation
+and 11 Records tables. Existing Builder, repository and conversation
 state remains intact. Qualification receipt version 2 contains no Knowledge
 schema, taxonomy or vector feature. Preparation neither creates nor deletes
 Knowledge state; the [retirement procedure](../workbench/guides/retire-knowledge.md)
 removes that schema only after the replacement runtime is ready and old writers
 are stopped. General authorization and effect controls remain unchanged.
 
+See the [maintained implementation](../workbench/guides/retire-knowledge.md).
+
+:::
+
 Every release records at least the Instance ID, environment, Core version and
 commit, Workspace version and commit, deployment ID, specification version,
 Workbench version, governance hash, resolved toolset hash, and build timestamp.
 A rollback points to an existing immutable artifact; it does not rebuild old
 sources with new dependencies.
+
+::: implementation-example
 
 The reference Runner can receive `COMPANYOS_ARTIFACT_HASH`, an exact SHA-256
 reference to an immutable Artifact retained in the existing Instance Postgres
@@ -293,6 +306,10 @@ content before serving requests. Startup does not prepare database schemas,
 select a latest version, or fall back after a missing or corrupt reference.
 The cache belongs to one server process and cannot switch references.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 The legacy gzip-compressed deployment environment value remains supported when
 no reference is configured. Both paths verify the content hash and declared
 deployment environment. Artifacts originate from clean exact checkouts and
@@ -300,6 +317,8 @@ are never editable operating truth. Retention removes the hosting environment
 size limit from Workspace content without adding another database or app.
 
 ## Maintained supervised starter
+
+::: implementation-example
 
 The experimental standard `companyos setup` journey uses GitHub, Vercel,
 Neon and Slack. Its private session owns account discovery, defaults, one
@@ -310,11 +329,23 @@ It renders one complete operating Workspace at `0.1.0`, records the checked
 initial commit and resource receipts, and deploys the exact resulting Artifact.
 No activation PR or merge receipt is invented for a first commit.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 Only the schema-5 fresh setup lifecycle is maintained. The old `--profile`
 installer and versions 1–4 are retired. It produces one supervised `oregano`
 Agent, one Slack workflow and no business Tool grants. The release payload
 ships tooling for its declared platforms; fresh five-minute live qualification
 remains outstanding.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The concrete Vercel profile requires Pro or Enterprise because its deployed
 configuration includes frequent background schedules. Setup reads the exact
@@ -324,6 +355,10 @@ returns a resumable billing action for the human. Unknown or unreadable plans
 require access/plan correction. Oregano does not change subscriptions or ask
 for cron frequencies. Only team identity, plan, and check time are retained
 as Instance setup evidence.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 Provider browser authentication and consent remain human actions. The setup
 state contains versioned write-ahead intents, immutable provider receipts,
@@ -341,6 +376,8 @@ its root, and setup refuses to overwrite conflicting existing configuration or
 production environment value. The Slack binding uses the fixed Connector UID
 `slack/oregano` and visible Agent name `Oregano`; provider-internal resource
 names may remain company-specific but do not become the Agent identity.
+
+::: implementation-example
 
 Model execution resolves through the Core recipe registry. A new standard
 installation requires OpenAI or Anthropic selection, resolves its direct recipe
@@ -360,11 +397,41 @@ records the non-secret reference, presence, and Sensitive classification,
 never the key. Health, production confirmation, and response evidence bind the
 route and exact model.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 `COMPANYOS_MODEL_CONFIG_BASE64` may bind exact tasks, profiles, and a default.
 Those bindings override the simple `COMPANYOS_MODEL_ROUTE` and
 `COMPANYOS_MODEL` pair. Without either form, key-aware resolution uses the
 documented Anthropic-then-OpenAI priority before the Gateway default. No
 resolved request silently fails over across providers.
+
+The selected model binding may set `promptCaching` to `auto` or
+`provider-default`. Ordinary `agent` profile calls default to `auto`; other
+profiles preserve provider defaults. The common model adapter applies supported cache controls to stable prefixes
+and growing conversation history without a TTL override; unsupported routes
+retain native provider behavior. Instance
+configuration chooses this behavior; Agent Skills and communication adapters do
+not implement caches. Cache reads/writes are content-free execution evidence,
+aggregated across Tool steps, and do not grant access or replace context storage.
+See [model operation](../operations/model-prompt-caching.md)
+for exact route support and rollback.
+
+::: implementation-example
+
+Setup builds immutable Artifacts from exact clean commits and verify
+current health. Fresh setup uses its single initial decision and correlates an
+ordinary authorized Slack message, a delivered selected-model response and both
+persisted entries to the exact Artifact, Core, Workspace, principal and model.
+The verifier requires current checked-initialization evidence and rejects
+retired setup states and unresolved mutation receipts.
+Completion remains `live-starter-instance` with readiness `validated`; it is not
+general promotion, unattended operation, or business-Tool authority.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ### Unpublished setup provenance
 

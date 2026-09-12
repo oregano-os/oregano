@@ -20,7 +20,7 @@ const fixture = (run: (root: string) => void) => {
   try { run(root); } finally { rmSync(root, { recursive: true, force: true }); }
 };
 const build = (workspaceRoot: string) => buildCompanyOSArtifact({
-  workspaceRoot, instance, coreVersion: "0.12.0", coreCommit: "a".repeat(40),
+  workspaceRoot, instance, coreVersion: "0.14.0", coreCommit: "a".repeat(40),
   workspaceCommit: "b".repeat(40), workbenchVersion: "0.1.0-experimental.22",
 });
 
@@ -29,7 +29,7 @@ test("plain Handbook articles need neither frontmatter nor a search index and re
   writeFileSync(join(root, "handbook", "working.md"), body);
   rmSync(join(root, "handbook", "index.md"));
   const pin = join(root, ".companyos", "compatibility.yaml");
-  writeFileSync(pin, readFileSync(pin, "utf8").replaceAll("0.3.2", "0.12.0").replaceAll("0.1.0-experimental.7", "0.1.0-experimental.22"));
+  writeFileSync(pin, readFileSync(pin, "utf8").replaceAll("0.3.2", "0.14.0").replaceAll("0.1.0-experimental.7", "0.1.0-experimental.22"));
   const validated = spawnSync(process.execPath, [join(repository, "packages/cli/src/cli.mjs"), "validate", root, "--format", "json"], { encoding: "utf8" });
   assert.equal(validated.status, 0, validated.stdout + validated.stderr);
   const artifact = build(root);

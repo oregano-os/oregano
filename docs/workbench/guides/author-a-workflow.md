@@ -55,6 +55,15 @@ renderer supplies the actual publish input. Publish a root without a thread
 and use its persisted receipt for subsequent replies. Decisions bind the exact
 payload; an empty batch must end before approval.
 
+Replies to a delivered report can use its exact sent text after the workflow
+finishes. Put the desired explanation style in the owning Agent's instructions;
+no extra conversation Skill or artificial waiting step is needed. The host must
+support the shared publication-context contract. This read-only discussion does
+not grant Tools or reopen the workflow. Only publications with retained delivery
+text are available; older messages are not automatically backfilled. See
+[workflow operations](../../operations/workflow-engine.md#replies-to-delivered-reports)
+for limits and acceptance checks.
+
 `companyos validate` now checks executable authoring, including source-derived
 Record row types, grants, risk minima, markers, schedule references and control
 flow. `companyos build` also compiles the validated steps into frozen manifests in
@@ -74,3 +83,83 @@ that must satisfy the executable calendar contract. Independent scheduling
 metadata may coexist in `schedules/`; it is not added to workflow manifests.
 Keep all candidate YAML readable and avoid competing trigger IDs. Invalid or
 missing referenced calendars still block validation and compilation.
+
+## Assigned fact collection
+
+A `collect` step pauses for one private conversation. `from` references a prior
+root message's `thread_reference`; that message must have one explicit recipient.
+`context` supplies the reviewed card or other business facts. `fields` names up
+to 30 required text fields, each at most 4,000 characters. `timeout.business_days`
+uses the workflow calendar. On timeout the run is cancelled without an effect.
+
+The Agent asks questions and submits only these fields. Core verifies the active
+human, delivered thread, current step and deadline, then freezes the output.
+Submission is not consent. A later human decision binds the proposed changes.
+Use `recipient` to limit a decision to one exact member. `human:subject` confirms
+only R0–R2 effects for that member without granting an approval role. R3–R4 still
+require the existing risk authorization and named role. The action labels belong
+to the Workspace. A conversational acknowledgement does not approve a decision.
+
+
+A person may answer in the main conversation, including a direct message, when
+exactly one unexpired fact-collection
+question is open for that recipient in that account and channel. The host reads
+the original provider message and uses the existing question as its context;
+it does not pretend that the message was sent in a thread. Multiple possible
+questions require clarification. Unrelated users, other channels and expired
+questions cannot select a conversation. This fallback collects facts only;
+a human decision still requires its own delivered question or action.
+
+Keep selection, questions and permitted business fields in the Workspace. Put
+provider integration in its Connector. Operational state remains in the Instance,
+never in Workspace files. Verify unauthorized replies, expiry, rejected proposals,
+stale versions, retry and provider readback before enabling a workflow.
+
+For a recurring intake, select eligible objects in a Company Tool, then use
+`start` with `workflow`, `input` and optional `for_each` to open one child per
+object. The exact input fields deduplicate repeated intake scans. The child must
+be an enabled operator workflow and cannot start further workflows. Keep the
+intake calendar blocked until its recipients and provider effects are tested.
+
+## Keep a review in the conversation
+
+On a human decision step, add `thread: $steps.ask.thread_reference` to put the
+review below an earlier private question named `ask`. Use the same explicit
+`recipient` on both steps and provide `labels.approve` and `labels.reject`.
+Keep `via` pointed at that recipient's qualified destination. The person reviews
+the proposed change and clicks a control on that review message. Plain replies
+to the original question do not approve the change.
+
+Leave out `thread` to send a separate review message. The Connector must support
+replies at the chosen destination; see its setup guide for supported surfaces.
+After acceptance, publish a separate completion message only after verifying
+the effect. Use the original question's thread for that message too.
+
+
+## More than one scheduled run per day
+
+Daily workflows keep the default key `trigger_id` plus `run_date`. For repeated
+checks within one day, declare `trigger_instant` as an instance field and use it
+in the key:
+
+```yaml
+instance:
+  key: [trigger_id, trigger_instant]
+  fields: [trigger_instant]
+```
+
+Core fills this field from the validated scheduled occurrence. Different
+occurrences produce different runs; retrying the same occurrence reuses its run.
+Callers and child steps cannot supply or override this trusted field. Operator
+retries retain the first opening time. Existing workflows that do not declare
+it keep their prior fields and identity. Business period fields still require
+Workspace computation or explicitly reviewed inputs.
+
+## Show a readable review without technical payloads
+
+On a `human:*` step with `message` and `labels`, add `review_format: message`
+to show only the complete readable proposal. Include the target and every
+proposed business change in the template, such as before/after values and the
+full comment. Do not use a vague confirmation sentence as the entire review.
+The full `binds` object remains internal for exact approval and write checks.
+Leave out the option to retain the historical payload-inclusive presentation.

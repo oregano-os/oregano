@@ -59,6 +59,7 @@ export function createBuilderChatIntegration(args: {
   rosterMember(author: Author): RosterMember | undefined;
   principal(member: RosterMember): string;
   createJobs?: () => BuilderJobStore;
+  onJobCreated?: (job: import("../../../../state-store/builder-jobs.ts").BuilderJob) => Promise<void>;
   present?: BuilderCardPresenter;
   createTests?: () => BuilderFunctionalTests;
   refreshResult?: (job: BuilderJob) => Promise<void>;
@@ -314,6 +315,7 @@ export function createBuilderChatIntegration(args: {
             baseCommit: pending.baseCommit,
           }),
         );
+        await args.onJobCreated?.(job);
         await withLock(builderUserLock(job.instanceId, job.requesterPrincipal), () => rememberBuilderRequest(args.state, job));
         await resolveBuilderActionCard(
           event,

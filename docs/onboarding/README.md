@@ -39,6 +39,8 @@ discover the correct path, establish a deterministic local baseline, and see
 which remaining actions require a Platform Administrator with `repository` or
 `instance` scope.
 
+::: implementation-example
+
 For a new installation, Codex and Claude Code use the same release-matched
 `INSTALL-COMPANYOS.md` and `companyos setup` session. The CLI reuses account
 logins, proposes defaults, asks the company name only when needed, requires an
@@ -46,6 +48,12 @@ OpenAI-or-Anthropic choice, and shows
 one editable resource/cost/responsibility summary. That single decision covers
 new resources and the first production deployment. The human completes actual
 provider login and consent. Routine technical work proceeds automatically.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The selected Vercel team must use Pro or Enterprise, detected automatically.
 Hobby gets a resumable billing action; Oregano never changes a subscription or
@@ -64,6 +72,10 @@ An unanswered retry returns [delivery recovery](../workbench/commands/setup.md#s
 including Slack URL verification and saving. Provider synchronization alone
 cannot replace a real reply.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
 Existing Workspaces still use `companyos onboard /path/to/workspace` for local
 inspection. `companyos create workspace` and `companyos bootstrap verify` remain
 local authoring commands; they are not extra steps in the standard installer.
@@ -76,12 +88,18 @@ installation on the client. This flow is experimental; see the
 [five-minute plan](../plans/2026-09-08-five-minute-setup.md) for pending live
 qualification and timing criteria.
 
+::: implementation-example
+
 Core 0.7.0 also supports confirmed Builder releases with advisory repository
 protection. After independent checks, the authorized human explicitly confirms
 the exact merge and live adoption. Core uses a non-forcing fast-forward on an
 unprotected branch and preserves hosted rules on a protected branch. GitHub Free
 is sufficient for this path; the Instance still needs qualified repository,
 coding and release bindings. See [Operate the Builder](../workbench/guides/operate-builder.md).
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 The maintained setup profile composes private typed adapters for four roles:
 source host, runtime host, state service, and communication provider. GitHub,
@@ -90,6 +108,8 @@ dependencies or a public plugin API. Setup records a non-secret write-ahead
 intent before each provider mutation and an immutable resource receipt after
 it. A resumed run reconciles an unresolved intent by immutable provider
 identity and never creates a second resource from a name-only lookup.
+
+::: implementation-example
 
 A new Company Instance does not need a database before setup begins. The state
 service adapter creates one dedicated PostgreSQL resource and
@@ -115,6 +135,12 @@ schema. Existing Instances use the separately targeted
 [retirement procedure](../workbench/guides/retire-knowledge.md), then rebuild
 the Artifact and refresh their qualification evidence.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The standard setup asks which provider to use: OpenAI or Anthropic. Neither is
 preselected; its exact agent model comes from the maintained recipe. Other
 models and providers, including Gateway, require an explicit request and are
@@ -124,17 +150,33 @@ the documented Sensitive Production variable; setup records only its
 reference, presence, and Sensitive classification. Completion
 proves the exact route and model through a real model-backed Slack response.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The maintained communication binding always uses the logical Connector UID
 `slack/oregano` and the visible Slack Agent name `Oregano`, independently of
 the Company Workspace name. Fresh live acceptance requires an ordinary authorized Slack message and a
 real model reply, both persisted and correlated to the exact deployment.
 Legacy states retain the nonce-bound `Setup-Test` exchange.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 An authoring-only Workspace is valid with no operating agents and no executable
 workflows. It must not invent automation merely to pass onboarding. The standard initializer produces `operating` directly. Existing authoring
 Workspaces use the explicit checked and Steward-confirmed activation change.
 Both result in one supervised Oregano Agent, one Slack workflow, one
 non-secret connection declaration, and no business Tool grants.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ## Maintenance contract
 
@@ -183,10 +225,37 @@ strategies and data migrations require qualified evidence/execution before autom
 release. Missing hosted enforcement or provider rights must be reported explicitly;
 neither a Workspace declaration nor a passing local test supplies those rights.
 
+For generic executable workflows, follow
+[Hosted Workflow Engine Operations](../operations/workflow-engine.md).
+The Instance Administrator verifies exact activation, non-secret historical
+Records snapshots, provider account/recipient checks, source cutoff coverage and
+real human decision evidence. `companyos onboard` keeps these as external
+Instance verification; passing local validation or the Tool-free starter check
+cannot establish workflow execution readiness.
+Hosted Monday access additionally requires the reviewed `credential_identity`
+in each retained Artifact's Instance configuration, with the authenticated
+member as `actor_id`. The host rechecks account, external-Agent identity, active
+board, minimum access and mapped columns using the actual client credential.
+Local onboarding reports this as an external Instance check; it cannot verify a
+token or infer missing provider identities from Workspace files.
+
+Before inviting a human to test Workflow decision buttons, complete the
+[Hosted interaction acceptance gate](../operations/workflow-engine.md#hosted-interaction-acceptance-gate).
+A successful starter chat, outgoing card, build or health response does not
+qualify incoming button delivery. Check actual routing to the exact test
+Instance, then a real rejection and a separately bounded approval. Report
+unverified external steps explicitly; never present them as passing tests.
+
 ## Unpublished installer tests
+
+::: implementation-example
 
 A maintainer can test a packaged exact commit before publishing a release.
 Follow [the candidate setup path](../workbench/commands/setup.md#test-an-unpublished-candidate)
 with fresh resources and an automatically named test Slack connector; both agent
 harnesses use the same session and one review. Existing company connectors stay
 bound to their original deployments.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::

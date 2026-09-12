@@ -19,6 +19,8 @@ relations:
     - command.setup
     - command.verify-live
     - status.current
+implementation_scope: provider
+providers: [vercel, neon, slack, github, openai, anthropic]
 ---
 
 # Choose a CompanyOS setup

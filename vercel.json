@@ -14,14 +14,6 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/sprint/timers",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/sprint/intents",
-      "schedule": "* * * * *"
-    },
-    {
       "path": "/api/workflows/timers",
       "schedule": "* * * * *"
     },

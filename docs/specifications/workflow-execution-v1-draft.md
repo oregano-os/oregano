@@ -265,7 +265,14 @@ assignment or real human approval. Those remain subsequent integration gates.
 ## Stopped-effect control notice
 
 A stopped scalar effect with one recorded approved decision can deliver its
-normalized per-item outcome to that decision's actual human approver. Core
+normalized per-item outcome to that decision's actual human approver. A stopped
+verification or completion step can use the same notice when its compiled input
+references, followed only through completed steps, identify exactly one approved
+decision. This dependency determines notification audience only; it grants no
+Tool or write authority. Missing effect evidence and a successful effect followed
+by failed verification must still produce an uncertainty notice, never success.
+Ordinary failures use a short localized explanation; detailed partial batch
+outcomes keep their per-item pages. Full operator evidence stays available. Core
 retains frozen pages in the existing workflow state, selects the original
 decision conversation and invokes the pinned publication Tool under a separate
 R2 review purpose. Current recipient eligibility, exact payload, Artifact and
@@ -322,6 +329,41 @@ account/channel/thread identity is required; private assignments additionally
 require the bound subject. Expired or terminal-run assignments do not authorize
 conversation context. The maintained host binds provider reads as described below.
 
+### Published conversation evidence
+
+Publication evidence is separate from the execution context above. After a
+successful message or decision delivery, the engine commits an optional
+`WorkflowAssignment.publication` with the exact sent content, format, message
+identity, publication time, commit sequence and content digest. Its key has a publication
+namespace. It cannot be returned as an active assignment or counted as an open
+fact collection. Root execution assignments keep their existing identity;
+threaded messages add evidence without replacing the parent assignment.
+
+The existing atomic state/event/assignment commit retains this evidence. If a
+worker stops after provider success, the ordinary effect receipt supports retry
+without a second send, followed by the same evidence commit. Unknown or failed
+outcomes do not create publication context. Memory and persistent stores share
+this contract; the optional entry requires no schema migration. Commit sequence
+preserves message order within a run when publication timestamps are equal.
+
+`PublishedConversationContextReader` accepts an authenticated principal and a
+provider-neutral `WorkflowConversation`. It reads only unexpired publications
+with the exact Instance, surface, account, channel and thread, and the bound
+subject for private deliveries. Current active human membership, enabled
+workflow, retained manifest ownership and the current owning Agent are required.
+Different eligible Agent owners are ambiguous and fail closed. Provider adapters
+authenticate input and supply normalized opaque identities; the reader never
+parses provider syntax or accesses a provider API.
+
+The resulting model context labels messages as untrusted, as-delivered evidence.
+It is bounded to 40 messages and 80,000 content characters, with an explicit
+truncation flag. Existing chat history supplies subsequent conversation turns.
+A terminal workflow remains terminal; the host gives this discussion no workflow
+Tools, collection control or handoff control. Active fact collection and decisions
+continue through their original guarded paths. Expired delivery context, removed
+owners and publications without retained text supply no report context. There is
+no implicit historical backfill or claim of current provider contents.
+
 Cancellation and the transition to provider dispatch lock the same execution
 row. A cancelled run, stale lease, changed step or blocked state cannot start a
 new Tool effect. The final check also uses current database time, so a worker
@@ -330,7 +372,9 @@ won the lock remains in flight and keeps its receipt; cancellation cannot undo
 an external call that has begun. Subsequent dispatch is refused. Historical
 rows, receipts and assignments are retained.
 
-Database manifest `2.0.0` adds these control tables, indexes and constraints.
+Database manifest `2.0.0` introduced these control tables, indexes and constraints.
+Manifest `2.1.0` retains them and stops requiring retired domain tables, without
+dropping existing audit data or changing historical manifest digests.
 The `1.9.0` manifest retains its exact old digest. Mandatory Postgres tests
 exercise concurrent leases, JSONB redelivery, atomic assignment refusal,
 cancellation/dispatch races and the actual Runtime's refusal when cancellation
@@ -561,3 +605,168 @@ a bound decision and a batch, then exercises the retained-evidence verifier.
 These automated synthetic cases do not qualify actual provider scope or replace
 human participation. Operating Workspace adoption and real-provider acceptance
 remain separate delivery work.
+
+## Human decision presentation
+
+A human step may declare `message: { template, vars }` and optional
+`labels: { approve, reject }`. Templates are owner Skill Markdown assets, use
+scalar variables, and are captured in the workflow manifest. The same reference
+and dominance validation applies as for ordinary messages. Labels are literal
+single-line strings of 1–75 characters; they cannot introduce new actions.
+
+```yaml
+- review: human:owner
+  binds: $steps.prepare.updates
+  via: $config.delivery.decisions
+  message:
+    template: operations/review.md
+    vars:
+      summary: $steps.prepare.review_summary
+  labels:
+    approve: Apply reviewed changes
+    reject: Keep unchanged
+  timeout:
+    business_days: 1
+  approve: apply
+  reject: end
+```
+
+Core retains the complete bound payload alongside the explanation; descriptive
+text never substitutes for execution authority. Decision controls carry a
+request identity derived from the run, step and bound digest. Explanations and
+labels are reconstructed from the retained Artifact and prior outputs for
+effect verification. Historical compiled steps without presentation metadata
+retain their exact original notice inputs.
+
+The communication Capability accepts optional provider-neutral `decision`
+metadata (`request_id`, `approve_label`, `reject_label`). A supporting Connector
+must render fixed approve/reject controls and route authenticated interactions
+to the correct Instance. Slack uses native buttons. This contract alone does
+not implement or qualify another provider. Workspace declarations contain no
+Slack action IDs, provider URLs or executable callbacks.
+
+A successful workflow button decision replaces the original card with an
+explicit recorded approval or rejection and no action controls. Approval
+confirmation does not claim that downstream effects have executed. The durable
+engine decision precedes this transport projection; a failed card edit is
+reported separately and must not be represented as a failed decision. An exact
+provider redelivery can retry the projection through the engine's existing
+idempotent response path. Rejected or unverified requests never close a card.
+
+## Hosted interaction qualification scope
+
+A passing local decision contract test does not qualify external interaction
+routing. Hosted acceptance records delivery, authenticated decision, durable
+state and provider effects separately under the
+[interaction acceptance gate](../operations/workflow-engine.md#hosted-interaction-acceptance-gate).
+Hosting-specific registration belongs to provider operations guides; the
+workflow decision contract does not require any particular host or chat system.
+
+Transient decision feedback is a transport projection. It cannot grant authority,
+add a Workflow state, change bound inputs, or veto a decision when delivery fails.
+It may begin only after exact current decision authorization. A stored success
+notice must follow durable acceptance. Exact response redelivery must not reset
+a completed card to processing. The optional Artifact language is presentation
+metadata derived from the existing Workspace company language; old Artifacts
+remain valid with the documented fallback.
+
+## Assigned fact collection
+
+A `collect` step pauses for one conversation bound to one recipient. `from` references a prior
+root message's `thread_reference`; that message must have one explicit recipient.
+A Connector may deliver it privately or in a channel; a channel remains visible
+to its members, but only the bound recipient may submit facts.
+`context` supplies the reviewed card or other business facts. `fields` names up
+to 30 required text fields, each at most 4,000 characters. `timeout.business_days`
+uses the workflow calendar. On timeout the run is cancelled without an effect.
+
+The Agent asks questions and submits only these fields. Core verifies the active
+human, delivered thread, current step and deadline, then freezes the output.
+Submission is not consent. A later human decision binds the proposed changes.
+Use `recipient` to limit a decision to one exact member. `human:subject` confirms
+only R0–R2 effects for that member without granting an approval role. R3–R4 still
+require the existing risk authorization and named role. The action labels belong
+to the Workspace. A conversational acknowledgement does not approve a decision.
+
+
+A person may answer in the main conversation, including a direct message, when
+exactly one unexpired fact-collection
+question is open for that recipient in that account and channel. The host reads
+the original provider message and uses the existing question as its context;
+it does not pretend that the message was sent in a thread. Multiple possible
+questions require clarification. Unrelated users, other channels and expired
+questions cannot select a conversation. This fallback collects facts only;
+a human decision still requires its own delivered question or action.
+
+Keep selection, questions and permitted business fields in the Workspace. Put
+provider integration in its Connector. Operational state remains in the Instance,
+never in Workspace files. Verify unauthorized replies, expiry, rejected proposals,
+stale versions, retry and provider readback before enabling a workflow.
+
+A `start` step opens a declared leaf operator workflow using `workflow` and an
+`input` map of its instance fields. It may use `for_each`. The child must be
+explicitly enabled in the Instance and the opening principal remains subject to
+operator authorization. The target and exact fields identify the child across
+repeated intake runs. A child cannot start another child. This gives Workspace
+selectors a reusable dispatch path without business rules in the engine.
+
+An exact `yes` or `no` reply on a delivered subject-decision thread can record
+that decision; a German-language Workspace uses `ja` or `nein`. Other text stays
+conversation. A reply on the earlier discussion thread cannot approve the later
+proposal. Native buttons remain the unambiguous primary action.
+
+## Decisions inside an existing conversation
+
+A human step may declare `thread: $steps.ask.thread_reference`, where `ask` is
+an earlier private root publication to the same explicit `recipient`. The step
+must supply button labels. The Runtime checks that the captured publication
+receipt names the decision's exact destination. It retains both the parent
+conversation and the individual review message as decision identity. A reply
+to the conversation alone does not approve a threaded review message.
+
+Omitting `thread` keeps the existing root-delivery contract, including historical
+Artifacts. Conversation assignments remain intact when a review is delivered.
+Decision state and delivery receipts belong to the Instance, never the Workspace.
+A recorded decision makes the run runnable; the host resumes it after presenting
+the decision receipt. The steps worker recovers persisted runnable work after
+interruption. A decision receipt is not proof that the following effects finished.
+
+
+## More than one scheduled run per day
+
+Daily workflows keep the default key `trigger_id` plus `run_date`. For repeated
+checks within one day, declare `trigger_instant` as an instance field and use it
+in the key:
+
+```yaml
+instance:
+  key: [trigger_id, trigger_instant]
+  fields: [trigger_instant]
+```
+
+Core fills this field from the validated scheduled occurrence. Different
+occurrences produce different runs; retrying the same occurrence reuses its run.
+Callers and child steps cannot supply or override this trusted field. Operator
+retries retain the first opening time. Existing workflows that do not declare
+it keep their prior fields and identity. Business period fields still require
+Workspace computation or explicitly reviewed inputs.
+
+### Complete readable review presentation
+
+`review_format: message` is an opt-in human-step declaration requiring `message`
+and `labels`. The complete proposed business change must be visible in that
+Workspace-owned template, including target, field changes and comment content
+where relevant. The compiler records the opt-in in the presentation; absent
+values retain legacy bound-payload rendering. This affects presentation only:
+`binds`, exact digest, recipient, expiry, provider receipt validation and effect
+authorization are unchanged. Rendering an empty message-only review fails.
+
+### Explicit conversation choice
+
+A routing clarification may freeze up to twenty already-authorized collection
+assignments and one verified source-message reference in durable, recipient-
+scoped state. Number selection requires independently verified current identity,
+original-message evidence and an unchanged live target. Numbering is immutable
+across retries; the first selection is atomic and later replies cannot switch
+target. Only the original message enters the selected collection, and ordinary
+decision validation remains separate. Selection expires after one day.

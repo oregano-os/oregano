@@ -1,0 +1,5272 @@
+[
+  {
+    "code": "DOC032",
+    "file": "docs/README.md",
+    "text": "`AGENTS.md`, `CLAUDE.md`, root `README.md`, and package READMEs are thin"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "R --> N[\"StateStore<br/>reference: Neon/Postgres\"]"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "I[\"Non-secret Instance configuration\"] --> ER[\"BuilderExecutionAdapter<br/>maintained: Vercel Sandbox\"]"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "I --> CP[\"Coding profile<br/>ACP v1: Claude Code or Codex\"]"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "agent. Changing Claude Code to Codex does not change the normal Runner. The"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Vercel is the maintained reference runtime host, not the Instance itself."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Neon/Postgres is the maintained reference durable StateStore. Both are"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The Builder produces the immutable artifact. The maintained Vercel Runner"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "store, verifies Slack identities against its compiled roster before model"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "CompanyOS control state in the Instance Postgres schema. The first real"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Connector publishes exact R3-approved text or HTML artifacts through Postgres"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "`env:MONDAY_API_TOKEN`. The resulting Artifact contains those non-secret values"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Vercel Runner constructs only explicitly supported Connector"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "identities from that frozen list. The Monday work-item Connector resolves one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "mappings. The Slack communication Connector exposes only named channel or DM"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "their rows from the Instance Postgres store. A Workspace grant does not add a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Slack presentation is an independent Instance concern. A Company Instance may"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "set `COMPANYOS_SLACK_AGENT_VIEW=true` only after its existing Slack app has the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Slack Agent View and uses Slack Agent Sessions to request one best-effort native"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "response is posted. If the app subscribes to Slack's"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "pin, or archive the session in Slack. Ordinary conversational answers without"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "granted Company business Tools use Slack's native streaming API so text appears"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Suggested prompts, active-view context, Slack MCP, feedback controls,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "compressed, non-secret qualification declaration. A Monday write is first"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "it. Slack qualification similarly freezes exact test-channel and approved-DM"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained reference deployment uses a company-controlled Vercel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "account/team/project and a company-controlled Neon/Postgres project. This makes"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "`vercel-neon-slack` profile binds the four setup roles to GitHub, Vercel,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Hetzner, Docker, Railway, Supabase, or communication binding is introduced as a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained GitHub repository binding uses one service-owned GitHub App per"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The isolated coding snapshot pins the ACP SDK and Claude Code/Codex adapters."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "retains `DATABASE_URL`. The maintained Vercel adapter uses `vercel env run` as"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "payload-free completion evidence. Its first narrow `vercel-neon` rehearsal"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "profile knows how to reach the protected Vercel Preview endpoint backed by an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "isolated Neon/Postgres branch. It does not know the business provider or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The current additive database manifest is `companyos-postgres@2.0.0`. It"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "path: a Neon point-in-time branch rehearses the additive migration, production"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "does not require duplicate Slack, Granola, model, or Vercel bindings, does not"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The experimental `vercel-neon-slack` setup profile is the first bounded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "deployment path for a new company. It starts from the release-matched Codex or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Claude Code runbook, creates or adopts one explicitly named private GitHub"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "repository, Vercel project, Neon Marketplace resource, and Slack Vercel Connect"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Agent, one Slack workflow, a non-secret connection declaration, and an empty"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "credentials, private keys, immutable Artifact content, and short-lived Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "user credentials are excluded. The Slack credential used to resolve the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Vercel project is configured with `packages/runner-vercel` as"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "production environment value. The Slack binding uses the fixed Connector UID"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "`slack/oregano` and visible Agent name `Oregano`; provider-internal resource"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "setup binds Gateway, native Anthropic/OpenAI/Google, or a named compatible"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Ollama, llama-server, and generic OpenAI-compatible endpoints; those endpoints"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Vercel deployment. Gateway uses the Vercel deployment identity. Native routes"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "OpenAI-compatible transport with per-provider credentials and endpoints."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Vercel is only the runtime host and secret store in this profile. Provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "documented Anthropic-then-OpenAI priority before the Gateway default. No"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "deep Knowledge tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "health, and requires one nonce-bound Slack input plus a real selected-model call"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "non-secret model response evidence are persisted in the same Neon conversation. Live"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Monday adapter is Core-owned privileged Connector code, while"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The first maintained external-Agent runtime ingress implements Monday's exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "dispatch. Monday's current pre-release trigger envelope authenticates the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Monday qualification uses that same external Agent rather than"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "monday` binds one clean Core checkout, exact Company Workspace, external Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "configured UI/callback Agent ID because monday uses different identifier"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "effect. Monday does not expose `agent_knowledge` to the external Agent token, so"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The external Agent is the sole maintained Monday qualification identity."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Vercel Runner may expose the same operation through a temporary preview-only"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "exact `VERCEL_GIT_COMMIT_SHA`, separates additive schema migration approval"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Vercel Runner also exposes a separate production-only Company"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "full reconciliation, and status. It requires `VERCEL_ENV=production`, the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Vercel Runner hosts the reusable Sprint orchestration library."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "no company cadence. Authenticated Slack messages first pass roster"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "Monday handoff, weekday movement digest, and configured readiness checkpoints"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The initial hosted rollout refreshes Monday-backed projections by bounded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "polling and treats Slack as the interactive surface. Monday board-change"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "webhooks and Monday card chat are not initial-rollout requirements and require"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "The maintained Vercel adapter runs generic compiled workflows through bounded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-instance.md",
+    "text": "eligibility and provider-qualified account/recipient facts for Slack delivery."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/company-workspace.md",
+    "text": "GitHub enforces it."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/companyos-workbench.md",
+    "text": "deterministically and labels hosted GitHub protection, identities, provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/ecosystem-and-packages.md",
+    "text": "For example, a Monday Connector may implement `work-item.read`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/ecosystem-and-packages.md",
+    "text": "Capabilities but does not know that Monday supplies them. A company selects and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/ecosystem-and-packages.md",
+    "text": "naming Slack. A Slack or another communication Connector implements that"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/ecosystem-and-packages.md",
+    "text": "The maintained Postgres Knowledge Provider is a Core adapter implementing the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "semantics. The maintained Vercel Runner uses Vercel Connect plus Chat SDK for"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "Slack transport, AI SDK with either Vercel AI Gateway or the official direct"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "Anthropic provider for model turns, and the Postgres Chat State adapter for"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "The same Runner may resolve a Slack Record Source credential from the existing"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "app-scoped Vercel Connect installation. That exchange stays behind the Runner"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "The maintained profile uses Vercel Sandbox, but this host is replaceable."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "Claude Code or Codex adapters. ACP is not the normal Runner, Tool, approval,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "The maintained Vercel Runner hosts that service behind an authenticated"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "authenticated Slack ingress. Workbench compiles the reviewed Sprint policy,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "id, and currently accepts only a Monday hand-off intent. The actual compiled"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "compiled Agent owns the grant for proof attribution, the Slack conversational"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "real provider receipt opens the Slack thread; chase and report are forced to"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "Weekly features compile independently: a Workspace may enable only Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "projection before processing due Monday, weekday, readiness, or Friday timers."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "Monday comparison; scheduled readiness emits at most one focused direct"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "Monday polling for projections and Slack for interactive submissions. Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "board-change webhooks and Monday card chat remain later extensions. A"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/oregano-core.md",
+    "text": "`oregano:knowledge/traverse` standard Tools. The maintained Postgres provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/overview.md",
+    "text": "BS --> CW[\"Isolated coding worker<br/>ACP: Claude Code or Codex\"]"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/security-and-governance.md",
+    "text": "reviewer. CODEOWNERS maps protected paths to GitHub owners but does not create"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "must not leak Vercel, Neon, Slack, GitHub, or any future provider type into"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "Hetzner, Railway, Supabase, or other installation becomes a new adapter and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "maintained recipes include Vercel AI Gateway; native Anthropic, OpenAI, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "Google routes; named OpenAI-compatible cloud routes for OpenRouter, DeepSeek,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "OpenAI-compatible escape hatch for an explicitly bound endpoint. Recipes"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "The resolver may select documented Anthropic-then-OpenAI defaults from present"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "provider-neutral, versioned PostgreSQL manifest and the idempotent bootstrap"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "provider may replace the maintained Vercel and Neon bindings only after its"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "secret transport and PostgreSQL behavior satisfy the same contract."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "The current `companyos-postgres@1.9.0` manifest is an additive Instance storage"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "Slack, StateStore, or production-provider credential. Repository credentials"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-boundaries.md",
+    "text": "- Slack, Monday, Vercel, Neon, and other provider installations,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "## Existing PostgreSQL schemas"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "The maintained StateStore uses one PostgreSQL database per Company Instance."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "Neon/Postgres is the reference service. A qualified PostgreSQL-compatible"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "service, including Supabase Postgres, may host the same schemas without"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "The maintained DDL is `packages/state-postgres/schema.sql`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "The maintained DDL is `packages/state-postgres/records-schema.sql`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "The maintained DDL is `packages/state-postgres/knowledge-schema.sql`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "snapshots, Slack-normalized submissions, clock events, states, decisions,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "An allowlisted Slack conversation first enters that schema as immutable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "An optional test-only publication adds the ordinary Tool execution and Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "scenario, compares the exact report digest, loads the chosen stored Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/architecture/system-of-proof.md",
+    "text": "Memory and Postgres execution tests use synthetic provider responses and human"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "Instance Postgres database."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "implementation uses Vercel Sandbox, but the Core contract does not require"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "Vercel."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "with an exactly pinned Claude Code or Codex adapter. ACP is not CompanyOS Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "An automated CompanyOS Contributor, such as Codex or Claude Code. An Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "GitHub administrator."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "### GitHub code owner / CODEOWNERS reviewer"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/glossary.md",
+    "text": "A GitHub user or team selected by path through `.github/CODEOWNERS`. This is a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/governance/roles-and-authority.md",
+    "text": "## GitHub mapping"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/governance/roles-and-authority.md",
+    "text": "GitHub's `CODEOWNERS` is a technical routing and merge-protection mechanism,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/governance/roles-and-authority.md",
+    "text": "| Protected path | CompanyOS authority | GitHub mapping |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/governance/roles-and-authority.md",
+    "text": "| repository rules and access | Platform Administrator with `repository` scope | GitHub admin/custom role; not automatically a CODEOWNERS approval |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "For a new Workspace, Codex and Claude Code use the same plugin-free Release"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "live path then uses `companyos setup --profile vercel-neon-slack` and finishes"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "companyos setup --profile vercel-neon-slack --workspace /path/to/company-workspace --answers /path/to/live-answers.yaml --state /path/to/setup-state.json --plan"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "source host, runtime host, state service, and communication provider. GitHub,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "Vercel, Neon/Postgres, and Slack are the maintained bindings, not Core runtime"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "service adapter first creates or explicitly adopts one PostgreSQL resource and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "manifest or required schema objects are missing. The maintained Vercel profile"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "uses `vercel env run`; another runtime profile must provide an equivalent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "secret-bound command without making Vercel part of the database contract."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "The current manifest is additive `companyos-postgres@1.9.0`: it preserves the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "Model execution is selected separately as `vercel-ai-gateway`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "`anthropic-direct`, `openai-direct`, or `google-direct`. Gateway needs no"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "the human enters a dedicated provider key only in the Vercel project UI under"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "proves the exact route and model through a real model-backed Slack response."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "`slack/oregano` and the visible Slack Agent name `Oregano`, independently of"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "nonce-bearing Slack message and the exact Agent reply"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "Steward-confirmed change: one supervised Oregano Agent, one Slack workflow, one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "applies `companyos_knowledge` through the existing Neon connection, stages and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/README.md",
+    "text": "Hosted Monday access additionally requires the reviewed `credential_identity`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Codex and Claude Code share the Release-matched `INSTALL-COMPANYOS.md` runbook;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "maintained `vercel-neon-slack` setup profile then creates or adopts explicitly"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "and requires a real Slack round trip persisted in Neon. Completion is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "| Git hosting and review | One GitHub user account and private repository | Every Workspace | The human creates a GitHub user account if they do not already have one. They select their own username for a personal repository or an existing organization only when their company already uses one. The setup never requires a new organization or paid GitHub plan. GitHub Free is sufficient for the supervised starter. A Platform Administrator with `repository` scope retains admin and recovery access. The setup applies hosted protection when available and reports whether GitHub enforces it. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "| Core checkout | GitHub credential or deploy key with read access to Oregano Core | Current co-checkout mode | CI can fetch the immutable Core commit without giving the Company Workspace write access to Core. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "| Runtime hosting | Vercel account/team/project | Before deploying an operating Instance | The Platform Administrator controls the project, deployment identity, environment separation, secrets, logs, and rollback. A conforming alternative host may replace Vercel. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "| Durable state | Neon/Postgres account/project | When the Instance requires durable state | The Platform Administrator controls isolated databases, credentials, backup, retention, and recovery. A conforming StateStore may replace Neon. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "| Connected systems | For example Slack or Monday provider connections | Only when declared by an approved connection or Tool grant | Each connection has a named owner, minimum access, revocation path, and no secrets in Git. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "For the maintained hosted Monday Connector, the Instance declaration pins the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Local authoring does not require Vercel, Neon, Slack, Monday, or a model-provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "account. The maintained complete starter does require a Vercel account, consent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "to create or adopt a Neon Marketplace resource, permission to install the Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "app in a selected Slack workspace, and access to the selected model route."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Gateway uses the Vercel deployment identity. Direct recipes bypass Gateway;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Production variable in the Vercel project UI. The agent opens or prints the correct authentication flow and waits; the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "- `.github/CODEOWNERS` — technical reviewer routing;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "- `.github/workflows/check.yml` — validation and inspection."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "## 6. Apply GitHub protection automatically when available"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "strict and never overwrites existing protection. When GitHub enforces the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "GitHub upgrade."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "merge confirmation. GitHub enforcement adds protection against accidental"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "execute `companyos setup --profile vercel-neon-slack` with its non-secret"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "answers file and ignored, mode-0600 state file. The profile performs GitHub,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Vercel, Neon, and Slack setup only after explicit create-or-adopt selection,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "are GitHub, Vercel, Neon/Postgres, and Slack. Those bindings are Workbench setup"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "A future Hetzner, Docker, Railway, Supabase, or other provider path must satisfy"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "maintained Vercel path uses"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "`vercel env run`; this is an adapter detail rather than a requirement for other"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "The current additive manifest is `companyos-postgres@1.9.0`, succeeding the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Service first creates or adopts the PostgreSQL resource, `database prepare`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Source contract itself does not require Vercel."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "existing Vercel project uses `packages/runner-vercel` as its root and that"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "The Slack binding has the fixed logical Connector UID `slack/oregano`, requests"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Slack assistant and records readiness as `validated`. It does not implement the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "and explicit Steward merge authorization are recorded, current Vercel health"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "matches the exact Artifact and version pair, and a nonce-bound human Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "are persisted in Neon in the same conversation. Verification also requires the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "fails closed on an unresolved setup intent. Hosted GitHub protection is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "`oregano/knowledge-postgres@3.0.0` in the Instance."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "`oregano/github-repository-source@1.0.0` through an `env:NAME` SecretRef,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "the isolated execution profile, one `claude-code` or `codex` ACP profile, the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "recovery, independent diff digest, Workbench validation, terminal Slack card,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/onboarding/company-workspace.md",
+    "text": "Slack, but reviews and merges the resulting draft in the Git host. Deployment"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "The Vercel host runs compiled Workspace workflows through the generic durable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "mappings. An existing Slack app may serve an isolated test Instance; use its"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "4. Configure `SLACK_CONNECTOR` with the existing Vercel Connect installation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "Slack Connect humans are not supported by the current identity check."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "\"schedulePrincipal\": \"slack:TEXAMPLE:UEXAMPLE\","
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "{ \"principal\": \"slack:TEXAMPLE:UEXAMPLE\", \"secretRef\": \"env:WORKFLOW_OPERATOR_SECRET\" }"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "{\"action\":\"receive-reply\",\"threadId\":\"slack:DEXAMPLE:100.000001\",\"messageId\":\"100.000002\"}"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "`REJECT <request ID>`. A DM root uses Slack's returned message timestamp, never"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "Slack/Monday source cutoff coverage, real test-Instance acceptance, complete"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "Every retained Artifact using the maintained hosted Monday Connector must carry"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "Vercel CLI versions that read `.git/config` directly may omit the Git provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "when `.git` is a worktree file. Supply the documented GitHub metadata from the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "request identity and optional Workspace labels. Slack renders native buttons;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "The Slack Interactivity endpoint must reach the Instance which owns the pending"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/operations/workflow-engine.md",
+    "text": "`/api/workflows/slack` while retaining its production destination. This endpoint"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Database | Use one Company Instance StateStore database with `companyos` and `companyos_knowledge` schemas; the maintained profile provisions or adopts Neon/Postgres, and no profile adds a second database URL for Brain state |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Provider boundary | Keep database preparation independent from Vercel: the maintained `vercel-neon-slack` setup profile may inject `DATABASE_URL` with `vercel env run`, while another qualified runtime or StateStore profile uses its own secret-injection and execution adapter |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Model execution | Resolve provider-neutral `utility`, `reasoning`, `deep`, `embedding`, and `reranker` task profiles through Company Instance bindings; the initial Instance may bind several profiles to one model, but model routing, credentials, budgets, and receipts must not depend on the Vercel Runner |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Initial connector set | Migrate the maintained GitHub repository connector without changing durable source identity, then deliver Granola as the first maintained hybrid connector and local file/session ingestion through the same Raw Evidence boundary; defer Slack, email, Drive, and CRM adapters without narrowing the contract to the initial set |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- create a second Neon project or database URL;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Raw Evidence | Email body, transcript, Slack message, repository document, attachment | Connector or local ingest | Evidence only |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "Neon/Postgres database:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "`vercel-neon-slack` profile may execute that operation with `vercel env run`;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "and execution adapter. Vercel commands never appear in the schema manifest or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "implementation may initially qualify Neon/Postgres only; another database or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "Large binaries may live in policy-approved object storage. Postgres stores the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `slack` | One message, thread, or bounded Slack unit |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "assume Vercel is the runtime host. Each recipe declares its route, transport,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "maintained Gateway default. Key-aware selection checks Anthropic before OpenAI"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "The maintained direct-Anthropic setup preset uses a Knowledge-only binding."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.triage` | `utility` | `anthropic/claude-haiku-4-5-20251001` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.page-classification` | `utility` | `anthropic/claude-haiku-4-5-20251001` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.duplicate-classification` | `utility` | `anthropic/claude-haiku-4-5-20251001` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.conflict-judgment` | `utility` | `anthropic/claude-haiku-4-5-20251001` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.query-expansion` | `utility` | `anthropic/claude-haiku-4-5-20251001` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.claim-extraction` | `reasoning` | `anthropic/claude-sonnet-4-6` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.timeline-extraction` | `reasoning` | `anthropic/claude-sonnet-4-6` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.claim-relation` | `reasoning` | `anthropic/claude-sonnet-4-6` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.identity-link` | `reasoning` | `anthropic/claude-sonnet-4-6` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.inferred-link` | `reasoning` | `anthropic/claude-sonnet-4-6` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.claim-grading` | `reasoning` | `anthropic/claude-sonnet-4-6` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.cited-synthesis` | `deep` | `anthropic/claude-opus-4-7` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| `knowledge.working-synthesis` | `deep` | `anthropic/claude-sonnet-4-6` (maintained background task override; 4,000 output tokens, 240-second call boundary, no provider retry) |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "separate non-generative capability because Anthropic does not supply an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "The maintained Slack adapter keeps Oregano as the single selected interactive"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "receipt before a Runner renders the answer for Slack or another transport. A"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "Vercel adapter advances five pair candidates but only one deep-synthesis subject"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "1. **GitHub repository source.** Port the existing maintained Connector and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- Slack or equivalent team messaging;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| The maintained Vercel Runner resolves the interactive Agent model, while Core Knowledge has no provider-neutral model-execution port or task profiles | Add Instance-resolved `utility`, `reasoning`, `deep`, `embedding`, and `reranker` profiles behind a Core model-execution contract without making the Vercel Runner a background-pipeline dependency |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Source Connector `1.0.0` fixes requirement kind, Connector identity, MIME type, and data posture to business Markdown in a GitHub repository | Introduce discriminated Source Connector `2.0.0` profiles for pull, webhook, and hybrid sources, including sensitive data behind verified ACL mapping |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Implemented: generic CLI source commands resolve GitHub V1 compatibility, native GitHub V2, native Granola V2, exact local files, and Session transfer through maintained Core boundaries | Qualify exact Instance bindings and schedules without adding provider branches to the shared pipeline |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Implemented and live: additive manifest `companyos-postgres@1.5.0` preserves the qualified 1.4.0 production predecessor and adds four durable compounding relations for 59 required Knowledge tables | Qualify the same provider-neutral preparation contract on the first maintained non-Vercel runtime and any additional PostgreSQL driver before advertising those implementations |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "| Implemented and live: additive manifest `companyos-postgres@1.6.0` preserves 1.5.0 and adds policy-bound task-result cache, spend-reservation, and execution-ledger relations for 62 required Knowledge tables | Deploy the nightly runtime schedule and inspect the first rated execution ledger without exposing payloads |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "sensitive content or depending on Vercel."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- implement the maintained Vercel/Neon execution path with `vercel env run`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "inside the `vercel-neon-slack` profile, not inside Core database logic;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "Vercel command;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "and setup scope. Historical manifest `companyos-postgres@1.1.0` qualifies all 44 required"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "PostgreSQL 14 database passed initial application, a second idempotent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "trusted runtime subject. The In-Memory and Postgres providers evaluate policy"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "`companyos-postgres@1.2.0` adds stable groups, memberships, and payload-free"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "`companyos-postgres@1.2.0` with 12 control tables, 48 Knowledge tables including"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- Granola, GitHub, local file, and Session Source fixtures validate against one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "through governed Instance state rather than a GitHub-specific CLI branch."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- remove direct construction of the GitHub Connector from the generic"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- a qualified non-Vercel test profile can execute the same pipeline contract."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "#### Phase 3D — GitHub Connector 2.0 migration"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "pipeline, governed lifecycle, GitHub V1/V2, Granola hybrid ingestion, exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "policy, permanent retention, a durable Postgres Raw Asset adapter, protected"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "tasks to direct Anthropic Haiku 4.5, Sonnet 4.6, and Opus 4.7 respectively;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "calibrated lexical thresholds, live Workspace grants, and cited Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "extraction; non-Vercel hosts bind the same protected portable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "reference profile uses Vercel and Neon/Postgres but the cutover contract does"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- for the maintained Vercel profile, run the bounded preparation process"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "through `vercel env run`; for another profile, use that profile's qualified"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "maintained Vercel profile the Core execution contract;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "linked production Instance upgraded to manifest `companyos-postgres@1.5.0`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "compounding, identical-receipt retry, and maintained Vercel schedule are live."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "non-Vercel production host remain Instance work before a complete live"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "The maintained Vercel profile uses `vercel env run` only as its credential"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- setup provider contracts, the maintained `vercel-neon-slack` profile, the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "21. existing GitHub Source IDs, object identities, immutable versions, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "while the maintained Vercel profile contains its own `vercel env run`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "without Vercel;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-25-company-knowledge-implementation.md",
+    "text": "- the first fully qualified non-Vercel setup profile used to prove the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "`codex/builder-acp-stage-0` branch. Deterministic Agent resolution, explicit"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "worker, private ACP profiles, repository contracts, local Git and GitHub App"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "SDK `1.4.0`, Claude Agent ACP `0.70.0`, and Codex ACP `1.6.2`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Git and the pinned Workbench, never starts Claude Code or Codex, and is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "1. it bound the snapshots, cron secret, GitHub provider, exact Slack Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "2. one authenticated Slack request required explicit confirmation and produced"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The service-owned GitHub App passed live exact-base source and idempotent draft"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "fixed placeholders. Vercel Sensitive values remain deliberately non-readable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "credential-free bundle, a freshly reread Postgres binding, three independent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The representative Slack job exposed and resolved three integration defects"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "bytes, and sent 2,182,878 bytes. At the [Vercel Sandbox list"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "rates](https://vercel.com/pricing) published on 2026-08-27, that is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "network, and creation usage before included quotas and excluding Claude model"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Slack confirmation path after rebinding the refreshed trusted Git snapshot."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The final fixed Claude qualification on that same snapshot recorded one fresh"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "cached write, and no thought tokens. Claude ACP reported an estimated model"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "evidence, not Vercel resource pricing or a provider billing statement. Every"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Codex ACP that does not expose cost records `unavailable` instead of using an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "sent `SIGKILL` only to the recorded Claude ACP process, and instantiated a new"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "| Builder presentation | The Builder is a separately addressable Company Agent and may be bound to a dedicated Slack channel. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "| Coding-agent implementations | Claude Code and Codex are the first allowlisted, exactly versioned ACP profiles. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "| Execution host | The Company Instance binds a qualified Builder execution provider. Vercel Sandbox is the first maintained adapter, not a Core or Workspace dependency. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "| GitHub self-service | The hosted GitHub provider uses one installable CompanyOS GitHub App per service environment. Customers install that same App on an account or organization and select repositories; they never create an App or copy tokens. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "| GitHub token lifecycle | The trusted GitHub provider mints a new repository- and permission-scoped installation token for source access and, only after validation, a separate token for proposal publication. Tokens are never Workspace configuration or Builder inputs. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "| Execution boundary | Coding agents run in an isolated, time-bounded worker and never inside the synchronous Slack request path. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "same Builder control path can use Claude Code or Codex without changing the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "inbound Slack message"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "1. exact Slack team and channel bindings;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The Vercel Runner remains the communication plane. It persists and reports the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "job but does not host a long-running coding-agent process in the Slack request."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Vercel Sandbox is the first maintained implementation. A future Docker,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- no Slack, production database, deployment, or repository-administration"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Claude Code through an exactly pinned `claude-agent-acp` implementation that"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "delegates to the Claude Agent SDK; and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Codex through an exactly pinned `codex-acp` implementation that delegates to"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "the Codex App Server."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "adapter: vercel-sandbox"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "profile: claude-code"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Claude Code and Codex during a job. These axes are independent: the same Claude"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Vercel Sandbox adapter can host either qualified ACP profile."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "evidence. The contract does not expose GitHub Apps, OAuth, personal access"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "tokens, SSH keys, Vercel, or provider SDK types. A local provider may use an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "For the hosted GitHub self-service path, one installable CompanyOS GitHub App"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "1. selects GitHub as the Repository Provider;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "2. installs the CompanyOS GitHub App on a personal account or organization;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "repository through GitHub before storing a non-secret binding from the Company"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "For source materialization, the trusted GitHub provider mints an installation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "remote credential helper, App private key, or GitHub API capability."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The GitHub App is a provider implementation, not a CompanyOS contract. A"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "self-hosted Instance may bind a separately operated GitHub App, a different"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "materialization. For GitHub, the provider mints a fresh installation token"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "contains the exact ACP, Claude Code, and Codex dependencies used in its"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "beginning with GitHub installation verification, exact-source"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- `packages/runner-vercel/src/lib/builder/` owns the first Vercel Sandbox"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "`packages/state-postgres/` owns the maintained durable implementation and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- `packages/runner-vercel/src/lib/` wires Slack intake and status presentation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "1. Slack authenticates the sender and supplies stable channel facts."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "11. Claude Code or Codex performs one fresh coding-agent session and changes"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "15. The source Slack thread receives status, evidence summary, and proposal"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Automatic Claude-to-Codex failover or replay after side effects may exist."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- A GitHub App, OAuth flow, token format, or repository-provider SDK as a Core,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Run one identical bounded Workspace fixture through Claude Code and Codex. Both"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "agent execution, and failure after installation revocation. The GitHub live"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "`ProposalPublisher`, and the GitHub self-service installation lifecycle;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- add explicit Slack confirmation presentation;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- implement the hosted GitHub installation callback, verified binding, event"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- implement and qualify Vercel Sandbox as the first maintained adapter;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- add qualified Claude Code and Codex launch profiles;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- implement GitHub publication through the verified CompanyOS App installation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "GitHub installation backs both;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Claude and Codex capability differences; and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- complete proposal-only MVP with GitHub self-service: 8 to 11 weeks; and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Company Instance. Configure Vercel Sandbox as the first maintained pilot"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "dependency. Keep the existing Vercel Runner as the reference communication and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "control plane, and use the maintained Postgres store as the reference durable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "5. The pinned ACP worker and pinned Claude or Codex profile run in the isolated"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The first `vercel-sandbox` adapter is preferred because the provider is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "brokering, and fits the maintained Vercel reference stack. A pinned OCI image"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "GitHub Actions remains useful for ordinary CI after a proposal is published,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- the pinned Claude and Codex ACP profiles work with brokered authentication"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- the provider-neutral repository-source conformance suite and hosted GitHub"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The brokered Claude and Codex profile gate and the private GitHub exact-base"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The representative Slack-backed job then passed on 2026-08-27 in 298.240"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "egress bytes. Using the Vercel Sandbox list rates published that day, the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "quotas and excluding the Claude model call. A separate final fixed Claude job"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "adapter lifecycle against Vercel Sandbox SDK `3.1.0`. A real disposable Sandbox"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "`vercel/sandbox/node@sha256:07bbba46c01fc02c9cd7e2e1962fda825ff733c099212ade7f893966df949b78`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "staged-deployment and GitHub App probes qualified real model authentication and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "private repository setup separately. The final protected Claude job recorded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "passed through the Slack-backed run. The final fixed worker gate also injected"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "### 8.2 Repository Provider and GitHub self-service"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "selection. GitHub is the first maintained Repository Provider; it is not the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Vercel execution provider and does not become a Core dependency. The Company"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The hosted GitHub provider uses one CompanyOS GitHub App per service"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "self-service flow redirects the authenticated customer to GitHub, where they"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "operation, the GitHub provider mints an installation token narrowed to one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "GitHub proposal publisher mints a separate token narrowed to the same"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "persisted in the Builder job, or passed to Claude Code or Codex."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The GitHub App defines the provider permission ceiling. The MVP requests no"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Self-hosted and non-GitHub deployments remain first-class. A self-hosted"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Instance may configure its own GitHub provider credentials, bind another"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "do not emulate GitHub App semantics in Core."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The Stage-0 private-repository harness now invokes the implemented GitHub App"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "requires GitHub to return a draft pull request, and proves that a repeated"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Postgres, and minted separate single-repository read and publication tokens."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Claude and Codex profiles must pass one CompanyOS-owned conformance suite before"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "SDK `1.4.0`, `@agentclientprotocol/claude-agent-acp` `0.70.0`, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "`@agentclientprotocol/codex-acp` `1.6.2`. Both profiles initialized ACP v1,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The local probe also found a meaningful implementation difference. Codex"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Sandbox and post-diff validation remain mandatory security boundaries. Claude"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "The first deployed Codex probe found a second profile difference. Supplying"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "`codex-acp`; the profile must also provide the fixed non-secret"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "the Codex worker environment. The deployed probe also proved that relying on an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Codex profile now requires the advertised ACP session mode `agent` explicitly."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "In that mode `codex-acp` `1.6.2` reports its workspace-write shell actions as"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "request-scoped Vercel header transform that holds the real credential outside"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "bindings now exist as Sensitive Production variables, but Vercel intentionally"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "bounded profile requests passed on the same snapshot. Claude made one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "path-scoped one-shot `edit` request. Codex made two location-free one-shot"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "Vercel Functions do not provide the `git` executable used by the local"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "proposal branch before the GitHub provider opens a draft through the API. The"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "normal Runner and Slack integration gate then passed on 2026-08-27 through one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- an authorized Slack message resolves deterministically to the Builder;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- GitHub self-service installs the one service-owned App without requiring a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Claude Code and Codex both pass the required ACP conformance suite;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "and hosted GitHub profiles;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- GitHub installation, selected-repository, token-scope, revocation, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- shared ACP conformance tests for Claude Code and Codex;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- a model-backed proposal-only Slack round trip with no merge or deployment."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "host-owned harness boundary, uses a native Codex App Server harness for its"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "deepest Codex integration, and uses ACP/acpx for Claude Code and other"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://github.com/agentclientprotocol/agent-client-protocol/blob/main/docs/protocol/v1/overview.mdx>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://github.com/agentclientprotocol/typescript-sdk>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- The Claude ACP adapter delegates to the Claude Agent SDK:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://github.com/agentclientprotocol/claude-agent-acp>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- The Codex ACP adapter delegates to the Codex App Server:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://github.com/agentclientprotocol/codex-acp>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "one-shot ACP runs across Claude Code, Codex, Gemini CLI, and custom agents:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://github.com/openclaw/acpx>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Vercel documents Sandbox as ephemeral compute for untrusted or AI-generated"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://vercel.com/docs/sandbox>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Vercel documents egress allowlists and credential brokering that can keep"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://vercel.com/changelog/advanced-egress-firewall-filtering-for-vercel-sandbox>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://vercel.com/changelog/safely-inject-credentials-in-http-headers-with-vercel-sandbox>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- Vercel documents private repository setup with short-lived GitHub App"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://vercel.com/kb/guide/sandbox-private-github-repositories>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- GitHub documents that one third-party App may be installed on many accounts"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://docs.github.com/en/apps/using-github-apps/installing-a-github-app-from-a-third-party>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- GitHub documents on-demand installation tokens, including repository and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "- GitHub documents that malicious code executed in a workflow can harvest the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/plans/2026-08-26-builder-acp-mvp-implementation.md",
+    "text": "<https://docs.github.com/en/actions/concepts/security/compromised-runners>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/reference/translation-exceptions.md",
+    "text": "| TR-010 | Instance environment isolation | Existing decisions assume one Vercel project and one Neon database per company, while the new model identifies production and staging as separate Instances. | Architecture recommends isolation; concrete project/database topology needs approval. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/reference/translation-exceptions.md",
+    "text": "| TR-013 | Legacy Eve runtime | The Core-resident Eve adapter and company-specific demo Tools were removed after the generic Builder, Tool SDK, Resolver, Capability, sandbox Connector, and reference runtime path passed end-to-end tests. The maintained Vercel Runner loads an immutable Artifact; the old Eve Git integration and aliases were removed. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/README.md",
+    "text": "Codex and Claude Code runbook."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "GitHub onboarding, brokered Claude Code and Codex, and the separate trusted Git"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "Slack-to-draft-proposal round trip, job-bound model accounting, and deliberate"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "The coding-agent process receives no Git-host, deployment, Slack, StateStore,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "and one exactly pinned Claude Code or Codex profile. ACP MUST NOT replace"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "- exact Slack team/channel Agent Bindings with explicit default and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "- persistent Postgres Builder jobs and leases;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "- a Vercel Sandbox worker adapter plus an in-memory conformance adapter;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "- exactly pinned ACP SDK, Claude Code ACP, and Codex ACP packages in the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "- local Git and GitHub App repository provider implementations;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "- a separate Vercel Sandbox trusted Git adapter that never runs a coding agent;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/builder-governance.md",
+    "text": "Slack-to-draft-proposal run, two snapshots, model broker, service-owned GitHub"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "The contract is provider-neutral. GitHub, Vercel, and Neon/Postgres are the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "approval, merge, or deployment authority merely by contributing. A GitHub code"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "branch, and test provider resources. The maintained reference path is a Vercel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "Preview Deployment connected to an isolated Neon/Postgres branch. Sensitive"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "holds that authority. Merely administering GitHub, Vercel, Neon, or another"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "The maintained reference workflow MAY create one isolated Neon/Postgres branch"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "and one Vercel Preview Deployment per qualifying pull request. External effects"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "use dedicated Slack channels, Monday boards, provider test installations, mock"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "The experimental `companyos setup --profile vercel-neon-slack` command"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "- a private GitHub repository, an automatic hosted-protection attempt recorded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "- explicit create-or-adopt choices for one Vercel project, Neon resource, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "Slack connection;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "- an explicit `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "- current deployment health plus one nonce-bound, model-backed Slack response,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "non-secret route/model response evidence, and Neon persistence proof; and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "maintained profile currently binds those roles to GitHub, Vercel,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "Neon/Postgres, and Slack and supports Gateway, native Anthropic/OpenAI/Google,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "and named compatible cloud recipes. Generic OpenAI-compatible, LiteLLM,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "PostgreSQL StateStore, bind its `DATABASE_URL` only through the selected"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "maintained Vercel profile's `vercel env run` transport is one adapter binding,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "`companyos-postgres@1.9.0`, which preserves predecessors `1.8.0`, `1.7.0`, `1.6.0`, `1.5.0`, `1.4.0`, `1.3.0`, `1.2.0`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "Hosted GitHub protection is defense in depth for this bounded starter rather"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-instance-release-and-promotion-v0.1-draft.md",
+    "text": "- the reference Vercel, Neon/Postgres, and provider-test topology; and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "V1 uses the existing Company Instance Postgres database. Control state remains"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "The maintained Connector ID is `oregano/knowledge-postgres` version `3.0.0`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "`oregano/github-repository-source@1.0.0`. It accepts only repository Markdown"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "`atom`, `concept`, `source`, `deal`, `email`, `slack`, `meeting`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "an in-memory conformance store and a Postgres store. Page-type, Page-version,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "never delete prior versions. The Postgres writer uses serializable transactions"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.1-draft.md",
+    "text": "Database manifest `companyos-postgres@1.2.0` is an additive successor to the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "manifests through `companyos-postgres@1.8.0` remain supported until their"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "`companyos-postgres@1.9.0`. Unknown major versions fail closed."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "- `slack`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "The GitHub repository Connector is the first V2 migration and preserves the V1"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "Instance has a qualified durable Raw Asset adapter. The maintained Postgres"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "recipes share one OpenAI-compatible transport while retaining distinct routes,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-knowledge-v0.2-draft.md",
+    "text": "does not depend on Vercel or one model provider."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "Slack Record Source `0.1.3` emits `author_principal` in the exact qualified"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "conversation's team namespace (`slack:<team>:<user>`), and separate"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "`slack-bot` or `slack-unknown` principals. A bot indicator takes precedence"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "not turn it into human evidence. These fields follow Slack's documented"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "`thread_reference` uses `slack:<channel>:<root-ts>`, exactly matching the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "Monday Record Source `0.3.3` emits `people_principals.<column-id>` as an array"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "of `monday:<account>:<person>` and `monday-team:<account>:<team>` principals."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "### Logical Monday schema mappings"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "`configuration.mapping` to the maintained Monday Record Source Connector."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "Slack angle links, Markdown links and plain URLs are recognized. Query and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "actor before reading inventories. Slack uses the reviewed bot user and current"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "conversation membership/scopes. Monday uses the reviewed account, member ID,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "Instance bindings must select Slack `0.1.3` or Monday `0.3.3`. Incomplete older"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-record-normalization-v1.md",
+    "text": "Slack traversal rejects repeated continuation cursors independently for channel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "**CRS-014 — Persistence.** The maintained Postgres implementation uses the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Neon/Postgres `companyos_records`. Normal Agent and Sprint Domain reads use"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Slack submissions MUST enter only after provider authentication, roster"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "closed. The initial profile uses bounded polling for Monday-backed records and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Slack for interaction. Monday board-change webhooks and Monday card chat are"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "canonical JSON value because PostgreSQL JSONB does not preserve object-key"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Slack submission. The durable report MUST omit rendered message bodies and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "MAY select one existing durable `message.monday-handoff` intent by id. A"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "features MUST compile independently; enabling Monday hand-off MUST NOT require"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "**CRS-032 — Maintained Monday boundary.** The maintained Monday implementation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "**CRS-033 — Callback security.** A Monday external-Agent callback is verified"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "**CRS-034 — External-Agent provider qualification.** The maintained Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Monday qualification identity. `READ_WRITE` metadata qualification does not"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "return or retain its credential. The maintained Monday implementation reads"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "**CRS-038 — Slack Record Source.** The maintained Slack adapter MUST select one"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "planned synchronization or reconciliation. Neither path writes to Slack or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Repository tests prove schemas, deterministic in-memory and Postgres contracts,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "Slack qualification and bounded threaded-history normalization, historical"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-and-sprint-v0.1-draft.md",
+    "text": "proof-only replay, isolated full-week Sprint scenario execution, Slack Friday normalization after resolved identity and Agent routing, shadow"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "The store reads rows and completion receipts together. Postgres uses one SQL"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "`record-query-postgres.test.ts` runs in the mandatory database gate and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "Maintained Slack `0.1.3` and Monday `0.3.3` source Connectors reread the actual"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "Slack requires the reviewed team, bot user, conversation kind/membership and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "history/read scopes. Monday requires the reviewed account, member identity,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "`record-binding-evidence.test.ts` and the mandatory Postgres query suite prove"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "Memory and Postgres choose the same latest completeness receipt even within"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "one microsecond. Postgres orders the integral second and original fractional"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "Maintained Slack and Monday sources report `scan_started_at` before identity"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "permission checks still apply. Slack only discovers roots inside the binding's"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "source and projection generation and its immutable versions together. Postgres"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/company-records-query-v1.md",
+    "text": "`record-current-scan.test.ts` and the mandatory Postgres query suite cover edits,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/companyos-core-v0.7-draft.md",
+    "text": "surfaces: [slack]"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/companyos-core-v0.7-draft.md",
+    "text": "require zero GitHub approvals and MUST NOT require CODEOWNER review; the Change"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/companyos-core-v0.7-draft.md",
+    "text": "CODEOWNERS maps paths to technical GitHub owners but does not itself grant"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/core-workspace-upgrades-v0.1-draft.md",
+    "text": "- GitHub application, GitHub Actions, or provider-neutral pull-request delivery;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/identity-access-and-offboarding.md",
+    "text": "slack:<team-id>:<user-id>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/identity-access-and-offboarding.md",
+    "text": "github:<organization-or-enterprise>:<login>"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/identity-access-and-offboarding.md",
+    "text": "The current Stage 1 Instance uses Slack as its sole effect-approval surface."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/identity-access-and-offboarding.md",
+    "text": "Monday or other systems may trigger work but do not grant approval. This is an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/identity-access-and-offboarding.md",
+    "text": "deployment use Slack."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/tool-architecture.md",
+    "text": "through Postgres and the Vercel Runner's public route. It accepts only bounded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/tool-architecture.md",
+    "text": "The maintained Monday batch adapter records its completed prefix, the current"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/tool-architecture.md",
+    "text": "Hosted Monday Connector configuration requires an exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/tool-architecture.md",
+    "text": "The maintained Monday work-item client requires exactly one matching item in"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "identity, and canonical JSON equality survives a Postgres JSONB round trip."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "database tests must execute against real Postgres with zero skipped cases."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "still pending. The atomic Postgres claim and memory adapter verify current"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "These store checks are covered by real Postgres tests, including rejection"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "Memory and Postgres timer identity both compare canonical JSON payloads and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "The `1.9.0` manifest retains its exact old digest. Mandatory Postgres tests"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "Postgres acceptance executes the same Runtime/store boundaries with retained"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "The Vercel host exposes generic timer, step, Records and operator endpoints, with strict"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "The Slack adapter qualifies all destinations before preparing a message"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "to the correct Instance. Slack uses native buttons. This contract alone does"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workflow-execution-v1-draft.md",
+    "text": "Slack action IDs, provider URLs or executable callbacks."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "bounded answers-file transport used by the shared Codex and Claude Code"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "`companyos setup --profile vercel-neon-slack` state machine; separating the two"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "a GitHub repository, hosted ruleset, remote branch, pull request, Core checkout,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "CLI and automation modes use. The agent bootstrap is an ordinary Codex or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "Claude Code prompt plus a versioned runbook, not a Workbench chat interface,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "| 7 | `repository.codeowner` | Ask for one GitHub user or team in CODEOWNERS syntax. Syntax is checked locally; hosted identity verification remains manual. |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "The generator MUST NOT request or write Slack tokens, provider secrets,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "database URLs, Vercel credentials, model credentials, or other secret values."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "The generator MUST declare `review_mode: steward` with zero required GitHub"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": ".github/"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "roster, policies, connections, Company Tools, GitHub files, and Company entry"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "`pending`; generated files never claim that GitHub has applied it."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "The generated GitHub check is rendered from `.companyos/compatibility.yaml`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "model beyond the bounded `vercel-neon-slack` starter profile."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/specifications/workspace-generator-v0.1-draft.md",
+    "text": "the resulting Workspace security change is proposed in GitHub and requires the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The hosted Slack capability publisher sends explicit Markdown for channel,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "tests do not replace verification of formatting in a deployed Slack client."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Hosted workflow and real Postgres engine cases now reside in fictional"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "verifies that participant and item labels cannot inject Slack mentions or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Slack routing rereads exact provider replies, uses individual DM roots,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "responses and recovers completed effects. Memory and mandatory Postgres"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Memory and required Postgres tests cover these boundaries. Hosted assignment/decision delivery now has synthetic integration coverage;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "can use the actual structured contract. Slack Record Source `0.1.3` also"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Maintained Slack and Monday Record Source adapters emit exact qualified"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "principals for roster resolution. Slack preserves fractional creation/edit"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Monday keeps people and team assignments distinct under the qualified account."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "outputs and explicit complete-source evidence. Required Postgres tests cover"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "additive Postgres stores, and the standard `records.query` Tool. The"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The generic Record Source registry now also has a maintained read-only Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "receipt without retaining the token. No real Slack history read, database"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "and projections locally; qualifies the exact external Monday Agent identity"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Record Source Connector registry has one maintained read-only Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The maintained Vercel Runner now has an optional fail-closed Company Records"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "plans and confirms a metadata-only Monday external-Agent qualification, the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The experimental `companyos records source connect --profile vercel-neon`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Instance profile reaches an already prepared protected Vercel Preview backed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "by an isolated Neon/Postgres branch; it does not create infrastructure,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The maintained Vercel Runner now has a separate fail-closed Company Records"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "interfaces with in-memory and Postgres implementations. The reusable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "maintained Vercel Runner hosts authenticated inspect/open actions, bounded"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "`records.query`, Slack Friday-update normalization after roster and Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "action is unavailable outside Vercel Preview."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Weekly Monday handoff, weekday movement digest, configured readiness"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "uses Monday polling and Slack interaction; Monday board-change webhooks and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "compiled live Slack and work-item binding. A separately authenticated,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "and deliver it through an exact test Slack channel plus an exact test-board"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Its content-free report covers Monday handoff, weekday digest, readiness,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "event, or provider payload and cannot call Slack or a work-item provider."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Monday hand-off intent through the actual compiled Sprint Agent and exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "test-only Slack binding. It reruns the scenario, rejects changed output,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "requires the runtime itself to remain `shadow-only`. The Slack adapter hides"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "the reviewed scenario. The real reminder receipt becomes the one Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Weekly Sprint declarations now compile independently. Monday hand-off can be"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Vercel Runner constructs exact-version Monday work-item and Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "communication Connectors plus the Postgres Company Records query Connector"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Artifact identity, resolves Monday credentials"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "adds digest-bound reversible Monday and exact Slack delivery qualification,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "produced real Slack `app_mention` and `message.im` deliveries with HTTP 200,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "reversible Monday test-board write with read-after-write and restoration."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The maintained Monday work-item adapter uses explicit API versioning, exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Monday Record Source inventory normalizes both populated and empty People"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The maintained Vercel Runner now has an optional fail-closed Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "returns Monday-compatible SSE or JSON. Because the provider envelope does"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- `companyos records source qualify --provider monday` is the only maintained"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Monday qualification path. It accepts only the Instance-owned external"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "command can use the maintained `vercel-neon` profile: it obtains and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "maintained Monday qualification identity."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "boundary rather than importing the GitHub implementation. The existing"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Neon/Postgres storage in the separate `companyos_knowledge` schema. Provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "path, fragment, digest, policy, and evidence status. The maintained Vercel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Runner registers this provider through `oregano/knowledge-postgres@3.0.0`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "The Phase 7 `companyos-postgres@1.7.0` path can stage, hash- and count-verify,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "production Instance rehearsed the additive migration on a point-in-time Neon"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "`oregano/github-repository-source@1.0.0`, SecretRef-only binding, bounded and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- A provider-neutral `BrainStore` now has in-memory and Postgres"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Postgres multi-row writes use serializable transactions in the existing"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "linked production Neon Instance, with `pgvector`, all expected tables and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Entity-identity Postgres round trips also passed. Structured extraction now"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "source-specific Page identity. The BrainStore and additive Postgres schema"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Postgres providers apply explicit-deny, parent intersection, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "provider-neutral in-memory and Postgres stores. Every Source delivery can be"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "maintained GitHub V1 registry identity now creates a V2 Connector in explicit"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "21 payloads fit below the inline boundary; the durable Postgres Raw Asset"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "receipts, and a content-addressed Core Prompt Registry. Vercel AI Gateway,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "native Anthropic, OpenAI, and Google routes; named compatible cloud routes;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "OpenAI-compatible escape hatch share one resolver. Named recipes retain"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Additive Postgres state persists leases, resumable receipts, Claim-pair"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Vercel manifest now declares the conservative hourly expression"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "selected Oregano Agent. Its first cited Slack probe exposed that automatic"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Slack adapter now requires the already-granted search Tool on the first model"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Content-free invocation metrics then proved that the repeated Slack turn was"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "than CompanyOS: the team contained two Slack connectors, and the installed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "`slack/oregano` connector remained attached to the obsolete project. The"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Maintainer-approved cutover now attaches `slack/oregano` only to"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "`SLACK_CONNECTOR` reference. The first CompanyOS-routed turn then failed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "closed because the Workspace still named a principal from the obsolete Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "while correcting the team-bound Slack identity. Production deployment"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "and the same three R0 Knowledge grants. The repeated cited Slack probe then"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "scoped audit decision through bounded Postgres batches instead of one Neon"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "alias. The repeated Slack probe on 2026-08-27 then completed the registered"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "execution, Postgres retrieval and ACL audit, result validation, citation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "enforcement, and Slack delivery together for the current production"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "`companyos-postgres@1.9.0` additive manifest preserves the immutable `1.8.0`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "required Record Source and Sprint tables. The maintained Vercel profile wraps"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "this operation with `vercel env run`; the typed runtime-host contract also has"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "a non-Vercel conformance fixture. Production health now verifies the schema"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "read-only. A clean local PostgreSQL 14 database produced 12 control tables,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "`companyos-postgres@1.4.0` and passed a separate read-only qualification with"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Agent Blueprint, governed Agent handoffs, Monday qualification, fail-closed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "existing app-scoped Slack Vercel Connect installation for a governed Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "current assignment. The Postgres adapter stores current assignments and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "supports leases, cancellation, recovery, and terminal Slack-card delivery,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The maintained isolated worker pins ACP v1 plus Claude Code and Codex"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "profiles. The maintained repository provider uses a service-owned GitHub App"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "recovery, a mixed tracked/new-file digest match, one Slack-to-draft round"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- StateStore interfaces and the Neon/Postgres implementation cover append-only"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Canonical principals are surface-neutral. Slack principals remain supported;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "explicit non-Slack principals and agent identities are compiled into the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Codex and Claude Code now share one plugin-free"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The experimental `companyos setup --profile vercel-neon-slack` state machine"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "continues from that checkpoint through explicit create-or-adopt GitHub,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Vercel, Neon Marketplace, and Slack Vercel Connect phases. It includes a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "private GitHub repository, automatic best-effort hosted protection with no"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "health verification, and nonce-bound Slack plus Neon persistence proof."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- Setup and the maintained Runner select Gateway, native Anthropic/OpenAI/Google,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "OpenAI-compatible and local/proxy recipes remain available to explicitly"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "confirmation, and the persisted model-backed Slack response bind the exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "provider boundary. Its GitHub, Vercel, Neon, and Slack profile records"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "root, refuses production-variable conflicts, and separates the fixed Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "plugin API. Transitive development dependencies used by the pinned Vercel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "CLI are constrained through Vercel-parent-scoped security releases. This"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "includes a narrow, audited compatibility override for Vercel's legacy"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The generated starter contains one supervised `oregano` Agent, one Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "workflow, a non-secret Slack connection declaration, and no business Tool"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "URLs, private keys, Artifact content, and short-lived Slack tokens."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The maintained non-Eve Vercel Runner loads one integrity-checked production"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Core. Vercel Connect and Chat SDK provide Slack transport; AI SDK and AI"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Gateway provide model turns; official Anthropic, OpenAI, and Google adapters"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "plus the shared named and generic OpenAI-compatible adapter supply direct"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "model turns when selected; Postgres provides durable chat,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- A private pilot has exercised the maintained Vercel Runner, Slack transport,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "immutable Artifact loading, and Postgres-backed state. Customer identifiers,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- `artifact.publish` has a real Postgres-backed Instance Connector and serves"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "approved artifacts through a restrictive public Vercel route. This proves"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "one real Connector path; it does not prove Meta, Monday, or another provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "- The legacy Eve/Slack demo was an accepted walking skeleton, not a generic"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "activated. The maintained Monday and Slack adapters are implemented and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "4. Re-qualify the hardened `vercel-neon-slack` setup profile through a fresh"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Slack-authorization, naming, and health-readiness gaps addressed by its"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "digits across timezone offsets and memory/Postgres stores. Invalid calendar"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "rejected decisions produce no partial claim. Real Postgres counterexamples"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Slack source inventory now rejects repeated channel or thread continuations"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "absence, all-open rollover, late workers, empty commitments, current Monday"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "The maintained Monday adapter now accepts distinct values in the exact approved"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "The maintained hosted Monday factory now requires a pinned non-secret provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "review. Synthetic memory/provider and mandatory Postgres regressions cover"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Slack credential provider selectors at their exact Instance configuration path."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "ingestion without deleting audit history. Maintained Slack/Monday Connectors"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "record their actual read intervals. Memory and mandatory Postgres tests prove"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "The maintained Monday Record Source supports optional Instance schema mappings"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "Postgres, preserving every completed step and one publication across store"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "approve/reject labels. The Slack publisher and existing Tool approval cards"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "clicks. No Teams or Telegram Connector is implied by the neutral contract."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/status/current.md",
+    "text": "The dedicated `/api/workflows/slack` endpoint supports action-only trigger"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "# Isolated PostgreSQL integration tests"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "Every PR and release runs `pnpm test:database` against a fresh PostgreSQL 15.18"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "For a local disposable PostgreSQL service listening on loopback:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "COMPANYOS_TEST_DATABASE_URL=postgresql://companyos_test:local-test-only@127.0.0.1:5432/companyos_test pnpm test:database"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "query and transaction envelopes, executes SQL on PostgreSQL, and returns raw"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "This is real database and store evidence, not a hosted Neon qualification or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/testing/postgres.md",
+    "text": "Neon HTTP driver and Postgres. It verifies pinned Artifact reconstruction,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/vision.md",
+    "text": "That path may use a concrete reference stack—currently GitHub for source and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/vision.md",
+    "text": "review, Vercel for runtime hosting, and Neon/Postgres for durable state—while"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/vision.md",
+    "text": "Slack, Vercel, or another provider adapter."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/vision.md",
+    "text": "executable setup using GitHub, Vercel, and Neon/Postgres so onboarding can"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/bootstrap.md",
+    "text": "the shared Codex and Claude Code runbook. It derives progress from the selected"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/bootstrap.md",
+    "text": "- a GitHub account, repository, organization, or ruleset;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/bootstrap.md",
+    "text": "- a Vercel deployment;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/bootstrap.md",
+    "text": "- a Neon/Postgres database;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/bootstrap.md",
+    "text": "- a Slack installation; or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/bootstrap.md",
+    "text": "`companyos setup --profile vercel-neon-slack` command owns provider contracts,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/create-workspace.md",
+    "text": "complete result, and requires confirmation. Codex and Claude Code use the same"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/inspect-core.md",
+    "text": "state machine, provider adapters, database proof, or exact Slack verification"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/knowledge.md",
+    "text": "Source identities. New GitHub bindings use native Connector `2.0.0`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/knowledge.md",
+    "text": "the maintained Postgres runtime provides an inline binary adapter in the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/onboard.md",
+    "text": "security checks, the declared GitHub repository-protection baseline, and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/onboard.md",
+    "text": "The command is read-only. It does not create GitHub protection, identities,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/onboard.md",
+    "text": "attempts hosted GitHub protection automatically and does not require a paid"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/onboard.md",
+    "text": "GitHub plan for the supervised starter."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/onboard.md",
+    "text": "The maintained provider examples are GitHub for Git hosting, Vercel for runtime"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/onboard.md",
+    "text": "hosting, and Neon/Postgres for durable state. `authoring-only` mode does not require runtime"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "The maintained Record Source Connectors are Monday for board objects and Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "for allowlisted conversations. Monday uses the same external Agent identity as"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "the maintained Monday callback ingress:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--provider monday \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "the same `--provider monday` and state path. The Workbench resolves"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "`env:MONDAY_API_TOKEN` only after the confirmed hash, requires a real external"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "only selected board metadata with Monday's required `API-Version: dev`, retains"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "Vercel Preview can resolve it, add the existing `vercel-neon` runtime profile"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--provider monday \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--runtime-profile vercel-neon \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--runtime-scope <vercel-team> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--runtime-project <vercel-project> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "only obtains an exact provider-metadata-read plan. It performs no Monday call."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "only the matching short-lived rehearsal bearer; the Monday token never leaves"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--provider monday \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "The maintained Vercel Runner exposes an optional authenticated"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "are `plan-monday-qualification`, `apply-monday-qualification`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "`plan-slack-qualification`, `apply-slack-qualification`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "Monday qualification, migration, and synchronization have independent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "confirmation hashes. Monday qualification reads only the authenticated external-Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "does not read items or modify Monday."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "Slack qualification selects one confirmed `communication-message` source and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "the binding's SecretRef and calls Slack identity and conversation-metadata"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "read scopes. It does not read message history, write to Slack, or retain the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "The endpoint fails closed outside `VERCEL_ENV=preview`, when the deployed Git"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "Monday `complete-table` apply response includes payload-free board/column"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--profile vercel-neon \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--runtime-scope <vercel-team> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "--runtime-project <vercel-project> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "the operator's Vercel UI. It is company metadata and still must not enter chat"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "injected into the one local resume process and is sent to `vercel curl` through"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "Resume uses the locally signed-in Vercel CLI session only to reach the exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "The maintained Vercel Runner exposes production Company Records through two"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "production variables. Every request requires `VERCEL_ENV=production`, the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "The Runner wakes the scheduler every 15 minutes, but Core—not Vercel—decides"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/records.md",
+    "text": "valid apply hash. `MONDAY_API_TOKEN` is the existing external Agent token;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "The first maintained live profile extends the plugin-free Codex and Claude Code"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "--profile vercel-neon-slack \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "--profile vercel-neon-slack \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "--profile vercel-neon-slack \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "--profile vercel-neon-slack \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "confirmation, merge authorization, production confirmation, or Slack test is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "installer binds that person's verified Slack principal to the existing roster"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "`vercel-neon-slack` performs these bounded phases:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "1. verify Git, GitHub CLI, the repository-pinned exact pnpm, Vercel CLI, and the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "maintained Vercel Runner;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "2. authenticate GitHub in the browser;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "4. detect and preserve protection on an adopted GitHub repository, or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "5. authenticate Vercel, create or adopt the exact project, and verify the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "maintained `packages/runner-vercel` Next.js root without changing a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "6. bind one explicit model recipe: use Vercel AI Gateway without a provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "7. create or adopt a Neon Marketplace resource without pulling its connection"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "8. run `companyos database prepare` through the Vercel profile's"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "non-persisting `vercel env run` process, select `bootstrap` for an absent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "9. create or adopt a Slack Vercel Connect resource and attach the verified"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "`/api/webhooks/slack` trigger;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "short-lived Slack user token, call `auth.test`, retain only the canonical"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "11. preview and apply one supervised, Tool-free Oregano Agent and Slack workflow;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "commits and create its Vercel environment values without `--force` or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "15. require a nonce-bound Slack message, a real selected-model response,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "in Neon before completion."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "The current additive target is `companyos-postgres@1.9.0`. It retains the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "The command contract is independent from Vercel. A different qualified setup"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "for Neon/Postgres; another PostgreSQL driver requires separate conformance"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "GitHub Free is sufficient. Hosted branch protection is useful defense in depth"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "vercel_scope: example-company"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "vercel_project: example-companyos"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "vercel_project_mode: create"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "slack_connector_name: oregano"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "slack_connector_mode: create"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "slack_channel_id: \"\""
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "model_route: vercel-ai-gateway"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "model: openai/gpt-5.4-nano"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "and short-lived Slack tokens are rejected from setup state."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "`model_route` is `vercel-ai-gateway`, `anthropic-direct`, `openai-direct`, or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "Vercel Environment Variables page, then waits while the human enters the key"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "routes bypass AI Gateway; Vercel remains only the runtime host and secret store."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "former `vercel-ai-gateway` plus `platform` behavior. The maintained runbook"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "The qualified Neon values in this example are provider identifiers, not a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "region, terms, and possible charges before consent. The maintained Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/setup.md",
+    "text": "visible Slack name independent of the Company Workspace name. Provider resource"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "The default `starter` scope is the completion boundary for the full Codex and Claude Code starter"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "- the GitHub Workspace repository is private and one hosted-protection attempt"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "- the named Vercel, Neon, and Slack resources are present in setup evidence;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "- the Vercel project receipt records the maintained runner root, the Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "- the canonical Slack team and user principal is resolved without a stored credential;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "- a structured Vercel deployment receipt is ready and current health matches"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "- the nonce-bound human Slack message and Oregano's exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "`Setup-Test <nonce> successful.` response were persisted in the same Neon"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "`companyos-postgres@2.0.0`, its 69 required Knowledge tables, and its 14"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "Hosted GitHub protection is returned separately from readiness. Losing"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "\"url\": \"https://example-preview.vercel.app\","
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "\"expected_approvers\": [\"slack:T10001:U10002\"],"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "returned receipt. For a protected Vercel Preview, the optional"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "accepted only for an exact `vercel.app` origin. Both credentials must be at"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/commands/verify-live.md",
+    "text": "The maintained Vercel profile requires exact deployment ID, environment and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "applies the following controls to `main` when GitHub supports them:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "2. require zero GitHub approvals in the default `steward` review mode;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "5. require the `check` status from the expected GitHub Actions source;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "of the installer whether hosted enforcement is available or not. When GitHub"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "## One GitHub installation path"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "Every Human Contributor uses an individual GitHub account. A Platform"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "GitHub Free is sufficient for the Tool-free supervised starter. The installer"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "- `enforced` means GitHub reports the baseline or stricter controls as active;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "- `advisory` means GitHub did not expose or confirm the requested controls, so"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "Change Plan and the installer's explicit merge confirmation. GitHub supplies"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "changes. GitHub administration alone does not grant that authority."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "presents a local file as proof that GitHub enforces it."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "organization policy, GitHub ruleset, branch protection UI, or REST API. After"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "exactly `check` from the expected GitHub Actions source."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "### Exact GitHub UI settings"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "`check`; require the branch to be up to date when GitHub offers that option"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "recording `verification.status: enforced`. If GitHub does not make hosted"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "If the repository belongs to a personal GitHub account, CODEOWNERS maps to the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "`CODEOWNERS` maps paths to GitHub users or teams; it does not create CompanyOS"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "GitHub accepts an approval from any one owner listed for a path, so listing two"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/configure-repository-protection.md",
+    "text": "owners on one line does not require both of them. Protect `.github/` itself so"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "The maintained providers in this release are Monday for operational board"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "objects and Slack for allowlisted conversations. A future Notion, ClickUp,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "For Monday, use one already reviewed external Agent. The Agent's own"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "effects. Monday currently exposes this pre-release contract only through"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Monday also exposes different configured UI/callback, authenticated member,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--provider monday \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Review and confirm the hash, inject the existing `MONDAY_API_TOKEN` through the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--provider monday \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--runtime-profile vercel-neon \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--runtime-scope <vercel-team> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--runtime-project <vercel-project> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "metadata-only Monday read and returns non-secret discovery evidence. The same"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Monday token stays in the deployment and is neither exported nor stored by the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Create an explicit draft after the interview. This fictional Monday example"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "connection: connections/monday.md"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Monday selected-item inventory exposes the stable item fields `id`, `name`, `updated_at`,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "The principal mapping above requires Monday Record Source `0.3.3`, qualified"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Slack Record Source `0.1.3` exposes `thread_reference` matching a published"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--provider monday \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "For Slack, declare each governed conversation as an independent generic"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "connection: connections/slack.md"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "`plan-slack-qualification` followed by `apply-slack-qualification` for the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "connector: oregano/monday-record-source"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "secret_ref: env:MONDAY_API_TOKEN"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "receipt_ref: ./monday-agent-qualification.json"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "A Slack conversation binding uses the same Instance-only contract:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "connector: oregano/slack-record-source"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "secret_ref: env:SLACK_BOT_TOKEN"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "receipt_ref: ./slack-source-qualification.json"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "On the maintained Vercel Runner, the existing Slack Vercel Connect"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "secret_ref: env:SLACK_CONNECTOR"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "credential_provider: vercel-connect-app"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "`vercel-connect-app` is a deployment adapter, not a provider-neutral Records"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "contract. The Runner exchanges its trusted Vercel deployment identity for a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "Workbench binding inspection accepts only `direct-env` and `vercel-connect-app`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "at the maintained Slack binding's exact `configuration.credential_provider`"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "When the maintained Vercel Runner is the only runtime that can resolve both an"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "- `VERCEL_ENV` is exactly `preview`;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "- `VERCEL_GIT_COMMIT_SHA` matches the exact clean Core ref in the compressed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--profile vercel-neon \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--runtime-scope <vercel-team> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "--runtime-project <vercel-project> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "the compressed credential-free configuration for the corresponding Vercel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "local process and the protected Preview. The local Vercel CLI must already be"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "receipts, not record payloads. For a maintained Monday `complete-table` source, apply also"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "For the maintained Vercel Runner, production uses neither the Preview endpoint"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "`GET /api/records/reconcile` is authenticated only by `CRON_SECRET`. Vercel wakes"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "The maintained source bindings now select Slack `0.1.3` and Monday `0.3.3`."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "metadata before content. The archived Slack qualification must name its bot"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-company-record-source.md",
+    "text": "user; Monday must name its account, member ID, member kind and confirmed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-knowledge-source.md",
+    "text": "This procedure connects one read-only GitHub repository document source to the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-knowledge-source.md",
+    "text": "source commands do not construct GitHub directly: the maintained Source"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-knowledge-source.md",
+    "text": "connector: oregano/github-repository-source"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/connect-knowledge-source.md",
+    "text": "credential separately in GitHub. Restore access only through a new reviewed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "- id: slack-builder"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "surface: slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "adapter: vercel-sandbox"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "profile: claude-code"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "source_binding: github-company-workspace"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "proposal_publisher_binding: github-company-workspace"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "The same execution adapter can host `claude-code` or `codex`. A future"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "qualified worker host can replace `vercel-sandbox` without changing Agent"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "- `ANTHROPIC_API_KEY` for the Claude Code profile;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "- `OPENAI_API_KEY` for the Codex profile."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "The hosted GitHub provider additionally requires one service-environment App"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-sandbox.ts"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-sandbox-timeout.ts"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts claude-code"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-brokered-acp.ts codex"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/create-worker-snapshot.ts"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "Never silently fall back from ACP, Claude Code, or Codex to another runtime."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "The hosted GitHub provider also needs a separate snapshot that contains Git and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/create-trusted-git-snapshot.ts"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "node --experimental-strip-types packages/runner-vercel/src/lib/builder/qualify-private-repository.ts"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "When model keys are intentionally non-readable outside Vercel, create a staged"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "vercel --prod --skip-domain"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "through `vercel curl` once for `claude-code` and once for `codex`. The endpoint"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "price when the profile does not identify and report one. The Claude ACP profile"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "currently reports estimated USD cost. The current Codex ACP profile reports"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "leases, cancellation, local repository conformance, GitHub App token"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "inspection, and trusted outer publication. Basic live Vercel Sandbox lifecycle,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "brokered model profiles and the service-owned GitHub App source and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "Slack-to-draft gate through the normal Runner, an exact Builder Agent Binding,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "explicit confirmation, Claude ACP, independent validation, and a checked draft"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "quotas and excluding Claude model cost."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "On the final worker snapshot, a fixed Claude job recorded 110,033 total tokens"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-builder.md",
+    "text": "the direct Anthropic-backed run, separate from Vercel Sandbox resource cost. A"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "On the exact Neon rehearsal branch, then on production only after that branch"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "--state-project <neon-project-id> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "--runtime-project <vercel-project-id> \\"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "The maintained direct-Anthropic preset maps `utility` to"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "`anthropic/claude-haiku-4-5-20251001`, `reasoning` to"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "`anthropic/claude-sonnet-4-6`, and `deep` to"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "`anthropic/claude-opus-4-7`. The maintained background"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "fabricated from an Anthropic language model."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "The maintained Slack adapter keeps ordinary conversation on `agent.chat` but"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "work count without exposing Claim identities or content. The maintained Vercel"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "1. prepare and read-only qualify `companyos-postgres@1.7.0`;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "Any runtime host may bind the same operation to its scheduler. The Vercel route"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/operate-knowledge-provider.md",
+    "text": "The reference Vercel adapter schedules six-hour reconciliation and extraction"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/plan-a-change.md",
+    "text": "After a GitHub merge, the target-branch check resolves the uniquely associated"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- a Vercel account or team controlled by the company or appointed custodian;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- one identified Vercel project and deployment identity per isolation decision;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- one selected model recipe: Gateway, native Anthropic/OpenAI/Google, a named"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- a Neon/Postgres account and project when durable state is required;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- GitHub Actions secrets for deployment credentials and read-only access to the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Vercel and Neon/Postgres are the reference providers. An alternative is valid"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "For a company that explicitly requests the complete Slack starter, use"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "`companyos setup --profile vercel-neon-slack` rather than assembling provider"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "commands from this Guide. Its read-only plan names the exact GitHub owner and"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "repository, Vercel scope and project, Neon resource, Slack connector, model,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "consenting human's canonical Slack team and user IDs without retaining the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "nonce in Slack. Success proves the exact deployment health and the persisted"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "human and assistant entries in Neon for scope `live-starter-instance`. It does"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "connector: oregano/monday-work-items"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "token_ref: env:MONDAY_API_TOKEN"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "connector: oregano/slack-communication"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "participant_identity_prefix: monday:account:"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "slack:T00001:U00001: sprint-direct-alex"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "For hosted Monday access, populate `credential_identity` from the completed"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Instance. Keep the Slack Connector's exact destination metadata so compilation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Slack or work-item binding. Publishing a reviewed result to a test destination"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "The maintained Vercel Runner also verifies the Artifact environment against"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Vercel's trusted deployment identity. A `production` deployment accepts only a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Vercel environment the Runner preserves the production-only default. Never"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "## Reference Vercel Runner"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `SLACK_CONNECTOR` | Vercel Connect resource identifier for the environment-specific Slack installation; it can also back a Slack Record Source when its Instance binding selects `credential_provider: vercel-connect-app` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `COMPANYOS_SLACK_AGENT_VIEW` | optional exact `true` opt-in for Slack Agent View; requires Agent experience plus `chat:write` on the same installed Slack app and defaults to disabled |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `DATABASE_URL` | isolated Neon/Postgres connection used by the `companyos` schema |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `ANTHROPIC_API_KEY` | Sensitive runtime secret for `anthropic-direct` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `OPENAI_API_KEY` | Sensitive runtime secret for `openai-direct` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `OPENAI_COMPATIBLE_API_KEY` | Sensitive runtime secret for `openai-compatible` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "| `COMPANYOS_OPENAI_COMPATIBLE_BASE_URL` | explicit API base URL for `openai-compatible` |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "computer. The generic `openai-compatible` route remains the escape hatch for a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "The Slack Connector trigger path is `/api/webhooks/slack`. Health is"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "`weekly.monday_handoff_trigger` and `weekly.weekday_digest_trigger` to immutable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "schedule entries and their Workspace-owned `monday_handoff` or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "For an operator-reviewed Monday hand-off test, keep the runtime"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "and stored Monday hand-off intent id to `publish-simulation`. The host derives"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Slack thread receipt. Each step is independently idempotent, so retrying after"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "The checked-in Vercel reference wakes the Sprint workers once per minute."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Vercel currently supports that frequency only on plans with per-minute Cron;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "deployment pass. See Vercel's current"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "the records reconciliation scheduler for Monday freshness and Slack for"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "interactive submissions. Do not treat Monday card chat or board webhooks as"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Enabling `COMPANYOS_SLACK_AGENT_VIEW=true` does not create another Slack app or"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "another CompanyOS Agent. The same `slack/oregano` installation remains the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "turn on Agent experience for that Slack app and retain the existing"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "`chat:write` grant. The maintained Runner uses Slack Agent Sessions for the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "without granted Company business Tools through Slack's native streaming API."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "effect-bearing turns, provisional model prose remains buffered while Slack"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "existing Slack connector"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "to `agent_session_stopped`; this adds no content scope, but lets Slack deliver a"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Slack. A stop cancels unfinished generation; it does not undo a Tool effect that"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "message as a deterministic title; Slack users can rename, pin, and archive them."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "require suggested prompts, context events, Slack MCP, feedback controls, or new"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "before any effect. Plan and apply actions are digest-bound; the Monday action"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "must restore the prior test value, and Slack actions must name only the exact"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "For `vercel-ai-gateway`, the Runner authenticates through the Vercel deployment"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Anthropic, OpenAI, or Google adapter and bypass AI Gateway. The Platform"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "Vercel is acting only as runtime host and secret store in the maintained"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "\"default\": { \"route\": \"anthropic-direct\", \"model\": \"anthropic/claude-sonnet-4-6\" },"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "\"utility\": { \"route\": \"anthropic-direct\", \"model\": \"anthropic/claude-haiku-4-5-20251001\" },"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "\"reasoning\": { \"route\": \"anthropic-direct\", \"model\": \"anthropic/claude-sonnet-4-6\" },"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "\"deep\": { \"route\": \"anthropic-direct\", \"model\": \"anthropic/claude-opus-4-7\" }"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "\"route\": \"anthropic-direct\","
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "\"model\": \"anthropic/claude-sonnet-4-6\","
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "explicit binding, a present Anthropic key selects the documented Anthropic"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "profile default, then a present OpenAI key selects the OpenAI default, and the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "resolver otherwise uses Vercel AI Gateway. A resolved request never silently"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "interactive Agent model. The maintained Anthropic task-tier preset uses Haiku"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "evidence reasoning, and Opus 4.7 for explicit deep synthesis. Anthropic is not"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "`companyos-postgres@1.9.0`. It creates the existing control and Knowledge"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "A Neon branch is an acceptable staging StateStore boundary. It is not the"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- the Neon project or branch identity differs from production;"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- Slack or another communication binding is distinct and cannot receive normal"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "canary contract. This exception avoids a duplicate Vercel project, Slack app,"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "- one point-in-time Neon branch from the exact production branch, with"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "After those gates pass, the maintained Vercel adapter schedules reconciliation"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "resumable maintenance batch nightly at `02:00` UTC. Vercel injects the Sensitive"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "for those protected routes. A non-Vercel host MUST bind the same three portable"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/prepare-an-instance.md",
+    "text": "and Core Knowledge do not depend on Vercel Cron."
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/guides/recover-company-knowledge.md",
+    "text": "1. Restore the existing Company Instance database through the normal Neon"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/overview.md",
+    "text": "| `companyos bootstrap status` / `verify` | Drive the resume-aware local checkpoint used by the shared Codex and Claude Code runbook | experimental |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/overview.md",
+    "text": "| `companyos setup --profile vercel-neon-slack` | Plan, confirm, execute, and resume the maintained private GitHub plus Vercel, Neon, and Slack starter setup | experimental |"
+  },
+  {
+    "code": "DOC032",
+    "file": "docs/workbench/overview.md",
+    "text": "| `companyos verify-live` | Verify the exact supervised live starter scope, including health and persisted Slack evidence | experimental |"
+  }
+]

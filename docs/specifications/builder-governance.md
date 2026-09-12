@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-10
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -297,6 +297,8 @@ not candidate-proposed permissions. One combined action may cover acceptance
 and deployment when the same human holds both authorities. A split-actor
 acceptance/deployment handoff is not yet implemented by the coordinator.
 
+::: implementation-example
+
 The provider-neutral Release Coordinator and optional Chat binding implement
 exact-candidate admission, per-Instance leases, deterministic operation IDs,
 merge/build/migration/deploy/verify receipts, and verified live completion.
@@ -305,6 +307,12 @@ ambiguous dispatch before retrying. Unknown errors stop the run without
 claiming live success. The optional Postgres store reuses existing runs,
 append-only events and lease tables, with no new DDL in the release path.
 Application rollback excludes migrations and does not undo external effects.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 The maintained Runner now composes the GitHub release connector and Vercel
 production host when their Instance binding is present. Exact single-parent
@@ -316,6 +324,12 @@ compute a merge containing concurrent changes. On protected branches it retains
 the strict hosted-check and expected-head merge path without bypass. The class is the strictest classification under the
 base and proposed governance; a proposal cannot lower its own review class.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 Before any merge, the chat explicitly asks whether to merge the reviewed result
 and make it live. Only the authenticated human confirmation admits the release;
 showing the result, starting a coding job or requesting a readiness refresh does
@@ -325,6 +339,12 @@ validation and security evidence remain mandatory; all observed hosted checks
 must also pass. Hosted protection is optional for this confirmed Builder path.
 GitHub itself does not prevent manual unreviewed changes on an unprotected
 branch; those changes cannot independently activate the production Instance.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
 
 Vercel staging reuses the exact current Core deployment and its production
 environment. Deployment-only Builder release bindings, coding snapshots and Workflow
@@ -340,12 +360,22 @@ as a durable intent and reconciled through provider metadata without a blind ret
 Read-only recovery can recognize a deployment that changed its own acceptance
 policy before the previous worker saved its receipt.
 
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
+
+::: implementation-example
+
 The Postgres implementation is qualified against an isolated database for restart,
 concurrent acceptance, same-revision save races and expired leases. A separate
 atomic revision pointer fences append-only snapshots; no runtime DDL is introduced.
 The shared image packages both coding profiles, CLI and Guides for separate coding
 and trusted executions. Actual per-Instance App rights, merge strategy, selected
 profile and request-to-live proof remain mandatory deployment evidence.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 The first automatic profile supports structural checks and human result review.
 It verifies and retains the exact compiled Artifact without changing the live
@@ -610,11 +640,17 @@ Builder to select or resume a saved available build without recoding. Accepted,
 discarded, unresolved or failed tests are not silently resumed. Shared testing of
 one build by several humans and full workflow dialogs remain outside this increment.
 
+::: implementation-example
+
 Core lifecycle, selection and presentation use opaque conversation references and
 communication ports. The maintained deployed adapter is Slack, and the maintained
 production release host remains Vercel. A synthetic non-Slack adapter proves the
 Core boundary; it does not claim a deployed Teams or other provider implementation.
 Claude Code and Codex retain the same ACP, brief and result contracts.
+
+See the [maintained host profile](../operations/maintained-host-profile.md).
+
+:::
 
 ### Deferred: simulation
 
@@ -631,3 +667,12 @@ scoped. Simulation does not prove provider access, actual external writes or
 end-to-end production behavior. General simulation, separate Preview provisioning
 and bounded live-trial execution remain later capabilities, not currently
 available Builder options.
+
+## Team conversations during builds and tests
+
+Builder conversations and interactive candidate tests follow the Core
+[participation contract](conversation-participation.md). The existing Agent
+can retain human discussion silently; this neither starts a build nor revises
+a candidate. A clear follow-up can use the existing scoped Tools without another
+mention. Silent test turns preserve the last visible result and produce no
+card update. Completed authorized jobs still deliver their normal notifications.

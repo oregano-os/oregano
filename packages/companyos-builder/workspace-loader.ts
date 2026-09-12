@@ -31,14 +31,18 @@ const requireSchema = (value: unknown, label: string): JsonSchema => {
 export interface LoadedAgent {
   id: string;
   instructions: string;
+  description?: string;
+  modelTask?: string;
+  conversationCoordinator?: boolean;
   grants: string[];
   scopeRead: string[];
-  handoffs: AgentHandoffRule[];
+  handoffs: Array<AgentHandoffRule & { whenAvailable?: boolean }>;
   tools: CompiledCompanyTool[];
 }
 
 export interface LoadedWorkspace {
   company: string;
+  language?: string;
   version: string;
   roster: RosterMember[];
   agents: LoadedAgent[];
@@ -65,6 +69,14 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
     const id = path.split("/")[1];
     if (id === "builder" && !options.includeBuilder) continue;
     const document = parseDocument(path);
+    const modelTask = document.data.model_task_profile;
+    if (modelTask !== undefined && (typeof modelTask !== "string" || !/^[a-z][a-z0-9._-]{0,255}$/.test(modelTask))) {
+      throw new Error(`${path}: model_task_profile must be a valid logical model task ID.`);
+    }
+    const conversationCoordinator = document.data.conversation_coordinator;
+    if (conversationCoordinator !== undefined && typeof conversationCoordinator !== "boolean") {
+      throw new Error(`${path}: conversation_coordinator must be a boolean.`);
+    }
     const grants = Array.isArray(document.data.tools) ? document.data.tools.map((entry: unknown) => requireString(entry, `${path} grant`)) : [];
     const scopeRead = Array.isArray(document.data.scope?.read) ? document.data.scope.read.map((entry: unknown) => requireString(entry, `${path} scope.read`)) : [];
     const handoffs = parseAgentHandoffs(document.data.handoffs, id, path);
@@ -78,6 +90,9 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
     agents.push({
       id,
       instructions: document.body,
+      ...(typeof document.data.description === "string" ? { description: document.data.description.slice(0, 1000) } : {}),
+      ...(modelTask === undefined ? {} : { modelTask }),
+      ...(conversationCoordinator === undefined ? {} : { conversationCoordinator }),
       grants,
       scopeRead,
       handoffs,
@@ -86,6 +101,7 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
   }
   return {
     company: requireString(company.data.name, "company.name"),
+    ...(typeof company.data.language === "string" ? { language: company.data.language } : {}),
     version: requireExactSemanticVersion(company.data.workspace_version, "company.workspace_version"),
     roster: parseRoster(allFiles["handbook/roster.md"] ?? ""),
     agents: agents.sort((a, b) => a.id.localeCompare(b.id)),
@@ -95,7 +111,7 @@ export function loadCompanyWorkspace(root: string, options: { includeBuilder?: b
   };
 }
 
-function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): AgentHandoffRule[] {
+function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): Array<AgentHandoffRule & { whenAvailable?: boolean }> {
   if (value === undefined) return [];
   if (!Array.isArray(value)) throw new Error(`${path}: handoffs must be a list.`);
   return value.map((entry, index) => {
@@ -136,7 +152,9 @@ function parseAgentHandoffs(value: unknown, fromAgentId: string, path: string): 
       }
       compiledExpiry = { localDayEndTimeZone: timeZone };
     }
+    if (rule.when_available !== undefined && typeof rule.when_available !== "boolean") throw new Error(`${path}: handoffs[${index}].when_available must be boolean.`);
     return {
+      ...(rule.when_available === undefined ? {} : { whenAvailable: rule.when_available }),
       id: requireString(rule.id, `${path}: handoffs[${index}].id`),
       fromAgentId,
       toAgentId: requireString(rule.target, `${path}: handoffs[${index}].target`),

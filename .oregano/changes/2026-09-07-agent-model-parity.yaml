@@ -1,0 +1,59 @@
+version: 3
+plan_id: agent-model-parity-2026-09-07
+created: "2026-09-07"
+title: Preserve Agent model tasks and make conversation qualification reproducible
+objective: Compile the declared Agent model task, use the existing resolver in ordinary and workflow conversations, and expose effective selections so an unintended test model cannot pass unnoticed.
+non_goals:
+  - Choose a company model or introduce company planning rules into Core.
+  - Change production bindings or bypass human decisions.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-07-agent-model-parity.yaml
+  - packages/companyos-builder/workspace-loader.ts
+  - packages/companyos-builder/build.ts
+  - packages/companyos-builder/types.ts
+  - packages/runner/model-execution.ts
+  - packages/runtime/workflow-engine/collection.ts
+  - packages/runner-vercel/src/lib/agent-model-task.ts
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-check.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/agent-model-task.test.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - docs/workbench/guides/author-an-agent.md
+  - packages/cli/content/guides/author-an-agent.md
+  - docs/operations/workflow-engine.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/reference-runtime.test.ts
+  - packages/testkit/tests/agent-model-task.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - guide.author-agent
+    - operations.workflow-engine
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Preserve generic model-task declarations and share prompt assembly for runtime and qualification.
+    packages: Portable Agent declarations may name logical model tasks without secrets or authority.
+    workspace: Own Agent instructions, Skills, logical tasks and domain-specific quality expectations.
+    instance: Map tasks to explicit models and routes; retain real selection and response evidence.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Wire compiled Agent tasks through existing selection precedence and expose the effective selection in health and receipts.
+    - mechanism: identity-and-authorization
+      reason: Reuse operator authentication for a bounded Preview-only model check with no workflow or provider writes.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every Company Agent can retain its model task inside a general workflow, independently of business domain, communication surface and model provider.
+rollback: Revert the optional task wiring and rebuild the prior exact Artifact. Retain all conversation, decision and effect evidence.

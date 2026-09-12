@@ -29,9 +29,13 @@ export function workflowExecutionStepId(stepId: string, itemKey?: string | numbe
   return itemKey === undefined ? stepId : `${stepId}:${jsonDigest(itemKey)}`;
 }
 
-export function workflowEffectKey(artifact: CompanyOSArtifact, context: Pick<WorkflowInvocationContext, "workflowId" | "runId" | "stepId" | "itemKey">): string {
+export function workflowEffectKey(artifact: CompanyOSArtifact, context: Pick<WorkflowInvocationContext, "workflowId" | "runId" | "stepId" | "itemKey" | "publicationRecoveries">): string {
   // Input digest is compared at the claim, not used to mint a new identity.
-  return `workflow:${sha256({ instanceId: artifact.instance.id, workflowId: context.workflowId, runId: context.runId, stepId: context.stepId, itemKey: context.itemKey })}`;
+  const key = `workflow:${sha256({ instanceId: artifact.instance.id, workflowId: context.workflowId, runId: context.runId, stepId: context.stepId, itemKey: context.itemKey })}`;
+  const recovery = typeof context.itemKey === "string" ? context.publicationRecoveries?.[context.itemKey] : undefined;
+  if (!recovery) return key;
+  if (recovery.priorEffectKey !== key) throw new Error("Publication recovery belongs to another effect");
+  return `workflow:${sha256({ priorEffectKey: key, recovery: "verified-no-send-v1" })}`;
 }
 
 export function assertWorkflowArtifact(artifact: CompanyOSArtifact): void {
@@ -144,6 +148,8 @@ export async function guardWorkflowInvocation(args: {
     } else if (context.itemKey !== undefined || context.item !== undefined) throw new Error("A scalar workflow step cannot receive an item identity");
     const expected = workflowToolInput(args.artifact, workflow, step, context);
     if (canonicalJson(expected) !== canonicalJson(args.request.input)) throw new Error("Tool input or destination/resource binding differs from the compiled workflow step");
+    const recovery = typeof context.itemKey === "string" ? context.publicationRecoveries?.[context.itemKey] : undefined;
+    if (recovery && (!step.decision || args.tool.contract.runtimeId !== "oregano:communications/publish" || recovery.inputDigest !== jsonDigest(args.request.input))) throw new Error("Publication recovery cannot change its pending decision input");
     validateRecipient(context);
   }
   return {
@@ -168,7 +174,11 @@ export function authorizeWorkflowDecisions(guard: GuardedWorkflowInvocation, inp
     const bound = resolveWorkflowValue(declaration.binds, guard.workflow, guard.context);
     if (jsonDigest(bound) !== decision.boundDigest || jsonDigest(valueAt(input, requirement.payloadPath)) !== decision.boundDigest) throw new Error("Workflow decision digest differs from the exact effect payload");
     const authorized = authorizePrincipalApproval(guard.context.currentRoster, decision.approvingPrincipal, risk);
-    if (!authorized.ok || authorized.member?.role !== declaration.role) throw new Error("Workflow decision requires an active authorized human in the declared role");
+    const subjectConfirmation = declaration.role === "subject" && RISK_ORDER[risk] <= RISK_ORDER.R2
+      && authorized.member && isHumanRosterMember(authorized.member) && /^(active|aktiv)$/i.test(authorized.member.status)
+      && authorized.member.id === resolveWorkflowValue(declaration.recipient!, guard.workflow, guard.context)
+      && decision.recipients?.includes(authorized.member.id!);
+    if (!subjectConfirmation && (!authorized.ok || authorized.member?.role !== declaration.role)) throw new Error("Workflow decision requires an active authorized human in the declared role");
     principals.add(decision.approvingPrincipal);
   }
   if (RISK_ORDER[risk] >= RISK_ORDER.R3 && principals.size !== 1) throw new Error("Workflow R3/R4 effect requires one bound human approval");

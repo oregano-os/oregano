@@ -5,7 +5,7 @@ import type { WorkflowRun } from "../../state-store/workflow-engine.ts";
 import { compareRecordInstants } from "../../records/instant.ts";
 import { jsonDigest, sha256 } from "../canonical.ts";
 import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, workflowToolInput } from "./guard.ts";
-import { renderWorkflowDecisionNotice } from "./decision-notice.ts";
+import { renderWorkflowDecisionNotice, workflowDecisionPresentation, workflowDecisionThread } from "./decision-notice.ts";
 import { workflowContext } from "./readers.ts";
 import { resolveWorkflowValue, workflowItems, valueAt } from "./references.ts";
 import { parseWorkflowVerificationRequirements, type WorkflowVerificationRequirement } from "./verification-requirements.ts";
@@ -127,7 +127,8 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
           const bindings = artifact.workflowBindings?.directRecipients.filter((entry) => entry.bindingId === bindingId && entry.memberId === item.key) ?? [];
           if (!decision || bindings.length !== 1) throw new Error("Decision binding is absent");
           input = renderWorkflowDecisionNotice({ runId: run.runId, workflowId: workflow!.id, stepId: step.id, role: decision.role,
-            expiresAt: decision.expiresAt, bound: decision.bound, destinationBinding: bindings[0]!.destinationBinding });
+            threadReference: workflowDecisionThread(workflow!, step, itemContext, bindings[0]!.destinationBinding),
+            presentation: workflowDecisionPresentation(workflow!, step, itemContext), expiresAt: decision.expiresAt, bound: decision.bound, destinationBinding: bindings[0]!.destinationBinding });
           output = decision.deliveries[String(item.key)];
         } else {
           input = workflowToolInput(artifact, workflow!, step, itemContext);
