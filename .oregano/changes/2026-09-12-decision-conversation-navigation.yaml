@@ -1,0 +1,53 @@
+version: 3
+plan_id: decision-conversation-navigation-2026-09-12
+created: 2026-09-12
+title: Navigate from a decision to its declared conversation
+objective: Allow a Workspace decision to link its affirmative button to a prior verified conversation while preserving normal decision authorization and execution.
+non_goals:
+  - Change identity, work authorization, or effect approval rules.
+  - Add fuzzy matching, another routing mechanism, or company-specific behavior.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-decision-conversation-navigation.yaml
+  - packages/companyos-builder/workflow-*.ts
+  - packages/capabilities/decision-presentation.ts
+  - packages/capabilities/catalog.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/testkit/tests/workflow-*.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - docs/workbench/guides/author-a-workflow.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/_generated/**
+  - packages/cli/content/guides/author-a-workflow.md
+tests:
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [guide.author-workflow, specification.workflow-execution-v1, operations.workflow-engine]
+architecture:
+  placement:
+    core: Provider-neutral optional conversation navigation and receipt validation; native connector rendering.
+    packages: Synthetic workflow and presentation regression fixtures.
+    workspace: Agent purposes, business questions, and destination policy remain in the Workspace.
+    instance: Existing authenticated transport credentials and private receipts remain Instance state.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Reuse the existing workflow context and references without another conversation resolver.
+    - mechanism: identity-and-authorization
+      reason: Retain provider identity, audience, exact revision, pinned definition and current delivery checks.
+    - mechanism: capability-contracts-and-connectors
+      reason: Render an optional verified navigation target alongside existing fixed decision controls.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Workspace may select a prior private root for decision continuation. Provider connectors render navigation without granting approval or changing conversation ownership; the maintained Slack connector supports a URL and action in the same button.
+rollback: Restore the previous Core and Artifact pair. Existing receipts remain readable and no state migration or authorization change is required.

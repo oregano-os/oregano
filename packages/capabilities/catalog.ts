@@ -300,6 +300,7 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
       format: { type: "string", enum: ["plain-text", "provider-markdown"] },
       decision: object(["request_id", "approve_label", "reject_label"], {
         request_id: { type: "string", pattern: "^[a-f0-9]{64}$" },
+        conversation_reference: { type: "string", minLength: 1, maxLength: 1_000 },
         approve_label: { type: "string", minLength: 1, maxLength: 75, pattern: "^[^\\u0000-\\u001f]+$" },
         reject_label: { type: "string", minLength: 1, maxLength: 75, pattern: "^[^\\u0000-\\u001f]+$" },
       }),

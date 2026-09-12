@@ -1,4 +1,4 @@
-import { SlackFormatConverter } from "@chat-adapter/slack";
+import { cardToBlockKit, SlackFormatConverter, type SlackAdapter } from "@chat-adapter/slack";
 import { decisionCard } from "./decision-cards.ts";
 import type { DecisionPresentation } from "../../../capabilities/decision-presentation.ts";
 import type { Chat } from "chat";
@@ -142,7 +142,7 @@ function parseMondayConfiguration(
   });
 }
 
-type SlackChatClient = Pick<Chat, "channel" | "thread" | "openDM">;
+type SlackChatClient = Pick<Chat, "channel" | "thread" | "openDM"> & Partial<Pick<Chat, "getAdapter">>;
 
 // Slack's native Markdown payload is bounded independently of plain text.
 // Reject before sending: the capability receipt represents exactly one message.
@@ -157,6 +157,30 @@ function slackPublication(content: string, decision?: DecisionPresentation) {
   return decision ? decisionCard({ title: "Approval required", content: new SlackFormatConverter().toResponseUrlText({ markdown: content }), value: decision.request_id,
     approve: { id: "companyos.workflow.approve", label: decision.approve_label },
     reject: { id: "companyos.workflow.reject", label: decision.reject_label } }) : slackMarkdown(content);
+}
+
+/** Navigation is presentation only: the fixed action/value still reaches the signed decision handler. */
+async function postNavigableDecision(client: SlackChatClient, channelId: string, threadReference: string | undefined, content: string, decision: DecisionPresentation) {
+  const target = /^slack:([CDG][A-Z0-9]+):(\d+\.\d+)$/.exec(decision.conversation_reference ?? "");
+  if (!target || target[1] !== channelId) throw new Error("Decision conversation does not belong to the resolved destination.");
+  const adapter = client.getAdapter?.("slack") as SlackAdapter | undefined;
+  if (!adapter?.webClient) throw new Error("Slack decision navigation transport is unavailable; nothing was sent.");
+  const card = decisionCard({ title: "Approval required", content: new SlackFormatConverter().toResponseUrlText({ markdown: content }), value: decision.request_id,
+    approve: { id: "companyos.workflow.approve", label: decision.approve_label }, reject: { id: "companyos.workflow.reject", label: decision.reject_label } });
+  const blocks = cardToBlockKit(card);
+  const approve = blocks.flatMap((block) => block.type === "actions" ? block.elements : [])
+    .find((element): element is { type: "button"; action_id: string; url?: string } => !!element && typeof element === "object"
+      && "type" in element && element.type === "button" && "action_id" in element && element.action_id === "companyos.workflow.approve");
+  if (!approve || approve.type !== "button") throw new Error("Decision approval control is missing; nothing was sent.");
+  approve.url = `https://slack.com/archives/${channelId}/p${target[2]!.replace(".", "")}?thread_ts=${target[2]}&cid=${channelId}`;
+  // The SDK's portable Button omits URL and its LinkButton omits value. Use the
+  // adapter's supported native client for this combined provider control.
+  const response = await adapter.webClient.chat.postMessage({ channel: channelId, thread_ts: threadReference?.split(":")[2],
+    text: content, blocks, unfurl_links: false, unfurl_media: false });
+  if (!response.ok || response.channel !== channelId || !/^\d+\.\d+$/.test(response.ts ?? "")) throw new CapabilityEffectOutcomeUnknownError(
+    "Slack decision publication returned an unverifiable receipt.", { provider: "slack", message_id: response.ts ?? null, channel: response.channel ?? null });
+  return { id: response.ts!, threadId: threadReference ?? `slack:${channelId}:${response.ts}`,
+    metadata: { dateSent: new Date(Number(response.ts) * 1000) } };
 }
 
 /**
@@ -176,7 +200,9 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
       const payload = slackPublication(content, decision);
       const client = chat();
       const destination = threadReference ? client.thread(threadReference) : client.channel(`slack:${channelId}`);
-      const message = await destination.post(payload);
+      const message = decision?.conversation_reference
+        ? await postNavigableDecision(client, channelId, threadReference, content, decision)
+        : await destination.post(payload);
       const receipt = { messageId: message.id, threadReference: message.threadId, publishedAt: message.metadata.dateSent.toISOString() };
       if (!threadReference) {
         try {
@@ -205,12 +231,15 @@ export function createSlackMessagePublisher(chat: () => SlackChatClient): SlackM
         async publish(content: string, decision?: DecisionPresentation, threadReference?: string) {
           if (threadReference !== undefined) verifySlackDirectThread(thread.id, threadReference);
           const destination = threadReference === undefined ? thread : chat().thread(threadReference);
-          const message = await destination.post(slackPublication(content, decision));
+          const message = decision?.conversation_reference
+            ? await postNavigableDecision(chat(), thread.id.split(":")[1]!, threadReference, content, decision)
+            : await destination.post(slackPublication(content, decision));
           // Chat SDK openDM targets `slack:<channel>:`. Its post receipt keeps
           // that conversation-wide ID; use Slack's returned message timestamp
           // to bind each new root and its replies independently.
           const match = /^slack:(D[A-Z0-9]+):$/.exec(thread.id);
-          if (!match || message.threadId !== (threadReference ?? thread.id) || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
+          const expectedThread = threadReference ?? (decision?.conversation_reference ? `slack:${match?.[1]}:${message.id}` : thread.id);
+          if (!match || message.threadId !== expectedThread || !/^\d+\.\d+$/.test(message.id)) throw new CapabilityEffectOutcomeUnknownError(
             "Slack published a direct message without a verifiable conversation identity.",
             { provider: "slack", message_id: message.id, thread_reference: message.threadId },
           );

@@ -770,3 +770,19 @@ original-message evidence and an unchanged live target. Numbering is immutable
 across retries; the first selection is atomic and later replies cannot switch
 target. Only the original message enters the selected collection, and ordinary
 decision validation remains separate. Selection expires after one day.
+
+
+A human decision with explicit recipient and labels may declare
+`continue_in: $steps.conversation.thread_reference`. The target must be a prior
+private root publication to that same recipient. Core resolves the exact receipt
+and destination; the Connector may render an affirmative control that both
+links to this conversation and sends the existing decision action. Following a
+link is never authority: the authenticated decision callback still gates the
+next step. Unsupported clients can continue through the normal decision and
+message path without automatic navigation. Keep later publications' `thread`
+and collections' `from` on this root to preserve one conversation.
+
+The navigation reference is optional and distinct from `thread`, which places
+the decision notice itself inside a conversation. Omitted navigation preserves
+historical notice inputs and verification. Workspace chooses the conversation
+and its content; provider navigation rendering belongs to the Connector.

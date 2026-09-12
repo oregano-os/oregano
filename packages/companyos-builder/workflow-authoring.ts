@@ -495,9 +495,9 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         validateInput(s.via, { type: "string", minLength: 1 }, s.id);
         if (s.recipient !== undefined) validateInput(s.recipient, { type: "string", minLength: 1 }, s.id);
-        if (s.thread !== undefined) {
-          validateInput(s.thread, { type: "string", minLength: 1 }, s.id);
-          const sourceId = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s.thread)?.[1];
+        for (const key of ["thread", "continue_in"]) if (s[key] !== undefined) {
+          validateInput(s[key], { type: "string", minLength: 1 }, s.id);
+          const sourceId = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s[key])?.[1];
           const source = steps.find((entry: any) => entry.id === sourceId);
           if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each || !s.recipient || JSON.stringify(source.recipient) !== JSON.stringify(s.recipient) || !s.labels)
             err(f, `${s.id}: threaded decision requires controls and a prior private root publication to the same explicit recipient`);
@@ -582,7 +582,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
   else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout");
   else if (step.tool === "wait") allowed.push("for");
-  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "review_format"];
+  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");

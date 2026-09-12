@@ -236,3 +236,26 @@ test("readable decision reviews are explicit, validated and preserved in the com
   editWorkflow(files, (data) => { delete data.steps.find((entry: any) => entry.review_format).message; });
   assert.match(validateWorkflowFiles(files).join("\n"), /message-only review/);
 });
+
+test("decision conversation navigation requires a prior private root and the same explicit recipient", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  editWorkflow(files, (data) => {
+    const root = data.steps.find((step: any) => step["open-close-thread"]);
+    root.recipient = "jonas-owner";
+    const decision = data.steps.find((step: any) => Object.values(step)[0] === "human:sprint-owner");
+    decision.recipient = "jonas-owner";
+    decision.continue_in = "$steps.open-close-thread.thread_reference";
+    decision.labels = { approve: "Yes, help me", reject: "No, thanks" };
+  });
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  const workflow = compile(files).find((w) => w.steps.some((s) => s.decision?.continueIn))!;
+  assert.equal(workflow.steps.find((s) => s.decision?.continueIn)!.decision!.continueIn, "$steps.open-close-thread.thread_reference");
+  assert.ok(workflow.steps.find((s) => s.id === "open-close-thread")!.requiredOutputPaths.some((p) => p.join(".") === "thread_reference"));
+  for (const wrong of ["https://example.test/anywhere", "$steps.open-close-thread.message_id", "$steps.missing.thread_reference"]) {
+    const changed = { ...files };
+    editWorkflow(changed, (data) => { data.steps.find((step: any) => step.continue_in).continue_in = wrong; });
+    assert.ok(validateWorkflowFiles(changed).length > 0);
+  }
+  editWorkflow(files, (data) => { data.steps.find((step: any) => step.continue_in).recipient = "different-owner"; });
+  assert.match(validateWorkflowFiles(files).join("\n"), /same explicit recipient/);
+});
