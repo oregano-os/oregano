@@ -1025,7 +1025,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-12",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -1340,7 +1340,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-12",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1504,7 +1504,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-12",
     "availability": null,
     "migration_sources": [],
     "relations": {}

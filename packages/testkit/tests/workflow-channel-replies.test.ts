@@ -7,6 +7,7 @@ import { sha256 } from "../../runtime/canonical.ts";
 import { WorkflowConversationHost, workflowReplyThreadId, workflowInboundThreadId } from "../../runner-vercel/src/lib/workflow-conversations.ts";
 import { WorkflowSlackTransport } from "../../connectors/slack/workflow-transport.ts";
 import { recoverWorkflowReply } from "../../runner-vercel/src/lib/workflow-reply-recovery.ts";
+import { createSlackAdapter } from "../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js";
 
 async function setup(count = 1, channelId = "C10001", reportOnly = false) {
   const artifact = collectionFixture().artifact;
@@ -28,10 +29,19 @@ async function setup(count = 1, channelId = "C10001", reportOnly = false) {
   let message: Record<string, unknown> = { type: "message", ts: "999.000001", user: "U10002", text: "The agreed intended outcome" };
   const calls: string[] = [];
   const sourceMessages = new Map<string, Record<string, unknown>>([[String(message.ts), message]]);
+  const adapter = createSlackAdapter({ botToken: "xoxb-synthetic", signingSecret: "synthetic", botUserId: "U10000" });
   const choiceValues = new Map<string, unknown>();
   const choices = new ConversationChoiceService<any>({ async get<T>(key: string) { return (choiceValues.get(key) ?? null) as T | null; }, async setIfNotExists(key, value) { if (choiceValues.has(key)) return false; choiceValues.set(key, structuredClone(value)); return true; } }, () => h.now);
   const host = new WorkflowConversationHost({ choices, artifact: h.artifact, engine: h.engine(), store: h.store, control: h.control, roster: async () => h.roster,
-    connectors: async () => [], enabledWorkflowIds: ["monday-handoff"], clock: () => h.now, slack: async (operation) => operation(new WorkflowSlackTransport({ call: async (method, args) => {
+    connectors: async () => [], enabledWorkflowIds: ["monday-handoff"], clock: () => h.now, slack: async (operation) => operation(new WorkflowSlackTransport({
+      conversationReply: async ({ messageId, threadId, channelId: sourceChannel }) => {
+        calls.push("conversationReply");
+        assert.equal(sourceChannel, channelId);
+        const raw = sourceMessages.get(messageId); if (!raw) return undefined;
+        assert.equal(threadId, raw.thread_ts ?? messageId);
+        return { raw, text: adapter.parseMessage({ ...raw, type: String(raw.type) }).text };
+      },
+      call: async (method, args) => {
       calls.push(method);
       if (method === "auth.test") return { ok: true, team_id: "T10001" };
       if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted: false, is_bot: false } };
@@ -262,4 +272,36 @@ test("coordinated workflow dispatch rejects invented excerpts, foreign recipient
   await assert.rejects(host.receiveSelected({ ...args, target: { ...target!, subjectPrincipal: "slack:T10001:U99999" } }), /another recipient/);
   await assert.rejects(host.receiveSelected({ ...args, version: "-1" }), /changed before dispatch/);
   assert.equal((await h.store.read(h.artifact.instance.id, runs[0]!.runId))?.state.status, "waiting");
+});
+
+for (const threaded of [false, true]) test(`whole-message routing preserves provider text and identity checks (threaded=${threaded})`, async () => {
+  const { h, host, runs, input, setMessage, calls } = await setup(1, "D10001");
+  const [target] = await h.store.channelAssignments({ instanceId: h.artifact.instance.id, surface: "slack", accountId: "T10001", channelId: "D10001", subjectPrincipal: ENGINE_OWNER, now: h.now });
+  const text = "• *Objective:* Improve café service 🟢\n• *Outcome:* See <https://example.com/plan|the plan>\n• *Impact:* Save time.";
+  setMessage({ text, ...(threaded ? { thread_ts: target!.threadId } : {}) });
+  const args = { source: { ...input, ...(threaded ? { threadId: `slack:D10001:${target!.threadId}` } : {}) }, target: target!, version: String(runs[0]!.revision) };
+  const result = await host.receiveSelected(args);
+  assert.equal(result.kind, "conversation"); if (result.kind !== "conversation") return;
+  assert.equal(result.session.text, text);
+  assert.equal(calls.includes("conversationReply"), false);
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, runs[0]!.runId))!.state.decisions, {});
+  await assert.rejects(host.receiveSelected({ ...args, version: "-1" }), /changed before dispatch/);
+  await assert.rejects(host.receiveSelected({ ...args, source: { ...args.source, threadId: "slack:D20001:999.000001" } }), /audience/);
+  await assert.rejects(host.receiveSelected({ ...args, target: { ...target!, subjectPrincipal: "slack:T10001:U99999" } }), /recipient/);
+  setMessage({ edited: { ts: "999.000002" } }); await assert.rejects(host.receiveSelected(args), /original attributable/);
+  setMessage({ edited: undefined, user: "U10001" }); await assert.rejects(host.receiveSelected(args));
+});
+
+test("split excerpts use the ingress representation while preserving provider identity and approval boundaries", async () => {
+  const { h, host, runs, input, setMessage } = await setup(1, "D10001");
+  const [target] = await h.store.channelAssignments({ instanceId: h.artifact.instance.id, surface: "slack", accountId: "T10001", channelId: "D10001", subjectPrincipal: ENGINE_OWNER, now: h.now });
+  setMessage({ text: "• *Objective:* Improve service.\n• *Other:* Start a different project." });
+  const args = { source: input, target: target!, text: "Objective: Improve service.", version: String(runs[0]!.revision) };
+  const result = await host.receiveSelected(args);
+  assert.equal(result.kind, "conversation"); if (result.kind !== "conversation") return;
+  assert.equal(result.session.text, args.text);
+  assert.deepEqual((await h.store.read(h.artifact.instance.id, runs[0]!.runId))!.state.decisions, {});
+  await assert.rejects(host.receiveSelected({ ...args, text: "APPROVE invented" }), /excerpt/);
+  setMessage({ edited: { ts: "999.000002" } }); await assert.rejects(host.receiveSelected(args), /original attributable/);
+  setMessage({ edited: undefined, user: "U10001" }); await assert.rejects(host.receiveSelected(args));
 });

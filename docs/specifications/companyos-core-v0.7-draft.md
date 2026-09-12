@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -248,7 +248,12 @@ Such context MUST NOT reopen execution or grant effect authority.
 
 The Agent interprets natural clarification replies. Core MUST validate the
 chosen stable ID against the retained candidate set, current access and source
-revision. A routed excerpt MUST occur in the verified source message. Selection
+revision. A single concern SHOULD omit model-authored route text: Core MUST
+forward the verified original source, including a retained pending answer when
+selected. This path MUST NOT require a model transcription or a second text
+comparison. Multiple concerns MUST identify their source excerpts. A routed
+excerpt MUST occur in the verified source using the same text representation as
+conversation ingress, while provider identity and attribution remain checked. Selection
 MUST NOT be treated as consent. Attention and an immutable event receipt MUST
 commit atomically with revision checking. Reused events with changed source
 content MUST fail closed. Adapters MUST acknowledge a move in the conversation

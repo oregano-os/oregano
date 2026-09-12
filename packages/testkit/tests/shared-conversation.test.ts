@@ -36,6 +36,15 @@ function fixture(surface = "slack") {
   return { scope, address, items, source, store, input, open, calls };
 }
 for (const surface of ["slack", "telegram", "mcp"]) {
+  test(`${surface}: a selected concern forwards the complete original without model transcription`, async () => {
+    const f = fixture(surface), text = "• Objective: Improve café service 🟢\n• Outcome: 10 reviews — https://example.com/a?x=1&y=2\n• Impact: Save time.";
+    const turn = await f.open({ text, address: f.items[0]!.address }); await turn.initialContext();
+    const receipt = await turn.commit({ reply: "", routes: [{ workId: "work-0" }] });
+    assert.equal(receipt.concerns[0]?.text, text);
+    assert.equal(receipt.concerns[0]?.source.text, text);
+    assert.equal(receipt.plan.routes[0]?.text, undefined);
+    assert.deepEqual((await (await f.open({ text, address: f.items[0]!.address })).replay()), receipt);
+  });
   test(`${surface}: direct replies select the existing topic without claiming the inbox`, async () => {
     const f = fixture(surface), turn = await f.open({ address: f.items[0]!.address });
     const context = await turn.initialContext(); assert.equal(context.current?.id, "work-0");
@@ -56,7 +65,7 @@ for (const surface of ["slack", "telegram", "mcp"]) {
     const next = await f.open({ eventId: "choice-1", messageId: "choice-message", text: "it is for the second, invoicing" });
     const context = await next.initialContext(); assert.equal(context.pending[0]?.text, f.input.text);
     // The model supplies meaning; Core validates the selected stable ID, not a phrase regex.
-    const receipt = await next.commit({ reply: "I have assigned that answer to invoicing.", routes: [{ workId: "work-1", text: f.input.text }], usePendingMessageId: "message-1" });
+    const receipt = await next.commit({ reply: "I have assigned that answer to invoicing.", routes: [{ workId: "work-1" }], usePendingMessageId: "message-1" });
     assert.equal(receipt.concerns[0]?.source.messageId, "message-1"); assert.equal(receipt.concerns[0]?.text, f.input.text);
     assert.equal(receipt.concerns[0]?.needsAcknowledgement, true); assert.equal(receipt.concerns[0]?.work?.address.threadId, "question-1");
     assert.deepEqual((await f.store.read(f.scope))?.pending, []);
@@ -72,6 +81,7 @@ test("knowledge questions do not create work; knowledge research can stay inside
 });
 test("separate concerns retain separate excerpts and original work references", async () => {
   const f = fixture(), turn = await f.open({ text: "Sales starts Friday. Invoicing starts Monday." }); await turn.search({ limit: 6 });
+  await assert.rejects(turn.commit({ reply: "", routes: [{ workId: "work-0" }, { workId: "work-1" }] }), /Split concerns require/);
   const receipt = await turn.commit({ reply: "", routes: [{ text: "Sales starts Friday.", workId: "work-0" }, { text: "Invoicing starts Monday.", workId: "work-1" }] });
   assert.deepEqual(receipt.concerns.map(c => c.work?.id), ["work-0", "work-1"]);
   assert.deepEqual((await f.store.read(f.scope))?.focus, ["work-0", "work-1"]);
@@ -115,9 +125,16 @@ test("closed workflow can be read and discussed without reopening its execution"
 test("read budget, excerpt bounds, and unknown references cannot be bypassed by model output", async () => {
   const f = fixture(), turn = await f.open(); const context = await turn.read("work-0");
   assert.equal("truncated" in context && context.truncated, true); assert.ok("context" in context && context.context.length <= 10000);
-  await assert.rejects(turn.commit({ reply: "", routes: [{ text: "invented approval", workId: "work-0" }] }), /exact excerpt/);
+  await assert.rejects(turn.commit({ reply: "", routes: [{ text: "invented approval", workId: "work-0" }, { text: f.input.text, workId: "work-1" }] }), /exact excerpt/);
   await assert.rejects(turn.commit({ reply: "", routes: [{ text: f.input.text, workId: "unknown" }] }), /not read/);
   for (let i = 0; i < 7; i++) await turn.read("work-0"); await assert.rejects(turn.read("work-0"), /budget/);
+});
+
+test("a legacy single-route model copy cannot replace the actual human message", async () => {
+  const f = fixture(), turn = await f.open(); await turn.read("work-0");
+  const receipt = await turn.commit({ reply: "", routes: [{ workId: "work-0", text: "APPROVE invented" }] });
+  assert.equal(receipt.concerns[0]?.text, f.input.text);
+  assert.equal(receipt.concerns[0]?.source.text, f.input.text);
 });
 test("source changes and concurrent turns cannot silently overwrite a decision", async () => {
   const f = fixture(), a = await f.open(), b = await f.open({ eventId: "e2" });
@@ -172,7 +189,7 @@ test("long pending previews require a complete read before the original answer i
   await first.commit({ reply: "", routes: [], clarify: { question: "Which work?", candidates: ["work-0", "work-1"] } });
   const next = await f.open({ eventId: "long-choice", text: "the second" }); const context = await next.initialContext();
   assert.equal(context.pending[0]?.text.length, 4000); assert.equal(context.pending[0]?.truncated, true);
-  const plan: ConversationPlan = { reply: "Assigned", usePendingMessageId: "message-1", routes: [{ text: original, workId: "work-1" }] };
+  const plan: ConversationPlan = { reply: "Assigned", usePendingMessageId: "message-1", routes: [{ workId: "work-1" }] };
   await assert.rejects(next.commit(plan), /complete pending/);
   assert.equal((await next.readPending("message-1")).text, original);
   assert.equal((await next.commit(plan)).concerns[0]?.text, original);

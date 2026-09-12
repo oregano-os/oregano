@@ -199,7 +199,7 @@ export class WorkflowConversationHost {
 
   /** Reread the source independently, then resume only the selected delivered work.
    * Routing an excerpt cannot turn ordinary prose into a workflow decision. */
-  async receiveSelected(args: { source: { threadId: string; messageId: string; authorId: string }; target: WorkflowAssignment; text: string; version: string }): Promise<WorkflowInboundResult> {
+  async receiveSelected(args: { source: { threadId: string; messageId: string; authorId: string }; target: WorkflowAssignment; text?: string; version: string }): Promise<WorkflowInboundResult> {
     const match = /^slack:([CDG][A-Z0-9]{4,31}):(\d+\.\d+)$/.exec(args.source.threadId);
     if (!match || args.target.surface !== "slack" || args.target.channelId !== match[1]) throw new Error("Selected work crosses the verified conversation audience");
     return this.#args.slack(async transport => {
@@ -207,10 +207,13 @@ export class WorkflowConversationHost {
       const principal = await transport.human(accountId, args.source.authorId, roster);
       if (accountId !== args.target.accountId || (args.target.subjectPrincipal && args.target.subjectPrincipal !== principal)) throw new Error("Selected work belongs to another recipient");
       const reply = await transport.reply({ conversation: { surface: "slack", accountId, channelId: match[1]!, threadId: args.source.messageId === match[2] ? args.target.threadId : match[2]!, subjectPrincipal: principal },
-        messageId: args.source.messageId, roster, channelReply: args.source.messageId === match[2] });
-      if (!args.text.trim() || !reply.text.includes(args.text)) throw new Error("Selected answer is not an excerpt of the provider source");
+        messageId: args.source.messageId, roster, channelReply: args.source.messageId === match[2], ...(args.text === undefined ? {} : { representation: "conversation" as const }) });
+      // Ordinary routing forwards the verified provider message, never model-authored text.
+      // Only a split concern needs an excerpt check, in the same presentation as ingress.
+      const text = args.text ?? reply.text;
+      if (!text.trim() || (args.text !== undefined && !reply.text.includes(text))) throw new Error("Selected answer is not an excerpt of the provider source");
       return this.#receive({ threadId: `slack:${args.target.channelId}:${args.target.threadId}`, messageId: args.source.messageId, authorId: args.source.authorId }, true,
-        { reply: { ...reply, text: args.text, eventId: `${reply.eventId}:concern:${sha256({ target: args.target.assignmentKey, text: args.text })}` }, version: args.version });
+        { reply: { ...reply, text, eventId: `${reply.eventId}:concern:${sha256({ target: args.target.assignmentKey, text })}` }, version: args.version });
     });
   }
 

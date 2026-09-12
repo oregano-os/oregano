@@ -23,6 +23,11 @@ export function createWorkflowSlackScope(chat: () => Chat): WorkflowSlackScope {
     return adapter.withBotToken(token, async () => {
       const api: WorkflowSlackApi = {
         call: (method, args) => adapter.webClient.apiCall(method, args),
+        conversationReply: async ({ channelId, threadId, messageId }) => {
+          const message = await adapter.fetchMessage(`slack:${channelId}:${threadId}`, messageId);
+          if (!message) return undefined;
+          return { raw: message.raw as Record<string, any>, text: message.text };
+        },
         qualifyReplies: async (kind, principal) => {
           requireWorkflowReplyRoute(kind, principal);
           requireWorkflowSlackReplyEvents(await getConnectorMetadata(connector), kind);

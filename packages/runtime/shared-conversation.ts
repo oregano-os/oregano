@@ -31,8 +31,8 @@ export interface ConversationAttention {
   recent: ConversationContextEntry[];
 }
 export interface ConcernRoute {
-  /** Exact excerpt of the verified current or pending original message. */
-  text: string; workId?: string; draftId?: string; agentId?: string; purpose?: string; title?: string;
+  /** Omit for one concern: Core forwards the original message. Required only for split excerpts. */
+  text?: string; workId?: string; draftId?: string; agentId?: string; purpose?: string; title?: string;
   newDiscussion?: boolean; closeDraft?: boolean; knowledge?: boolean;
 }
 export interface ConversationPlan {
@@ -176,7 +176,11 @@ export class SharedConversationTurn {
     const next = structuredClone(this.attention);
     const concerns: CheckedConcern[] = [];
     for (const [index, route] of plan.routes.entries()) {
-      if (!route.text?.trim() || !source.text.includes(route.text)) throw new Error("A routed answer must be an exact excerpt of the verified source");
+      if (plan.routes.length > 1 && route.text === undefined) throw new Error("Split concerns require exact source excerpts");
+      // Single-target routing never trusts a model-authored copy, even if a
+      // model using the older schema still supplies one.
+      const text = plan.routes.length === 1 ? source.text : route.text!;
+      if (!text.trim() || (plan.routes.length > 1 && !source.text.includes(text))) throw new Error("A routed answer must be an exact excerpt of the verified source");
       if (route.workId && (route.newDiscussion || route.agentId)) throw new Error("Existing work cannot change owner through routing");
       let work: WorkContext | undefined, delegation: CheckedConcern["delegation"];
       if (route.workId) {
@@ -200,7 +204,7 @@ export class SharedConversationTurn {
         if (next.drafts.filter(d => !d.terminal && !d.linkedWorkId).length >= 8) throw new Error("Close or resume an existing draft before opening another discussion");
         const id = `draft:${sha256({ scope: this.scope, eventId: source.eventId, index }).slice(0, 32)}`;
         work = { id, kind: "draft", agentId, title: route.title, status: "open", version: "1", address: source.address,
-          summary: route.text.slice(0, 1500), terminal: false, purpose: route.purpose ?? "", expiresAt: new Date(Date.parse(this.#args.now) + 7 * 86400000).toISOString() } as ConversationDraft;
+          summary: text.slice(0, 1500), terminal: false, purpose: route.purpose ?? "", expiresAt: new Date(Date.parse(this.#args.now) + 7 * 86400000).toISOString() } as ConversationDraft;
         const activeDrafts = next.drafts.filter(d => !d.terminal && !d.linkedWorkId);
         const oldDrafts = next.drafts.filter(d => d.terminal || d.linkedWorkId);
         const oldSlots = Math.max(0, 7 - activeDrafts.length);
@@ -214,7 +218,7 @@ export class SharedConversationTurn {
         const draft = next.drafts.find(d => d.id === work!.id)!;
         draft.expiresAt = new Date(Date.parse(this.#args.now) + 7 * 86400000).toISOString();
       }
-      concerns.push({ text: route.text, source, work: work && { ...work, context: undefined }, agentId, delegation, knowledge: route.knowledge, needsAcknowledgement: !!work && (!!pending || !sameAddress(work.address, this.input.address)) });
+      concerns.push({ text, source, work: work && { ...work, context: undefined }, agentId, delegation, knowledge: route.knowledge, needsAcknowledgement: !!work && (!!pending || !sameAddress(work.address, this.input.address)) });
     }
     if (plan.clarify) {
       const { candidates, question } = plan.clarify;

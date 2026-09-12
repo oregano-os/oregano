@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-09
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -256,8 +256,14 @@ A Workspace can opt its entry Agent into `conversation_coordinator: true`.
 The hosted chat then interprets ordinary messages before the legacy collection
 selector. Existing signed button handlers retain their exact decision path.
 The coordinator searches existing delivery assignments and Builder jobs, then
-resumes the selected work using its source revision and a provider-reread source
-excerpt. Direct replies continue in the original workflow thread. A different
+resumes the selected work using its source revision and the original message.
+For one concern the Agent omits route text; Core forwards the verified source
+without asking the model to transcribe it or comparing a copy against raw
+provider formatting. Existing receipts containing a complete source copy retain
+this behavior. Split concerns require exact excerpts, checked in the same text
+representation used at conversation ingress. Provider identity, recipient,
+message attribution and current work revision are still verified; routing never
+records an effect approval. Direct replies continue in the original workflow thread. A different
 source thread receives an acknowledgment and verified destination link.
 The interpretation pass chooses routes rather than composing substantive
 answers; routed replies contain only a short destination acknowledgment when

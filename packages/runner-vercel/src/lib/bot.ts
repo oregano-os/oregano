@@ -355,7 +355,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
         const host = await createWorkflowHost();
         const result = await host.conversations.receiveSelected({ source: { threadId: `slack:${concern.source.address.channelId}:${concern.source.address.threadId}`,
           messageId: concern.source.messageId, authorId: message.author.userId }, target: (current.context as { assignment: WorkflowAssignment }).assignment,
-          text: concern.text, version: current.version });
+          ...(concern.text === concern.source.text ? {} : { text: concern.text }), version: current.version });
         if (result.kind !== "conversation") throw new Error("The selected workflow is no longer available for this reply");
         session = result.session; selected = session.agent;
       }
@@ -375,7 +375,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
       }
       await state.set(`${routeKey}:${index}:status`, { state: "running", workId: concern.work?.id, agentId: concern.agentId, at: new Date().toISOString() }, 30 * DAY);
       try {
-        await processConversationMessage(target, { ...message, id: concern.source.messageId, text: concern.text }, trace, { agent: selected, session, concern });
+        await processConversationMessage(target, { ...message, id: concern.source.messageId, text: session?.text ?? concern.text }, trace, { agent: selected, session, concern });
         await state.set(`${routeKey}:${index}:complete`, true, 30 * DAY);
         await state.set(`${routeKey}:${index}:status`, { state: "completed", workId: concern.work?.id, agentId: concern.agentId, at: new Date().toISOString() }, 30 * DAY);
       } catch (error) {

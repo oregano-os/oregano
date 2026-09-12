@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -77,6 +77,12 @@ answers. Real-model acceptance must check both the saved topic reference and
 the delivered conversation; synthetic SDK outputs alone do not prove this.
 
 ## Implemented and tested
+
+- Single-concern coordination forwards the verified original message without
+  requiring a model-authored copy. Split concerns retain exact excerpt checks
+  in the ingress text representation. Synthetic communication surfaces, formatted
+  replies, retained clarification answers and access/approval boundaries are
+  covered; live adoption remains an Instance verification step.
 
 - Core 0.5.15 returns compact database qualification in one read-only SQL
   statement while preserving every readiness check and the 2.1.0 manifest.

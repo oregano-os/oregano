@@ -7,6 +7,8 @@ import { sha256 } from "../../runtime/canonical.ts";
 export type WorkflowSlackChannelKind = "direct-message" | "private-channel" | "public-channel";
 export interface WorkflowSlackApi {
   qualifyReplies?(kind: WorkflowSlackChannelKind, principal?: string): Promise<void>;
+  /** Read one provider message using the same text representation as conversation ingress. */
+  conversationReply?(args: { channelId: string; threadId: string; messageId: string }): Promise<{ raw: Record<string, any>; text: string } | undefined>;
   call(method: "auth.test" | "users.info" | "conversations.info" | "conversations.replies" | "conversations.history" | "chat.getPermalink", args: Record<string, string>): Promise<Record<string, any>>;
 }
 export interface WorkflowSlackDestination { id: string; accountId: string; channelId?: string; userId?: string; kind: "channel" | "direct-message" }
@@ -51,12 +53,15 @@ export class WorkflowSlackTransport {
     return principal;
   }
   /** Reread the exact provider object; a caller's text/user/account is never approval evidence. */
-  async reply(args: { conversation: WorkflowConversation; messageId: string; roster: RosterMember[]; channelReply?: boolean }): Promise<{ principal: string; text: string; eventId: string }> {
+  async reply(args: { conversation: WorkflowConversation; messageId: string; roster: RosterMember[]; channelReply?: boolean; representation?: "conversation" }): Promise<{ principal: string; text: string; eventId: string }> {
     const { conversation: c, messageId } = args;
     if (c.surface !== "slack" || !/^[A-Z0-9]{5,32}$/.test(c.channelId) || !/^\d+\.\d+$/.test(c.threadId)
       || !/^\d+\.\d+$/.test(messageId) || messageId === c.threadId || c.accountId !== await this.account()) throw new Error("Workflow reply identity is invalid");
     if (args.channelReply && (!/^[CDG]/.test(c.channelId) || Number(messageId) <= Number(c.threadId))) throw new Error("Root reply predates its question");
-    const response = args.channelReply
+    const normalized = args.representation === "conversation" && this.#api.conversationReply
+      ? await this.#api.conversationReply({ channelId: c.channelId, threadId: args.channelReply ? messageId : c.threadId, messageId }) : undefined;
+    if (args.representation === "conversation" && this.#api.conversationReply && !normalized) throw new Error("The exact workflow reply could not be read completely");
+    const response = normalized ? { ok: true, messages: [normalized.raw] } : args.channelReply
       ? await this.#api.call("conversations.history", { channel: c.channelId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" })
       : await this.#api.call("conversations.replies", { channel: c.channelId, ts: c.threadId, oldest: messageId, latest: messageId, inclusive: "true", limit: "15" });
     const matches = Array.isArray(response.messages) ? response.messages.filter((message: any) => message.ts === messageId) : [];
@@ -66,7 +71,7 @@ export class WorkflowSlackTransport {
       || typeof message.text !== "string" || typeof message.user !== "string") throw new Error("Workflow reply is not an original attributable human message");
     const principal = await this.human(c.accountId, message.user, args.roster);
     if (c.subjectPrincipal && c.subjectPrincipal !== principal) throw new Error("Workflow reply belongs to another private recipient");
-    return { principal, text: message.text, eventId: `slack:${c.accountId}:${c.channelId}:${messageId}` };
+    return { principal, text: normalized?.text ?? message.text, eventId: `slack:${c.accountId}:${c.channelId}:${messageId}` };
   }
   private async channelRecipient(artifact: CompanyOSArtifact, destination: string, accountId: string, roster: RosterMember[]): Promise<string | undefined> {
     const recipients = artifact.workflowBindings?.directRecipients.filter((entry) => entry.destinationBinding === destination) ?? [];
