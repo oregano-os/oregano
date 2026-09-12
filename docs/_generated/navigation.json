@@ -520,6 +520,14 @@
     "availability": null
   },
   {
+    "document_id": "plan.measure-learn-build",
+    "title": "Governed Measure–Learn–Build Improvement Loop",
+    "path": "docs/plans/2026-09-11-measure-learn-build.md",
+    "kind": "plan",
+    "status": "draft",
+    "availability": "planned"
+  },
+  {
     "document_id": "plan.setup-integration-review",
     "title": "Setup Candidate Integration Review",
     "path": "docs/plans/2026-09-08-setup-integration-review.md",

@@ -279,6 +279,7 @@ export class CompanyOSRuntime {
                 toolId: tool.contract.runtimeId,
                 idempotencyKey,
                 subject: accessSubject,
+                ...(guard ? { workflow: { id: guard.workflow.id, cutoff: guard.context.trigger.instant } } : {}),
               });
               capabilityEvidence.push(result.evidence);
               return result.output;

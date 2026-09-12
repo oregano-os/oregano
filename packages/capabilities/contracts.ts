@@ -44,6 +44,8 @@ export interface CapabilityCallContext {
   stepId: string;
   agentId: string;
   toolId: string;
+  /** Set by the runtime's authenticated Workflow guard, never by Company Tool input. */
+  workflow?: { id: string; cutoff: string };
   idempotencyKey?: string;
   subject?: {
     principalId: string;

@@ -49,15 +49,11 @@ files_expected:
   - docs/onboarding/README.md
   - docs/onboarding/company-workspace.md
   - docs/onboarding/setup-options.md
-  - docs/operations/workflow-engine.md
-  - docs/plans/2026-08-25-company-knowledge-implementation.md
   - docs/plans/2026-09-08-builder-workspace-activation-and-preview.md
   - docs/plans/2026-09-08-five-minute-setup.md
   - docs/reference/instance-configuration.md
   - docs/specifications/builder-governance.md
   - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
-  - docs/specifications/company-knowledge-v0.1-draft.md
-  - docs/specifications/company-knowledge-v0.2-draft.md
   - docs/specifications/company-records-and-sprint-v0.1-draft.md
   - docs/specifications/companyos-core-v0.7-draft.md
   - docs/specifications/model-recipes.md
@@ -66,20 +62,15 @@ files_expected:
   - docs/testing/postgres.md
   - docs/vision.md
   - docs/workbench/commands/build.md
-  - docs/workbench/commands/knowledge.md
   - docs/workbench/commands/records.md
-  - docs/workbench/commands/verify-live.md
-  - docs/workbench/guides/author-company-knowledge.md
   - docs/workbench/guides/author-handbook.md
   - docs/workbench/guides/connect-company-record-source.md
   - docs/workbench/guides/connect-knowledge-source.md
   - docs/workbench/guides/operate-builder.md
-  - docs/workbench/guides/operate-knowledge-provider.md
   - docs/workbench/guides/prepare-an-instance.md
   - docs/workbench/guides/recover-company-knowledge.md
   - docs/workbench/guides/retain-granola.md
   - docs/workbench/guides/retire-knowledge.md
-  - docs/workbench/guides/review-company-knowledge.md
   - docs/workbench/overview.md
   - package.json
   - packages/blueprints/product-manager/agents/product-manager/skills/product-discovery-to-prd/references/analysis-contract.md
@@ -89,11 +80,9 @@ files_expected:
   - packages/cli/content/guides/author-company-knowledge.md
   - packages/cli/content/guides/author-handbook.md
   - packages/cli/content/guides/connect-company-record-source.md
-  - packages/cli/content/guides/connect-knowledge-source.md
   - packages/cli/content/guides/operate-builder.md
   - packages/cli/content/guides/operate-knowledge-provider.md
   - packages/cli/content/guides/prepare-an-instance.md
-  - packages/cli/content/guides/recover-company-knowledge.md
   - packages/cli/content/guides/retain-granola.md
   - packages/cli/content/guides/retire-knowledge.md
   - packages/cli/content/guides/review-company-knowledge.md
@@ -174,6 +163,7 @@ files_expected:
   - packages/runner-vercel/src/app/api/knowledge/sources/granola/reconcile/route.ts
   - packages/runner-vercel/src/app/api/knowledge/sources/granola/webhook/route.ts
   - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/agent-model-task.ts
   - packages/runner-vercel/src/lib/bot.ts
   - packages/runner-vercel/src/lib/builder/functional-test-execution.ts
   - packages/runner-vercel/src/lib/builder/live-release-adapter.ts
@@ -182,16 +172,20 @@ files_expected:
   - packages/runner-vercel/src/lib/builder/trusted-git-sandbox.ts
   - packages/runner-vercel/src/lib/company-records-production.test.ts
   - packages/runner-vercel/src/lib/company-records-rehearsal.test.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.ts
   - packages/runner-vercel/src/lib/knowledge-model-runtime.test.ts
   - packages/runner-vercel/src/lib/knowledge-model-runtime.ts
   - packages/runner-vercel/src/lib/knowledge-source-runtime.test.ts
   - packages/runner-vercel/src/lib/knowledge-source-runtime.ts
   - packages/runner-vercel/src/lib/knowledge-turn-routing.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
   - packages/runner-vercel/src/lib/slack-agent-experience.test.ts
   - packages/runner-vercel/src/lib/slack-agent-experience.ts
+  - packages/runner-vercel/src/lib/workflow-conversation-check.ts
   - packages/runner-vercel/src/lib/workflow-host.ts
   - packages/runner-vercel/vercel.json
   - packages/runtime/builder/build-artifact-worker.ts
+  - packages/runtime/shared-conversation.ts
   - packages/standard-tools/knowledge.ts
   - packages/state-postgres/brain-retrieval-store.ts
   - packages/state-postgres/brain-store.ts
@@ -226,6 +220,7 @@ files_expected:
   - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
   - packages/testkit/fixtures/reference-company/brain/archive/.gitkeep
   - packages/testkit/fixtures/reference-company/brain/inbox/.gitkeep
+  - packages/testkit/tests/agent-model-task.test.ts
   - packages/testkit/tests/builder-live-adapters.test.ts
   - packages/testkit/tests/builder-release-postgres.test.ts
   - packages/testkit/tests/company-brain-authorization.test.ts
@@ -259,7 +254,10 @@ files_expected:
   - packages/testkit/tests/knowledge-source-registry.test.ts
   - packages/testkit/tests/knowledge-source.test.ts
   - packages/testkit/tests/model-recipes.test.ts
+  - packages/testkit/tests/published-conversation-context.test.ts
+  - packages/testkit/tests/retired-executor-removal.test.ts
   - packages/testkit/tests/retired-knowledge-migration.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
   - packages/testkit/tests/slack-knowledge-routing.test.ts
   - scripts/retire-knowledge.mjs
   - scripts/test-database.mjs
@@ -289,7 +287,6 @@ documentation_impact:
     - command.build
     - command.knowledge
     - command.records
-    - command.verify-live
     - docs.index
     - guide.author-company-knowledge
     - guide.author-handbook
@@ -306,7 +303,6 @@ documentation_impact:
     - onboarding.company-workspace
     - onboarding.index
     - onboarding.setup-options
-    - operations.workflow-engine
     - plan.builder-workspace-activation-and-preview
     - plan.company-knowledge-implementation
     - plan.five-minute-setup

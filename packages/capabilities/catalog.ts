@@ -1,4 +1,5 @@
 import type { CapabilityContract, JsonSchema } from "./contracts.ts";
+import { EVIDENCE_QUERY_INPUT, EVIDENCE_QUERY_OUTPUT } from "./evidence.ts";
 import { RECORD_QUERY_INPUT_SCHEMA, RECORD_QUERY_OUTPUT_SCHEMA } from "../records/query-schema.ts";
 import { DIRECTORY_QUERY_INPUT_SCHEMA, DIRECTORY_QUERY_OUTPUT_SCHEMA } from "../directory/contracts.ts";
 import { LANGUAGE_GENERATE_INPUT, LANGUAGE_GENERATE_OUTPUT } from "../language/contracts.ts";
@@ -15,6 +16,13 @@ const object = (required: string[], properties: Record<string, JsonSchema>): Jso
  * intentionally smaller than any provider SDK. Additions are Core changes.
  */
 export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
+  {
+    id: "evidence.query", version: "1.0.0",
+    description: "Read bounded retained evidence and selected Artifact context under explicit current and invocation scope.",
+    mode: "read", minimumRisk: "R0", idempotency: "none",
+    inputSchema: EVIDENCE_QUERY_INPUT, outputSchema: EVIDENCE_QUERY_OUTPUT,
+    evidence: ["artifact_hash", "query_digest", "result_digest", "coverage", "access_decision", "connector"],
+  },
   {
     id: "language.generate", version: "1.0.0",
     description: "Generate bounded text from a frozen, scoped Skill and supplied evidence using the owning Agent model task.",
@@ -132,6 +140,7 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
       resource_binding: { type: "string", minLength: 1, maxLength: 63 },
       work_item_id: { type: "string", minLength: 1, maxLength: 255 },
       fields: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 127 } },
+      include_comments: { type: "boolean" },
     }),
     outputSchema: object(["work_item", "provider_version", "observed_at"], {
       work_item: { type: "object" },

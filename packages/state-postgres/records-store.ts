@@ -172,6 +172,15 @@ export async function inspectPostgresCompanyRecordSourceStatus(
 
 export function createPostgresCompanyRecordsStore(): CompanyRecordsStore {
   return {
+    async readHistory(args) {
+      if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 101) throw new Error("Invalid Records history bound");
+      await ensureCompanyRecordsSchema();
+      const rows = await connection()`select * from companyos_records.object_versions
+        where instance_id = ${args.instanceId} and source_id = ${args.sourceId}
+        and observed_at > ${args.from}::timestamptz and observed_at <= ${args.to}::timestamptz
+        order by observed_at desc, version_id desc limit ${args.limit}`;
+      return rows.map(objectVersion);
+    },
     async appendSourceEvent(event) {
       await ensureCompanyRecordsSchema();
       const rows = await connection()`

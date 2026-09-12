@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-06
+updated: 2026-09-11
 owners:
   - oregano-maintainers
 audience:
@@ -258,3 +258,51 @@ Synthetic receipt markers prevent the live CLI scope from treating an automated
 fixture as acceptance. Exact deployment identity, source qualification and
 human participation remain essential: a checksum is not a provider signature
 or proof that an arbitrary untrusted server ran the maintained Core.
+
+## Bounded historical evidence reads
+
+The experimental `evidence.query@1.0.0` capability reads retained workflow
+outcomes, exact decisions, effect receipts, source observations and explicitly
+selected Artifact materials through `oregano/historical-evidence@1.0.0`.
+It is available to any explicitly granted Company Tool, under its owning Agent;
+it grants no special privilege to a reviewer. The normal ToolSet and capability
+binding remain mandatory. Instance scopes intersect the authenticated subject's
+current groups with the exact Agent and trusted workflow identity. The runtime
+supplies the occurrence cutoff; Tool input cannot widen it. A null workflow scope
+explicitly permits standalone invocation, never every workflow.
+
+A query selects logical workflow/source/path references, a fixed `(from, to]`
+interval and at most 100 items. `step_ids` narrows returned step outputs;
+`include_linked_builds` requests exact downstream links. The maintained read is
+bounded to 90 days by the contract and normally narrowed further by the Instance.
+Paths must already exist in the Agent's compiled read materials. Records uses
+the existing source policy and storage generation; no SQL table name or provider
+SDK belongs in a Company Tool. Unsupported sources remain unavailable.
+
+`coverage.complete` means the bounded retained read was not omitted or truncated;
+it does not prove that every real event was captured. Records observations always
+report that complete provider transition history is not established. Occurrence
+time, observation time, source/version, Artifact and output digests remain
+separate. An empty result is not proof of absence. Current mutable run status is
+marked unknown if it changed after the requested cutoff. The response is capped
+at 120,000 characters and reports omitted content explicitly.
+
+For previous reviews, select completed assessments and follow the actual message
+and effect receipt. Qualified provider replies to retained published conversations
+are captured in the existing event log with originating run, step, publication,
+provider message, authenticated principal and timestamps. They remain feedback;
+they never authorize a change or reopen a terminal workflow. Uncaptured, expired
+or truncated feedback remains a limitation.
+
+A human may include `workflow-output:<run-id>#<step-id>` verbatim in an existing
+Builder brief's constraints. The reader joins only that exact reference to the
+same authenticated requester's bounded Builder history and exact candidate
+release snapshots. This adds no Builder admission or release authority and no
+finding registry. The returned source-output digest makes the referenced result
+inspectable. A deployment receipt is not proof that an intervention had enough
+business exposure or met its target.
+
+Historical reads do not alter communication idempotency. The existing run/step
+effect claim and recovery paths still govern actual delivery. Cross-run semantic
+report comparison belongs to the Workspace Skill, without a new Core identity
+or deduplication guarantee.

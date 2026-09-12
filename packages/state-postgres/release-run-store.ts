@@ -2,6 +2,18 @@ import { randomUUID } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 import { type ReleaseLease, type ReleaseRun, type ReleaseRunStore } from "../state-store/release-runs.ts";
 
+/** Bounded exact-candidate history for evidence readers, without release authority. */
+export async function readCandidateReleaseEvidence(instanceId: string, candidateId: string, cutoff: string): Promise<ReleaseRun[]> {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("Release evidence storage is unavailable");
+  const sql = neon(url);
+  const rows = await sql`select distinct on (run_id) payload from companyos.events
+    where event = 'release.snapshot' and payload->'candidate'->>'instanceId' = ${instanceId}
+      and payload->'candidate'->>'id' = ${candidateId} and (payload->>'updatedAt')::timestamptz <= ${cutoff}::timestamptz
+    order by run_id, (payload->>'revision')::int desc limit 11`;
+  return rows.map(row => (typeof row.payload === "string" ? JSON.parse(row.payload) : row.payload) as ReleaseRun);
+}
+
 /** Private non-expiring operation/artifact storage; schema must already be qualified. */
 export function createPostgresReleasePrivateState(databaseUrl = process.env.DATABASE_URL) {
   if (!databaseUrl) throw new Error("Release private state is not configured.");

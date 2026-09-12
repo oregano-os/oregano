@@ -12,6 +12,13 @@ import type { CompanyRecordsStore, ProjectionPage, RecordReadSnapshot } from "..
 const key = (...parts: string[]) => parts.join("\0");
 
 export class InMemoryCompanyRecordsStore implements CompanyRecordsStore {
+  async readHistory(args: Parameters<CompanyRecordsStore["readHistory"]>[0]): Promise<RecordObjectVersion[]> {
+    if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 101) throw new Error("Invalid Records history bound");
+    return [...this.objectVersions.values()].filter(value => value.instance_id === args.instanceId && value.source_id === args.sourceId
+      && compareRecordInstants(value.observed_at, args.from) > 0 && compareRecordInstants(value.observed_at, args.to) <= 0)
+      .sort((a, b) => compareRecordInstants(b.observed_at, a.observed_at) || b.version_id.localeCompare(a.version_id))
+      .slice(0, args.limit).map(value => structuredClone(value));
+  }
   readonly sourceEvents = new Map<string, RecordSourceEvent>();
   readonly objectVersions = new Map<string, RecordObjectVersion>();
   readonly currentObjects = new Map<string, string>();

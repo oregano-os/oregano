@@ -5,6 +5,11 @@ import type { Chat } from "chat";
 import { gzipSync } from "node:zlib";
 import { CapabilityEffectOutcomeUnknownError, type Connector, type JsonValue } from "../../../capabilities/contracts.ts";
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
+import { HistoricalEvidenceConnector, parseEvidenceScopes } from "../../../connectors/historical-evidence.ts";
+import { createPostgresWorkflowExecutionStore } from "../../../state-postgres/workflow-store.ts";
+import { createPostgresStateStore } from "../../../state-postgres/store.ts";
+import { createPostgresBuilderJobStore } from "../../../state-postgres/builder-job-store.ts";
+import { readCandidateReleaseEvidence } from "../../../state-postgres/release-run-store.ts";
 import { CompanyRecordsConnector } from "../../../connectors/company-records.ts";
 import { CompanyDirectoryConnector } from "../../../connectors/company-directory.ts";
 import { LanguageModelConnector, type LanguagePromptBinding } from "../../../connectors/language-model.ts";
@@ -274,6 +279,16 @@ export function createConfiguredRuntimeConnectors(args: {
       && binding.connector === entry.connector && binding.connectorVersion === entry.connectorVersion)) continue;
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
+    if (entry.connector === "oregano/historical-evidence" && entry.connectorVersion === "1.0.0") {
+      exactKeys(entry.configuration, ["scopes"], `Connector instance '${entry.id}'`);
+      const scopes = parseEvidenceScopes(entry.configuration.scopes);
+      const recordEntry = args.artifact.connectors?.find(value => value.connector === "oregano/company-records");
+      connectors.push(new HistoricalEvidenceConnector({ artifact: args.artifact, scopes,
+        workflows: createPostgresWorkflowExecutionStore(), control: createPostgresStateStore(),
+        builders: createPostgresBuilderJobStore(), releases: readCandidateReleaseEvidence,
+        ...(recordEntry && scopes.some(scope => scope.source_ids.length) ? { records: parseCompanyRecordsConfiguration(recordEntry, args.artifact, environment).service } : {}) }));
+      continue;
+    }
     if (entry.connector === "oregano/language-model" && entry.connectorVersion === "1.0.0") {
       exactKeys(entry.configuration, ["prompts"], `Connector instance '${entry.id}'`);
       connectors.push(new LanguageModelConnector({ artifact: args.artifact,
