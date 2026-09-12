@@ -71,3 +71,49 @@ test("operator DM root recovery accepts a locator only, never supplied text or a
     assert.throws(() => parseWorkflowOperatorRequest({ ...input, ...patch }));
   }
 });
+
+test("human replies shared to the conversation retain their original thread identity and text", async () => {
+  const h = engineFixture();
+  for (const channelId of ["D10001", "C10001", "G10001"]) {
+    for (const representation of [undefined, "conversation"] as const) {
+      let subtype: string | undefined;
+      const raw = () => ({ type: "message", ts: "20.000001", thread_ts: "10.000001", user: "U10002",
+        text: "1. Done.\n2. Not started; sick.", ...(subtype ? { subtype } : {}) });
+      const transport = new WorkflowSlackTransport({
+        call: async (method) => {
+          if (method === "auth.test") return { ok: true, team_id: "T10001" };
+          if (method === "users.info") return { ok: true, user: { id: "U10002", team_id: "T10001", deleted: false, is_bot: false } };
+          assert.equal(method, "conversations.replies");
+          return { ok: true, messages: [raw()] };
+        },
+        conversationReply: async () => ({ raw: raw(), text: raw().text }),
+      });
+      const args = { conversation: { surface: "slack", accountId: "T10001", channelId, threadId: "10.000001", subjectPrincipal: "slack:T10001:U10002" },
+        messageId: "20.000001", roster: h.roster, representation };
+      const original = await transport.reply(args);
+      subtype = "thread_broadcast";
+      assert.deepEqual(await transport.reply(args), original, "sharing a reply must not change its event identity or content");
+    }
+  }
+});
+
+test("broadcast replies still reject bots, edits, wrong audience and root masquerading", async () => {
+  const h = engineFixture();
+  const original = { type: "message", ts: "20.000001", thread_ts: "10.000001", user: "U10002", text: "My answer", subtype: "thread_broadcast" };
+  let message: Record<string, unknown> = original;
+  const transport = new WorkflowSlackTransport({ call: async (method, args) => {
+    if (method === "auth.test") return { ok: true, team_id: "T10001" };
+    if (method === "users.info") return { ok: true, user: { id: args.user, team_id: "T10001", deleted: false, is_bot: false } };
+    return { ok: true, messages: [message] };
+  } });
+  const args = { conversation: { surface: "slack", accountId: "T10001", channelId: "D10001", threadId: "10.000001", subjectPrincipal: "slack:T10001:U10002" },
+    messageId: "20.000001", roster: h.roster };
+  for (const patch of [{ bot_id: "B10001" }, { app_id: "A10001" }, { edited: { ts: "21.000001" } }, { subtype: "message_changed" },
+    { subtype: "message_deleted" }, { subtype: "channel_join" }, { subtype: "file_share" }, { thread_ts: "9.000001" },
+    { user: "U10001" }, { text: undefined }]) {
+    message = { ...original, ...patch };
+    await assert.rejects(transport.reply(args));
+  }
+  message = { ...original, thread_ts: original.ts };
+  await assert.rejects(transport.reply({ ...args, channelReply: true }), /original attributable/);
+});

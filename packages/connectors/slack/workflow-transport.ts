@@ -67,7 +67,10 @@ export class WorkflowSlackTransport {
     const matches = Array.isArray(response.messages) ? response.messages.filter((message: any) => message.ts === messageId) : [];
     if (response.ok !== true || response.has_more === true || response.response_metadata?.next_cursor || matches.length !== 1) throw new Error("The exact workflow reply could not be read completely");
     const message = matches[0];
-    if ((args.channelReply ? message.thread_ts && message.thread_ts !== messageId : message.thread_ts !== c.threadId) || message.type !== "message" || message.bot_id || message.app_id || message.subtype || message.edited
+    // Sharing a reply to the main conversation does not change its original
+    // thread or author. Accept that representation only on the exact thread read.
+    const unsupportedSubtype = message.subtype && (args.channelReply || message.subtype !== "thread_broadcast");
+    if ((args.channelReply ? message.thread_ts && message.thread_ts !== messageId : message.thread_ts !== c.threadId) || message.type !== "message" || message.bot_id || message.app_id || unsupportedSubtype || message.edited
       || typeof message.text !== "string" || typeof message.user !== "string") throw new Error("Workflow reply is not an original attributable human message");
     const principal = await this.human(c.accountId, message.user, args.roster);
     if (c.subjectPrincipal && c.subjectPrincipal !== principal) throw new Error("Workflow reply belongs to another private recipient");

@@ -1,0 +1,43 @@
+version: 3
+plan_id: thread-broadcast-replies-2026-09-12
+created: 2026-09-12
+title: Accept verified human replies shared from their original thread
+objective: Allow the Slack thread_broadcast representation when rereading an
+  exact original thread reply, retaining account, author, audience and edit checks.
+non_goals:
+  - Change multi-Agent interpretation, routing, workflow logic or report formatting.
+  - Accept bot, edited, system or unrelated messages as human workflow input.
+  - Treat a broadcast reference as a new root answer or post duplicate responses.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-thread-broadcast-replies.yaml
+  - packages/connectors/slack/workflow-transport.ts
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+  - docs/operations/slack-communication.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/testkit/tests/workflow-direct-replies.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.slack-communication
+architecture:
+  placement:
+    core: Correct the existing Slack Connector's exact-provider-reply validation.
+    packages: Reuse existing transport contracts and synthetic workflow fixtures.
+    workspace: Keep business prompts, workflows and recipients unchanged.
+    instance: Adopt the tested pin on the existing isolated test instance and
+      recover the original failed reply through its authenticated operator API.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Recognize the provider's broadcast representation of the same
+        verified thread message, without another routing or delivery path.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company and Agent using this Slack transport benefits;
+    shared conversation contracts and other providers remain unchanged.
+rollback: Restore the prior Core pin. No state migration or message rewriting.
