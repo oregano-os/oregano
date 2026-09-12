@@ -1,0 +1,41 @@
+version: 3
+plan_id: release-core-0-13-0-2026-09-12
+created: 2026-09-12
+title: Release generic historical evidence and current comment reads
+objective: Release Core 0.13.0 from reviewed PR 126. The new scoped evidence.query capability is a new externally adopted contract and warrants a minor increment. Preserve the existing Workbench version and database manifest.
+non_goals:
+  - Add company rules, database migrations or automatic business-change approval.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-12-release-core-0-13-0.yaml
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
+  - package.json
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - docs/status/current.md
+  - docs/_generated/document-registry.json
+tests:
+  - packages/cli/tests/workbench.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/testkit/tests/historical-evidence.test.ts
+  - packages/testkit/tests/work-item-comment-read.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [status.current]
+architecture:
+  placement:
+    core: Version the reviewed generic reads and authenticated workflow health endpoint.
+    packages: Reuse existing Workbench distribution and connector contracts.
+    workspace: Adopt the exact Core pin and own process semantics and rollout scope.
+    instance: Retain prior deployment, qualify exact runtime and source access before activation.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All explicitly granted agents share the same evidence contract without company semantics.
+rollback: Stop new review openings and restore the preceding exact Core and Workspace pairing. Retain runs, feedback and effects. No database migration is required; old runtimes cannot resume runs using the new capability. Do not reinterpret existing approvals or undo provider effects.
+open_decisions: []
