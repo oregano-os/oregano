@@ -109,7 +109,7 @@ Usage:
   companyos database branch-status --host <neon-host> [--format human|json]
   companyos database branch-prepare --host <neon-host> [--format human|json]
   companyos database branch-verify --host <neon-host> [--format human|json]
-  companyos build <workspace> --output <file>
+  companyos build <workspace> --output <file> [--records-build-inputs <file>]
 `;
 
 const exitWithDiagnostics = (diagnostics, options) => {

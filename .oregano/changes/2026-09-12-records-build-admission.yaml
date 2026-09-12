@@ -9,6 +9,7 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/testkit/tests/handbook-workspace.test.ts
   - package.json
   - packages/cli/package.json
   - packages/cli/tests/workbench.test.mjs
