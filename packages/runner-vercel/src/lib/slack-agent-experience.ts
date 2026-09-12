@@ -11,16 +11,22 @@ const VALIDATED_RESPONSE_CHUNK_SIZE = 320;
 function validatedResponseChunks(response: string): string[] {
   if (response.length <= VALIDATED_RESPONSE_CHUNK_SIZE) return [response];
   const chunks: string[] = [];
-  for (let offset = 0; offset < response.length; offset += VALIDATED_RESPONSE_CHUNK_SIZE) {
-    chunks.push(response.slice(offset, offset + VALIDATED_RESPONSE_CHUNK_SIZE));
+  let chunk = "";
+  for (const character of response) {
+    if (chunk.length + character.length > VALIDATED_RESPONSE_CHUNK_SIZE) {
+      chunks.push(chunk);
+      chunk = "";
+    }
+    chunk += character;
   }
+  if (chunk) chunks.push(chunk);
   return chunks;
 }
 
 /**
- * Streams only an already-validated presentation. Fixed-size slicing preserves
- * the exact response bytes while giving Slack several native append events for
- * longer answers. Chat SDK heals incomplete Markdown in intermediate renders.
+ * Streams only an already-validated presentation. Bounded chunks preserve whole
+ * Unicode code points: splitting a surrogate pair would send invalid strings in
+ * separate provider requests. Chat SDK handles intermediate Markdown rendering.
  */
 export function validatedSlackResponsePlan(
   response: string,
@@ -274,13 +280,13 @@ export async function showSlackAgentWorking(
 export async function withSlackAgentWorking<T>(
   thread: Pick<Thread, "id" | "adapter" | "startTyping">,
   configuration: SlackAgentExperienceConfiguration,
-  operation: (finish: () => Promise<void>) => Promise<T>,
+  operation: (finish: (status?: "active" | "suspended") => Promise<void>) => Promise<T>,
 ): Promise<T> {
   let finished = false;
-  const finish = async () => {
+  const finish = async (status: "active" | "suspended" = "active") => {
     if (finished || !configuration.enabled) return;
     finished = true;
-    try { await thread.adapter.endTyping?.(thread.id, "active"); }
+    try { await thread.adapter.endTyping?.(thread.id, status); }
     catch { /* Optional presentation must not replace the operation's result or error. */ }
   };
   await showSlackAgentWorking(thread, configuration);

@@ -23,6 +23,17 @@ const modelResult = (content: Array<{ type: "text"; text: string } | { type: "to
   usage: { inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 10, text: 10, reasoning: 0 } }, warnings: [] });
 const call = (toolName: string, input: unknown) => ({ type: "tool-call" as const, toolCallId: toolName, toolName, input: JSON.stringify(input) });
 
+test("the coordinator can select knowledge work without returning a copy of the message", async () => {
+  const fixture = await directTurn();
+  const model = new MockLanguageModelV3({ doGenerate: async () => modelResult([
+    call("companyos_conversation_plan", { reply: "", routes: [{ knowledge: true }] }),
+  ]) });
+  const result = await interpretConversation({ turn: fixture.turn, agent: coordinatorAgent, specialists: [], signal: new AbortController().signal, model });
+  assert.equal(result.receipt.concerns[0]?.text, "Which topics are open?");
+  assert.equal(result.receipt.plan.routes[0]?.text, undefined);
+  assert.equal(fixture.commits(), 1);
+});
+
 test("a lookup cannot finish as plain model text instead of a checked conversation result", async () => {
   const fixture = await directTurn();
   const model = new MockLanguageModelV3({ doGenerate: async options => {
@@ -82,7 +93,7 @@ for (const reply of ["the second", "it is for question 2", "the invoicing proces
     const model = new MockLanguageModelV3({ doGenerate: async options => {
       const prompt = JSON.stringify(options.prompt);
       assert.ok(prompt.includes(reply)); assert.ok(prompt.includes("Start on Friday"));
-      return { content: [{ type: "tool-call", toolCallId: "plan", toolName: "companyos_conversation_plan", input: JSON.stringify({ reply: "I assigned your answer to invoicing.", usePendingMessageId: "original", routes: [{ workId: "two", text: "Start on Friday" }] }) }],
+      return { content: [{ type: "tool-call", toolCallId: "plan", toolName: "companyos_conversation_plan", input: JSON.stringify({ reply: "I assigned your answer to invoicing.", usePendingMessageId: "original", routes: [{ workId: "two" }] }) }],
         finishReason: { unified: "tool-calls", raw: undefined }, usage: { inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 10, text: 10, reasoning: 0 } }, warnings: [] };
     } });
     const result = await interpretConversation({ turn, agent: { id: "general", instructions: "Coordinate concerns.", materials: {}, tools: [], toolSet: { agentId: "general", hash: "fixture", resolverVersion: "1", tools: [] } }, specialists: [], signal: new AbortController().signal, model });

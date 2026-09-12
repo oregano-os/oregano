@@ -253,7 +253,10 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         } else err(f, `${s.id}: records.query projection_id must be a literal or a $config path to a projection id`);
         outputOf.set(s.id, output);
       } else if (schemas) outputOf.set(s.id, schemas.output);
-      else if (s.tool === "start") outputOf.set(s.id, { type: "object", required: ["run_id"], properties: { run_id: { type: "string" } } });
+      else if (s.tool === "start") outputOf.set(s.id, { type: "object", required: ["run_id", "status", "blocked", "succeeded_steps"], properties: {
+        run_id: { type: "string" }, status: { type: "string", enum: ["running", "waiting", "done", "cancelled", "failed"] }, blocked: { type: "boolean" },
+        succeeded_steps: { type: "array", items: { type: "string" } },
+      } });
       else if (s.tool === "collect") outputOf.set(s.id, { type: "object", additionalProperties: false, required: s.fields, properties: Object.fromEntries((s.fields ?? []).map((field: string) => [field, { type: "string", minLength: 1, maxLength: 4000 }])) });
       else if (s.tool === "wait") outputOf.set(s.id, { type: "object", required: ["instant"], properties: { instant: { type: "string", format: "date-time" } } });
       else if (s.tool === "route") outputOf.set(s.id, { type: "object", properties: {} });
@@ -489,14 +492,24 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each) err(f, `${s.id}: collect requires a prior private root message with one explicit recipient`);
         const checkReferences = (value: any): void => { if (typeof value === "string" && value.startsWith("$")) resolveReference(value, s.id); else if (value && typeof value === "object") Object.values(value).forEach(checkReferences); };
         checkReferences(s.context);
+        if (s.validate !== undefined) {
+          const declaration = companyTools.get(s.validate), validator = toolSchemas(s.validate);
+          if (!grants.has(s.validate) || !declaration || validator?.risk !== "R0" || declaration.capabilities?.length !== 0)
+            err(f, `${s.id}: collection validation requires a granted pure R0 Company Tool without capabilities`);
+          else {
+            const contextSchema = typeof s.context === "string" && s.context.startsWith("$") ? resolveReference(s.context, s.id) : literalSchema(s.context);
+            compatible({ type: "object", additionalProperties: false, required: ["context", "facts"], properties: { context: contextSchema, facts: outputOf.get(s.id) } }, validator.input, s.id, "/validate/input");
+            compatible(validator.output, { type: "object", additionalProperties: false, required: ["accepted", "feedback"], properties: { accepted: { type: "boolean" }, feedback: { type: "string", maxLength: 2000 } } }, s.id, "/validate/output");
+          }
+        }
       }
       // decision binds
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         validateInput(s.via, { type: "string", minLength: 1 }, s.id);
         if (s.recipient !== undefined) validateInput(s.recipient, { type: "string", minLength: 1 }, s.id);
-        if (s.thread !== undefined) {
-          validateInput(s.thread, { type: "string", minLength: 1 }, s.id);
-          const sourceId = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s.thread)?.[1];
+        for (const key of ["thread", "continue_in"]) if (s[key] !== undefined) {
+          validateInput(s[key], { type: "string", minLength: 1 }, s.id);
+          const sourceId = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s[key])?.[1];
           const source = steps.find((entry: any) => entry.id === sourceId);
           if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each || !s.recipient || JSON.stringify(source.recipient) !== JSON.stringify(s.recipient) || !s.labels)
             err(f, `${s.id}: threaded decision requires controls and a prior private root publication to the same explicit recipient`);
@@ -579,9 +592,9 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
-  else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout");
+  else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout", "validate");
   else if (step.tool === "wait") allowed.push("for");
-  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "review_format"];
+  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");

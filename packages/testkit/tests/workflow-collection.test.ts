@@ -55,13 +55,23 @@ test("repeated intake parents open only one child for the same fields", async ()
   const { artifactHash, ...content } = artifact; artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
   const h = engineFixture({ artifact });
   const ids = [];
-  for (const requestId of ["tick-one", "tick-two"]) {
+  for (const [index, requestId] of ["tick-one", "tick-two", "tick-three"].entries()) {
     const opened = await h.engine().openOperator({ workflowId: parent.id, requestId, fields: {}, principal: ENGINE_OPERATOR });
     const done = (await h.engine().advance(opened.runId))!;
     assert.equal(done.state.blocked, undefined); assert.equal(done.state.status, "done");
     ids.push((done.state.steps[step.id]!.output as any).run_id);
+    const output = done.state.steps[step.id]!.output as any;
+    assert.equal(output.status, ["running", "waiting", "done"][index]);
+    assert.equal(output.blocked, false);
+    if (index === 0) await h.engine().advance(output.run_id);
+    if (index === 1) {
+      const waiting = (await h.store.read(artifact.instance.id, output.run_id))!;
+      const conversation = h.conversation("direct-jonas-owner", waiting.state.steps.ask!.output!);
+      await h.engine().collect({ principal: ENGINE_OWNER, conversation, eventId: "confirmed-content", output: { summary: "Agreed facts" } });
+    }
+    if (index === 2) assert.ok(output.succeeded_steps.includes("facts"), "Workspace can distinguish successful work from an early end");
   }
-  assert.equal(ids[0], ids[1]);
+  assert.equal(new Set(ids).size, 1);
   assert.equal((await h.store.list({ instanceId: artifact.instance.id, limit: 20 })).filter((run) => run.workflowId === child.id).length, 1);
 });
 

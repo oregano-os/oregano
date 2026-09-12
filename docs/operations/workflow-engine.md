@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -256,8 +256,14 @@ A Workspace can opt its entry Agent into `conversation_coordinator: true`.
 The hosted chat then interprets ordinary messages before the legacy collection
 selector. Existing signed button handlers retain their exact decision path.
 The coordinator searches existing delivery assignments and Builder jobs, then
-resumes the selected work using its source revision and a provider-reread source
-excerpt. Direct replies continue in the original workflow thread. A different
+resumes the selected work using its source revision and the original message.
+For one concern the Agent omits route text; Core forwards the verified source
+without asking the model to transcribe it or comparing a copy against raw
+provider formatting. Existing receipts containing a complete source copy retain
+this behavior. Split concerns require exact excerpts, checked in the same text
+representation used at conversation ingress. Provider identity, recipient,
+message attribution and current work revision are still verified; routing never
+records an effect approval. Direct replies continue in the original workflow thread. A different
 source thread receives an acknowledgment and verified destination link.
 The interpretation pass chooses routes rather than composing substantive
 answers; routed replies contain only a short destination acknowledgment when
@@ -346,3 +352,105 @@ alone is not delivered notice. Verify an intentionally blocked review, unavailab
 model, actual alert receipt and recovery before unattended activation. Until that
 route is qualified, keep the review calendar blocked. No additional monitoring
 Agent or notification service is installed by this endpoint.
+
+## Collection conversation continuity
+
+Collection is a terminal submission for the current question, not a partial-note
+operation. The model receives explicit guidance to retain incomplete facts in
+conversation history, ask only for remaining facts, and satisfy any Workspace
+preview requirement before submitting. Missing facts must not become placeholders.
+After a successful collection receipt, the host ends that model turn and lets the
+workflow deliver the next question or review; it suppresses contradictory trailing
+prose that could send the person back to an already completed question. Business
+completeness checks remain in Workspace Tools; prompt guidance alone is not proof
+that the facts are complete.
+
+If the coordinator selects a workflow through an older delivered question while
+the same run awaits a newer collection, the maintained receiver can forward the
+original verified message to that current question. It requires one current
+delivery for the same run, pinned Artifact, step, recipient and transport audience,
+and rereads the exact revision before dispatch. The original thread receives a
+visible continuation link. It cannot select another run, widen the audience,
+reopen terminal work or infer a decision. If no unique current delivery is
+available, the old publication remains discussable without collection controls.
+Opening a conversation pane is client UI behavior, not a workflow delivery proof.
+
+
+A human decision with explicit recipient and labels may declare
+`continue_in: $steps.conversation.thread_reference`. The target must be a prior
+private root publication to that same recipient. Core resolves the exact receipt
+and destination; the Connector may render an affirmative control that both
+links to this conversation and sends the existing decision action. Following a
+link is never authority: the authenticated decision callback still gates the
+next step. Unsupported clients can continue through the normal decision and
+message path without automatic navigation. Keep later publications' `thread`
+and collections' `from` on this root to preserve one conversation.
+
+The navigation reference is optional and distinct from `thread`, which places
+the decision notice itself inside a conversation. Omitted navigation preserves
+historical notice inputs and verification. Workspace chooses the conversation
+and its content; provider navigation rendering belongs to the Connector.
+
+## Keep draft validation inside the conversation
+
+A `collect` step may declare `validate: company:<tool-id>`. The Tool must be
+explicitly granted to the workflow Agent, have risk R0 and no capabilities.
+Core calls its pinned isolated implementation with `{context, facts}` only after
+checking the active human, exact private assignment, waiting step and lease.
+The Tool returns exactly `{accepted: boolean, feedback: string}`; feedback is
+bounded to 2,000 characters and must explain a rejection. Business format and
+completeness rules stay in the Workspace.
+
+A rejection leaves the same collection, deadline, run and conversation waiting.
+It does not publish, advance, create a repair thread or consume a repair round.
+The maintained host returns `collected: false` with internal feedback to the
+Agent, which revises or asks a natural follow-up. Only accepted facts finish the
+step. Validators cannot alter the candidate or authorize an effect. A Tool
+failure leaves the waiting state intact and is reported as a Tool error.
+Older collections without a validator retain their existing behavior.
+
+The maintained chat host now owns the working indicator around every actual
+specialist model turn, including buffered and Tool-delivered replies. It clears
+that indicator in `finally` on success, error and cancellation. Explicit approval
+waiting uses suspended status; ordinary waiting for another answer is not ongoing
+processing. The coordinator finishes its own indicator before delegation, and a
+specialist does the same before a further handoff. No shared multi-Agent routing,
+work identity, permissions or conversation storage is replaced.
+
+Qualify early candidate rejection followed by a corrected answer in the same
+thread, private delivery recovery, model dialogue and status cleanup separately.
+A synthetic engine or model test does not establish live provider acceptance.
+
+## Wait for a complete current inventory
+
+The standard Records query can wait when no matching complete source scan exists
+yet, or its start precedes the requested `require_scan_started_after`. The
+maintained Records service raises a typed pending-read signal; Company Tool text
+cannot request retries. The Runtime preserves that signal across its isolated
+Tool boundary only for `oregano:records/query`.
+
+The engine retains the prepared input, original logical instant and scan deadline.
+It schedules the same read through a durable `records` wait every 30 seconds,
+for at most 15 minutes from step preparation. Timer repair after a host restart
+restores a missing timer. Completion continues the original run without an
+operator resume. The independent Records worker must still synchronize the exact
+configured source; waiting does not start another source or relax its scope.
+
+Authorization, malformed inventory, ordinary provider errors and unknown effect
+outcomes remain blocked. Exhausting the wait also blocks for inspection without
+substituting stale rows. Effects are not automatically retried by this mechanism.
+Before downgrading to a runtime that predates `records` waits, drain those waits
+on the newer runtime; immutable old artifacts and completed runs are unchanged.
+
+## Inspect a deduplicated child from a scanner
+
+The existing `start` step returns `run_id`, `status`, `blocked` and
+`succeeded_steps` for the child at the time of selection. Repeated starts with
+the same workflow and opening fields reuse the same child, including terminal
+children. No message bodies or child outputs are copied to the parent.
+
+Workspace policy interprets that snapshot. A `done` child can have ended through
+a rejection or skip branch, so successful business completion may additionally
+require a particular verification step in `succeeded_steps`. A scanner never
+reopens a rejected or cancelled child merely by starting it again. The child
+keeps its original conversation, pinned artifact, approvals and receipts.

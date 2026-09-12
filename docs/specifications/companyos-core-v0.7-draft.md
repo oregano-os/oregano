@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-11
+updated: 2026-09-12
 owners:
   - oregano-maintainers
 audience:
@@ -247,7 +247,12 @@ Such context MUST NOT reopen execution or grant effect authority.
 
 The Agent interprets natural clarification replies. Core MUST validate the
 chosen stable ID against the retained candidate set, current access and source
-revision. A routed excerpt MUST occur in the verified source message. Selection
+revision. A single concern SHOULD omit model-authored route text: Core MUST
+forward the verified original source, including a retained pending answer when
+selected. This path MUST NOT require a model transcription or a second text
+comparison. Multiple concerns MUST identify their source excerpts. A routed
+excerpt MUST occur in the verified source using the same text representation as
+conversation ingress, while provider identity and attribution remain checked. Selection
 MUST NOT be treated as consent. Attention and an immutable event receipt MUST
 commit atomically with revision checking. Reused events with changed source
 content MUST fail closed. Adapters MUST acknowledge a move in the conversation
@@ -527,3 +532,51 @@ visible in inspection until resolved by the appropriate authority.
 ## Shared conversation participation
 
 All communication adapters follow [Shared Conversation Participation](conversation-participation.md). Ownership and permissions precede the existing Agent’s choice to respond or retain context silently. Unmentioned owned thread replies must not be discarded by a blanket provider filter.
+
+## Collection conversation continuity
+
+Collection is a terminal submission for the current question, not a partial-note
+operation. The model receives explicit guidance to retain incomplete facts in
+conversation history, ask only for remaining facts, and satisfy any Workspace
+preview requirement before submitting. Missing facts must not become placeholders.
+After a successful collection receipt, the host ends that model turn and lets the
+workflow deliver the next question or review; it suppresses contradictory trailing
+prose that could send the person back to an already completed question. Business
+completeness checks remain in Workspace Tools; prompt guidance alone is not proof
+that the facts are complete.
+
+If the coordinator selects a workflow through an older delivered question while
+the same run awaits a newer collection, the maintained receiver can forward the
+original verified message to that current question. It requires one current
+delivery for the same run, pinned Artifact, step, recipient and transport audience,
+and rereads the exact revision before dispatch. The original thread receives a
+visible continuation link. It cannot select another run, widen the audience,
+reopen terminal work or infer a decision. If no unique current delivery is
+available, the old publication remains discussable without collection controls.
+Opening a conversation pane is client UI behavior, not a workflow delivery proof.
+
+### Optional collection validation before completion
+
+A workflow collection MAY name one `validate: company:<tool-id>` reference.
+Authoring and compilation MUST require an existing explicitly granted pure R0
+Company Tool with no capabilities. The compiled collection pins its resolved
+Tool contract. The engine MUST recheck this grant and contract, validate Tool
+inputs and outputs, and execute through the existing isolated sandbox without
+provider or state capabilities. Its fixed input is `{context, facts}`, where
+context is resolved from the historical run and facts are the candidate.
+
+The output MUST contain exactly `accepted` (boolean) and `feedback` (string,
+at most 2,000 characters; nonempty on rejection). Rejection MUST precede any
+collection completion or downstream publication and MUST preserve the current
+waiting step, assignment and deadline. The conversation host MUST return the
+feedback internally to the Agent with `collected: false`; it MUST NOT publish
+validator diagnostics as a workflow message. Acceptance stores the unchanged
+candidate using ordinary collection evidence. This check confers no approval or
+external effect authority. An absent validator preserves the existing contract.
+No new case store, retry workflow, message router or conversation owner exists.
+
+The maintained chat turn presentation MUST end processing after every completed,
+failed or cancelled specialist turn, including turns whose workflow delivers the
+visible message. Finishing a coordinator or originating Agent before delegation
+MUST NOT overwrite the target Agent's later status. Human-input waiting is a
+workflow state, not evidence that model execution is still in progress.

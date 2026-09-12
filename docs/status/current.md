@@ -87,6 +87,12 @@ the delivered conversation; synthetic SDK outputs alone do not prove this.
 
 ## Implemented and tested
 
+- Single-concern coordination forwards the verified original message without
+  requiring a model-authored copy. Split concerns retain exact excerpt checks
+  in the ingress text representation. Synthetic communication surfaces, formatted
+  replies, retained clarification answers and access/approval boundaries are
+  covered; live adoption remains an Instance verification step.
+
 - Core 0.5.15 returns compact database qualification in one read-only SQL
   statement while preserving every readiness check and the 2.1.0 manifest.
   Isolated SQL tests cover drift and response size. Exact deployment adoption
@@ -1277,3 +1283,46 @@ explicit Instance adoption and a verified fresh source scan.
 Core 0.15.0 and Workbench experimental.23 introduce this opt-in build-input
 contract. Existing literal snapshots and environment references remain compatible;
 no database manifest change is required.
+
+## Collection conversation continuity
+
+Collection is a terminal submission for the current question, not a partial-note
+operation. The model receives explicit guidance to retain incomplete facts in
+conversation history, ask only for remaining facts, and satisfy any Workspace
+preview requirement before submitting. Missing facts must not become placeholders.
+After a successful collection receipt, the host ends that model turn and lets the
+workflow deliver the next question or review; it suppresses contradictory trailing
+prose that could send the person back to an already completed question. Business
+completeness checks remain in Workspace Tools; prompt guidance alone is not proof
+that the facts are complete.
+
+If the coordinator selects a workflow through an older delivered question while
+the same run awaits a newer collection, the maintained receiver can forward the
+original verified message to that current question. It requires one current
+delivery for the same run, pinned Artifact, step, recipient and transport audience,
+and rereads the exact revision before dispatch. The original thread receives a
+visible continuation link. It cannot select another run, widen the audience,
+reopen terminal work or infer a decision. If no unique current delivery is
+available, the old publication remains discussable without collection controls.
+Opening a conversation pane is client UI behavior, not a workflow delivery proof.
+
+### Continuous draft conversation correction — September 12, 2026
+
+Core supports optional pure Workspace validation before a collection completes.
+Rejected drafts stay in the same waiting conversation and return internal Agent
+feedback; older unvalidated collections are unchanged. Specialist chat turns
+reuse the coordinator's bounded working-status lifecycle, including silent
+Tool-delivery branches, errors and cancellation. Shared multi-Agent work
+selection, source-message forwarding and delegation remain unchanged. Synthetic
+regressions qualify these contracts; live deployment and human chat acceptance
+must be recorded separately for each pinned Instance pair.
+
+### Unicode response streaming correction — September 12, 2026
+
+Validated response chunks now preserve Unicode code points at every provider
+request boundary. A UTF-16 slice could previously split an emoji into invalid
+strings even though joining the chunks locally reproduced the original text.
+Synthetic regressions exercise the actual maintained chat adapter with fenced
+drafts and supplementary characters around chunk boundaries. Conversation
+selection, collection, approval and working-status lifecycle are unchanged;
+native client rendering still requires a live acceptance check.

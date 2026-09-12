@@ -236,3 +236,48 @@ test("readable decision reviews are explicit, validated and preserved in the com
   editWorkflow(files, (data) => { delete data.steps.find((entry: any) => entry.review_format).message; });
   assert.match(validateWorkflowFiles(files).join("\n"), /message-only review/);
 });
+
+test("decision conversation navigation requires a prior private root and the same explicit recipient", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  editWorkflow(files, (data) => {
+    const root = data.steps.find((step: any) => step["open-close-thread"]);
+    root.recipient = "jonas-owner";
+    const decision = data.steps.find((step: any) => Object.values(step)[0] === "human:sprint-owner");
+    decision.recipient = "jonas-owner";
+    decision.continue_in = "$steps.open-close-thread.thread_reference";
+    decision.labels = { approve: "Yes, help me", reject: "No, thanks" };
+  });
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  const workflow = compile(files).find((w) => w.steps.some((s) => s.decision?.continueIn))!;
+  assert.equal(workflow.steps.find((s) => s.decision?.continueIn)!.decision!.continueIn, "$steps.open-close-thread.thread_reference");
+  assert.ok(workflow.steps.find((s) => s.id === "open-close-thread")!.requiredOutputPaths.some((p) => p.join(".") === "thread_reference"));
+  for (const wrong of ["https://example.test/anywhere", "$steps.open-close-thread.message_id", "$steps.missing.thread_reference"]) {
+    const changed = { ...files };
+    editWorkflow(changed, (data) => { data.steps.find((step: any) => step.continue_in).continue_in = wrong; });
+    assert.ok(validateWorkflowFiles(changed).length > 0);
+  }
+  editWorkflow(files, (data) => { data.steps.find((step: any) => step.continue_in).recipient = "different-owner"; });
+  assert.match(validateWorkflowFiles(files).join("\n"), /same explicit recipient/);
+});
+
+test('collection validation authoring requires an explicit pure grant and compatible contracts', () => {
+  const files = {...readWorkspaceFiles(fixture)};
+  const existing = workspaceDocument(files,closePath);
+  const root = existing.data.steps.find((step:any)=>step['open-close-thread']);
+  const steps=[{ask:'oregano:communications/publish',destination:root.destination,recipient:'jonas-owner',template:root.template,vars:root.vars},{discuss:'collect',from:'$steps.ask.thread_reference',context:{},fields:['summary'],validate:'company:check-draft',timeout:{business_days:1}}];
+  const data={...existing.data,steps};
+  files[closePath]=`---\n${YAML.stringify(data)}---\n\n1. [sprint, R2] Ask. <!-- step:ask -->\n2. [sprint, R0] Discuss. <!-- step:discuss -->\n`;
+  const toolPath='agents/sprint/tools/check-draft/TOOL.md';
+  const declaration={type:'tool',description:'Check a synthetic draft.',version:'1.0.0',risk:'R0',data_class:'business',idempotency:'input-hash',capabilities:[],input_schema:{type:'object',required:['context','facts'],additionalProperties:false,properties:{context:{type:'object'},facts:{type:'object',required:['summary'],additionalProperties:false,properties:{summary:{type:'string'}}}}},output_schema:{type:'object',additionalProperties:false,required:['accepted','feedback'],properties:{accepted:{type:'boolean'},feedback:{type:'string',maxLength:2000}}},evidence:['accepted'],failure:'Return missing input.'};
+  files[toolPath]=`---\n${YAML.stringify(declaration)}---\n`;
+  files['agents/sprint/tools/check-draft/execute.ts']='import {defineCompanyTool} from "@companyos/tool-sdk"; export default defineCompanyTool({execute() { return {accepted:true,feedback:""}; }});';
+  assert.match(validateWorkflowFiles(files).join('\n'),/collection validation requires a granted pure/);
+  const agent=workspaceDocument(files,'agents/sprint/instructions.md');agent.data.tools.push('company:check-draft');
+  files['agents/sprint/instructions.md']=`---\n${YAML.stringify(agent.data)}---\n${agent.body}`;
+  assert.deepEqual(validateWorkflowFiles(files),[]);
+  declaration.risk='R2';files[toolPath]=`---\n${YAML.stringify(declaration)}---\n`;
+  assert.match(validateWorkflowFiles(files).join('\n'),/collection validation requires a granted pure/);
+  declaration.risk='R0';declaration.output_schema.properties.accepted={type:'string'} as any;
+  files[toolPath]=`---\n${YAML.stringify(declaration)}---\n`;
+  assert.match(validateWorkflowFiles(files).join('\n'),/validate\/output\/accepted/);
+});

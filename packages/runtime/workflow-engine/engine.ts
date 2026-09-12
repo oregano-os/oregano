@@ -1,4 +1,4 @@
-import { validateCollection } from "./collection.ts";
+import { validateCollection, validateCollectionCandidate } from "./collection.ts";
 import { randomUUID } from "node:crypto";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
@@ -22,6 +22,7 @@ import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowRevie
 import { verifyCompletedWorkflow } from "./verification.ts";
 import type { WorkflowVerificationRequirement } from "./verification-requirements.ts";
 import { prepareDecisionRecovery, type VerifyPublicationNotSent } from "./decision-recovery.ts";
+import { RecordScanPendingError } from "../../records/current-scan.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -218,7 +219,10 @@ export class WorkflowEngine {
           // Semantic child identity survives repeated intake ticks and parent retries.
           const requestId = "workflow-start:" + sha256({ workflow: target.id, fields: item.fields });
           const child = await childEngine.openOperator({ workflowId: target.id, requestId, principal: run.subjectPrincipal, fields: item.fields });
-          prior.items[jsonDigest(item.key)] = { key: item.key, output: { run_id: child.runId } };
+          prior.items[jsonDigest(item.key)] = { key: item.key, output: {
+            run_id: child.runId, status: child.state.status, blocked: !!child.state.blocked,
+            succeeded_steps: Object.entries(child.state.steps).filter(([, value]) => value.status === "succeeded").map(([id]) => id).sort(),
+          } };
           return await this.#save(run, state, "workflow.child-opened", { child_run_id: child.runId });
         }
         this.#finish(state, step, step.forEach ? { items: prepared.map((item) => prior.items![jsonDigest(item.key)]!) } : prior.items[jsonDigest("single")]!.output, now);
@@ -271,6 +275,18 @@ export class WorkflowEngine {
     } catch (error) {
       if (error instanceof WorkflowLeaseLostError) return store.read(instanceId, runId);
       const state = structuredClone(run.state), message = error instanceof Error ? error.message : String(error);
+      const pinned = error instanceof RecordScanPendingError ? await store.getArtifact(run.artifactHash) : undefined;
+      const failedStep = pinned?.workflows?.find(entry => entry.id === run.workflowId)?.steps.find(entry => entry.id === state.cursor);
+      const startedAt = state.steps[state.cursor!]?.startedAt;
+      const now = this.#now();
+      if (error instanceof RecordScanPendingError && failedStep?.tool?.runtimeId === "oregano:records/query"
+        && failedStep.maxRisk === "R0" && failedStep.requireScanStartedAfter !== undefined
+        && startedAt && Date.parse(now) < Date.parse(startedAt) + 15 * 60_000) {
+        const dueAt = new Date(Math.min(Date.parse(now) + 30_000, Date.parse(startedAt) + 15 * 60_000)).toISOString();
+        state.status = "waiting";
+        state.wait = { stepId: state.cursor!, kind: "records", dueAt, timerId: timerId(run, state.cursor!, "records", dueAt) };
+        return await this.#save(run, state, "workflow.awaiting-records", { projection_id: error.projectionId, required_after: error.requiredAfter, due_at: dueAt });
+      }
       state.status = "waiting"; state.blocked = { stepId: state.cursor!, code: /receipt|reconciliation|review|outcome/i.test(message) ? "effect-needs-review" : /Output of/.test(message) ? "required-output-missing" : "step-failed", errorDigest: sha256(message) };
       if (state.steps[state.cursor!]?.status !== "succeeded") state.steps[state.cursor!] = { ...state.steps[state.cursor!], status: "failed", startedAt: state.steps[state.cursor!]?.startedAt ?? this.#now() };
       const saved = await store.commit({ instanceId, runId, expectedRevision: run.revision, leaseToken: run.lease!.token, now: this.#now(), state,
@@ -381,13 +397,15 @@ export class WorkflowEngine {
     if (!run) throw new Error("Workflow collection is busy or closed");
     try {
       this.#enabled(run.workflowId);
-      const { workflow, step } = await this.#definition(run);
+      const { artifact, workflow, step } = await this.#definition(run);
       const roster = await this.#options.currentRoster(), member = findByCanonicalPrincipal(roster, args.principal);
       if (!member || !isHumanRosterMember(member) || !/^(active|aktiv)$/i.test(member.status)) throw new Error("Collection requires an active human");
       const source = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(String(step.collect?.from));
       if (!step.collect || !source || assignment.stepId !== source[1] || run.state.status !== "waiting" || run.state.blocked
         || !run.state.wait || run.state.wait.dueAt <= now) throw new Error("Collection is not waiting for this conversation");
       validateCollection(step, args.output);
+      await validateCollectionCandidate({ artifact, agentId: workflow.agentId, runId: run.runId, step,
+        context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)), facts: args.output });
       const state = structuredClone(run.state);
       this.#finish(state, step, args.output, now);
       return await this.#save(run, state, "workflow.facts-collected", { response_event_id: args.eventId, output_digest: jsonDigest(args.output) }, undefined, args.principal);
