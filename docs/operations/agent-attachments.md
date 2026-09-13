@@ -28,20 +28,31 @@ text. File contents never become system instructions, grants or approval.
 ## Core policy
 
 `packages/runner/attachment-policies.json` is the versioned configuration.
-Each provider route declares model patterns, formats and representations,
-per-format byte limits, total bytes, total Markdown bytes, count and a request
-size budget. The common preparation and model adapter read this configuration;
+Each provider route declares model patterns, formats, representations and a
+request byte limit. Optional per-format and per-representation limits apply
+only where configured. Model overrides express documented differences within
+a provider. The common preparation and model adapter read this configuration;
 there are no per-Agent numeric limits or Workspace activation switches.
 
-The initial policy uses these conservative limits independently for both routes:
+The defaults follow the provider documentation reviewed on 2026-09-13:
 
-| Setting | Initial value |
-|---|---|
-| Attachments in one request, including retained files | 5 |
-| Each PDF or image | 5 MiB |
-| All original file bytes combined | 10 MiB |
-| Each Markdown file and all Markdown combined | 64 KiB |
-| Serialized model request budget, including base64, text and Tools | 24 MiB |
+| Setting | OpenAI direct | Anthropic direct |
+|---|---|---|
+| Serialized request size | 512 MB | 32 MB |
+| Image count per request, including history and Tool results | 1,500 | 100 for 200k-context models; 600 for the listed 1M-context models |
+| Individual image size | Governed by request size | 10 MB after base64 encoding |
+| Individual PDF size | Under 50 MB | Governed by request size |
+| All PDF original bytes combined | 50 MB | Governed by request size |
+| Markdown file size or count | No separate cap; request and model context apply | No separate cap; request and model context apply |
+
+Values use decimal MB (1,000,000 bytes); the strict individual PDF limit is
+49,999,999 bytes. Binary inputs expand to `4 * ceil(bytes / 3)` base64 bytes.
+Thus a 7,500,000-byte image reaches the configured 10 MB encoded image ceiling.
+The complete request still needs room for its other content and JSON envelope.
+The 50 MB file-input limit applies to the native file representation, not to
+images or Markdown sent as text. No arbitrary combined five-file or Markdown
+64-KiB cap is imposed. Optional `maxAttachments`, `maxTotalBytes`, `maxTextBytes`
+and per-format `maxBytes` remain available for explicit future Core policies.
 
 To adjust a provider, edit its policy entry, retain the documentation source
 links, update `reviewedAt`, and run the attachment tests and Core inspection.
@@ -77,8 +88,9 @@ No historical files are silently discarded to make a request fit.
 
 Native request middleware checks combined history again on every generated or
 streamed model step, including the current text and Tool definitions. Its
-request budget leaves room for provider-specific envelopes; it is a conservative
-estimate, not an exact provider token count. Dense or encrypted PDFs, excessive
+SDK-level request estimate includes base64 expansion. A transport guard also
+checks the actual serialized provider JSON before network I/O, without an
+arbitrary headroom deduction. Neither check estimates provider token counts. Dense or encrypted PDFs, excessive
 page counts, unsupported image dimensions and context exhaustion may still be
 rejected by the provider. Core does not claim that a small PDF necessarily fits
 in the model context.
@@ -111,7 +123,18 @@ with vision support. See [OpenAI file inputs](https://developers.openai.com/api/
 Anthropic limits the whole request to 32 MB and also applies PDF page and
 context limits. See [Anthropic PDF support](https://platform.claude.com/docs/en/build-with-claude/pdf-support)
 and [vision constraints](https://platform.claude.com/docs/en/build-with-claude/vision).
-The Core defaults deliberately stay below these maxima.
+OpenAI documents 512 MB per image-input request and 1,500 images; see
+[OpenAI image requirements](https://developers.openai.com/api/docs/guides/images-vision).
+Anthropic documents a 10 MB base64-encoded per-image maximum and 100 or 600
+images depending on context size. The explicit model overrides cover the
+currently qualified 1M-context Sonnet 4.6 and Opus 4.6/4.7/4.8 variants; other
+qualified 4.x models use the documented 200k-context image limit. See
+[Anthropic context windows](https://platform.claude.com/docs/en/build-with-claude/context-windows).
+Anthropic additionally limits PDFs to 600 pages per request, or 100 below a
+1M-token context. Page counts and exact token accounting are provider-enforced
+in this version. Markdown is decoded to ordinary UTF-8 input text, so it shares
+the selected model's context with system instructions, history, Tools and output;
+there is no dedicated Markdown byte allowance derived from token counts.
 
 Synthetic tests capture the real SDK request shapes for both providers and
 exercise size/count/encoding failures without provider calls. They establish

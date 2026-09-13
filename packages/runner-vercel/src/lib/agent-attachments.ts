@@ -1,7 +1,7 @@
 import type { StateAdapter } from "chat";
 import { attachmentPolicy } from "../../../runner/attachment-policy.ts";
 import type { ModelExecutionSelection } from "../../../runner/model-execution.ts";
-import { AttachmentInputError, attachmentParts, prepareAttachments, validatePreparedAttachments, type AgentAttachment, type AttachmentReference, type PreparedAttachment } from "../../../runtime/attachments.ts";
+import { AttachmentInputError, checkAttachmentSizes, attachmentParts, prepareAttachments, validatePreparedAttachments, type AgentAttachment, type AttachmentReference, type PreparedAttachment } from "../../../runtime/attachments.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 
 type AttachmentStore = Pick<StateAdapter, "get" | "set">;
@@ -30,7 +30,7 @@ export async function loadAttachments(args: { store: AttachmentStore; instanceId
   const refs = [...new Map(args.references.map(ref => [ref.key, ref])).values()];
   if (!refs.length) return [];
   const policy = attachmentPolicy(args.selection);
-  if (refs.length > policy.maxAttachments) throw new AttachmentInputError(`This conversation contains more than ${policy.maxAttachments} attachments. Start a new thread with the files needed for this request.`);
+  checkAttachmentSizes(refs, policy);
   const files: PreparedAttachment[] = [];
   for (const ref of refs) {
     if (!/^agent-attachment:[a-f0-9]{64}$/.test(ref.key)) throw new AttachmentInputError("Invalid attachment reference.");

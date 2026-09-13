@@ -1,4 +1,4 @@
-import { withAttachmentLimits } from "./attachment-middleware.ts";
+import { withAttachmentLimits, attachmentPolicyFetch } from "./attachment-middleware.ts";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -58,10 +58,10 @@ export function resolveModelExecution(input: ModelEnvironment | ModelExecutionCo
   if (selectedRecipe.credentialRequired && selection.credentialRef && !credential) throw new Error(`Missing required runtime secret: ${selection.credentialRef}.`);
   const modelId = providerModelId(selection);
   if (selectedRecipe.transport === "anthropic-messages") {
-    return { selection, model: withAttachmentLimits(withPromptCaching(createAnthropic({ apiKey: credential })(modelId), selection), selection) };
+    return { selection, model: withAttachmentLimits(withPromptCaching(createAnthropic({ apiKey: credential, fetch: attachmentPolicyFetch(selection) })(modelId), selection), selection) };
   }
   if (selectedRecipe.transport === "openai-responses") {
-    return { selection, model: withAttachmentLimits(createOpenAI({ apiKey: credential })(modelId), selection) };
+    return { selection, model: withAttachmentLimits(createOpenAI({ apiKey: credential, fetch: attachmentPolicyFetch(selection) })(modelId), selection) };
   }
   if (selectedRecipe.transport === "google-generative-ai") {
     return { selection, model: withAttachmentLimits(createGoogleGenerativeAI({ apiKey: credential })(modelId), selection) };

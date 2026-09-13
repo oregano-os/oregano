@@ -1,6 +1,6 @@
 import { wrapLanguageModel, type LanguageModel, type LanguageModelMiddleware } from "ai";
 import { attachmentPolicy, type AttachmentPolicyConfiguration, CORE_ATTACHMENT_POLICIES } from "../../../runner/attachment-policy.ts";
-import { AttachmentInputError } from "../../../runtime/attachments.ts";
+import { AttachmentInputError, checkAttachmentSizes } from "../../../runtime/attachments.ts";
 import type { ModelExecutionSelection } from "../../../runner/model-execution.ts";
 
 /** Runs again for every generated/streamed tool-loop step, before the provider call. */
@@ -14,29 +14,21 @@ export function attachmentMiddleware(selection: Pick<ModelExecutionSelection, "r
     const documents = parts.filter(part => part.type === "text" && typeof part.providerOptions?.companyos?.attachmentMediaType === "string");
     if (!files.length && !documents.length) return params;
     const policy = attachmentPolicy(selection, configuration);
-    if (files.length + documents.length > policy.maxAttachments) throw new AttachmentInputError("The model request exceeds its configured attachment count.");
-    let total = 0;
-    for (const file of files) {
+    const metadata = files.map(file => {
       const format = Object.hasOwn(policy.formats, file.mediaType) ? policy.formats[file.mediaType] : undefined;
       if (!format || format.representation === "text") throw new AttachmentInputError("The selected model does not support this native file format.");
       if (file.data.type !== "data") throw new AttachmentInputError("Native file requests require authorized inline bytes; file URLs and provider IDs are not accepted.");
       const data = file.data.data;
-      const size = typeof data === "string" ? Buffer.byteLength(data, "base64") : data.byteLength;
-      if (!size || size > format.maxBytes) throw new AttachmentInputError("A model attachment exceeds its configured file size limit.");
-      total += size;
-    }
-    let textTotal = 0;
+      return { mediaType: file.mediaType, size: typeof data === "string" ? Buffer.byteLength(data, "base64") : data.byteLength };
+    });
     for (const document of documents) {
       if (document.type !== "text") continue;
       const mediaType = String(document.providerOptions?.companyos?.attachmentMediaType);
-      const format = Object.hasOwn(policy.formats, mediaType) ? policy.formats[mediaType] : undefined;
-      const size = Buffer.byteLength(document.text);
-      if (!format || format.representation !== "text" || !size || size > format.maxBytes) throw new AttachmentInputError("An attached text document exceeds its configured format or size limit.");
-      total += size; textTotal += size;
+      if (!Object.hasOwn(policy.formats, mediaType) || policy.formats[mediaType].representation !== "text") throw new AttachmentInputError("Unsupported attached text format.");
+      metadata.push({ mediaType, size: Buffer.byteLength(document.text) });
     }
-    if (textTotal > policy.maxTextBytes) throw new AttachmentInputError("Attached text exceeds its configured combined limit.");
-    if (total > policy.maxTotalBytes) throw new AttachmentInputError("The model request exceeds its configured total attachment size.");
-    // Count base64 expansion and the current text/tools together. Policy leaves provider-envelope headroom.
+    checkAttachmentSizes(metadata, policy);
+    // Count base64 expansion and the current text/tools together. This SDK-level estimate is rechecked on the serialized provider body at transport.
     const wireBytes = Buffer.byteLength(JSON.stringify(params, function (key, value) { const raw = this[key]; return raw instanceof Uint8Array ? Buffer.from(raw).toString("base64") : value; }));
     if (wireBytes > policy.maxRequestBytes) throw new AttachmentInputError("The model request with attachments is too large. Start a new conversation with less context.");
     return params;
@@ -45,4 +37,15 @@ export function attachmentMiddleware(selection: Pick<ModelExecutionSelection, "r
 export function withAttachmentLimits(model: LanguageModel, selection: ModelExecutionSelection): LanguageModel {
   if (typeof model === "string") return model;
   return wrapLanguageModel({ model, middleware: attachmentMiddleware(selection) });
+}
+
+/** Check the actual SDK-serialized JSON, including the provider envelope, before network I/O. */
+export function attachmentPolicyFetch(selection: Pick<ModelExecutionSelection, "route" | "model">, fetcher: typeof fetch = (...args) => fetch(...args), configuration = CORE_ATTACHMENT_POLICIES): typeof fetch {
+  return async (input, init) => {
+    const policy = Object.hasOwn(configuration.providers, selection.route) ? configuration.providers[selection.route] : undefined;
+    if (policy && typeof init?.body === "string" && Buffer.byteLength(init.body) > policy.maxRequestBytes) {
+      throw new AttachmentInputError("The serialized provider request exceeds its configured request size limit.");
+    }
+    return fetcher(input, init);
+  };
 }

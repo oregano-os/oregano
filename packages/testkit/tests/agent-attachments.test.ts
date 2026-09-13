@@ -24,9 +24,9 @@ test("native files preserve bytes; Markdown is bounded untrusted text with its f
 test("count, file size and aggregate advertised size reject before any authorized reader runs", async () => {
   let reads = 0;
   const input = { name: "a.pdf", mimeType: "application/pdf", fetchData: async () => { reads++; return pdf(); } };
-  await assert.rejects(prepareAttachments(Array.from({ length: policy.maxAttachments + 1 }, () => input), policy), /Too many/);
-  await assert.rejects(prepareAttachments([{ ...input, size: policy.formats["application/pdf"].maxBytes + 1 }], policy), /limit/);
-  await assert.rejects(prepareAttachments(Array.from({ length: 3 }, () => ({ ...input, size: policy.formats["application/pdf"].maxBytes })), policy), /combined/);
+  await assert.rejects(prepareAttachments(Array.from({ length: 1501 }, () => ({ ...input, mimeType: "image/png" })), policy), /Too many/);
+  await assert.rejects(prepareAttachments([{ ...input, size: policy.formats["application/pdf"].maxBytes! + 1 }], policy), /limit/);
+  await assert.rejects(prepareAttachments(Array.from({ length: 3 }, () => ({ ...input, size: policy.formats["application/pdf"].maxBytes! })), policy), /combined/);
   await assert.rejects(prepareAttachments([{ ...input, mimeType: "constructor" }], policy), /Unsupported/);
   assert.equal(reads, 0);
 });
@@ -35,7 +35,7 @@ test("actual bytes defeat omitted or dishonest metadata, including combined Mark
   const small = { ...policy, maxTotalBytes: 24, formats: { "application/pdf": { representation: "file" as const, maxBytes: 20 } } };
   await assert.rejects(prepareAttachments([{ mimeType: "application/pdf", size: 1, fetchData: async () => pdf(21) }], small), /limit/);
   await assert.rejects(prepareAttachments([{ mimeType: "application/pdf", data: pdf() }, { mimeType: "application/pdf", fetchData: async () => pdf() }], small), /combined/);
-  await assert.rejects(prepareAttachments([{ name: "a.md", data: Buffer.alloc(40000, 65) }, { name: "b.md", data: Buffer.alloc(40000, 65) }], policy), /Markdown.*combined/);
+  await assert.rejects(prepareAttachments([{ name: "a.md", data: Buffer.alloc(40000, 65) }, { name: "b.md", data: Buffer.alloc(40000, 65) }], { ...policy, maxTextBytes: 65536 }), /Markdown.*combined/);
 });
 
 test("no arbitrary URLs, unsupported files, forged MIME, broken UTF-8 or corrupt stored bytes", async () => {
@@ -62,8 +62,33 @@ test("reviewed provider settings change limits independently without editing pre
 });
 
 test("files at the configured byte boundary validate without regex stack growth", async () => {
-  const size = policy.formats["application/pdf"].maxBytes;
+  const size = policy.formats["application/pdf"].maxBytes!;
   const files = await prepareAttachments([{ name: "large.pdf", mimeType: "application/pdf", data: pdf(size) }], policy);
   assert.equal((attachmentParts(files, policy)[1] as { data: Uint8Array }).data.byteLength, size);
   await assert.rejects(prepareAttachments([{ name: "large.pdf", mimeType: "application/pdf", data: pdf(size + 1) }], policy), /limit/);
+});
+
+test("provider defaults admit large Markdown and count images separately from PDFs and text", async () => {
+  const inputs = Array.from({ length: 6 }, (_, i) => ({ name: `${i}.md`, data: Buffer.alloc(200000, 65) }));
+  for (const selected of [selection, { route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6" }]) {
+    const configured = attachmentPolicy(selected);
+    assert.equal(configured.maxTextBytes, undefined);
+    assert.equal((await prepareAttachments(inputs, configured)).length, 6);
+    assert.equal((await prepareAttachments(Array.from({ length: 6 }, () => ({ mimeType: "application/pdf", data: pdf() })), configured)).length, 6);
+  }
+});
+
+test("documented image counts depend on provider/model; encoded image bytes include base64 expansion", async () => {
+  const modern = attachmentPolicy({ route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6" });
+  const legacy = attachmentPolicy({ route: "anthropic-direct", model: "anthropic/claude-haiku-4-5" });
+  const image = { mimeType: "image/png", data: png };
+  assert.equal((await prepareAttachments(Array(101).fill(image), modern)).length, 101);
+  await assert.rejects(prepareAttachments(Array(101).fill(image), legacy), /maximum 100/);
+  await assert.rejects(prepareAttachments(Array(601).fill(image), modern), /maximum 600/);
+  let reads = 0;
+  await assert.rejects(prepareAttachments([{ mimeType: "image/png", size: 7500001, fetchData: async () => { reads++; return png; } }], modern), /encoded limit/);
+  assert.equal(reads, 0);
+  const large = Buffer.alloc(7500000); png.copy(large);
+  assert.equal((await prepareAttachments([{ ...image, data: large }], modern))[0].size, 7500000);
+  await assert.rejects(prepareAttachments([{ name: "a.pdf", mimeType: "application/pdf", size: 24000001, fetchData: async () => pdf() }], modern), /request limit/);
 });

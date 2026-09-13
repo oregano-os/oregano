@@ -34,20 +34,32 @@ const mimeType = (input: AgentAttachment) => {
   if (/\.(md|markdown)$/i.test(input.name ?? "") && (!mime || ["text/plain", "text/markdown", "text/x-markdown", "application/octet-stream"].includes(mime))) return "text/markdown";
   return mime ?? "";
 };
-function checkSizes(items: readonly { size?: number; mediaType: string }[], policy: AttachmentPolicy) {
-  if (items.length > policy.maxAttachments) fail(`Too many attachments: maximum ${policy.maxAttachments} per model request. Send fewer files.`);
-  let total = 0, text = 0;
+export function checkAttachmentSizes(items: readonly { size?: number; mediaType: string }[], policy: AttachmentPolicy) {
+  if (policy.maxAttachments !== undefined && items.length > policy.maxAttachments) fail(`Too many attachments: maximum ${policy.maxAttachments} per model request. Send fewer files.`);
+  let total = 0, text = 0, encoded = 0;
+  const groups: Record<string, { count: number; bytes: number }> = {};
   for (const item of items) {
     if (!item || typeof item.mediaType !== "string") fail("Invalid attachment metadata.");
     const format = Object.hasOwn(policy.formats, item.mediaType) ? policy.formats[item.mediaType] : undefined;
     if (!format) fail("Unsupported attachment format. The selected provider's Core policy lists the supported formats.");
+    const group = groups[format.representation] ??= { count: 0, bytes: 0 };
+    group.count++;
+    const limits = policy.representationLimits?.[format.representation];
+    if (limits?.maxCount !== undefined && group.count > limits.maxCount) fail(`Too many ${format.representation} attachments: maximum ${limits.maxCount} per model request.`);
     if (item.size === undefined) continue;
-    if (!Number.isSafeInteger(item.size) || item.size <= 0 || item.size > format.maxBytes) fail(`An attachment exceeds its ${format.maxBytes}-byte limit or is empty. Send a smaller file.`);
+    if (!Number.isSafeInteger(item.size) || item.size <= 0) fail("An attachment has an invalid or empty byte size.");
+    if (format.maxBytes !== undefined && item.size > format.maxBytes) fail(`An attachment exceeds its ${format.maxBytes}-byte limit. Send a smaller file.`);
+    const encodedSize = format.representation === "text" ? item.size : 4 * Math.ceil(item.size / 3);
+    if (limits?.maxEncodedBytesPerFile !== undefined && encodedSize > limits.maxEncodedBytesPerFile) fail(`An attachment exceeds its ${limits.maxEncodedBytesPerFile}-byte encoded limit.`);
+    group.bytes += item.size;
+    if (limits?.maxTotalBytes !== undefined && group.bytes > limits.maxTotalBytes) fail(`Attachments exceed their ${limits.maxTotalBytes}-byte combined ${format.representation} limit.`);
+    encoded += encodedSize;
     total += item.size;
     if (format.representation === "text") text += item.size;
   }
-  if (total > policy.maxTotalBytes) fail(`Attachments exceed the ${policy.maxTotalBytes}-byte combined limit. Send fewer or smaller files.`);
-  if (text > policy.maxTextBytes) fail(`Markdown exceeds the ${policy.maxTextBytes}-byte combined text limit. Send a shorter excerpt.`);
+  if (policy.maxTotalBytes !== undefined && total > policy.maxTotalBytes) fail(`Attachments exceed the ${policy.maxTotalBytes}-byte combined limit. Send fewer or smaller files.`);
+  if (policy.maxTextBytes !== undefined && text > policy.maxTextBytes) fail(`Markdown exceeds the ${policy.maxTextBytes}-byte combined text limit. Send a shorter excerpt.`);
+  if (encoded > policy.maxRequestBytes) fail(`Attachments exceed the ${policy.maxRequestBytes}-byte request limit after encoding.`);
 }
 function checkContent(bytes: Uint8Array, mediaType: string) {
   const prefix = Buffer.from(bytes.subarray(0, 12));
@@ -66,17 +78,17 @@ function checkContent(bytes: Uint8Array, mediaType: string) {
 /** Extension point for future representations. V1 preserves original binary bytes. */
 export async function prepareAttachments(inputs: readonly AgentAttachment[], policy: AttachmentPolicy): Promise<PreparedAttachment[]> {
   const metadata = inputs.map(input => ({ mediaType: mimeType(input), size: input.size ?? (input.data instanceof Blob ? input.data.size : input.data?.byteLength) }));
-  checkSizes(metadata, policy); // Reject advertised excess before downloading anything.
+  checkAttachmentSizes(metadata, policy); // Reject advertised excess before downloading anything.
   const output: PreparedAttachment[] = [];
   for (const [index, input] of inputs.entries()) {
     let raw: Uint8Array | ArrayBuffer | Blob | undefined;
     try { raw = input.data ?? await input.fetchData?.(); }
     catch { fail("The connected channel could not read an attachment. Please upload it again."); }
     if (!raw) fail("No authorized attachment reader is available. Please upload the file through the connected channel.");
-    if (raw instanceof Blob && raw.size > policy.formats[metadata[index].mediaType].maxBytes) fail("An attachment exceeds its file size limit.");
+    if (raw instanceof Blob) checkAttachmentSizes([...output, { mediaType: metadata[index].mediaType, size: raw.size }], policy);
     const bytes = raw instanceof Blob ? new Uint8Array(await raw.arrayBuffer()) : new Uint8Array(raw!);
     const mediaType = metadata[index].mediaType;
-    checkSizes([...output, { mediaType, size: bytes.byteLength }], policy);
+    checkAttachmentSizes([...output, { mediaType, size: bytes.byteLength }], policy);
     checkContent(bytes, mediaType);
     output.push({ digest: createHash("sha256").update(bytes).digest("hex"), name: safeName(input.name), mediaType, size: bytes.byteLength, data: Buffer.from(bytes).toString("base64") });
   }
@@ -86,7 +98,7 @@ export async function prepareAttachments(inputs: readonly AgentAttachment[], pol
 /** Validate stored/worker data without trusting serialized metadata or encodings. */
 export function validatePreparedAttachments(attachments: readonly PreparedAttachment[], policy: AttachmentPolicy): void {
   if (!Array.isArray(attachments)) fail("Invalid retained attachments.");
-  checkSizes(attachments, policy);
+  checkAttachmentSizes(attachments, policy);
   for (const file of attachments) {
     if (!file || typeof file.data !== "string" || typeof file.name !== "string" || file.name !== safeName(file.name)
       || file.data.length !== 4 * Math.ceil(file.size / 3)) fail("Invalid retained attachment encoding.");

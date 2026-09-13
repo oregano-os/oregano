@@ -2,7 +2,7 @@ version: 3
 plan_id: agent-attachments-2026-09-13
 created: "2026-09-13"
 title: Share bounded native attachments across Agent calls
-objective: Give Agents authenticated PDF, image and Markdown inputs through shared preparation and adjustable Core provider policies before model invocation.
+objective: Give Agents authenticated PDF, image and Markdown inputs through shared preparation and adjustable Core provider policies using documented provider limits, with no arbitrary Markdown cap and serialized request checks before network I/O.
 non_goals:
   - Add DOCX parsing, OCR, PDF rendering, file search or automatic provider fallback.
   - Grant new channel scopes, change human approval or deploy an Instance.
