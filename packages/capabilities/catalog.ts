@@ -229,6 +229,8 @@ export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
       decision: object(["request_id", "approve_label", "reject_label"], {
         request_id: { type: "string", pattern: "^[a-f0-9]{64}$" },
         conversation_reference: { type: "string", minLength: 1, maxLength: 1_000 },
+        title: { type: "string", minLength: 1, maxLength: 150, pattern: "^[^\\u0000-\\u001f]+$" },
+        open_thread: { type: "boolean", const: true },
         approve_label: { type: "string", minLength: 1, maxLength: 75, pattern: "^[^\\u0000-\\u001f]+$" },
         reject_label: { type: "string", minLength: 1, maxLength: 75, pattern: "^[^\\u0000-\\u001f]+$" },
       }),

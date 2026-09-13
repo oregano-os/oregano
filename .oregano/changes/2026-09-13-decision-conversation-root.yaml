@@ -1,0 +1,67 @@
+version: 3
+plan_id: decision-conversation-root-2026-09-13
+created: 2026-09-13
+title: Let private decision cards root their conversation by default
+objective: Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, and skip the coordinator pass for replies a waiting collection expects.
+non_goals:
+  - Change decision authority, recipient qualification or approval risk rules.
+  - Remove continue_in navigation or the historical generic heading for existing workflows.
+  - Add company-specific wording or activate any Workspace schedule.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-13-decision-conversation-root.yaml
+  - docs/operations/slack-communication.md
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/author-a-workflow.md
+  - docs/_generated/document-registry.json
+  - packages/capabilities/catalog.ts
+  - packages/capabilities/decision-presentation.ts
+  - packages/cli/content/guides/author-a-workflow.md
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
+  - packages/runtime/workflow-engine/decision-notice.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runtime/workflow-engine/verification.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-decision-conversation-root.test.ts
+tests:
+  - packages/testkit/tests/workflow-decision-conversation-root.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/slack-runtime-publisher.test.ts
+  - packages/testkit/tests/workflow-threaded-decisions.test.ts
+  - packages/testkit/tests/workflow-decision-presentation.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - operations.slack-communication
+    - specification.workflow-execution-v1
+    - status.current
+    - guide.author-workflow
+architecture:
+  placement:
+    core: Compile conversation-root decisions, expose the single delivered notice receipt to later steps and keep the signed decision callback as the only authority.
+    packages: Extend the existing communication.message.publish decision presentation with an optional title and own-thread navigation; the Slack Connector renders both.
+    workspace: Chooses whether a decision roots its conversation, the card text, title and labels.
+    instance: No binding, permission, secret or schedule change; adoption requires an exact new Core and Workspace pairing.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: The existing human decision, delivery receipt and callback now also provide the thread root for later replies.
+    - mechanism: capability-contracts-and-connectors
+      reason: Additive optional decision presentation fields in the existing publication contract and Slack Connector.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Agent can open a private invitation card and continue the resulting conversation in the same thread on any Connector that supports decisions.
+rollback: Revert for new Artifacts, or declare explicit threads in Workspaces that need the previous placement; runs pinned to a conversation-root Artifact must finish or be cancelled on the compatible runtime before downgrading.
