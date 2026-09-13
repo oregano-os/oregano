@@ -1,0 +1,35 @@
+version: 3
+plan_id: sonnet5-attachments-2026-09-13
+created: "2026-09-13"
+title: Qualify native attachments for Sonnet 5
+objective: Extend the existing provider policy to the exact current model using its documented image limits.
+non_goals:
+  - Change model selection, credentials, formats or conversion behavior.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-13-sonnet5-attachments.yaml
+  - packages/runner/attachment-policies.json
+  - packages/testkit/tests/agent-attachments.test.ts
+  - docs/operations/agent-attachments.md
+tests:
+  - packages/testkit/tests/agent-attachments.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [operations.agent-attachments]
+architecture:
+  placement:
+    core: Extend existing reviewed provider policy data.
+    packages: No Package change.
+    workspace: No operating policy or model selection change.
+    instance: Adopt the qualified Core through existing deployment mechanisms.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Qualify the exact model in the existing attachment policy.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every company using the qualified model gets identical native file support.
+rollback: Restore the prior policy; other qualified models remain supported.

@@ -127,7 +127,7 @@ OpenAI documents 512 MB per image-input request and 1,500 images; see
 [OpenAI image requirements](https://developers.openai.com/api/docs/guides/images-vision).
 Anthropic documents a 10 MB base64-encoded per-image maximum and 100 or 600
 images depending on context size. The explicit model overrides cover the
-currently qualified 1M-context Sonnet 4.6 and Opus 4.6/4.7/4.8 variants; other
+currently qualified 1M-context Sonnet 5, Sonnet 4.6 and Opus 4.6/4.7/4.8 variants; other
 qualified 4.x models use the documented 200k-context image limit. See
 [Anthropic context windows](https://platform.claude.com/docs/en/build-with-claude/context-windows).
 Anthropic additionally limits PDFs to 600 pages per request, or 100 below a
