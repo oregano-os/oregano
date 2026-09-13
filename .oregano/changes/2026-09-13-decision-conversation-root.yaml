@@ -1,8 +1,8 @@
 version: 3
 plan_id: decision-conversation-root-2026-09-13
 created: 2026-09-13
-title: Let a private decision card root its own conversation
-objective: Allow a private human decision notice to be the root of the following thread replies and collection, with its affirmative control linking to that own thread and an optional readable card title.
+title: Let private decision cards root their conversation by default
+objective: Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, and skip the coordinator pass for replies a waiting collection expects.
 non_goals:
   - Change decision authority, recipient qualification or approval risk rules.
   - Remove continue_in navigation or the historical generic heading for existing workflows.
@@ -23,7 +23,9 @@ files_expected:
   - packages/companyos-builder/workflow-authoring.ts
   - packages/companyos-builder/workflow-compiler.ts
   - packages/companyos-builder/workflow-types.ts
+  - packages/runner-vercel/src/lib/bot.ts
   - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/workflow-conversations.ts
   - packages/runtime/workflow-engine/decision-notice.ts
   - packages/runtime/workflow-engine/engine.ts
   - packages/runtime/workflow-engine/verification.ts
@@ -62,4 +64,4 @@ architecture:
     secrets_in_git: false
     public_fixtures: synthetic-only
   core_reusability: Any Agent can open a private invitation card and continue the resulting conversation in the same thread on any Connector that supports decisions.
-rollback: Revert for new Artifacts; runs pinned to a conversation-root Artifact must finish or be cancelled on the compatible runtime before downgrading.
+rollback: Revert for new Artifacts, or declare explicit threads in Workspaces that need the previous placement; runs pinned to a conversation-root Artifact must finish or be cancelled on the compatible runtime before downgrading.

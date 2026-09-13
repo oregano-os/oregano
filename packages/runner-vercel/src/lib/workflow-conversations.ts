@@ -176,6 +176,26 @@ export class WorkflowConversationHost {
     return this.receive({ ...args, threadId: `slack:${target.channelId}:${target.threadId}` }, true);
   }
 
+  /** Read-only: a reply in a thread whose delivered run waits for this person's answer there.
+   * It selects no work, records nothing and never replaces the ordinary receive checks. */
+  async awaitsCollection(args: { threadId: string; messageId: string; authorId: string }): Promise<boolean> {
+    const match = /^slack:([A-Z0-9]{5,32}):(\d+\.\d+)$/.exec(args.threadId);
+    if (!match || args.messageId === match[2]) return false;
+    const now = this.#args.clock?.() ?? new Date().toISOString(), { store, artifact } = this.#args;
+    return this.#args.slack(async (transport) => {
+      const accountId = await transport.account();
+      const conversation: WorkflowConversation = { surface: "slack", accountId, channelId: match[1]!, threadId: match[2]!, subjectPrincipal: `slack:${accountId}:${args.authorId}` };
+      const active = await store.assignment({ instanceId: artifact.instance.id, conversation, now });
+      if (!active) return false;
+      const run = await store.read(artifact.instance.id, active.runId);
+      if (!run || run.state.status !== "waiting" || run.state.blocked || !run.state.wait || run.state.wait.dueAt <= now
+        || !this.#args.enabledWorkflowIds.includes(run.workflowId)) return false;
+      const pinned = await store.getArtifact(active.artifactHash);
+      const step = pinned?.workflows?.find((workflow) => workflow.id === run.workflowId)?.steps.find((step) => step.id === run.state.cursor);
+      return !!step?.collect && step.collect.from === `$steps.${active.stepId}.thread_reference`;
+    });
+  }
+
   async receive(args: { threadId: string; messageId: string; authorId?: string }, channelReply = false): Promise<WorkflowInboundResult> {
     return this.#receive(args, channelReply);
   }

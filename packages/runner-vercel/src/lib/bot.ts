@@ -289,6 +289,17 @@ async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text
 
 interface CoordinatedTurn { agent: CompiledAgent; session?: WorkflowConversationSession; concern: CheckedConcern; }
 
+/** A reply in a thread already waiting for this person's workflow answer needs no separate coordinator pass.
+ * The ordinary workflow receive path still verifies the reply; any failure keeps the coordinator as fallback. */
+async function awaitsWorkflowCollection(thread: Thread, message: Pick<Message, "id" | "author">): Promise<boolean> {
+  if (!workflowHostingEnabled() || !message.author.userId) return false;
+  try {
+    const { createWorkflowHost } = await import("./workflow-host.ts");
+    const host = await createWorkflowHost();
+    return await host.conversations.awaitsCollection({ threadId: workflowInboundThreadId(thread.id, message.id), messageId: message.id, authorId: message.author.userId });
+  } catch { return false; }
+}
+
 /** The Slack adapter only translates verified addresses. Interpretation and state are shared Core. */
 async function coordinateConversation(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
   const member = rosterMember(message.author);
@@ -394,7 +405,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   const incoming = incomingMember ? slackConversationMessage(thread, message, { id: principal(incomingMember), name: incomingMember.name }) : undefined;
   if (!builderContinuation && !coordinated && await builderRelease?.receive({ conversation: thread.id, author: message.author, participation: incoming,
     messageId: message.id, text: message.text, occurredAt: message.metadata.dateSent.toISOString() })) return;
-  if (!builderContinuation && !coordinated && !setupVerificationResponse(message.text)) {
+  if (!builderContinuation && !coordinated && !setupVerificationResponse(message.text) && !await awaitsWorkflowCollection(thread, message)) {
     try { if (await coordinateConversation(thread, message, trace)) return; }
     catch (error) {
       if (thread.isDM || message.isMention) await thread.post("I could not safely match or process this message. Please try again; your existing work remains available.");

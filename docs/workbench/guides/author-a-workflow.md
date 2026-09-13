@@ -180,18 +180,27 @@ the decision notice itself inside a conversation. Omitted navigation preserves
 historical notice inputs and verification. Workspace chooses the conversation
 and its content; provider navigation rendering belongs to the Connector.
 
-A private `human:*` decision with an explicit `recipient` and `labels`, and
-without `thread` or `continue_in`, may itself root the conversation. Later
-publications may declare `thread: $steps.<decision>.thread_reference` with the
-same explicit recipient, and a collection may declare
-`from: $steps.<decision>.thread_reference`. Core then compiles the decision as a
-conversation root. Its approved, rejected or timed-out output also carries the
-delivered notice's `thread_reference`, `destination_binding` and `message_id`;
-an undelivered timed-out root ends without a thread. The Connector may link the
-affirmative control to the notice's own thread once the published message is
-verified. The authenticated decision callback still gates the next step. Use a
-conversation root when the invitation and the conversation are one card; use
-`continue_in` only to navigate to a different, earlier root.
+By default, a private `human:*` decision with an explicit `recipient` and
+`labels`, and without `thread` or `continue_in`, roots its own conversation.
+Core compiles it as a conversation root: the Connector may link the affirmative
+control to the notice's own thread once the published message is verified, and
+the approved, rejected or timed-out output also carries the delivered notice's
+`thread_reference`, `destination_binding` and `message_id`. An undelivered
+timed-out root ends without a thread. The authenticated decision callback still
+gates the next step.
+
+Later publications to the same explicit recipient that can only be reached
+through that decision continue in its thread without declaring `thread`.
+Declare `thread: none` to post such a message as a new root, or any explicit
+`thread` to choose another conversation. A collection names the card thread
+with `from: $steps.<decision>.thread_reference`. Use `continue_in` only to
+navigate to a different, earlier root; such a decision is not a conversation
+root.
+
+A human reply inside a thread whose delivered run is waiting for that person's
+collection goes directly to the workflow conversation. The conversation
+coordinator pass is skipped for that reply; other messages keep ordinary
+coordination.
 
 An optional single-line `title` of up to 150 characters replaces the
 Connector's generic decision heading. Decisions without `title` or a thread
