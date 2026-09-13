@@ -3,9 +3,11 @@ import { test } from "node:test";
 import { engineArtifact, engineFixture, ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 import { workflowDecisionId } from "../../runtime/workflow-engine/decision-notice.ts";
+import { WorkflowConversationHost } from "../../runner-vercel/src/lib/workflow-conversations.ts";
+import { WorkflowSlackTransport } from "../../connectors/slack/workflow-transport.ts";
 
 /** One private card asks for help; the answer and all follow-up stay in that card's own thread. */
-function cardFixture() {
+function cardFixture(options: Omit<Parameters<typeof engineFixture>[0], "artifact"> = {}) {
   const artifact = structuredClone(engineArtifact());
   const workflow = artifact.workflows!.find((entry) => entry.id === "monday-handoff")!;
   const message = structuredClone(workflow.steps.find((entry) => entry.message)!);
@@ -28,7 +30,7 @@ function cardFixture() {
   ];
   const { manifestHash, ...manifest } = workflow; workflow.manifestHash = sha256(manifest);
   const { artifactHash, ...content } = artifact; artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
-  return engineFixture({ artifact });
+  return engineFixture({ ...options, artifact });
 }
 
 async function delivered() {
@@ -81,4 +83,35 @@ test("an undelivered expired conversation-root decision ends without fabricating
   assert.equal(ended.state.status, "done"); assert.equal(ended.state.cursor, null);
   assert.deepEqual(ended.state.steps.card!.output, { bound: ended.state.decisions.card!.bound, decision: "timed-out" });
   assert.equal(h.calls.some((call: any) => call.capability === "communication.message.publish" && call.input.thread_reference !== undefined), false);
+});
+
+test("only a reply in a card thread that waits for this person's answer bypasses the coordinator pass", async () => {
+  // Slack-shaped receipts let the conversation host resolve the exact DM thread.
+  let count = 0;
+  const h = cardFixture({ publicationConnector: { id: "synthetic", version: "1", capabilities: ["communication.message.publish"], async invoke(_capability: string, input: any) {
+    const message_id = `${1893492000 + ++count}.000001`;
+    return { output: { message_id, destination_binding: input.destination_binding, thread_reference: input.thread_reference ?? `slack:D10001:${message_id}`, published_at: "2030-01-04T14:30:00.000Z" }, evidence: { synthetic: true } };
+  } } as any, conversationForReceipt: async ({ output }: any) => ({ surface: "slack", accountId: "T10001", channelId: "D10001", threadId: output.thread_reference.split(":")[2], subjectPrincipal: ENGINE_OWNER }) });
+  const artifact = h.artifact;
+  const engine = h.engine();
+  const opened = await engine.openOperator({ workflowId: "monday-handoff", requestId: "bypass", principal: ENGINE_OPERATOR,
+    fields: { sprint_id: "p3", period_start: "2030-01-07", period_end: "2030-01-11" } });
+  let run = (await engine.advance(opened.runId))!;
+  const decision = run.state.decisions.card!, receipt = decision.deliveries["jonas-owner"] as Record<string, string>;
+  const conversation = { surface: "slack", accountId: "T10001", channelId: "D10001", threadId: receipt.thread_reference!.split(":")[2]!, subjectPrincipal: ENGINE_OWNER };
+  const host = new WorkflowConversationHost({ artifact, engine, store: h.store, control: h.control, roster: async () => h.roster, connectors: async () => [],
+    enabledWorkflowIds: ["monday-handoff"], clock: () => h.now,
+    slack: async (op) => op(new WorkflowSlackTransport({ call: async (method: string, args: any) => method === "auth.test" ? { ok: true, team_id: conversation.accountId } : { ok: true, user: { id: args.user, team_id: conversation.accountId, deleted: false, is_bot: false } } })) });
+  const owner = ENGINE_OWNER.split(":")[2]!;
+  const reply = { threadId: `slack:${conversation.channelId}:${conversation.threadId}`, messageId: "9999999999.000001", authorId: owner };
+  assert.equal(await host.awaitsCollection(reply), false, "a pending card is a decision, not a collection");
+  await engine.decide({ principal: ENGINE_OWNER, conversation, eventId: "yes", requestId: workflowDecisionId(run.runId, "card", decision.boundDigest), decision: "approved" });
+  run = (await engine.advance(run.runId))!;
+  assert.equal(run.state.cursor, "facts");
+  assert.equal(await host.awaitsCollection(reply), true);
+  assert.equal(await host.awaitsCollection({ ...reply, messageId: conversation.threadId }), false, "the card itself is not a reply");
+  assert.equal(await host.awaitsCollection({ ...reply, authorId: "U99999" }), false, "another person keeps the coordinator");
+  assert.equal(await host.awaitsCollection({ ...reply, threadId: `slack:${conversation.channelId}:1111111111.000001` }), false);
+  await engine.collect({ principal: ENGINE_OWNER, conversation, eventId: "facts", output: { summary: "Agreed facts" } });
+  assert.equal(await host.awaitsCollection(reply), false, "finished work returns to ordinary coordination");
 });

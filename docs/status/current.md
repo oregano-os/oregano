@@ -15,10 +15,11 @@ audience:
 
 # Current System Status
 
-Unreleased on main after Core 0.15.0: a private workflow decision card can
-itself root the conversation that follows it. Later replies and collections use
-the card's own thread, the affirmative control links there, and an optional
-title replaces the generic card heading. Compiler, engine and Connector
+Unreleased on main after Core 0.15.0: a private workflow decision card roots
+the conversation that follows it by default. Later messages to the same person
+use the card's own thread unless a Workspace declares otherwise, the affirmative
+control links there, an optional title replaces the generic card heading, and a
+reply that a waiting workflow collection expects skips the coordinator pass. Compiler, engine and Connector
 publisher tests are synthetic; delivery in a deployed chat client still requires
 Instance verification. Decisions without the new references keep their
 manifests and notice inputs.
