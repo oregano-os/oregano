@@ -6,7 +6,8 @@ Before changing this repository:
 
 1. Read `docs/README.md`.
 2. Read `docs/vision.md` and `docs/glossary.md`.
-3. Follow `docs/governance/agent-working-agreement.md`.
+3. Follow `docs/governance/agent-working-agreement.md`, including its Git task
+   lifecycle at task start, handoff, and after an authorized merge.
 4. For a new or newly received Company Workspace, read `docs/onboarding/` and
    run `companyos onboard` before proposing operating automation.
 5. Create a Core Change Plan under `.oregano/changes/` for behavior or security

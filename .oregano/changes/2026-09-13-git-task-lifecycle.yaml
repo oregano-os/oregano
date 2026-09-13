@@ -1,0 +1,35 @@
+version: 3
+plan_id: git-task-lifecycle-2026-09-13
+created: 2026-09-13
+title: Define a consistent Git task start and completion workflow
+objective: Make task branches, reviewable checkpoints, exact validation evidence and safe post-merge cleanup explicit in the existing contributor working agreement.
+non_goals:
+  - Change runtime behavior, release versions, deployment configuration or company operating policy.
+  - Grant new merge or deployment authority or discard unrelated local work.
+placement: core
+change_class: security
+files_expected:
+  - AGENTS.md
+  - docs/governance/agent-working-agreement.md
+  - docs/_generated/document-registry.json
+  - .oregano/changes/2026-09-13-git-task-lifecycle.yaml
+tests:
+  - packages/cli/tests/docs-scope.test.mjs
+documentation_impact:
+  required: true
+  affected_documents:
+    - governance.agent-agreement
+architecture:
+  placement:
+    core: Keep contributor Git workflow in the existing governance document and reference it from the thin entrypoint.
+    packages: No Package or runtime contract changes.
+    workspace: Preserve separate company repositories and their authorization requirements.
+    instance: Record exact deployed identities when applicable; this documentation change performs no deployment.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The same contributor lifecycle applies without any company-specific paths, identities or operating rules.
+rollback: Revert this documentation change and regenerate the documentation registry. Existing Git history and runtime state are unchanged.
