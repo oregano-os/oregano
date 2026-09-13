@@ -5,7 +5,7 @@ kind: governance
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -36,6 +36,41 @@ specification, relevant Workbench Guide, and the
 6. updates canonical documentation in the same change and lists each affected
    document ID in the Change Plan;
 7. reports tests, remaining risks, and required human approvals.
+
+## Git task lifecycle
+
+1. At the start of each task or resumed task, read this repository's `AGENTS.md`
+   and working agreement. Verify the repository, current branch, working-tree
+   changes and upstream. Fetch the current `origin/main` before creating a new
+   task branch; report unavailable remote verification instead of assuming freshness.
+2. Keep the primary checkout on a clean `main`. Make changes on a short-lived
+   task branch from current `origin/main`, with a separate worktree for parallel
+   tasks. Reuse an existing task branch only for that same unfinished task after
+   checking its current PR state. Never continue a merged branch. Name any
+   dependency on another unmerged branch explicitly.
+3. Commit and push the intended changes before a shared test deployment or a
+   handoff for review. Keep unfinished work visible in a draft PR. Preserve and
+   report unrelated or uncommitted files; never sweep them into a task commit or
+   discard them to obtain a clean status. Keep private material out of public Git.
+4. Record relevant checks against the exact candidate commit. A shared test or
+   deployment record identifies its environment and exact Core and Workspace
+   commits where applicable. A passing test, an open PR, a merge and a verified
+   deployment are distinct states. A changed candidate needs the relevant checks
+   again; do not reuse evidence for a different source state.
+5. Use normal merge commits for this repository; do not squash or rebase-merge
+   PRs. Prepare the PR within the authorized task scope. Merge and production
+   deployment require authorization covering those actions; reuse authorization
+   already given instead of asking again.
+6. After an authorized merge, verify the actual PR merge and required check
+   results. Fast-forward the clean primary checkout to current `origin/main`
+   when it is not in use by another task. Remove the completed task branch and
+   its worktree only after checking for local changes, dependent work and
+   non-reproducible ignored files. Preserve anything still needed and report it.
+   Remote branch auto-deletion alone does not prove local cleanup.
+7. Every implementation handoff states the repository and branch/commit, PR or
+   merge status, checks, deployment status, and any remaining local changes or
+   worktrees. Call work complete only for the scope actually finished. If merge
+   approval is pending, say "PR ready; not merged" rather than "complete".
 
 ## Minimal-interruption rule
 
