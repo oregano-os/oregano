@@ -26,7 +26,7 @@ export function authorizeWorkflowDecisionPrincipal(roster: RosterMember[], princ
 }
 
 /** Deterministic rendering also permits retrospective input verification after expiry. */
-export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string; threadReference?: string; conversationReference?: string; presentation?: { reviewFormat?: "message"; explanation: string; approve: string; reject: string } }): JsonValue {
+export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: string; stepId: string; role: string; expiresAt: string; bound: JsonValue; destinationBinding: string; threadReference?: string; conversationReference?: string; openThread?: boolean; presentation?: { title?: string; reviewFormat?: "message"; explanation: string; approve: string; reject: string } }): JsonValue {
   const id = workflowDecisionId(args.runId, args.stepId, jsonDigest(args.bound));
   if (args.presentation) {
     if (args.presentation.reviewFormat === "message" && !args.presentation.explanation.trim()) throw new Error("Message-only review requires a complete readable proposal");
@@ -34,7 +34,8 @@ export function renderWorkflowDecisionNotice(args: { runId: string; workflowId: 
       ...(args.presentation.reviewFormat === "message" ? [] : [`Decision expires: ${args.expiresAt}`, "Exact proposed changes:", canonicalJson(args.bound)])].join("\n\n");
     if (content.length > 20_000) throw new Error("Decision payload is too large for a complete review notice; it must not be truncated");
     return { destination_binding: args.destinationBinding, ...(args.threadReference === undefined ? {} : { thread_reference: args.threadReference }), content, format: "provider-markdown",
-      decision: { ...(args.conversationReference === undefined ? {} : { conversation_reference: args.conversationReference }), request_id: id, approve_label: args.presentation.approve, reject_label: args.presentation.reject } };
+      decision: { ...(args.conversationReference === undefined ? {} : { conversation_reference: args.conversationReference }),
+        ...(args.presentation.title === undefined ? {} : { title: args.presentation.title }), ...(args.openThread ? { open_thread: true } : {}), request_id: id, approve_label: args.presentation.approve, reject_label: args.presentation.reject } };
   }
   const content = ["Approval required", `Workflow: ${args.workflowId}`, `Step: ${args.stepId}`, `Role: ${args.role}`,
     `Expires: ${args.expiresAt}`, `Request: ${id}`, "", "Complete bound payload:", canonicalJson(args.bound), "",
@@ -57,7 +58,7 @@ export function workflowDecisionPresentation(workflow: CompiledWorkflow, step: C
       return String(value);
     });
   }
-  return { explanation, ...(presentation.reviewFormat ? { reviewFormat: presentation.reviewFormat } : {}), ...presentation.labels };
+  return { explanation, ...(presentation.title ? { title: presentation.title } : {}), ...(presentation.reviewFormat ? { reviewFormat: presentation.reviewFormat } : {}), ...presentation.labels };
 }
 
 /** Only a captured prior publication to this exact destination may supply the parent. */
@@ -88,7 +89,7 @@ export function workflowDecisionNoticeInput(artifact: CompanyOSArtifact, workflo
   if (destinations.length !== 1) throw new Error("Decision notice requires an exact qualified recipient destination");
   return renderWorkflowDecisionNotice({ runId: context.runId, workflowId: workflow.id, stepId: step.id, role: step.decision.role,
     threadReference: workflowDecisionThread(workflow, step, context, destinations[0]!.destinationBinding),
-    conversationReference: workflowDecisionThread(workflow, step, context, destinations[0]!.destinationBinding, "continueIn"),
+    conversationReference: workflowDecisionThread(workflow, step, context, destinations[0]!.destinationBinding, "continueIn"), openThread: step.decision.conversationRoot === true,
     presentation: workflowDecisionPresentation(workflow, step, context), expiresAt: decision.expiresAt, bound, destinationBinding: destinations[0]!.destinationBinding });
 }
 

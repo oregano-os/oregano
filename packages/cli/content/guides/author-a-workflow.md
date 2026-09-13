@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-22
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -179,3 +179,20 @@ The navigation reference is optional and distinct from `thread`, which places
 the decision notice itself inside a conversation. Omitted navigation preserves
 historical notice inputs and verification. Workspace chooses the conversation
 and its content; provider navigation rendering belongs to the Connector.
+
+A private `human:*` decision with an explicit `recipient` and `labels`, and
+without `thread` or `continue_in`, may itself root the conversation. Later
+publications may declare `thread: $steps.<decision>.thread_reference` with the
+same explicit recipient, and a collection may declare
+`from: $steps.<decision>.thread_reference`. Core then compiles the decision as a
+conversation root. Its approved, rejected or timed-out output also carries the
+delivered notice's `thread_reference`, `destination_binding` and `message_id`;
+an undelivered timed-out root ends without a thread. The Connector may link the
+affirmative control to the notice's own thread once the published message is
+verified. The authenticated decision callback still gates the next step. Use a
+conversation root when the invitation and the conversation are one card; use
+`continue_in` only to navigate to a different, earlier root.
+
+An optional single-line `title` of up to 150 characters replaces the
+Connector's generic decision heading. Decisions without `title` or a thread
+reply keep their historical heading, notice input and manifest.
