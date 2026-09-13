@@ -46,7 +46,8 @@
       "modelPatterns": [
         "anthropic/claude-sonnet-4*",
         "anthropic/claude-opus-4*",
-        "anthropic/claude-haiku-4*"
+        "anthropic/claude-haiku-4*",
+        "anthropic/claude-sonnet-5"
       ],
       "maxRequestBytes": 32000000,
       "formats": {
@@ -87,7 +88,8 @@
             "anthropic/claude-opus-4-7*",
             "anthropic/claude-opus-4.7*",
             "anthropic/claude-opus-4-8*",
-            "anthropic/claude-opus-4.8*"
+            "anthropic/claude-opus-4.8*",
+            "anthropic/claude-sonnet-5"
           ],
           "representationLimits": {
             "image": {

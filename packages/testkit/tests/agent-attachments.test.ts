@@ -92,3 +92,11 @@ test("documented image counts depend on provider/model; encoded image bytes incl
   assert.equal((await prepareAttachments([{ ...image, data: large }], modern))[0].size, 7500000);
   await assert.rejects(prepareAttachments([{ name: "a.pdf", mimeType: "application/pdf", size: 24000001, fetchData: async () => pdf() }], modern), /request limit/);
 });
+
+
+test("qualified Sonnet 5 accepts native files with its documented image count", async () => {
+  const current = attachmentPolicy({ route: "anthropic-direct", model: "anthropic/claude-sonnet-5" });
+  assert.equal(current.representationLimits?.image?.maxCount, 600);
+  const files = await prepareAttachments([{ mimeType: "application/pdf", data: pdf() }, { mimeType: "image/png", data: png }, { name: "note.md", data: Buffer.from("Reference") }], current);
+  assert.deepEqual(attachmentParts(files, current).map(part => part.type), ["text", "file", "text", "file", "text", "text"]);
+});
