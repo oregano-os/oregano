@@ -7,7 +7,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -368,7 +368,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -403,7 +403,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-12",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -921,7 +921,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -941,7 +941,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -960,7 +960,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -1064,7 +1064,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-08",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -1318,7 +1318,7 @@
     "status": "draft",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "planned",
     "migration_sources": [],
     "relations": {

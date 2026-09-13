@@ -11,7 +11,7 @@ providers:
   - slack
   - monday
   - postgres
-updated: 2026-09-08
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -458,6 +458,10 @@ Connect, inspect the bound connector's event subscriptions and trigger forwardin
 | Direct message | `message.im` |
 | Private channel, including channels whose IDs start with `C` | `message.groups` |
 | Public channel | `message.channels` |
+
+Agent context additionally reads the ten latest messages at the same place, which
+needs `channels:history`, `groups:history` and `im:history` on the same bot.
+Setup refuses a connector without them.
 
 `app_mention` alone does not deliver ordinary thread replies. Determine visibility
 from `conversations.info`, not the channel ID prefix. The host now checks the

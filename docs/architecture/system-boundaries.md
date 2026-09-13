@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -97,7 +97,7 @@ Login redirects are not followed or interpreted as application health.
 The Slack adapter explicitly enables incoming triggers at creation and checks
 current forwarding, production attachment and webhook destination before the
 first-message gate and final verification. Explicit event selections must include
-direct messages. The adapter exposes exact-resource delivery recovery when a
+direct messages, and the reported bot permissions must include `chat:write`, `channels:history`, `groups:history`, `im:history` and `users:read`. The adapter exposes exact-resource delivery recovery when a
 reply remains missing; provider synchronization and Slack URL verification
 remain separate from runtime model evidence and cannot grant additional scopes.
 The adapters must not leak Vercel, Neon, Slack, GitHub, or any future provider type into

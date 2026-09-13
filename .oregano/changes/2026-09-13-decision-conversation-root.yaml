@@ -2,7 +2,7 @@ version: 3
 plan_id: decision-conversation-root-2026-09-13
 created: 2026-09-13
 title: Let private decision cards root their conversation by default
-objective: Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, skip the coordinator pass for replies a waiting collection expects, and give the coordinator and every Agent the ten latest Slack messages at the same place.
+objective: Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, skip the coordinator pass for replies a waiting collection expects, and give the coordinator and every Agent the ten latest Slack messages at the same place, and make setup require the matching bot permissions.
 non_goals:
   - Change decision authority, recipient qualification or approval risk rules.
   - Remove continue_in navigation or the historical generic heading for existing workflows.
@@ -23,6 +23,19 @@ files_expected:
   - packages/companyos-builder/workflow-authoring.ts
   - packages/companyos-builder/workflow-compiler.ts
   - packages/companyos-builder/workflow-types.ts
+  - packages/cli/src/live-setup.mjs
+  - packages/cli/src/setup/profiles/vercel-neon-slack.ts
+  - packages/cli/tests/live-setup.test.mjs
+  - docs/workbench/commands/setup.md
+  - docs/onboarding/setup-options.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/architecture/company-instance.md
+  - docs/architecture/system-boundaries.md
+  - docs/specifications/company-instance-release-and-promotion-v0.1-draft.md
+  - docs/workbench/commands/verify-live.md
+  - INSTALL-COMPANYOS.md
+  - docs/operations/vercel-workflow-runner.md
   - packages/runner-vercel/src/lib/bot.ts
   - packages/runner-vercel/src/lib/conversation-coordinator.ts
   - packages/runner-vercel/src/lib/slack-recent-messages.ts
@@ -54,6 +67,15 @@ documentation_impact:
     - status.current
     - guide.author-workflow
     - specification.conversation-participation
+    - command.setup
+    - command.verify-live
+    - onboarding.index
+    - onboarding.company-workspace
+    - architecture.company-instance
+    - architecture.boundaries
+    - specification.company-instance-release-promotion-v0.1
+    - onboarding.setup-options
+    - operations.vercel-workflow-runner
 architecture:
   placement:
     core: Compile conversation-root decisions, expose the single delivered notice receipt to later steps and keep the signed decision callback as the only authority.

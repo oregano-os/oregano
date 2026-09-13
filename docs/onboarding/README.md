@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -67,7 +67,9 @@ Neither identity consent nor opening Slack proves that Oregano has replied.
 Production health uses an alias reported for the exact deployment; protected
 deployment URLs do not need to be made public. A healthy application alone does
 not prove Slack delivery: setup also checks enabled incoming trigger forwarding
-and the exact production attachment before requesting the first message.
+and the exact production attachment before requesting the first message. It
+also requires the bot permissions to post and read recent messages
+(`chat:write`, `channels:history`, `groups:history`, `im:history` and `users:read`) and names any missing one.
 An unanswered retry returns [delivery recovery](../workbench/commands/setup.md#slack-delivery-recovery),
 including Slack URL verification and saving. Provider synchronization alone
 cannot replace a real reply.
