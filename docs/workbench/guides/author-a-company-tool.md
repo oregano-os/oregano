@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-08
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -51,6 +51,13 @@ const result = await context.capabilities.call("language.generate", {
   data: { observations: input.observations },
 });
 ```
+
+The optional `attachments` array carries inline file evidence with `name`,
+`mediaType`, byte `size`, base64 `data` and SHA-256 `digest`. Use bytes already
+available through authorized inputs; this field does not grant file or URL
+access. The selected model's Core provider policy validates formats, integrity
+and combined size/count limits before invocation. See
+[Agent attachment policies](../../operations/agent-attachments.md).
 
 The frozen Skill supplies instructions. `data` contains evidence, not additional
 instructions. The Connector uses the owning Agent's configured model task;

@@ -432,6 +432,14 @@
     "availability": "experimental"
   },
   {
+    "document_id": "operations.agent-attachments",
+    "title": "Agent attachments and provider policies",
+    "path": "docs/operations/agent-attachments.md",
+    "kind": "operations",
+    "status": "approved",
+    "availability": "experimental"
+  },
+  {
     "document_id": "operations.core-0-12-adoption",
     "title": "Adopt the integrated Core 0.12.0",
     "path": "docs/operations/core-0-12-adoption.md",

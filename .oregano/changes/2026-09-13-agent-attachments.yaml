@@ -1,0 +1,65 @@
+version: 3
+plan_id: agent-attachments-2026-09-13
+created: "2026-09-13"
+title: Share bounded native attachments across Agent calls
+objective: Give Agents authenticated PDF, image and Markdown inputs through shared preparation and adjustable Core provider policies before model invocation.
+non_goals:
+  - Add DOCX parsing, OCR, PDF rendering, file search or automatic provider fallback.
+  - Grant new channel scopes, change human approval or deploy an Instance.
+  - Treat file byte limits as an exact PDF token or page count.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-13-agent-attachments.yaml
+  - packages/runtime/attachments.ts
+  - packages/runner/attachment-policies.json
+  - packages/runner/attachment-policy.ts
+  - tsconfig.json
+  - packages/runtime/conversation-participation.ts
+  - packages/runtime/shared-conversation.ts
+  - packages/runtime/builder/**
+  - packages/state-store/builder-jobs.ts
+  - package.json
+  - packages/builder-worker/src/**
+  - packages/runner-vercel/src/lib/**
+  - packages/language/contracts.ts
+  - packages/connectors/language-model.ts
+  - packages/testkit/tests/*attachments*.test.ts
+  - packages/testkit/tests/builder-user-tests.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - docs/specifications/model-recipes.md
+  - docs/operations/agent-attachments.md
+  - docs/status/current.md
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/cli/content/guides/author-a-company-tool.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/agent-attachments.test.ts
+  - packages/runner-vercel/src/lib/agent-attachments.test.ts
+  - packages/runner-vercel/src/lib/model-execution.test.ts
+  - packages/testkit/tests/builder-user-tests.test.ts
+  - packages/testkit/tests/shared-conversation.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.model-recipes, operations.agent-attachments, status.current, guide.author-company-tool]
+architecture:
+  placement:
+    core: Common authorized attachment preparation, transport mapping and validated versioned provider policy data; existing model execution enforces aggregate limits.
+    packages: No new Package; public fixtures are synthetic.
+    workspace: Existing Agent scopes, instructions, grants and routing remain authoritative; no per-Agent file switch.
+    instance: Existing authorized channel readers and expiring chat state retain original inputs; model credentials and exact routes remain unchanged.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Associate the selected provider and model with configurable attachment support and limits before every native model request.
+    - mechanism: capability-contracts-and-connectors
+      reason: Carry authorized file inputs as untrusted content through existing chat, language and coding-adapter boundaries.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: The same file contract and provider policy apply to every company and Agent; no company or Agent identifiers determine file support.
+rollback: Restore the preceding Core commit. Retained optional attachment references can expire in existing chat state; no business schema migration or provider cleanup is needed.

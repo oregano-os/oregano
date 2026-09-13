@@ -5,7 +5,7 @@ kind: specification
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -44,3 +44,18 @@ Knowledge-only model overrides, maintenance budgets, extraction/synthesis
 prompts and their dispatcher have been retired. They have no replacement task
 in this contract. See [Prepare an Instance](../workbench/guides/prepare-an-instance.md)
 for the maintained generic configuration.
+
+## Native attachments
+
+The selected route/model also resolves its Core attachment policy from
+`packages/runner/attachment-policies.json`. Policy data declares supported
+model patterns, formats, representations and byte/count budgets separately for
+each provider. All Agents use the common preparation and native model adapters;
+no Agent-specific file switch or silent provider fallback is introduced.
+
+The first implementation qualifies PDF, PNG/JPEG/WebP and UTF-8 Markdown for
+the routes documented in the implementation guide. Markdown is reference text; binary inputs retain
+their native representation. The host checks authorized source, metadata and
+actual bytes, and the native model boundary checks the combined request on each
+step. See [Agent attachments](../operations/agent-attachments.md) for adjustment,
+retention, coding-adapter distinctions and context-limit qualifications.

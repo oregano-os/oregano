@@ -18,6 +18,7 @@ export interface BuilderAcpRunRequest {
   readonly launch: BuilderAcpLaunch;
   readonly cwd: string;
   readonly prompt: string;
+  readonly referenceContent?: readonly acp.ContentBlock[];
   readonly timeoutMs: number;
   /** Explicit allowlist; the parent environment is never inherited implicitly. */
   readonly environment: Readonly<Record<string, string>>;
@@ -263,7 +264,10 @@ export async function runBuilderAcp(request: BuilderAcpRunRequest): Promise<Buil
       }
       cancelActiveSession = () => context.notify(acp.methods.agent.session.cancel, { sessionId: session.sessionId });
       const model = selectedModel(session.newSessionResponse.configOptions);
-      void session.prompt(request.prompt).catch(() => undefined);
+      if (request.referenceContent?.some(part => part.type === "image") && !initialized.agentCapabilities?.promptCapabilities?.image) {
+        throw new Error("The coding adapter does not support attached images.");
+      }
+      void session.prompt(request.referenceContent?.length ? [{ type: "text", text: request.prompt }, ...request.referenceContent] : request.prompt).catch(() => undefined);
       await request.onProgress?.({
         phase: "prompt_started",
         sessionId: session.sessionId,

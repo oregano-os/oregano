@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-09-13",
+  "providers": {
+    "openai-direct": {
+      "modelPatterns": ["openai/gpt-5.4*", "openai/gpt-4.1", "openai/gpt-4.1-*", "openai/gpt-4o", "openai/gpt-4o-mini"],
+      "maxAttachments": 5,
+      "maxTotalBytes": 10485760,
+      "maxRequestBytes": 25165824,
+      "maxTextBytes": 65536,
+      "formats": {
+        "image/png": { "representation": "image", "maxBytes": 5242880 },
+        "image/jpeg": { "representation": "image", "maxBytes": 5242880 },
+        "image/webp": { "representation": "image", "maxBytes": 5242880 },
+        "application/pdf": { "representation": "file", "maxBytes": 5242880 },
+        "text/markdown": { "representation": "text", "maxBytes": 65536 }
+      },
+      "sources": ["https://developers.openai.com/api/docs/guides/file-inputs", "https://developers.openai.com/api/docs/guides/images-vision"]
+    },
+    "anthropic-direct": {
+      "modelPatterns": ["anthropic/claude-sonnet-4*", "anthropic/claude-opus-4*", "anthropic/claude-haiku-4*"],
+      "maxAttachments": 5,
+      "maxTotalBytes": 10485760,
+      "maxRequestBytes": 25165824,
+      "maxTextBytes": 65536,
+      "formats": {
+        "image/png": { "representation": "image", "maxBytes": 5242880 },
+        "image/jpeg": { "representation": "image", "maxBytes": 5242880 },
+        "image/webp": { "representation": "image", "maxBytes": 5242880 },
+        "application/pdf": { "representation": "file", "maxBytes": 5242880 },
+        "text/markdown": { "representation": "text", "maxBytes": 65536 }
+      },
+      "sources": ["https://platform.claude.com/docs/en/build-with-claude/pdf-support", "https://platform.claude.com/docs/en/build-with-claude/vision"]
+    }
+  }
+}

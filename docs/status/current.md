@@ -15,6 +15,17 @@ audience:
 
 # Current System Status
 
+Authenticated Agent file inputs now share experimental PDF, PNG/JPEG/WebP and
+Markdown preparation for qualified direct model providers. Core provider policy data
+controls qualified models and file/count/request budgets. Ordinary chat,
+coordinator routing, handoffs, workflow conversation and candidate tests retain
+authorized file references. Language generation and Preview checks accept
+bounded inline evidence files; Builder workers receive original references
+with the documented ACP PDF limitation. Synthetic transport and limit tests do
+not establish live deployment or model-quality qualification. See
+[Agent attachments and provider policies](../operations/agent-attachments.md).
+
+
 Core 0.13.0 adds the explicitly scoped `evidence.query` contract over existing
 stores, opt-in bounded current work-item comments, attributable report feedback
 and authenticated model-independent workflow health. The implementation and

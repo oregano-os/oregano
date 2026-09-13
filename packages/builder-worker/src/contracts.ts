@@ -1,3 +1,6 @@
+import { validatePreparedAttachments, type PreparedAttachment } from "../../runtime/attachments.ts";
+import { CORE_ATTACHMENT_POLICIES } from "../../runner/attachment-policy.ts";
+import { resolveBuilderAcpProfile } from "../../runtime/builder/profiles.ts";
 import type { BuilderAcpProfileId } from "../../runtime/builder/profiles.ts";
 
 export const BUILDER_WORKER_PROGRESS_PATH = "/vercel/sandbox/builder-progress.json";
@@ -9,6 +12,7 @@ export interface BuilderWorkerRequest {
   readonly profileId: BuilderAcpProfileId;
   readonly workspacePath: string;
   readonly prompt: string;
+  readonly attachments?: readonly PreparedAttachment[];
   readonly timeoutMs: number;
 }
 
@@ -61,6 +65,7 @@ export function parseBuilderWorkerRequest(value: unknown): BuilderWorkerRequest 
   const jobId = requiredIdentifier(data.jobId, "jobId");
   const requestId = requiredIdentifier(data.requestId, "requestId");
   const profileId = requiredProfile(data.profileId);
+  if (data.attachments !== undefined) validatePreparedAttachments(data.attachments as PreparedAttachment[], CORE_ATTACHMENT_POLICIES.providers[resolveBuilderAcpProfile(profileId).attachmentRoute]);
   if (typeof data.workspacePath !== "string" || !data.workspacePath.startsWith("/")) {
     throw new Error("Builder worker workspacePath must be absolute.");
   }
@@ -77,6 +82,7 @@ export function parseBuilderWorkerRequest(value: unknown): BuilderWorkerRequest 
     profileId,
     workspacePath: data.workspacePath,
     prompt: data.prompt,
+    ...(data.attachments ? { attachments: data.attachments as PreparedAttachment[] } : {}),
     timeoutMs: data.timeoutMs as number,
   };
 }

@@ -7,7 +7,12 @@ import { builderSelectionKey, builderConversationKey, builderDecisionKey, rememb
 import { builderResultPresentation } from "../../runtime/builder/presentation.ts";
 import { discardBuilder } from "../../runtime/builder/discard.ts";
 import { parseBuilderTurnIntent, assertBuilderDevelopmentIntent } from "../../runtime/builder/turn-intent.ts";
-import { readBuilderImages } from "../../runtime/builder/attachments.ts";
+import { builderAttachmentContent } from "../../runtime/builder/attachments.ts";
+import { prepareAttachments } from "../../runtime/attachments.ts";
+import { attachmentPolicy } from "../../runner/attachment-policy.ts";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { discardGitHubProposal, type GitHubReleaseClient } from "../../connectors/github-release.ts";
 import type { BuilderJob } from "../../state-store/builder-jobs.ts";
 
@@ -124,13 +129,18 @@ test("questions and stale or invented development permissions fail closed", () =
   assert.doesNotThrow(() => assertBuilderDevelopmentIntent(parseBuilderTurnIntent({ kind: "new-build", requestQuote: "Build a report" }, "now", "Build a report"), "now"));
 });
 
-test("images use the authorized adapter reader, do not fetch arbitrary URLs, and disclose unreadable attachments", async () => {
-  let reads = 0;
-  const result = await readBuilderImages([
-    { type: "image", mimeType: "image/png", fetchData: async () => { reads++; return new Uint8Array([1, 2, 3]); } },
-    { type: "image", mimeType: "image/png", url: "https://untrusted.example/image" } as any,
-    { type: "image", mimeType: "image/png", size: 10_000_000, fetchData: async () => { throw new Error("must not fetch oversized files"); } },
-  ]);
-  assert.equal(reads, 1); assert.equal(result.images.length, 1); assert.equal(result.notices.length, 2);
-  assert.match(result.notices[0], /could not read/);
+test("coding references preserve originals outside the proposal and never serialize PDF blobs as prose", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "attachment-reference-test-"));
+  try {
+    const pdf = Buffer.from("%PDF-1.7\nsynthetic reference\n%%EOF");
+    const policy = attachmentPolicy({ route: "openai-direct", model: "openai/gpt-5.4-nano" });
+    const files = await prepareAttachments([{ name: "../../brief.pdf", mimeType: "application/pdf", data: pdf }], policy);
+    const content = await builderAttachmentContent(files, policy, directory);
+    assert.equal(content.length, 1); assert.equal(content[0].type, "text");
+    assert.match((content[0] as { text: string }).text, /Untrusted attachment reference/);
+    assert.equal(JSON.stringify(content).includes(pdf.toString("base64")), false);
+    const paths = await readdir(directory); assert.equal(paths.length, 1);
+    assert.deepEqual(await readFile(join(directory, paths[0])), pdf);
+    await assert.rejects(builderAttachmentContent([{ ...files[0], digest: "0".repeat(64) }], policy, directory), /integrity/);
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

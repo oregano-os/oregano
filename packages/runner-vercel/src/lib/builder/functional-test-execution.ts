@@ -1,3 +1,6 @@
+import { agentAttachmentContent } from "../agent-attachments.ts";
+import { createPostgresChatState } from "../postgres-chat-state.ts";
+import { agentModelTask } from "../agent-model-task.ts";
 import { ToolLoopAgent, stepCountIs } from "ai";
 import { ConversationParticipation, CONVERSATION_PARTICIPATION_INSTRUCTIONS, conversationContext, type ConversationContextEntry } from "../../../../runtime/conversation-participation.ts";
 import { withConversationParticipation, participationStep } from "../conversation-model-tools.ts";
@@ -71,7 +74,7 @@ export async function executeBuilderFunctionalTest(args: {
   const base = { artifactHash: artifact.artifactHash, candidateCommit: session.candidateCommit, executionDigest: session.scopeDigest };
   if (session.execution.kind === "agent") {
     const agentId = session.execution.agentId, agent = artifact.agents.find((entry) => entry.id === agentId)!;
-    const resolved = resolveModelExecution({ profile: "utility", task: "chat.response", requiredCapability: "tools" });
+    const resolved = resolveModelExecution({ ...agentModelTask(agent), requiredCapability: "tools" });
     const pending = session.conversation?.pending;
     const participation = new ConversationParticipation(pending?.message ?? {
       id: pending?.messageId ?? "initial", conversationId: session.activeTestConversation ?? session.testConversation!,
@@ -86,7 +89,11 @@ export async function executeBuilderFunctionalTest(args: {
       ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
     });
     const response = await modelAgent.generate({
-      messages: [{ role: "user", content: conversationContext(participation.message, builderAgentTestContext(session)) }],
+      messages: [{ role: "user", content: await agentAttachmentContent({
+        text: conversationContext(participation.message, builderAgentTestContext(session)), selection: resolved.selection,
+        store: createPostgresChatState(), instanceId: artifact.instance.id,
+        references: [...(participation.message.attachments ?? []), ...builderAgentTestContext(session).flatMap(entry => entry.attachments ?? [])],
+      }) }],
       abortSignal: AbortSignal.timeout(resolved.selection.timeoutMs ?? 60000),
     });
     const output = participation.finish(response.text);
@@ -137,7 +144,7 @@ export function builderAgentTestMessages(session: BuilderTestSession): { role: "
 export function builderAgentTestContext(session: BuilderTestSession): ConversationContextEntry[] {
   return (session.conversation?.turns ?? []).flatMap(turn => [
     { role: "user" as const, content: turn.prompt, message_id: turn.messageId, principal: turn.message?.senderId ?? session.requester,
-      sender_name: turn.message?.senderName, sent_at: turn.message?.sentAt, in_reply_to: turn.message?.replyToId },
+      sender_name: turn.message?.senderName, sent_at: turn.message?.sentAt, in_reply_to: turn.message?.replyToId, attachments: turn.message?.attachments },
     ...(turn.result.participation === "context-only" ? [] : [{ role: "assistant" as const, content: turn.result.summary,
       in_reply_to: turn.messageId, sent_at: turn.result.completedAt }]),
   ]);

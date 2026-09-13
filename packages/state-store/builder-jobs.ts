@@ -1,3 +1,7 @@
+import type { PreparedAttachment } from "../runtime/attachments.ts";
+import { validatePreparedAttachments } from "../runtime/attachments.ts";
+import { CORE_ATTACHMENT_POLICIES } from "../runner/attachment-policy.ts";
+import { resolveBuilderAcpProfile } from "../runtime/builder/profiles.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { assertGroundedBuilderBrief, type GroundedBuilderBrief } from "../runtime/builder/brief.ts";
 
@@ -20,6 +24,7 @@ export interface BuilderJobInput {
   readonly agentId: "builder";
   readonly sourceConversationKey: string;
   readonly sourceMessageId?: string;
+  readonly attachments?: readonly PreparedAttachment[];
   readonly objective: string;
   /** Absent only on legacy jobs and fixed internal qualification fixtures. */
   readonly brief?: GroundedBuilderBrief;
@@ -135,6 +140,7 @@ export const TERMINAL_BUILDER_JOB_STATES: readonly BuilderJobState[] = [
 ];
 
 export function assertBuilderJobInput(input: BuilderJobInput): void {
+  if (input.attachments !== undefined) validatePreparedAttachments(input.attachments, CORE_ATTACHMENT_POLICIES.providers[resolveBuilderAcpProfile(input.codingAgent.profileId).attachmentRoute]);
   if (input.schemaVersion !== 1) throw new Error("Builder job schemaVersion must be 1.");
   for (const [label, value] of [
     ["jobId", input.jobId],

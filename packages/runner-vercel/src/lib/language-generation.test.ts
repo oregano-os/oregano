@@ -59,3 +59,21 @@ test("actual SDK request explicitly bounds adaptive thinking instead of relying 
   assert.equal(result.text, "Supported summary.");
   assert.equal(result.evidence.reasoning, "low");
 });
+
+test("the owning model's policy validates inline files before generation", async () => {
+  const { prepareAttachments } = await import("../../../runtime/attachments.ts");
+  const { attachmentPolicy } = await import("../../../runner/attachment-policy.ts");
+  const selection = { route: "openai-direct", model: "openai/gpt-5.4-nano" };
+  const files = await prepareAttachments([{ name: "spec.pdf", mimeType: "application/pdf", data: Buffer.from("%PDF-1.7\nsynthetic") }], attachmentPolicy(selection));
+  let calls = 0;
+  const generate = createLanguageGenerator({ resolve: (() => ({ model: "test", selection })) as typeof resolveModelExecution,
+    generate: (async (input: Parameters<typeof generateText>[0]) => {
+      calls++; const content = input.messages![0].content;
+      assert.ok(Array.isArray(content)); assert.equal(content.at(-1)?.type, "file");
+      return { text: "Summary", finishReason: "stop", response: { id: "synthetic", modelId: selection.model }, usage: {} };
+    }) as unknown as typeof generateText });
+  const request = { instructions: "Summarize", data: "{}", agentId: "analyst", modelTask: "analyst.review", attachments: files };
+  await generate(request);
+  await assert.rejects(generate({ ...request, attachments: [{ ...files[0], size: 1 }] }), /encoding/);
+  assert.equal(calls, 1);
+});
