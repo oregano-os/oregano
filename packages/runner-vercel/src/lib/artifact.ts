@@ -39,6 +39,19 @@ export function assertArtifactDeploymentEnvironment(
   }
 }
 
+/** The deployed source identity must come from the host, never from the Artifact. */
+export function assertArtifactCoreCommit(
+  artifactCore: string,
+  sourceCore = process.env.VERCEL_GIT_COMMIT_SHA,
+): void {
+  if (!/^[0-9a-f]{40}$/.test(sourceCore ?? "")) {
+    throw new Error("Live Core identity is missing or invalid. An exact deployment Core SHA is required.");
+  }
+  if (artifactCore !== sourceCore) {
+    throw new Error(`Core mismatch. Artifact requires ${artifactCore}. Live Core is ${sourceCore}. Deployment refused.`);
+  }
+}
+
 export function loadArtifact(): CompanyOSArtifact {
   const reference = process.env.COMPANYOS_ARTIFACT_HASH;
   if (reference) return referencedArtifact().get(reference);
@@ -70,6 +83,9 @@ function verifyArtifact(parsed: CompanyOSArtifact): void {
     throw new Error("Artifact contains retired Sprint execution; rebuild with declared workflows before activation.");
   }
   assertArtifactDeploymentEnvironment(parsed.instance.environment);
+  if (process.env.VERCEL_ENV || process.env.VERCEL_GIT_COMMIT_SHA || process.env.NODE_ENV === "production") {
+    assertArtifactCoreCommit(parsed.provenance.coreCommit);
+  }
 }
 
 export function selectedAgent(): CompiledAgent {

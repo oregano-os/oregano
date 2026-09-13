@@ -7,7 +7,7 @@ authority: canonical
 language: en
 implementation_scope: provider
 providers: [vercel, neon, slack, github, openai, anthropic]
-updated: 2026-09-11
+updated: 2026-09-13
 owners: [oregano-maintainers]
 audience: [human, agent]
 availability: experimental
@@ -60,3 +60,18 @@ Retained workflow Record snapshots may still select Slack Record Source `0.1.3`.
 The maintained registry keeps that exact profile alongside `0.1.4`; the older
 profile retains its stricter bot-identity rule. Historical bindings, qualification
 receipts and projection identities are not rewritten to impersonate a newer version.
+
+## Exact Core identity at deployment
+
+The CLI build checks the Workspace compatibility pin against the actual Core
+checkout; the hosted Builder checks the pin against its accepted build image.
+The Runner checks Artifact provenance against the host-provided
+`VERCEL_GIT_COMMIT_SHA` when loading an Artifact in a hosted environment.
+Missing or different source identity rejects startup. The health endpoint also
+requires this equality before any readiness checks and returns HTTP 503 instead
+of ready when it cannot prove it, including when the source identity is missing.
+`coreCommit` reports the Artifact identity and `sourceCoreCommit` reports the
+independent host identity. Operators compare both with the reviewed Workspace
+pin; a claimed Artifact SHA alone is not deployment proof. Local unhosted Artifact
+inspection remains possible, but cannot report deployment readiness without an
+exact host source identity. No existing deployment is upgraded by changing Git.

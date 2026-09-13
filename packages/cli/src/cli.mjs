@@ -51,6 +51,7 @@ import {
   validateCreateWorkspaceField,
 } from "./workspace-generator.mjs";
 import { WORKBENCH_VERSION } from "./workbench-version.mjs";
+import { assertWorkspaceCoreCommit } from "./compatibility.mjs";
 import { CORE_VERSION } from "./core-version.mjs";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import { resolveWorkspaceInstanceConfiguration, WORKSPACE_INSTANCE_PATH } from "../../companyos-builder/instance-loader.ts";
@@ -283,6 +284,7 @@ try {
     if (!outputPath) throw new Error("companyos build requires --output <file>.");
     const git = (cwd, ...gitArgs) => execFileSync("git", gitArgs, { cwd, encoding: "utf8" }).trim();
     const coreCommit = git(repoRoot, "rev-parse", "HEAD");
+    assertWorkspaceCoreCommit(target, coreCommit);
     const workspaceCommit = git(target, "rev-parse", "HEAD");
     if (git(repoRoot, "status", "--porcelain") || git(target, "status", "--porcelain")) {
       throw new Error("CompanyOS build requires clean Core and Workspace checkouts so the recorded SHA pair is reproducible.");

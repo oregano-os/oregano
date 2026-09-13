@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -32,7 +32,13 @@ companyos build <workspace> --output <artifact.json>
 
 The command compiles one exact CompanyOS pairing. Both the Oregano Core and
 Company Workspace must be clean Git checkouts so their recorded 40-character
-commit SHAs identify all material source.
+commit SHAs identify all material source. Before reading Instance inputs or
+writing output, the CLI requires `.companyos/compatibility.yaml` to contain an
+immutable Core SHA equal to the actual Core checkout HEAD. A missing, malformed
+or different pin aborts the build; matching version numbers alone do not suffice.
+The hosted Builder already requires its accepted Core identity to match the
+Workspace pin. Artifact provenance records this checked Core commit without a
+second independently maintained pin.
 
 The Instance declaration contains an Instance ID, environment, exact
 Capability-to-Connector contract bindings, and optional non-secret runtime

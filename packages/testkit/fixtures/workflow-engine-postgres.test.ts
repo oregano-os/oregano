@@ -236,7 +236,7 @@ test("Postgres deployment startup reads the exact immutable Artifact without sch
   await h.store.putArtifact(h.artifact);
   const reader = createPostgresWorkflowExecutionStore({ prepareArtifactSchema: false });
   const originalFetch = neonConfig.fetchFunction, fetchSql = originalFetch ?? fetch;
-  const previous = Object.fromEntries(["NEXT_RUNTIME", "VERCEL_ENV", "COMPANYOS_ARTIFACT_HASH"].map((key) => [key, process.env[key]]));
+  const previous = Object.fromEntries(["NEXT_RUNTIME", "VERCEL_ENV", "VERCEL_GIT_COMMIT_SHA", "COMPANYOS_ARTIFACT_HASH"].map((key) => [key, process.env[key]]));
   let reads = 0;
   neonConfig.fetchFunction = async (url: string | URL | Request, init?: RequestInit) => {
     const payload = JSON.parse(String(init?.body));
@@ -249,7 +249,7 @@ test("Postgres deployment startup reads the exact immutable Artifact without sch
     assert.equal(await reader.getArtifact(sha256(randomUUID())), undefined);
     const corrupt = structuredClone(h.artifact); corrupt.instance.id = "another-instance";
     await assert.rejects(reader.putArtifact(corrupt), /pinned hash/);
-    Object.assign(process.env, { NEXT_RUNTIME: "nodejs", VERCEL_ENV: "production", COMPANYOS_ARTIFACT_HASH: h.artifact.artifactHash });
+    Object.assign(process.env, { NEXT_RUNTIME: "nodejs", VERCEL_ENV: "production", VERCEL_GIT_COMMIT_SHA: h.artifact.provenance.coreCommit, COMPANYOS_ARTIFACT_HASH: h.artifact.artifactHash });
     const { register } = await import("../../runner-vercel/src/instrumentation.ts");
     const { loadArtifact } = await import("../../runner-vercel/src/lib/artifact.ts");
     assert.throws(loadArtifact, /verified startup/);
