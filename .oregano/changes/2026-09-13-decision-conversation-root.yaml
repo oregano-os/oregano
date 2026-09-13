@@ -26,6 +26,7 @@ files_expected:
   - packages/cli/src/live-setup.mjs
   - packages/cli/src/setup/profiles/vercel-neon-slack.ts
   - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/standard-setup.test.mjs
   - docs/workbench/commands/setup.md
   - docs/onboarding/setup-options.md
   - docs/onboarding/README.md
