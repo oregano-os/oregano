@@ -1,5 +1,5 @@
 import { releaseContinuityDigest } from "../../../../../connectors/release-continuity.ts";
-import { loadArtifact, selectedAgent } from "../../../lib/artifact.ts";
+import { loadArtifact, selectedAgent, assertArtifactCoreCommit } from "../../../lib/artifact.ts";
 import { builderConfigurationDigest } from "../../../lib/builder/release-provider.ts";
 import { getBot } from "../../../lib/bot.ts";
 import { resolveModelExecution } from "../../../lib/model-execution.ts";
@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const artifact = loadArtifact();
+    assertArtifactCoreCommit(artifact.provenance.coreCommit);
     const primaryAgent = selectedAgent();
     const primaryTask = agentModelTask(primaryAgent);
     const modelExecution = resolveModelExecution({ profile: primaryTask.profile, task: primaryTask.task, requiredCapability: "tools" });

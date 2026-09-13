@@ -28,9 +28,9 @@ test("retired Instance declarations fail before compilation instead of silently 
 
 test("artifact ingress rejects active retired definitions and keeps empty historical artifacts readable", () => {
   for (const retired of [[], [{ id: "old-close" }], null, {}]) {
-    const body = { instance: { environment: "preview" }, provenance: { builtAt: "2026-09-01T00:00:00Z" }, sprints: retired };
-    const artifact = { ...body, artifactHash: sha256({ ...body, provenance: { builtAt: undefined } }) };
-    const environment: Record<string, string | undefined> = { ...process.env, VERCEL_ENV: "preview", COMPANYOS_ARTIFACT_GZIP_BASE64: gzipSync(JSON.stringify(artifact)).toString("base64") };
+    const body = { instance: { environment: "preview" }, provenance: { coreCommit: "a".repeat(40), builtAt: "2026-09-01T00:00:00Z" }, sprints: retired };
+    const artifact = { ...body, artifactHash: sha256({ ...body, provenance: { ...body.provenance, builtAt: undefined } }) };
+    const environment: Record<string, string | undefined> = { ...process.env, VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_SHA: "a".repeat(40), COMPANYOS_ARTIFACT_GZIP_BASE64: gzipSync(JSON.stringify(artifact)).toString("base64") };
     delete environment.COMPANYOS_ARTIFACT_BUNDLED;
     delete environment.COMPANYOS_ARTIFACT_BROTLI_BASE64;
     const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", 'import { loadArtifact } from "./packages/runner-vercel/src/lib/artifact.ts"; loadArtifact();'], { cwd: root, env: environment, encoding: "utf8" });

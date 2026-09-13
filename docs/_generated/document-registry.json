@@ -196,7 +196,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -999,7 +999,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
