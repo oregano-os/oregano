@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-12
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,14 @@ audience:
 ---
 
 # Current System Status
+
+Unreleased on main after Core 0.15.0: a private workflow decision card can
+itself root the conversation that follows it. Later replies and collections use
+the card's own thread, the affirmative control links there, and an optional
+title replaces the generic card heading. Compiler, engine and Connector
+publisher tests are synthetic; delivery in a deployed chat client still requires
+Instance verification. Decisions without the new references keep their
+manifests and notice inputs.
 
 Core 0.13.0 adds the explicitly scoped `evidence.query` contract over existing
 stores, opt-in bounded current work-item comments, attributable report feedback

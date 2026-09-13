@@ -259,3 +259,38 @@ test("an affirmative decision can navigate to its verified conversation and stil
   assert.equal(requests.length, 1, "invalid navigation cannot send anything");
   });
 });
+
+test("a conversation-root decision links its affirmative control to its own verified thread and uses the declared title", async () => {
+  const { createSlackAdapter } = await import(new URL("../../runner-vercel/node_modules/@chat-adapter/slack/dist/index.js", import.meta.url).href);
+  const adapter = createSlackAdapter({ botToken: async () => "xoxb-synthetic", signingSecret: "synthetic" });
+  await adapter.withBotToken("xoxb-synthetic", async () => {
+  const posted: any[] = [], updated: any[] = [], subscriptions: string[] = [];
+  adapter.webClient.chat.postMessage = async (request: any) => { posted.push(request); return { ok: true, channel: request.channel, ts: "1893492000.000003" }; };
+  adapter.webClient.chat.update = async (request: any) => { updated.push(request); return { ok: true, channel: request.channel, ts: request.ts }; };
+  const publisher = createSlackMessagePublisher(() => ({ getAdapter: () => adapter,
+    channel() { throw new Error("not used"); },
+    async openDM() { return { id: "slack:D12345:", async post() { throw new Error("native combined control required"); } }; },
+    thread(id: string) { return { async subscribe() { subscriptions.push(id); } }; },
+  }) as any);
+  const direct = await publisher.openDirect("U12345");
+  const decision = { request_id: "b".repeat(64), approve_label: "Yes, help me prepare it", reject_label: "No, I will write it myself", title: "Friday Sprint Update", open_thread: true as const };
+  const receipt = await direct.publish("Your update is due by 17:00. Would you like help?", decision);
+  assert.equal(posted.length, 1); assert.equal(updated.length, 1);
+  assert.equal(posted[0].thread_ts, undefined);
+  const header = posted[0].blocks.find((block: any) => block.type === "header");
+  assert.equal(header?.text?.text, "Friday Sprint Update");
+  assert.equal(posted[0].blocks.find((block: any) => block.type === "actions").elements[0].url, undefined, "the own thread is unknown before posting");
+  assert.equal(updated[0].channel, "D12345"); assert.equal(updated[0].ts, "1893492000.000003");
+  const [yes, no] = updated[0].blocks.find((block: any) => block.type === "actions").elements;
+  assert.equal(yes.url, "https://slack.com/archives/D12345/p1893492000000003?thread_ts=1893492000.000003&cid=D12345");
+  assert.equal(yes.action_id, "companyos.workflow.approve"); assert.equal(yes.value, decision.request_id);
+  assert.equal(no.url, undefined); assert.equal(no.value, decision.request_id);
+  assert.equal(receipt.messageId, "1893492000.000003");
+  assert.equal(receipt.threadReference, "slack:D12345:1893492000.000003");
+  assert.deepEqual(subscriptions, [receipt.threadReference]);
+  await assert.rejects(direct.publish("Help?", decision, "slack:D12345:1893492000.000003"), /does not belong/);
+  assert.equal(posted.length, 1, "a conversation-root decision is never itself threaded");
+  adapter.webClient.chat.update = async () => ({ ok: false });
+  await assert.rejects(direct.publish("Help?", decision), /thread link could not be verified/);
+  });
+});

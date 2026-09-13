@@ -129,7 +129,7 @@ export function compileWorkflows(args: {
           templates.set(path, { path, content: template.body, format: template.data.format, digest: sha256(workspaceFile(files, path)) });
           message = { template: path, vars: raw.message.vars };
         }
-        const presentation = { version: 1 as const, ...(raw.review_format === "message" ? { reviewFormat: "message" as const } : {}), ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
+        const presentation = { version: 1 as const, ...(raw.title ? { title: raw.title } : {}), ...(raw.review_format === "message" ? { reviewFormat: "message" as const } : {}), ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
 
         const path = calendar(); usedSchedules.add(path);
         const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);
@@ -154,6 +154,8 @@ export function compileWorkflows(args: {
       }
       return result;
     });
+    for (const step of steps) if (step.decision && steps.some((other) => [other.message?.thread, other.collect?.from].includes(`$steps.${step.id}.thread_reference`)))
+      step.decision.conversationRoot = true;
     for (const step of steps) {
       const consumed = [step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
