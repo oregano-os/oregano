@@ -1,0 +1,33 @@
+version: 3
+plan_id: claude-working-agreement-2026-09-13
+created: 2026-09-13
+title: Import shared contributor instructions through the Claude entrypoint
+objective: Load the existing agent entrypoint and working agreement directly without duplicating their rules.
+non_goals:
+  - Change shared rules, runtime behavior, release versions or deployment configuration.
+  - Grant merge, deployment or provider authority.
+placement: core
+change_class: security
+files_expected:
+  - CLAUDE.md
+  - .oregano/changes/2026-09-13-claude-working-agreement.yaml
+tests:
+  - packages/cli/tests/docs-scope.test.mjs
+documentation_impact:
+  required: false
+  affected_documents: []
+  reason_if_none: Only the thin Claude entrypoint imports existing authoritative documents; their content and contracts are unchanged.
+architecture:
+  placement:
+    core: Import existing contributor instructions through the thin repository entrypoint.
+    packages: No Package changes.
+    workspace: No company operating content or Workspace changes.
+    instance: No configuration changes or deployment.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Shared contributor instructions remain company-neutral and authoritative in their existing files.
+rollback: Revert the entrypoint imports; the shared instructions and runtime are unchanged.
