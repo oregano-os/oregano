@@ -43,6 +43,12 @@ subscribes that thread. A failed update is an uncertain effect with the publishe
 message identity; it never posts a second card. The optional decision title
 replaces the generic `Approval required` card heading.
 
+Agent turns read up to ten earlier messages at the same place with
+`conversations.history` (main channel or DM) or `conversations.replies`
+(thread). The Slack app therefore needs the history read scope for each
+conversation type it serves: `channels:history`, `groups:history` and
+`im:history`. Without the scope the context is omitted; the turn still runs.
+
 An original human thread reply can also be shared to the main conversation.
 Slack labels this representation [`thread_broadcast`](https://docs.slack.dev/reference/events/message/thread_broadcast/).
 The transport accepts it only when rereading the exact message in its original

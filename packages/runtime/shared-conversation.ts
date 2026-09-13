@@ -21,7 +21,10 @@ export interface ConversationWorkSource {
   current(scope: ConversationScope, address: ConversationAddress): Promise<WorkContext | undefined>;
   /** Optional bounded transcript from an adapter-verified conversation address. */
   history?(scope: ConversationScope, address: ConversationAddress, agentId: string): Promise<{ role: "user" | "assistant"; content: string }[]>;
+  /** Optional provider messages immediately before the current message at the same place (thread, channel or DM). */
+  recentMessages?(scope: ConversationScope, address: ConversationAddress, messageId: string): Promise<ConversationTranscriptMessage[]>;
 }
+export interface ConversationTranscriptMessage { messageId: string; sentAt: string; sender: string; kind: "human" | "app" | "other"; text: string }
 export interface ConversationDraft extends WorkContext { kind: "draft"; purpose: string; expiresAt: string; linkedWorkId?: string }
 export interface PendingConcern {
   source: ConversationInput; candidates: string[]; question: string; expiresAt: string;
@@ -122,9 +125,21 @@ export class SharedConversationTurn {
       const work = await this.#read(id); if (work) { this.#seen.set(id, structuredClone(work)); this.#seen.set(work.id, structuredClone(work)); }
     }
     return { current: current && compactWork(current), focus: [...this.#seen.values()].map(compactWork),
+      recent_messages: await this.#recentMessages(),
       pending: pending.map(p => ({ messageId: p.source.messageId, text: p.source.text.slice(0, 4000), truncated: p.source.text.length > 4000, question: p.question, candidates: p.candidates })),
       conversation: boundedConversationHistory(await this.#args.source.history?.(this.scope, this.input.address, current?.agentId ?? this.#args.coordinatorId) ?? [], 12000),
       recent: this.attention.recent.slice(-8), limits: { searchPage: 6, reads: 8, concerns: 3 } };
+  }
+  /** Context only: a transport failure never blocks interpretation, and the verified scope bounds the address. */
+  async #recentMessages(): Promise<ConversationTranscriptMessage[]> {
+    const address = this.input.address;
+    if (!this.#args.source.recentMessages || address.surface !== this.scope.surface || address.accountId !== this.scope.accountId || address.channelId !== this.scope.channelId) return [];
+    let messages: ConversationTranscriptMessage[];
+    try { messages = await this.#args.source.recentMessages(this.scope, address, this.input.messageId); } catch { return []; }
+    const bounded = messages.filter(message => message.messageId !== this.input.messageId).slice(-11)
+      .map(message => ({ ...message, text: message.text.slice(0, 1500), sender: message.sender.slice(0, 120) }));
+    while (bounded.length > 1 && JSON.stringify(bounded).length > 9000) bounded.splice(bounded[0]!.messageId === address.threadId ? 1 : 0, 1);
+    return bounded;
   }
   async search(input: WorkSearch) {
     if (++this.#reads > 8) throw new Error("Conversation context read budget reached");

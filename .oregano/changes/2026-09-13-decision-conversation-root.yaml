@@ -2,7 +2,7 @@ version: 3
 plan_id: decision-conversation-root-2026-09-13
 created: 2026-09-13
 title: Let private decision cards root their conversation by default
-objective: Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, and skip the coordinator pass for replies a waiting collection expects.
+objective: Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, skip the coordinator pass for replies a waiting collection expects, and give the coordinator and every Agent the ten latest Slack messages at the same place.
 non_goals:
   - Change decision authority, recipient qualification or approval risk rules.
   - Remove continue_in navigation or the historical generic heading for existing workflows.
@@ -24,6 +24,12 @@ files_expected:
   - packages/companyos-builder/workflow-compiler.ts
   - packages/companyos-builder/workflow-types.ts
   - packages/runner-vercel/src/lib/bot.ts
+  - packages/runner-vercel/src/lib/conversation-coordinator.ts
+  - packages/runner-vercel/src/lib/slack-recent-messages.ts
+  - packages/runtime/conversation-participation.ts
+  - packages/runtime/shared-conversation.ts
+  - packages/testkit/tests/slack-recent-messages.test.ts
+  - docs/specifications/conversation-participation.md
   - packages/runner-vercel/src/lib/runtime-connectors.ts
   - packages/runner-vercel/src/lib/workflow-conversations.ts
   - packages/runtime/workflow-engine/decision-notice.ts
@@ -47,6 +53,7 @@ documentation_impact:
     - specification.workflow-execution-v1
     - status.current
     - guide.author-workflow
+    - specification.conversation-participation
 architecture:
   placement:
     core: Compile conversation-root decisions, expose the single delivered notice receipt to later steps and keep the signed decision callback as the only authority.
