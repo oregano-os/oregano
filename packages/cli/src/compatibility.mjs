@@ -53,3 +53,16 @@ export function inspectWorkspaceCompatibility(root) {
 
   return { config, diagnostics };
 }
+
+/** Reject a direct build before reading Instance inputs or writing an Artifact. */
+export function assertWorkspaceCoreCommit(root, actualCore) {
+  const path = join(root, ".companyos", "compatibility.yaml");
+  const config = YAML.parse(readFileSync(path, "utf8"));
+  const requiredCore = config?.core?.ref;
+  if (!EXACT_CORE_REF.test(String(requiredCore ?? ""))) {
+    throw new Error("Workspace requires an immutable 40-character Core SHA in .companyos/compatibility.yaml. Build aborted.");
+  }
+  if (requiredCore !== actualCore) {
+    throw new Error(`Core mismatch.\nWorkspace requires ${requiredCore}.\nCurrent Core is ${actualCore}.\nBuild aborted.`);
+  }
+}

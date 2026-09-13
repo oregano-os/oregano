@@ -1,0 +1,48 @@
+version: 3
+plan_id: core-pin-guards-2026-09-13
+created: 2026-09-13
+title: Enforce exact Core identity before build and hosted readiness
+objective: Reject a direct build with a different Workspace Core pin and reject hosted Artifact loading or health readiness with a different or missing deployment source SHA.
+non_goals:
+  - Introduce a new compatibility system, duplicate pin, release version or automatic upgrade.
+  - Deploy changes, alter Company Workspace pins or change provider permissions.
+placement: core
+change_class: security
+files_expected:
+  - packages/cli/src/compatibility.mjs
+  - packages/cli/src/cli.mjs
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/testkit/tests/core-pin-guard.test.ts
+  - packages/testkit/tests/retired-executor-removal.test.ts
+  - packages/testkit/fixtures/workflow-engine-postgres.test.ts
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/runner-vercel/src/lib/artifact.ts
+  - packages/runner-vercel/src/app/api/health/route.ts
+  - docs/workbench/commands/build.md
+  - docs/operations/maintained-host-profile.md
+  - docs/_generated/document-registry.json
+  - .oregano/changes/2026-09-13-core-pin-guards.yaml
+tests:
+  - packages/runner-vercel/src/lib/bot-initialization.test.ts
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/build-artifact-worker.test.mjs
+  - packages/testkit/tests/core-pin-guard.test.ts
+  - packages/testkit/tests/retired-executor-removal.test.ts
+  - packages/testkit/fixtures/workflow-engine-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [command.build, operations.maintained-host-profile]
+architecture:
+  placement:
+    core: Enforce existing immutable identity boundaries at the direct CLI build and hosted Artifact ingress and health.
+    packages: No Package contract changes.
+    workspace: Read the existing compatibility declaration without rewriting it.
+    instance: Require independent host source identity to equal Artifact provenance; no deployment is performed.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All companies use the existing pin and provenance fields; host-specific source identity stays in the maintained Runner adapter.
+rollback: Revert these guards if needed; no data migration or Artifact schema change. Existing hosted builds must expose their actual source SHA and pair it with the correct Artifact.

@@ -85,7 +85,7 @@ test("failed chat construction never caches a handlerless instance and recovers 
   const previous = { ...process.env };
   t.after(() => { for (const name of Object.keys(process.env)) if (!(name in previous)) delete process.env[name]; Object.assign(process.env, previous); });
   Object.assign(process.env, { DATABASE_URL: "postgresql://fixture:fixture@localhost/fixture", SLACK_CONNECTOR: "slack/fixture",
-    VERCEL_ENV: "preview", COMPANYOS_ARTIFACT_GZIP_BASE64: encode(artifact),
+    VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_SHA: artifact.provenance.coreCommit, COMPANYOS_ARTIFACT_GZIP_BASE64: encode(artifact),
     FIXTURE_RECORDS_CONFIG: encode({ ...records, core: { ...records.core, ref: "c".repeat(40) } }) });
   delete process.env.COMPANYOS_ARTIFACT_BROTLI_BASE64;
   const { getBot, getCompanyOSRuntime } = await import("./bot.ts");
