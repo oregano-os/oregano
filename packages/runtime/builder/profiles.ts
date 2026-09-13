@@ -7,11 +7,13 @@ export interface BuilderAcpProfile {
   readonly version: string;
   readonly binaryName: string;
   readonly sessionMode?: "agent";
+  readonly attachmentRoute: "openai-direct" | "anthropic-direct";
 }
 
 export const BUILDER_ACP_PROFILES: Readonly<Record<BuilderAcpProfileId, BuilderAcpProfile>> = Object.freeze({
   "claude-code": Object.freeze({
     id: "claude-code",
+    attachmentRoute: "anthropic-direct",
     protocol: "acp-v1",
     packageName: "@agentclientprotocol/claude-agent-acp",
     version: "0.70.0",
@@ -19,6 +21,7 @@ export const BUILDER_ACP_PROFILES: Readonly<Record<BuilderAcpProfileId, BuilderA
   }),
   codex: Object.freeze({
     id: "codex",
+    attachmentRoute: "openai-direct",
     protocol: "acp-v1",
     packageName: "@agentclientprotocol/codex-acp",
     version: "1.6.2",

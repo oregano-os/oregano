@@ -241,3 +241,20 @@ test("adoption retains legacy event receipts when adapters add normalized partic
   const reconstructed = await f.open({ message });
   assert.deepEqual(await reconstructed.replay(), receipt);
 });
+
+test("attachment-only messages and clarified routing preserve the original files and reject edited replay", async () => {
+  const f = fixture();
+  const attachments = [{ key: "agent-attachment:" + "a".repeat(64), name: "report.pdf", mediaType: "application/pdf", size: 12 }];
+  const message = { id: f.input.messageId, conversationId: "verified-conversation", senderId: f.scope.principal,
+    senderName: "Synthetic human", sentAt: "2026-09-10T10:00:00.000Z", text: "", shared: false, mentioned: true, attachments, attachmentContext: attachments };
+  const turn = await f.open({ text: "", message });
+  await turn.search({ limit: 6 });
+  await turn.commit({ reply: "", routes: [], clarify: { question: "Which question does this file answer?", candidates: ["work-0", "work-1"] } });
+  const followup = await f.open({ eventId: "selection", messageId: "selection", text: "The sales question" });
+  await followup.read("work-0");
+  const receipt = await followup.commit({ reply: "", usePendingMessageId: f.input.messageId, routes: [{ workId: "work-0" }] });
+  assert.deepEqual(receipt.concerns[0].source.message?.attachments, attachments);
+  assert.deepEqual(receipt.concerns[0].source.message?.attachmentContext, attachments);
+  const changed = await f.open({ text: "", message: { ...message, attachments: [{ ...attachments[0], key: "agent-attachment:" + "b".repeat(64) }] } });
+  await assert.rejects(changed.replay(), /different content/i);
+});

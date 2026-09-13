@@ -1,3 +1,7 @@
+import { loadAttachments } from "../agent-attachments.ts";
+import type { AttachmentReference } from "../../../../runtime/attachments.ts";
+import { resolveModelExecution } from "../model-execution.ts";
+import { agentModelTask } from "../agent-model-task.ts";
 import { jsonSchema, tool, type ToolSet } from "ai";
 import { type Author, type Chat, type StateAdapter, type Thread } from "chat";
 import type { CompanyOSArtifact, CompiledAgent } from "../../../../companyos-builder/types.ts";
@@ -45,6 +49,7 @@ export interface BuilderChatIntegration {
     requester: string;
     messageId: string;
     intent?: BuilderTurnIntent;
+    attachments?: readonly AttachmentReference[];
   }): ToolSet;
   presentTurn(
     generatedText: string,
@@ -73,7 +78,7 @@ export function createBuilderChatIntegration(args: {
   };
 
   return {
-    proposalTools({ agent, thread, requester, messageId, intent }) {
+    proposalTools({ agent, thread, requester, messageId, intent, attachments }) {
       if (agent.id !== "builder") return {} satisfies ToolSet;
       const builder = args.artifact.builder;
       const contextKey = `builder-context:${sha256({ artifact: args.artifact.artifactHash, requester, thread: thread.id })}`;
@@ -230,6 +235,8 @@ export function createBuilderChatIntegration(args: {
                 sourceConversationKey: thread.id,
                 objective,
                 brief,
+                ...(attachments?.length ? { attachments: await loadAttachments({ store: args.state, instanceId: args.artifact.instance.id, references: attachments,
+                  selection: resolveModelExecution({ ...agentModelTask(agent), requiredCapability: "language" }).selection }) } : {}),
                 repositoryId: builder.repository.repositoryId,
                 baseCommit: brief.workspaceCommit,
               }));

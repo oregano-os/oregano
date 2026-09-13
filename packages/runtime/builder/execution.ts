@@ -1,3 +1,7 @@
+import type { PreparedAttachment } from "../attachments.ts";
+import { validatePreparedAttachments } from "../attachments.ts";
+import { CORE_ATTACHMENT_POLICIES } from "../../runner/attachment-policy.ts";
+import { resolveBuilderAcpProfile } from "./profiles.ts";
 export type BuilderExecutionState =
   | "starting"
   | "running"
@@ -19,6 +23,7 @@ export interface BuilderExecutionRequest {
   readonly operation?: {
     readonly requestId: string;
     readonly prompt: string;
+    readonly attachments?: readonly PreparedAttachment[];
   };
   readonly codingAgent: {
     readonly profileId: string;
@@ -84,6 +89,7 @@ export function assertBuilderExecutionRequest(request: BuilderExecutionRequest):
   if (request.source.repository.trim() === "") throw new Error("Builder execution requires a repository reference.");
   if (!FULL_GIT_SHA.test(request.source.baseCommit)) throw new Error("Builder execution requires an exact 40-character base commit.");
   if (request.operation) {
+    if (request.operation.attachments !== undefined) validatePreparedAttachments(request.operation.attachments, CORE_ATTACHMENT_POLICIES.providers[resolveBuilderAcpProfile(request.codingAgent.profileId).attachmentRoute]);
     if (request.limits.timeoutMs < 20_000) {
       throw new Error("Production Builder execution timeout must be at least 20000ms.");
     }

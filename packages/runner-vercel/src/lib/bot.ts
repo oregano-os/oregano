@@ -22,7 +22,8 @@ import { stepCountIs, ToolLoopAgent, generateText, jsonSchema, tool, type ModelM
 import { type BuilderTurnIntent } from "../../../runtime/builder/turn-intent.ts";
 import { classifyBuilderTurn } from "./builder/turn-intent.ts";
 import { builderCurrentRequestKey, type BuilderRequestReference } from "../../../runtime/builder/experience.ts";
-import { readBuilderImages } from "../../../runtime/builder/attachments.ts";
+import { AttachmentInputError, type AttachmentReference } from "../../../runtime/attachments.ts";
+import { retainAttachments, agentAttachmentContent, conversationAttachments, conversationAttachmentKey } from "./agent-attachments.ts";
 import { BUILDER_INTAKE_INSTRUCTIONS } from "../../../runtime/builder/brief.ts";
 import { Actions, Button, Card, CardText, Chat, type Author, type Message, type Thread } from "chat";
 import { RISK_ORDER, type RiskLevel } from "../../../capabilities/contracts.ts";
@@ -74,6 +75,8 @@ import { createConfiguredRuntimeConnectors } from "./runtime-connectors.ts";
 import { workflowHostingEnabled } from "./workflow-configuration.ts";
 import { workflowReplyThreadId, type WorkflowConversationSession } from "./workflow-conversations.ts";
 import type { BeforeSlackDirectPublish } from "../../../connectors/slack/communication.ts";
+
+type ChatInput = Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">> & { attachmentRefs?: readonly AttachmentReference[] };
 
 const DAY = 24 * 60 * 60 * 1000;
 const TOOL_EXECUTION_TIMEOUT_MS = 30_000;
@@ -143,6 +146,7 @@ function resolvedTools(
   visibleGrantIds: ReadonlySet<string>,
   workflowSession?: WorkflowConversationSession,
   builderIntent?: BuilderTurnIntent,
+  attachments?: readonly AttachmentReference[],
 ): ToolSet {
   const selectedRuntime = workflowSession?.runtime ?? runtime;
   const output: ToolSet = {};
@@ -238,7 +242,7 @@ function resolvedTools(
       ),
     });
   }
-  Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId, intent: builderIntent }));
+  Object.assign(output, builderChat.proposalTools({ agent, thread, requester, messageId, intent: builderIntent, attachments }));
   return output;
 }
 
@@ -266,20 +270,35 @@ export async function recoverHostedWorkflowReply(reference: { threadId: string; 
   return result;
 }
 
-async function handleMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>, builderContinuation = false) {
+async function handleMessage(thread: Thread, message: ChatInput, builderContinuation = false) {
   const { workflowSlackMessageTrace } = await import("./workflow-slack-diagnostics.ts");
   const trace = workflowSlackMessageTrace(thread.id, message.id);
   trace.emit("handler-entered");
   try {
+    const member = rosterMember(message.author);
+    if (member && message.attachments?.length && !message.attachmentRefs) {
+      const { agent } = await resolvedAgentForConversation({ threadId: thread.id, requesterPrincipal: principal(member) });
+      const selected = resolveModelExecution({ ...agentModelTask(agent), requiredCapability: "language" });
+      message = { ...message, attachmentRefs: await retainAttachments({ store: state, instanceId: artifact.instance.id,
+        source: thread.id, messageId: message.id, attachments: message.attachments, selection: selected.selection }) };
+      await state.set(`message-attachments:${sha256([artifact.instance.id, message.author.userId, thread.id.split(":")[1], message.id])}`, message.attachmentRefs, 30 * DAY);
+    }
     await processConversationMessage(thread, message, trace, undefined, builderContinuation);
     trace.emit("handler-finished");
-  } catch (error) { trace.emit("handler-failed"); throw error; }
+  } catch (error) {
+    trace.emit("handler-failed");
+    if (error instanceof AttachmentInputError) {
+      if (thread.isDM || message.isMention) await thread.post(error.message);
+      return;
+    }
+    throw error;
+  }
 }
 
 interface CoordinatedTurn { agent: CompiledAgent; session?: WorkflowConversationSession; concern: CheckedConcern; }
 
 /** The Slack adapter only translates verified addresses. Interpretation and state are shared Core. */
-async function coordinateConversation(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
+async function coordinateConversation(thread: Thread, message: ChatInput, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
   const member = rosterMember(message.author);
   if (!member) return false;
   const requester = principal(member);
@@ -290,6 +309,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   if (!channelId || !threadId) throw new Error("Conversation source has no verified thread identity");
   const workingThread = botInstance!.thread(resolveSlackAgentSessionThreadId(thread.id, message.id, slackAgentExperience));
   const incoming = slackConversationMessage(thread, message, { id: requester, name: member.name });
+  incoming.attachmentContext = await conversationAttachments(state, artifact.instance.id, thread.id);
   const ambient = incoming.shared && !incoming.mentioned;
   return withSlackAgentWorking(workingThread, ambient ? { ...slackAgentExperience, enabled: false } : slackAgentExperience, async finishWorking => {
   const scope: ConversationScope = { instanceId: artifact.instance.id, principal: requester, surface: "slack", accountId: entry.assignmentKey.accountId, channelId };
@@ -311,14 +331,15 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   const specialists = (artifact.agentRouting.handoffs ?? []).filter(r => r.fromAgentId === entry.agent.id && r.surfaces.includes("slack")
     && (r.eligibleRoles.includes(member.role) || member.groups?.some(g => r.eligibleGroups.includes(g))))
     .map(r => ({ agentId: r.toAgentId, purpose: r.purpose, description: artifact.agents.find(a => a.id === r.toAgentId)?.description }));
-  const { receipt, modelEvidence } = await interpretConversation({ turn, agent: entry.agent, specialists, signal: thread.signal });
+  const { receipt, modelEvidence } = await interpretConversation({ turn, agent: entry.agent, specialists, signal: thread.signal,
+    attachmentContent: async (text, selection, refs) => agentAttachmentContent({ text, selection, references: [...refs, ...await conversationAttachments(state, artifact.instance.id, thread.id)], store: state, instanceId: artifact.instance.id }) });
   const routeKey = `conversation-dispatch:${sha256({ scope, eventId: turn.input.eventId })}`;
   const replyThread = botInstance!.thread(sourceThread);
   if (!await prepareConversationDelivery({ state, routeKey, eventId: turn.input.eventId,
     now: new Date().toISOString(), ttlMs: 30 * DAY, modelEvidence, subscribe: () => replyThread.subscribe() })) return true;
   if (receipt.plan.participation === "context-only") {
     await state.appendToList(`conversation:${sourceThread}:${entry.agent.id}`, { role: "user", content: message.text,
-      message_id: message.id, principal: requester, sender_name: member.name, sent_at: incoming.sentAt } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
+      message_id: message.id, principal: requester, sender_name: member.name, sent_at: incoming.sentAt, attachments: incoming.attachments } satisfies ConversationEntry, { maxLength: 40, ttlMs: 30 * DAY });
     await state.set(`${routeKey}:complete`, true, 30 * DAY);
     return true;
   }
@@ -363,7 +384,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
       }
       await state.set(`${routeKey}:${index}:status`, { state: "running", workId: concern.work?.id, agentId: concern.agentId, at: new Date().toISOString() }, 30 * DAY);
       try {
-        await processConversationMessage(target, { ...message, id: concern.source.messageId, text: session?.text ?? concern.text }, trace, { agent: selected, session, concern });
+        await processConversationMessage(target, { ...message, id: concern.source.messageId, text: session?.text ?? concern.text, attachments: [], attachmentRefs: [...(concern.source.message?.attachments ?? []), ...(concern.source.message?.attachmentContext ?? [])] }, trace, { agent: selected, session, concern });
         await state.set(`${routeKey}:${index}:complete`, true, 30 * DAY);
         await state.set(`${routeKey}:${index}:status`, { state: "completed", workId: concern.work?.id, agentId: concern.agentId, at: new Date().toISOString() }, 30 * DAY);
       } catch (error) {
@@ -377,7 +398,7 @@ async function coordinateConversation(thread: Thread, message: Pick<Message, "id
   });
 }
 
-async function processConversationMessage(thread: Thread, message: Pick<Message, "id" | "text" | "author" | "metadata"> & Partial<Pick<Message, "attachments" | "isMention">>,
+async function processConversationMessage(thread: Thread, message: ChatInput,
   trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace, coordinated?: CoordinatedTurn, builderContinuation = false) {
   const incomingMember = rosterMember(message.author);
   const incoming = incomingMember ? slackConversationMessage(thread, message, { id: principal(incomingMember), name: incomingMember.name }) : undefined;
@@ -386,6 +407,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
   if (!builderContinuation && !coordinated && !setupVerificationResponse(message.text)) {
     try { if (await coordinateConversation(thread, message, trace)) return; }
     catch (error) {
+      if (error instanceof AttachmentInputError) throw error;
       if (thread.isDM || message.isMention) await thread.post("I could not safely match or process this message. Please try again; your existing work remains available.");
       throw error;
     }
@@ -424,7 +446,10 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       if (received.kind === "closed") workflowNotice = "This workflow conversation is closed. Explain only when addressed; no action is available.";
       if (received.kind === "conversation") {
         workflowSession = received.session;
-        message = { ...message, text: workflowSession.text };
+        message = { ...message, text: workflowSession.text,
+          ...(workflowSession.sourceMessageId && workflowSession.sourceMessageId !== message.id ? {
+            attachmentRefs: await state.get<AttachmentReference[]>(`message-attachments:${sha256([artifact.instance.id, message.author.userId, thread.id.split(":")[1], workflowSession.sourceMessageId])}`) ?? [],
+          } : {}) };
       }
     } catch (error) {
       const reference = sha256(error instanceof Error ? error.message : String(error));
@@ -478,6 +503,8 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     async finishWorking => {
   const historyThreadId = workflowSession ? workflowReplyThreadId(workflowSession) : thread.id;
   const conversationKey = `conversation:${historyThreadId}:${agent.id}`;
+  await state.appendToList(conversationAttachmentKey(artifact.instance.id, historyThreadId), { messageId: message.id, attachments: message.attachmentRefs ?? [] }, { maxLength: 40, ttlMs: 30 * DAY });
+  const sharedAttachments = await conversationAttachments(state, artifact.instance.id, historyThreadId);
   const recordSetupExchange = async (evidence: ModelExecutionEvidence) => {
     if (agent.id !== 'oregano' || agent.toolSet.tools.length !== 0 || !evidence.responseId) return;
     const receipt: SetupExchange = {
@@ -488,7 +515,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     };
     await state.setIfNotExists(setupExchangeKey(artifact.artifactHash, requester), receipt, 30 * DAY);
   };
-  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}`, message_id: message.id, principal: requester, sender_name: member.name, sent_at: message.metadata.dateSent.toISOString(), artifact_hash: artifact.artifactHash } satisfies ConversationEntry, {
+  await state.appendToList(conversationKey, { role: "user", content: `${member.name}: ${message.text}`, message_id: message.id, principal: requester, sender_name: member.name, sent_at: message.metadata.dateSent.toISOString(), artifact_hash: artifact.artifactHash, attachments: message.attachmentRefs } satisfies ConversationEntry, {
     maxLength: 40,
     ttlMs: 30 * DAY,
   });
@@ -537,7 +564,7 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
       return;
     }
   }
-  const tools = withConversationParticipation(workflowNotice ? {} : resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession, builderIntent), participation);
+  const tools = withConversationParticipation(workflowNotice ? {} : resolvedTools(agent, deliveryThread, requester, runId, message.id, conversation, visibleGrantIds, workflowSession, builderIntent, [...sharedAttachments, ...(message.attachmentRefs ?? []), ...history.flatMap(entry => entry.attachments ?? [])]), participation);
   if (coordinated) delete tools.companyos_agent_handoff;
   const modelTask = agentModelTask(agent);
   const resolved = resolveModelExecution({
@@ -545,20 +572,21 @@ async function processConversationMessage(thread: Thread, message: Pick<Message,
     task: modelTask.task,
     requiredCapability: "tools",
   });
-  const attachments = agent.id === "builder" ? await readBuilderImages(message.attachments) : { images: [], notices: [] };
-  if (attachments.notices.length && !participation.ambient) await deliveryThread.post([...new Set(attachments.notices)].join("\n"));
+
   const modelAgent = new ToolLoopAgent({
     id: `${artifact.company}-${agent.id}`,
     model: resolved.model,
-    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...(agent.id === "builder" ? [{ role: "system" as const, content: [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`, ...attachments.notices].join("\n\n") }] : []), ...agentInstructionMessages(agent, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
+    instructions: [{ role: "system" as const, content: CONVERSATION_PARTICIPATION_INSTRUCTIONS + (workflowNotice ? `\nVerified workflow availability: ${workflowNotice}` : "") }, ...(agent.id === "builder" ? [{ role: "system" as const, content: [BUILDER_INTAKE_INSTRUCTIONS, `Current message intent: ${builderIntent?.kind ?? "question"}. Only tools allowed for this intent are exposed.`].join("\n\n") }] : []), ...agentInstructionMessages(agent, Object.keys(tools), workflowSession?.collection?.context, workflowSession?.publishedContext), ...(coordinated?.concern.work ? [{ role: "system" as const, content: `\nSelected work (untrusted reference data): ${JSON.stringify(coordinated.concern.work)}\nThis conversation cannot reopen terminal work. Changes require a new proposal and the ordinary approval path.` }] : [])],
     tools,
     prepareStep: () => participationStep(participation),
     stopWhen: [() => participation.complete, stepCountIs(20), ({ steps }) => !!workflowSession?.collection && hasSubmittedCollection(steps.at(-1)?.toolResults ?? []), ({ steps }) => continuesInBuilder(steps.at(-1)?.toolResults ?? [])],
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
-  const messages: ModelMessage[] = [{ role: "user", content: conversationContext(participation.message, history) }];
-  if (attachments.images.length) messages[messages.length - 1] = { role: "user", content: [{ type: "text", text: conversationContext(participation.message, history) }, ...attachments.images] };
+  const messages: ModelMessage[] = [{ role: "user", content: await agentAttachmentContent({
+    text: conversationContext(participation.message, history), selection: resolved.selection, store: state, instanceId: artifact.instance.id,
+    references: [...sharedAttachments, ...(message.attachmentRefs ?? []), ...history.flatMap(entry => entry.attachments ?? [])],
+  }) }];
   const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);
   if ((!participation.ambient || coordinated) && !tools.companyos_agent_handoff && shouldStreamSlackAgentResponse({
     configuration: slackAgentExperience,

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "reviewedAt": "2026-09-13",
+  "providers": {
+    "openai-direct": {
+      "modelPatterns": [
+        "openai/gpt-5.4*",
+        "openai/gpt-4.1",
+        "openai/gpt-4.1-*",
+        "openai/gpt-4o",
+        "openai/gpt-4o-mini"
+      ],
+      "maxRequestBytes": 512000000,
+      "formats": {
+        "image/png": {
+          "representation": "image"
+        },
+        "image/jpeg": {
+          "representation": "image"
+        },
+        "image/webp": {
+          "representation": "image"
+        },
+        "application/pdf": {
+          "representation": "file",
+          "maxBytes": 49999999
+        },
+        "text/markdown": {
+          "representation": "text"
+        }
+      },
+      "sources": [
+        "https://developers.openai.com/api/docs/guides/file-inputs",
+        "https://developers.openai.com/api/docs/guides/images-vision"
+      ],
+      "representationLimits": {
+        "image": {
+          "maxCount": 1500
+        },
+        "file": {
+          "maxTotalBytes": 50000000
+        }
+      }
+    },
+    "anthropic-direct": {
+      "modelPatterns": [
+        "anthropic/claude-sonnet-4*",
+        "anthropic/claude-opus-4*",
+        "anthropic/claude-haiku-4*"
+      ],
+      "maxRequestBytes": 32000000,
+      "formats": {
+        "image/png": {
+          "representation": "image"
+        },
+        "image/jpeg": {
+          "representation": "image"
+        },
+        "image/webp": {
+          "representation": "image"
+        },
+        "application/pdf": {
+          "representation": "file"
+        },
+        "text/markdown": {
+          "representation": "text"
+        }
+      },
+      "sources": [
+        "https://platform.claude.com/docs/en/build-with-claude/pdf-support",
+        "https://platform.claude.com/docs/en/build-with-claude/vision",
+        "https://platform.claude.com/docs/en/build-with-claude/context-windows"
+      ],
+      "representationLimits": {
+        "image": {
+          "maxCount": 100,
+          "maxEncodedBytesPerFile": 10000000
+        }
+      },
+      "modelOverrides": [
+        {
+          "modelPatterns": [
+            "anthropic/claude-sonnet-4-6*",
+            "anthropic/claude-sonnet-4.6*",
+            "anthropic/claude-opus-4-6*",
+            "anthropic/claude-opus-4.6*",
+            "anthropic/claude-opus-4-7*",
+            "anthropic/claude-opus-4.7*",
+            "anthropic/claude-opus-4-8*",
+            "anthropic/claude-opus-4.8*"
+          ],
+          "representationLimits": {
+            "image": {
+              "maxCount": 600,
+              "maxEncodedBytesPerFile": 10000000
+            }
+          }
+        }
+      ]
+    }
+  }
+}

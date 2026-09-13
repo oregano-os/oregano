@@ -49,3 +49,17 @@ test("model failures and invalid outputs never produce a successful substitute",
     await assert.rejects(connector.invoke("language.generate", input, context));
   }
 });
+
+test("inline attachment evidence remains separate from the Skill and receives payload-free digest evidence", async () => {
+  const { prepareAttachments } = await import("../../runtime/attachments.ts");
+  const { attachmentPolicy } = await import("../../runner/attachment-policy.ts");
+  const attachments = await prepareAttachments([{ name: "brief.md", data: Buffer.from("# Untrusted reference") }], attachmentPolicy({ route: "openai-direct", model: "openai/gpt-5.4-nano" }));
+  const connector = new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path }], generate: async request => {
+    assert.deepEqual(request.attachments, attachments); assert.equal(request.data, JSON.stringify(input.data));
+    return { text: "The attached evidence was considered.", evidence: {} };
+  } });
+  const result = await connector.invoke("language.generate", { ...input, attachments }, context);
+  assert.deepEqual(result.evidence.attachment_digests, attachments.map(file => file.digest));
+  assert.ok(!JSON.stringify(result.evidence).includes(attachments[0].data));
+  await assert.rejects(connector.invoke("language.generate", { ...input, attachments: [{ url: "https://example.invalid/file" }] }, context), /Invalid/);
+});

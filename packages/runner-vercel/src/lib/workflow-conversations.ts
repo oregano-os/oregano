@@ -30,6 +30,7 @@ export interface WorkflowConversationSession {
   stepId: string;
   allowedTools: readonly string[];
   text: string;
+  sourceMessageId?: string;
   publishedContext?: PublishedConversationContext["evidence"];
   collection?: { schema: ReturnType<typeof collectionSchema>; context: JsonValue; submit: (output: JsonValue) => Promise<unknown> };
 }
@@ -154,7 +155,7 @@ export class WorkflowConversationHost {
       if (selected.kind === "already-selected") return { kind: "routing", text: `Your original answer has already been assigned to the ${link}. Continue there.` };
       const result = await this.receive({ threadId: `slack:${selected.target.channelId}:${selected.target.threadId}`, messageId: selected.request.source.messageId, authorId: args.authorId }, true);
       if (result.kind !== "conversation" || !result.session.collection || result.session.runId !== selected.target.runId || result.session.stepId !== selected.target.collectionStepId || result.session.artifact.artifactHash !== selected.target.artifactHash) return { kind: "routing", text: `That question is no longer waiting for an answer. Please continue in the ${link}.` };
-      return result;
+      return { ...result, session: { ...result.session, sourceMessageId: selected.request.source.messageId } };
     });
   }
 
@@ -298,7 +299,7 @@ export class WorkflowConversationHost {
           roster: this.#args.roster, clock: () => this.#args.clock?.() ?? new Date().toISOString() }) });
       const published = await this.#published().read(qualifiedConversation, principal);
       return { kind: "conversation", session: { artifact: pinned, agent, runtime, principal, member, conversation, runId: run.runId, stepId: step.id,
-        allowedTools: run.state.status === "waiting" ? step.conversationalTools : [], text: reply.text,
+        allowedTools: run.state.status === "waiting" ? step.conversationalTools : [], text: reply.text, sourceMessageId: args.messageId,
         ...(published ? { publishedContext: published.evidence } : {}),
         ...(step.collect && run.state.status === "waiting" && !run.state.blocked ? { collection: {
           schema: collectionSchema(step.collect.fields), context: resolveWorkflowValue(step.collect.context, workflow, workflowContext(run, roster)),

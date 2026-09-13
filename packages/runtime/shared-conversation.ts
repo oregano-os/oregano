@@ -57,7 +57,7 @@ export const EMPTY_ATTENTION = (): ConversationAttention => ({ revision: 0, focu
 export const conversationScopeKey = (scope: ConversationScope) => `conversation-attention:${sha256(scope)}`;
 export const conversationReceiptKey = (scope: ConversationScope, eventId: string) => `conversation-route:${sha256({ scope, eventId })}`;
 // Adding transport participation facts must not invalidate receipts from before adoption.
-const inputDigest = (input: ConversationInput) => { const { message: _facts, ...original } = input; return sha256(original); };
+const inputDigest = (input: ConversationInput) => { const { message: _facts, ...original } = input; return sha256({ ...original, ...(input.message?.attachments?.length ? { attachments: input.message.attachments } : {}) }); };
 const sameAddress = (a: ConversationAddress, b: ConversationAddress) => a.surface === b.surface && a.accountId === b.accountId && a.channelId === b.channelId && a.threadId === b.threadId;
 const compactWork = (work: WorkContext) => ({ id: work.id, kind: work.kind, agentId: work.agentId, title: work.title.slice(0, 250),
   status: work.status, version: work.version, address: work.address, summary: work.summary.slice(0, 1500), terminal: work.terminal });
@@ -90,7 +90,7 @@ export class SharedConversationTurn {
     coordinatorId: string; now: string;
     authorize: (agentId: string, purpose: string) => Promise<{ ruleId: string; expiresAt: string }>;
   }): Promise<SharedConversationTurn> {
-    if (!args.input.text.trim() || args.input.text.length > 16000 || !args.input.eventId || !Number.isFinite(Date.parse(args.now))) throw new Error("Invalid conversation input");
+    if ((!args.input.text.trim() && !args.input.message?.attachments?.length) || args.input.text.length > 16000 || !args.input.eventId || !Number.isFinite(Date.parse(args.now))) throw new Error("Invalid conversation input");
     const a = args.input.address, s = args.scope;
     if (args.input.message && (args.input.message.id !== args.input.messageId || args.input.message.senderId !== s.principal
       || args.input.message.text !== args.input.text)) throw new Error("Participation identity does not match the verified conversation input");
@@ -122,7 +122,7 @@ export class SharedConversationTurn {
       const work = await this.#read(id); if (work) { this.#seen.set(id, structuredClone(work)); this.#seen.set(work.id, structuredClone(work)); }
     }
     return { current: current && compactWork(current), focus: [...this.#seen.values()].map(compactWork),
-      pending: pending.map(p => ({ messageId: p.source.messageId, text: p.source.text.slice(0, 4000), truncated: p.source.text.length > 4000, question: p.question, candidates: p.candidates })),
+      pending: pending.map(p => ({ messageId: p.source.messageId, text: p.source.text.slice(0, 4000), truncated: p.source.text.length > 4000, attachments: [...(p.source.message?.attachments ?? []), ...(p.source.message?.attachmentContext ?? [])], question: p.question, candidates: p.candidates })),
       conversation: boundedConversationHistory(await this.#args.source.history?.(this.scope, this.input.address, current?.agentId ?? this.#args.coordinatorId) ?? [], 12000),
       recent: this.attention.recent.slice(-8), limits: { searchPage: 6, reads: 8, concerns: 3 } };
   }
@@ -180,7 +180,7 @@ export class SharedConversationTurn {
       // Single-target routing never trusts a model-authored copy, even if a
       // model using the older schema still supplies one.
       const text = plan.routes.length === 1 ? source.text : route.text!;
-      if (!text.trim() || (plan.routes.length > 1 && !source.text.includes(text))) throw new Error("A routed answer must be an exact excerpt of the verified source");
+      if ((!text.trim() && !source.message?.attachments?.length) || (plan.routes.length > 1 && !source.text.includes(text))) throw new Error("A routed answer must be an exact excerpt of the verified source");
       if (route.workId && (route.newDiscussion || route.agentId)) throw new Error("Existing work cannot change owner through routing");
       let work: WorkContext | undefined, delegation: CheckedConcern["delegation"];
       if (route.workId) {

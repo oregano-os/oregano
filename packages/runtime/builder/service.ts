@@ -1,3 +1,4 @@
+import type { PreparedAttachment } from "../attachments.ts";
 import { createHash } from "node:crypto";
 import { assertGroundedBuilderBrief, type GroundedBuilderBrief } from "./brief.ts";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -32,6 +33,7 @@ export interface ConfirmedBuilderProposal {
   readonly requesterPrincipal: string;
   readonly sourceConversationKey: string;
   readonly sourceMessageId?: string;
+  readonly attachments?: readonly PreparedAttachment[];
   readonly objective: string;
   readonly brief?: GroundedBuilderBrief;
   readonly repositoryId: string;
@@ -160,6 +162,7 @@ export class BuilderService {
           operation: {
             requestId: job.requestId,
             prompt: builderCodingPrompt(job),
+            ...(job.attachments?.length ? { attachments: job.attachments } : {}),
           },
           codingAgent: {
             profileId: job.codingAgent.profileId,
@@ -352,6 +355,7 @@ export function builderJobInputForConfirmedProposal(
     requesterPrincipal: request.requesterPrincipal,
     agentId: "builder",
     sourceConversationKey: request.sourceConversationKey,
+    ...(request.attachments?.length ? { attachments: request.attachments } : {}),
     ...(request.sourceMessageId ? { sourceMessageId: request.sourceMessageId } : {}),
     objective: request.objective,
     ...(request.brief ? { brief: request.brief } : {}),

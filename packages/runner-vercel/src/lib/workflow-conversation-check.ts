@@ -1,3 +1,5 @@
+import { attachmentParts, validatePreparedAttachments, type PreparedAttachment } from "../../../runtime/attachments.ts";
+import { attachmentPolicy } from "../../../runner/attachment-policy.ts";
 import { ToolLoopAgent, jsonSchema, stepCountIs, tool } from "ai";
 import type { CompanyOSArtifact } from "../../../companyos-builder/types.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
@@ -11,7 +13,7 @@ export interface ConversationCheck {
   workflowId: string;
   stepId: string;
   context: Record<string, unknown>;
-  messages: Array<{ role: "user" | "assistant"; content: string }>;
+  messages: Array<{ role: "user" | "assistant"; content: string; attachments?: PreparedAttachment[] }>;
 }
 
 export function parseConversationCheck(value: Record<string, unknown>): ConversationCheck {
@@ -21,7 +23,8 @@ export function parseConversationCheck(value: Record<string, unknown>): Conversa
     || !value.context || typeof value.context !== "object" || Array.isArray(value.context)
     || !Array.isArray(value.messages) || value.messages.length < 1 || value.messages.length > 10
     || value.messages.some((message) => !message || typeof message !== "object" || Array.isArray(message)
-      || Object.keys(message).some((key) => !["role", "content"].includes(key))
+      || Object.keys(message).some((key) => !["role", "content", "attachments"].includes(key))
+      || (message.attachments !== undefined && (!Array.isArray(message.attachments) || message.role !== "user"))
       || !["user", "assistant"].includes(message.role) || typeof message.content !== "string"
       || !message.content.trim() || message.content.length > 8000)
     || value.messages.at(-1)?.role !== "user") throw new Error("Invalid bounded conversation check");
@@ -56,7 +59,13 @@ export async function checkWorkflowConversation(artifact: CompanyOSArtifact, inp
   const instructions = agentInstructions(agent, Object.keys(tools), input.context);
   const modelAgent = new ToolLoopAgent({ id: "companyos-conversation-check", model: resolved.model,
     instructions, tools, stopWhen: stepCountIs(3), maxOutputTokens: Math.min(resolved.selection.maxOutputTokens ?? 4096, 8192), maxRetries: 0 });
-  const result = await modelAgent.generate({ messages: input.messages,
+  const files = input.messages.flatMap(message => message.attachments ?? []);
+  const policy = files.length ? attachmentPolicy(resolved.selection) : undefined;
+  if (policy) validatePreparedAttachments(files, policy);
+  const messages = input.messages.map(message => message.role === "user" && message.attachments?.length
+    ? { role: "user" as const, content: [{ type: "text" as const, text: message.content }, ...attachmentParts(message.attachments, policy!)] }
+    : { role: message.role, content: message.content });
+  const result = await modelAgent.generate({ messages,
     abortSignal: AbortSignal.timeout(Math.min(resolved.selection.timeoutMs ?? 90_000, 90_000)) });
   return { ok: true, evaluationOnly: true, artifactHash: artifact.artifactHash, agentId: agent.id,
     workflowId: input.workflowId, stepId: input.stepId, promptHash: sha256(instructions), inputHash: sha256(input),

@@ -1,7 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
 
+import { builderAttachmentContent } from "../../runtime/builder/attachments.ts";
+import { CORE_ATTACHMENT_POLICIES } from "../../runner/attachment-policy.ts";
 import { existsSync } from "node:fs";
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rename, writeFile, rm, mkdir } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -31,11 +33,18 @@ const executable = existsSync(localExecutable)
   : resolve(repositoryRoot, "node_modules", ".bin", profile.binaryName);
 const environment = workerEnvironment(profile.id);
 
+let attachmentDirectory: string | undefined;
 try {
+  if (request.attachments?.length) {
+    await mkdir("/vercel/sandbox/core/.attachment-inputs", { recursive: true, mode: 0o700 });
+    attachmentDirectory = await mkdtemp("/vercel/sandbox/core/.attachment-inputs/request-");
+  }
+  const referenceContent = attachmentDirectory ? await builderAttachmentContent(request.attachments!, CORE_ATTACHMENT_POLICIES.providers[profile.attachmentRoute], attachmentDirectory, request.prompt) : [];
   const evidence = await runBuilderAcp({
     launch: { profile, executable },
     cwd: request.workspacePath,
     prompt: request.prompt,
+    referenceContent,
     timeoutMs: request.timeoutMs,
     environment,
     permissionPolicy: createBuilderAcpPermissionPolicy(profile, request.workspacePath, {
@@ -63,8 +72,10 @@ try {
   // runBuilderAcp has already stopped the ACP child process tree. Exit
   // explicitly after flushing the terminal receipt so SDK-owned handles cannot
   // keep an otherwise completed detached Sandbox command alive until timeout.
+  if (attachmentDirectory) await rm(attachmentDirectory, { recursive: true, force: true });
   process.exit(0);
 } catch (error) {
+  if (attachmentDirectory) await rm(attachmentDirectory, { recursive: true, force: true });
   await writeResult({
     schemaVersion: 1,
     jobId: request.jobId,

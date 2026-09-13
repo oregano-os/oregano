@@ -1,3 +1,4 @@
+import type { PreparedAttachment } from "../runtime/attachments.ts";
 import type { CapabilityCallContext, Connector } from "../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../companyos-builder/types.ts";
 import type { LanguageGenerator } from "../language/contracts.ts";
@@ -39,16 +40,16 @@ export class LanguageModelConnector implements Connector {
     if (capability !== "language.generate" || context.instanceId !== this.#artifact.instance.id
       || context.subject?.status !== "active") throw new Error("Generation requires an active subject in the bound Instance");
     if (validateJsonSchemaValue(LANGUAGE_GENERATE_INPUT, raw).length) throw new Error("Invalid bounded language generation input");
-    const input = raw as { prompt_path: string; data: Record<string, unknown> };
+    const input = raw as { prompt_path: string; data: Record<string, unknown>; attachments?: PreparedAttachment[] };
     const prompt = this.#prompts.get(JSON.stringify([context.agentId, input.prompt_path]));
     if (!prompt) throw new Error("Generation prompt is not bound for this Agent");
     const data = JSON.stringify(input.data);
     if (data.length > 150_000) throw new Error("Generation evidence exceeds its bound; narrow the reviewed data selection");
-    const result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask });
+    const result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask, ...(input.attachments?.length ? { attachments: input.attachments } : {}) });
     const output = { text: result.text };
     if (validateJsonSchemaValue(LANGUAGE_GENERATE_OUTPUT, output).length || !result.text.trim()) throw new Error("Generation returned no bounded text");
     return { output, evidence: { ...result.evidence, prompt_path: input.prompt_path, prompt_digest: sha256(prompt.instructions),
-      context_digest: sha256(input.data), output_digest: sha256(output), agent_id: context.agentId,
+      context_digest: sha256(input.data), ...(input.attachments?.length ? { attachment_digests: input.attachments.map(file => file.digest) } : {}), output_digest: sha256(output), agent_id: context.agentId,
       artifact_hash: this.#artifact.artifactHash, workspace_commit: this.#artifact.provenance.workspaceCommit } };
   }
 }

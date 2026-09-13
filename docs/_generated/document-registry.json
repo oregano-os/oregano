@@ -560,7 +560,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-08",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -972,6 +972,19 @@
         "status.current"
       ]
     }
+  },
+  {
+    "document_id": "operations.agent-attachments",
+    "title": "Agent attachments and provider policies",
+    "path": "docs/operations/agent-attachments.md",
+    "kind": "operations",
+    "status": "approved",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-13",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {}
   },
   {
     "document_id": "operations.core-0-12-adoption",
@@ -1531,7 +1544,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {}

@@ -356,6 +356,7 @@ export class VercelSandboxBuilderExecutionAdapter implements BuilderExecutionAda
             profileId: profile.id,
             workspacePath: WORKSPACE_PATH,
             prompt: request.operation.prompt,
+            ...(request.operation.attachments?.length ? { attachments: request.operation.attachments } : {}),
             timeoutMs: request.limits.timeoutMs - 10_000,
             _executionRequest: request,
           }),

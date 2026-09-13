@@ -1,3 +1,4 @@
+import { withAttachmentLimits, attachmentPolicyFetch } from "./attachment-middleware.ts";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -57,26 +58,26 @@ export function resolveModelExecution(input: ModelEnvironment | ModelExecutionCo
   if (selectedRecipe.credentialRequired && selection.credentialRef && !credential) throw new Error(`Missing required runtime secret: ${selection.credentialRef}.`);
   const modelId = providerModelId(selection);
   if (selectedRecipe.transport === "anthropic-messages") {
-    return { selection, model: withPromptCaching(createAnthropic({ apiKey: credential })(modelId), selection) };
+    return { selection, model: withAttachmentLimits(withPromptCaching(createAnthropic({ apiKey: credential, fetch: attachmentPolicyFetch(selection) })(modelId), selection), selection) };
   }
   if (selectedRecipe.transport === "openai-responses") {
-    return { selection, model: createOpenAI({ apiKey: credential })(modelId) };
+    return { selection, model: withAttachmentLimits(createOpenAI({ apiKey: credential, fetch: attachmentPolicyFetch(selection) })(modelId), selection) };
   }
   if (selectedRecipe.transport === "google-generative-ai") {
-    return { selection, model: createGoogleGenerativeAI({ apiKey: credential })(modelId) };
+    return { selection, model: withAttachmentLimits(createGoogleGenerativeAI({ apiKey: credential })(modelId), selection) };
   }
   if (selectedRecipe.transport === "openai-compatible") {
     const baseURL = (selection.baseUrlRef ? environment[selection.baseUrlRef] : undefined) ?? selectedRecipe.defaultBaseUrl;
     if (!baseURL) throw new Error(`Missing required runtime setting: ${selection.baseUrlRef ?? "model provider base URL"}.`);
     return {
       selection,
-      model: createOpenAICompatible({
+      model: withAttachmentLimits(createOpenAICompatible({
         name: `companyos-${selectedRecipe.provider}`,
         baseURL,
         apiKey: credential,
         headers: compatibleHeaders(selection, environment),
         supportsStructuredOutputs: selectedRecipe.capabilities.includes("structured-output"),
-      })(modelId),
+      })(modelId), selection),
     };
   }
   throw new Error(`Model recipe '${selection.route}' has no language-model executor.`);
