@@ -492,6 +492,33 @@ export class MondayClient {
     };
   }
 
+  /** Current root comments only, scoped on every page; no event-history claim. */
+  async readWorkItemComments(binding: MondayResourceBinding, workItemId: string): Promise<{
+    data: NonNullable<MondayWorkItem["comments"]>; requestIds: string[];
+  }> {
+    const items: Array<{ id: string; body: string }> = [], requestIds: string[] = [], seen = new Set<string>();
+    let size = 0;
+    for (let page = 1; page <= 10; page++) {
+      const response = await this.graphql<{ items: Array<{ id: string; board: { id: string };
+        updates: Array<{ id: string; item_id: string; body: string }> }> }>(`query ReadWorkItemComments($ids: [ID!]!, $page: Int!) {
+        items(ids: $ids) { id board { id } updates(limit: 100, page: $page) { id item_id body } }
+      }`, { ids: [workItemId], page });
+      if (response.requestId) requestIds.push(response.requestId);
+      const item = response.data.items?.[0];
+      if (response.data.items?.length !== 1 || String(item?.id) !== workItemId || String(item?.board?.id) !== binding.boardId) throw new Error("Comment read escaped its exact work-item resource");
+      if (!Array.isArray(item.updates) || item.updates.length > 100) throw new Error("Invalid current-comment page");
+      for (const update of item.updates) {
+        if (!update || !update.id || String(update.item_id) !== workItemId || typeof update.body !== "string") throw new Error("Invalid current-comment identity or body");
+        const id = String(update.id);
+        if (seen.has(id)) throw new Error("Current comments changed during pagination; read again");
+        if (size + update.body.length > 120_000) return { data: { items, complete: false }, requestIds };
+        seen.add(id); size += update.body.length; items.push({ id, body: update.body });
+      }
+      if (item.updates.length < 100) return { data: { items, complete: true }, requestIds };
+    }
+    return { data: { items, complete: false }, requestIds };
+  }
+
   async updateWorkItem(binding: MondayResourceBinding, workItemId: string, changes: Record<string, JsonValue>): Promise<MondayGraphqlResponse<{ id: string }>> {
     if (binding.permission !== "read-write") throw new Error(`Monday resource binding '${binding.id}' is read-only`);
     const providerChanges: Record<string, JsonValue> = {};

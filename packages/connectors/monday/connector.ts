@@ -42,7 +42,7 @@ export class MondayWorkItemConnector implements Connector {
     try {
       const workItemId = String(value.work_item_id);
       const result = capability === "work-item.batch-update" ? await this.batchUpdate(binding, value, context)
-        : capability === "work-item.read" ? await this.read(binding, workItemId, value.fields)
+        : capability === "work-item.read" ? await this.read(binding, workItemId, value.fields, value.include_comments)
           : capability === "work-item.update" ? await this.update(binding, workItemId, value, context)
             : await this.comment(binding, workItemId, String(value.body), context);
       return qualification ? { ...result, evidence: { ...result.evidence, credential_qualification: qualification } } : result;
@@ -55,11 +55,14 @@ export class MondayWorkItemConnector implements Connector {
     }
   }
 
-  private async read(binding: MondayResourceBinding, workItemId: string, fields?: unknown): Promise<CapabilityResult> {
+  private async read(binding: MondayResourceBinding, workItemId: string, fields?: unknown, includeComments?: unknown): Promise<CapabilityResult> {
+    if (includeComments !== undefined && typeof includeComments !== "boolean") throw new Error("include_comments must be boolean");
     const result = await this.client.readWorkItem(binding, workItemId, Array.isArray(fields) ? fields.map(String) : undefined);
+    const comments = includeComments ? await this.client.readWorkItemComments(binding, workItemId) : undefined;
     return {
-      output: { work_item: result.data, provider_version: result.data.providerVersion, observed_at: this.now().toISOString() },
-      evidence: { resource_binding: binding.id, work_item_id: workItemId, provider_version: result.data.providerVersion, observed_at: this.now().toISOString(), api_version: result.apiVersion, request_id: result.requestId },
+      output: { work_item: { ...result.data, ...(comments ? { comments: comments.data } : {}) }, provider_version: result.data.providerVersion, observed_at: this.now().toISOString() },
+      evidence: { resource_binding: binding.id, work_item_id: workItemId, provider_version: result.data.providerVersion, observed_at: this.now().toISOString(), api_version: result.apiVersion, request_id: result.requestId,
+        ...(comments ? { comment_request_ids: comments.requestIds, comments_complete: comments.data.complete } : {}) },
     };
   }
 

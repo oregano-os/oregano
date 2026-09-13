@@ -14,6 +14,7 @@ export interface MondayWorkItem {
   groupId: string;
   providerVersion: string;
   fields: Record<string, JsonValue>;
+  comments?: { items: Array<{ id: string; body: string }>; complete: boolean };
 }
 
 export interface MondayGraphqlResponse<T> {
