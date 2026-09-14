@@ -63,3 +63,36 @@ test("inline attachment evidence remains separate from the Skill and receives pa
   assert.ok(!JSON.stringify(result.evidence).includes(attachments[0].data));
   await assert.rejects(connector.invoke("language.generate", { ...input, attachments: [{ url: "https://example.invalid/file" }] }, context), /Invalid/);
 });
+
+test("reviewed phase bindings freeze task, profile and measured capacity independently of evidence", async () => {
+  const frozen = artifact(); frozen.agents[0]!.materials[path] = "😀".repeat(9_000);
+  const binding = { agent_id: "analyst", path, model_task: "document.extract", model_profile: "deep" as const, max_instruction_characters: 18_000 };
+  let calls = 0;
+  assert.throws(() => new LanguageModelConnector({ artifact: frozen, prompts: [{ agent_id: "analyst", path }], generate: async () => { throw new Error(); } }), /exceeds/);
+  const connector = new LanguageModelConnector({ artifact: frozen, prompts: [binding], generate: async request => {
+    calls++; assert.equal(request.instructions.length, 18_000);
+    assert.equal(request.modelTask, "document.extract"); assert.equal(request.modelProfile, "deep");
+    return { text: "Bound output", evidence: {} };
+  } });
+  binding.model_task = "changed.after.binding";
+  const result = await connector.invoke("language.generate", { ...input, data: { model_task: "attacker.task", model_profile: "utility", max_instruction_characters: 1_000_000 } }, context);
+  assert.equal(result.evidence.model_task, "document.extract"); assert.equal(result.evidence.model_profile, "deep");
+  assert.match(String(result.evidence.binding_digest), /^[a-f0-9]{64}$/);
+  for (const override of [{ model_task: "caller.task" }, { model_profile: "deep" }, { max_instruction_characters: 24_000 }]) {
+    await assert.rejects(connector.invoke("language.generate", { ...input, ...override }, context), /Invalid/);
+  }
+  assert.equal(calls, 1);
+});
+
+test("invalid or partial phase bindings and instruction capacities fail before generation", () => {
+  const generate = async () => { throw new Error("Must never run"); };
+  const invalid = [{ model_task: "phase.test" }, { model_profile: "deep" },
+    { model_task: "phase.test", model_profile: "embedding" }, { model_task: "Not a task", model_profile: "utility" },
+    ...[null, "18000", 0, 24_001, 1.5, Infinity, undefined].map(max_instruction_characters => ({ max_instruction_characters }))];
+  for (const extra of invalid) assert.throws(() => new LanguageModelConnector({ artifact: artifact(),
+    prompts: [{ agent_id: "analyst", path, ...extra }] as never, generate }));
+  const noTask = artifact(); delete noTask.agents[0]!.modelTask;
+  assert.throws(() => new LanguageModelConnector({ artifact: noTask, prompts: [{ agent_id: "analyst", path }], generate }), /explicit/);
+  assert.doesNotThrow(() => new LanguageModelConnector({ artifact: noTask,
+    prompts: [{ agent_id: "analyst", path, model_task: "document.extract", model_profile: "reasoning" }], generate }));
+});

@@ -43,7 +43,10 @@ assess supplied evidence. Put the prompt in a Skill Markdown file within the
 owning Agent's read scope. Grant the capability in `TOOL.md` and a Workspace
 connection, then bind it in the Instance to `oregano/language-model` version
 `1.0.0`. That Connector accepts an explicit list of `prompts`, each containing
-`agent_id` and `path`; a different Agent or unlisted path is rejected.
+`agent_id` and `path`; a different Agent or unlisted path is rejected. An
+Instance may additionally bind `model_task` and `model_profile` together for
+a reviewed phase. Supported profiles are `agent`, `utility`, `reasoning` and
+`deep`. These fields belong to the trusted binding, never the Tool input.
 
 ```typescript
 const result = await context.capabilities.call("language.generate", {
@@ -60,17 +63,22 @@ and combined size/count limits before invocation. See
 [Agent attachment policies](../../operations/agent-attachments.md).
 
 The frozen Skill supplies instructions. `data` contains evidence, not additional
-instructions. The Connector uses the owning Agent's configured model task;
+instructions. The Connector uses the owning Agent's configured model task
+and `agent` profile unless an explicit phase task/profile pair is bound;
 the caller cannot select another model, provider or arbitrary prompt. The model
 receives no Tools. Validate the returned `text` before a later workflow step
 publishes or otherwise uses it. A failed call stops the Tool; do not invent a
 successful result. Formatting checks do not prove factual accuracy.
 
-Keep the Skill under 16,000 characters and serialized evidence under 150,000.
+The Skill defaults to at most 16,000 JavaScript string units. A reviewed
+binding can set `max_instruction_characters` to a positive integer up to
+24,000, based on measured complete instructions and model qualification.
+Unchanged bindings retain the 16,000 default. Serialized evidence remains
+bounded at 150,000 string units; linked instruction files are not loaded.
 Select only the evidence needed for the task. Runtime permits up to 65 seconds
 for Tools declaring this capability; a configured shorter Tool timeout wins.
 The host adapter may impose tighter model limits. Successful calls record the
-model response evidence and prompt, data and output digests. Workflows retain
+model response evidence and binding, prompt, data and output digests. Workflows retain
 completed Tool results for resume; uncertain model calls may need another paid
 attempt, while downstream effects retain their ordinary idempotency rules.
 

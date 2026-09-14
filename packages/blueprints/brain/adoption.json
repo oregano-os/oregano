@@ -1,0 +1,976 @@
+{
+  "version": 1,
+  "upstream": {
+    "repository": "garrytan/gbrain",
+    "commit": "a6be012a3bcfac42e279630aedec5cda4a450e29"
+  },
+  "files": [
+    {
+      "path": "skills/_brain-filing-rules.md",
+      "sha256": "23f5d08d705eb975b69611dbfbe878b7e4f3d0eec2470a52160372df8b462ad1",
+      "git_blob": "c323eb350e4525f2829681cbe1ff3dbb5ac07ef0",
+      "line_count": 203,
+      "excluded_ranges": [
+        [
+          25,
+          53
+        ],
+        [
+          93,
+          161
+        ]
+      ],
+      "exclusion_reason": "Personalized synthesis, raw-file upload/storage and dream/consolidation machinery are outside the adopted file and Records contracts."
+    },
+    {
+      "path": "skills/two-tier-extraction/SKILL.md",
+      "sha256": "b1cf8000cb587a0f3dc9d17f42c83f9a038a7be8065ee628c81e75a3e597d043",
+      "git_blob": "bf7aca12511d590b4b6209435b1342a5fb0c404c",
+      "line_count": 390,
+      "excluded_ranges": [
+        [
+          1,
+          131
+        ],
+        [
+          155,
+          180
+        ],
+        [
+          184,
+          184
+        ],
+        [
+          237,
+          262
+        ],
+        [
+          266,
+          280
+        ],
+        [
+          283,
+          390
+        ]
+      ],
+      "exclusion_reason": "Personal Privacy Wall, additional media/providers, duplicate gate instructions, illustrative cost promises, upstream progress/configuration machinery and unrelated Skill delegation are excluded; adopted routing is reviewed workflow configuration."
+    },
+    {
+      "path": "skills/ingest/SKILL.md",
+      "sha256": "dc40ecc0072806fb8c7bb6ab9cf1f103842e05653eb55d67632d7e3ffc4dd7d2",
+      "git_blob": "78d49e20858024fada46ec9482d6db89638852d1",
+      "line_count": 311,
+      "excluded_ranges": [
+        [
+          1,
+          30
+        ],
+        [
+          112,
+          264
+        ],
+        [
+          302,
+          311
+        ]
+      ],
+      "exclusion_reason": "Upstream trigger/tool metadata, additional providers/media, raw-file storage, duplicate bulk advice and unsupported Tool inventory are replaced by the scoped Oregano procedure and existing Records/workflow machinery."
+    },
+    {
+      "path": "skills/meeting-ingestion/SKILL.md",
+      "sha256": "949a491b98e7dabe51e3d1640f49a7dbfacb543703d22619a1aed36611eb383b",
+      "git_blob": "686ee16ec4f6139aa0c12f4063ffa26b7d4ae35f",
+      "line_count": 497,
+      "excluded_ranges": [
+        [
+          1,
+          53
+        ],
+        [
+          80,
+          80
+        ],
+        [
+          125,
+          135
+        ],
+        [
+          142,
+          146
+        ],
+        [
+          338,
+          345
+        ],
+        [
+          445,
+          445
+        ]
+      ],
+      "exclusion_reason": "Upstream trigger/tool metadata, capture entrypoint, raw-sidecar privacy/storage, extra signal-detector invocation and CLI sync are outside the adopted Records/Brain operation contract."
+    },
+    {
+      "path": "skills/enrich/SKILL.md",
+      "sha256": "9988168348f6c3391d3aeec6621f9c99c8d75d1e1bfdd6c44d48e4c1067ab775",
+      "git_blob": "5237f7f798907b4a2d8b18d0476440dd8283f80a",
+      "line_count": 349,
+      "excluded_ranges": [
+        [
+          1,
+          32
+        ],
+        [
+          77,
+          88
+        ],
+        [
+          114,
+          162
+        ],
+        [
+          181,
+          270
+        ],
+        [
+          275,
+          311
+        ],
+        [
+          318,
+          349
+        ]
+      ],
+      "exclusion_reason": "External APIs, raw-data storage, personal dossier templates, auto-link response fields, separate bulk/report machinery and unsupported Tool inventory are excluded; Workspace templates and existing processing outcomes apply."
+    },
+    {
+      "path": "skills/conventions/brain-first.md",
+      "sha256": "d9b18321150830d38586f5bd23ce9de735f08ac3b54d7ac63bc3184a61e17ef1",
+      "git_blob": "eecda4b95de71c1609c8fcf3e58da46bfca6d7f8",
+      "line_count": 133,
+      "excluded_ranges": [
+        [
+          4,
+          28
+        ],
+        [
+          47,
+          53
+        ],
+        [
+          59,
+          61
+        ],
+        [
+          67,
+          80
+        ],
+        [
+          83,
+          133
+        ]
+      ],
+      "exclusion_reason": "Unavailable hybrid/expansion/tools, external enrichment, fixed company vocabulary, extra subagent and exemption/doctor machinery are excluded; supported lookup routing is explicitly adapted."
+    },
+    {
+      "path": "skills/conventions/quality.md",
+      "sha256": "8aa681001114689d34268ccadaf0e2ff07b8f68aa5987c093a8c4a7a744f12a6",
+      "git_blob": "5845cb4c95e0d2a588408806b0221431e015731c",
+      "line_count": 40,
+      "excluded_ranges": [],
+      "exclusion_reason": "No omitted lines."
+    },
+    {
+      "path": "skills/conventions/untrusted-content.md",
+      "sha256": "259384d490892cd0e1e8e054decf752d7354f516c83aee57b332c1a96aac6a6e",
+      "git_blob": "748ef56c843a18a1e4fcfd4727eeb13c13f521c5",
+      "line_count": 48,
+      "excluded_ranges": [],
+      "exclusion_reason": "No omitted lines."
+    },
+    {
+      "path": "skills/conventions/test-before-bulk.md",
+      "sha256": "6b2c52cda9e2cd5f04c15152b3d92aeb7187ab193a15082be0f8a3991a6a5725",
+      "git_blob": "048def4946c7e20977ed017cbd95ecaa29b06ce5",
+      "line_count": 136,
+      "excluded_ranges": [
+        [
+          31,
+          136
+        ]
+      ],
+      "exclusion_reason": "The separate progressive ramp and GBrain pacing/embedding platform are excluded; the adopted small real sample and existing bounded resumable workflow provide the accepted checks."
+    },
+    {
+      "path": "skills/conventions/model-routing.md",
+      "sha256": "c1aba7a5c34454d6913edadb52ec7b53a3741f318c47fab6a26d5214479a8532",
+      "git_blob": "16c6efdcff2a40656782a69379b74f8cf7bdc80b",
+      "line_count": 119,
+      "excluded_ranges": [
+        [
+          19,
+          119
+        ]
+      ],
+      "exclusion_reason": "Upstream provider defaults, personal precedence/configuration and all subagent/provider-switching rules are excluded in favor of existing Oregano Model Recipes."
+    }
+  ],
+  "sections": [
+    {
+      "id": "filing",
+      "source": "skills/_brain-filing-rules.md",
+      "ranges": [
+        [
+          1,
+          24
+        ],
+        [
+          54,
+          92
+        ],
+        [
+          162,
+          203
+        ]
+      ],
+      "source_excerpt_sha256": "fe76c748ff5d6f7326ba709c0ea2d040d36e42999af3431cad9342a018d5d5da",
+      "path": "sections/filing.md",
+      "sha256": "f9de196ef09c4bbf33362e3b64a2fc9ede5e870edf2ab58c10d0766f070cd725",
+      "adaptation_reason": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "quality",
+      "source": "skills/conventions/quality.md",
+      "ranges": [
+        [
+          1,
+          40
+        ]
+      ],
+      "source_excerpt_sha256": "8aa681001114689d34268ccadaf0e2ff07b8f68aa5987c093a8c4a7a744f12a6",
+      "path": "sections/quality.md",
+      "sha256": "ec22952b85893aacbfa2767c1e243d157912fa1c7fa9320617469dc3d3802487",
+      "adaptation_reason": "Keep citation and notability guidance; meaningful evidenced Timeline updates satisfy backlinks and meeting attendees follow their specialized contract.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep citation and notability guidance; meaningful evidenced Timeline updates satisfy backlinks and meeting attendees follow their specialized contract."
+        }
+      ]
+    },
+    {
+      "id": "untrusted",
+      "source": "skills/conventions/untrusted-content.md",
+      "ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "source_excerpt_sha256": "259384d490892cd0e1e8e054decf752d7354f516c83aee57b332c1a96aac6a6e",
+      "path": "sections/untrusted.md",
+      "sha256": "71c87e714e87ab61e5357173c3384bd964248b0562df3a0f1472c9b76f94720a",
+      "adaptation_reason": "Preserve the complete source-as-data convention; use the supported recall name.",
+      "adaptations": [
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "lookup",
+      "source": "skills/conventions/brain-first.md",
+      "ranges": [
+        [
+          1,
+          3
+        ],
+        [
+          29,
+          46
+        ],
+        [
+          54,
+          58
+        ],
+        [
+          62,
+          66
+        ],
+        [
+          81,
+          82
+        ]
+      ],
+      "source_excerpt_sha256": "6a04c5e8c525ac936c9852f260a64302f34a339980111adcb12b1acf47415ae7",
+      "path": "sections/lookup.md",
+      "sha256": "87d9f4621f1149f5a903cfc277dd7da78adb8656ae8847103e3fcb747bb6b7e5",
+      "adaptation_reason": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
+        }
+      ]
+    },
+    {
+      "id": "model-roles",
+      "source": "skills/conventions/model-routing.md",
+      "ranges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "source_excerpt_sha256": "8311c111e20153031c9e6e5d3d8a3f3686b734ecfa8fdf38348762fdce423ec8",
+      "path": "sections/model-roles.md",
+      "sha256": "d81f71894d14d3e66623046f3525f8bc65a235bbbad2fad17385dbe994d90b3b",
+      "adaptation_reason": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
+        }
+      ]
+    },
+    {
+      "id": "bulk-trial",
+      "source": "skills/conventions/test-before-bulk.md",
+      "ranges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "source_excerpt_sha256": "75c90b0f4a6358a69f35afaa6e6430406c56c321ab414a8206e1c27a0f4856cf",
+      "path": "sections/bulk-trial.md",
+      "sha256": "f9b7761b9be6d996a00afaff11173e6e1d7c004b9fd358f009e415944ba4c614",
+      "adaptation_reason": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp."
+        }
+      ]
+    },
+    {
+      "id": "triage",
+      "source": "skills/two-tier-extraction/SKILL.md",
+      "ranges": [
+        [
+          132,
+          154
+        ],
+        [
+          181,
+          183
+        ],
+        [
+          263,
+          265
+        ],
+        [
+          281,
+          282
+        ]
+      ],
+      "source_excerpt_sha256": "3e70a80b1ae522a13f5527d51c3a7afb13e5d2bc73eab7b7e8f8d225160b992e",
+      "path": "sections/triage.md",
+      "sha256": "8fa8e2afc5324e3792dd068408a2edb76787356ebe4f975dbc4d77a77dc10370",
+      "adaptation_reason": "Preserve the original minimal triage shape and uncertainty guidance. Trusted inputs supply categories and relevance perspective; the deterministic gate owns routing.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve the original minimal triage shape and uncertainty guidance. Trusted inputs supply categories and relevance perspective; the deterministic gate owns routing."
+        }
+      ]
+    },
+    {
+      "id": "extraction",
+      "source": "skills/two-tier-extraction/SKILL.md",
+      "ranges": [
+        [
+          185,
+          236
+        ]
+      ],
+      "source_excerpt_sha256": "8d705c0497638ecfdf049b93eeef3838f2c88d59686ed1d9f38f91cc8df5b918",
+      "path": "sections/extraction.md",
+      "sha256": "6432226c78f1605823343db21b5254c8072b5d85cc9052d836094e511409d180",
+      "adaptation_reason": "Retain deep-read interpretation and immediate filing; Records preserve sources and existing workflow state checkpoints each completed step.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain deep-read interpretation and immediate filing; Records preserve sources and existing workflow state checkpoints each completed step."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain deep-read interpretation and immediate filing; Records preserve sources and existing workflow state checkpoints each completed step."
+        }
+      ]
+    },
+    {
+      "id": "meeting-contract",
+      "source": "skills/meeting-ingestion/SKILL.md",
+      "ranges": [
+        [
+          54,
+          79
+        ]
+      ],
+      "source_excerpt_sha256": "a4297874e0703428913f6aef5958d6a46d188fb293b5fc5a01ada4f1ffbf5b4c",
+      "path": "sections/meeting-contract.md",
+      "sha256": "c79aa6c6cde3c31528f2e61563f1c844f38955de7be7d366613605e5c06e271e",
+      "adaptation_reason": "Retain the complete shared meeting contract in every meeting phase; provider normalization belongs to Records.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain the complete shared meeting contract in every meeting phase; provider normalization belongs to Records."
+        }
+      ]
+    },
+    {
+      "id": "meeting-normalize",
+      "source": "skills/meeting-ingestion/SKILL.md",
+      "ranges": [
+        [
+          81,
+          124
+        ],
+        [
+          136,
+          141
+        ],
+        [
+          147,
+          223
+        ]
+      ],
+      "source_excerpt_sha256": "5a9a62deccb08e1d623a39db24039d6d7a4ecf5dfd4a7653b43e5a515bae97df",
+      "path": "sections/meeting-normalize.md",
+      "sha256": "c1f147889c13fbbb448b6e48a958ee7d9b3dfa5e98cfd49edb41fb035dbea215",
+      "adaptation_reason": "Keep the recorder-neutral contract, complete evidence, split/dedup and speaker checks. Provider fetching and source IDs stay in Records; no capture service or private source copy.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep the recorder-neutral contract, complete evidence, split/dedup and speaker checks. Provider fetching and source IDs stay in Records; no capture service or private source copy."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Keep the recorder-neutral contract, complete evidence, split/dedup and speaker checks. Provider fetching and source IDs stay in Records; no capture service or private source copy."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "meeting-page",
+      "source": "skills/meeting-ingestion/SKILL.md",
+      "ranges": [
+        [
+          224,
+          299
+        ]
+      ],
+      "source_excerpt_sha256": "db95831fd36316f29f837fcf5b8be022c3148710a1692be98b383356752a1fff",
+      "path": "sections/meeting-page.md",
+      "sha256": "f51fadca9474e89b7d8522857ee8a643536706f77aae1c183e5b53a6a116f0f8",
+      "adaptation_reason": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "meeting-entities",
+      "source": "skills/meeting-ingestion/SKILL.md",
+      "ranges": [
+        [
+          300,
+          337
+        ]
+      ],
+      "source_excerpt_sha256": "17ce1a4e31a4448c6e7bd7a3afdf32eb2627d02d2d82a68178d908e99f1398a6",
+      "path": "sections/meeting-entities.md",
+      "sha256": "329e34b105023603ef1c1d7e3c20c8fea15fca7e95c894f3f073f9cfab2c3f8a",
+      "adaptation_reason": "Preserve confirmed-attendee coverage and subject-specific propagation; links are derived during sync, with no separate auto-link response or rewrite pass.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve confirmed-attendee coverage and subject-specific propagation; links are derived during sync, with no separate auto-link response or rewrite pass."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "meeting-verify",
+      "source": "skills/meeting-ingestion/SKILL.md",
+      "ranges": [
+        [
+          346,
+          444
+        ]
+      ],
+      "source_excerpt_sha256": "8b87550cf48c4ada65e1c6cc51c0901b2901cef77ab0d9c278e941f9df972eed",
+      "path": "sections/meeting-verify.md",
+      "sha256": "d59255dbe3dd451a41fa1443f0fc558123305573114a6c022a933f6b5941aff9",
+      "adaptation_reason": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "meeting-report",
+      "source": "skills/meeting-ingestion/SKILL.md",
+      "ranges": [
+        [
+          446,
+          497
+        ]
+      ],
+      "source_excerpt_sha256": "0529b83271f8c13826185f1f69d4a57cb7b700984d47156e097c00ccf8f0a1de",
+      "path": "sections/meeting-report.md",
+      "sha256": "1ec0aed0083a18efdb5c6860d8ce76d2865a00cdcf21ea810f283c547173c11a",
+      "adaptation_reason": "Preserve substantive restraint, completion and anti-pattern guidance; unresolved semantics remain flagged rather than adding an automatic privacy queue.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve substantive restraint, completion and anti-pattern guidance; unresolved semantics remain flagged rather than adding an automatic privacy queue."
+        }
+      ]
+    },
+    {
+      "id": "ingest",
+      "source": "skills/ingest/SKILL.md",
+      "ranges": [
+        [
+          31,
+          111
+        ],
+        [
+          265,
+          301
+        ]
+      ],
+      "source_excerpt_sha256": "e4a21edb464e95db7c3397f91bec7d1f17973bf749ec3b2df3656c22b9e88a2a",
+      "path": "sections/ingest.md",
+      "sha256": "de8eda314243bc3ff46f33b8fdd2a91d0ade9d2014d2802d66b3763a1ec3f22f",
+      "adaptation_reason": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    },
+    {
+      "id": "enrich",
+      "source": "skills/enrich/SKILL.md",
+      "ranges": [
+        [
+          33,
+          76
+        ],
+        [
+          89,
+          113
+        ],
+        [
+          163,
+          180
+        ],
+        [
+          271,
+          274
+        ],
+        [
+          312,
+          317
+        ]
+      ],
+      "source_excerpt_sha256": "6a681e90f6d48784609cbb1f19e373db6b3a730d942c4d9ad6d8910074ac4679",
+      "path": "sections/enrich.md",
+      "sha256": "8c6fc310a28d3705b56750a2a7c6caa649f37ba0f4b4392b96c92d97d0008d91",
+      "adaptation_reason": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment.",
+      "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "triage",
+      "task": "brain.triage",
+      "profile": "utility",
+      "sections": [
+        "untrusted",
+        "model-roles",
+        "triage"
+      ]
+    },
+    {
+      "id": "meeting-normalize",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "meeting-contract",
+        "meeting-normalize"
+      ]
+    },
+    {
+      "id": "meeting-page",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "meeting-contract",
+        "meeting-page"
+      ]
+    },
+    {
+      "id": "meeting-entities",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "meeting-contract",
+        "meeting-page",
+        "meeting-entities",
+        "enrich"
+      ]
+    },
+    {
+      "id": "meeting-verify",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "meeting-contract",
+        "meeting-verify",
+        "meeting-report"
+      ]
+    },
+    {
+      "id": "discussion-extract",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "extraction",
+        "ingest"
+      ]
+    },
+    {
+      "id": "discussion-entities",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "enrich"
+      ]
+    },
+    {
+      "id": "bulk-trial",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "meeting-contract",
+        "bulk-trial",
+        "meeting-verify"
+      ]
+    }
+  ]
+}

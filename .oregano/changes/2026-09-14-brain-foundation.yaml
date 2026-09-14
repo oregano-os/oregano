@@ -1,0 +1,52 @@
+version: 3
+plan_id: brain-foundation-2026-09-14
+created: "2026-09-14"
+title: Qualify bounded Brain Skill execution through existing model bindings
+objective: Materialize pinned reusable Brain instructions into measured workflow phases and extend trusted generation bindings with explicit model tasks and profiles while preserving existing behavior, authority and runtime bounds.
+non_goals:
+  - Introduce a new model provider, scheduler, Skill loader or autonomous model Tool loop.
+  - Treat source text as instructions or allow runtime callers to choose model bindings.
+  - Claim Brain operations, source delivery or production adoption before their subsequent implementation and checks.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-14-brain-foundation.yaml
+  - packages/blueprints/brain/**
+  - scripts/materialize-brain-prompts.ts
+  - packages/language/**
+  - packages/connectors/language-model.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - docs/specifications/model-recipes.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/cli/content/guides/author-a-company-tool.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents: [specification.model-recipes, specification.brain-skill-adoption, guide.author-company-tool, status.current]
+architecture:
+  placement:
+    core: Trusted scoped generation bindings, validation, phase materialization checks and existing host model execution; no business vocabulary or permissions.
+    packages: Pinned reusable instruction passages, explicit adaptations, static phase assignments and calibration defaults are portable Blueprint assets.
+    workspace: Reviewed Agent materials, grant policy, adopted instructions, company mappings and workflow inputs supply all operating choices.
+    instance: Existing model configuration and SecretRefs select providers and budgets; runtime execution evidence retains exact model and prompt identity.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Select existing language profiles and named tasks from trusted scoped prompt bindings without accepting caller overrides.
+    - mechanism: capability-contracts-and-connectors
+      reason: Validate bounded instruction capacity and forward the trusted phase selection through the existing language generation contract and host.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can adopt the same bounded Skill phases with its own reviewed vocabulary and model bindings; public evidence uses independently invented fixtures.
+rollback: Restore the preceding Core and compatible Workspace commits. Existing prompt bindings retain their original defaults; no database migration or external resource changes occur in this increment.

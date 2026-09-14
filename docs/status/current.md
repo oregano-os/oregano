@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-12
+updated: 2026-09-14
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,13 @@ audience:
 ---
 
 # Current System Status
+
+Experimental trusted language prompt bindings now support explicit task/profile
+pairs and a measured per-binding instruction capacity up to 24,000 units;
+existing bindings retain 16,000. Static pinned Brain Skill materialization is
+covered by synthetic integrity, scope and budget checks. Live model qualification
+is outstanding; no Brain runtime, import workflow or company adoption is claimed.
+See [Brain Skill adoption](../specifications/brain-skill-adoption.md).
 
 Authenticated Agent file inputs now share experimental PDF, PNG/JPEG/WebP and
 Markdown preparation for qualified direct model providers. Core provider policy data

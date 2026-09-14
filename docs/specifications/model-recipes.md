@@ -5,7 +5,7 @@ kind: specification
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-14
 owners:
   - oregano-maintainers
 audience:
@@ -39,6 +39,29 @@ Recipes name credential variables without carrying secret values. Existing
 identity, Tool grants, scoped materials and effect approvals remain the
 responsibility of their Core layers. Technical smoke tests establish model
 readiness, not company authority.
+
+## Scoped generation phases
+
+The trusted `oregano/language-model` prompt binding may declare `model_task`
+and `model_profile` together. Supported language profiles are `agent`,
+`utility`, `reasoning` and `deep`. The existing resolver applies task, profile
+and default precedence. No binding creates a model, provider account or grant.
+Bindings without either field retain the owning Agent's explicit model task
+and the `agent` profile. Partial bindings, invalid task names and non-language
+profiles fail before generation.
+
+Each binding defaults to 16,000 JavaScript string units of instructions. An
+explicit `max_instruction_characters` may set a positive integer up to 24,000.
+This ceiling supports the measured static Brain phases; it does not qualify
+any model's context window. Existing evidence, output and deadline limits do
+not change. The Artifact supplies the complete frozen Skill text; referenced
+files are never implicitly loaded. Task, profile, capacity and prompt identity
+are recorded in binding/prompt digests. Callers and imported evidence cannot
+change them.
+
+The experimental [Brain Skill adoption](brain-skill-adoption.md) provides a
+static build helper and separately records the remaining model qualification.
+It introduces no Brain runtime or replacement for the retired Knowledge system.
 
 Knowledge-only model overrides, maintenance budgets, extraction/synthesis
 prompts and their dispatcher have been retired. They have no replacement task

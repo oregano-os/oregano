@@ -576,6 +576,14 @@
     "availability": null
   },
   {
+    "document_id": "specification.brain-skill-adoption",
+    "title": "Experimental Brain Skill adoption and prompt qualification",
+    "path": "docs/specifications/brain-skill-adoption.md",
+    "kind": "specification",
+    "status": "draft",
+    "availability": null
+  },
+  {
     "document_id": "specification.builder-governance",
     "title": "Builder Governance Specification",
     "path": "docs/specifications/builder-governance.md",

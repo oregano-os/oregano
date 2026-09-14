@@ -77,3 +77,19 @@ test("the owning model's policy validates inline files before generation", async
   await assert.rejects(generate({ ...request, attachments: [{ ...files[0], size: 1 }] }), /encoding/);
   assert.equal(calls, 1);
 });
+
+test("trusted language phase profiles resolve through the existing recipe path with unchanged output bounds", async () => {
+  for (const profile of ["utility", "reasoning", "deep"] as const) {
+    const generate = createLanguageGenerator({
+      resolve: ((input) => {
+        assert.deepEqual(input, { profile, task: "document.extract", requiredCapability: "language" });
+        return { model: "test", selection: { maxOutputTokens: 90_000, timeoutMs: 900_000 } };
+      }) as typeof resolveModelExecution,
+      generate: (async (input: Parameters<typeof generateText>[0]) => {
+        assert.equal(input.maxOutputTokens, 4_000); assert.equal(input.tools, undefined); assert.equal(input.maxRetries, 0);
+        return { text: "Complete", finishReason: "stop", response: { id: "synthetic", modelId: "test" }, usage: {} };
+      }) as unknown as typeof generateText,
+    });
+    assert.equal((await generate({ instructions: "Bound instructions", data: "{}", agentId: "analyst", modelTask: "document.extract", modelProfile: profile })).text, "Complete");
+  }
+});
