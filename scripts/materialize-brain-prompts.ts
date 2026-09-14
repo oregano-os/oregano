@@ -76,7 +76,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
       const pageFormat = ["meeting-page", "meeting-entities", "discussion-entities"].includes(phase.id)
         ? " Takes serialization (pinned takes-fence contract, before the Timeline): use exactly <!--- gbrain:takes:begin --> and <!--- gbrain:takes:end --> around a Markdown table with columns | # | claim | kind | who | weight | since | source |. Preserve existing stable positive row numbers; append new numbers. kind is fact, take, bet or hunch; who is the actual holder per the filing rules; weight uses the 0.05 grid in [0,1]; since is an evidenced ISO date/month or empty; source must contain the supplied [[internal-evidence-page]] link, never only a prose label. Superseded claims use ~~strikethrough~~ without renumbering. Escape literal pipes in cells. Omit the table when no Takes are supported."
         : "";
-      const instructions = preface + phase.sections.map(key => {
+      const instructions = `---\nname: brain-${variant.id}\ndescription: Complete the bounded ${phase.id} phase using its reviewed instructions.\n---\n\n` + preface + phase.sections.map(key => {
         const text = sections.get(key);
         if (!text) throw new Error(`Missing phase guidance: ${key}`);
         return text.replace(/\{\{([a-z_]+)\}\}/g, (_, key: string) => {
