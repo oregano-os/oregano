@@ -653,7 +653,7 @@
         "meeting-contract",
         "meeting-normalize"
       ],
-      "output": "Return JSON with meeting boundaries as source segment references, corrected attendee/speaker mappings, confidence and unresolved gaps. The host retains the complete original transcript; reference it without echoing it into the output. Never claim a page was written."
+      "output": "Return only JSON with meetings, lookup_requests and gaps arrays. Each meeting has exactly start_marker, title, date, time, duration, attendees and subjects. The first start_marker is null; later markers are exact unique excerpts beginning at the first character of a source line (at most 500 characters). They partition the complete retained source in order, without gaps or duplication. date is YYYY-MM-DD; unknown time/duration are null. Each attendee has source_label, name (null if unresolved), confidence (high, medium or low) and evidence. Each subject has type (person, company or concept), name and evidence. Each lookup request has type and name; request identity/spelling and meeting-dedup lookups needed by the procedure. Evidence is attributable source context, not invented knowledge. gaps contains explicit uncertainties. These are provisional mappings until the host supplies authorized page reads; do not claim lookup, identity verification or writes completed."
     },
     {
       "id": "meeting-page",

@@ -90,3 +90,12 @@ All three configured roles used the same model; this does not qualify distinct
 model economics, full ingestion, database writes or production adoption. Private
 source receipts and review findings remain outside public Core.
 Requalify affected examples after prompt, mapping, binding or budget changes.
+
+The meeting-normalization phase has an explicit JSON serialization contract for
+provisional meetings, attendee/subject candidates, lookup requests and gaps. Exact
+unique line-start excerpts identify split boundaries; the host derives contiguous
+source ranges while retaining every original character. This is an execution
+adaptation of the pinned normalization and split procedure, not a replacement
+rubric. A first call without page-read evidence cannot finalize identities or
+deduplication. The owning Workflow must execute its requested lookups and subsequent
+verification before filing. Malformed output or ambiguous boundaries fail visibly.
