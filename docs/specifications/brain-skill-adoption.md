@@ -49,11 +49,11 @@ call contains the shared filing, quality, untrusted-content, lookup and model-ro
 rules. Meeting phases also carry the complete meeting contract. The entity
 phase includes claim verification and the applicable enrichment procedure.
 
-The synthetic default mapping measures 23,777 instruction units for the largest
-phase, or 23,966 with the unchanged host wrapper. Each phase also carries its
+The synthetic default mapping measures 24,168 instruction units for the largest
+phase, or 24,357 with the unchanged host wrapper. Each phase also carries its
 bounded output contract; normalization references retained source segments
 instead of echoing the whole transcript, and entity phases draft one target
-page per call. The connector ceiling is
+page per call. The final serialization contract follows the procedure sections: page drafts begin with YAML frontmatter, have a sourced Timeline and contain no outer code fence. A complete not-found page-read receipt permits a new page; absent lookup evidence remains a gap. The connector ceiling is
 30,000; generated bindings request only their actual measured length. The
 unchanged default for other bindings remains 16,000. Alternate mappings are
 measured afresh and may fail the ceiling. Missing sections, changed section

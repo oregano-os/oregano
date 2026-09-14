@@ -668,7 +668,7 @@
         "meeting-contract",
         "meeting-page"
       ],
-      "output": "Return one complete meeting Markdown draft using Phase 5, with frontmatter and a readable original source link. Use the supplied normalization result and complete source. Flag unsupported claims instead of inventing them. No other pages are drafted in this call."
+      "output": "Return only one complete meeting page as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence, filename heading, or commentary outside the page. The Phase 5 template is the page body, not its outer serialization. Use the complete source and supplied normalization; flag unsupported claims. Include a dated Timeline after <!-- timeline -->. Cite host_context.internal_evidence_page with [[slug]] links in source-grounded text and every Timeline entry/Take; that evidence page preserves the original source reference. No other pages are drafted."
     },
     {
       "id": "meeting-entities",
@@ -685,7 +685,7 @@
         "meeting-entities",
         "enrich"
       ],
-      "output": "Return one complete entity Markdown draft for host_context.target_entity, applying Phase 6 before propagation. Use the supplied complete source, meeting draft and existing target page. If a prerequisite is absent, return a JSON gaps list instead. Other entities remain pending work."
+      "output": "Return only one complete entity page for host_context.target_entity as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence or outside commentary. Apply Phase 6 using the complete source, meeting draft and host page-read receipt. A found receipt requires the existing page; a complete not_found receipt permits a new evidenced attendee page and is not missing context. Without either receipt, return JSON gaps. Include a dated Timeline after <!-- timeline --> and cite host_context.internal_evidence_page with [[slug]] links in every Timeline entry/Take and source-grounded text. Other entities remain pending."
     },
     {
       "id": "meeting-verify",
@@ -730,7 +730,7 @@
         "model-roles",
         "enrich"
       ],
-      "output": "Return one complete entity Markdown draft for host_context.target_entity, grounded in the complete supplied source, extraction and existing target page. If a prerequisite is absent, return a JSON gaps list. Do not report any completed write."
+      "output": "Return only one complete entity page for host_context.target_entity as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence or outside commentary. Use the complete source, extraction and host page-read receipt. A found receipt requires the existing page; a complete not_found receipt permits a new evidenced page and is not missing context. Without either receipt, return JSON gaps. Include a dated Timeline after <!-- timeline --> and cite host_context.internal_evidence_page with [[slug]] links in every Timeline entry/Take and source-grounded text. Do not report a completed write."
     },
     {
       "id": "bulk-trial",
