@@ -1,3 +1,4 @@
+import type { ModelExecutionSelection } from "../runner/model-execution.ts";
 import type { PreparedAttachment } from "../runtime/attachments.ts";
 import type { JsonSchema } from "../capabilities/contracts.ts";
 import type { LanguageModelProfile } from "./prompt-binding.ts";
@@ -28,12 +29,21 @@ export interface LanguageGenerationRequest {
   modelTask: string;
   /** Trusted prompt binding, never a language.generate input field. */
   modelProfile?: LanguageModelProfile;
+  /** Trusted host callback, awaited after local validation and before a paid dispatch. */
+  beforeDispatch?: (selection: ModelExecutionSelection) => Promise<void>;
   /** Inline evidence admitted by the authenticated host; file URLs are not accepted. */
   attachments?: readonly PreparedAttachment[];
 }
 export interface LanguageGenerationResult {
   text: string;
   evidence: Record<string, unknown>;
+}
+/** Carries usage from a failed paid call without retaining partial text or provider bodies. */
+export class LanguageGenerationError extends Error {
+  readonly name = "LanguageGenerationError";
+  readonly kind: "incomplete" | "provider-error";
+  readonly evidence: Record<string, unknown>;
+  constructor(message: string, kind: "incomplete" | "provider-error", evidence: Record<string, unknown>) { super(message); this.kind = kind; this.evidence = evidence; }
 }
 export type LanguageGenerator = (request: LanguageGenerationRequest) => Promise<LanguageGenerationResult>;
 export const LANGUAGE_TOOL_TIMEOUT_MS = 65_000;

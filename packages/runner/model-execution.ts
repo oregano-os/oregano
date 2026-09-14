@@ -80,10 +80,11 @@ export interface ModelExecutionSelection extends ModelBinding {
 }
 
 export interface ModelExecutionEvidence extends ModelExecutionSelection {
-  readonly responseId: string;
-  readonly responseModel: string;
-  readonly inputTokens: number;
-  readonly outputTokens: number;
+  readonly responseId: string | null;
+  readonly responseModel: string | null;
+  readonly inputTokens: number | null;
+  readonly outputTokens: number | null;
+  readonly reasoningTokens?: number | null;
   readonly cacheReadTokens?: number | null;
   readonly cacheWriteTokens?: number | null;
   readonly uncachedInputTokens?: number | null;

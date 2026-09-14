@@ -69,6 +69,40 @@ prompts and their dispatcher have been retired. They have no replacement task
 in this contract. See [Prepare an Instance](../workbench/guides/prepare-an-instance.md)
 for the maintained generic configuration.
 
+## Scoped generation attempt evidence
+
+The maintained hosted `language.generate` connector records every invocation in
+existing control events and effects. A unique attempt binds Instance, run, step,
+Agent, Tool, Core/Workspace/Artifact, input/attachment digests and frozen prompt
+binding before dispatch. The host validates files and resolves the model, then
+awaits the durable dispatch receipt (including the Workflow lease fence when
+present) before calling the provider. Failure to persist that boundary prevents
+the paid request. Other hosts supply the same StateStore and honor the trusted
+`beforeDispatch` callback; it is not part of the model-facing Tool input.
+
+Successful, incomplete and invalid-output calls retain their available usage.
+Provider/transport failures retain an unknown outcome, not a made-up empty
+response. Input/output, cache components, reasoning tokens and response identity
+remain null when unavailable. Reasoning is part of output usage and is not
+added again when calculating cost. SDK retries remain disabled; a later explicit
+retry is another recorded attempt. Workflow step completion still owns ordinary
+resume; the attempt ledger does not silently retry or replace successful steps.
+
+`readLanguageAttempts` reads a bounded explicit run set and reconciles lost
+completion events from existing effect receipts. A dispatched attempt with no
+receipt stays unknown. Reports fail visibly at the event bound instead of
+silently omitting later calls. Receipts contain hashes, identity, usage and
+outcome, never prompt/source/answer/reasoning text or raw provider error bodies.
+
+`languageCostReport` accepts actual per-attempt billing receipts or explicit
+dated prices for the exact configured route/model. Billed amounts take precedence;
+otherwise complete reconciled token/cache quantities permit an estimate. Missing
+usage, rates or unresolved outcomes remain unknown rather than zero. Billed and
+estimated subtotals stay separate by currency, include failed attempts, and do
+not double-count retries or reasoning. Infrastructure attribution and earlier
+development costs are separate inputs to the final import report. There is no
+new provider, price registry, automatic billing lookup or source of spend authority.
+
 ## Native attachments
 
 The selected route/model also resolves its Core attachment policy from

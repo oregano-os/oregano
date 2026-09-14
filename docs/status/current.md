@@ -15,6 +15,12 @@ audience:
 
 # Current System Status
 
+The experimental Brain import foundation now includes frozen cumulative transcript
+selection and per-attempt model usage/cost evidence through existing control state.
+Workspace values set dates and quantities; no import Workflow or live source is
+activated by these helpers. See [bounded import policy](../specifications/brain-import.md).
+
+
 Experimental trusted language prompt bindings now support explicit task/profile
 pairs and a measured per-binding instruction capacity up to 30,000 units;
 existing bindings retain 16,000. Static pinned Brain Skill materialization is

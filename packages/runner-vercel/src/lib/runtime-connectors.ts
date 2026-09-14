@@ -326,7 +326,7 @@ export function createConfiguredRuntimeConnectors(args: {
     if (entry.connector === "oregano/language-model" && entry.connectorVersion === "1.0.0") {
       exactKeys(entry.configuration, ["prompts"], `Connector instance '${entry.id}'`);
       connectors.push(new LanguageModelConnector({ artifact: args.artifact,
-        prompts: entry.configuration.prompts as unknown as LanguagePromptBinding[], generate: generateLanguage }));
+        prompts: entry.configuration.prompts as unknown as LanguagePromptBinding[], generate: generateLanguage, state: createPostgresStateStore() }));
       continue;
     }
     if (entry.connector === "oregano/company-directory" && entry.connectorVersion === "1.0.0") {

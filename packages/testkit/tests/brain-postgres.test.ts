@@ -88,3 +88,50 @@ test("effect checkpoints and receipt reconciliation use atomic status/input/evid
     }
   }
 });
+
+test("Postgres retains frozen transcript cohorts across concurrent setup and bounded extensions", { skip: !enabled }, async () => {
+  const { createPostgresStateStore } = await import("../../state-postgres/store.ts");
+  const { freezeTranscriptCohort } = await import("../../brain/import-policy.ts");
+  await bootstrapCompanyDatabase(); const store = createPostgresStateStore(), sql = neon(process.env.DATABASE_URL!);
+  const runId = `brain-cohort-${randomUUID()}`, extensionId = `${runId}-extension`;
+  for (const id of [runId, extensionId]) await store.ensureRun({ runId: id, workflow: "brain-import-fixture", workflowVersion: "1", companySnapshotHash: "snapshot", agentDefinitionHash: "agent", agentAdapter: "test" });
+  const candidates = Array.from({ length: 6 }, (_, i) => ({ identity: `synthetic:${i}`, source_version: `version:${i}`, meeting_start_at: "2030-04-01T00:00:00Z", origin: "provider" as const, finished: true }));
+  const args = { store, instanceId: runId, importId: "brain-import", runId, candidates, reserved: [], inventoryComplete: true, availableFrom: null,
+    policy: { mode: "bounded" as const, max_transcripts: 4, meeting_date: { start_at: null, end_at: null } }, now: "2030-04-02T00:00:00Z" };
+  try {
+    const cohorts = await Promise.all([freezeTranscriptCohort(args), freezeTranscriptCohort(args)]);
+    assert.deepEqual(cohorts[0], cohorts[1]); assert.equal(cohorts[0].cumulative_count, 4);
+    const extension = await freezeTranscriptCohort({ ...args, store: createPostgresStateStore(), runId: extensionId, policy: { ...args.policy, max_transcripts: 6 } });
+    assert.equal(extension.cumulative_count, 6); assert.equal(extension.admitted.length, 2);
+    assert.deepEqual(await freezeTranscriptCohort({ ...args, store: createPostgresStateStore() }), cohorts[0]);
+  } finally {
+    await sql`delete from companyos.effects where run_id = ${runId} or run_id = ${extensionId}`;
+    await sql`delete from companyos.workflow_runs where run_id = ${runId} or run_id = ${extensionId}`;
+  }
+});
+
+test("Postgres model-attempt reports reconcile a lost completion event and retain incomplete-call cost", { skip: !enabled }, async () => {
+  const { createPostgresStateStore } = await import("../../state-postgres/store.ts");
+  const { LanguageAttempt, readLanguageAttempts } = await import("../../language/attempts.ts");
+  const { languageCostReport } = await import("../../language/costs.ts");
+  await bootstrapCompanyDatabase(); const store = createPostgresStateStore(), sql = neon(process.env.DATABASE_URL!);
+  const runId = `brain-cost-${randomUUID()}`;
+  await store.ensureRun({ runId, workflow: "brain-import-fixture", workflowVersion: "1", companySnapshotHash: "snapshot", agentDefinitionHash: "agent", agentAdapter: "test" });
+  const selection = { route: "anthropic-direct", model: "anthropic/synthetic", provider: "anthropic", transport: "anthropic-messages", credentialRef: null, baseUrlRef: null, recipeVersion: "1.0.0" } as const;
+  const evidence = { model_execution: { ...selection, responseId: "synthetic-response", responseModel: "synthetic", inputTokens: 100, outputTokens: 50, cacheReadTokens: 0, cacheWriteTokens: 0, uncachedInputTokens: 100 } };
+  try {
+    const attempt = new LanguageAttempt(store, { runId, stepId: "triage", inputHash: "a".repeat(64), evidence: { artifact_hash: "b".repeat(64) } });
+    await attempt.prepare(); await attempt.dispatch(selection); await attempt.finish("failed", evidence);
+    await sql`delete from companyos.events where run_id = ${runId} and event = 'language.attempt-finished'`;
+    const receipts = await readLanguageAttempts(createPostgresStateStore(), [runId, runId]);
+    assert.equal(receipts.length, 1); assert.equal(receipts[0].status, "failed"); assert.equal(receipts[0].step_id, "triage");
+    assert.deepEqual(receipts[0].evidence.model_execution, evidence.model_execution);
+    const report = languageCostReport(receipts, [{ ...selection, currency: "USD", source: "https://example.invalid/prices", valid_from: "2020-01-01T00:00:00Z", valid_until: null,
+      input_per_million: 2, output_per_million: 8, cache_read_per_million: 0.2, cache_write_per_million: 2.5 }]);
+    assert.equal(report.totals.USD.estimated, 0.0006);
+  } finally {
+    await sql`delete from companyos.events where run_id = ${runId}`;
+    await sql`delete from companyos.effects where run_id = ${runId}`;
+    await sql`delete from companyos.workflow_runs where run_id = ${runId}`;
+  }
+});

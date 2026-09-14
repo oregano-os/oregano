@@ -1339,6 +1339,19 @@
     "relations": {}
   },
   {
+    "document_id": "specification.brain-import",
+    "title": "Bounded Brain import policy and evidence",
+    "path": "docs/specifications/brain-import.md",
+    "kind": "specification",
+    "status": "draft",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-14",
+    "availability": null,
+    "migration_sources": [],
+    "relations": {}
+  },
+  {
     "document_id": "specification.brain-read",
     "title": "Governed Brain documents and operations",
     "path": "docs/specifications/brain-read.md",

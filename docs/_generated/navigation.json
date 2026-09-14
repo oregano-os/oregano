@@ -592,6 +592,14 @@
     "availability": null
   },
   {
+    "document_id": "specification.brain-import",
+    "title": "Bounded Brain import policy and evidence",
+    "path": "docs/specifications/brain-import.md",
+    "kind": "specification",
+    "status": "draft",
+    "availability": null
+  },
+  {
     "document_id": "specification.brain-read",
     "title": "Governed Brain documents and operations",
     "path": "docs/specifications/brain-read.md",

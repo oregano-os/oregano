@@ -1,3 +1,6 @@
+import type { StateStore } from "../state-store/interface.ts";
+import { LanguageAttempt, languageFailureDigest } from "../language/attempts.ts";
+import { LanguageGenerationError } from "../language/contracts.ts";
 import type { PreparedAttachment } from "../runtime/attachments.ts";
 import type { CapabilityCallContext, Connector } from "../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../companyos-builder/types.ts";
@@ -17,10 +20,12 @@ export class LanguageModelConnector implements Connector {
   readonly #artifact: CompanyOSArtifact;
   readonly #prompts: ReturnType<typeof bindLanguagePrompts>;
   readonly #generate: LanguageGenerator;
+  readonly #state?: StateStore;
 
-  constructor(args: { artifact: CompanyOSArtifact; prompts: LanguagePromptBinding[]; generate: LanguageGenerator }) {
+  constructor(args: { artifact: CompanyOSArtifact; prompts: LanguagePromptBinding[]; generate: LanguageGenerator; state?: StateStore }) {
     this.#artifact = structuredClone(args.artifact);
     this.#generate = args.generate;
+    this.#state = args.state;
     this.#prompts = bindLanguagePrompts(this.#artifact, args.prompts);
   }
 
@@ -33,12 +38,34 @@ export class LanguageModelConnector implements Connector {
     if (!prompt) throw new Error("Generation prompt is not bound for this Agent");
     const data = JSON.stringify(input.data);
     if (data.length > 150_000) throw new Error("Generation evidence exceeds its bound; narrow the reviewed data selection");
-    const result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask, modelProfile: prompt.modelProfile, ...(input.attachments?.length ? { attachments: input.attachments } : {}) });
-    const output = { text: result.text };
-    if (validateJsonSchemaValue(LANGUAGE_GENERATE_OUTPUT, output).length || !result.text.trim()) throw new Error("Generation returned no bounded text");
-    return { output, evidence: { ...result.evidence, prompt_path: input.prompt_path, prompt_digest: sha256(prompt.instructions),
+    const identity = { prompt_path: input.prompt_path, prompt_digest: sha256(prompt.instructions),
       binding_digest: prompt.bindingDigest, model_task: prompt.modelTask, model_profile: prompt.modelProfile,
-      context_digest: sha256(input.data), ...(input.attachments?.length ? { attachment_digests: input.attachments.map(file => file.digest) } : {}), output_digest: sha256(output), agent_id: context.agentId,
-      artifact_hash: this.#artifact.artifactHash, workspace_commit: this.#artifact.provenance.workspaceCommit } };
+      context_digest: sha256(input.data), ...(input.attachments?.length ? { attachment_digests: input.attachments.map(file => file.digest) } : {}), agent_id: context.agentId,
+      instance_id: context.instanceId, tool_id: context.toolId, artifact_hash: this.#artifact.artifactHash, core_commit: this.#artifact.provenance.coreCommit, workspace_commit: this.#artifact.provenance.workspaceCommit };
+    const attempt = this.#state ? new LanguageAttempt(this.#state, { runId: context.runId, stepId: context.stepId,
+      inputHash: sha256(identity), evidence: identity, fence: context.dispatchFence }) : undefined;
+    await attempt?.prepare();
+    let result;
+    try {
+      result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask,
+        modelProfile: prompt.modelProfile, ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+        ...(attempt ? { beforeDispatch: selection => attempt.dispatch(selection) } : {}) });
+    } catch (error) {
+      await attempt?.finish(attempt?.dispatched && !(error instanceof LanguageGenerationError && error.kind === "incomplete") ? "unknown" : "failed", {
+        ...(error instanceof LanguageGenerationError ? error.evidence : {}), error_digest: languageFailureDigest(error) });
+      throw error;
+    }
+    if (attempt && !attempt.dispatched) {
+      await attempt.finish("unknown", { failure_kind: "missing-dispatch-evidence" });
+      throw new Error("Language host returned without dispatch evidence");
+    }
+    const output = { text: result.text };
+    if (validateJsonSchemaValue(LANGUAGE_GENERATE_OUTPUT, output).length || !result.text.trim()) {
+      await attempt?.finish("failed", { ...result.evidence, failure_kind: "invalid-output" });
+      throw new Error("Generation returned no bounded text");
+    }
+    const evidence = { ...result.evidence, ...identity, output_digest: sha256(output), ...(attempt ? { attempt_id: attempt.id } : {}) };
+    await attempt?.finish("succeeded", evidence);
+    return { output, evidence };
   }
 }

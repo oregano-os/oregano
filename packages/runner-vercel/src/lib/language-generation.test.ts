@@ -93,3 +93,34 @@ test("trusted language phase profiles resolve through the existing recipe path w
     assert.equal((await generate({ instructions: "Bound instructions", data: "{}", agentId: "analyst", modelTask: "document.extract", modelProfile: profile })).text, "Complete");
   }
 });
+
+test("host awaits durable dispatch evidence and preserves failed response usage without partial text", async () => {
+  const { LanguageGenerationError } = await import("../../../language/contracts.ts");
+  let calls = 0, journaled = false;
+  const generate = createLanguageGenerator({ resolve: (() => ({ model: "synthetic", selection: { model: "compatible/example" } })) as typeof resolveModelExecution,
+    generate: (async () => { assert.equal(journaled, true); calls++; return { text: "Private partial draft", finishReason: "length",
+      response: { id: "incomplete-response", modelId: "example" }, usage: { inputTokens: 30, outputTokens: 10, outputTokenDetails: { reasoningTokens: 7 } } }; }) as unknown as typeof generateText,
+    reportIncomplete: () => {} });
+  const request = { instructions: "Bound Skill", data: "{}", agentId: "analyst", modelTask: "review" };
+  await assert.rejects(generate({ ...request, beforeDispatch: async () => { throw new Error("Journal unavailable"); } }), /Journal/);
+  assert.equal(calls, 0);
+  await assert.rejects(generate({ ...request, beforeDispatch: async () => { journaled = true; } }), error => {
+    assert.ok(error instanceof LanguageGenerationError);
+    const evidence = error.evidence.model_execution as Record<string, unknown>;
+    assert.equal(evidence.responseId, "incomplete-response"); assert.equal(evidence.reasoningTokens, 7); assert.equal(evidence.outputTokens, 10);
+    assert.ok(!JSON.stringify(error.evidence).includes("Private")); return true;
+  });
+  assert.equal(calls, 1);
+});
+
+test("unknown provider usage and response identity remain null rather than fabricated zeroes", async () => {
+  const { LanguageGenerationError } = await import("../../../language/contracts.ts");
+  const generate = createLanguageGenerator({ resolve: (() => ({ model: "synthetic", selection: { model: "compatible/example" } })) as typeof resolveModelExecution,
+    generate: (async () => { throw new Error("Private provider body"); }) as unknown as typeof generateText });
+  await assert.rejects(generate({ instructions: "Bound", data: "{}", agentId: "analyst", modelTask: "review" }), error => {
+    assert.ok(error instanceof LanguageGenerationError); assert.equal(error.kind, "provider-error");
+    const evidence = error.evidence.model_execution as Record<string, unknown>;
+    assert.equal(evidence.inputTokens, null); assert.equal(evidence.outputTokens, null); assert.equal(evidence.responseId, null); assert.equal(evidence.responseModel, null);
+    assert.ok(!JSON.stringify(error).includes("Private")); return true;
+  });
+});
