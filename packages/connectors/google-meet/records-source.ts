@@ -105,7 +105,9 @@ export class GoogleMeetRecordSourceConnector implements RecordSourceConnector {
       const payload = { conference, transcript: before, entries, participants };
       objects.push({ identity: name, version: sha256(payload), kind: "meeting", original_url: sourceUrl,
         occurred_at: canonicalRecordInstant(String(conference.startTime)), text, complete: true,
-        provider: "google-meet", conference_name: conferenceName, transcript_name: name, provider_payload: json(payload) });
+        provider: "google-meet", conference_name: conferenceName, transcript_name: name,
+        source_context: json({ provider: "google-meet", conference, transcript: before, participants }),
+        provider_payload: json(payload) });
     }
     const digest = sha256(objects);
     return { complete: true, scan_started_at: start, observed_at: this.#now().toISOString(), objects,

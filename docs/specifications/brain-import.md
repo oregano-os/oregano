@@ -123,7 +123,12 @@ The adapter rechecks each selected generated transcript, retains all entry and
 participant data, and fails the whole inventory on missing access, empty completed
 transcripts, partial pagination or a transcript that changes during reading.
 Records receive the provider-neutral source identity/version, complete readable
-text, original reference and preserved provider payload. Content versioning excludes
+text, original reference and preserved provider payload. A separate `source_context`
+JSON field carries complete conference, transcript and participant metadata without
+duplicating entries. Workspace projections must retain this evidence when the
+procedure needs attendees, including people who have no transcript entry. Provider
+user IDs and display names remain untrusted source evidence, never inferred email,
+roster membership or an authority grant. Content versioning excludes
 the reader, fetch time and selection scope; participant ordering does not create
 spurious versions. Entries are sorted with nanosecond precision. Completeness
 means the exact selected transcripts were read, never all company meetings. The

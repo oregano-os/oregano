@@ -115,6 +115,12 @@ test("qualified exact selection feeds complete Records with stable content versi
   assert.ok(String(first.objects[0].text).indexOf("earlier") < String(first.objects[0].text).indexOf("later"));
   const payload = first.objects[0].provider_payload as any;
   assert.equal(payload.entries[0].text, "earlier\nunchanged 😀"); assert.equal(payload.participants[0].signedinUser.user, "users/not-an-email");
+  const context = first.objects[0].source_context as any;
+  assert.deepEqual(context.participants, payload.participants, "Silent participants remain source evidence");
+  assert.equal(context.participants[1].anonymousUser.displayName, "Guest");
+  assert.equal(context.participants[0].signedinUser.user, "users/not-an-email");
+  assert.equal(context.entries, undefined, "Context does not duplicate the complete transcript text");
+  assert.deepEqual(context.conference, conference);
   assert.ok(!JSON.stringify(first.receipt).includes("unchanged"));
   f.h.reverse = true; assert.equal((await f.connector.readCompleteInventory(f)).objects[0].version, first.objects[0].version);
   assert.equal(first.watermark, `google-meet:${sha256(first.objects)}`);
