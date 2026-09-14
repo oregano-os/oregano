@@ -1,5 +1,6 @@
 import { JWT } from "google-auth-library";
 import { createPrivateKey } from "node:crypto";
+import { canonicalRecordInstant, recordInstant } from "../../records/instant.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 
 export const GOOGLE_MEET_READ_SCOPE = "https://www.googleapis.com/auth/meetings.space.readonly";
@@ -51,8 +52,8 @@ export interface GoogleMeetReadReceipt { pages: number; request_ids: string[]; d
 export interface GoogleMeetList { items: Record<string, unknown>[]; receipt: GoogleMeetReadReceipt }
 export type GoogleMeetFetch = (url: string | URL | Request, init?: RequestInit) => Promise<Response>;
 const instant = (value: string): string => {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value))) throw new GoogleMeetError("invalid-time-bound");
-  return new Date(value).toISOString();
+  try { recordInstant(value, "Meet time"); return canonicalRecordInstant(value); }
+  catch { throw new GoogleMeetError("invalid-time-bound"); }
 };
 
 /** Read-only, fixed-host Meet transport. Provider text and OAuth material never enter error messages. */
@@ -91,7 +92,7 @@ export class GoogleMeetClient {
           chunks.push(next.value);
         }
       } catch (error) { if (error instanceof GoogleMeetError) throw error; throw new GoogleMeetError("response-interrupted"); }
-      let data: unknown; try { data = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new GoogleMeetError("invalid-json"); }
+      let data: unknown; try { data = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks))); } catch { throw new GoogleMeetError("invalid-json"); }
       if (!object(data) || data.error !== undefined) throw new GoogleMeetError("invalid-envelope");
       const requestId = response.headers.get("x-goog-request-id");
       return { data, ...(requestId && requestId.length <= 256 && !/[\x00-\x1f]/.test(requestId) ? { requestId } : {}) };
@@ -127,6 +128,18 @@ export class GoogleMeetClient {
     if (start && end && start >= end) throw new GoogleMeetError("inverted-time-bounds");
     const filter = [start && `start_time>="${start}"`, end && `start_time<"${end}"`].filter(Boolean).join(" AND ");
     return this.#list("conferenceRecords", "conferenceRecords", conferencePattern, filter ? { filter } : {});
+  }
+  async conference(name: string): Promise<Record<string, unknown>> {
+    if (!conferencePattern.test(name)) throw new GoogleMeetError("invalid-conference-resource");
+    const { data } = await this.#read(name, {});
+    if (data.name !== name) throw new GoogleMeetError("resource-scope-mismatch");
+    return data;
+  }
+  async transcript(name: string): Promise<Record<string, unknown>> {
+    if (!transcriptPattern.test(name)) throw new GoogleMeetError("invalid-transcript-resource");
+    const { data } = await this.#read(name, {});
+    if (data.name !== name) throw new GoogleMeetError("resource-scope-mismatch");
+    return data;
   }
   transcripts(conference: string): Promise<GoogleMeetList> {
     if (!conferencePattern.test(conference)) throw new GoogleMeetError("invalid-conference-resource");

@@ -79,3 +79,63 @@ test("entries use transcriptEntries and preserve unmodified text plus source and
   const client = new GoogleMeetClient({ token: async () => "synthetic", fetcher: async () => response({ transcriptEntries: [entry] }) });
   assert.deepEqual((await client.entries(transcript.name)).items, [entry]);
 });
+
+import { GoogleMeetRecordSourceConnector, qualifyGoogleMeetRecordSource, GOOGLE_MEET_RECORD_SOURCE_ID } from "../../connectors/google-meet/records-source.ts";
+import { sha256 } from "../../runtime/canonical.ts";
+import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts";
+import type { CompanyRecordSourceBinding } from "../../records/source-connector.ts";
+
+async function sourceFixture() {
+  const discoveryClient = new GoogleMeetClient({ token: async () => "synthetic", fetcher: async url => response(new URL(String(url)).pathname === "/v2/conferenceRecords" ? { conferenceRecords: [conference] } : { transcripts: [transcript] }) });
+  const discovery = await discoverGoogleMeetTranscripts({ client: discoveryClient, identity, now: "2030-04-02T00:00:00Z" });
+  const qualification = qualifyGoogleMeetRecordSource(discovery, [transcript.name]);
+  const source = { id: "synthetic-meet", record_type: "brain-source", resource_binding: "synthetic-meet" } as CompanyRecordSourceDeclaration;
+  const binding: CompanyRecordSourceBinding = { schema_version: 1, instance_id: "synthetic", source_id: source.id, resource_binding: source.resource_binding,
+    connector: GOOGLE_MEET_RECORD_SOURCE_ID, connector_version: "0.1.0", secret_ref: "env:SYNTHETIC_GOOGLE_CREDENTIAL",
+    qualification: { receipt_ref: "local:synthetic-receipt", digest: qualification.evidence.digest }, configuration: JSON.parse(JSON.stringify(qualification.evidence.selection)) };
+  const h = { transcriptReads: 0, missing: false, empty: false, changed: false, reverse: false, secrets: 0 };
+  const entries = [{ name: `${transcript.name}/entries/later`, participant: `${conference.name}/participants/person-1`, text: "later unchanged", languageCode: "en", startTime: "2030-04-01T10:00:01.000000002Z", endTime: "2030-04-01T10:00:02Z" },
+    { name: `${transcript.name}/entries/earlier`, participant: `${conference.name}/participants/person-1`, text: "earlier\nunchanged 😀", languageCode: "en", startTime: "2030-04-01T10:00:01.000000001Z", endTime: "2030-04-01T10:00:02Z" }];
+  const participants = [{ name: `${conference.name}/participants/person-1`, signedinUser: { displayName: "Alex", user: "users/not-an-email" } }, { name: `${conference.name}/participants/person-2`, anonymousUser: { displayName: "Guest" } }];
+  const client = new GoogleMeetClient({ token: async () => "synthetic", fetcher: async url => {
+    const path = new URL(String(url)).pathname;
+    if (h.missing) return response({ error: "private-body" }, 403);
+    if (path === `/v2/${conference.name}`) return response(conference);
+    if (path === `/v2/${conference.name}/participants`) return response({ participants: h.reverse ? [...participants].reverse() : participants });
+    if (path === `/v2/${transcript.name}`) { h.transcriptReads++; return response(h.changed && h.transcriptReads % 2 === 0 ? { ...transcript, endTime: "2030-04-01T11:01:00Z" } : transcript); }
+    assert.equal(path, `/v2/${transcript.name}/entries`); return response({ transcriptEntries: h.empty ? [] : entries });
+  } });
+  const connector = new GoogleMeetRecordSourceConnector({ resolveSecret: async () => { h.secrets++; return "synthetic"; }, client: () => client, now: () => new Date("2030-04-02T00:00:00Z") });
+  return { h, connector, source, binding, qualification, discovery };
+}
+test("qualified exact selection feeds complete Records with stable content versions and preserved sub-millisecond order", async () => {
+  const f = await sourceFixture(); const first = await f.connector.readCompleteInventory(f);
+  assert.equal(first.complete, true); assert.equal(first.objects.length, 1); assert.equal(first.receipt.scope, "exact-qualified-transcript-selection");
+  assert.equal(first.objects[0].identity, transcript.name); assert.match(String(first.objects[0].text), /Alex: earlier\nunchanged 😀/);
+  assert.ok(String(first.objects[0].text).indexOf("earlier") < String(first.objects[0].text).indexOf("later"));
+  const payload = first.objects[0].provider_payload as any;
+  assert.equal(payload.entries[0].text, "earlier\nunchanged 😀"); assert.equal(payload.participants[0].signedinUser.user, "users/not-an-email");
+  assert.ok(!JSON.stringify(first.receipt).includes("unchanged"));
+  f.h.reverse = true; assert.equal((await f.connector.readCompleteInventory(f)).objects[0].version, first.objects[0].version);
+  assert.equal(first.watermark, `google-meet:${sha256(first.objects)}`);
+});
+test("changed selection and forged qualification fail before secret resolution", async () => {
+  const f = await sourceFixture();
+  assert.throws(() => qualifyGoogleMeetRecordSource(f.discovery, [`${conference.name}/transcripts/unqualified`]), /unqualified/);
+  await assert.rejects(f.connector.readCompleteInventory({ ...f, binding: { ...f.binding, configuration: { ...f.binding.configuration, transcript_names: [`${conference.name}/transcripts/unqualified`] } } }), /qualification-mismatch/);
+  await assert.rejects(f.connector.readCompleteInventory({ ...f, qualification: { ...f.qualification, evidence: { ...f.qualification.evidence, credentials_retained: true } } }), /qualification-mismatch/);
+  assert.equal(f.h.secrets, 0);
+});
+test("missing access, absent entries and a changing transcript never produce a complete source inventory", async () => {
+  for (const fault of ["missing", "empty", "changed"] as const) {
+    const f = await sourceFixture(); f.h[fault] = true;
+    await assert.rejects(f.connector.readCompleteInventory(f), error => error instanceof GoogleMeetError && !error.message.includes("private-body"));
+  }
+});
+test("invalid calendar bounds and unexpected list envelopes fail instead of silently losing source data", async () => {
+  const client = new GoogleMeetClient({ token: async () => "synthetic", fetcher: async () => response({ entries: [] }) });
+  assert.throws(() => client.conferences({ startAt: "2030-02-30T00:00:00Z" }), /invalid-time-bound/);
+  await assert.rejects(client.entries(transcript.name), /unexpected-list-envelope/);
+  const invalid = new GoogleMeetClient({ token: async () => "synthetic", fetcher: async () => response({ conferenceRecords: null }) });
+  await assert.rejects(invalid.conferences(), /invalid-list/);
+});

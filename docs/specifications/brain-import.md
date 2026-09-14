@@ -110,8 +110,27 @@ names or conflicting duplicates. Permission errors cannot become empty inventori
 429/5xx retries are limited to three attempts; a longer Retry-After is returned as
 a retryable diagnostic instead of blocking a worker. Response size and per-request
 time bounds are explicit. Metadata discovery and entry transport are a foundation;
-the maintained Record Source adapter, qualification/binding integration, actual
-provider rehearsal and ingest Workflow are not yet complete.
+the actual provider rehearsal and complete ingest Workflow are not yet complete.
+
+`oregano/google-meet-record-source@0.1.0` is registered with the existing CLI
+and hosted Records registries. Its non-secret binding holds one explicit delegated
+identity and an exact list of Transcript resource names. A content-free qualification
+receipt binds those names to complete metadata discovery. Changed subjects or
+selections require new qualification; installation alone grants no access. Runtime
+credential resolution still uses the existing Instance SecretRef.
+
+The adapter rechecks each selected generated transcript, retains all entry and
+participant data, and fails the whole inventory on missing access, empty completed
+transcripts, partial pagination or a transcript that changes during reading.
+Records receive the provider-neutral source identity/version, complete readable
+text, original reference and preserved provider payload. Content versioning excludes
+the reader, fetch time and selection scope; participant ordering does not create
+spurious versions. Entries are sorted with nanosecond precision. Completeness
+means the exact selected transcripts were read, never all company meetings. The
+ordinary source connection/rehearsal lifecycle supplies synchronization and
+projection evidence; no Brain-specific provider endpoint or source database is
+introduced. Historical expiry is an error to reconcile, not an instruction to
+delete source-derived Brain knowledge.
 
 Primary provider contracts: [conference lists](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords/list),
 [transcript entries](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords.transcripts.entries/list),

@@ -18,6 +18,7 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
   - packages/connectors/google-meet/**
   - packages/testkit/tests/google-meet-source.test.ts
   - package.json
@@ -173,8 +174,8 @@ architecture:
         provider with revision-specific permitted Markdown reads and
         expected-base atomic knowledge commits. Explicit bindings, source checks
         and repository policy govern all provider effects. Add the company-neutral
-      Google Meet transport with explicit delegated identity, fixed read-only
-      scope, bounded pagination and payload-free qualification facts.
+        Google Meet transport with explicit delegated identity, fixed read-only
+        scope, bounded pagination and payload-free qualification facts.
   new_core_mechanisms:
     - Brain Markdown and Takes parsing with configurable types, explicit
       aliases, source-context links and diagnostics.
