@@ -242,90 +242,6 @@
           "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
         },
         {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
           "kind": "terminology-operation-or-synthetic-example",
           "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         }
@@ -404,18 +320,6 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Replace unavailable hybrid expansion, global enumeration and external lookup with the seven scoped operations; preserve lookup-before-update, coverage limits and source authority."
         }
       ]
     },
@@ -436,22 +340,6 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Keep named tier purposes; replace upstream provider defaults and subagent routing with existing Instance Model Recipes."
         }
       ]
     },
@@ -469,10 +357,6 @@
       "sha256": "be8f2e2d8cc1d85eaec93a11dad4649b029ccb84ef5c9d503f802da6d690f081",
       "adaptation_reason": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp.",
       "adaptations": [
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp."
-        },
         {
           "kind": "scoped-contract-adaptation",
           "description": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp."
@@ -528,10 +412,6 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Retain deep-read interpretation and immediate filing; Records preserve sources and existing workflow state checkpoints each completed step."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain deep-read interpretation and immediate filing; Records preserve sources and existing workflow state checkpoints each completed step."
         }
       ]
     },
@@ -582,10 +462,6 @@
           "description": "Keep the recorder-neutral contract, complete evidence, split/dedup and speaker checks. Provider fetching and source IDs stay in Records; no capture service or private source copy."
         },
         {
-          "kind": "scoped-contract-adaptation",
-          "description": "Keep the recorder-neutral contract, complete evidence, split/dedup and speaker checks. Provider fetching and source IDs stay in Records; no capture service or private source copy."
-        },
-        {
           "kind": "terminology-operation-or-synthetic-example",
           "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         }
@@ -608,10 +484,6 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         },
         {
           "kind": "terminology-operation-or-synthetic-example",
@@ -640,14 +512,6 @@
         {
           "kind": "terminology-operation-or-synthetic-example",
           "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         }
       ]
     },
@@ -668,38 +532,6 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         },
         {
           "kind": "terminology-operation-or-synthetic-example",
@@ -750,66 +582,6 @@
           "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
         },
         {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
           "kind": "terminology-operation-or-synthetic-example",
           "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         }
@@ -848,34 +620,6 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
-        },
-        {
-          "kind": "scoped-contract-adaptation",
-          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
-        },
-        {
-          "kind": "terminology-operation-or-synthetic-example",
-          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         },
         {
           "kind": "terminology-operation-or-synthetic-example",
