@@ -668,7 +668,7 @@
         "meeting-contract",
         "meeting-page"
       ],
-      "output": "Return only one complete meeting page as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence, filename heading, or commentary outside the page. The Phase 5 template is the page body, not its outer serialization. Use the complete source and supplied normalization; flag unsupported claims. Include a dated Timeline after <!-- timeline -->. Cite host_context.internal_evidence_page with [[slug]] links in source-grounded text and every Timeline entry/Take; that evidence page preserves the original source reference. No other pages are drafted."
+      "output": "Return only one complete meeting page as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence, filename heading, or commentary outside the page. The Phase 5 template is the page body, not its outer serialization. Use the complete source, supplied normalization and host page-read receipt: found requires the existing page; complete not_found permits creation; absent read evidence returns JSON gaps. Flag unsupported claims. Include a dated Timeline after <!-- timeline -->. Cite host_context.internal_evidence_page with [[slug]] links in source-grounded text and every Timeline entry/Take; that evidence page preserves the original source reference. No other pages are drafted."
     },
     {
       "id": "meeting-entities",
