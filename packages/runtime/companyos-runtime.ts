@@ -14,6 +14,7 @@ import { LANGUAGE_TOOL_TIMEOUT_MS } from "../language/contracts.ts";
 import { RecordScanPendingError } from "../records/current-scan.ts";
 import { standardBrainWriteCapability } from "../standard-tools/brain.ts";
 import { BrainRecoveryPendingError } from "../brain/writes.ts";
+import { BrainError } from "../brain/contracts.ts";
 
 export interface ExecuteToolRequest {
   runId: string;
@@ -288,6 +289,7 @@ export class CompanyOSRuntime {
     // Company Tool errors and messages cannot opt themselves into automatic retry.
     let pendingScan: RecordScanPendingError | undefined;
     let pendingBrain: BrainRecoveryPendingError | undefined;
+    let brainFailure: BrainError | undefined;
     let brainCapabilityInFlight = false;
     const invoke = async () => {
       try {
@@ -327,6 +329,9 @@ export class CompanyOSRuntime {
             } catch (error) {
               if (error instanceof CapabilityEffectOutcomeUnknownError) unknownCapabilityEffects.push(error.evidence);
               if (error instanceof BrainRecoveryPendingError && capability === standardBrainWriteCapability(tool)) pendingBrain = error;
+              // Preserve trusted domain diagnostics outside IPC only for the exact
+              // maintained passthrough; arbitrary Company Tools keep their own errors.
+              if (brainWrite && error instanceof BrainError) brainFailure = error;
               if (error instanceof RecordScanPendingError && capability === "records.query"
                 && tool.contract.runtimeId === "oregano:records/query") pendingScan = error;
               throw error;
@@ -337,6 +342,7 @@ export class CompanyOSRuntime {
         });
         if (pendingScan) throw pendingScan;
         if (pendingBrain) throw pendingBrain;
+        if (brainFailure) throw brainFailure;
         const outputErrors = validateJsonSchemaValue(tool.contract.outputSchema, output);
         if (outputErrors.length > 0) throw new Error(`Invalid Tool output: ${outputErrors.join("; ")}`);
         return { output, capabilityEvidence, ...(guard ? { workflow: guard.evidence } : {}) };
@@ -350,7 +356,7 @@ export class CompanyOSRuntime {
             { capability_effects: structuredClone([...successfulEffects, ...unknownCapabilityEffects]), ...(guard ? { workflow: guard.evidence } : {}) },
           );
         }
-        throw pendingScan ?? error;
+        throw pendingScan ?? brainFailure ?? error;
       }
     };
 
@@ -411,7 +417,7 @@ export class CompanyOSRuntime {
       const unknown = error instanceof CapabilityEffectOutcomeUnknownError;
       const evidence = unknown
         ? { error: error.message, partial_evidence: error.evidence }
-        : { error: error instanceof Error ? error.message : String(error) };
+        : { error: error instanceof Error ? error.message : String(error), ...(error instanceof BrainError ? { code: error.code } : {}) };
       if (unknown) await this.#state.markEffectUnknown(idempotencyKey, evidence);
       else await this.#state.markEffectFailed(idempotencyKey, evidence);
       await this.#state.appendEvent({

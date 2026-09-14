@@ -174,7 +174,7 @@ Provenance identifies source, version, processing action and internal evidence
 pages linking to originals. Validate the complete resulting corpus before one
 atomic commit. A newer branch head is accepted only while every selected page
 still matches its precondition; unrelated edits survive. A changed target or
-commit race returns a conflict for rereading and semantic reapplication.
+commit race returns a conflict for rereading and semantic reapplication. The exact maintained write Tools preserve typed Brain validation errors across the isolated Tool worker, including `write_conflict` and `invalid_batch`; custom Company Tool wrappers do not acquire this transport behavior from a matching name alone.
 
 `forget(target, reason, operation_key, dry_run?)` withdraws a page, unique exact
 prose passage or Take row. Prose targets exclude frontmatter and Takes fences.

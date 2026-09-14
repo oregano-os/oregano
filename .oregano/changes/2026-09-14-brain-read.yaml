@@ -3,7 +3,7 @@ plan_id: brain-read-2026-09-14
 created: 2026-09-14
 title: Read and update governed Markdown knowledge with scoped recovery
 objective: Qualify reusable bounded Brain instruction phases and add documents, projection,
-  reads and bounded evidenced writes with explicit Workspace adoption, ordinary roster and Tool
+  reads and bounded evidenced writes with explicit Workspace adoption, preserved typed write diagnostics, ordinary roster and Tool
   authority, atomic repository publication, recoverable synchronization and scoped change continuation.
 non_goals:
   - Claim automatic source ingestion or live company adoption before their later increments.

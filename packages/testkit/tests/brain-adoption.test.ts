@@ -266,3 +266,43 @@ test("a durable Workflow resumes Brain receipt/index recovery across worker invo
     } finally { f.cleanup(); }
   }
 });
+
+test("maintained Brain writes preserve typed validation failures across the isolated Tool worker", async () => {
+  const { CompanyOSRuntime } = await import("../../runtime/companyos-runtime.ts");
+  const { BrainWrites } = await import("../../brain/writes.ts");
+  const { BrainError } = await import("../../brain/contracts.ts");
+  const { InMemoryStateStore } = await import("../../runtime/memory-state.ts");
+  const { InMemoryCompanyRecordsStore } = await import("../../records/memory-store.ts");
+  const f = fixture();
+  try {
+    f.adopt(["oregano:brain/remember"]);
+    const artifact = f.build(), state = new InMemoryStateStore(), store = new InMemoryBrainStore(), leases = new InMemoryCompanyRecordsStore();
+    const scope = { instance_id: artifact.instance.id, repository_id: "example/company" };
+    const binding = { instanceId: scope.instance_id, repositoryId: scope.repository_id, bindingId: "repository", branch: "brain-test" };
+    let writes = 0;
+    const repository = { brainRevision: async () => "a".repeat(40), brainFiles: async () => structuredClone(brainFiles),
+      brainFindCommit: async () => undefined, brainCommit: async () => { writes++; throw new Error("No invalid write may reach the provider"); } };
+    const connector = new BrainConnector({ artifact, reads: new BrainReads(store, scope), writes: () => new BrainWrites({ scope, binding,
+      configuration: brainConfig, store, effects: state, leases, repository }) });
+    const runtime = new CompanyOSRuntime({ artifact, state, connectors: [connector], workflowContext: { read: async () => undefined } });
+    const path = "brain/topics/expansion.md";
+    for (const code of ["write_conflict", "invalid_batch"]) {
+      const input = { changes: { expected_revision: "a".repeat(40), pages: [{ path,
+        expected_content_hash: sha256(code === "write_conflict" ? "stale content" : brainFiles[path]),
+        markdown: code === "invalid_batch" ? "Missing frontmatter" : brainFiles[path] }] },
+        provenance: { source_id: "review:1", source_version: "v1", action: "update", evidence: ["sources/review"] }, operation_key: `failure:${code}` };
+      await assert.rejects(runtime.execute({ runId: `failure-${code}`, stepId: "save", agentId: "growth", grantId: "oregano:brain/remember",
+        subjectPrincipal: "test:solstice:morgan", input }), error => error instanceof BrainError && error.code === code);
+      const event = state.events.find(event => event.runId === `failure-${code}` && event.event === "tool.effect-failed");
+      assert.equal((event?.evidence as { code?: string })?.code, code);
+      const altered = structuredClone(artifact);
+      const wrapper = altered.agents.find(agent => agent.id === "growth")!.tools.find(tool => tool.contract.runtimeId === "oregano:brain/remember")!;
+      wrapper.compiledSource += "\n// A separately authored wrapper.\n";
+      wrapper.sourceDigest = sha256(wrapper.compiledSource);
+      const customRuntime = new CompanyOSRuntime({ artifact: altered, state, connectors: [connector], workflowContext: { read: async () => undefined } });
+      await assert.rejects(customRuntime.execute({ runId: `wrapper-${code}`, stepId: "save", agentId: "growth", grantId: "oregano:brain/remember",
+        subjectPrincipal: "test:solstice:morgan", input }), error => error instanceof Error && !(error instanceof BrainError));
+    }
+    assert.equal(writes, 0);
+  } finally { f.cleanup(); }
+});

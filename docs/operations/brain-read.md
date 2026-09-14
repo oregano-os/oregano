@@ -175,3 +175,8 @@ deployment identity, source read-back, delta continuation, duplicate operations,
 conflicting edits, and Git-success/index-failure recovery. Recheck actual Git and
 hosting triggers; source-level absence of release calls alone does not prove
 the external host's deployment behavior.
+
+The maintained write Tool preserves a typed `write_conflict` or `invalid_batch`
+diagnostic through the isolated worker. Reread changed pages before submitting a
+new operation; do not blindly retry stale replacements. These validation failures
+are distinct from an unknown provider outcome and do not prove a new commit.
