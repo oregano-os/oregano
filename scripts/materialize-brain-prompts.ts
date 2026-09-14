@@ -73,6 +73,9 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
     const variants = phase.profile === "utility" ? [phase] : [phase, { ...phase, id: `${phase.id}-deep`, task: "brain.ingest.deep", profile: "deep" as const }];
     for (const variant of variants) {
       const preface = `# Reviewed Brain phase: ${phase.id}\n\nThis call prepares only this phase's bounded result. It has no Tools and cannot write, synchronize or declare completed effects. Procedure references to recall/entity/write mean use supplied authorized page context and propose the next required operation for the host workflow. If evidence or page context is missing, return the explicit gap; never invent a lookup or a successful write. Later phases must receive complete source evidence, existing pages and relevant prior results again. Emit only the requested phase output; no whole-corpus or multi-page batch is implied.\n\nReviewed company perspective: ${input.perspective}\nFiling categories: ${input.filing_categories.join(", ")}\nDirectory mappings under brain/: ${JSON.stringify(input.directories)}\n\nEvery Timeline entry and Take cites an internal evidence page that links to the original source. Confirmed meeting attendees have meaningful pages even if short. Shared quality rules do not authorize source selection, audience restrictions, privacy queues or external lookups. Inline links below are provenance; every rule required for this phase is included in these instructions.\n\n`;
+      const pageFormat = ["meeting-page", "meeting-entities", "discussion-entities"].includes(phase.id)
+        ? " Takes serialization (pinned takes-fence contract, before the Timeline): use exactly <!--- gbrain:takes:begin --> and <!--- gbrain:takes:end --> around a Markdown table with columns | # | claim | kind | who | weight | since | source |. Preserve existing stable positive row numbers; append new numbers. kind is fact, take, bet or hunch; who is the actual holder per the filing rules; weight uses the 0.05 grid in [0,1]; since is an evidenced ISO date/month or empty; source must contain the supplied [[internal-evidence-page]] link, never only a prose label. Superseded claims use ~~strikethrough~~ without renumbering. Escape literal pipes in cells. Omit the table when no Takes are supported."
+        : "";
       const instructions = preface + phase.sections.map(key => {
         const text = sections.get(key);
         if (!text) throw new Error(`Missing phase guidance: ${key}`);
@@ -80,7 +83,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
           if (!directories.includes(key as typeof directories[number])) throw new Error("Unknown directory mapping");
           return input.directories[key as typeof directories[number]];
         });
-      }).join("\n\n") + `\n\nPhase output contract: ${phase.output}\n`;
+      }).join("\n\n") + `\n\nPhase output contract: ${phase.output}${pageFormat}\n`;
       if (instructions.length > MAX_INSTRUCTION_CHARACTERS || instructions.includes("{{")) throw new Error(`Brain phase exceeds instruction capacity or has unresolved mappings: ${variant.id}`);
       const path = `agents/${input.agent_id}/skills/brain-${variant.id}/SKILL.md`;
       if (materials[path]) throw new Error("Duplicate Brain phase path");

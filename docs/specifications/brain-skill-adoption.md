@@ -49,8 +49,8 @@ call contains the shared filing, quality, untrusted-content, lookup and model-ro
 rules. Meeting phases also carry the complete meeting contract. The entity
 phase includes claim verification and the applicable enrichment procedure.
 
-The synthetic default mapping measures 24,168 instruction units for the largest
-phase, or 24,357 with the unchanged host wrapper. Each phase also carries its
+The synthetic default mapping measures 24,862 instruction units for the largest
+phase, or 25,051 with the unchanged host wrapper. Each phase also carries its
 bounded output contract; normalization references retained source segments
 instead of echoing the whole transcript, and entity phases draft one target
 page per call. The final serialization contract follows the procedure sections: page drafts begin with YAML frontmatter, have a sourced Timeline and contain no outer code fence. A complete `not_found` page-read receipt permits a new page; absent lookup evidence remains a gap. The connector ceiling is
@@ -60,6 +60,13 @@ measured afresh and may fail the ceiling. Missing sections, changed section
 hashes, uncovered upstream ranges, unresolved mappings and oversized prompts
 fail materialization. These checks establish integrity and declared coverage,
 not semantic completeness; that requires review against the pinned sources.
+
+The technical page serialization contract also preserves the seven-column Takes
+format from pinned `src/core/takes-fence.ts` (lines 5–34): exact triple-dash
+markers, stable row numbers and named fields. Oregano narrows the source column
+to internal evidence links and the supported kinds/holder mappings. This explicit
+output adaptation supplements the adopted holder guidance; a shorthand table is
+not a valid page draft.
 
 Before dependent runtime work claims feasibility, qualify the complete scoped
 Artifact instructions with actual configured models and representative private
