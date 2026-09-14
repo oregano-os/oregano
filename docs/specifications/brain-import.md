@@ -83,3 +83,37 @@ or company-specific value threshold belongs in these Core mechanisms. The owning
 Workspace adopts Skills, filing vocabulary, common triage calibration and model
 phase bindings. Instance state retains manifests, source-operation bindings,
 secrets and receipts. Source adapters only return evidence through Company Records.
+
+## Meet discovery checkpoint
+
+The generic `packages/connectors/google-meet/` transport uses Google's maintained
+authentication SDK with one explicitly bound service-account identity and delegated
+subject. It validates the key identity before constructing the SDK client, fixes
+the read-only Meet scope and API host, and never uses ambient credentials or
+provider URLs from source content. Tokens and private keys remain in the Instance.
+Source text, provider error bodies and credentials never appear in errors or
+content-free discovery receipts.
+
+Metadata discovery lists all available ConferenceRecord and Transcript pages for
+one explicit subject, retains stable Transcript identities and excludes ongoing
+conferences and unfinished transcripts. It does not fetch entries, Docs, Drive or
+a user directory, select a cohort, or start model processing. This allows the
+initial source identities to be reviewed and frozen before paid sample calls.
+Its completeness statement applies only to that subject's available provider
+inventory; it is not historical or company-wide coverage. The provider removes
+ConferenceRecords 30 days after conference end.
+
+The transport also supports parent-scoped entry and participant lists. Entries
+retain their exact text, timestamps and speaker resource references. Pagination
+fails on exhausted bounds, repeated tokens, malformed lists, foreign resource
+names or conflicting duplicates. Permission errors cannot become empty inventories.
+429/5xx retries are limited to three attempts; a longer Retry-After is returned as
+a retryable diagnostic instead of blocking a worker. Response size and per-request
+time bounds are explicit. Metadata discovery and entry transport are a foundation;
+the maintained Record Source adapter, qualification/binding integration, actual
+provider rehearsal and ingest Workflow are not yet complete.
+
+Primary provider contracts: [conference lists](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords/list),
+[transcript entries](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords.transcripts.entries/list),
+[conference retention](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords),
+and [Google authentication SDK](https://github.com/googleapis/google-auth-library-nodejs).

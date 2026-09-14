@@ -3,7 +3,8 @@ plan_id: brain-import-2026-09-14
 created: 2026-09-14
 title: Account for bounded resumable source processing
 objective: Extend the existing scoped generation path with durable per-attempt
-  usage evidence and Workspace-configured bounded import selection. Preserve
+  usage evidence, Workspace-configured bounded import selection and metadata-only
+  Google Meet discovery through a fixed read-only provider boundary. Preserve
   generic Core and runtime authority while composing the prior Brain increments.
 non_goals:
   - Claim automatic source ingestion or live company adoption before their later
@@ -17,6 +18,10 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - packages/connectors/google-meet/**
+  - packages/testkit/tests/google-meet-source.test.ts
+  - package.json
+  - pnpm-lock.yaml
   - .oregano/changes/2026-09-14-brain-read.yaml
   - packages/brain/**
   - packages/standard-tools/brain.ts
@@ -88,6 +93,7 @@ files_expected:
   - packages/runner-vercel/src/lib/agent-instructions.ts
   - packages/runner-vercel/src/lib/prompt-caching.test.ts
 tests:
+  - packages/testkit/tests/google-meet-source.test.ts
   - packages/testkit/tests/brain-documents.test.ts
   - packages/testkit/tests/brain-reads.test.ts
   - packages/testkit/tests/brain-mutations.test.ts
@@ -166,7 +172,9 @@ architecture:
       reason: Add scoped Brain reads and extend the existing trusted repository
         provider with revision-specific permitted Markdown reads and
         expected-base atomic knowledge commits. Explicit bindings, source checks
-        and repository policy govern all provider effects.
+        and repository policy govern all provider effects. Add the company-neutral
+      Google Meet transport with explicit delegated identity, fixed read-only
+      scope, bounded pagination and payload-free qualification facts.
   new_core_mechanisms:
     - Brain Markdown and Takes parsing with configurable types, explicit
       aliases, source-context links and diagnostics.
