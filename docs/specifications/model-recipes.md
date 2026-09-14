@@ -60,6 +60,13 @@ files are never implicitly loaded. Task, profile, capacity and prompt identity
 are recorded in binding/prompt digests. Callers and imported evidence cannot
 change them.
 
+An explicit phase binding may set `conversation_context: false`. The compiler
+retains that exact scoped material for generation but records its path separately
+so ordinary conversation prompts do not inline the entire phase library. This
+does not revoke scoped access or remove the Agent contract and other materials.
+The option requires an explicit task/profile pair and is included in binding
+identity. Existing bindings default to their unchanged conversation inclusion.
+
 The experimental [Brain Skill adoption](brain-skill-adoption.md) provides a
 static build helper and separately records the remaining model qualification.
 It introduces no Brain runtime or replacement for the retired Knowledge system.

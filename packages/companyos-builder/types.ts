@@ -69,6 +69,8 @@ export interface CompiledAgent {
   modelTask?: string;
   conversationCoordinator?: boolean;
   materials: Record<string, string>;
+  /** Exact scoped phase paths omitted from automatic conversation context, not from access. */
+  generationOnlyMaterials?: readonly string[];
   /** Builder-only existence inventory. Read scope still controls file content. */
   sourcePaths?: readonly string[];
   toolSet: ResolvedToolSet;

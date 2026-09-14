@@ -96,3 +96,14 @@ test("invalid or partial phase bindings and instruction capacities fail before g
   assert.doesNotThrow(() => new LanguageModelConnector({ artifact: noTask,
     prompts: [{ agent_id: "analyst", path, model_task: "document.extract", model_profile: "reasoning" }], generate }));
 });
+
+
+test("phase-only conversation context is trusted binding policy, never a caller override", async () => {
+  const generate = async () => ({ text: "Bound output", evidence: {} });
+  for (const fields of [{ conversation_context: false }, { model_task: "phase.test", model_profile: "utility", conversation_context: "false" }]) {
+    assert.throws(() => new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path, ...fields } as any], generate }), /context|Phase-only/);
+  }
+  const connector = new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path, model_task: "phase.test", model_profile: "utility", conversation_context: false }], generate });
+  await assert.rejects(connector.invoke("language.generate", { ...input, conversation_context: true }, context), /Invalid/);
+  assert.equal((await connector.invoke("language.generate", input, context)).output.text, "Bound output");
+});

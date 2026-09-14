@@ -4,7 +4,7 @@ import type { PublishedConversationContext } from "../../../runtime/published-co
 
 /** Shared by hosted conversations and isolated model qualification. */
 function instructionParts(
-  agent: Pick<CompiledAgent, "instructions" | "materials"> & Partial<Pick<CompiledAgent, "id">>,
+  agent: Pick<CompiledAgent, "instructions" | "materials"> & Partial<Pick<CompiledAgent, "id" | "generationOnlyMaterials">>,
   registeredToolNames: readonly string[],
   collectionContext?: unknown,
   publishedContext?: PublishedConversationContext["evidence"],
@@ -12,6 +12,7 @@ function instructionParts(
   const materials = agent.id === "builder"
     ? "Use builder_list_context to discover scoped Workspace definitions and builder_read_context to inspect their current content."
     : Object.entries(agent.materials)
+    .filter(([path]) => !agent.generationOnlyMaterials?.includes(path))
     .map(([path, content]) => `\n<material path="${path}">\n${content}\n</material>`)
     .join("\n");
   const registeredTools = registeredToolNames.join(", ") || "none";

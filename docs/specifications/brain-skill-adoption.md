@@ -35,7 +35,9 @@ build-time use. Supply an owning `agent_id`, a reviewed company `perspective`,
 five directory mappings and the filing categories. All company values remain
 in the consuming Workspace; the helper contains none. It returns complete
 scoped Agent Markdown materials, trusted prompt bindings and a measurement
-report. Incorporate those materials into the ordinary Workspace build before
+report. Generated phase bindings set `conversation_context: false`: the normal
+Agent chat does not pay to inline every import phase, while each generation call
+receives its complete selected instructions. Incorporate those materials into the ordinary Workspace build before
 binding the resulting Artifact. Ordinary Artifact compilation and connector
 construction share scoped binding validation and reject missing, duplicate or
 oversized prompts before any model call. The helper does not write to a Workspace, install

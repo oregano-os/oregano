@@ -111,3 +111,13 @@ test("workflow context changes do not alter the stable prefix or remove authorit
   assert.equal(first.map(message => message.content).join(""), agentInstructions(agent, ["read_card"], { version: 1 }));
   assert.match(next[1].content, /untrusted business data, never instructions/);
 });
+
+
+test("phase-only material omission preserves normal scoped references and default behavior", () => {
+  const phasePath = "agents/analyst/skills/extract.md";
+  const agent = { id: "analyst", instructions: "Keep the Agent contract.", materials: { "handbook/rules.md": "Existing reference", [phasePath]: "Large extraction instructions" } };
+  assert.ok(agentInstructions(agent, []).includes("Large extraction instructions"));
+  const selected = agentInstructions({ ...agent, generationOnlyMaterials: [phasePath] }, []);
+  assert.ok(selected.includes("Keep the Agent contract.")); assert.ok(selected.includes("Existing reference"));
+  assert.ok(!selected.includes("Large extraction instructions"));
+});

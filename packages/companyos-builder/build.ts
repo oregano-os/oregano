@@ -127,8 +127,8 @@ export function buildCompanyOSArtifact(args: {
     ...withoutHash,
     provenance: { ...withoutHash.provenance, builtAt: undefined },
   };
-  const artifact = { ...withoutHash, artifactHash: sha256(hashInput) };
-  for (const connector of artifact.connectors) {
+  const artifact: CompanyOSArtifact = { ...withoutHash, artifactHash: "" };
+  for (const connector of artifact.connectors ?? []) {
     if (connector.connector === "oregano/brain") {
       if (connector.connectorVersion !== "0.1.0" || !brain) throw new Error("Brain connector requires supported version and explicit Workspace adoption.");
       const binding = parseBrainRepositoryBinding(connector.configuration, artifact.instance.id);
@@ -137,7 +137,13 @@ export function buildCompanyOSArtifact(args: {
     }
     if (connector.connector !== "oregano/language-model" || connector.connectorVersion !== "1.0.0") continue;
     if (Object.keys(connector.configuration).join(",") !== "prompts") throw new Error("Language connector configuration requires only prompt bindings");
-    bindLanguagePrompts(artifact, connector.configuration.prompts as unknown as LanguagePromptBinding[]);
+    const prompts = connector.configuration.prompts as unknown as LanguagePromptBinding[];
+    bindLanguagePrompts(artifact, prompts);
+    for (const prompt of prompts) if (prompt.conversation_context === false) {
+      const agent = artifact.agents.find(agent => agent.id === prompt.agent_id)!;
+      agent.generationOnlyMaterials = [...new Set([...(agent.generationOnlyMaterials ?? []), prompt.path])].sort();
+    }
   }
+  artifact.artifactHash = sha256(hashInput);
   return artifact;
 }

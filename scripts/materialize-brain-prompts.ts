@@ -89,7 +89,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
       if (materials[path]) throw new Error("Duplicate Brain phase path");
       materials[path] = instructions;
       prompts.push({ agent_id: input.agent_id, path, model_task: variant.task, model_profile: variant.profile,
-        max_instruction_characters: instructions.length });
+        max_instruction_characters: instructions.length, conversation_context: false });
       measurements.push({ phase: variant.id, path, sections: phase.sections, instructions: instructions.length,
         system: instructions.length + LANGUAGE_SYSTEM_PREFIX.length, bytes: Buffer.byteLength(instructions), digest: digest(instructions) });
     }

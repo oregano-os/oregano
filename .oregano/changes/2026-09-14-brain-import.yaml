@@ -85,6 +85,8 @@ files_expected:
   - packages/testkit/tests/language-attempts.test.ts
   - packages/testkit/tests/brain-import-policy.test.ts
   - docs/specifications/brain-import.md
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
 tests:
   - packages/testkit/tests/brain-documents.test.ts
   - packages/testkit/tests/brain-reads.test.ts
@@ -102,6 +104,7 @@ tests:
   - packages/cli/tests/brain.test.mjs
   - packages/testkit/tests/language-attempts.test.ts
   - packages/testkit/tests/brain-import-policy.test.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
 documentation_impact:
   required: true
   affected_documents:
@@ -143,7 +146,9 @@ architecture:
     - mechanism: model-recipe-resolver
       reason: Add the named bounded synthesis task through the existing model runtime
         and usage reporting. Retain unknown token quantities as null and
-        preserve incomplete-response usage without text payloads.
+        preserve incomplete-response usage without text payloads. Mark reviewed
+        phase-only materials through the existing prompt binding so they do not
+        inflate ordinary conversation context.
     - mechanism: approvals-effects-and-idempotency
       reason: Reuse durable effects for operation identity and retained commit
         outcomes, with bounded provider reconciliation and synchronization
