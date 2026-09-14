@@ -3,7 +3,7 @@ import { sha256 } from "../runtime/canonical.ts";
 
 export const DEFAULT_INSTRUCTION_CHARACTERS = 16_000;
 /** Explicit per-binding ceiling; evidence, output and deadlines are independent. */
-export const MAX_INSTRUCTION_CHARACTERS = 24_000;
+export const MAX_INSTRUCTION_CHARACTERS = 30_000;
 export const LANGUAGE_MODEL_PROFILES = ["agent", "utility", "reasoning", "deep"] as const;
 export type LanguageModelProfile = typeof LANGUAGE_MODEL_PROFILES[number];
 export interface LanguagePromptBinding {
@@ -40,6 +40,7 @@ export function bindLanguagePrompt(artifact: CompanyOSArtifact, raw: LanguagePro
     || !LANGUAGE_MODEL_PROFILES.includes(raw.model_profile!)))) throw new Error("Generation task and language profile must be explicitly bound together");
   const limit = Object.hasOwn(raw, "max_instruction_characters") ? raw.max_instruction_characters : DEFAULT_INSTRUCTION_CHARACTERS;
   if (!Number.isInteger(limit) || limit! < 1 || limit! > MAX_INSTRUCTION_CHARACTERS) throw new Error("Invalid bounded generation instruction capacity");
+  if (limit! > DEFAULT_INSTRUCTION_CHARACTERS && !hasTask) throw new Error("Extended instruction capacity requires an explicit phase task and profile binding");
   const agent = artifact.agents.find(candidate => candidate.id === raw.agent_id);
   const instructions = agent?.materials[raw.path];
   if (!agent || typeof instructions !== "string" || !instructions.trim() || instructions.length > limit!) throw new Error("Generation prompt is missing or exceeds its bound in the owning Agent's scoped Artifact materials");

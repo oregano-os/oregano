@@ -194,7 +194,7 @@
       "line_count": 136,
       "excluded_ranges": [
         [
-          31,
+          27,
           136
         ]
       ],
@@ -461,12 +461,12 @@
       "ranges": [
         [
           1,
-          30
+          26
         ]
       ],
-      "source_excerpt_sha256": "75c90b0f4a6358a69f35afaa6e6430406c56c321ab414a8206e1c27a0f4856cf",
+      "source_excerpt_sha256": "6de32efe4704a485081c9fe82ed5ddacba67d016016f5a4c46c42bc41e3f06df",
       "path": "sections/bulk-trial.md",
-      "sha256": "f9b7761b9be6d996a00afaff11173e6e1d7c004b9fd358f009e415944ba4c614",
+      "sha256": "be8f2e2d8cc1d85eaec93a11dad4649b029ccb84ef5c9d503f802da6d690f081",
       "adaptation_reason": "Retain read-before-bulk, small sample, actual-output and silent-failure checks; use the agreed bounded workflow instead of the excluded progressive ramp.",
       "adaptations": [
         {
@@ -662,7 +662,7 @@
       ],
       "source_excerpt_sha256": "8b87550cf48c4ada65e1c6cc51c0901b2901cef77ab0d9c278e941f9df972eed",
       "path": "sections/meeting-verify.md",
-      "sha256": "d59255dbe3dd451a41fa1443f0fc558123305573114a6c022a933f6b5941aff9",
+      "sha256": "0161bd9819d85af900dcb746704a6e124e0194cc8ed3b06b3e6453ebc160fb68",
       "adaptation_reason": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries.",
       "adaptations": [
         {
@@ -676,6 +676,18 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries."
+        },
+        {
+          "kind": "terminology-operation-or-synthetic-example",
+          "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
         },
         {
           "kind": "terminology-operation-or-synthetic-example",
@@ -830,9 +842,13 @@
       ],
       "source_excerpt_sha256": "6a681e90f6d48784609cbb1f19e373db6b3a730d942c4d9ad6d8910074ac4679",
       "path": "sections/enrich.md",
-      "sha256": "8c6fc310a28d3705b56750a2a7c6caa649f37ba0f4b4392b96c92d97d0008d91",
+      "sha256": "b640ebaf8120287698fdf889884b8309686ef996053e971dbd081847183b79bf",
       "adaptation_reason": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment.",
       "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."
+        },
         {
           "kind": "scoped-contract-adaptation",
           "description": "Retain grounded identity lookup, source texture, create/update and cross-reference behavior. No external lookup, personal dossier taxonomy, additional Agent or API enrichment."

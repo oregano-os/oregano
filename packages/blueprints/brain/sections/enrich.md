@@ -69,6 +69,8 @@ Don't just capture facts. Capture texture:
 | Role, company, funding, location | current-knowledge section (hard facts) |
 
 
+Upstream Steps 4 (external enrichment) and 5 (raw-file storage) are intentionally excluded. Use supplied evidence and retained Records. Step numbers below retain the pinned source references; no missing procedure should be fetched.
+
 ### Step 6: Write to brain
 
 #### CREATE path

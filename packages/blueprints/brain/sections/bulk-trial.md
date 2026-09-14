@@ -24,7 +24,3 @@ constraint, and the script's own logging never noticed. Exit code 0, money
 spent, database unchanged. A 10-item trial with a count-before/count-after
 check would have caught it in 30 seconds. "The script ran without errors" is
 not the same as "the output exists."
-
-## The Progressive Ramp (10 → 100 → 500 → full)
-
-A 5-item quality test is necessary but not sufficient. For any operation that

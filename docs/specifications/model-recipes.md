@@ -51,7 +51,8 @@ and the `agent` profile. Partial bindings, invalid task names and non-language
 profiles fail before generation.
 
 Each binding defaults to 16,000 JavaScript string units of instructions. An
-explicit `max_instruction_characters` may set a positive integer up to 24,000.
+explicit `max_instruction_characters` may set a positive integer up to 30,000.
+Exceeding the default also requires an explicit phase task/profile pair.
 This ceiling supports the measured static Brain phases; it does not qualify
 any model's context window. Existing evidence, output and deadline limits do
 not change. The Artifact supplies the complete frozen Skill text; referenced

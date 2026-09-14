@@ -72,7 +72,8 @@ successful result. Formatting checks do not prove factual accuracy.
 
 The Skill defaults to at most 16,000 JavaScript string units. A reviewed
 binding can set `max_instruction_characters` to a positive integer up to
-24,000, based on measured complete instructions and model qualification.
+30,000, based on measured complete instructions and model qualification.
+Going above 16,000 also requires the explicit phase task/profile pair.
 Unchanged bindings retain the 16,000 default. Serialized evidence remains
 bounded at 150,000 string units; linked instruction files are not loaded.
 Select only the evidence needed for the task. Runtime permits up to 65 seconds

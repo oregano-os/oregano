@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { readFileSync, cpSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
 import { materializeBrainPrompts, type BrainPromptInputs } from "../../../scripts/materialize-brain-prompts.ts";
 import { bindLanguagePrompt } from "../../language/prompt-binding.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
@@ -18,7 +19,7 @@ test("static phase materialization includes shared instructions and produces bin
   const result = materializeBrainPrompts(input);
   assert.equal(result.prompts.length, 15);
   assert.equal(result.report.model_context_qualified, false);
-  assert.equal(Math.max(...result.report.measurements.map(row => row.instructions)), 23_544);
+  assert.equal(Math.max(...result.report.measurements.map(row => row.instructions)), 23_777);
   const artifact = { agents: [{ id: input.agent_id, materials: result.materials }] } as unknown as CompanyOSArtifact;
   for (const prompt of result.prompts) {
     const bound = bindLanguagePrompt(artifact, prompt);
@@ -39,6 +40,7 @@ test("static phase materialization includes shared instructions and produces bin
       assert.match(bound.instructions, /Phase 7: Attendee enrichment/);
       assert.match(bound.instructions, /Phase 8: Entity propagation/);
       assert.match(bound.instructions, /Step 6: Write to brain/);
+      assert.match(bound.instructions, /Upstream Steps 4 \(external enrichment\) and 5 \(raw-file storage\) are intentionally excluded/);
     }
   }
 });
@@ -62,12 +64,22 @@ test("a different company vocabulary uses the same assets; oversized and malform
     directories: { person_directory: "researchers", company_directory: "institutions", concept_directory: "topics", meeting_directory: "sessions", evidence_directory: "references" } };
   const result = materializeBrainPrompts(alternate);
   assert.match(result.materials[result.prompts[5].path], /researchers\/jordan-example/);
+  const verification = result.materials[result.prompts.find(prompt => prompt.path.includes("brain-meeting-verify/") && prompt.model_profile === "reasoning")!.path];
+  assert.match(verification, /institutions/);
+  assert.doesNotMatch(verification, /companies\//);
+  assert.doesNotMatch(read("sections/bulk-trial.md").trimEnd(), /(?:^|\n)#{1,6} [^\n]+$/);
   assert.notEqual(result.report.inputs_digest, materializeBrainPrompts(input).report.inputs_digest);
   for (const bad of [{ ...input, perspective: "x".repeat(501) }, { ...input, directories: { ...input.directories, person_directory: "../private" } }]) {
     assert.throws(() => materializeBrainPrompts(bad), /Invalid/);
   }
-  const large = { ...input, perspective: "x".repeat(500), directories: Object.fromEntries(Object.keys(input.directories).map(key => [key, "a".repeat(40)])) as BrainPromptInputs["directories"] };
-  assert.throws(() => materializeBrainPrompts(large), /exceeds instruction capacity/);
+  const expanded = read("sections/enrich.md") + "\n" + "Additional reviewed guidance. ".repeat(1_000);
+  assert.throws(() => materializeBrainPrompts(input, path => {
+    if (path === "sections/enrich.md") return expanded;
+    if (path !== "adoption.json") return read(path);
+    const adoption = JSON.parse(read(path));
+    adoption.sections.find((section: { id: string }) => section.id === "enrich").sha256 = createHash("sha256").update(expanded).digest("hex");
+    return JSON.stringify(adoption);
+  }), /exceeds instruction capacity/);
 });
 
 test("ordinary Artifact compilation freezes generated scoped phases and rejects missing or oversized bindings", () => {

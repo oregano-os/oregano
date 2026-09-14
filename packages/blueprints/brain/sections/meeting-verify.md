@@ -15,11 +15,13 @@ violation; a false completion report is worse than an honest partial one.
   Before writing "none", confirm against the transcript that there truly were
   no decisions/commitments/quotes worth keeping.
 
-**V2 — Every {{person_directory}}/companies slug has a page AND a timeline backlink.**
+**V2 — Every page referenced in either {{person_directory}} or {{company_directory}} has a page AND a timeline backlink.**
 For each person/company slug referenced by the meeting page:
 ```bash
 entity {{person_directory}}/{slug}          # page exists?
 entity (Timeline text) {{person_directory}}/{slug}     # has an entry pointing back at this meeting?
+entity {{company_directory}}/{slug}       # verify company pages too
+entity (Timeline text) {{company_directory}}/{slug}  # verify each company Timeline backlink
 ```
 A slug with no page means Phase 7/8 was skipped — go do it. A page with no
 timeline entry for this meeting means the merge was incomplete — add it.

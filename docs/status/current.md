@@ -16,7 +16,7 @@ audience:
 # Current System Status
 
 Experimental trusted language prompt bindings now support explicit task/profile
-pairs and a measured per-binding instruction capacity up to 24,000 units;
+pairs and a measured per-binding instruction capacity up to 30,000 units;
 existing bindings retain 16,000. Static pinned Brain Skill materialization is
 covered by synthetic integrity, scope and budget checks. Live model qualification
 is outstanding; no Brain runtime, import workflow or company adoption is claimed.
