@@ -1,11 +1,15 @@
 version: 3
 plan_id: brain-read-2026-09-14
-created: "2026-09-14"
+created: 2026-09-14
 title: Read governed Markdown knowledge through a rebuildable Brain projection
-objective: Add the reusable Brain document, projection and read operations with explicit Workspace adoption, ordinary roster and Tool authority, consistent indexed revisions and bounded evidence-grounded synthesis.
+objective: Qualify reusable bounded Brain instruction phases and add document, projection and read
+  operations with explicit Workspace adoption, ordinary roster and Tool authority, consistent
+  indexed revisions and bounded evidence-grounded synthesis.
 non_goals:
-  - Claim source ingestion, writes, delta continuation or live company adoption before their later increments.
-  - Introduce a second identity, model, scheduler, repository authentication or authoritative knowledge database.
+  - Claim source ingestion, writes, delta continuation or live company adoption before their later
+    increments.
+  - Introduce a second identity, model, scheduler, repository authentication or authoritative
+    knowledge database.
   - Compile mutable Brain content into Agent instructions or treat retrieved text as authority.
 placement: core
 change_class: security
@@ -46,6 +50,20 @@ files_expected:
   - docs/_generated/**
   - packages/cli/content/guides/prepare-an-instance.md
   - packages/cli/content/guides/retire-knowledge.md
+  - .oregano/changes/2026-09-14-brain-foundation.yaml
+  - packages/blueprints/brain/**
+  - scripts/materialize-brain-prompts.ts
+  - packages/language/**
+  - packages/connectors/language-model.ts
+  - packages/companyos-builder/build.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - docs/specifications/model-recipes.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/cli/content/guides/author-a-company-tool.md
 tests:
   - packages/testkit/tests/brain-documents.test.ts
   - packages/testkit/tests/brain-reads.test.ts
@@ -53,31 +71,62 @@ tests:
   - packages/testkit/tests/brain-repository.test.ts
   - packages/testkit/tests/brain-postgres.test.ts
   - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/cli/tests/brain.test.mjs
 documentation_impact:
   required: true
-  affected_documents: [vision.companyos, reference.glossary, specification.brain-read, operations.brain-read, status.current, onboarding.index, onboarding.company-workspace, guide.prepare-instance, command.verify-live, guide.retire-knowledge, command.brain]
+  affected_documents:
+    - vision.companyos
+    - reference.glossary
+    - specification.brain-read
+    - operations.brain-read
+    - status.current
+    - onboarding.index
+    - onboarding.company-workspace
+    - guide.prepare-instance
+    - command.verify-live
+    - guide.retire-knowledge
+    - command.brain
+    - specification.model-recipes
+    - specification.brain-skill-adoption
+    - guide.author-company-tool
 architecture:
   placement:
-    core: Brain path and document validation, storage and repository boundaries, rebuildable projection, read operations, authority enforcement and bounded synthesis.
-    packages: Pinned upstream operation wording, Markdown conventions and synthesis guidance with explicit portability adaptations and license attribution.
-    workspace: Declared types, relationship mappings, reading policy, common Tool grants and company knowledge in reviewed files.
-    instance: Existing repository installation and database binding, explicit migration, projection revisions and existing leases; no new credential registry.
+    core: Brain path and document validation, storage and repository boundaries, rebuildable projection,
+      read operations, authority enforcement and bounded synthesis.
+    packages: Pinned upstream operation wording, Markdown conventions and synthesis guidance with
+      explicit portability adaptations and license attribution.
+    workspace: Declared types, relationship mappings, reading policy, common Tool grants and company
+      knowledge in reviewed files.
+    instance: Existing repository installation and database binding, explicit migration, projection
+      revisions and existing leases; no new credential registry.
   mechanisms_extended:
     - mechanism: agent-resolver
-      reason: Exclude mutable Brain content from compiled instructions and materialize shared usage guidance only for effective granted operations.
+      reason: Exclude mutable Brain content from compiled instructions and materialize shared usage
+        guidance only for effective granted operations.
     - mechanism: toolset-resolver
-      reason: Resolve reviewed common Workspace grants with provenance for existing and future Agents without granting authority from Instance enablement.
+      reason: Resolve reviewed common Workspace grants with provenance for existing and future Agents
+        without granting authority from Instance enablement.
     - mechanism: model-recipe-resolver
       reason: Add the named bounded synthesis task through the existing model runtime and usage reporting.
     - mechanism: capability-contracts-and-connectors
-      reason: Add scoped Brain reads and extend the existing trusted repository provider with revision-specific permitted Markdown reads.
+      reason: Add scoped Brain reads and extend the existing trusted repository provider with
+        revision-specific permitted Markdown reads.
   new_core_mechanisms:
-    - Brain Markdown and Takes parsing with configurable types, explicit aliases, source-context links and diagnostics.
-    - A rebuildable Brain storage projection with full-text search and consistent revision metadata inside the existing Instance database lifecycle.
+    - Brain Markdown and Takes parsing with configurable types, explicit aliases, source-context
+      links and diagnostics.
+    - A rebuildable Brain storage projection with full-text search and consistent revision metadata
+      inside the existing Instance database lifecycle.
     - Shared bounded read operations and one-call synthesis using the same retrieval functions.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false
     public_fixtures: synthetic-only
-  core_reusability: Companies choose their vocabulary, mappings, reading policy, grants and repository/database bindings. The same Core works with imports disabled and restricts unsupported access modes without company-specific branches.
-rollback: Restore the preceding compatible Core and Workspace pair. Rebuild or remove only the derived Brain projection through an explicit scoped operator migration; preserve control state, Records, repository history and existing receipts.
+  core_reusability: Companies choose their vocabulary, mappings, reading policy, grants and
+    repository/database bindings. The same Core works with imports disabled and restricts
+    unsupported access modes without company-specific branches.
+rollback: Restore the preceding compatible Core and Workspace pair. Rebuild or remove only the
+  derived Brain projection through an explicit scoped operator migration; preserve control state,
+  Records, repository history and existing receipts.
