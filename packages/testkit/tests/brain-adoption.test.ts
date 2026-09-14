@@ -301,7 +301,7 @@ test("maintained Brain writes preserve typed validation failures across the isol
       wrapper.sourceDigest = sha256(wrapper.compiledSource);
       const customRuntime = new CompanyOSRuntime({ artifact: altered, state, connectors: [connector], workflowContext: { read: async () => undefined } });
       await assert.rejects(customRuntime.execute({ runId: `wrapper-${code}`, stepId: "save", agentId: "growth", grantId: "oregano:brain/remember",
-        subjectPrincipal: "test:solstice:morgan", input }), error => error instanceof Error && !(error instanceof BrainError));
+        subjectPrincipal: "test:solstice:morgan", input: { ...input, operation_key: `wrapper-failure:${code}` } }), error => error instanceof Error && !(error instanceof BrainError));
     }
     assert.equal(writes, 0);
   } finally { f.cleanup(); }
