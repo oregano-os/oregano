@@ -1,6 +1,6 @@
 ---
 document_id: operations.brain-read
-title: Maintained Brain read implementation
+title: Maintained Brain implementation
 kind: operations
 status: building
 authority: canonical
@@ -15,19 +15,20 @@ relations:
   implements: [specification.brain-read]
 ---
 
-# Maintained Brain read implementation
+# Maintained Brain implementation
 
 This is the experimental GitHub and Neon/Postgres implementation of the
 [provider-neutral Brain contract](../specifications/brain-read.md). Its source
-and local integration tests are available; live company retrieval, synthesis
-quality and deployment qualification are still pending. Do not activate an
-unqualified candidate based only on these tests.
+and local integration tests are available. Bounded private hosted reads and
+synthesis have been qualified. Write, continuation and freshness qualification
+must identify their own exact candidate and isolated environment before live
+adoption; read evidence alone does not qualify later behavior.
 
 ## Bind the existing installation
 
 Declare connector `oregano/brain@0.1.0` in the existing tracked Instance
-configuration, and bind only the granted read capabilities to it. Its
-configuration accepts only `repository_binding_id`, `repository_id` and `branch`.
+configuration, and bind only granted capabilities to it. Its configuration accepts
+`repository_binding_id`, `repository_id`, `branch` and optional `freshness`.
 For example:
 
 ```yaml
@@ -52,6 +53,16 @@ source bytes and 5 MB per provider response. Requests have a 20-second timeout,
 an entire repository read has a 180-second deadline, and blobs are fetched five
 at a time. The initial implementation scans and validates the complete corpus;
 it does not claim unbounded backfill throughput.
+
+Writes acquire a short-lived `contents: write` token for the same repository,
+without pull-request or administration permission. One GitHub GraphQL
+`createCommitOnBranch` uses `expectedHeadOid`, bounded files and content-free
+operation/input trailers. The adapter validates commit identity and parent.
+Moved heads conflict; repository-required review returns
+`repository_review_required`. It never forces a branch or invokes a release.
+Read-only reconciliation searches at most 100 commits and verifies the exact
+parent, changed-file count and before/after content. Absence remains unresolved.
+See GitHub's [commit contract](https://docs.github.com/en/graphql/reference/commits).
 
 ## Prepare and qualify the existing database
 
@@ -86,19 +97,26 @@ companyos brain entity --artifact /private/operator/artifact.json --agent assist
 ```
 
 The entity input is `{"name":"people/alex"}`. Other read commands are `recall`,
-`context_pack` and `synthesize`, with the same inputs as their Agent Tools.
+`context_pack`, `synthesize` and `delta`, with the same inputs as their Agent Tools.
+`remember` and `forget` use the same administrator CLI and actual Agent runtime,
+requiring their separate effective write grants. Repeat identical operation keys
+to reconcile existing receipts; the CLI exits with code 2 for saved/pending sync.
 Checking is local and needs no database or model. Sync reads current Git through
 the configured App, validates all pages and reports diagnostics. It does not
 publish Git commits or trigger deployment. Unsupported or missing declaration
 policy fails during Workspace validation and Artifact compilation.
 
-Operator reads require a trusted Artifact produced by `companyos build`, its
+Operator Tools require a trusted Artifact produced by `companyos build`, its
 exact Core checkout, an explicitly selected Agent and an existing active roster
 principal. They execute through the normal runtime and retain its evidence.
 The local CLI is a privileged administrator interface with database credentials;
 `--subject-principal` is an explicit on-behalf-of choice, not an authentication
 protocol for remote users. Ordinary hosted requests retain their existing
 provider authentication. Never expose this CLI as an unauthenticated endpoint.
+
+The write Tool deadline is 120 seconds. A timeout does not prove no Git effect:
+the next call must reconcile the existing operation. The repository lease lasts
+300 seconds and a provider commit call is bounded to 30 seconds.
 
 The host connector reuses the existing model recipe resolution and language
 executor for `brain.synthesize`. It permits one composition call, at most 4,000
@@ -117,6 +135,39 @@ atomic checkpoint publication and preservation of control/Records data.
 For an invalid corpus, repair the source in Git and retry sync. For a concurrent
 sync, retry against the latest head after the current lease finishes. Keep the
 previous successful projection until a replacement is valid. Rebuild only the
-derived Brain scope; do not delete the shared Instance database. No write Tool,
-provider ingestion, automatic sync trigger or live semantic acceptance is claimed
-by this increment.
+derived Brain scope; preserve shared control state, operation receipts and Take
+identity high watermarks. A saved write with unavailable indexing resumes only
+sync. An uncertain write uses provider receipt reconciliation, never an automatic
+resend. Automatic source ingestion and completed live adoption remain pending.
+
+## Explicit freshness activation
+
+The optional Instance binding enables the maintained consumer:
+
+```yaml
+freshness:
+  push_events: true
+  reconcile_interval_seconds: 900
+```
+
+The interval is explicitly chosen per Instance, from 300 to 86,400 seconds.
+Omission disables background freshness. The existing GitHub webhook endpoint
+verifies the HMAC signature, delivery identity, active installation, repository
+numeric ID and exact branch before scheduling a Brain timer. Delivery replay
+is idempotent. No changed-path list or old event SHA selects index contents;
+sync reads the current bound head. Configure the existing App's push subscription
+and webhook URL explicitly; code availability does not create that subscription.
+
+`/api/brain/reconcile` uses the existing `CRON_SECRET` and production-deployment
+guard. The maintained host wakes every five minutes; reviewed Instance intervals
+control periodic reconciliation. One invocation claims at most 25 existing
+`brain-sync` timers and coalesces them into one sync. Retries preserve timer
+identity, back off to at most an hour and retain content-free failure status.
+Obsolete bindings cannot select another repository. This uses the existing
+durable timer and Records lease stores, with no new queue or session service.
+
+Before activation, qualify writes in an isolated branch with unchanged
+deployment identity, source read-back, delta continuation, duplicate operations,
+conflicting edits, and Git-success/index-failure recovery. Recheck actual Git and
+hosting triggers; source-level absence of release calls alone does not prove
+the external host's deployment behavior.

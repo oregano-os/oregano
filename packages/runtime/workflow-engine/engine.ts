@@ -23,6 +23,8 @@ import { verifyCompletedWorkflow } from "./verification.ts";
 import type { WorkflowVerificationRequirement } from "./verification-requirements.ts";
 import { prepareDecisionRecovery, type VerifyPublicationNotSent } from "./decision-recovery.ts";
 import { RecordScanPendingError } from "../../records/current-scan.ts";
+import { BrainRecoveryPendingError } from "../../brain/writes.ts";
+import { standardBrainWriteCapability } from "../../standard-tools/brain.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -275,10 +277,19 @@ export class WorkflowEngine {
     } catch (error) {
       if (error instanceof WorkflowLeaseLostError) return store.read(instanceId, runId);
       const state = structuredClone(run.state), message = error instanceof Error ? error.message : String(error);
-      const pinned = error instanceof RecordScanPendingError ? await store.getArtifact(run.artifactHash) : undefined;
+      const pinned = error instanceof RecordScanPendingError || error instanceof BrainRecoveryPendingError ? await store.getArtifact(run.artifactHash) : undefined;
       const failedStep = pinned?.workflows?.find(entry => entry.id === run.workflowId)?.steps.find(entry => entry.id === state.cursor);
       const startedAt = state.steps[state.cursor!]?.startedAt;
       const now = this.#now();
+      const brainTool = pinned?.agents.find(agent => agent.id === pinned.workflows?.find(entry => entry.id === run.workflowId)?.agentId)?.tools
+        .find(tool => tool.contract.runtimeId === failedStep?.tool?.runtimeId);
+      if (error instanceof BrainRecoveryPendingError && brainTool && standardBrainWriteCapability(brainTool)
+        && startedAt && Date.parse(now) < Date.parse(startedAt) + 15 * 60_000) {
+        const dueAt = new Date(Math.min(Date.parse(now) + 30_000, Date.parse(startedAt) + 15 * 60_000)).toISOString();
+        state.status = "waiting";
+        state.wait = { stepId: state.cursor!, kind: "effect", dueAt, timerId: timerId(run, state.cursor!, "effect", dueAt) };
+        return await this.#save(run, state, "workflow.awaiting-effect-reconciliation", { due_at: dueAt });
+      }
       if (error instanceof RecordScanPendingError && failedStep?.tool?.runtimeId === "oregano:records/query"
         && failedStep.maxRisk === "R0" && failedStep.requireScanStartedAfter !== undefined
         && startedAt && Date.parse(now) < Date.parse(startedAt) + 15 * 60_000) {
@@ -662,7 +673,11 @@ export class WorkflowEngine {
         : step.decision ? run.state.decisions[step.id]?.recipients ?? [] : [undefined];
       for (const itemKey of keys) {
         const effect = await this.#options.control.getEffect(workflowEffectKey(artifact, { ...ctx, ...(itemKey === undefined ? {} : { itemKey }) }));
-        if (effect && effect.status !== "succeeded") throw new Error("Unknown, failed or claimed workflow effect requires reconciliation; it cannot be retried blindly");
+        const tool = artifact.agents.find(agent => agent.id === workflow.agentId)?.tools.find(tool => tool.contract.runtimeId === step.tool?.runtimeId);
+        // The exact maintained Brain Tool will enter read-only receipt reconciliation,
+        // retaining the original outer and source-operation effect identities.
+        const brainRecovery = tool && standardBrainWriteCapability(tool) && ["unknown", "dispatched"].includes(String(effect?.status));
+        if (effect && effect.status !== "succeeded" && !brainRecovery) throw new Error("Unknown, failed or claimed workflow effect requires reconciliation; it cannot be retried blindly");
       }
       const state = structuredClone(run.state); delete state.blocked; state.status = "running";
       if (state.steps[step.id]) state.steps[step.id]!.status = "running";

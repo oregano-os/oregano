@@ -2,7 +2,13 @@ import { generateText } from "ai";
 import type { CompanyOSArtifact, RuntimeConnectorConfiguration } from "../../../companyos-builder/types.ts";
 import { BrainError } from "../../../brain/contracts.ts";
 import { BrainReads } from "../../../brain/reads.ts";
-import { parseBrainRepositoryBinding } from "../../../brain/repository-binding.ts";
+import { BrainWrites } from "../../../brain/writes.ts";
+import { createPostgresStateStore } from "../../../state-postgres/store.ts";
+import { parseBrainRepositoryBinding, parseBrainFreshness } from "../../../brain/repository-binding.ts";
+import { BrainFreshness } from "../../../brain/freshness.ts";
+import { DurableTimerService } from "../../../runtime/durable-timers.ts";
+import { createPostgresDurableTimerStore } from "../../../state-postgres/durable-timer-store.ts";
+import { sha256 } from "../../../runtime/canonical.ts";
 import { syncBrain } from "../../../brain/sync.ts";
 import { BrainConnector } from "../../../connectors/brain.ts";
 import { GitHubAppRepositoryProvider, createGitHubAppConfigurationFromEnvironment } from "../../../connectors/github-repository.ts";
@@ -20,8 +26,11 @@ export function brainRuntimeBinding(artifact: CompanyOSArtifact, entry: RuntimeC
 }
 
 export function createRuntimeBrainConnector(artifact: CompanyOSArtifact, entry: RuntimeConnectorConfiguration, environment: NodeJS.ProcessEnv = process.env) {
-  const { scope } = brainRuntimeBinding(artifact, entry);
-  return new BrainConnector({ artifact, reads: new BrainReads(new PostgresBrainStore(), scope), model: {
+  const { scope, binding } = brainRuntimeBinding(artifact, entry);
+  const store = new PostgresBrainStore();
+  return new BrainConnector({ artifact, reads: new BrainReads(store, scope), writes: () => new BrainWrites({ scope, binding,
+    configuration: artifact.brain!.configuration, store, effects: createPostgresStateStore(), leases: createPostgresCompanyRecordsStore(),
+    repository: new GitHubAppRepositoryProvider({ configuration: createGitHubAppConfigurationFromEnvironment(environment), installations: createPostgresRepositoryInstallationStore() }) }), model: {
     prepare() {
       // Selection failures stay outside synthesis' extractive fallback. Reuse the
       // existing model runtime; one prepared selection produces exactly one call.
@@ -41,4 +50,16 @@ export async function syncRuntimeBrain(artifact: CompanyOSArtifact, entry: Runti
     leases: createPostgresCompanyRecordsStore(), repository: {
       revision: () => repository.brainRevision(binding), read: revision => repository.brainFiles(binding, revision),
     } });
+}
+
+export function createRuntimeBrainFreshness(artifact: CompanyOSArtifact) {
+  const entries = (artifact.connectors ?? []).filter(entry => entry.connector === "oregano/brain");
+  if (!artifact.brain || !entries.length) return undefined;
+  if (entries.length !== 1) throw new BrainError("invalid_binding", "Brain freshness requires one unambiguous repository binding.");
+  const entry = entries[0], freshness = parseBrainFreshness(entry.configuration);
+  if (!freshness) return undefined;
+  const { binding, scope } = brainRuntimeBinding(artifact, entry);
+  return { binding, pushEvents: freshness.push_events, service: new BrainFreshness({ scope, bindingDigest: sha256(binding), configurationDigest: artifact.brain.configurationDigest,
+    intervalSeconds: freshness.reconcile_interval_seconds,
+    timers: new DurableTimerService({ store: createPostgresDurableTimerStore(), instanceId: artifact.instance.id }), sync: () => syncRuntimeBrain(artifact, entry) }) };
 }

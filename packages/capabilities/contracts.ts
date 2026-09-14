@@ -1,3 +1,4 @@
+import type { WorkflowDispatchFence } from "../state-store/interface.ts";
 export type RiskLevel = "R0" | "R1" | "R2" | "R3" | "R4";
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
@@ -47,6 +48,8 @@ export interface CapabilityCallContext {
   /** Set by the runtime's authenticated Workflow guard, never by Company Tool input. */
   workflow?: { id: string; cutoff: string };
   idempotencyKey?: string;
+  /** Trusted runtime fence for a prepared effect; never supplied by a Tool. */
+  dispatchFence?: WorkflowDispatchFence;
   subject?: {
     principalId: string;
     principalType: "human" | "agent" | "service";
@@ -80,6 +83,8 @@ export interface Connector {
   readonly version: string;
   readonly capabilities: readonly string[];
   invoke(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult>;
+  /** Read-only provider receipt reconciliation. May refresh a derived projection; must never dispatch an external mutation. */
+  reconcile?(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult>;
 }
 
 export const RISK_ORDER: Record<RiskLevel, number> = {

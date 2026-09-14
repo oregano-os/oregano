@@ -38,6 +38,17 @@ test("Postgres Brain publishes one scoped projection, performs language search a
     assert.equal((await reads.recall({ query: "branch" })).hits.filter(hit => hit.take).length, 0);
     const changes = await sql`select slug, kind from companyos_brain.changes where instance_id = ${scope.instance_id} and repository_id = ${scope.repository_id} and sequence = 2`;
     assert.deepEqual(changes, [{ slug: "topics/expansion", kind: "removed" }]);
+    const delta = await reads.delta({ cursor });
+    assert.equal(delta.status, "ok"); assert.equal(delta.changes.length, 1); assert.equal(delta.changes[0].kind, "removed"); assert.equal(delta.changes[0].current, null);
+    assert.equal((await reads.delta({ cursor: delta.next_cursor! })).changes.length, 0);
+    const first = await reads.delta({ since: "2000-01-01T00:00:00Z", budget_tokens: 1 });
+    assert.equal(first.has_more, true); assert.equal(first.changes.length, 0);
+    const collected: string[] = []; let continuation = first;
+    for (let i = 0; continuation.has_more && i < 20; i++) {
+      continuation = await reads.delta({ cursor: continuation.next_cursor!, budget_tokens: 200 });
+      collected.push(...continuation.changes.map(change => change.change_id));
+    }
+    assert.equal(collected.length, 7); assert.equal(new Set(collected).size, 7); assert.equal(continuation.has_more, false);
     const before = await store.revision(scope);
     assert.equal(await store.publish({ scope, expected: revision, revision: { ...revision, sequence: 3 }, pages: [], changes: [], lease: { source_id: "missing", token: randomUUID() } }), false);
     assert.deepEqual(await store.revision(scope), before, "Invalid lease/CAS cannot mutate any part of the projection");
@@ -45,5 +56,35 @@ test("Postgres Brain publishes one scoped projection, performs language search a
     assert.ok(records[0].objects && records[0].executions);
   } finally {
     await sql`delete from companyos_brain.revisions where instance_id = ${scope.instance_id} and repository_id = ${scope.repository_id}`;
+  }
+});
+
+test("effect checkpoints and receipt reconciliation use atomic status/input/evidence compare-and-set in PostgreSQL", { skip: !enabled }, async () => {
+  const { createPostgresStateStore } = await import("../../state-postgres/store.ts");
+  const { InMemoryStateStore } = await import("../../runtime/memory-state.ts");
+  await bootstrapCompanyDatabase();
+  const sql = neon(process.env.DATABASE_URL!);
+  for (const store of [createPostgresStateStore(), new InMemoryStateStore()]) {
+    const runId = `brain-effect-${randomUUID()}`, key = `brain-test:${runId}`, inputHash = "a".repeat(64);
+    await store.ensureRun({ runId, workflow: "brain-fixture", workflowVersion: "1", companySnapshotHash: "snapshot", agentDefinitionHash: "agent", agentAdapter: "test" });
+    try {
+      assert.equal(await store.claimEffect({ idempotencyKey: key, inputHash, runId, stepId: "write" }), true);
+      const prepared = { phase: "prepared", paths: ["brain/topics/review.md"] };
+      const checkpoint = { idempotencyKey: key, inputHash, expectedStatus: "claimed" as const, expectedEvidence: null, status: "claimed" as const, evidence: prepared };
+      const claims = await Promise.all([store.compareAndSetEffect(checkpoint), store.compareAndSetEffect(checkpoint)]);
+      assert.equal(claims.filter(Boolean).length, 1);
+      assert.equal(await store.compareAndSetEffect({ ...checkpoint, expectedEvidence: prepared, inputHash: "b".repeat(64) }), false);
+      await assert.rejects(store.compareAndSetEffect({ ...checkpoint, status: "dispatched" }));
+      assert.equal(await store.markEffectDispatched(key), true);
+      await store.markEffectUnknown(key, { operation_id: "synthetic-operation" });
+      const expected = await store.getEffect(key), proof = { verified_commit: "c".repeat(40) };
+      const recovered = { idempotencyKey: key, inputHash, expectedStatus: "unknown" as const, expectedEvidence: expected!.evidence, status: "succeeded" as const, evidence: proof };
+      assert.equal(await store.compareAndSetEffect(recovered), true); assert.equal(await store.compareAndSetEffect(recovered), false);
+      await assert.rejects(store.compareAndSetEffect({ ...recovered, expectedStatus: "succeeded", status: "claimed", expectedEvidence: proof }));
+      assert.equal((await store.getEffect(key))?.status, "succeeded");
+    } finally {
+      await sql`delete from companyos.effects where run_id = ${runId}`;
+      await sql`delete from companyos.workflow_runs where run_id = ${runId}`;
+    }
   }
 });

@@ -449,7 +449,7 @@
   },
   {
     "document_id": "operations.brain-read",
-    "title": "Maintained Brain read implementation",
+    "title": "Maintained Brain implementation",
     "path": "docs/operations/brain-read.md",
     "kind": "operations",
     "status": "building",
@@ -593,7 +593,7 @@
   },
   {
     "document_id": "specification.brain-read",
-    "title": "Governed Brain documents and read operations",
+    "title": "Governed Brain documents and operations",
     "path": "docs/specifications/brain-read.md",
     "kind": "specification",
     "status": "building",

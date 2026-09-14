@@ -24,13 +24,14 @@ largest prompt and bounded repair. This proves the bounded prompt foundation;
 import workflow and company adoption remain pending.
 See [Brain Skill adoption](../specifications/brain-skill-adoption.md).
 
-The experimental Brain read increment now implements Markdown/Takes checking,
-scoped projection sync, four read Tools, common Workspace grants and the normal
-Agent runtime path. Synthetic adapter/runtime tests and local database tests
-cover these mechanisms. The additive database target is 3.1.0, with five derived
-Brain tables alongside existing control and Records state. Live hosted read and
-synthesis-quality qualification is pending; writes, delta and ingestion are not
-implemented. See the [Brain read contract](../specifications/brain-read.md) and
+The experimental Brain implements Markdown/Takes checking, scoped projection
+sync, seven Tools and common Workspace grants through the normal Agent runtime.
+Bounded private hosted reads and synthesis have been qualified. Writes and
+delta now have synthetic adapter/runtime tests, with durable effect recovery,
+atomic Git publication and explicit freshness bindings. Isolated hosted write
+qualification and automatic ingestion remain pending. The additive database
+target is 3.1.0, with five derived Brain tables beside existing control and
+Records state. See the [Brain contract](../specifications/brain-read.md) and
 [maintained implementation](../operations/brain-read.md).
 
 

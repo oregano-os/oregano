@@ -139,9 +139,26 @@ export interface StateStore {
   }): Promise<boolean>;
 
   markEffectDispatched(idempotencyKey: string, fence?: WorkflowDispatchFence): Promise<boolean>;
+  /** Trusted checkpoints and receipt reconciliation only; never enables another dispatch. */
+  compareAndSetEffect(args: EffectCheckpoint): Promise<boolean>;
   completeEffect(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectFailed(idempotencyKey: string, evidence: unknown): Promise<void>;
   markEffectUnknown(idempotencyKey: string, evidence: unknown): Promise<void>;
   getEffect(idempotencyKey: string): Promise<Record<string, unknown> | undefined>;
   getEffectApproval(idempotencyKey: string): Promise<EffectApprovalReceipt | undefined>;
+}
+
+export interface EffectCheckpoint {
+  idempotencyKey: string;
+  inputHash: string;
+  expectedStatus: "claimed" | "dispatched" | "unknown" | "succeeded";
+  expectedEvidence: unknown;
+  status: "claimed" | "dispatched" | "succeeded";
+  evidence: unknown;
+}
+
+export function assertEffectCheckpoint(args: EffectCheckpoint): void {
+  const allowed = ["claimed", "dispatched", "succeeded"].includes(args.status) && args.expectedStatus === args.status
+    || args.status === "succeeded" && ["dispatched", "unknown"].includes(args.expectedStatus);
+  if (!allowed) throw new Error("An effect checkpoint cannot authorize dispatch or reset a terminal failure.");
 }

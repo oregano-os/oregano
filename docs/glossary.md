@@ -30,7 +30,8 @@ search, dedicated curation permission, or activation workflow.
 
 ### Brain
 Ordinary sourced company knowledge under `brain/` in the Company Workspace,
-read through an explicitly adopted, rebuildable Instance projection. It is
+read through an explicitly adopted, rebuildable Instance projection and updated
+through governed, evidenced Markdown commits. It is
 reference data, not Handbook policy or an authority registry. See the
 [Brain contract](specifications/brain-read.md).
 

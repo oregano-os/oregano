@@ -52,6 +52,28 @@ export interface BrainRepositorySource {
   brainFiles(binding: BrainRepositoryBinding, revision: string): Promise<Record<string, string>>;
 }
 
+/** One atomic, expected-head knowledge commit. The provider owns credentials and policy. */
+export interface BrainRepositoryCommitRequest {
+  readonly binding: BrainRepositoryBinding;
+  readonly baseCommit: string;
+  readonly operationId: string;
+  readonly inputDigest: string;
+  readonly changes: readonly { path: string; expectedContentHash: string | null; markdown: string | null }[];
+}
+export interface BrainRepositoryCommitReceipt {
+  readonly repositoryId: string;
+  readonly branch: string;
+  readonly baseCommit: string;
+  readonly commit: string;
+  readonly operationId: string;
+  readonly inputDigest: string;
+}
+export interface BrainRepositoryMutationSource extends BrainRepositorySource {
+  brainCommit(request: BrainRepositoryCommitRequest): Promise<BrainRepositoryCommitReceipt>;
+  /** Read-only proof of an uncertain prior commit; absence is not permission to resend. */
+  brainFindCommit(request: BrainRepositoryCommitRequest): Promise<BrainRepositoryCommitReceipt | undefined>;
+}
+
 export interface CheckedProposal {
   readonly releaseChangeClass?: "content" | "behavior" | "security";
   readonly validationPassed: true;

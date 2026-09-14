@@ -113,7 +113,7 @@ Usage:
   companyos database branch-verify --host <neon-host> [--format human|json]
   companyos brain check <workspace> [--format human|json]
   companyos brain sync --artifact <file> [--format human|json]
-  companyos brain <recall|entity|context_pack|synthesize> --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
+  companyos brain <recall|entity|context_pack|synthesize|delta|remember|forget> --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
   companyos build <workspace> --output <file> [--records-build-inputs <file>]
 `;
 
@@ -262,18 +262,20 @@ try {
     const result = validateWorkspace(target);
     exitWithDiagnostics(result.diagnostics, { format, summary: result.summary });
   } else if (command === "brain") {
-    if (!["check", "sync", "recall", "entity", "context_pack", "synthesize"].includes(action)) throw new Error("Use a documented companyos brain command.");
+    if (!["check", "sync", "recall", "entity", "context_pack", "synthesize", "delta", "remember", "forget"].includes(action)) throw new Error("Use a documented companyos brain command.");
     let result;
     if (action === "check") result = checkBrainWorkspace(targetWorkspace(value), { requireAdoption: true });
     else {
       const coreCommit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
       const selected = loadBrainOperatorArtifact(optionValue("--artifact"), coreCommit);
       const inputPath = optionValue("--input");
-      if (action !== "sync" && (!inputPath || statSync(inputPath).size > 20_000)) throw new Error("Brain reads require a bounded --input JSON file.");
+      const inputBound = ["remember", "forget"].includes(action) ? 3_000_000 : 20_000;
+      if (action !== "sync" && (!inputPath || statSync(inputPath).size > inputBound)) throw new Error("Brain Tools require a bounded --input JSON file.");
       result = await runBrainOperatorCommand({ action, ...selected, agentId: optionValue("--agent"), subjectPrincipal: optionValue("--subject-principal"), input: inputPath ? JSON.parse(readFileSync(inputPath, "utf8")) : undefined });
     }
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     if (result.ok === false || result.status === "invalid") process.exitCode = 1;
+    else if (result.output?.sync_status === "pending") process.exitCode = 2;
   } else if (command === "database") {
     if (!new Set(["prepare", "bootstrap", "status", "verify", "branch-status", "branch-prepare", "branch-verify"]).has(action)) throw new Error("Use a documented `companyos database` prepare, bootstrap, status, verify, or branch qualification action.");
     const branchAction = action?.startsWith("branch-");

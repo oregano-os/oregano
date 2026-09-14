@@ -1,6 +1,6 @@
 import { workflowStorageInstance } from "./workflow-store.ts";
 import { approvalExpiry } from "../state-store/approval-validity.ts";
-import { assertEventReadLimit } from "../state-store/interface.ts";
+import { assertEventReadLimit, assertEffectCheckpoint } from "../state-store/interface.ts";
 // state-postgres — Neon/Postgres implementation of state-store/interface.ts
 // against schema.sql (v2). claimEffect = INSERT on UNIQUE key; consumeApproval
 // = UPDATE … WHERE consumed_at IS NULL. The ONE-transaction rule
@@ -223,6 +223,17 @@ export function createPostgresStateStore(options: { executionNamespace?: string 
         update companyos.effects set status = 'succeeded', updated_at = now(),
           evidence = ${JSON.stringify(evidence ?? null)}
         where idempotency_key = ${idempotencyKey} and status in ('claimed','dispatched')`;
+    },
+
+    async compareAndSetEffect(args) {
+      assertEffectCheckpoint(args);
+      const rows = await sql()`update companyos.effects set status = ${args.status}, updated_at = now(),
+        evidence = ${JSON.stringify(args.evidence ?? null)}::jsonb
+        where idempotency_key = ${args.idempotencyKey} and input_hash = ${args.inputHash}
+          and status = ${args.expectedStatus}
+          and coalesce(evidence, 'null'::jsonb) = ${JSON.stringify(args.expectedEvidence ?? null)}::jsonb
+        returning idempotency_key`;
+      return rows.length === 1;
     },
 
     async markEffectFailed(idempotencyKey, evidence) {

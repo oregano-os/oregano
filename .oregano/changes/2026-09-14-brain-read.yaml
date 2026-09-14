@@ -1,13 +1,13 @@
 version: 3
 plan_id: brain-read-2026-09-14
 created: 2026-09-14
-title: Read governed Markdown knowledge through a rebuildable Brain projection
-objective: Qualify reusable bounded Brain instruction phases and add document, projection and read
-  operations with explicit Workspace adoption, ordinary roster and Tool authority, consistent
-  indexed revisions and bounded evidence-grounded synthesis.
+title: Read and update governed Markdown knowledge with scoped recovery
+objective: Qualify reusable bounded Brain instruction phases and add documents, projection,
+  reads and bounded evidenced writes with explicit Workspace adoption, ordinary roster and Tool
+  authority, atomic repository publication, recoverable synchronization and scoped change continuation.
 non_goals:
-  - Claim source ingestion, writes, delta continuation or live company adoption before their later
-    increments.
+  - Claim automatic source ingestion or live company adoption before their later increments.
+  - Bypass repository protection or use application release machinery for knowledge commits.
   - Introduce a second identity, model, scheduler, repository authentication or authoritative
     knowledge database.
   - Compile mutable Brain content into Agent instructions or treat retrieved text as authority.
@@ -25,9 +25,21 @@ files_expected:
   - packages/companyos-builder/**
   - packages/toolset-resolver/resolver.ts
   - packages/state-store/brain.ts
+  - packages/state-store/interface.ts
+  - packages/state-store/durable-timers.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/memory-state.ts
+  - packages/runtime/durable-timers.ts
+  - packages/runtime/memory-durable-timers.ts
+  - packages/runtime/workflow-engine/**
+  - packages/connectors/registry.ts
+  - packages/capabilities/contracts.ts
   - packages/state-postgres/**
   - packages/runner-vercel/src/lib/runtime-connectors.ts
   - packages/runner-vercel/src/lib/brain.ts
+  - packages/runner-vercel/src/app/api/brain/**
+  - packages/runner-vercel/src/app/api/repository/github/webhook/route.ts
+  - packages/runner-vercel/vercel.json
   - packages/runner/model-execution.ts
   - packages/testkit/tests/brain-*.test.ts
   - packages/testkit/tests/company-database-bootstrap.test.ts
@@ -41,6 +53,7 @@ files_expected:
   - docs/status/current.md
   - docs/specifications/brain-read.md
   - docs/operations/brain-read.md
+  - docs/operations/workflow-engine.md
   - docs/workbench/commands/brain.md
   - docs/workbench/commands/verify-live.md
   - docs/workbench/guides/prepare-an-instance.md
@@ -67,6 +80,10 @@ files_expected:
 tests:
   - packages/testkit/tests/brain-documents.test.ts
   - packages/testkit/tests/brain-reads.test.ts
+  - packages/testkit/tests/brain-mutations.test.ts
+  - packages/testkit/tests/brain-writes.test.ts
+  - packages/testkit/tests/brain-delta.test.ts
+  - packages/testkit/tests/brain-freshness.test.ts
   - packages/testkit/tests/brain-adoption.test.ts
   - packages/testkit/tests/brain-repository.test.ts
   - packages/testkit/tests/brain-postgres.test.ts
@@ -82,6 +99,7 @@ documentation_impact:
     - reference.glossary
     - specification.brain-read
     - operations.brain-read
+    - operations.workflow-engine
     - status.current
     - onboarding.index
     - onboarding.company-workspace
@@ -95,7 +113,7 @@ documentation_impact:
 architecture:
   placement:
     core: Brain path and document validation, storage and repository boundaries, rebuildable projection,
-      read operations, authority enforcement and bounded synthesis.
+      read and mutation operations, authority enforcement, durable receipt recovery and bounded synthesis.
     packages: Pinned upstream operation wording, Markdown conventions and synthesis guidance with
       explicit portability adaptations and license attribution.
     workspace: Declared types, relationship mappings, reading policy, common Tool grants and company
@@ -111,15 +129,26 @@ architecture:
         without granting authority from Instance enablement.
     - mechanism: model-recipe-resolver
       reason: Add the named bounded synthesis task through the existing model runtime and usage reporting.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse durable effects for operation identity and retained commit outcomes, with
+        bounded provider reconciliation and synchronization recovery rather than another journal.
+    - mechanism: company-records
+      reason: Reuse repository-scoped durable leases for synchronization and bounded write coordination.
+    - mechanism: timers-and-business-time
+      reason: Extend the maintained reconciliation timer and signed repository event path for
+        opted-in Brain freshness, without starting imports or a new scheduler.
     - mechanism: capability-contracts-and-connectors
       reason: Add scoped Brain reads and extend the existing trusted repository provider with
-        revision-specific permitted Markdown reads.
+        revision-specific permitted Markdown reads and expected-base atomic knowledge commits.
+        Explicit bindings, source checks and repository policy govern all provider effects.
   new_core_mechanisms:
     - Brain Markdown and Takes parsing with configurable types, explicit aliases, source-context
       links and diagnostics.
     - A rebuildable Brain storage projection with full-text search and consistent revision metadata
       inside the existing Instance database lifecycle.
     - Shared bounded read operations and one-call synthesis using the same retrieval functions.
+    - Evidenced Markdown mutations with stable Take identities and read-back, plus bounded
+      scoped page-change continuation from the existing projection markers.
   boundary_assertions:
     company_values_in_core: false
     secrets_in_git: false

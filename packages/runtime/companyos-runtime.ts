@@ -12,6 +12,8 @@ import { authorizePrincipalApproval, findByCanonicalPrincipal, isHumanRosterMemb
 import { executeIsolatedCompanyTool } from "../tool-sdk/isolated-runner.ts";
 import { LANGUAGE_TOOL_TIMEOUT_MS } from "../language/contracts.ts";
 import { RecordScanPendingError } from "../records/current-scan.ts";
+import { standardBrainWriteCapability } from "../standard-tools/brain.ts";
+import { BrainRecoveryPendingError } from "../brain/writes.ts";
 
 export interface ExecuteToolRequest {
   runId: string;
@@ -233,6 +235,7 @@ export class CompanyOSRuntime {
     await this.#ensureRun(request, guard);
     const inputHash = jsonDigest(request.input);
     const idempotencyKey = guard?.idempotencyKey ?? `${tool.contract.runtimeId}:${request.runId}:${inputHash}`;
+    const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal, guard?.context.currentRoster ?? this.#roster);
     const checkedResult = (result: unknown): unknown => {
       if ((guard?.context.mode === "engine" || guard?.context.mode === "review") && !guard.step.forEach) {
         const outputStep = guard.step.decision ? { ...guard.step, requiredOutputPaths: [["thread_reference"]] } : guard.step;
@@ -240,11 +243,40 @@ export class CompanyOSRuntime {
       }
       return result;
     };
-    if (guard) {
-      await this.#state.appendEvent({ runId: request.runId, stepId: request.stepId, actor: "agent", event: "workflow.tool-validated", status: "succeeded", payload: guard.evidence });
+    const reconcile = async (existing: Record<string, unknown>): Promise<unknown | undefined> => {
+      const capability = standardBrainWriteCapability(tool);
+      if (!capability || !["dispatched", "unknown", "succeeded"].includes(String(existing.status))) return undefined;
+      if (RISK_ORDER[risk as keyof typeof RISK_ORDER] >= RISK_ORDER.R3) {
+        const approval = await this.#state.getEffectApproval(idempotencyKey);
+        if (!approval?.consumed || approval.decision !== "approved" || approval.runId !== request.runId
+          || approval.stepId !== request.stepId || approval.action !== tool.contract.runtimeId || approval.inputHash !== inputHash) {
+          throw new Error("Brain reconciliation requires the original consumed approval receipt for this effect.");
+        }
+      }
+      const recovered = await this.#connectors.reconcile(capability, request.input, {
+        instanceId: this.#artifact.instance.id, runId: request.runId, stepId: request.stepId, agentId: request.agentId,
+        toolId: tool.contract.runtimeId, idempotencyKey, subject: accessSubject,
+        ...(guard ? { workflow: { id: guard.workflow.id, cutoff: guard.context.trigger.instant } } : {}),
+      });
+      if (!recovered) return undefined;
+      const errors = validateJsonSchemaValue(tool.contract.outputSchema, recovered.output);
+      if (errors.length) throw new Error("Reconciled Brain output does not match the maintained Tool contract.");
+      const result = { output: recovered.output, capabilityEvidence: [recovered.evidence], ...(guard ? { workflow: guard.evidence } : {}) };
+      if (!await this.#state.compareAndSetEffect({ idempotencyKey, inputHash, expectedStatus: existing.status as "dispatched" | "unknown" | "succeeded",
+        expectedEvidence: existing.evidence ?? null, status: "succeeded", evidence: result })) {
+        throw new Error("Effect receipt changed during reconciliation; retry without another dispatch.");
+      }
+      await this.#state.appendEvent({ runId: request.runId, stepId: request.stepId, actor: "agent", subjectPrincipal: accessSubject.principalId,
+        event: "tool.effect-reconciled", status: "succeeded", toolVersion: tool.contract.version, idempotencyKey, evidence: recovered.evidence });
+      return checkedResult(result);
+    };
+    if (guard || standardBrainWriteCapability(tool)) {
+      if (guard) await this.#state.appendEvent({ runId: request.runId, stepId: request.stepId, actor: "agent", event: "workflow.tool-validated", status: "succeeded", payload: guard.evidence });
       const existing = await this.#state.getEffect(idempotencyKey);
       if (existing) {
-        if ((existing.input_hash ?? existing.inputHash) !== inputHash) throw new Error("Workflow effect identity conflicts with changed input");
+        if ((existing.input_hash ?? existing.inputHash) !== inputHash) throw new Error("Effect identity conflicts with changed input");
+        const recovered = await reconcile(existing);
+        if (recovered !== undefined) return recovered;
         if (existing.status === "succeeded" && existing.evidence !== undefined && existing.evidence !== null) return checkedResult(structuredClone(existing.evidence));
         return { ok: false, duplicate: true, status: existing.status, reason: "Workflow effect requires reconciliation or review before further dispatch." };
       }
@@ -255,7 +287,8 @@ export class CompanyOSRuntime {
     // Retain the trusted host error across the Tool subprocess's text-only IPC.
     // Company Tool errors and messages cannot opt themselves into automatic retry.
     let pendingScan: RecordScanPendingError | undefined;
-    const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal, guard?.context.currentRoster ?? this.#roster);
+    let pendingBrain: BrainRecoveryPendingError | undefined;
+    let brainCapabilityInFlight = false;
     const invoke = async () => {
       try {
         const output = await executeIsolatedCompanyTool({
@@ -271,9 +304,12 @@ export class CompanyOSRuntime {
           },
           allowedCapabilities: tool.contract.capabilities,
           ...(this.#toolExecutionTimeoutMs === undefined
-            ? (tool.contract.capabilities.some(capability => capability === "language.generate" || capability === "brain.synthesize") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
+            ? (standardBrainWriteCapability(tool) ? { timeoutMs: 120_000 }
+              : tool.contract.capabilities.some(capability => capability === "language.generate" || capability === "brain.synthesize") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
             : { timeoutMs: this.#toolExecutionTimeoutMs }),
           invokeCapability: async (capability, input) => {
+            const brainWrite = capability === standardBrainWriteCapability(tool);
+            if (brainWrite) brainCapabilityInFlight = true;
             try {
               const result = await this.#connectors.invoke(capability, input, {
                 instanceId: this.#artifact.instance.id,
@@ -283,23 +319,30 @@ export class CompanyOSRuntime {
                 toolId: tool.contract.runtimeId,
                 idempotencyKey,
                 subject: accessSubject,
+                ...(guard?.context.dispatchFence ? { dispatchFence: guard.context.dispatchFence } : {}),
                 ...(guard ? { workflow: { id: guard.workflow.id, cutoff: guard.context.trigger.instant } } : {}),
               });
               capabilityEvidence.push(result.evidence);
               return result.output;
             } catch (error) {
               if (error instanceof CapabilityEffectOutcomeUnknownError) unknownCapabilityEffects.push(error.evidence);
+              if (error instanceof BrainRecoveryPendingError && capability === standardBrainWriteCapability(tool)) pendingBrain = error;
               if (error instanceof RecordScanPendingError && capability === "records.query"
                 && tool.contract.runtimeId === "oregano:records/query") pendingScan = error;
               throw error;
+            } finally {
+              if (brainWrite) brainCapabilityInFlight = false;
             }
           },
         });
         if (pendingScan) throw pendingScan;
+        if (pendingBrain) throw pendingBrain;
         const outputErrors = validateJsonSchemaValue(tool.contract.outputSchema, output);
         if (outputErrors.length > 0) throw new Error(`Invalid Tool output: ${outputErrors.join("; ")}`);
         return { output, capabilityEvidence, ...(guard ? { workflow: guard.evidence } : {}) };
       } catch (error) {
+        if (pendingBrain) throw pendingBrain;
+        if (brainCapabilityInFlight) throw new BrainRecoveryPendingError({ input_digest: inputHash, reason: "tool-interrupted-during-connector-call" });
         const successfulEffects = capabilityEvidence.filter((evidence) => this.#artifact.capabilityCatalog.some((contract) => contract.id === evidence.capability && contract.mode === "effect"));
         if (unknownCapabilityEffects.length > 0 || successfulEffects.length > 0) {
           throw new CapabilityEffectOutcomeUnknownError(
@@ -353,6 +396,8 @@ export class CompanyOSRuntime {
       if (existingInputHash !== undefined && existingInputHash !== inputHash) {
         throw new Error("Effect idempotency identity conflicts with a different input hash.");
       }
+      const recovered = existing ? await reconcile(existing) : undefined;
+      if (recovered !== undefined) return recovered;
       if (existing?.status === "succeeded" && existing.evidence !== undefined && existing.evidence !== null) {
         return checkedResult(structuredClone(existing.evidence));
       }

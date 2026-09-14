@@ -25,6 +25,9 @@ companyos brain recall --artifact <file> --agent <id> --subject-principal <princ
 companyos brain entity --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
 companyos brain context_pack --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
 companyos brain synthesize --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
+companyos brain delta --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
+companyos brain remember --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
+companyos brain forget --artifact <file> --agent <id> --subject-principal <principal> --input <json-file>
 ```
 
 `check` validates the declaration, policy, permitted local files and evidence
@@ -33,7 +36,7 @@ chains without provider, database or model access. Errors produce a nonzero exit
 it reports the successful revision, changed-page count and diagnostics. Invalid
 pages leave the previous projection intact and produce a nonzero exit.
 
-Reads use the same four Tool contracts as Agents, through the normal runtime,
+Operations use the same seven Tool contracts as Agents, through the normal runtime,
 and return structured output with indexed revision and evidence. They require an
 active existing roster principal and an effective grant for the selected Agent.
 The trusted Artifact must come from `companyos build` and match the running Core
@@ -44,7 +47,14 @@ reservations still apply; this command cannot impersonate an active step.
 Input examples are `{"query":"expansion"}`, `{"name":"people/alex"}`,
 `{"entities":"people/alex,topics/expansion","budget_tokens":4000}` and
 `{"question":"What supports the expansion proposal?"}`. Only synthesis may
-call the configured model. No command writes knowledge or deploys an Artifact.
+call the configured model. `delta` accepts `{"cursor":"<returned-cursor>"}` or
+`{"since":"2030-01-01T00:00:00Z"}`; an empty object establishes a current baseline.
+Writes require the declared write grant, complete page preconditions, provenance
+or withdrawal target/reason, and a stable operation key. `dry_run:true` validates
+without saving or syncing. Input files are bounded to 20 KB for reads and 3 MB
+for writes; the stricter operation-specific page/text limits still apply.
+Exit code 2 means Git saved the operation but sync is pending; replay the same
+input/key to resume indexing. No command deploys an Artifact.
 
 See the [document and read contracts](../../specifications/brain-read.md) and
 [maintained operator procedure](../../operations/brain-read.md).

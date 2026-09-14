@@ -13,7 +13,9 @@ import {
   type RepositorySourceReceipt,
   type RepositorySourceRequest,
   type BrainRepositoryBinding,
-  type BrainRepositorySource,
+  type BrainRepositoryMutationSource,
+  type BrainRepositoryCommitRequest,
+  type BrainRepositoryCommitReceipt,
 } from "../runtime/repository/contracts.ts";
 import {
   applyGitPatch,
@@ -36,8 +38,11 @@ import type {
   RepositoryInstallationStore,
 } from "../state-store/repository-installations.ts";
 import type { GitHubReleaseClient } from "./github-release.ts";
-import { assertBrainGitEntry } from "../brain/paths.ts";
+import { assertBrainGitEntry, assertBrainPath } from "../brain/paths.ts";
 import { BrainError } from "../brain/contracts.ts";
+import { MAX_BRAIN_WRITE_FILES, MAX_BRAIN_WRITE_UNITS } from "../brain/mutations.ts";
+import { sha256 as brainDigest } from "../runtime/canonical.ts";
+import { CapabilityEffectOutcomeUnknownError } from "../capabilities/contracts.ts";
 
 export interface GitHubAppConfiguration {
   readonly appId: string;
@@ -71,7 +76,7 @@ interface InstallationToken {
 
 type GitHubPermission = "read" | "write";
 
-export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, ProposalPublisher, BrainRepositorySource {
+export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, ProposalPublisher, BrainRepositoryMutationSource {
   readonly id = "github-app";
   readonly version = "1.0.0";
   readonly #configuration: Required<Pick<GitHubAppConfiguration, "apiBaseUrl" | "webBaseUrl">>
@@ -284,6 +289,101 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     }, signal);
   }
 
+  #assertBrainCommit(request: BrainRepositoryCommitRequest): void {
+    assertBrainRepositoryBinding(request.binding);
+    if (typeof request.baseCommit !== "string" || !/^[a-f0-9]{40}$/.test(request.baseCommit)
+      || typeof request.operationId !== "string" || !/^[a-f0-9]{64}$/.test(request.operationId)
+      || typeof request.inputDigest !== "string" || !/^[a-f0-9]{64}$/.test(request.inputDigest)) throw new BrainError("invalid_input", "Brain publication needs immutable base and operation digests.");
+    if (!Array.isArray(request.changes) || !request.changes.length || request.changes.length > MAX_BRAIN_WRITE_FILES
+      || new Set(request.changes.map(change => change.path)).size !== request.changes.length) throw new BrainError("write_bound", "Brain publication needs a bounded distinct change set.");
+    let units = 0;
+    for (const change of request.changes) {
+      assertBrainPath(change.path);
+      if (change.expectedContentHash !== null && (typeof change.expectedContentHash !== "string" || !/^[a-f0-9]{64}$/.test(change.expectedContentHash))
+        || change.markdown !== null && (typeof change.markdown !== "string" || change.markdown.includes("\0") || change.markdown.length > 100_000)
+        || change.markdown === null && change.expectedContentHash === null) throw new BrainError("invalid_input", "Invalid expected page digest or Markdown replacement.");
+      if (change.markdown !== null && Buffer.from(change.markdown).toString() !== change.markdown) throw new BrainError("invalid_input", "Brain Markdown must have a lossless UTF-8 representation.");
+      units += change.markdown?.length ?? 0;
+    }
+    if (units > MAX_BRAIN_WRITE_UNITS) throw new BrainError("write_bound", "Brain publication exceeds its total text bound.");
+  }
+
+  #brainCommitMessage(request: BrainRepositoryCommitRequest): string {
+    return `Update sourced Brain knowledge\n\nCompanyOS-Brain-Operation: ${request.operationId}\nCompanyOS-Brain-Input: ${request.inputDigest}`;
+  }
+
+  #brainCommitReceipt(request: BrainRepositoryCommitRequest, commit: string): BrainRepositoryCommitReceipt {
+    return { repositoryId: request.binding.repositoryId, branch: request.binding.branch, baseCommit: request.baseCommit,
+      commit, operationId: request.operationId, inputDigest: request.inputDigest };
+  }
+
+  async brainCommit(request: BrainRepositoryCommitRequest): Promise<BrainRepositoryCommitReceipt> {
+    this.#assertBrainCommit(request);
+    const binding = await this.#brainBinding(request.binding);
+    // Independently inspect the base's ordinary Git modes, not just supplied path strings.
+    const base = await this.brainFiles(request.binding, request.baseCommit);
+    for (const change of request.changes) {
+      const prior = Object.hasOwn(base, change.path) ? brainDigest(base[change.path]) : null;
+      if (prior !== change.expectedContentHash) throw new BrainError("write_conflict", "A selected page does not match its expected content.");
+    }
+    if (request.changes.every(change => (base[change.path] ?? null) === change.markdown)) throw new BrainError("empty_mutation", "An unchanged batch must not create a Git commit.");
+    if (await this.brainRevision(request.binding) !== request.baseCommit) throw new BrainError("write_conflict", "Repository head moved; recompute the intended change.");
+    const signal = AbortSignal.timeout(30_000);
+    return this.#withInstallationToken(binding.installationId, binding.providerRepositoryId, { contents: "write" }, async token => {
+      // GitHub's expectedHeadOid performs the atomic compare-and-swap. A separate
+      // REST ref read plus force:false is insufficient if the branch moves backwards.
+      const mutation = `mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid message parents(first:2){nodes{oid}}}}}`;
+      const message = this.#brainCommitMessage(request), split = message.indexOf("\n\n");
+      const input = { branch: { repositoryNameWithOwner: request.binding.repositoryId, branchName: request.binding.branch },
+        expectedHeadOid: request.baseCommit, clientMutationId: request.operationId,
+        message: { headline: message.slice(0, split), body: message.slice(split + 2) },
+        fileChanges: {
+          additions: request.changes.filter(change => change.markdown !== null).map(change => ({ path: change.path, contents: Buffer.from(change.markdown!).toString("base64") })),
+          deletions: request.changes.filter(change => change.markdown === null).map(change => ({ path: change.path })),
+        } };
+      let result: any;
+      try { result = await this.#installationRequest(token, "POST", "/graphql", { query: mutation, variables: { input } }, signal); }
+      catch { throw new CapabilityEffectOutcomeUnknownError("The knowledge commit outcome is uncertain; reconcile the retained operation before retrying.", { operation_id: request.operationId, base_commit: request.baseCommit }); }
+      const commit = result.data?.createCommitOnBranch?.commit;
+      if (!commit && result.errors?.length) {
+        // No bypass or release path: protected branches stay protected. A caller
+        // may prepare a review through the existing governed proposal lifecycle.
+        if (await this.brainRevision(request.binding) !== request.baseCommit) throw new BrainError("write_conflict", "Repository head changed during publication.");
+        throw new BrainError("repository_review_required", "Repository policy or provider validation rejected direct publication; prepare a governed review.");
+      }
+      if (!/^[a-f0-9]{40}$/.test(commit?.oid) || commit.message?.trim() !== message || commit.parents?.nodes?.length !== 1 || commit.parents.nodes[0].oid !== request.baseCommit) {
+        throw new CapabilityEffectOutcomeUnknownError("The provider returned incomplete knowledge commit evidence; reconcile before retrying.", { operation_id: request.operationId, base_commit: request.baseCommit });
+      }
+      return this.#brainCommitReceipt(request, commit.oid);
+    }, signal);
+  }
+
+  async brainFindCommit(request: BrainRepositoryCommitRequest): Promise<BrainRepositoryCommitReceipt | undefined> {
+    this.#assertBrainCommit(request);
+    const binding = await this.#brainBinding(request.binding), signal = AbortSignal.timeout(30_000);
+    const candidates: any[] = await this.#withInstallationToken(binding.installationId, binding.providerRepositoryId, { contents: "read" }, async token => {
+      const result: any = await this.#installationRequest(token, "POST", "/graphql", {
+        query: `query($owner:String!,$name:String!,$branch:String!){repository(owner:$owner,name:$name){ref(qualifiedName:$branch){target{... on Commit{history(first:100){nodes{oid message changedFilesIfAvailable parents(first:2){nodes{oid}}}}}}}}}`,
+        variables: { owner: binding.owner, name: binding.name, branch: `refs/heads/${request.binding.branch}` },
+      }, signal);
+      if (result.errors?.length || !Array.isArray(result.data?.repository?.ref?.target?.history?.nodes)
+        || result.data.repository.ref.target.history.nodes.length > 100) throw new BrainError("write_recovery_required", "Repository history is unavailable for bounded reconciliation.");
+      return result.data.repository.ref.target.history.nodes.filter((commit: any) => commit.message?.trim() === this.#brainCommitMessage(request));
+    }, signal);
+    if (!candidates.length) return undefined;
+    const commit = candidates[0];
+    if (candidates.length !== 1 || !/^[a-f0-9]{40}$/.test(commit.oid) || commit.parents?.nodes?.length !== 1
+      || commit.parents.nodes[0].oid !== request.baseCommit || commit.changedFilesIfAvailable !== request.changes.length) {
+      throw new BrainError("write_recovery_required", "The retained operation does not have one matching bounded commit.");
+    }
+    const before = await this.brainFiles(request.binding, request.baseCommit), after = await this.brainFiles(request.binding, commit.oid);
+    const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(path => before[path] !== after[path]).sort();
+    if (JSON.stringify(changed) !== JSON.stringify(request.changes.map(change => change.path).sort())
+      || request.changes.some(change => (after[change.path] ?? null) !== change.markdown
+        || (Object.hasOwn(before, change.path) ? brainDigest(before[change.path]) : null) !== change.expectedContentHash)) throw new BrainError("write_recovery_required", "The observed commit differs from the prepared knowledge mutation.");
+    return this.#brainCommitReceipt(request, commit.oid);
+  }
+
   /** Trusted release only; credentials remain in this maintained Connector. */
   async withReleaseClient<T>(input: { bindingId: string; repositoryId: string; instanceId: string }, use: (client: GitHubReleaseClient) => Promise<T>): Promise<T> {
     const binding = await this.#installations.requireActive(input.bindingId, input.repositoryId);
@@ -434,6 +534,22 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
       },
       updatedAt: this.#now(),
     });
+  }
+
+  /** A signed notification selects only the bound repository. Sync always reads its current head. */
+  async brainPush(binding: BrainRepositoryBinding, args: { deliveryId: string; event: string; rawBody: string; signature: string; webhookSecret: string }): Promise<{ delivery_id: string; commit: string } | undefined> {
+    if (args.rawBody.length > 2_000_000 || !/^[A-Za-z0-9_-]{1,256}$/.test(args.deliveryId)) throw new Error("GitHub push notification exceeds its supported bound.");
+    assertWebhookSignature(args.rawBody, args.signature, args.webhookSecret);
+    assertBrainRepositoryBinding(binding);
+    if (args.event !== "push") return undefined;
+    const payload = JSON.parse(args.rawBody) as Record<string, any>;
+    if (payload.repository?.full_name !== binding.repositoryId || payload.ref !== `refs/heads/${binding.branch}` || payload.deleted === true) return undefined;
+    const installation = await this.#brainBinding(binding);
+    if (String(payload.installation?.id ?? "") !== installation.installationId || String(payload.repository?.id ?? "") !== installation.providerRepositoryId) {
+      throw new Error("GitHub push installation or repository identity differs from the verified binding.");
+    }
+    if (typeof payload.after !== "string" || !/^[a-f0-9]{40}$/.test(payload.after) || /^0+$/.test(payload.after)) throw new Error("GitHub push has no immutable commit identity.");
+    return { delivery_id: args.deliveryId, commit: payload.after };
   }
 
   #assertBindingEnvironment(binding: RepositoryInstallationBinding): void {

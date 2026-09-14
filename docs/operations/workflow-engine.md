@@ -442,6 +442,18 @@ substituting stale rows. Effects are not automatically retried by this mechanism
 Before downgrading to a runtime that predates `records` waits, drain those waits
 on the newer runtime; immutable old artifacts and completed runs are unchanged.
 
+## Resume a pending Brain write
+
+The maintained Brain write Tools also use a bounded durable `effect` wait when
+Git receipt reconciliation or post-commit indexing is pending. This preserves
+the original run, input and effect identities. Every 30 seconds, for at most
+15 minutes after preparation, the exact standard Tool may recheck provider
+receipt evidence and refresh the index; it cannot dispatch another Git mutation.
+Company Tool text and unrelated unknown effects cannot opt into this behavior.
+After the bound, an authorized operator may resume the same reconciliation
+through `resume`. Missing proof still blocks. Drain these waits before deploying
+a runtime without `effect` wait support. See the [Brain contract](../specifications/brain-read.md).
+
 ## Inspect a deduplicated child from a scanner
 
 The existing `start` step returns `run_id`, `status`, `blocked` and

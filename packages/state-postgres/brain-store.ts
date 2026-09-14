@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
-import type { BrainStore, BrainSearchHit } from "../state-store/brain.ts";
+import type { BrainStore, BrainSearchHit, BrainChange } from "../state-store/brain.ts";
 import { BrainError, type BrainLink, type BrainPage, type BrainRevision, type BrainScope } from "../brain/contracts.ts";
 import { normalizeBrainReference } from "../brain/paths.ts";
 import { postgresTimestampToIso } from "./postgres-values.ts";
@@ -68,6 +68,16 @@ export class PostgresBrainStore implements BrainStore {
   }
   async inventory(scope: BrainScope, expected: BrainRevision) {
     return this.guarded<{ slug: string; content_hash: string }>(scope, expected, "select slug, content_hash from companyos_brain.pages where instance_id = $1 and repository_id = $2 order by slug", []);
+  }
+  async changes(scope: BrainScope, expected: BrainRevision, args: Parameters<BrainStore["changes"]>[2]) {
+    if (!Number.isSafeInteger(args.limit) || args.limit < 1 || args.limit > 100) throw new BrainError("read_bound", "At most 100 change entries are read per request.");
+    const rows = await this.guarded<BrainChange>(scope, expected, `select sequence, slug, kind, git_commit, indexed_at
+      from companyos_brain.changes where instance_id = $1 and repository_id = $2 and generation = $3::uuid
+        and (sequence > $7::bigint or (sequence = $7::bigint and $8::text is not null and slug collate "C" > $8::text collate "C"))
+        and sequence <= $9::bigint and ($10::timestamptz is null or indexed_at >= $10::timestamptz)
+        and ($11::text[] is null or slug = any($11::text[])) order by sequence, slug collate "C" limit $12`,
+      [args.after, args.after_slug ?? null, args.upper, args.since ?? null, args.slugs ?? null, args.limit + 1]);
+    return { changes: rows.slice(0, args.limit).map(row => ({ ...row, sequence: Number(row.sequence), indexed_at: postgresTimestampToIso(row.indexed_at) })), has_more: rows.length > args.limit };
   }
   async publish(args: Parameters<BrainStore["publish"]>[0]) {
     const sql = connection(), token = randomUUID();

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import YAML from "yaml";
 import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
 import type { InstanceBuildConfiguration } from "../../companyos-builder/types.ts";
-import { BRAIN_READ_CAPABILITIES } from "../../brain/tools.ts";
+import { BRAIN_READ_CAPABILITIES, BRAIN_CAPABILITIES } from "../../brain/tools.ts";
 import { BrainReads } from "../../brain/reads.ts";
 import { BrainConnector } from "../../connectors/brain.ts";
 import { InMemoryBrainStore } from "../adapter/in-memory-brain.ts";
@@ -26,8 +26,8 @@ function fixture() {
     policy.runtime = { common_tool_grants: grants, brain_reading: "company-wide" };
     writeFileSync(join(root, ".companyos/governance.yaml"), YAML.stringify(policy));
     writeFileSync(join(root, ".companyos/brain.yaml"), YAML.stringify(brainConfig));
-    writeFileSync(join(root, "connections/brain.md"), `---\ncapabilities: ${JSON.stringify(BRAIN_READ_CAPABILITIES.map(contract => contract.id))}\n---\nBrain capability allowlist.\n`);
-    instance.bindings.push(...BRAIN_READ_CAPABILITIES.map(contract => ({ capability: contract.id, contractVersion: contract.version, connector: "oregano/brain", connectorVersion: "0.1.0" })));
+    writeFileSync(join(root, "connections/brain.md"), `---\ncapabilities: ${JSON.stringify(BRAIN_CAPABILITIES.map(contract => contract.id))}\n---\nBrain capability allowlist.\n`);
+    instance.bindings.push(...BRAIN_CAPABILITIES.map(contract => ({ capability: contract.id, contractVersion: contract.version, connector: "oregano/brain", connectorVersion: "0.1.0" })));
   };
   return { root, instance, build, adopt, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 }
@@ -41,7 +41,7 @@ test("reviewed common grants reach current and future Agents and retain normal p
     const artifact = f.build();
     for (const agent of artifact.agents) {
       const tools = agent.toolSet.tools.filter(tool => tool.runtimeId.startsWith("oregano:brain/"));
-      assert.equal(tools.length, 4); assert.ok(tools.every(tool => tool.grantSources?.includes("workspace-common")));
+      assert.equal(tools.length, 5); assert.ok(tools.every(tool => tool.grantSources?.includes("workspace-common")));
       assert.equal(agent.toolSet.grantPolicy?.path, ".companyos/governance.yaml");
       assert.ok(agent.instructions.includes("retrieved reference data"));
     }
@@ -127,4 +127,142 @@ test("Brain material changes do not alter compiled operating material or its con
     f.instance.connectors[0].configuration.token = "forbidden";
     assert.throws(f.build, /Unsupported Brain connector/);
   } finally { f.cleanup(); }
+});
+
+test("common seven-Tool and forget-withheld policies apply exactly to current and future Agents", () => {
+  for (const withheld of [false, true]) {
+    const f = fixture();
+    try {
+      f.adopt(BRAIN_CAPABILITIES.filter(item => !withheld || item.id !== "brain.forget").map(item => `oregano:brain/${item.id.slice(6)}`));
+      f.instance.defaultAgentId = "growth"; cpSync(join(f.root, "agents/growth"), join(f.root, "agents/research"), { recursive: true });
+      for (const agent of f.build().agents) {
+        const tools = agent.toolSet.tools.filter(tool => tool.runtimeId.startsWith("oregano:brain/"));
+        assert.equal(tools.length, withheld ? 6 : 7);
+        assert.equal(tools.some(tool => tool.runtimeId === "oregano:brain/forget"), !withheld);
+        assert.equal(agent.instructions.includes("- forget:"), !withheld);
+        assert.equal(tools.find(tool => tool.runtimeId === "oregano:brain/remember")?.risk, "R1");
+      }
+    } finally { f.cleanup(); }
+  }
+});
+
+test("the actual Agent Tool path reconciles lost Git and saved/pending effects with current authority", async () => {
+  const { CompanyOSRuntime } = await import("../../runtime/companyos-runtime.ts");
+  const { BrainWrites } = await import("../../brain/writes.ts");
+  const { InMemoryStateStore } = await import("../../runtime/memory-state.ts");
+  const { InMemoryCompanyRecordsStore } = await import("../../records/memory-store.ts");
+  const { CapabilityEffectOutcomeUnknownError } = await import("../../capabilities/contracts.ts");
+  for (const risk of ["R1", "R3"] as const) for (const failure of ["lost-git", "pending-sync", ...(risk === "R1" ? ["tool-timeout"] : [])]) {
+    const f = fixture();
+    try {
+      f.adopt(["oregano:brain/remember", "oregano:brain/entity", "oregano:brain/delta"]);
+      const artifact = f.build(), state = new InMemoryStateStore(), store = new InMemoryBrainStore(), leases = new InMemoryCompanyRecordsStore();
+      const scope = { instance_id: artifact.instance.id, repository_id: "example/company" }, binding = { instanceId: scope.instance_id, repositoryId: scope.repository_id, bindingId: "repository", branch: "brain-test" };
+      let head = "a".repeat(40), files: Record<string, string> = structuredClone(brainFiles), commits = 0, reconciliations = 0;
+      let receipt: import("../../runtime/repository/contracts.ts").BrainRepositoryCommitReceipt | undefined;
+      let releaseCommit: (() => void) | undefined;
+      const commitGate = new Promise<void>(resolve => { releaseCommit = resolve; });
+      if (risk === "R3") artifact.agents.find(agent => agent.id === "growth")!.toolSet.tools.find(tool => tool.runtimeId === "oregano:brain/remember")!.risk = "R3";
+      const repository: import("../../runtime/repository/contracts.ts").BrainRepositoryMutationSource = {
+        brainRevision: async () => head, brainFiles: async (_binding, revision) => structuredClone(revision === "a".repeat(40) ? brainFiles : files),
+        brainCommit: async request => {
+          commits++; head = "b".repeat(40);
+          for (const change of request.changes) change.markdown === null ? delete files[change.path] : files[change.path] = change.markdown;
+          receipt = { repositoryId: binding.repositoryId, branch: binding.branch, baseCommit: request.baseCommit, commit: head, operationId: request.operationId, inputDigest: request.inputDigest };
+          if (failure === "lost-git") throw new CapabilityEffectOutcomeUnknownError("Lost provider receipt", { operation_id: request.operationId });
+          if (failure === "tool-timeout") await commitGate;
+          return receipt;
+        }, brainFindCommit: async () => { reconciliations++; return receipt; },
+      };
+      const publish = store.publish.bind(store);
+      if (failure === "pending-sync") store.publish = async () => { throw new Error("Index unavailable"); };
+      const connector = new BrainConnector({ artifact, reads: new BrainReads(store, scope), writes: () => new BrainWrites({ scope, binding, configuration: brainConfig, store, effects: state, leases, repository }) });
+      const runtime = new CompanyOSRuntime({ artifact, state, connectors: [connector], ...(failure === "tool-timeout" ? { toolExecutionTimeoutMs: 3000 } : {}) });
+      const path = "brain/topics/expansion.md", request = { runId: "write-run", stepId: "remember", agentId: "growth", grantId: "oregano:brain/remember", subjectPrincipal: "test:solstice:morgan",
+        input: { changes: { expected_revision: head, pages: [{ path, expected_content_hash: sha256(files[path]), markdown: files[path].replace("No shared decision yet.", "A source review is pending.") }] },
+          provenance: { source_id: "review:1", source_version: "v1", action: "update", evidence: ["sources/review"] }, operation_key: "review:1:v1:update" } };
+      if (risk === "R3") {
+        assert.equal((await runtime.execute(request) as any).rejected, true); assert.equal(commits, 0);
+        await runtime.requestApproval(request);
+      }
+      const approved = { ...request, ...(risk === "R3" ? { approvingPrincipal: "test:solstice:morgan" } : {}) };
+      if (failure !== "pending-sync") await assert.rejects(runtime.execute(approved), CapabilityEffectOutcomeUnknownError);
+      else assert.equal(((await runtime.execute(approved)) as any).output.sync_status, "pending");
+      if (failure === "tool-timeout") {
+        releaseCommit!();
+        // The interrupted subprocess cannot cancel an in-flight provider response.
+        // Wait for that exact callback to settle before proving read-only recovery.
+        for (let attempt = 0; attempt < 1000 && ![...state.effects.values()].some(effect => effect.status === "succeeded"); attempt++) await new Promise(resolve => setImmediate(resolve));
+        assert.ok([...state.effects.values()].some(effect => effect.status === "succeeded"));
+      }
+      assert.equal(commits, 1);
+      await assert.rejects(runtime.execute({ ...request, subjectPrincipal: "not-in-roster" }), /authenticated company subject/);
+      store.publish = publish;
+      const recovered = await runtime.execute(request) as any;
+      assert.equal(recovered.output.sync_status, "indexed"); assert.equal(recovered.output.saved_commit, head); assert.equal(commits, 1);
+      assert.equal(reconciliations, failure === "lost-git" ? 1 : 0);
+      if (risk === "R3") {
+        assert.equal(state.approvals.size, 1, "Receipt reconciliation consumes no new approval");
+        const original = state.getEffectApproval.bind(state); state.getEffectApproval = async () => undefined;
+        await assert.rejects(runtime.execute(request), /original consumed approval/);
+        state.getEffectApproval = original;
+      }
+      assert.ok(state.events.some(event => event.event === "tool.effect-reconciled"));
+      assert.ok(!JSON.stringify(state.events).includes("A source review is pending."));
+      await assert.rejects(runtime.execute({ ...request, grantId: "oregano:brain/forget" }), /resolved ToolSet/);
+    } finally { f.cleanup(); }
+  }
+});
+
+test("a durable Workflow resumes Brain receipt/index recovery across worker invocations without another commit", async () => {
+  const { WorkflowEngine } = await import("../../runtime/workflow-engine/engine.ts");
+  const { InMemoryWorkflowExecutionStore } = await import("../../runtime/workflow-engine/memory-store.ts");
+  const { InMemoryDurableTimerStore } = await import("../../runtime/memory-durable-timers.ts");
+  const { DurableTimerService } = await import("../../runtime/durable-timers.ts");
+  const { InMemoryCompanyRecordsStore } = await import("../../records/memory-store.ts");
+  const { BrainWrites } = await import("../../brain/writes.ts");
+  const { CapabilityEffectOutcomeUnknownError } = await import("../../capabilities/contracts.ts");
+  for (const failure of ["lost-git", "pending-sync", "operator-recovery"]) {
+    const f = fixture();
+    try {
+      f.adopt(["oregano:brain/remember", "oregano:brain/entity"]);
+      const path = "brain/topics/expansion.md", input = { changes: { expected_revision: "a".repeat(40), pages: [{ path, expected_content_hash: sha256(brainFiles[path]),
+        markdown: brainFiles[path].replace("No shared decision yet.", "A bounded Workflow update.") }] }, provenance: { source_id: "review:1", source_version: "v1", action: "update", evidence: ["sources/review"] }, operation_key: "workflow:source:1:v1" };
+      const declaration = { type: "workflow", id: "brain-update", version: 1, owner: "agents/growth", execution_mode: "unattended", trigger: "operator",
+        steps: [{ save: "oregano:brain/remember", input, then: "end" }] };
+      writeFileSync(join(f.root, "workflows/brain-update.md"), `---\n${YAML.stringify(declaration)}---\n# Brain update\n\n1. [growth, R1] Save evidenced knowledge. <!-- step:save -->\n`);
+      const artifact = f.build(), executions = new InMemoryWorkflowExecutionStore(), store = new InMemoryBrainStore(), leases = new InMemoryCompanyRecordsStore();
+      const scope = { instance_id: artifact.instance.id, repository_id: "example/company" }, binding = { instanceId: scope.instance_id, repositoryId: scope.repository_id, bindingId: "repository", branch: "brain-test" };
+      let now = "2030-01-01T00:00:00.000Z", head = "a".repeat(40), files: Record<string, string> = structuredClone(brainFiles), commits = 0;
+      let receipt: import("../../runtime/repository/contracts.ts").BrainRepositoryCommitReceipt | undefined, proofAvailable = failure !== "operator-recovery";
+      const repository: import("../../runtime/repository/contracts.ts").BrainRepositoryMutationSource = {
+        brainRevision: async () => head, brainFiles: async (_binding, revision) => structuredClone(revision === "a".repeat(40) ? brainFiles : files),
+        brainCommit: async request => {
+          commits++; head = "b".repeat(40); files[path] = request.changes[0].markdown!;
+          receipt = { repositoryId: binding.repositoryId, branch: binding.branch, baseCommit: request.baseCommit, commit: head, operationId: request.operationId, inputDigest: request.inputDigest };
+          if (failure !== "pending-sync") throw new CapabilityEffectOutcomeUnknownError("Lost receipt", { operation_id: request.operationId });
+          return receipt;
+        }, brainFindCommit: async () => proofAvailable ? receipt : undefined,
+      };
+      const publish = store.publish.bind(store);
+      if (failure === "pending-sync") store.publish = async () => { throw new Error("Index temporarily unavailable"); };
+      const connector = new BrainConnector({ artifact, reads: new BrainReads(store, scope), writes: () => new BrainWrites({ scope, binding, configuration: brainConfig,
+        store, effects: executions.control, leases, repository, now: () => new Date(now) }) });
+      const principal = "test:solstice:morgan", timers = new DurableTimerService({ instanceId: scope.instance_id, store: new InMemoryDurableTimerStore() });
+      const engine = () => new WorkflowEngine({ artifact, store: executions, control: executions.control, timers,
+        enabledWorkflowIds: ["brain-update"], operatorPrincipals: [principal], currentRoster: async () => artifact.roster, connectors: async () => [connector],
+        qualifyMessageDestinations: async () => { throw new Error("Unexpected messaging"); }, conversationForReceipt: async () => { throw new Error("Unexpected conversation"); }, clock: () => now });
+      let run = await engine().openOperator({ workflowId: "brain-update", requestId: "source:1", principal, fields: {} });
+      run = (await engine().advance(run.runId))!;
+      assert.equal(run.state.status, "waiting"); assert.equal(run.state.wait?.kind, "effect"); assert.equal(run.state.blocked, undefined); assert.equal(commits, 1);
+      store.publish = publish; now = failure === "operator-recovery" ? "2030-01-01T00:16:00.000Z" : "2030-01-01T00:01:00.000Z";
+      await engine().timers(); run = (await engine().advance(run.runId))!;
+      if (failure === "operator-recovery") {
+        assert.ok(run.state.blocked); proofAvailable = true;
+        await engine().resume(run.runId, principal); run = (await engine().advance(run.runId))!;
+      }
+      assert.equal(run.state.status, "done"); assert.equal((run.state.steps.save?.output as any).sync_status, "indexed"); assert.equal(commits, 1);
+      assert.equal((await executions.list({ instanceId: scope.instance_id, limit: 20 })).length, 1, "Recovery retains one durable run");
+    } finally { f.cleanup(); }
+  }
 });

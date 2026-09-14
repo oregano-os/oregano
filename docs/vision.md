@@ -49,7 +49,7 @@ Company members keep their Handbook as ordinary Markdown in the reviewed
 Company Workspace. Agents use only the files selected by existing Workspace
 scopes. Handbook edits follow normal governance; Handbook authority has no separate search or promotion subsystem. The optional
 Brain keeps ordinary sourced knowledge in a separate `brain/` tree and exposes
-governed reads through a rebuildable projection. Brain content never changes
+governed reads and evidenced Markdown writes through a rebuildable projection. Brain content never changes
 Handbook authority, the roster or Agent instructions. A retained provider
 integration may remain available independently of the retired Knowledge pipeline.
 

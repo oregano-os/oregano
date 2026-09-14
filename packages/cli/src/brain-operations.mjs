@@ -37,14 +37,14 @@ export function loadBrainOperatorArtifact(path, coreCommit) {
 export async function runBrainOperatorCommand({ action, artifact, entry, agentId, subjectPrincipal, input }) {
   const { syncRuntimeBrain, createRuntimeBrainConnector } = await import("../../runner-vercel/src/lib/brain.ts");
   if (action === "sync") return syncRuntimeBrain(artifact, entry);
-  if (!["recall", "entity", "context_pack", "synthesize"].includes(action)) throw new Error("Unsupported Brain operator command.");
-  if (!agentId || !subjectPrincipal) throw new Error("Brain reads require --agent and --subject-principal from the existing active roster. This local operator command is not an authentication surface.");
+  if (!["recall", "entity", "context_pack", "synthesize", "delta", "remember", "forget"].includes(action)) throw new Error("Unsupported Brain operator command.");
+  if (!agentId || !subjectPrincipal) throw new Error("Brain Tools require --agent and --subject-principal from the existing active roster. This local operator command is not an authentication surface.");
   const { CompanyOSRuntime } = await import("../../runtime/companyos-runtime.ts");
   const { createPostgresStateStore } = await import("../../state-postgres/store.ts");
   const { qualifyCompanyDatabase } = await import("../../state-postgres/database-bootstrap.ts");
   await qualifyCompanyDatabase();
   const runtime = new CompanyOSRuntime({ artifact, state: createPostgresStateStore(),
-    // Standalone operator reads have no active Workflow assignment, matching
+    // Standalone operator Tools have no active Workflow assignment, matching
     // the normal conversation host. Reserved Workflow Tools still fail closed.
     workflowContext: { read: async () => undefined },
     connectors: [createRuntimeBrainConnector(artifact, entry)] });

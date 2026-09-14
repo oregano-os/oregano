@@ -37,6 +37,15 @@ export class InMemoryBrainStore implements BrainStore {
     return { hits: hits.slice(0, args.limit), has_more: hits.length > args.limit };
   }
   async inventory(scope: BrainScope, revision: BrainRevision) { return this.snapshot(scope, revision).pages.map(page => ({ slug: page.slug, content_hash: page.content_hash })); }
+  async changes(scope: BrainScope, revision: BrainRevision, args: Parameters<BrainStore["changes"]>[2]) {
+    this.snapshot(scope, revision);
+    const changes = this.publications.filter(item => this.key(item.scope) === this.key(scope) && item.revision.generation === revision.generation)
+      .flatMap(item => item.changes.map(change => ({ ...change, sequence: item.revision.sequence, git_commit: item.revision.git_commit, indexed_at: item.revision.indexed_at })))
+      .filter(change => (change.sequence > args.after || change.sequence === args.after && args.after_slug !== undefined && change.slug > args.after_slug)
+        && change.sequence <= args.upper && (!args.since || change.indexed_at >= args.since) && (!args.slugs || args.slugs.includes(change.slug)))
+      .sort((a, b) => a.sequence - b.sequence || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+    return { changes: changes.slice(0, args.limit), has_more: changes.length > args.limit };
+  }
   async publish(args: Parameters<BrainStore["publish"]>[0]) {
     const current = await this.revision(args.scope);
     if ((args.expected ? !sameBrainRevision(current, args.expected) : !!current) || !this.leaseValid(args.scope, args.lease)) return false;

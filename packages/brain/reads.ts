@@ -2,6 +2,7 @@ import { sha256 } from "../runtime/canonical.ts";
 import type { BrainStore, BrainSearchHit } from "../state-store/brain.ts";
 import { BrainError, type BrainPage, type BrainRevision, type BrainScope } from "./contracts.ts";
 import { resolveBrainName } from "./documents.ts";
+import { deltaBrain, type BrainDeltaInput } from "./delta.ts";
 
 export const sameBrainRevision = (a: BrainRevision | undefined, b: BrainRevision | undefined) => !!a && !!b
   && a.generation === b.generation && a.sequence === b.sequence && a.git_commit === b.git_commit && a.configuration_digest === b.configuration_digest;
@@ -36,9 +37,10 @@ export async function withBrainSnapshot<T>(store: BrainStore, scope: BrainScope,
 }
 
 /** Content-free, scoped starting marker. It is never an authorization credential. */
-export function brainContextCursor(scope: BrainScope, revision: BrainRevision, entities: string[]): string {
+export function brainContextCursor(scope: BrainScope, revision: BrainRevision, entities: string[], selected?: string[], unresolved = false): string {
   return Buffer.from(JSON.stringify({ v: 1, scope: sha256(scope), generation: revision.generation, after: revision.sequence,
-    entities: [...entities].sort(), entities_digest: sha256([...entities].sort()) })).toString("base64url");
+    entities: [...entities].sort(), entities_digest: sha256([...entities].sort()),
+    ...(selected ? { selected: [...selected].sort(), selected_digest: sha256([...selected].sort()), unresolved } : {}) })).toString("base64url");
 }
 
 export class BrainReads {
@@ -47,6 +49,7 @@ export class BrainReads {
   readonly configurationDigest?: string;
   constructor(store: BrainStore, scope: BrainScope, configurationDigest?: string) { this.store = store; this.scope = scope; this.configurationDigest = configurationDigest; }
   snapshot<T>(read: (revision: BrainRevision) => Promise<T>) { return withBrainSnapshot(this.store, this.scope, read, this.configurationDigest); }
+  delta(input: BrainDeltaInput) { return deltaBrain(this, input); }
 
   async entity(name: string) {
     name = requireText(name, "name", 160);
@@ -104,7 +107,7 @@ export class BrainReads {
       for (const page of selected) if (page.timeline) pack(page, "Timeline", page.timeline);
       for (const page of selected) if (page.original_links.length) pack(page, "original sources", page.original_links.join("\n"));
       return { text, references, unresolved, omissions, budget_tokens: budget, budget_used: Math.ceil(text.length / 4), dropped_count: omissions.length,
-        indexed_revision: revision, change_cursor: brainContextCursor(this.scope, revision, names) };
+        indexed_revision: revision, change_cursor: brainContextCursor(this.scope, revision, names, selected.map(page => page.slug), unresolved.length > 0) };
     });
   }
 }

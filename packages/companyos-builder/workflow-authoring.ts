@@ -9,6 +9,8 @@ import { STANDARD_DIRECTORY_TOOLS } from "../standard-tools/directory.ts";
 import { STANDARD_RECORDS_TOOLS } from "../standard-tools/records.ts";
 import { STANDARD_WORK_ITEM_TOOLS } from "../standard-tools/work-items.ts";
 import { STANDARD_COMMUNICATION_TOOLS } from "../standard-tools/communication.ts";
+import { STANDARD_BRAIN_TOOLS } from "../standard-tools/brain.ts";
+import { compileWorkspaceRuntimePolicy } from "./brain-adoption.ts";
 import { inspectAndCompileCompanyTool } from "../tool-sdk/source-inspector.ts";
 import { validateJsonSchemaValue } from "../capabilities/validation.ts";
 import { validateRecordSource, recordFieldSchema } from "../records/source-validation.ts";
@@ -16,7 +18,7 @@ import { validateRecordFilters } from "../records/query.ts";
 import { recordInstant } from "../records/instant.ts";
 
 type Schema = any;
-const standardTools = [...STANDARD_DIRECTORY_TOOLS, ...STANDARD_RECORDS_TOOLS, ...STANDARD_WORK_ITEM_TOOLS, ...STANDARD_COMMUNICATION_TOOLS];
+const standardTools = [...STANDARD_DIRECTORY_TOOLS, ...STANDARD_RECORDS_TOOLS, ...STANDARD_WORK_ITEM_TOOLS, ...STANDARD_COMMUNICATION_TOOLS, ...STANDARD_BRAIN_TOOLS];
 const schemas = new Map<string, any>();
 const loadSchema = (name: string): any => {
   if (!schemas.has(name)) schemas.set(name, JSON.parse(readFileSync(new URL(`../schema/${name}`, import.meta.url), "utf8")));
@@ -189,7 +191,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
     for (const key of typeof data.instance?.key === "string" ? [data.instance.key] : data.instance?.key ?? ["trigger_id", "run_date"]) if (!fields.has(key)) err(f, `Instance key ${key} is not a declared field`);
     const config = data.config ? readLiteralConfiguration(files, data.config) : {};
     const owner = `${data.owner}/instructions.md`;
-    const grants = new Set(workspaceDocument(files, owner).data?.tools ?? []);
+    const grants = new Set([...(workspaceDocument(files, owner).data?.tools ?? []), ...(compileWorkspaceRuntimePolicy(files)?.commonToolGrants ?? [])]);
     const companyTools = new Map<string, any>();
     const toolsDir = `${data.owner}/tools`;
     for (const file of workspacePaths(files, toolsDir, /\/TOOL\.md$/)) {

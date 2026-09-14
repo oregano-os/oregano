@@ -1,5 +1,6 @@
 import { approvalExpiry, approvalIsUnexpired } from "../state-store/approval-validity.ts";
-import { assertEventReadLimit } from "../state-store/interface.ts";
+import { assertEventReadLimit, assertEffectCheckpoint, type EffectCheckpoint } from "../state-store/interface.ts";
+import { sha256 } from "./canonical.ts";
 import type {
   ApprovalRequestInput,
   ApprovalRequestRow,
@@ -78,6 +79,14 @@ export class InMemoryStateStore implements StateStore {
   async completeEffect(key: string, evidence: unknown): Promise<void> {
     const effect = this.effects.get(key);
     if (effect) Object.assign(effect, { status: "succeeded", evidence });
+  }
+  async compareAndSetEffect(args: EffectCheckpoint): Promise<boolean> {
+    assertEffectCheckpoint(args);
+    const effect = this.effects.get(args.idempotencyKey);
+    if (!effect || effect.inputHash !== args.inputHash || effect.status !== args.expectedStatus
+      || sha256(effect.evidence ?? null) !== sha256(args.expectedEvidence ?? null)) return false;
+    Object.assign(effect, { status: args.status, evidence: structuredClone(args.evidence) });
+    return true;
   }
   async markEffectFailed(key: string, evidence: unknown): Promise<void> {
     const effect = this.effects.get(key);

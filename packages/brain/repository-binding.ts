@@ -14,9 +14,21 @@ export function assertBrainRepositoryBinding(value: BrainRepositoryBinding): voi
 
 /** Non-secret Instance configuration. Enabling this connector grants no Agent access. */
 export function parseBrainRepositoryBinding(configuration: Record<string, unknown>, instanceId: string): BrainRepositoryBinding {
-  const keys = ["repository_binding_id", "repository_id", "branch"];
+  const keys = ["repository_binding_id", "repository_id", "branch", "freshness"];
   if (!configuration || Object.keys(configuration).some(key => !keys.includes(key))) throw new BrainError("invalid_binding", "Unsupported Brain connector configuration field.");
   const value = { instanceId, bindingId: configuration.repository_binding_id, repositoryId: configuration.repository_id, branch: configuration.branch } as BrainRepositoryBinding;
   assertBrainRepositoryBinding(value);
+  parseBrainFreshness(configuration);
   return value;
+}
+
+export function parseBrainFreshness(configuration: Record<string, unknown>): { push_events: boolean; reconcile_interval_seconds: number } | undefined {
+  if (configuration.freshness === undefined) return undefined;
+  const value = configuration.freshness as Record<string, unknown>;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !["push_events", "reconcile_interval_seconds"].includes(key))
+    || typeof value.push_events !== "boolean" || !Number.isSafeInteger(value.reconcile_interval_seconds)
+    || Number(value.reconcile_interval_seconds) < 300 || Number(value.reconcile_interval_seconds) > 86400) {
+    throw new BrainError("invalid_binding", "Brain freshness requires explicit push_events and a reconciliation interval from 300 to 86400 seconds.");
+  }
+  return { push_events: value.push_events, reconcile_interval_seconds: Number(value.reconcile_interval_seconds) };
 }
