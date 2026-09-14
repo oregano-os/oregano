@@ -271,7 +271,7 @@ export class CompanyOSRuntime {
           },
           allowedCapabilities: tool.contract.capabilities,
           ...(this.#toolExecutionTimeoutMs === undefined
-            ? (tool.contract.capabilities.includes("language.generate") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
+            ? (tool.contract.capabilities.some(capability => capability === "language.generate" || capability === "brain.synthesize") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
             : { timeoutMs: this.#toolExecutionTimeoutMs }),
           invokeCapability: async (capability, input) => {
             try {

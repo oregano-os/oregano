@@ -189,6 +189,23 @@
     }
   },
   {
+    "document_id": "command.brain",
+    "title": "companyos brain",
+    "path": "docs/workbench/commands/brain.md",
+    "kind": "command",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "specification.brain-read"
+      ]
+    }
+  },
+  {
     "document_id": "command.build",
     "title": "companyos build",
     "path": "docs/workbench/commands/build.md",
@@ -987,6 +1004,23 @@
     "relations": {}
   },
   {
+    "document_id": "operations.brain-read",
+    "title": "Maintained Brain read implementation",
+    "path": "docs/operations/brain-read.md",
+    "kind": "operations",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "implements": [
+        "specification.brain-read"
+      ]
+    }
+  },
+  {
     "document_id": "operations.core-0-12-adoption",
     "title": "Adopt the integrated Core 0.12.0",
     "path": "docs/operations/core-0-12-adoption.md",
@@ -1303,6 +1337,24 @@
     "availability": null,
     "migration_sources": [],
     "relations": {}
+  },
+  {
+    "document_id": "specification.brain-read",
+    "title": "Governed Brain documents and read operations",
+    "path": "docs/specifications/brain-read.md",
+    "kind": "specification",
+    "status": "building",
+    "authority": "canonical",
+    "language": "en",
+    "updated": "2026-09-14",
+    "availability": "experimental",
+    "migration_sources": [],
+    "relations": {
+      "depends_on": [
+        "vision.companyos",
+        "reference.glossary"
+      ]
+    }
   },
   {
     "document_id": "specification.brain-skill-adoption",
@@ -1662,7 +1714,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-25",
+    "updated": "2026-09-14",
     "availability": null,
     "migration_sources": [],
     "relations": {}

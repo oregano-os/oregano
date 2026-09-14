@@ -15,6 +15,7 @@
     "types": ["node"]
   },
   "include": [
+    "packages/brain/**/*.ts",
     "packages/capabilities/**/*.ts",
     "packages/companyos-builder/**/*.ts",
     "packages/connectors/**/*.ts",

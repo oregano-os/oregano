@@ -52,7 +52,7 @@ export interface LoadedWorkspace {
 }
 
 export function loadCompanyWorkspace(root: string, options: { includeBuilder?: boolean } = {}): LoadedWorkspace {
-  const allFiles = readWorkspaceFiles(root);
+  const allFiles = readWorkspaceFiles(root, { excludeBrain: true });
   const parseDocument = (path: string) => {
     const document = workspaceDocument(allFiles, path);
     if (!document.data) throw new Error(`${path}: YAML frontmatter is required.`);
@@ -173,7 +173,7 @@ export function scopedMaterials(
 ): Record<string, string> {
   const expressions = patterns.map(globExpression);
   const entries = Object.entries(workspace.allFiles)
-    .filter(([path]) => expressions.some((expression) => expression.test(path)))
+    .filter(([path]) => !path.startsWith("brain/") && expressions.some((expression) => expression.test(path)))
     .sort(([a], [b]) => a.localeCompare(b));
   for (const [path, raw] of entries) {
     if (!path.startsWith("handbook/") || path === "handbook/roster.md") continue;

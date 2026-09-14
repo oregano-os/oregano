@@ -1,4 +1,5 @@
-import { createHmac, createSign, timingSafeEqual } from "node:crypto";
+import { assertBrainRepositoryBinding } from "../brain/repository-binding.ts";
+import { createHash, createHmac, createSign, timingSafeEqual } from "node:crypto";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -11,6 +12,8 @@ import {
   type RepositorySourceAdapter,
   type RepositorySourceReceipt,
   type RepositorySourceRequest,
+  type BrainRepositoryBinding,
+  type BrainRepositorySource,
 } from "../runtime/repository/contracts.ts";
 import {
   applyGitPatch,
@@ -33,6 +36,8 @@ import type {
   RepositoryInstallationStore,
 } from "../state-store/repository-installations.ts";
 import type { GitHubReleaseClient } from "./github-release.ts";
+import { assertBrainGitEntry } from "../brain/paths.ts";
+import { BrainError } from "../brain/contracts.ts";
 
 export interface GitHubAppConfiguration {
   readonly appId: string;
@@ -66,7 +71,7 @@ interface InstallationToken {
 
 type GitHubPermission = "read" | "write";
 
-export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, ProposalPublisher {
+export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, ProposalPublisher, BrainRepositorySource {
   readonly id = "github-app";
   readonly version = "1.0.0";
   readonly #configuration: Required<Pick<GitHubAppConfiguration, "apiBaseUrl" | "webBaseUrl">>
@@ -220,6 +225,63 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
         }
       },
     );
+  }
+
+  async #brainBinding(request: BrainRepositoryBinding): Promise<RepositoryInstallationBinding> {
+    assertBrainRepositoryBinding(request);
+    const binding = await this.#installations.requireActive(request.bindingId, request.repositoryId);
+    this.#assertBindingEnvironment(binding);
+    if (binding.instanceId !== request.instanceId) throw new BrainError("invalid_binding", "Repository installation belongs to another Instance.");
+    return binding;
+  }
+
+  async brainRevision(request: BrainRepositoryBinding): Promise<string> {
+    const binding = await this.#brainBinding(request);
+    const signal = AbortSignal.timeout(180_000);
+    return this.#withInstallationToken(binding.installationId, binding.providerRepositoryId, { contents: "read" }, async token => {
+      const ref = await this.#installationRequest<{ ref: string; object: { sha: string; type: string } }>(token, "GET",
+        `/repos/${encodeURIComponent(binding.owner)}/${encodeURIComponent(binding.name)}/git/ref/heads/${encodeURIComponent(request.branch)}`, undefined, signal);
+      if (ref.ref !== `refs/heads/${request.branch}` || ref.object?.type !== "commit" || !/^[a-f0-9]{40}$/.test(ref.object?.sha)) throw new BrainError("repository_revision_invalid", "Repository returned an invalid branch revision.");
+      return ref.object.sha;
+    }, signal);
+  }
+
+  async brainFiles(request: BrainRepositoryBinding, revision: string): Promise<Record<string, string>> {
+    if (!/^[a-f0-9]{40}$/.test(revision)) throw new BrainError("repository_revision_invalid", "Brain reads require an immutable commit.");
+    const binding = await this.#brainBinding(request);
+    const signal = AbortSignal.timeout(180_000);
+    return this.#withInstallationToken(binding.installationId, binding.providerRepositoryId, { contents: "read" }, async token => {
+      const root = `/repos/${encodeURIComponent(binding.owner)}/${encodeURIComponent(binding.name)}`;
+      const commit = await this.#installationRequest<{ sha: string; tree: { sha: string } }>(token, "GET", `${root}/git/commits/${revision}`, undefined, signal);
+      if (commit.sha !== revision || !/^[a-f0-9]{40}$/.test(commit.tree?.sha)) throw new BrainError("repository_revision_invalid", "Repository returned a mismatched commit/tree.");
+      const tree = await this.#installationRequest<{ truncated: boolean; tree: Array<{ path: string; mode: string; type: string; sha: string; size?: number }> }>(token, "GET", `${root}/git/trees/${commit.tree.sha}?recursive=1`, undefined, signal);
+      if (tree.truncated || !Array.isArray(tree.tree)) throw new BrainError("repository_inventory_incomplete", "Brain requires a complete repository tree.");
+      const entries = tree.tree.filter(entry => entry.path === "brain" || entry.path.startsWith("brain/"));
+      if (new Set(entries.map(entry => entry.path)).size !== entries.length) throw new BrainError("repository_inventory_incomplete", "Brain tree contains duplicate paths.");
+      const files = entries.filter(entry => entry.type !== "tree");
+      if (files.length > 1000) throw new BrainError("repository_read_bound", "This initial Brain reader supports at most 1000 files per complete scan.");
+      for (const entry of entries) {
+        if (entry.type === "tree") {
+          if (entry.mode !== "040000" || entry.path.split("/").some(part => !part || part.startsWith("."))) throw new BrainError("invalid_file", "Brain directories must be ordinary Git trees.");
+        } else {
+          assertBrainGitEntry(entry);
+          if (!/^[a-f0-9]{40}$/.test(entry.sha) || !Number.isSafeInteger(entry.size) || entry.size! > 400_000 || entry.size! < 0) throw new BrainError("repository_read_bound", "Invalid or oversized Brain blob.");
+        }
+      }
+      if (files.reduce((total, file) => total + file.size!, 0) > 32_000_000) throw new BrainError("repository_read_bound", "Brain scan exceeds its aggregate byte bound.");
+      const output: Record<string, string> = {};
+      for (let offset = 0; offset < files.length; offset += 5) {
+        await Promise.all(files.slice(offset, offset + 5).map(async entry => {
+          const blob = await this.#installationRequest<{ sha: string; content: string; encoding: string; size: number }>(token, "GET", `${root}/git/blobs/${entry.sha}`, undefined, signal);
+          if (blob.encoding !== "base64" || blob.sha !== entry.sha || blob.size !== entry.size || typeof blob.content !== "string" || blob.content.length > 550_000) throw new BrainError("repository_blob_invalid", "Brain blob receipt does not match the selected tree.");
+          const bytes = Buffer.from(blob.content, "base64");
+          const hash = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+          if (bytes.length !== blob.size || hash !== entry.sha) throw new BrainError("repository_blob_invalid", "Brain blob failed its content identity check.");
+          output[entry.path] = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        }));
+      }
+      return output;
+    }, signal);
   }
 
   /** Trusted release only; credentials remain in this maintained Connector. */
@@ -515,6 +577,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     providerRepositoryId: string,
     permissions: Readonly<Record<string, GitHubPermission>>,
     use: (token: string) => Promise<T>,
+    signal?: AbortSignal,
   ): Promise<T> {
     const created = await this.#appRequest<{ token: string; expires_at: string }>(
       "POST",
@@ -523,6 +586,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
         repository_ids: [Number(providerRepositoryId)],
         permissions,
       },
+      signal,
     );
     const credential: InstallationToken = { token: created.token, expiresAt: created.expires_at };
     if (!credential.token || !Number.isFinite(Date.parse(credential.expiresAt))) {
@@ -531,13 +595,13 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     try {
       return await use(credential.token);
     } finally {
-      await this.#installationRequest<void>(credential.token, "DELETE", "/installation/token")
+      await this.#installationRequest<void>(credential.token, "DELETE", "/installation/token", undefined, signal ? AbortSignal.timeout(10_000) : undefined)
         .catch(() => undefined);
     }
   }
 
-  async #appRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
-    return await this.#request<T>(method, path, `Bearer ${this.#appJwt()}`, body);
+  async #appRequest<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+    return await this.#request<T>(method, path, `Bearer ${this.#appJwt()}`, body, signal);
   }
 
   async #installationRequest<T>(
@@ -545,8 +609,9 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     method: string,
     path: string,
     body?: unknown,
+    signal?: AbortSignal,
   ): Promise<T> {
-    return await this.#request<T>(method, path, `Bearer ${token}`, body);
+    return await this.#request<T>(method, path, `Bearer ${token}`, body, signal);
   }
 
   async #request<T>(
@@ -554,6 +619,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     path: string,
     authorization: string,
     body?: unknown,
+    signal?: AbortSignal,
   ): Promise<T> {
     const response = await this.#fetch(`${this.#configuration.apiBaseUrl}${path}`, {
       method,
@@ -565,12 +631,28 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
         "X-GitHub-Api-Version": "2022-11-28",
       },
       body: body === undefined ? undefined : JSON.stringify(body),
+      ...(signal ? { signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]) } : {}),
     });
     if (!response.ok) {
+      if (signal) { await response.body?.cancel(); throw new BrainError("repository_request_failed", `Brain repository request failed (${response.status}).`); }
       const detail = (await response.text()).slice(0, 2_000);
       throw new Error(`GitHub Repository Provider request failed (${response.status}): ${detail}`);
     }
     if (response.status === 204) return undefined as T;
+    if (signal) {
+      const reader = response.body?.getReader();
+      if (!reader) throw new BrainError("repository_response_invalid", "Empty repository response.");
+      const chunks: Uint8Array[] = []; let size = 0;
+      try {
+        for (;;) {
+          const part = await reader.read(); if (part.done) break;
+          size += part.value.length;
+          if (size > 5_000_000) throw new BrainError("repository_read_bound", "Repository response exceeds its byte bound.");
+          chunks.push(part.value);
+        }
+      } finally { await reader.cancel(); }
+      return JSON.parse(Buffer.concat(chunks).toString("utf8")) as T;
+    }
     return await response.json() as T;
   }
 

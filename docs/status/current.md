@@ -20,9 +20,19 @@ pairs and a measured per-binding instruction capacity up to 30,000 units;
 existing bindings retain 16,000. Static pinned Brain Skill materialization is
 covered by synthetic integrity, scope and budget checks. A protected model-only
 Preview qualified representative source triage and meeting phases, including the
-largest prompt and bounded repair. No Brain runtime, import workflow or company
-adoption is claimed.
+largest prompt and bounded repair. This proves the bounded prompt foundation;
+import workflow and company adoption remain pending.
 See [Brain Skill adoption](../specifications/brain-skill-adoption.md).
+
+The experimental Brain read increment now implements Markdown/Takes checking,
+scoped projection sync, four read Tools, common Workspace grants and the normal
+Agent runtime path. Synthetic adapter/runtime tests and local database tests
+cover these mechanisms. The additive database target is 3.1.0, with five derived
+Brain tables alongside existing control and Records state. Live hosted read and
+synthesis-quality qualification is pending; writes, delta and ingestion are not
+implemented. See the [Brain read contract](../specifications/brain-read.md) and
+[maintained implementation](../operations/brain-read.md).
+
 
 Authenticated Agent file inputs now share experimental PDF, PNG/JPEG/WebP and
 Markdown preparation for qualified direct model providers. Core provider policy data

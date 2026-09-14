@@ -76,6 +76,7 @@ export interface CompiledAgent {
 }
 
 export interface CompanyOSArtifact {
+  brain?: import("./brain-adoption.ts").BrainAdoption;
   builderReleasePolicy?: WorkspaceReleasePolicy;
   schemaVersion: 1;
   company: string;

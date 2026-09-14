@@ -1,3 +1,4 @@
+import { createRuntimeBrainConnector } from "./brain.ts";
 import { cardToBlockKit, SlackFormatConverter, type SlackAdapter } from "@chat-adapter/slack";
 import { decisionCard } from "./decision-cards.ts";
 import type { DecisionPresentation } from "../../../capabilities/decision-presentation.ts";
@@ -308,6 +309,10 @@ export function createConfiguredRuntimeConnectors(args: {
       && binding.connector === entry.connector && binding.connectorVersion === entry.connectorVersion)) continue;
     if (instanceIds.has(entry.id)) throw new Error(`Duplicate runtime Connector instance '${entry.id}'.`);
     instanceIds.add(entry.id);
+    if (entry.connector === "oregano/brain" && entry.connectorVersion === "0.1.0") {
+      connectors.push(createRuntimeBrainConnector(args.artifact, entry, environment));
+      continue;
+    }
     if (entry.connector === "oregano/historical-evidence" && entry.connectorVersion === "1.0.0") {
       exactKeys(entry.configuration, ["scopes"], `Connector instance '${entry.id}'`);
       const scopes = parseEvidenceScopes(entry.configuration.scopes);

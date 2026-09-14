@@ -39,6 +39,19 @@ export interface RepositorySourceAdapter {
   materialize(request: RepositorySourceRequest): Promise<RepositorySourceReceipt>;
 }
 
+/** Narrow knowledge reads reuse the existing installation; no coding worker is involved. */
+export interface BrainRepositoryBinding {
+  readonly instanceId: string;
+  readonly bindingId: string;
+  readonly repositoryId: string;
+  readonly branch: string;
+}
+
+export interface BrainRepositorySource {
+  brainRevision(binding: BrainRepositoryBinding): Promise<string>;
+  brainFiles(binding: BrainRepositoryBinding, revision: string): Promise<Record<string, string>>;
+}
+
 export interface CheckedProposal {
   readonly releaseChangeClass?: "content" | "behavior" | "security";
   readonly validationPassed: true;

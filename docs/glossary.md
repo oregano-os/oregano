@@ -20,13 +20,24 @@ in the Company Workspace. Its physical placement does not turn secrets,
 deployment authority or operational state into Workspace content. See
 [Workspace Instance Configuration](reference/instance-configuration.md).
 
-## Handbook and Records terms
+## Handbook, Brain and Records terms
 
 ### Handbook
 Ordinary Markdown files under `handbook/` in the Company Workspace. Content
 changes use normal Workspace governance; the structured roster retains its
 Core identity and approval contract. There is no database-backed Handbook
 search, dedicated curation permission, or activation workflow.
+
+### Brain
+Ordinary sourced company knowledge under `brain/` in the Company Workspace,
+read through an explicitly adopted, rebuildable Instance projection. It is
+reference data, not Handbook policy or an authority registry. See the
+[Brain contract](specifications/brain-read.md).
+
+### Take
+An attributed assertion with stable page/row identity, kind, holder, confidence,
+date scope and an internal evidence reference. Inactive rows retain history and
+are excluded from current retrieval. Confidence is not permission or a decision.
 
 ### Company Records
 The provider-neutral operational-data layer for versioned synchronized source

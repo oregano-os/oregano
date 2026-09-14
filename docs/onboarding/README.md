@@ -117,7 +117,7 @@ binds its connection only in the runtime host's secret environment. The next
 phase invokes the provider-neutral `companyos database prepare` operation
 through that environment. Prepare detects an empty, older, or current database
 and selects `bootstrap`, `upgrade`, or read-only `verify`. It creates or
-upgrades the `companyos` and `companyos_records`
+upgrades the `companyos`, `companyos_records` and derived `companyos_brain`
 schemas, records their
 immutable schema manifest, and returns a bounded non-secret qualification
 receipt. Runtime health and
@@ -125,10 +125,10 @@ receipt. Runtime health and
 manifest or required schema objects are missing. The maintained Vercel profile
 uses `vercel env run`; another runtime profile must provide an equivalent
 secret-bound command without making Vercel part of the database contract.
-The current manifest is `companyos-postgres@3.0.0`. It qualifies 15 control/Workflow
-and 14 Company Records/Sprint tables, and recognizes the immutable identities
-of supported `1.0.0` through `2.0.0` predecessors. Qualification receipt version
-2 covers only `companyos` and `companyos_records`. General identity,
+The current manifest is `companyos-postgres@3.1.0`. It qualifies 15 control/Workflow
+and 11 Company Records tables plus five derived Brain tables. It recognizes
+the immutable identities of supported predecessors through `3.0.0`.
+Qualification receipt version 2 covers all three schemas. General identity,
 authorization, approvals, Records, Sprint and model routing remain in Core.
 Preparation preserves existing data; it neither creates nor deletes a Knowledge
 schema. Existing Instances use the separately targeted
@@ -259,3 +259,7 @@ bound to their original deployments.
 See the [maintained host profile](../operations/maintained-host-profile.md).
 
 :::
+
+Optional Brain adoption uses the existing database and requires explicit
+Workspace reading policy, grants and an Instance repository binding. See the
+[Brain read implementation](../operations/brain-read.md).

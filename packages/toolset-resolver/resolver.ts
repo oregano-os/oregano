@@ -10,6 +10,7 @@ export interface ResolvedTool {
   risk: RiskLevel;
   capabilities: Array<{ id: string; version: string; connector: string; connectorVersion: string }>;
   contractDigest: string;
+  grantSources?: Array<"agent" | "workspace-common">;
 }
 
 export interface ResolvedToolSet {
@@ -17,11 +18,13 @@ export interface ResolvedToolSet {
   agentId: string;
   tools: ResolvedTool[];
   hash: string;
+  grantPolicy?: { path: string; digest: string };
 }
 
 export interface ResolveToolSetInput {
   agentId: string;
   grants: string[];
+  commonGrants?: { grants: string[]; path: string; digest: string };
   companyTools: CompanyToolContract[];
   standardTools?: CompanyToolContract[];
   capabilityCatalog: readonly CapabilityContract[];
@@ -43,7 +46,9 @@ export function resolveToolSet(input: ResolveToolSetInput): ResolvedToolSet {
   const seenGrants = new Set<string>();
   const resolved: ResolvedTool[] = [];
 
-  for (const grant of [...input.grants].sort()) {
+  if (input.commonGrants && (new Set(input.commonGrants.grants).size !== input.commonGrants.grants.length || !/^[a-f0-9]{64}$/.test(input.commonGrants.digest))) errors.push("Invalid common grant policy provenance.");
+  const grants = [...input.grants, ...(input.commonGrants?.grants.filter(grant => !input.grants.includes(grant)) ?? [])];
+  for (const grant of grants.sort()) {
     if (seenGrants.has(grant)) {
       errors.push(`Duplicate Tool grant '${grant}' for agent '${input.agentId}'.`);
       continue;
@@ -95,6 +100,7 @@ export function resolveToolSet(input: ResolveToolSetInput): ResolvedToolSet {
       risk,
       capabilities: capabilities.sort((a, b) => a.id.localeCompare(b.id)),
       contractDigest: sha256(tool),
+      ...(input.commonGrants ? { grantSources: [...(input.grants.includes(grant) ? ["agent" as const] : []), ...(input.commonGrants.grants.includes(grant) ? ["workspace-common" as const] : [])] } : {}),
     });
   }
   if (errors.length > 0) throw new Error(`ToolSet resolution failed:\n- ${errors.join("\n- ")}`);
@@ -102,6 +108,7 @@ export function resolveToolSet(input: ResolveToolSetInput): ResolvedToolSet {
     resolverVersion: "1" as const,
     agentId: input.agentId,
     tools: resolved.sort((a, b) => a.runtimeId.localeCompare(b.runtimeId)),
+    ...(input.commonGrants ? { grantPolicy: { path: input.commonGrants.path, digest: input.commonGrants.digest } } : {}),
   };
   return { ...manifest, hash: sha256(manifest) };
 }
