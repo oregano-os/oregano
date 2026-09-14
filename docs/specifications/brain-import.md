@@ -114,7 +114,9 @@ the actual provider rehearsal and complete ingest Workflow are not yet complete.
 
 `oregano/google-meet-record-source@0.1.0` is registered with the existing CLI
 and hosted Records registries. Its non-secret binding holds one explicit delegated
-identity and an exact list of Transcript resource names. A content-free qualification
+identity, explicit `authentication_mode: service-account-dwd`, and an exact list
+of Transcript resource names. The adapter has no Brain record-type dependency;
+a Workspace declares the canonical record type and field mapping. A content-free qualification
 receipt binds those names to complete metadata discovery. Changed subjects or
 selections require new qualification; installation alone grants no access. Runtime
 credential resolution still uses the existing Instance SecretRef.
@@ -141,3 +143,32 @@ Primary provider contracts: [conference lists](https://developers.google.com/wor
 [transcript entries](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords.transcripts.entries/list),
 [conference retention](https://developers.google.com/workspace/meet/api/reference/rest/v2/conferenceRecords),
 and [Google authentication SDK](https://github.com/googleapis/google-auth-library-nodejs).
+
+## Source-version Workflow admission
+
+The optional reviewed Instance `transcriptImports` bindings attach a frozen cohort
+to an enabled Workflow. Each binding names `workflowId`, `importId`, `cohortId`,
+`policyField`, `sourceIdentityField` and `sourceVersionField`. The last two must be
+distinct declared Workflow key fields; the policy field selects the normalized
+Workspace configuration. It is not supplied by a model or source record.
+
+Before creating a bound run, the existing engine reads the durable cohort effect
+and verifies the Workspace policy and cumulative admitted identities through that
+cohort. Missing state, changed unactivated policy and out-of-cohort sources fail
+before a run or paid call. Admission never freezes, refills or extends the cohort.
+Discovery metadata versions remain separate from the exact content version read
+by the first authorized Records step.
+
+A bound run's origin uses import identity, source identity and content version.
+A changed request ID, process, policy activation or Artifact cannot repeat a
+completed version. A new content version has a distinct run and must reconcile
+existing knowledge in the owning Workflow. Existing run Artifacts and outcomes
+remain retained; a changed principal or other input conflicts rather than silently
+reusing authority. Resuming an already opened run keeps its original admission. The existing Workflow
+snapshot retains an immutable, content-free opening receipt with import/cohort,
+policy digest and source/version identity; an extension cannot rewrite it.
+Unbound Workflows retain their existing request/schedule identity semantics.
+
+These bindings are part of existing authenticated Workflow hosting configuration,
+not a new Brain Tool, source database, model loop or queue. Enabling an import must
+include its reviewed admission binding; installing Skills alone activates nothing.

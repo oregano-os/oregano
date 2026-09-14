@@ -1,3 +1,4 @@
+import { parseTranscriptImportBindings, type TranscriptImportBinding } from "../../../brain/import-admission.ts";
 import { timingSafeEqual } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import type { CompanyOSArtifact } from "../../../companyos-builder/types.ts";
@@ -19,6 +20,7 @@ export interface WorkflowHostingConfiguration {
   maxLatenessMinutes: number;
   operators: Array<{ principal: string; secretRef: string }>;
   recordSync?: WorkflowRecordSyncConfiguration;
+  transcriptImports?: TranscriptImportBinding[];
 }
 
 const record = (value: unknown, label: string): Record<string, unknown> => {
@@ -50,7 +52,7 @@ export function decodeWorkflowHostingConfiguration(artifact: CompanyOSArtifact, 
   try { parsed = JSON.parse(gunzipSync(Buffer.from(encoded, "base64"), { maxOutputLength: 65_536 }).toString("utf8")); }
   catch { throw new Error("Workflow Instance configuration is malformed"); }
   const value = record(parsed, "Workflow Instance configuration");
-  keys(value, ["version", "instanceId", "artifactHash", "environment", "enabledWorkflowIds", "autoOpenWorkflowIds", "schedulePrincipal", "activatedAt", "maxLatenessMinutes", "operators", "recordSync"], "Workflow Instance configuration");
+  keys(value, ["version", "instanceId", "artifactHash", "environment", "enabledWorkflowIds", "autoOpenWorkflowIds", "schedulePrincipal", "activatedAt", "maxLatenessMinutes", "operators", "recordSync", "transcriptImports"], "Workflow Instance configuration");
   if (value.version !== 1 || value.instanceId !== artifact.instance.id || value.artifactHash !== artifact.artifactHash
     || value.environment !== artifact.instance.environment || value.environment !== environment.VERCEL_ENV) throw new Error("Workflow configuration does not match the exact deployed Instance and Artifact");
   if (!["preview", "production", "development"].includes(String(value.environment))) throw new Error("Workflow deployment environment is unsupported");
@@ -80,8 +82,9 @@ export function decodeWorkflowHostingConfiguration(artifact: CompanyOSArtifact, 
   const schedulePrincipal = string(value.schedulePrincipal, "schedulePrincipal", /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,254}$/);
   if (!operators.some((operator) => operator.principal === schedulePrincipal)) throw new Error("The schedule must identify its authorized accountable operator");
   const recordSync = parseWorkflowRecordSyncConfiguration(value.recordSync);
+  const transcriptImports = parseTranscriptImportBindings(value.transcriptImports, artifact, enabledWorkflowIds);
   return { version: 1, instanceId: artifact.instance.id, artifactHash: artifact.artifactHash, environment: value.environment as WorkflowHostingConfiguration["environment"],
-    enabledWorkflowIds, autoOpenWorkflowIds, schedulePrincipal, activatedAt, maxLatenessMinutes: Number(value.maxLatenessMinutes), operators, ...(recordSync ? { recordSync } : {}) };
+    enabledWorkflowIds, autoOpenWorkflowIds, schedulePrincipal, activatedAt, maxLatenessMinutes: Number(value.maxLatenessMinutes), operators, ...(recordSync ? { recordSync } : {}), ...(transcriptImports.length ? { transcriptImports } : {}) };
 }
 
 const matches = (authorization: string, secret: string | undefined): boolean => {

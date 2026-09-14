@@ -29,7 +29,17 @@ export interface WorkflowStoredDecision {
   recipients: string[];
   deliveries: Record<string, JsonValue>;
 }
+export interface WorkflowSourceAdmission {
+  kind: "transcript-cohort";
+  importId: string;
+  cohortId: string;
+  policyDigest: string;
+  sourceIdentity: string;
+  sourceVersion: string;
+}
 export interface WorkflowMutableState {
+  /** Immutable opening proof; no source payload or runtime credential. */
+  sourceAdmission?: WorkflowSourceAdmission;
   status: "running" | "waiting" | "done" | "cancelled" | "failed";
   cursor: string | null;
   logicalInstant: string;

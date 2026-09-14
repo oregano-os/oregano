@@ -55,6 +55,14 @@ export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: W
 
 export function validateWorkflowState(state: WorkflowMutableState, workflowId: string, artifact: CompanyOSArtifact, previous?: WorkflowMutableState): void {
   safeObject(state); safeObject(state.steps); safeObject(state.decisions);
+  if (previous && canonicalJson(previous.sourceAdmission ?? null) !== canonicalJson(state.sourceAdmission ?? null)) throw new Error("Workflow source admission is immutable");
+  if (state.sourceAdmission) {
+    const proof = state.sourceAdmission; safeObject(proof);
+    if (proof.kind !== "transcript-cohort" || Object.keys(proof).sort().join(",") !== "cohortId,importId,kind,policyDigest,sourceIdentity,sourceVersion") throw new Error("Invalid Workflow source admission proof");
+    digest(proof.cohortId); digest(proof.policyDigest);
+    identifier(proof.importId);
+    for (const value of [proof.sourceIdentity, proof.sourceVersion]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\x00-\x1f]/.test(value)) throw new Error("Invalid source admission identity or version");
+  }
   if (!["running", "waiting", "done", "cancelled", "failed"].includes(state.status)) throw new Error("Invalid workflow status");
   workflowInstant(state.logicalInstant);
   const workflow = artifact.workflows?.find((candidate) => candidate.id === workflowId);

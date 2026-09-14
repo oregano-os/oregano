@@ -34,6 +34,7 @@ export async function createWorkflowHost() {
   // Validate required bindings and non-secret snapshots before persisting any opening.
   await connectors(artifact);
   const engine = new WorkflowEngine({ artifact, store, control, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
+    transcriptImports: configuration.transcriptImports,
     verifyPublicationNotSent: verifySlackPublicationNotSent,
     operatorPrincipals: configuration.operators.map((operator) => operator.principal), currentRoster: roster, connectors,
     qualifyMessageDestinations: (pinned, inputs) => qualifyWorkflowMessageInputs({ scope: slack, artifact: pinned, inputs, roster }),

@@ -145,3 +145,16 @@ test("invalid calendar bounds and unexpected list envelopes fail instead of sile
   const invalid = new GoogleMeetClient({ token: async () => "synthetic", fetcher: async () => response({ conferenceRecords: null }) });
   await assert.rejects(invalid.conferences(), /invalid-list/);
 });
+
+test("Meet source delivery is independent of Brain record types and requires the explicit delegated authentication mode", async () => {
+  const f = await sourceFixture();
+  assert.equal(f.binding.configuration.authentication_mode, "service-account-dwd");
+  const inventory = await f.connector.readCompleteInventory({ ...f, source: { ...f.source, record_type: "meeting-transcript" } });
+  assert.equal(inventory.objects.length, 1);
+  const secrets = f.h.secrets;
+  for (const mode of [undefined, "individual-oauth"]) {
+    await assert.rejects(f.connector.readCompleteInventory({ ...f, binding: { ...f.binding,
+      configuration: { ...f.binding.configuration, authentication_mode: mode as any } } }), /invalid-source-selection/);
+  }
+  assert.equal(f.h.secrets, secrets);
+});

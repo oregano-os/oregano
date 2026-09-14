@@ -1,3 +1,4 @@
+import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
 import { validateCollection, validateCollectionCandidate } from "./collection.ts";
 import { randomUUID } from "node:crypto";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
@@ -33,6 +34,7 @@ export interface WorkflowEngineOptions {
   timers: DurableTimerService;
   /** Exact enabled processes and authenticated operator principals are Instance authority. */
   enabledWorkflowIds: readonly string[];
+  transcriptImports?: readonly TranscriptImportBinding[];
   operatorPrincipals: readonly string[];
   currentRoster: () => Promise<RosterMember[]>;
   connectors: (artifact: CompanyOSArtifact) => Promise<Connector[]>;
@@ -56,7 +58,8 @@ export class WorkflowEngine {
   constructor(options: WorkflowEngineOptions) {
     this.#artifact = structuredClone(options.artifact); assertWorkflowArtifact(this.#artifact);
     if (options.timers.instanceId !== options.artifact.instance.id) throw new Error("Workflow timers belong to another Instance");
-    this.#options = { ...options, enabledWorkflowIds: [...options.enabledWorkflowIds], operatorPrincipals: [...options.operatorPrincipals] };
+    this.#options = { ...options, enabledWorkflowIds: [...options.enabledWorkflowIds], operatorPrincipals: [...options.operatorPrincipals],
+      transcriptImports: parseTranscriptImportBindings(options.transcriptImports, this.#artifact, options.enabledWorkflowIds) };
     const ttl = options.assignmentLifetimeMs ?? 30 * 86_400_000;
     if (!Number.isSafeInteger(ttl) || ttl < 60_000 || ttl > 3660 * 86_400_000) throw new Error("Workflow conversation lifetime is outside the supported bound");
   }
@@ -154,6 +157,10 @@ export class WorkflowEngine {
       trigger.previous_instant = workflowPreviousTrigger(calendar, workflow.trigger.id, instant).instant;
     }
     if (trigger.previous_instant && trigger.previous_instant >= instant) throw new Error("Previous trigger must precede this opening");
+    const transcriptBinding = this.#options.transcriptImports?.find(binding => binding.workflowId === workflow.id);
+    const sourceAdmission = transcriptBinding ? await transcriptImportOrigin({ store: this.#options.control, instanceId: this.#artifact.instance.id,
+      workflow, binding: transcriptBinding, fields }) : undefined;
+    if (sourceAdmission) originKey = sourceAdmission.originKey;
     const identity: WorkflowRunIdentity = { instanceId: this.#artifact.instance.id, workflowId: workflow.id, runId: "", artifactHash: this.#artifact.artifactHash,
       manifestHash: workflow.manifestHash, originKey, originDigest: "", subjectPrincipal: args.principal,
       trigger, fields, createdAt: now };
@@ -161,10 +168,10 @@ export class WorkflowEngine {
     const prior = await this.#options.store.findOrigin(identity.instanceId, identity.workflowId, identity.originKey);
     if (prior) {
       // A request without an explicit instant retains its original opening time on retry.
-      if (!args.instant) {
+      if (!args.instant || transcriptBinding) {
         identity.trigger.instant = prior.trigger.instant; identity.fields.run_date = prior.fields.run_date!;
         if (workflow.instance.fields.includes("trigger_instant")) identity.fields.trigger_instant = prior.trigger.instant;
-        if (!args.previousInstant) identity.trigger.previous_instant = prior.trigger.previous_instant;
+        if (!args.previousInstant || transcriptBinding) identity.trigger.previous_instant = prior.trigger.previous_instant;
         identity.originDigest = workflowOriginDigest(identity);
       }
       if (prior.originDigest !== identity.originDigest) throw new Error("Workflow opening identity conflicts with changed input");
@@ -172,7 +179,8 @@ export class WorkflowEngine {
     }
     const agent = this.#artifact.agents.find((agent) => agent.id === workflow.agentId)!;
     await this.#options.store.putArtifact(this.#artifact);
-    return this.#options.store.create({ identity, state: { status: "running", cursor: workflow.entry, logicalInstant: instant, steps: {}, decisions: {} },
+    return this.#options.store.create({ identity, state: { status: "running", cursor: workflow.entry, logicalInstant: instant, steps: {}, decisions: {},
+        ...(sourceAdmission ? { sourceAdmission: sourceAdmission.receipt } : {}) },
       meta: { runId: identity.runId, workflow: workflow.id, workflowVersion: String(workflow.version), companyCommit: this.#artifact.provenance.workspaceCommit,
         companySnapshotHash: this.#artifact.provenance.workspaceHash, agentDefinitionHash: sha256({ instructions: agent.instructions, materials: agent.materials }), agentAdapter: "companyos-workflow-engine", adapterVersion: "1" } });
   }

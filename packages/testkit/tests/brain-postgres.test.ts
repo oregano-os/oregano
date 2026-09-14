@@ -92,6 +92,7 @@ test("effect checkpoints and receipt reconciliation use atomic status/input/evid
 test("Postgres retains frozen transcript cohorts across concurrent setup and bounded extensions", { skip: !enabled }, async () => {
   const { createPostgresStateStore } = await import("../../state-postgres/store.ts");
   const { freezeTranscriptCohort } = await import("../../brain/import-policy.ts");
+  const { transcriptImportOrigin } = await import("../../brain/import-admission.ts");
   await bootstrapCompanyDatabase(); const store = createPostgresStateStore(), sql = neon(process.env.DATABASE_URL!);
   const runId = `brain-cohort-${randomUUID()}`, extensionId = `${runId}-extension`;
   for (const id of [runId, extensionId]) await store.ensureRun({ runId: id, workflow: "brain-import-fixture", workflowVersion: "1", companySnapshotHash: "snapshot", agentDefinitionHash: "agent", agentAdapter: "test" });
@@ -104,6 +105,15 @@ test("Postgres retains frozen transcript cohorts across concurrent setup and bou
     const extension = await freezeTranscriptCohort({ ...args, store: createPostgresStateStore(), runId: extensionId, policy: { ...args.policy, max_transcripts: 6 } });
     assert.equal(extension.cumulative_count, 6); assert.equal(extension.admitted.length, 2);
     assert.deepEqual(await freezeTranscriptCohort({ ...args, store: createPostgresStateStore() }), cohorts[0]);
+    const admission = { store: createPostgresStateStore(), instanceId: args.instanceId,
+      workflow: { config: { value: { policy: args.policy } } } as unknown as import("../../companyos-builder/workflow-types.ts").CompiledWorkflow,
+      binding: { workflowId: "synthetic", importId: args.importId, cohortId: cohorts[0].id, policyField: "policy", sourceIdentityField: "source", sourceVersionField: "version" },
+      fields: { source: "synthetic:0", version: "content-version" } };
+    const opened = await transcriptImportOrigin(admission);
+    assert.equal(opened.receipt.cohortId, cohorts[0].id);
+    assert.equal(opened.receipt.sourceVersion, "content-version");
+    assert.deepEqual(await transcriptImportOrigin({ ...admission, store: createPostgresStateStore() }), opened);
+    await assert.rejects(transcriptImportOrigin({ ...admission, fields: { source: "synthetic:4", version: "content-version" } }), /outside/);
   } finally {
     await sql`delete from companyos.effects where run_id = ${runId} or run_id = ${extensionId}`;
     await sql`delete from companyos.workflow_runs where run_id = ${runId} or run_id = ${extensionId}`;

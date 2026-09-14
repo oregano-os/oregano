@@ -10,16 +10,16 @@ import type { discoverGoogleMeetTranscripts } from "./discovery.ts";
 export const GOOGLE_MEET_RECORD_SOURCE_ID = "oregano/google-meet-record-source";
 export const GOOGLE_MEET_RECORD_SOURCE_VERSION = "0.1.0";
 const json = (value: unknown): JsonValue => JSON.parse(JSON.stringify(value));
-interface Selection { identity: GoogleMeetIdentity; transcript_names: string[] }
+interface Selection { authentication_mode: "service-account-dwd"; identity: GoogleMeetIdentity; transcript_names: string[] }
 function selection(raw: unknown): Selection {
   const value = raw as Selection;
-  if (!value || Object.keys(value).some(key => !["identity", "transcript_names"].includes(key)) || !value.identity
+  if (!value || Object.keys(value).some(key => !["authentication_mode", "identity", "transcript_names"].includes(key)) || value.authentication_mode !== "service-account-dwd" || !value.identity
     || Object.keys(value.identity).sort().join(",") !== "clientId,projectId,serviceAccountEmail,subject") throw new GoogleMeetError("invalid-source-selection");
   validateGoogleMeetIdentity(value.identity);
   if (!Array.isArray(value.transcript_names) || !value.transcript_names.length || value.transcript_names.length > 1000
     || value.transcript_names.some(name => typeof name !== "string" || !/^conferenceRecords\/[A-Za-z0-9_-]{1,256}\/transcripts\/[A-Za-z0-9_-]{1,256}$/.test(name))
     || new Set(value.transcript_names).size !== value.transcript_names.length) throw new GoogleMeetError("invalid-transcript-selection");
-  return { identity: { ...value.identity }, transcript_names: [...value.transcript_names].sort() };
+  return { authentication_mode: "service-account-dwd", identity: { ...value.identity }, transcript_names: [...value.transcript_names].sort() };
 }
 
 /** Freeze an exact subset of a successful metadata discovery; this is qualification, not import admission. */
@@ -29,7 +29,7 @@ export function qualifyGoogleMeetRecordSource(discovery: Awaited<ReturnType<type
     || sha256(facts) !== discovery_hash || sha256(discovery.candidates) !== facts.candidate_digest
     || facts.credentials_retained !== false || facts.complete_for_subject_available_inventory !== true
     || facts.scopes.length !== 1 || facts.scopes[0] !== GOOGLE_MEET_READ_SCOPE) throw new GoogleMeetError("invalid-discovery-proof");
-  const selected = selection({ identity: { projectId: facts.project_id, serviceAccountEmail: facts.service_account_email, clientId: facts.client_id, subject: facts.delegated_subject }, transcript_names: names });
+  const selected = selection({ authentication_mode: "service-account-dwd", identity: { projectId: facts.project_id, serviceAccountEmail: facts.service_account_email, clientId: facts.client_id, subject: facts.delegated_subject }, transcript_names: names });
   for (const name of selected.transcript_names) if (!discovery.candidates.some(candidate => candidate.identity === name
     && candidate.transcript.state === "FILE_GENERATED" && candidate.visible_to.includes(selected.identity.subject))) throw new GoogleMeetError("unqualified-transcript-selection");
   const proof = { selection: selected, observed_at: facts.observed_at, discovery_hash, scopes: [GOOGLE_MEET_READ_SCOPE], credentials_retained: false, transcript_text_read: false };
@@ -37,7 +37,7 @@ export function qualifyGoogleMeetRecordSource(discovery: Awaited<ReturnType<type
 }
 function configured(args: { source: CompanyRecordSourceDeclaration; binding: CompanyRecordSourceBinding; qualification: Record<string, unknown> }): Selection {
   if (args.binding.connector !== GOOGLE_MEET_RECORD_SOURCE_ID || args.binding.connector_version !== GOOGLE_MEET_RECORD_SOURCE_VERSION
-    || args.source.record_type !== "brain-source" || args.source.id !== args.binding.source_id || args.source.resource_binding !== args.binding.resource_binding) throw new GoogleMeetError("source-binding-mismatch");
+    || args.source.id !== args.binding.source_id || args.source.resource_binding !== args.binding.resource_binding) throw new GoogleMeetError("source-binding-mismatch");
   const config = selection(args.binding.configuration);
   const q = args.qualification as unknown as ReturnType<typeof qualifyGoogleMeetRecordSource>;
   if (q?.kind !== "google-meet-record-source-qualification" || q.phase !== "complete" || !q.evidence) throw new GoogleMeetError("missing-source-qualification");

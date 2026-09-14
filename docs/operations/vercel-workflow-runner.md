@@ -822,3 +822,21 @@ the trusted build. The result must contain a full exact-identity
 Verify this before activation, then verify a fresh complete provider scan before
 opening a review. The same immutable input is carried through later Builder
 compilations; a changed admission needs renewed Instance review.
+
+## Bounded transcript import admission
+
+For a reviewed import, add `transcriptImports` to the existing credential-free
+`COMPANYOS_WORKFLOW_CONFIG_GZIP_BASE64` value. Each entry names an enabled
+`workflowId`, the durable `importId` and `cohortId`, a Workspace config
+`policyField`, and the declared `sourceIdentityField` and `sourceVersionField`.
+The host passes validated bindings to the ordinary Workflow engine. Keep the
+existing Artifact identity and operator authentication checks unchanged.
+
+Freeze the qualified source selection through the existing cohort setup before
+activation. Opening validates the retained cohort and exact Workspace policy,
+then deduplicates the source version independently of request IDs or deployments.
+A later extension must retain that registry and activate the new cohort; never
+initialize another allowance in a new environment. The source Workflow must read
+its exact authorized Records version, reconcile changes and retain final outcomes.
+Admission alone does not prove processing, source coverage or cost completeness.
+See [bounded imports](../specifications/brain-import.md#source-version-workflow-admission).
