@@ -38,6 +38,8 @@ and return structured output with indexed revision and evidence. They require an
 active existing roster principal and an effective grant for the selected Agent.
 The trusted Artifact must come from `companyos build` and match the running Core
 checkout. The CLI's on-behalf-of principal flag cannot authenticate remote users.
+The operator runs outside an active Workflow assignment. Existing Workflow
+reservations still apply; this command cannot impersonate an active step.
 
 Input examples are `{"query":"expansion"}`, `{"name":"people/alex"}`,
 `{"entities":"people/alex,topics/expansion","budget_tokens":4000}` and

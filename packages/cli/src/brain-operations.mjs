@@ -43,6 +43,10 @@ export async function runBrainOperatorCommand({ action, artifact, entry, agentId
   const { createPostgresStateStore } = await import("../../state-postgres/store.ts");
   const { qualifyCompanyDatabase } = await import("../../state-postgres/database-bootstrap.ts");
   await qualifyCompanyDatabase();
-  const runtime = new CompanyOSRuntime({ artifact, state: createPostgresStateStore(), connectors: [createRuntimeBrainConnector(artifact, entry)] });
+  const runtime = new CompanyOSRuntime({ artifact, state: createPostgresStateStore(),
+    // Standalone operator reads have no active Workflow assignment, matching
+    // the normal conversation host. Reserved Workflow Tools still fail closed.
+    workflowContext: { read: async () => undefined },
+    connectors: [createRuntimeBrainConnector(artifact, entry)] });
   return runtime.execute({ runId: `brain-operator-${randomUUID()}`, stepId: action, agentId, grantId: `oregano:brain/${action}`, subjectPrincipal, input });
 }
