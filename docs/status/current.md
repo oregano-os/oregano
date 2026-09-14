@@ -18,8 +18,10 @@ audience:
 Experimental trusted language prompt bindings now support explicit task/profile
 pairs and a measured per-binding instruction capacity up to 30,000 units;
 existing bindings retain 16,000. Static pinned Brain Skill materialization is
-covered by synthetic integrity, scope and budget checks. Live model qualification
-is outstanding; no Brain runtime, import workflow or company adoption is claimed.
+covered by synthetic integrity, scope and budget checks. A protected model-only
+Preview qualified representative source triage and meeting phases, including the
+largest prompt and bounded repair. No Brain runtime, import workflow or company
+adoption is claimed.
 See [Brain Skill adoption](../specifications/brain-skill-adoption.md).
 
 Authenticated Agent file inputs now share experimental PDF, PNG/JPEG/WebP and

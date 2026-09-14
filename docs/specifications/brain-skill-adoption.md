@@ -79,6 +79,11 @@ incomplete output are failures, not successful truncated drafts. Existing limits
 remain 150,000 evidence units, at most 4,000 output tokens and 20,000 returned
 units, 55 seconds generation and 65 seconds enclosing Tool time.
 
-The current tests use synthetic fixtures and model transports. They do not prove
-live model access, semantic quality, completed source ingestion or deployment.
+The automated tests use synthetic fixtures and model transports. A separate
+protected model-only Preview qualified representative source triage, normalization,
+meeting-page and largest entity/deep calls through the real Artifact path. Outputs
+completed within the limits and repaired page formats passed citation/quote checks.
+All three configured roles used the same model; this does not qualify distinct
+model economics, full ingestion, database writes or production adoption. Private
+source receipts and review findings remain outside public Core.
 Requalify affected examples after prompt, mapping, binding or budget changes.
