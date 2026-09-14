@@ -43,7 +43,7 @@ construction share scoped binding validation and reject missing, duplicate or
 oversized prompts before any model call. The helper does not write to a Workspace, install
 grants, follow instruction links or run during model execution.
 
-The static sequence uses triage; meeting normalization; meeting-page preparation;
+The static sequence uses triage; meeting normalization and a bounded resolution pass after authorized candidate reads; meeting-page preparation;
 meeting entity updates; meeting verification; discussion extraction; discussion
 entity updates; and a small bulk-trial check. Non-triage phases have separate
 reasoning/deep bindings so evidence cannot choose a model tier. Every applicable
@@ -99,3 +99,9 @@ adaptation of the pinned normalization and split procedure, not a replacement
 rubric. A first call without page-read evidence cannot finalize identities or
 deduplication. The owning Workflow must execute its requested lookups and subsequent
 verification before filing. Malformed output or ambiguous boundaries fail visibly.
+
+The separate resolution binding reuses the unchanged normalization procedure with a
+receipt-aware output contract. Complete candidate pages accompany each retained
+meeting chunk; ambiguous names and duplicate candidates cannot become accepted
+identities from search excerpts. Unresolved issues remain explicit. Existing
+meeting matches still require original-source comparison before any merge.

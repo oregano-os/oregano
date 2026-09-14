@@ -44,7 +44,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
   const manifestText = read("adoption.json");
   const adoption = JSON.parse(manifestText) as Adoption;
   if (adoption.version !== 1 || adoption.upstream.commit !== "a6be012a3bcfac42e279630aedec5cda4a450e29"
-    || adoption.files.length !== 10 || adoption.sections.length !== 16 || adoption.phases.length !== 8) throw new Error("Unexpected pinned Brain adoption");
+    || adoption.files.length !== 10 || adoption.sections.length !== 16 || adoption.phases.length !== 9) throw new Error("Unexpected pinned Brain adoption");
   const sections = new Map<string, string>();
   for (const section of adoption.sections) {
     const text = read(section.path);

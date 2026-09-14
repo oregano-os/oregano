@@ -656,6 +656,21 @@
       "output": "Return only JSON with meetings, lookup_requests and gaps arrays. Each meeting has exactly start_marker, title, date, time, duration, attendees and subjects. The first start_marker is null; later markers are exact unique excerpts beginning at the first character of a source line (at most 500 characters). They partition the complete retained source in order, without gaps or duplication. date is YYYY-MM-DD; unknown time/duration are null. Each attendee has source_label, name (null if unresolved), confidence (high, medium or low) and evidence. Each subject has type (person, company or concept), name and evidence. Each lookup request has type and name; request identity/spelling and meeting-dedup lookups needed by the procedure. Evidence is attributable source context, not invented knowledge. gaps contains explicit uncertainties. These are provisional mappings until the host supplies authorized page reads; do not claim lookup, identity verification or writes completed."
     },
     {
+      "id": "meeting-resolve",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "meeting-contract",
+        "meeting-normalize"
+      ],
+      "output": "Return only JSON: attendees, subjects, dedup, unresolved, gap_reviews. Resolve the supplied provisional_meeting using complete source and authorized host page reads. Each attendee: source_label, name (null when unknown), confidence, evidence, lookup_key, existing_slug. Preserve every source_label; unknown means low confidence and null lookup_key/slug. Each subject: type, name, evidence, lookup_key, existing_slug. Existing targets must use a read candidate slug and its title/alias. New targets require their exact-name not_found lookup and null slug. Dedup: existing_slug (null or a read meeting), evidence of date, attendee overlap and title comparison. Each gap_review: gap, outcome (resolved/unresolved), evidence; cover every prior gap. unresolved lists remaining issues. Never guess identities or discard subjects silently. A merge still requires original-source completeness comparison before filing. No writes or completion claims."
+    },
+    {
       "id": "meeting-page",
       "task": "brain.ingest",
       "profile": "reasoning",

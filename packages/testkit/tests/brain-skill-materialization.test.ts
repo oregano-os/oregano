@@ -21,7 +21,7 @@ const read = (path: string) => readFileSync(new URL(`../../blueprints/brain/${pa
 
 test("static phase materialization includes shared instructions and produces bindable measured prompts", () => {
   const result = materializeBrainPrompts(input);
-  assert.equal(result.prompts.length, 15);
+  assert.equal(result.prompts.length, 17);
   assert.equal(result.report.model_context_qualified, false);
   assert.ok(Math.max(...result.report.measurements.map(row => row.instructions)) < 30_000);
   const artifact = { agents: [{ id: input.agent_id, materials: result.materials }] } as unknown as CompanyOSArtifact;
@@ -72,7 +72,7 @@ test("a different company vocabulary uses the same assets; oversized and malform
   const alternate = { ...input, perspective: "A research cooperative and its collaborators.",
     directories: { person_directory: "researchers", company_directory: "institutions", concept_directory: "topics", meeting_directory: "sessions", evidence_directory: "references" } };
   const result = materializeBrainPrompts(alternate);
-  assert.match(result.materials[result.prompts[5].path], /researchers\/jordan-example/);
+  assert.match(result.materials[result.prompts.find(prompt => prompt.path.includes("brain-meeting-entities/"))!.path], /researchers\/jordan-example/);
   const verification = result.materials[result.prompts.find(prompt => prompt.path.includes("brain-meeting-verify/") && prompt.model_profile === "reasoning")!.path];
   assert.match(verification, /institutions/);
   assert.doesNotMatch(verification, /companies\//);
