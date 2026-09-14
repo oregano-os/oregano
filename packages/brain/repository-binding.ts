@@ -18,6 +18,8 @@ export function parseBrainRepositoryBinding(configuration: Record<string, unknow
   if (!configuration || Object.keys(configuration).some(key => !keys.includes(key))) throw new BrainError("invalid_binding", "Unsupported Brain connector configuration field.");
   const value = { instanceId, bindingId: configuration.repository_binding_id, repositoryId: configuration.repository_id, branch: configuration.branch } as BrainRepositoryBinding;
   assertBrainRepositoryBinding(value);
+  // Validate at Artifact compilation even when no freshness worker is running.
+  // Freshness remains a separate opt-in, not part of repository identity.
   parseBrainFreshness(configuration);
   return value;
 }

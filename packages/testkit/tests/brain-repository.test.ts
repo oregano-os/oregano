@@ -99,6 +99,7 @@ test("Brain push notifications require a valid signature and exact active instal
     return { event: "push", deliveryId: "synthetic-delivery", rawBody, webhookSecret: secret, signature: `sha256=${createHmac("sha256", secret).update(rawBody).digest("hex")}` };
   };
   assert.deepEqual(await f.provider.brainPush(binding, event()), { delivery_id: "synthetic-delivery", commit: revision });
+  assert.equal(await f.provider.reconcileInstallationEvent(event()), 0, "A push does not perform installation lifecycle mutations");
   await assert.rejects(f.provider.brainPush(binding, { ...event(), signature: "sha256=" + "0".repeat(64) }), /signature/);
   await assert.rejects(f.provider.brainPush(binding, event({ installation: { id: 999 } })), /identity/);
   await assert.rejects(f.provider.brainPush(binding, event({ repository: { full_name: binding.repositoryId, id: 999 } })), /identity/);
@@ -142,6 +143,8 @@ test("uncertain commit reconciliation checks operation, parent, complete changed
   assert.ok(f.requests.filter(request => request.url.endsWith("/access_tokens")).every(request => (request.body as any).permissions.contents === "read"));
   candidate.changedFilesIfAvailable = 2;
   await assert.rejects(f.provider.brainFindCommit(request), /matching bounded commit/);
+  candidate.changedFilesIfAvailable = null as unknown as number;
+  await assert.rejects(f.provider.brainFindCommit(request), /not supplied the changed-file count/);
   candidate.changedFilesIfAvailable = 1; candidate.parents.nodes[0].oid = "0".repeat(40);
   await assert.rejects(f.provider.brainFindCommit(request), /matching bounded commit/);
   const absent = await fixture({ response: url => url.endsWith("/graphql") ? Response.json({ data: { repository: { ref: { target: { history: { nodes: [] } } } } } }) : undefined });

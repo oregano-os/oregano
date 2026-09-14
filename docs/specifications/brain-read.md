@@ -160,8 +160,8 @@ or a semantic replay of intermediate knowledge.
 
 An undersized budget returns `has_more` and `minimum_budget_tokens` without
 skipping the next entry. Changed entity scope, foreign Instance, invalid cursor
-or missing generation returns `refresh_required`. Rebuild or retention dropping
-history must change the generation. Retain the next cursor in existing
+or missing generation returns `refresh_required`. A configuration change, rebuild
+or retention dropping history changes the generation. Retain the next cursor in existing
 conversation or Workflow state after durable receipt; replay can repeat IDs.
 No automatic Agent polling or new session store is created.
 

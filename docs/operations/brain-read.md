@@ -61,7 +61,11 @@ operation/input trailers. The adapter validates commit identity and parent.
 Moved heads conflict; repository-required review returns
 `repository_review_required`. It never forces a branch or invokes a release.
 Read-only reconciliation searches at most 100 commits and verifies the exact
-parent, changed-file count and before/after content. Absence remains unresolved.
+parent, changed-file count and before/after content. Absence in that bounded
+window is not proof that no commit happened. After the bounded Workflow wait,
+inspect the operation trailers and repository history manually; missing proof
+keeps the operation blocked, and a new operation key cannot resolve uncertainty.
+An unavailable changed-file count also fails closed until proof is available.
 See GitHub's [commit contract](https://docs.github.com/en/graphql/reference/commits).
 
 ## Prepare and qualify the existing database

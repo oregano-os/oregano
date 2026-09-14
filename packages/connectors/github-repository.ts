@@ -372,6 +372,7 @@ export class GitHubAppRepositoryProvider implements RepositorySourceAdapter, Pro
     }, signal);
     if (!candidates.length) return undefined;
     const commit = candidates[0];
+    if (commit.changedFilesIfAvailable == null) throw new BrainError("write_recovery_required", "GitHub has not supplied the changed-file count needed to prove the complete commit boundary.");
     if (candidates.length !== 1 || !/^[a-f0-9]{40}$/.test(commit.oid) || commit.parents?.nodes?.length !== 1
       || commit.parents.nodes[0].oid !== request.baseCommit || commit.changedFilesIfAvailable !== request.changes.length) {
       throw new BrainError("write_recovery_required", "The retained operation does not have one matching bounded commit.");

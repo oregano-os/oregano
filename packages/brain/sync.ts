@@ -34,8 +34,11 @@ export async function syncBrain(args: { scope: BrainScope; configuration: BrainC
       else if (old.get(page.slug) !== page.content_hash || expected?.configuration_digest !== configurationDigest) changes.push({ slug: page.slug, kind: "updated" });
     }
     for (const item of previous) if (!next.has(item.slug)) changes.push({ slug: item.slug, kind: "removed" });
-    const revision = { git_commit: gitCommit, configuration_digest: configurationDigest, generation: expected?.generation ?? randomUUID(),
-      sequence: (expected?.sequence ?? 0) + (changes.length ? 1 : 0), indexed_at: now().toISOString() };
+    // A changed interpretation of the files requires fresh context, including for
+    // older cursors that predate configuration fields in the cursor contract.
+    const sameConfiguration = expected?.configuration_digest === configurationDigest;
+    const revision = { git_commit: gitCommit, configuration_digest: configurationDigest, generation: sameConfiguration ? expected!.generation : randomUUID(),
+      sequence: (sameConfiguration ? expected!.sequence : 0) + (changes.length ? 1 : 0), indexed_at: now().toISOString() };
     if (!await args.store.publish({ scope: args.scope, expected, revision, pages: checked.pages, changes, lease: { source_id: sourceId, token } })) {
       throw new BrainError("sync_conflict", "The projection or synchronization lease changed; retry from the current repository revision.");
     }

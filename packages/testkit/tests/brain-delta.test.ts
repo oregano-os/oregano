@@ -87,3 +87,14 @@ test("a concurrent synchronization during delta retries a consistent snapshot wi
   const result = await f.reads.delta({ cursor: initial.next_cursor! }); assert.equal(result.changes.length, 3);
   assert.equal(result.has_more, false);
 });
+
+test("changed Brain configuration invalidates context and exhausted delta cursors without a file edit", async () => {
+  const f = await fixture(), context = await f.reads.contextPack({ entities: "Alex" }), delta = await f.reads.delta({});
+  const before = (await f.store.revision(f.scope))!, configuration = { ...brainConfig, filing_guidance: "A reviewed configuration change." };
+  const result = await syncBrain({ scope: f.scope, store: f.store, configuration, leases: new InMemoryCompanyRecordsStore(),
+    repository: { revision: async () => before.git_commit, read: async () => structuredClone(brainFiles) } });
+  assert.equal(result.status, "indexed"); assert.notEqual(result.indexed_revision!.generation, before.generation);
+  const reads = new BrainReads(f.store, f.scope, sha256(configuration));
+  for (const cursor of [context.change_cursor, delta.next_cursor!]) assert.equal((await reads.delta({ cursor })).status, "refresh_required");
+  assert.equal((await reads.entity("Alex")).found, true);
+});
