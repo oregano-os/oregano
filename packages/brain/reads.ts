@@ -38,7 +38,7 @@ export async function withBrainSnapshot<T>(store: BrainStore, scope: BrainScope,
 /** Content-free, scoped starting marker. It is never an authorization credential. */
 export function brainContextCursor(scope: BrainScope, revision: BrainRevision, entities: string[]): string {
   return Buffer.from(JSON.stringify({ v: 1, scope: sha256(scope), generation: revision.generation, after: revision.sequence,
-    entities: [...entities].sort(), scope_digest: sha256([...entities].sort()) })).toString("base64url");
+    entities: [...entities].sort(), entities_digest: sha256([...entities].sort()) })).toString("base64url");
 }
 
 export class BrainReads {

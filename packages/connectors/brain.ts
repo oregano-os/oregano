@@ -34,9 +34,6 @@ export class BrainConnector implements Connector {
       : capability === "brain.entity" ? await this.reads.entity(value.name)
       : capability === "brain.context_pack" ? await this.reads.contextPack(value as { entities: string })
       : await synthesizeBrain(this.reads, value.question, context.agentId, this.model);
-    if (output.indexed_revision.configuration_digest !== this.artifact.brain!.configurationDigest) {
-      throw new BrainError("sync_required", "The Brain projection has not indexed the deployed configuration yet.");
-    }
     return { output, evidence: { indexed_revision: output.indexed_revision, configuration_digest: this.artifact.brain!.configurationDigest,
       query_digest: sha256(input), result_digest: sha256(output), access_decision: { allowed: true, policy_digest: this.artifact.brain!.policyDigest, reason: "active-company-member" } } };
   }

@@ -348,3 +348,6 @@ cannot establish workflow execution readiness.
 Optional Brain adoption uses the existing database and requires explicit
 Workspace reading policy, grants and an Instance repository binding. See the
 [Brain read implementation](../../operations/brain-read.md).
+Database manifest 3.1.0 provisions the Brain schema in every Instance, including
+those without Brain adoption. An upgrade from 3.0.0 requires fresh database
+preparation and verification; prior version-2 qualification receipts are insufficient.

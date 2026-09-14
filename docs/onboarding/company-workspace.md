@@ -268,7 +268,11 @@ runtime hosts.
 ::: implementation-example
 
 The current manifest is `companyos-postgres@3.1.0`. Historical manifest
-identities through `2.1.0` remain immutable. Preparation qualifies 15 control
+identities through `3.0.0` remain immutable. Upgrading from 3.0.0 requires new
+`companyos database prepare` and `companyos database verify` runs; existing
+qualification receipts do not cover the new schema, even when labelled version 2.
+The Brain schema is provisioned in all 3.1.0 Instances; knowledge population
+and access require explicit Workspace adoption. Preparation qualifies 15 control
 and Workflow tables, 11 current Records tables and five derived Brain tables. Legacy Sprint audit tables
 remain untouched when present. No Knowledge schema or ingestion is created;
 retirement of existing Knowledge state uses the separate

@@ -34,6 +34,9 @@ frontmatter relationship mappings and optional filing guidance. Types choose a
 directory, a semantic role (`content`, `person`, `company`, `evidence`) and a
 search weight above zero and at most one. Relationships map a metadata field to
 a relation and target type. These are content conventions, never authority.
+`filing_guidance` is trusted, reviewed Workspace configuration compiled into
+every Agent with Brain grants. Review it as Agent instructions under the
+security change policy; imported knowledge cannot supply or change it.
 
 ```yaml
 version: 1

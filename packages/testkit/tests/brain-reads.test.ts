@@ -5,7 +5,7 @@ import { syncBrain } from "../../brain/sync.ts";
 import { synthesizeBrain } from "../../brain/synthesis.ts";
 import { InMemoryBrainStore } from "../adapter/in-memory-brain.ts";
 import { InMemoryCompanyRecordsStore } from "../../records/memory-store.ts";
-import { brainConfig, brainFiles } from "../fixtures/brain.ts";
+import { brainConfig, brainFiles, brainFixturePage } from "../fixtures/brain.ts";
 import { BrainError } from "../../brain/contracts.ts";
 
 async function fixture() {
@@ -107,4 +107,24 @@ test("missing model, empty retrieval, broken retrieval and compose failure remai
   assert.equal((await synthesizeBrain(f.reads, "branch", "analyst", model)).synthesis_status, "extractive_fallback"); assert.equal(calls, 1);
   f.store.search = async () => { throw new Error("Synthetic store outage"); };
   await assert.rejects(synthesizeBrain(f.reads, "branch", "analyst", model), /store outage/);
+});
+
+test("synthesis discloses omitted evidence when otherwise valid pages exceed its composition budget", async () => {
+  const f = await fixture();
+  f.change({ ...brainFiles, ...Object.fromEntries(["first", "second", "third"].map(name =>
+    [`brain/topics/${name}.md`, brainFixturePage("topic", `Budget ${name}`, "Budget evidence. " + "x".repeat(65_000))])) });
+  assert.equal((await f.sync()).status, "indexed");
+  let calls = 0;
+  const result = await synthesizeBrain(f.reads, "budget", "analyst", { prepare: () => async request => {
+    calls++;
+    const data = JSON.parse(request.data);
+    assert.equal(data.pages.length, 1);
+    assert.equal(data.omitted.length, 2);
+    assert.ok(data.pages.reduce((n: number, page: unknown) => n + JSON.stringify(page).length, 0) <= 120_000);
+    const slug = data.pages[0].slug;
+    return { text: JSON.stringify({ answer: `Partial evidence [${slug}].`, citations: [{ page_slug: slug, row_num: null, citation_index: 1 }], gaps: [] }), evidence: { finish_reason: "stop" } };
+  } });
+  assert.equal(calls, 1);
+  assert.equal(result.synthesis_status, "ok");
+  assert.ok(result.gaps.some(gap => gap.includes("omitted")));
 });

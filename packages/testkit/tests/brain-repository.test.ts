@@ -55,7 +55,8 @@ test("Brain repository authority rejects malformed, foreign, suspended and misma
 });
 
 test("incomplete inventories, executable/symlink paths and unverifiable content fail before projection publication", async () => {
-  for (const overrides of [{ tree: { truncated: true } }, { entry: { mode: "100755" } }, { entry: { mode: "120000" } },
+  const duplicate = { path: "brain/topics/example.md", mode: "100644", type: "blob", sha: blobSha, size: bytes.length };
+  for (const overrides of [{ tree: { truncated: true } }, { tree: { tree: [duplicate, duplicate] } }, { entry: { mode: "100755" } }, { entry: { mode: "120000" } },
     { entry: { type: "commit", mode: "160000" } }, { entry: { path: "brain/AGENTS.md" } }, { entry: { path: "brain/../outside.md" } },
     { blob: { content: Buffer.from("tampered").toString("base64") } }]) {
     const f = await fixture(overrides);

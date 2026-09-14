@@ -128,7 +128,11 @@ secret-bound command without making Vercel part of the database contract.
 The current manifest is `companyos-postgres@3.1.0`. It qualifies 15 control/Workflow
 and 11 Company Records tables plus five derived Brain tables. It recognizes
 the immutable identities of supported predecessors through `3.0.0`.
-Qualification receipt version 2 covers all three schemas. General identity,
+Qualification receipt version 2 covers all three schemas. Upgrading from 3.0.0
+requires a new `companyos database prepare` and `companyos database verify` run;
+older receipts do not qualify 3.1.0, even when also labelled version 2.
+The Brain schema is provisioned in every 3.1.0 Instance; populating and reading
+knowledge still require explicit Workspace adoption. General identity,
 authorization, approvals, Records, Sprint and model routing remain in Core.
 Preparation preserves existing data; it neither creates nor deletes a Knowledge
 schema. Existing Instances use the separately targeted
