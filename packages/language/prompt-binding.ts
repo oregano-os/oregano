@@ -14,6 +14,18 @@ export interface LanguagePromptBinding {
   max_instruction_characters?: number;
 }
 
+export function bindLanguagePrompts(artifact: CompanyOSArtifact, bindings: LanguagePromptBinding[]) {
+  if (!Array.isArray(bindings) || bindings.length < 1 || bindings.length > 100) throw new Error("Declare bounded generation prompt bindings");
+  const prompts = new Map<string, ReturnType<typeof bindLanguagePrompt>>();
+  for (const binding of bindings) {
+    const prompt = bindLanguagePrompt(artifact, binding);
+    const key = JSON.stringify([binding.agent_id, binding.path]);
+    if (prompts.has(key)) throw new Error("Duplicate generation prompt binding");
+    prompts.set(key, prompt);
+  }
+  return prompts;
+}
+
 /** Only trusted Instance configuration reaches this validator, never evidence. */
 export function bindLanguagePrompt(artifact: CompanyOSArtifact, raw: LanguagePromptBinding) {
   const allowed = new Set(["agent_id", "path", "model_task", "model_profile", "max_instruction_characters"]);

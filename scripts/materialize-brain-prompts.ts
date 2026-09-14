@@ -15,7 +15,7 @@ export interface BrainPromptInputs {
   filing_categories: string[];
 }
 interface Section { id: string; path: string; sha256: string; source: string; ranges: [number, number][] }
-interface Phase { id: string; task: string; profile: "utility" | "reasoning"; sections: string[] }
+interface Phase { id: string; task: string; profile: "utility" | "reasoning"; sections: string[]; output: string }
 interface Adoption { version: number; upstream: { repository: string; commit: string }; sections: Section[]; phases: Phase[];
   files: { path: string; line_count: number; excluded_ranges: [number, number][]; exclusion_reason: string }[] }
 
@@ -65,6 +65,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
   const materials: Record<string, string> = {}, prompts: LanguagePromptBinding[] = [];
   const measurements: { phase: string; path: string; sections: string[]; instructions: number; system: number; bytes: number; digest: string }[] = [];
   for (const phase of adoption.phases) {
+    if (typeof phase.output !== "string" || !phase.output.trim() || phase.output.length > 1_000) throw new Error("Missing bounded phase output contract");
     const required = phase.id === "triage" ? ["untrusted", "model-roles", "triage"] : [...common];
     if (phase.id.startsWith("meeting-") || phase.id === "bulk-trial") required.push("meeting-contract");
     if (required.some(key => !phase.sections.includes(key)) || new Set(phase.sections).size !== phase.sections.length) throw new Error("Phase lacks required shared guidance");
@@ -72,7 +73,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
     const variants = phase.profile === "utility" ? [phase] : [phase, { ...phase, id: `${phase.id}-deep`, task: "brain.ingest.deep", profile: "deep" as const }];
     for (const variant of variants) {
       const preface = `# Reviewed Brain phase: ${phase.id}\n\nThis call prepares only this phase's bounded result. It has no Tools and cannot write, synchronize or declare completed effects. Procedure references to recall/entity/write mean use supplied authorized page context and propose the next required operation for the host workflow. If evidence or page context is missing, return the explicit gap; never invent a lookup or a successful write. Later phases must receive complete source evidence, existing pages and relevant prior results again. Emit only the requested phase output; no whole-corpus or multi-page batch is implied.\n\nReviewed company perspective: ${input.perspective}\nFiling categories: ${input.filing_categories.join(", ")}\nDirectory mappings under brain/: ${JSON.stringify(input.directories)}\n\nEvery Timeline entry and Take cites an internal evidence page that links to the original source. Confirmed meeting attendees have meaningful pages even if short. Shared quality rules do not authorize source selection, audience restrictions, privacy queues or external lookups. Inline links below are provenance; every rule required for this phase is included in these instructions.\n\n`;
-      const instructions = preface + phase.sections.map(key => {
+      const instructions = preface + `Phase output contract: ${phase.output}\n\n` + phase.sections.map(key => {
         const text = sections.get(key);
         if (!text) throw new Error(`Missing phase guidance: ${key}`);
         return text.replace(/\{\{([a-z_]+)\}\}/g, (_, key: string) => {

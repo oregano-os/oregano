@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, cpSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { materializeBrainPrompts, type BrainPromptInputs } from "../../../scripts/materialize-brain-prompts.ts";
 import { bindLanguagePrompt } from "../../language/prompt-binding.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
+import { buildCompanyOSArtifact } from "../../companyos-builder/build.ts";
+import type { InstanceBuildConfiguration } from "../../companyos-builder/types.ts";
 
 const input: BrainPromptInputs = { agent_id: "analyst", perspective: "The company and its operating relationships.",
   directories: { person_directory: "people", company_directory: "companies", concept_directory: "concepts", meeting_directory: "meetings", evidence_directory: "sources" },
@@ -14,7 +18,7 @@ test("static phase materialization includes shared instructions and produces bin
   const result = materializeBrainPrompts(input);
   assert.equal(result.prompts.length, 15);
   assert.equal(result.report.model_context_qualified, false);
-  assert.equal(Math.max(...result.report.measurements.map(row => row.instructions)), 23_140);
+  assert.equal(Math.max(...result.report.measurements.map(row => row.instructions)), 23_544);
   const artifact = { agents: [{ id: input.agent_id, materials: result.materials }] } as unknown as CompanyOSArtifact;
   for (const prompt of result.prompts) {
     const bound = bindLanguagePrompt(artifact, prompt);
@@ -64,4 +68,25 @@ test("a different company vocabulary uses the same assets; oversized and malform
   }
   const large = { ...input, perspective: "x".repeat(500), directories: Object.fromEntries(Object.keys(input.directories).map(key => [key, "a".repeat(40)])) as BrainPromptInputs["directories"] };
   assert.throws(() => materializeBrainPrompts(large), /exceeds instruction capacity/);
+});
+
+test("ordinary Artifact compilation freezes generated scoped phases and rejects missing or oversized bindings", () => {
+  const root = mkdtempSync(join(tmpdir(), "brain-artifact-"));
+  cpSync(new URL("../fixtures/reference-company/", import.meta.url), root, { recursive: true });
+  try {
+    const result = materializeBrainPrompts({ ...input, agent_id: "growth" });
+    for (const [path, text] of Object.entries(result.materials)) { mkdirSync(dirname(join(root, path)), { recursive: true }); writeFileSync(join(root, path), text); }
+    const instance: InstanceBuildConfiguration = { version: 1, instanceId: "example-test", environment: "test", agentBindings: [],
+      bindings: [["artifact.publish", "oregano/artifact-sandbox"], ...["marketing-campaign.launch", "marketing-campaign.read-report", "marketing-campaign.stop-asset", "conversion.record"].map(id => [id, "oregano/marketing-sandbox"])]
+        .map(([capability, connector]) => ({ capability, connector, contractVersion: "1.0.0", connectorVersion: "1.0.0" })),
+      connectors: [{ id: "language", connector: "oregano/language-model", connectorVersion: "1.0.0", configuration: { prompts: JSON.parse(JSON.stringify(result.prompts)) } }] };
+    const build = () => buildCompanyOSArtifact({ workspaceRoot: root, instance, coreVersion: "0.15.0", coreCommit: "1".repeat(40), workspaceCommit: "2".repeat(40), workbenchVersion: "0.1.0-experimental.23" });
+    const artifact = build();
+    const largest = result.report.measurements.reduce((a, b) => a.instructions > b.instructions ? a : b);
+    assert.equal(artifact.agents.find(agent => agent.id === "growth")!.materials[largest.path], result.materials[largest.path]);
+    writeFileSync(join(root, largest.path), result.materials[largest.path] + "x");
+    assert.throws(build, /exceeds its bound/);
+    rmSync(join(root, largest.path));
+    assert.throws(build, /missing/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

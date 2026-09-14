@@ -36,7 +36,9 @@ five directory mappings and the filing categories. All company values remain
 in the consuming Workspace; the helper contains none. It returns complete
 scoped Agent Markdown materials, trusted prompt bindings and a measurement
 report. Incorporate those materials into the ordinary Workspace build before
-binding the resulting Artifact. It does not write to a Workspace, install
+binding the resulting Artifact. Ordinary Artifact compilation and connector
+construction share scoped binding validation and reject missing, duplicate or
+oversized prompts before any model call. The helper does not write to a Workspace, install
 grants, follow instruction links or run during model execution.
 
 The static sequence uses triage; meeting normalization; meeting-page preparation;
@@ -47,8 +49,11 @@ call contains the shared filing, quality, untrusted-content, lookup and model-ro
 rules. Meeting phases also carry the complete meeting contract. The entity
 phase includes claim verification and the applicable enrichment procedure.
 
-The synthetic default mapping measures 23,140 instruction units for the largest
-phase, or 23,329 with the unchanged host wrapper. The connector ceiling is
+The synthetic default mapping measures 23,544 instruction units for the largest
+phase, or 23,733 with the unchanged host wrapper. Each phase also carries its
+bounded output contract; normalization references retained source segments
+instead of echoing the whole transcript, and entity phases draft one target
+page per call. The connector ceiling is
 24,000; generated bindings request only their actual measured length. The
 unchanged default for other bindings remains 16,000. Alternate mappings are
 measured afresh and may fail the ceiling. Missing sections, changed section

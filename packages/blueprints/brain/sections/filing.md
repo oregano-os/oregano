@@ -16,12 +16,12 @@ not the source, not the skill that's running.
 
 | Wrong | Right | Why |
 |-------|-------|-----|
-| Analysis of a topic -> `{{evidence_directory}}/` | -> appropriate subject directory | sources/ is for raw data only |
+| Analysis of a topic -> `{{evidence_directory}}/` | -> appropriate subject directory | The evidence directory is for source context; subject knowledge belongs on entity pages |
 | Article about a person -> `{{evidence_directory}}/` | -> `{{person_directory}}/` | Primary subject is a person |
 | Meeting-derived company info -> `{{meeting_directory}}/` only | -> ALSO update `{{company_directory}}/` | Entity propagation is mandatory |
 | Research about a company -> `{{evidence_directory}}/` | -> `{{company_directory}}/` | Primary subject is a company |
 | Reusable framework/thesis -> `{{evidence_directory}}/` | -> `{{concept_directory}}/` | It's a mental model |
-| Tweet thread about policy -> `{{evidence_directory}}/` | -> `{{concept_directory}}/` or `{{concept_directory}}/` | media/ is for content ops |
+| Tweet thread about policy -> `{{evidence_directory}}/` | -> `{{concept_directory}}/` or `{{concept_directory}}/` | File by the primary subject using the reviewed directory mapping |
 
 ## Notability Gate
 

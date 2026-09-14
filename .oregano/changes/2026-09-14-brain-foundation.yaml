@@ -15,6 +15,7 @@ files_expected:
   - scripts/materialize-brain-prompts.ts
   - packages/language/**
   - packages/connectors/language-model.ts
+  - packages/companyos-builder/build.ts
   - packages/runner-vercel/src/lib/language-generation.ts
   - packages/runner-vercel/src/lib/language-generation.test.ts
   - packages/testkit/tests/language-generation.test.ts

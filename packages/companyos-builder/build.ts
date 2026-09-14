@@ -15,6 +15,7 @@ import { validateWorkflowInstanceBindings } from "./instance-loader.ts";
 import { compileWorkflows } from "./workflow-compiler.ts";
 import YAML from "yaml";
 import { compileWorkspaceReleasePolicy } from "../runtime/release/policy.ts";
+import { bindLanguagePrompts, type LanguagePromptBinding } from "../language/prompt-binding.ts";
 
 export function buildCompanyOSArtifact(args: {
   workspaceRoot: string;
@@ -113,5 +114,11 @@ export function buildCompanyOSArtifact(args: {
     ...withoutHash,
     provenance: { ...withoutHash.provenance, builtAt: undefined },
   };
-  return { ...withoutHash, artifactHash: sha256(hashInput) };
+  const artifact = { ...withoutHash, artifactHash: sha256(hashInput) };
+  for (const connector of artifact.connectors) {
+    if (connector.connector !== "oregano/language-model" || connector.connectorVersion !== "1.0.0") continue;
+    if (Object.keys(connector.configuration).join(",") !== "prompts") throw new Error("Language connector configuration requires only prompt bindings");
+    bindLanguagePrompts(artifact, connector.configuration.prompts as unknown as LanguagePromptBinding[]);
+  }
+  return artifact;
 }

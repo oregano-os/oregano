@@ -234,9 +234,17 @@
       ],
       "source_excerpt_sha256": "fe76c748ff5d6f7326ba709c0ea2d040d36e42999af3431cad9342a018d5d5da",
       "path": "sections/filing.md",
-      "sha256": "f9de196ef09c4bbf33362e3b64a2fc9ede5e870edf2ab58c10d0766f070cd725",
+      "sha256": "27aff4d13fa8314ca229edfa72b50710a1972bc104846071e2c0aa8038c5e314",
       "adaptation_reason": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks.",
       "adaptations": [
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
+        },
         {
           "kind": "scoped-contract-adaptation",
           "description": "Retain subject-first filing, notability, source precedence and Takes. Use Workspace directories, synthetic illustrations, supported operations and meaningful Timeline backlinks."
@@ -869,7 +877,8 @@
         "untrusted",
         "model-roles",
         "triage"
-      ]
+      ],
+      "output": "Return only the original triage JSON fields. Use the reviewed filing categories and company perspective. Report uncertainty in the summary; model selection remains the deterministic host gate."
     },
     {
       "id": "meeting-normalize",
@@ -883,7 +892,8 @@
         "model-roles",
         "meeting-contract",
         "meeting-normalize"
-      ]
+      ],
+      "output": "Return JSON with meeting boundaries as source segment references, corrected attendee/speaker mappings, confidence and unresolved gaps. The host retains the complete original transcript; reference it without echoing it into the output. Never claim a page was written."
     },
     {
       "id": "meeting-page",
@@ -897,7 +907,8 @@
         "model-roles",
         "meeting-contract",
         "meeting-page"
-      ]
+      ],
+      "output": "Return one complete meeting Markdown draft using Phase 5, with frontmatter and a readable original source link. Use the supplied normalization result and complete source. Flag unsupported claims instead of inventing them. No other pages are drafted in this call."
     },
     {
       "id": "meeting-entities",
@@ -913,7 +924,8 @@
         "meeting-page",
         "meeting-entities",
         "enrich"
-      ]
+      ],
+      "output": "Return one complete entity Markdown draft for host_context.target_entity, applying Phase 6 before propagation. Use the supplied complete source, meeting draft and existing target page. If a prerequisite is absent, return a JSON gaps list instead. Other entities remain pending work."
     },
     {
       "id": "meeting-verify",
@@ -928,7 +940,8 @@
         "meeting-contract",
         "meeting-verify",
         "meeting-report"
-      ]
+      ],
+      "output": "Return JSON with V1 through V6 verdicts, evidence references, unresolved gaps and required repairs for the supplied pages. A missing page or source is a failure. Do not claim ingestion or effects completed; the host combines this result with actual write/read receipts."
     },
     {
       "id": "discussion-extract",
@@ -942,7 +955,8 @@
         "model-roles",
         "extraction",
         "ingest"
-      ]
+      ],
+      "output": "Return only the original deep-read JSON fields for this selected source item, retaining explicit uncertainty and attributed claims. This is extraction, not a completed write. The host retains the full original source separately."
     },
     {
       "id": "discussion-entities",
@@ -955,7 +969,8 @@
         "lookup",
         "model-roles",
         "enrich"
-      ]
+      ],
+      "output": "Return one complete entity Markdown draft for host_context.target_entity, grounded in the complete supplied source, extraction and existing target page. If a prerequisite is absent, return a JSON gaps list. Do not report any completed write."
     },
     {
       "id": "bulk-trial",
@@ -970,7 +985,8 @@
         "meeting-contract",
         "bulk-trial",
         "meeting-verify"
-      ]
+      ],
+      "output": "Return JSON with the checklist verdicts for this supplied sample item, supporting references and required repairs. The host aggregates the small sample across separate bounded calls. Do not authorize or claim a completed bulk import."
     }
   ]
 }

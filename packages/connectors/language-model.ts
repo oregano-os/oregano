@@ -5,7 +5,7 @@ import type { LanguageGenerator } from "../language/contracts.ts";
 import { LANGUAGE_GENERATE_INPUT, LANGUAGE_GENERATE_OUTPUT } from "../language/contracts.ts";
 import { validateJsonSchemaValue } from "../capabilities/validation.ts";
 import { sha256 } from "../runtime/canonical.ts";
-import { bindLanguagePrompt, type LanguagePromptBinding } from "../language/prompt-binding.ts";
+import { bindLanguagePrompts, type LanguagePromptBinding } from "../language/prompt-binding.ts";
 
 export type { LanguagePromptBinding } from "../language/prompt-binding.ts";
 
@@ -15,19 +15,13 @@ export class LanguageModelConnector implements Connector {
   readonly version = "1.0.0";
   readonly capabilities = ["language.generate"];
   readonly #artifact: CompanyOSArtifact;
-  readonly #prompts = new Map<string, ReturnType<typeof bindLanguagePrompt>>();
+  readonly #prompts: ReturnType<typeof bindLanguagePrompts>;
   readonly #generate: LanguageGenerator;
 
   constructor(args: { artifact: CompanyOSArtifact; prompts: LanguagePromptBinding[]; generate: LanguageGenerator }) {
     this.#artifact = structuredClone(args.artifact);
     this.#generate = args.generate;
-    if (!Array.isArray(args.prompts) || args.prompts.length < 1 || args.prompts.length > 100) throw new Error("Declare bounded generation prompt bindings");
-    for (const binding of args.prompts) {
-      const prompt = bindLanguagePrompt(this.#artifact, binding);
-      const key = JSON.stringify([binding.agent_id, binding.path]);
-      if (this.#prompts.has(key)) throw new Error("Duplicate generation prompt binding");
-      this.#prompts.set(key, prompt);
-    }
+    this.#prompts = bindLanguagePrompts(this.#artifact, args.prompts);
   }
 
   async invoke(capability: string, raw: unknown, context: CapabilityCallContext) {
