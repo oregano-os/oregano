@@ -37,7 +37,18 @@ export interface WorkflowSourceAdmission {
   sourceIdentity: string;
   sourceVersion: string;
 }
+export interface WorkflowReadRepair {
+  fromStepId: string;
+  throughStepId: string;
+  principal: string;
+  authorizedAt: string;
+  reasonDigest: string;
+  blocked: { stepId: string; code: string; errorDigest: string };
+  steps: Record<string, WorkflowStepState>;
+}
 export interface WorkflowMutableState {
+  /** At most three explicit R0 repairs; prior results remain immutable and chargeable. */
+  readRepairs?: WorkflowReadRepair[];
   /** Immutable opening proof; no source payload or runtime credential. */
   sourceAdmission?: WorkflowSourceAdmission;
   status: "running" | "waiting" | "done" | "cancelled" | "failed";

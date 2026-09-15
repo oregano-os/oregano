@@ -466,3 +466,22 @@ a rejection or skip branch, so successful business completion may additionally
 require a particular verification step in `succeeded_steps`. A scanner never
 reopens a rejected or cancelled child merely by starting it again. The child
 keeps its original conversation, pinned artifact, approvals and receipts.
+
+## Repair a blocked read phase
+
+Ordinary `resume` retains successful outputs. If a successful model response is
+invalid downstream, or previously read context is stale, the authenticated
+operator may use `repair-read-phase` with `runId`, `fromStepId`, the exact
+observed `expectedRevision`, and a bounded `reason`. Core accepts only a
+previously attempted linear R0 Tool path ending at the blocked cursor. Every
+resolved Capability must be read-only. The operation cannot cross a route, wait,
+human decision or write, reopen a completed run, replace its Artifact or source
+admission, or alter any prior effect. A pending wait must reconcile normally.
+
+Each run allows at most three explicit repairs. Core archives the exact prior
+step outputs, input digests and item receipts with operator/time/reason evidence
+before restarting the selected path. New model calls retain separate attempts
+and costs; failed responses remain inspectable. Workers never choose this
+operation automatically. Failed or uncertain writes continue through their
+existing effect recovery, not read repair. The unchanged 64 MiB snapshot bound
+also applies to retained repair history.

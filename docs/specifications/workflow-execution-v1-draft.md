@@ -795,3 +795,18 @@ The navigation reference is optional and distinct from `thread`, which places
 the decision notice itself inside a conversation. Omitted navigation preserves
 historical notice inputs and verification. Workspace chooses the conversation
 and its content; provider navigation rendering belongs to the Connector.
+
+## Bounded read-phase repair
+
+An authorized active operator may restart a previously attempted linear R0 Tool
+phase of a blocked run using the exact observed revision. Both Tool risk and
+all declared Capability modes must qualify as reads under the historical
+Artifact. Decisions, routes, waits, child starts, and effects are excluded.
+There is no automatic retry loop or model-selected authority.
+
+The leased transition appends an immutable exact snapshot of all selected step
+states, the blocked diagnostic, operator, time, and reason digest. Only those
+active step entries are removed before execution resumes; all other state,
+source admission, Artifact identity, effects and paid attempt evidence remain.
+The durable validator enforces this exception to completed-output immutability,
+with at most three repairs per run and the existing total snapshot bound.

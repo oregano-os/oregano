@@ -1,0 +1,50 @@
+version: 3
+plan_id: workflow-read-repair-2026-09-15
+created: 2026-09-15
+title: Repair bounded read phases while retaining all prior evidence
+objective: Let an existing authenticated operator restart a linear read-only phase of a blocked Workflow without overwriting prior outputs or replaying effects.
+non_goals:
+  - Automatically retry model calls or increase provider budgets.
+  - Change the pinned Artifact, source admission, decisions, or completed effects.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-workflow-read-repair.yaml
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/workflow-engine/**
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/tests/workflow-read-repair.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-read-repair.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Operator authentication, exact revision and lease checks, linear read-only eligibility, immutable repair snapshots and a three-repair bound.
+    packages: No new Package; existing declared Tools supply the read phase.
+    workspace: Existing Workflow order and validation determine where an operator may restart; no runtime or provider access is added.
+    instance: Existing Workflow control state retains prior outputs, operator evidence and all model attempts.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Reuse the current active human operator allowlist and authenticated hosting endpoint.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Extend existing leased Workflow snapshots and append-only evidence; forbid crossing any effect or decision and preserve original operation identities.
+    - mechanism: capability-contracts-and-connectors
+      reason: Require every selected resolved Tool and Capability to be R0 and read-only under the historical Artifact.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company with a blocked pure or model-assisted read phase can retry that phase under existing authority; no company names, models or policies are built into recovery.
+rollback: Restore the preceding compatible Core. Retain repair history and completed effect receipts; never erase or recreate run identities to retry.

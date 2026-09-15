@@ -1,6 +1,7 @@
 import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
 import { validateCollection, validateCollectionCandidate } from "./collection.ts";
 import { randomUUID } from "node:crypto";
+import { prepareWorkflowReadRepair } from "./read-repair.ts";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { CompiledWorkflow, CompiledWorkflowStep, WorkflowSchedule } from "../../companyos-builder/workflow-types.ts";
@@ -666,6 +667,24 @@ export class WorkflowEngine {
       const qualification = await this.#options.qualifyMessageDestinations(definition.artifact, inputs);
       return await this.#save(run, state, "workflow.decision-publication-recovery-authorized", {
         recoveries: state.steps[definition.step.id]!.publicationRecoveries! as unknown as JsonValue, destination_qualification: qualification,
+      }, undefined, principal);
+    } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
+  }
+
+  async repairReadPhase(runId: string, principal: string, request: { fromStepId: string; expectedRevision: number; reason: string }): Promise<WorkflowRun> {
+    await this.#operator(principal);
+    if (!Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 1) throw new Error("Read repair requires the exact observed run revision");
+    const now = this.#now(), store = this.#options.store;
+    const run = await store.claim({ instanceId: this.#artifact.instance.id, runId, owner: "workflow-operator", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Workflow read repair is busy or closed");
+    try {
+      this.#enabled(run.workflowId);
+      if (run.revision !== request.expectedRevision) throw new Error("Workflow read repair revision is stale");
+      const { artifact, workflow } = await this.#definition(run);
+      const state = prepareWorkflowReadRepair({ artifact, workflow, state: run.state, fromStepId: request.fromStepId, principal, now, reason: request.reason });
+      return await this.#save(run, state, "workflow.read-repair-authorized", {
+        from_step_id: request.fromStepId, through_step_id: run.state.cursor,
+        repair_number: state.readRepairs!.length, reason_digest: sha256(request.reason),
       }, undefined, principal);
     } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }

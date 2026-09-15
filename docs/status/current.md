@@ -1363,3 +1363,9 @@ Synthetic regressions exercise the actual maintained chat adapter with fenced
 drafts and supplementary characters around chunk boundaries. Conversation
 selection, collection, approval and working-status lifecycle are unchanged;
 native client rendering still requires a live acceptance check.
+
+Bounded Workflow read repair is available to existing authenticated operators:
+an exact-revision request may restart a linear R0 Tool phase of a blocked run
+while archiving all previous results. Three repairs per run are permitted;
+effects, decisions, waits and changed Artifacts are excluded. Synthetic tests
+qualify this contract; hosted company adoption needs separate evidence.

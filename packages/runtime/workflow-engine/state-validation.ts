@@ -5,6 +5,7 @@ import { canonicalJson, sha256, jsonDigest } from "../canonical.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
 import { workflowReviewDeliveryDigest } from "./review-notice.ts";
 import { workflowReviewDecision } from "./review-dependency.ts";
+import { validateWorkflowReadRepairs } from "./read-repair.ts";
 
 export function workflowInstant(value: string): void {
   if (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) throw new Error("Workflow state requires an exact UTC ISO instant");
@@ -49,7 +50,7 @@ export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: W
   if (meta.runId !== identity.runId || meta.workflow !== identity.workflowId || meta.workflowVersion !== String(workflow.version)
     || meta.companyCommit !== artifact.provenance.workspaceCommit || meta.companySnapshotHash !== artifact.provenance.workspaceHash
     || meta.agentDefinitionHash !== sha256({ instructions: agent.instructions, materials: agent.materials })) throw new Error("Workflow control metadata differs from its pinned Artifact");
-  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery) throw new Error("New workflow must start at its empty entry state");
+  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery || state.readRepairs) throw new Error("New workflow must start at its empty entry state");
   validateWorkflowState(state, identity.workflowId, artifact);
 }
 
@@ -67,6 +68,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
   workflowInstant(state.logicalInstant);
   const workflow = artifact.workflows?.find((candidate) => candidate.id === workflowId);
   if (!workflow) throw new Error("Workflow is missing from its historical Artifact");
+  const repairedSteps = validateWorkflowReadRepairs(state, workflow, artifact, previous);
   const ids = new Set(workflow.steps.map((step) => step.id));
   if (state.cursor !== null && !ids.has(state.cursor)) throw new Error("Workflow cursor is not a compiled step");
   if (state.status === "done" && state.cursor !== null) throw new Error("Completed workflow cannot retain an active cursor");
@@ -113,7 +115,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
       for (const [key, receipt] of Object.entries(prior.deliveries)) if (canonicalJson(receipt) !== canonicalJson(decision.deliveries[key])) throw new Error("Workflow decision delivery evidence is immutable");
     }
   }
-  for (const id of Object.keys(previous?.steps ?? {})) if (!Object.hasOwn(state.steps, id)) throw new Error("Workflow step history cannot be removed");
+  for (const id of Object.keys(previous?.steps ?? {})) if (!Object.hasOwn(state.steps, id) && !repairedSteps.has(id)) throw new Error("Workflow step history cannot be removed");
   for (const id of Object.keys(previous?.decisions ?? {})) if (!Object.hasOwn(state.decisions, id)) throw new Error("Workflow decision history cannot be removed");
   const delivery = state.reviewDelivery, priorDelivery = previous?.reviewDelivery;
   if (priorDelivery && !delivery) throw new Error("Effect review delivery history cannot be removed");

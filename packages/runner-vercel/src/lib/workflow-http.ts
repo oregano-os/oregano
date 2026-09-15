@@ -12,6 +12,7 @@ export type WorkflowOperatorRequest =
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel" | "recover-unpublished-decision"; runId: string }
+  | { action: "repair-read-phase"; runId: string; fromStepId: string; expectedRevision: number; reason: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
@@ -39,6 +40,12 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
       return { action: "open", ...common, requestId: text("requestId"), ...(input.triggerVariant === undefined ? {} : { triggerVariant: input.triggerVariant as number }) };
     }
     return { action: "schedule", ...common, instant: text("instant") };
+  }
+  if (input.action === "repair-read-phase") {
+    exact(["runId", "fromStepId", "expectedRevision", "reason"]);
+    if (!Number.isSafeInteger(input.expectedRevision) || Number(input.expectedRevision) < 1) throw new Error("Invalid Workflow repair revision");
+    return { action: "repair-read-phase", runId: text("runId", /^workflow:[a-f0-9]{64}$/),
+      fromStepId: text("fromStepId", /^[a-z][a-z0-9-]{1,62}$/), expectedRevision: Number(input.expectedRevision), reason: text("reason") };
   }
   if (input.action === "verify") {
     exact(["runId", "requirements"]);
@@ -138,6 +145,7 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
       } }, { status: verification.ok ? 200 : 409 });
     }
     if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
+    if (action.action === "repair-read-phase") return Response.json({ ok: true, run: summary(await host.engine.repairReadPhase(action.runId, principal, action)) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
     if (action.action === "recover-unpublished-decision") return Response.json({ ok: true, run: summary(await host.engine.recoverUnpublishedDecision(action.runId, principal)) });
     if (action.action === "recover-reply") {
