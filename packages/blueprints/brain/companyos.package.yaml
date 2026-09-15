@@ -1,0 +1,68 @@
+schema_version: 1
+id: oregano/brain
+version: 0.1.0
+kind: blueprint
+name: Brain source processing
+description: Portable declarative source processing and pinned instruction
+  assets; restricted Tools remain separate Workbench templates.
+license: MIT
+publisher:
+  id: oregano
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents: []
+  workflows:
+    - workflows/brain-import.md
+  skills: []
+requires:
+  tools:
+    - company:brain-check-correction-verification
+    - company:brain-check-discussion-pages
+    - company:brain-check-discussion
+    - company:brain-check-lookups
+    - company:brain-check-normalization
+    - company:brain-check-page-drafts
+    - company:brain-check-resolution
+    - company:brain-check-source-history
+    - company:brain-check-verification
+    - company:brain-check-writes
+    - company:brain-finish-import
+    - company:brain-generate
+    - company:brain-plan-discussion
+    - company:brain-plan-pages
+    - company:brain-prepare-candidates
+    - company:brain-prepare-correction-records
+    - company:brain-prepare-correction-verification
+    - company:brain-prepare-correction
+    - company:brain-prepare-discussion-pages
+    - company:brain-prepare-discussion
+    - company:brain-prepare-entity-pages
+    - company:brain-prepare-history-records
+    - company:brain-prepare-meeting-pages
+    - company:brain-prepare-normalization
+    - company:brain-prepare-resolution
+    - company:brain-prepare-source-history
+    - company:brain-prepare-source
+    - company:brain-prepare-verification
+    - company:brain-prepare-writes
+    - company:brain-source-history
+    - company:brain-value-gate
+    - oregano:records/query
+    - oregano:brain/recall
+    - oregano:brain/entity
+    - oregano:brain/remember
+  capabilities:
+    - records.query
+    - brain.recall
+    - brain.entity
+    - brain.remember
+    - language.generate
+    - evidence.query
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures: []

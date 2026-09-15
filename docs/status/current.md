@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-14
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -21,21 +21,29 @@ Workspace values set dates and quantities; no import Workflow or live source is
 activated by these helpers. See [bounded import policy](../specifications/brain-import.md).
 
 
+The Brain Blueprint now includes a reusable 66-step operator import declaration.
+A separate Workbench template contains 31 restricted Tools; its pure materializer
+returns the Workflow, explicit Workspace policy and 21 scoped prompt bindings.
+Synthetic checks cover different company vocabularies and history/count settings,
+all Tool compilations and the absence of implicit grants or activation. The
+Blueprint passes standalone declarative inspection. This is authoring support,
+not a live ingestion or company adoption claim.
+
 Experimental trusted language prompt bindings now support explicit task/profile
 pairs and a measured per-binding instruction capacity up to 30,000 units;
 existing bindings retain 16,000. Static pinned Brain Skill materialization is
 covered by synthetic integrity, scope and budget checks. A protected model-only
 Preview qualified representative source triage and meeting phases, including the
 largest prompt and bounded repair. This proves the bounded prompt foundation;
-import workflow and company adoption remain pending.
+full import model qualification and company adoption remain pending.
 See [Brain Skill adoption](../specifications/brain-skill-adoption.md).
 
 The experimental Brain implements Markdown/Takes checking, scoped projection
 sync, seven Tools and common Workspace grants through the normal Agent runtime.
 Bounded private hosted reads and synthesis have been qualified. Writes and
 delta now have synthetic adapter/runtime tests, with durable effect recovery,
-atomic Git publication and explicit freshness bindings. Isolated hosted write
-qualification and automatic ingestion remain pending. The additive database
+atomic Git publication and explicit freshness bindings. Isolated hosted Markdown write, Git publication and indexed read-back have been
+qualified; full automatic ingestion remains pending. The additive database
 target is 3.1.0, with five derived Brain tables beside existing control and
 Records state. See the [Brain contract](../specifications/brain-read.md) and
 [maintained implementation](../operations/brain-read.md).

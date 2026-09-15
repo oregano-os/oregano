@@ -3,9 +3,10 @@ plan_id: brain-import-2026-09-14
 created: 2026-09-14
 title: Account for bounded resumable source processing
 objective: Extend the existing scoped generation path with durable per-attempt
-  usage evidence, Workspace-configured bounded import selection and metadata-only
-  Google Meet discovery through a fixed read-only provider boundary. Preserve
-  generic Core and runtime authority while composing the prior Brain increments.
+  usage evidence, Workspace-configured bounded import selection and
+  metadata-only Google Meet discovery through a fixed read-only provider
+  boundary. Preserve generic Core and runtime authority while composing the
+  prior Brain increments.
 non_goals:
   - Claim automatic source ingestion or live company adoption before their later
     increments.
@@ -119,6 +120,9 @@ files_expected:
   - docs/specifications/brain-import.md
   - packages/runner-vercel/src/lib/agent-instructions.ts
   - packages/runner-vercel/src/lib/prompt-caching.test.ts
+  - .oregano/changes/2026-09-15-brain-workflow-template.yaml
+  - scripts/materialize-brain-workflow.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
 tests:
   - packages/testkit/tests/record-retained-version.test.ts
   - packages/testkit/tests/workflow-read-repair.test.ts
@@ -141,6 +145,7 @@ tests:
   - packages/testkit/tests/language-attempts.test.ts
   - packages/testkit/tests/brain-import-policy.test.ts
   - packages/runner-vercel/src/lib/prompt-caching.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
 documentation_impact:
   required: true
   affected_documents:
@@ -205,9 +210,10 @@ architecture:
       reason: Add scoped Brain reads and extend the existing trusted repository
         provider with revision-specific permitted Markdown reads and
         expected-base atomic knowledge commits. Explicit bindings, source checks
-        and repository policy govern all provider effects. Add the company-neutral
-        Google Meet transport with explicit delegated identity, fixed read-only
-        scope, bounded pagination and payload-free qualification facts.
+        and repository policy govern all provider effects. Add the
+        company-neutral Google Meet transport with explicit delegated identity,
+        fixed read-only scope, bounded pagination and payload-free qualification
+        facts.
   new_core_mechanisms:
     - Brain Markdown and Takes parsing with configurable types, explicit
       aliases, source-context links and diagnostics.

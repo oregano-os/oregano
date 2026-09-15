@@ -1,0 +1,91 @@
+import { readFileSync, lstatSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import YAML from "yaml";
+import { Ajv2020 } from "ajv/dist/2020.js";
+import { sha256 } from "../packages/runtime/canonical.ts";
+import { validateTranscriptSelectionPolicy, type TranscriptSelectionPolicy } from "../packages/brain/import-policy.ts";
+import { materializeBrainPrompts, type BrainPromptInputs } from "./materialize-brain-prompts.ts";
+
+const blueprintRoot = fileURLToPath(new URL("../packages/blueprints/brain/", import.meta.url));
+const toolRoot = fileURLToPath(new URL("../packages/cli/content/templates/brain-import/", import.meta.url));
+const workflowPath = "workflows/brain-import.md";
+const phaseNames = { normalization: "meeting-normalize", resolution: "meeting-resolve", meeting_page: "meeting-page", entity_page: "meeting-entities", verification: "meeting-verify", discussion_extraction: "discussion-extract", discussion_entity: "discussion-entities", source_reconciliation: "source-reconcile", source_reconciliation_verification: "source-reconcile-verify" };
+export interface BrainWorkflowInputs {
+  prompt: BrainPromptInputs;
+  source_projection: string;
+  transcripts: TranscriptSelectionPolicy;
+  segment_characters: number;
+  history_from: string;
+  triage: { filing_categories: string[]; deep_filing: string[]; deep_quality_at_least: number; deep_emotional_at_least: number; deep_business_at_least: number; skip_filing: string[]; skip_scores_below: number };
+}
+function readAsset(root: string, path: string): string {
+  if (path.split("/").some(part => !part || part === "." || part === "..")) throw new Error("Unsafe Brain template path");
+  let current = root;
+  for (const part of path.split("/")) {
+    current = resolve(current, part);
+    if (!current.startsWith(root) || lstatSync(current).isSymbolicLink()) throw new Error("Unsafe Brain template link");
+  }
+  if (!lstatSync(current).isFile()) throw new Error("Brain template must be a regular file");
+  return readFileSync(current, "utf8");
+}
+const frontmatter = (text: string) => {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
+  if (!match) throw new Error("Brain template lacks frontmatter");
+  return { value: YAML.parse(match[1]), body: text.slice(match[0].length) };
+};
+
+/** Pure authoring helper: returns ordinary reviewed files; never writes, grants, binds or activates. */
+export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
+  if (!input || Object.keys(input).sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
+  const prompts = materializeBrainPrompts(input.prompt);
+  const transcripts = validateTranscriptSelectionPolicy(input.transcripts);
+  const history = validateTranscriptSelectionPolicy({ mode: "bounded", max_transcripts: 1, meeting_date: { start_at: input.history_from, end_at: null } }).meeting_date.start_at;
+  if (!history || typeof input.source_projection !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(input.source_projection)) throw new Error("Explicit source projection and history start are required");
+  const manifest = JSON.parse(readAsset(toolRoot, "manifest.json")) as { version: number; files: { path: string; digest: string }[]; workflow_digest: string };
+  if (manifest.version !== 1 || !Array.isArray(manifest.files) || !manifest.files.length) throw new Error("Invalid Brain template manifest");
+  const assets: Record<string, string> = {};
+  for (const entry of manifest.files) {
+    if (!/^tools\/brain-[a-z-]+\/(?:execute\.ts|TOOL\.md)$/.test(entry.path) || Object.hasOwn(assets, entry.path)) throw new Error("Invalid or duplicate Brain Tool template");
+    const text = readAsset(toolRoot, entry.path);
+    if (sha256(text) !== entry.digest) throw new Error("Changed Brain Tool template; review its manifest before materialization");
+    assets[entry.path] = text;
+  }
+  const entries = readdirSync(toolRoot, { recursive: true, withFileTypes: true });
+  if (entries.some(entry => entry.isSymbolicLink())) throw new Error("Brain Tool templates cannot contain links");
+  const actual = entries.filter(entry => entry.isFile()).map(entry => resolve(entry.parentPath, entry.name).slice(toolRoot.length)).sort();
+  if (JSON.stringify(actual) !== JSON.stringify(["manifest.json", ...Object.keys(assets)].sort())) throw new Error("Untracked Brain Tool template content");
+  const validator = new Ajv2020({ strict: false });
+  const gate = frontmatter(assets["tools/brain-value-gate/TOOL.md"]).value;
+  const prepare = frontmatter(assets["tools/brain-prepare-source/TOOL.md"]).value;
+  if (!validator.validate(gate.input_schema.properties.settings, input.triage)
+    || !validator.validate(prepare.input_schema.properties.segment_characters, input.segment_characters)
+    || JSON.stringify(input.triage.filing_categories) !== JSON.stringify(input.prompt.filing_categories)
+    || ![input.triage.deep_filing, input.triage.skip_filing].every(values => values.every(value => input.triage.filing_categories.includes(value)))) throw new Error("Invalid or inconsistent Workspace triage and segment policy");
+  const source = readAsset(blueprintRoot, workflowPath);
+  if (sha256(source) !== manifest.workflow_digest) throw new Error("Changed Brain Workflow template; review its manifest before materialization");
+  const { value: workflow, body } = frontmatter(source);
+  if (workflow.id !== "brain-import" || workflow.owner !== "agents/brain-owner" || workflow.trigger !== "operator") throw new Error("Unexpected Brain Workflow authority template");
+  const declaredTools = [...new Set<string>(workflow.steps.map((step: Record<string, unknown>) => Object.values(step)[0]).filter((tool: unknown) => typeof tool === "string" && tool.startsWith("company:")))].sort();
+  const availableTools = Object.keys(assets).filter(path => path.endsWith("/TOOL.md")).map(path => `company:${path.split("/")[1]}`).sort();
+  if (JSON.stringify(declaredTools) !== JSON.stringify(availableTools) || availableTools.some(tool => !assets[`tools/${tool.slice(8)}/execute.ts`])) throw new Error("Brain Workflow and restricted Tool templates do not resolve together");
+  workflow.owner = `agents/${input.prompt.agent_id}`;
+  const binding = (phase: string) => {
+    const path = `agents/${input.prompt.agent_id}/skills/brain-${phase}/SKILL.md`;
+    if (!prompts.materials[path]) throw new Error("Workflow phase is missing its reviewed prompt");
+    return path;
+  };
+  const directories = input.prompt.directories;
+  const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, segment_characters: input.segment_characters,
+    prompts: { triage: binding("triage"), ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
+    page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
+    source_history: { workflow_id: "brain-import", from: history } };
+  const materials: Record<string, string> = { ...prompts.materials, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
+  for (const [path, text] of Object.entries(assets)) materials[`agents/${input.prompt.agent_id}/${path}`] = text;
+  const tools = Object.keys(assets).filter(path => path.endsWith("/TOOL.md")).map(path => `company:${path.split("/")[1]}`).sort();
+  return { materials, prompts: prompts.prompts, report: { version: 1, blueprint: "oregano/brain", inputs_digest: sha256(input), workflow_steps: workflow.steps.length,
+    files: Object.entries(materials).map(([path, text]) => ({ path, digest: sha256(text) })), prompt_qualification: prompts.report,
+    requirements: { tools: [...tools, "oregano:records/query", "oregano:brain/recall", "oregano:brain/entity", "oregano:brain/remember"], source_projection: input.source_projection },
+    activated: false, grants_applied: false, provider_bindings_applied: false, admission_created: false,
+    adoption: "Ordinary Workspace review, validation and inspection; explicit Instance bindings and cohort admission remain required. No install, grant, schedule or runtime activation is performed." } };
+}

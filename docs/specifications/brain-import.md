@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-14
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -15,12 +15,49 @@ audience:
 
 # Bounded Brain import policy and evidence
 
-The internal policy and accounting foundation is implemented; the owning
-Workflow, source delivery, live cost qualification and production activation
-remain separate unfinished increments. These helpers do not add a public Tool,
-provider permission, schedule or Company Agent. They are not an alternate source
-import endpoint. The existing Workflow, Records, scoped generation and Brain
-operations must compose them before an import is deployable.
+The generic import policy, attempt accounting and reusable Workflow templates are
+implemented. Company source delivery, actual model qualification, final knowledge
+quality and production activation remain separately evidenced responsibilities.
+The templates compose the existing Workflow, Records, scoped generation and Brain
+operations; they do not add an alternate source endpoint or business runtime.
+
+## Reusable authoring assets
+
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its 66-step
+operator Workflow handles full-source triage, prior-source reconciliation,
+meeting normalization and candidate resolution, discussion extraction, complete
+page evidence, V1–V6 checks, bounded Markdown commits and indexed read-back.
+Executable code is excluded from the Blueprint. The 31 restricted Company Tool
+sources live separately under `packages/cli/content/templates/brain-import/`.
+Their only requested capabilities are the existing `language.generate` and
+`evidence.query`; provider and repository access remain in governed Core Tools.
+
+The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
+`BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the
+owning Agent and company perspective through `prompt`, all five directory
+mappings and filing categories, the source projection, bounded transcript policy,
+segment size, triage calibration and source-history start. No company quantity,
+date, value threshold, account, model provider or directory vocabulary is a
+Core default. The helper reuses prompt materialization and the Tool contract
+schemas, verifies template content digests, and rejects inconsistent inputs.
+The result contains the Workflow/configuration, 21 scoped prompt bindings and
+31 restricted Tool pairs. Its report identifies every resulting content digest
+and every required Tool without applying a grant.
+
+A consuming Workspace must declare a matching Records projection with `identity`,
+`version`, `kind`, `original_url`, `occurred_at`, `text`, `complete` and preserved
+`source_context` values. The ordinary Records, Agent/Tool and Workflow validators
+still apply. The projection name alone does not authorize access. Source text and
+participant metadata stay in the consuming Instance and Workspace, never in the
+Blueprint or template fixtures.
+
+Materialize as a normal Workspace diff, review its grants and source declarations,
+validate and inspect it, and bind the exact Core/Workspace pair. Package inspection
+does not install these assets. Materialization creates no provider binding,
+admission receipt, schedule or activation. The returned Workflow remains operator
+triggered. Existing frozen admission and version-idempotency checks must be bound
+before execution. Later edits to the Workspace date/count policy still follow
+the cumulative extension rules below; regeneration does not refill slots.
 
 A Workspace keeps literal selection policy in its ordinary workflow config:
 

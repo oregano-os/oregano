@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-14
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -18,7 +18,7 @@ audience:
 This increment prepares reusable instruction assets and trusted generation
 bindings. Brain storage, operations, import workflows and source delivery are
 not implemented by this change. A static size check is not a passed live model
-qualification, and these assets are not an installable runtime Blueprint yet.
+qualification, and inspection or materialization does not install or activate runtime authority.
 
 `packages/blueprints/brain/adoption.json` pins ten MIT-licensed source files
 from GBrain commit `a6be012a3bcfac42e279630aedec5cda4a450e29`. It records source
@@ -29,6 +29,13 @@ source passages except for explicit Oregano operation, storage, model-role,
 path and synthetic-example adaptations. Upstream personal storage, external
 enrichment, autonomous extra Agents and provider-specific model defaults are
 excluded. Review the pinned source ranges when changing an adaptation.
+
+The adjacent declarative Workflow is now part of the inspectable `oregano/brain`
+Blueprint. `scripts/materialize-brain-workflow.ts` composes this prompt helper
+with the generic Workflow and separate restricted Workbench Tool templates.
+All company choices remain required Workspace inputs. See the
+[import authoring contract](brain-import.md#reusable-authoring-assets) for
+materialization, grants, source declarations and activation boundaries.
 
 `scripts/materialize-brain-prompts.ts` exports `materializeBrainPrompts` for
 build-time use. Supply an owning `agent_id`, a reviewed company `perspective`,
