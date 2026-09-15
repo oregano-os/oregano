@@ -1,0 +1,36 @@
+import { BrainError } from "./contracts.ts";
+import type { BrainRepositoryBinding } from "../runtime/repository/contracts.ts";
+
+export function assertBrainRepositoryBinding(value: BrainRepositoryBinding): void {
+  if (!value || ["instanceId", "bindingId", "repositoryId", "branch"].some(key => {
+    const item = value[key as keyof BrainRepositoryBinding];
+    return typeof item !== "string" || !item || item.length > 256;
+  }) || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value.repositoryId)
+    || !/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(value.branch) || value.branch.includes("..")
+    || value.branch.split("/").some(part => !part || part.startsWith(".") || part.endsWith(".lock") || part.endsWith("."))) {
+    throw new BrainError("invalid_binding", "Brain requires an explicit Instance, existing installation binding, repository identity and safe branch.");
+  }
+}
+
+/** Non-secret Instance configuration. Enabling this connector grants no Agent access. */
+export function parseBrainRepositoryBinding(configuration: Record<string, unknown>, instanceId: string): BrainRepositoryBinding {
+  const keys = ["repository_binding_id", "repository_id", "branch", "freshness"];
+  if (!configuration || Object.keys(configuration).some(key => !keys.includes(key))) throw new BrainError("invalid_binding", "Unsupported Brain connector configuration field.");
+  const value = { instanceId, bindingId: configuration.repository_binding_id, repositoryId: configuration.repository_id, branch: configuration.branch } as BrainRepositoryBinding;
+  assertBrainRepositoryBinding(value);
+  // Validate at Artifact compilation even when no freshness worker is running.
+  // Freshness remains a separate opt-in, not part of repository identity.
+  parseBrainFreshness(configuration);
+  return value;
+}
+
+export function parseBrainFreshness(configuration: Record<string, unknown>): { push_events: boolean; reconcile_interval_seconds: number } | undefined {
+  if (configuration.freshness === undefined) return undefined;
+  const value = configuration.freshness as Record<string, unknown>;
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !["push_events", "reconcile_interval_seconds"].includes(key))
+    || typeof value.push_events !== "boolean" || !Number.isSafeInteger(value.reconcile_interval_seconds)
+    || Number(value.reconcile_interval_seconds) < 300 || Number(value.reconcile_interval_seconds) > 86400) {
+    throw new BrainError("invalid_binding", "Brain freshness requires explicit push_events and a reconciliation interval from 300 to 86400 seconds.");
+  }
+  return { push_events: value.push_events, reconcile_interval_seconds: Number(value.reconcile_interval_seconds) };
+}

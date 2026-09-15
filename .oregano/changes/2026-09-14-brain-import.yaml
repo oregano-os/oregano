@@ -1,0 +1,265 @@
+version: 3
+plan_id: brain-import-2026-09-14
+created: 2026-09-14
+title: Account for bounded resumable source processing
+objective: Extend the existing scoped generation path with durable per-attempt
+  usage evidence, Workspace-configured bounded import selection and
+  metadata-only Google Meet discovery through a fixed read-only provider
+  boundary. Preserve generic Core and runtime authority while composing the
+  prior Brain increments.
+non_goals:
+  - Claim automatic source ingestion or live company adoption before their later
+    increments.
+  - Bypass repository protection or use application release machinery for
+    knowledge commits.
+  - Introduce a second identity, model, scheduler, repository authentication or
+    authoritative knowledge database.
+  - Compile mutable Brain content into Agent instructions or treat retrieved
+    text as authority.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-saved-link-checks.yaml
+  - .oregano/changes/2026-09-15-agent-shared-grants.yaml
+  - .oregano/changes/2026-09-15-brain-triage-calibration.yaml
+  - .oregano/changes/2026-09-15-brain-source-projections.yaml
+  - .oregano/changes/2026-09-15-agent-model-retry.yaml
+  - .oregano/changes/2026-09-15-brain-trial-corrections.yaml
+  - .oregano/changes/2026-09-15-unwritten-source-continuation.yaml
+  - packages/testkit/tests/workflow-source-continuation.test.ts
+  - .oregano/changes/2026-09-15-transcript-processing-scope.yaml
+  - packages/brain/mutations.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - .oregano/changes/2026-09-15-durable-agent-step.yaml
+  - packages/runner-vercel/src/lib/workflow-agent.ts
+  - packages/runner-vercel/src/lib/workflow-agent.test.ts
+  - packages/testkit/tests/workflow-agent.test.ts
+  - .oregano/changes/2026-09-15-slack-thread-content.yaml
+  - packages/connectors/slack/client.ts
+  - packages/connectors/slack/records-source.ts
+  - packages/connectors/slack/thread-content.ts
+  - packages/testkit/tests/slack-thread-content.test.ts
+  - packages/cli/content/guides/connect-company-record-source.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - .oregano/changes/2026-09-15-read-repair-feedback.yaml
+  - .oregano/changes/2026-09-15-language-output-format.yaml
+  - .oregano/changes/2026-09-15-workflow-output-evidence.yaml
+  - .oregano/changes/2026-09-15-source-reconciliation-prompts.yaml
+  - .oregano/changes/2026-09-15-workflow-history-key-filter.yaml
+  - packages/capabilities/evidence.ts
+  - packages/connectors/historical-evidence.ts
+  - packages/testkit/tests/historical-evidence.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - .oregano/changes/2026-09-15-record-version-reads.yaml
+  - packages/records/contracts.ts
+  - packages/records/query-schema.ts
+  - packages/records/service.ts
+  - packages/records/retained-version.ts
+  - packages/connectors/company-records.ts
+  - packages/testkit/tests/record-retained-version.test.ts
+  - docs/specifications/company-records-query-v1.md
+  - .oregano/changes/2026-09-15-workflow-read-repair.yaml
+  - .oregano/changes/2026-09-15-non-transcript-source-selection.yaml
+  - docs/specifications/workflow-execution-v1-draft.md
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/tests/workflow-read-repair.test.ts
+  - packages/runner-vercel/src/lib/workflow-configuration.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - docs/operations/vercel-workflow-runner.md
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/connectors/google-meet/**
+  - packages/testkit/tests/google-meet-source.test.ts
+  - package.json
+  - pnpm-lock.yaml
+  - .oregano/changes/2026-09-14-brain-read.yaml
+  - packages/brain/**
+  - packages/standard-tools/brain.ts
+  - packages/capabilities/catalog.ts
+  - packages/connectors/brain.ts
+  - packages/connectors/github-repository.ts
+  - packages/runtime/repository/contracts.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/companyos-builder/**
+  - packages/toolset-resolver/resolver.ts
+  - packages/state-store/brain.ts
+  - packages/state-store/interface.ts
+  - packages/state-store/durable-timers.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/memory-state.ts
+  - packages/runtime/durable-timers.ts
+  - packages/runtime/memory-durable-timers.ts
+  - packages/runtime/workflow-engine/**
+  - packages/connectors/registry.ts
+  - packages/capabilities/contracts.ts
+  - packages/state-postgres/**
+  - packages/runner-vercel/src/lib/runtime-connectors.ts
+  - packages/runner-vercel/src/lib/brain.ts
+  - packages/runner-vercel/src/app/api/brain/**
+  - packages/runner-vercel/src/app/api/repository/github/webhook/route.ts
+  - packages/runner-vercel/vercel.json
+  - packages/runner/model-execution.ts
+  - packages/testkit/tests/brain-*.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/adapter/in-memory-brain.ts
+  - packages/testkit/fixtures/brain.ts
+  - scripts/test-database.mjs
+  - packages/cli/**
+  - tsconfig.json
+  - docs/vision.md
+  - docs/glossary.md
+  - docs/status/current.md
+  - docs/specifications/brain-read.md
+  - docs/operations/brain-read.md
+  - docs/operations/workflow-engine.md
+  - docs/workbench/commands/brain.md
+  - docs/workbench/commands/verify-live.md
+  - docs/workbench/guides/prepare-an-instance.md
+  - docs/workbench/guides/retire-knowledge.md
+  - docs/onboarding/README.md
+  - docs/onboarding/company-workspace.md
+  - docs/_generated/**
+  - packages/cli/content/guides/prepare-an-instance.md
+  - packages/cli/content/guides/retire-knowledge.md
+  - .oregano/changes/2026-09-14-brain-foundation.yaml
+  - packages/blueprints/brain/**
+  - scripts/materialize-brain-prompts.ts
+  - packages/language/**
+  - packages/connectors/language-model.ts
+  - packages/companyos-builder/build.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - docs/specifications/model-recipes.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/workbench/guides/author-a-company-tool.md
+  - packages/cli/content/guides/author-a-company-tool.md
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/runner-vercel/src/lib/model-execution.ts
+  - packages/testkit/tests/language-attempts.test.ts
+  - packages/testkit/tests/brain-import-policy.test.ts
+  - docs/specifications/brain-import.md
+  - packages/runner-vercel/src/lib/agent-instructions.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
+  - .oregano/changes/2026-09-15-brain-workflow-template.yaml
+  - scripts/materialize-brain-workflow.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+tests:
+  - packages/testkit/tests/record-retained-version.test.ts
+  - packages/testkit/tests/workflow-read-repair.test.ts
+  - packages/testkit/tests/brain-import-admission.test.ts
+  - packages/testkit/tests/google-meet-source.test.ts
+  - packages/testkit/tests/brain-documents.test.ts
+  - packages/testkit/tests/brain-reads.test.ts
+  - packages/testkit/tests/brain-mutations.test.ts
+  - packages/testkit/tests/brain-writes.test.ts
+  - packages/testkit/tests/brain-delta.test.ts
+  - packages/testkit/tests/brain-freshness.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/tests/brain-repository.test.ts
+  - packages/testkit/tests/brain-postgres.test.ts
+  - packages/testkit/tests/company-database-bootstrap.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/cli/tests/brain.test.mjs
+  - packages/testkit/tests/language-attempts.test.ts
+  - packages/testkit/tests/brain-import-policy.test.ts
+  - packages/runner-vercel/src/lib/prompt-caching.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - vision.companyos
+    - reference.glossary
+    - specification.brain-read
+    - operations.brain-read
+    - operations.workflow-engine
+    - specification.company-records-query-v1
+    - specification.workflow-execution-v1
+    - status.current
+    - onboarding.index
+    - onboarding.company-workspace
+    - guide.prepare-instance
+    - command.verify-live
+    - guide.retire-knowledge
+    - command.brain
+    - specification.model-recipes
+    - specification.brain-skill-adoption
+    - guide.author-company-tool
+    - specification.brain-import
+    - operations.vercel-workflow-runner
+architecture:
+  placement:
+    core: Brain path and document validation, storage and repository boundaries,
+      rebuildable projection, read and mutation operations, authority
+      enforcement, durable receipt recovery and bounded synthesis.
+    packages: Pinned upstream operation wording, Markdown conventions and synthesis
+      guidance with explicit portability adaptations and license attribution.
+    workspace: Declared types, relationship mappings, reading policy, common Tool
+      grants and company knowledge in reviewed files.
+    instance: Existing repository installation and database binding, explicit
+      migration, projection revisions and existing leases; no new credential
+      registry.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Exclude mutable Brain content from compiled instructions and materialize
+        shared usage guidance only for effective granted operations.
+    - mechanism: toolset-resolver
+      reason: Resolve reviewed common Workspace grants with provenance for existing
+        and future Agents without granting authority from Instance enablement.
+    - mechanism: model-recipe-resolver
+      reason: Add the named bounded synthesis task through the existing model runtime
+        and usage reporting. Retain unknown token quantities as null and
+        preserve incomplete-response usage without text payloads. Mark reviewed
+        phase-only materials through the existing prompt binding so they do not
+        inflate ordinary conversation context. Preserve the declared phase output format
+        through a generic host reminder and record the actual delivered system
+        instruction digest and length for each paid attempt.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse durable effects for operation identity and retained commit
+        outcomes, with bounded provider reconciliation and synchronization
+        recovery rather than another journal. Retain each model attempt through
+        existing effect and event persistence before dispatch, including failed
+        and unknown outcomes.
+    - mechanism: company-records
+      reason: Reuse repository-scoped durable leases for synchronization and bounded
+        write coordination.
+    - mechanism: timers-and-business-time
+      reason: Extend the maintained reconciliation timer and signed repository event
+        path for opted-in Brain freshness, without starting imports or a new
+        scheduler.
+    - mechanism: capability-contracts-and-connectors
+      reason: Add scoped Brain reads and extend the existing trusted repository
+        provider with revision-specific permitted Markdown reads and
+        expected-base atomic knowledge commits. Explicit bindings, source checks
+        and repository policy govern all provider effects. Add the
+        company-neutral Google Meet transport with explicit delegated identity,
+        fixed read-only scope, bounded pagination and payload-free qualification
+        facts.
+  new_core_mechanisms:
+    - Brain Markdown and Takes parsing with configurable types, explicit
+      aliases, source-context links and diagnostics.
+    - A rebuildable Brain storage projection with full-text search and
+      consistent revision metadata inside the existing Instance database
+      lifecycle.
+    - Shared bounded read operations and one-call synthesis using the same
+      retrieval functions.
+    - Evidenced Markdown mutations with stable Take identities and read-back,
+      plus bounded scoped page-change continuation from the existing projection
+      markers.
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Companies choose their vocabulary, mappings, reading policy,
+    grants and repository/database bindings. The same Core works with imports
+    disabled and restricts unsupported access modes without company-specific
+    branches.
+rollback: Restore the preceding compatible Core and Workspace pair. Rebuild or
+  remove only the derived Brain projection through an explicit scoped operator
+  migration; preserve control state, Records, repository history and existing
+  receipts.

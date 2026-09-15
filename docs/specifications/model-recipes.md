@@ -5,7 +5,7 @@ kind: specification
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -40,10 +40,75 @@ identity, Tool grants, scoped materials and effect approvals remain the
 responsibility of their Core layers. Technical smoke tests establish model
 readiness, not company authority.
 
+## Scoped generation phases
+
+The trusted `oregano/language-model` prompt binding may declare `model_task`
+and `model_profile` together. Supported language profiles are `agent`,
+`utility`, `reasoning` and `deep`. The existing resolver applies task, profile
+and default precedence. No binding creates a model, provider account or grant.
+Bindings without either field retain the owning Agent's explicit model task
+and the `agent` profile. Partial bindings, invalid task names and non-language
+profiles fail before generation.
+
+Each binding defaults to 16,000 JavaScript string units of instructions. An
+explicit `max_instruction_characters` may set a positive integer up to 30,000.
+Exceeding the default also requires an explicit phase task/profile pair.
+This ceiling supports the measured static Brain phases; it does not qualify
+any model's context window. Existing evidence, output and deadline limits do
+not change. The Artifact supplies the complete frozen Skill text; referenced
+files are never implicitly loaded. Task, profile, capacity and prompt identity
+are recorded in binding/prompt digests. Callers and imported evidence cannot
+change them.
+
+An explicit phase binding may set `conversation_context: false`. The compiler
+retains that exact scoped material for generation but records its path separately
+so ordinary conversation prompts do not inline the entire phase library. This
+does not revoke scoped access or remove the Agent contract and other materials.
+The option requires an explicit task/profile pair and is included in binding
+identity. Existing bindings default to their unchanged conversation inclusion.
+
+The experimental [Brain Skill adoption](brain-skill-adoption.md) provides a
+static build helper and separately records the remaining model qualification.
+It introduces no Brain runtime or replacement for the retired Knowledge system.
+
 Knowledge-only model overrides, maintenance budgets, extraction/synthesis
 prompts and their dispatcher have been retired. They have no replacement task
 in this contract. See [Prepare an Instance](../workbench/guides/prepare-an-instance.md)
 for the maintained generic configuration.
+
+## Scoped generation attempt evidence
+
+The maintained hosted `language.generate` connector records every invocation in
+existing control events and effects. A unique attempt binds Instance, run, step,
+Agent, Tool, Core/Workspace/Artifact, input/attachment digests and frozen prompt
+binding before dispatch. The host validates files and resolves the model, then
+awaits the durable dispatch receipt (including the Workflow lease fence when
+present) before calling the provider. Failure to persist that boundary prevents
+the paid request. Other hosts supply the same StateStore and honor the trusted
+`beforeDispatch` callback; it is not part of the model-facing Tool input.
+
+Successful, incomplete and invalid-output calls retain their available usage.
+Provider/transport failures retain an unknown outcome, not a made-up empty
+response. Input/output, cache components, reasoning tokens and response identity
+remain null when unavailable. Reasoning is part of output usage and is not
+added again when calculating cost. SDK retries remain disabled; a later explicit
+retry is another recorded attempt. Workflow step completion still owns ordinary
+resume; the attempt ledger does not silently retry or replace successful steps.
+
+`readLanguageAttempts` reads a bounded explicit run set and reconciles lost
+completion events from existing effect receipts. A dispatched attempt with no
+receipt stays unknown. Reports fail visibly at the event bound instead of
+silently omitting later calls. Receipts contain hashes, identity, usage and
+outcome, never prompt/source/answer/reasoning text or raw provider error bodies.
+
+`languageCostReport` accepts actual per-attempt billing receipts or explicit
+dated prices for the exact configured route/model. Billed amounts take precedence;
+otherwise complete reconciled token/cache quantities permit an estimate. Missing
+usage, rates or unresolved outcomes remain unknown rather than zero. Billed and
+estimated subtotals stay separate by currency, include failed attempts, and do
+not double-count retries or reasoning. Infrastructure attribution and earlier
+development costs are separate inputs to the final import report. There is no
+new provider, price registry, automatic billing lookup or source of spend authority.
 
 ## Native attachments
 
@@ -59,3 +124,44 @@ their native representation. The host checks authorized source, metadata and
 actual bytes, and the native model boundary checks the combined request on each
 step. See [Agent attachments](../operations/agent-attachments.md) for adjustment,
 retention, coding-adapter distinctions and context-limit qualifications.
+
+
+Hosted scoped generation appends a generic reminder to follow the reviewed output
+contract exactly: JSON-only phases emit the JSON value without wrappers or
+commentary; Markdown phases emit the requested document directly. Uncertainty
+stays in permitted fields. The host neither strips malformed responses nor
+changes semantic validation, source scope, model selection or retry limits.
+Before paid dispatch, attempt evidence includes the exact delivered system-prompt digest and character
+count, including both host wrapper and reviewed Skill. Prompt measurements use
+the same assembly function as the actual request. Existing retained Workflow
+Artifacts remain immutable when a compatible host correction is deployed.
+
+
+Hosted scoped generation accepts one complete outer `json` code fence containing a
+valid JSON object or array as a transport encoding. It preserves the exact inner
+text and all fields; it never extracts JSON from commentary, joins blocks, repairs
+invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
+response records the encoding and both provider/delivered text digests alongside
+usage. Strict downstream schema, score, citation and content checks still apply.
+Existing failed attempts remain in the journal; a repair never replaces their cost.
+
+
+Authenticated Workflow read repairs may carry an immutable, bounded validation
+diagnostic into the first repaired step. The language Connector keeps the pinned
+Skill and model binding unchanged, wraps the exact original input and diagnostic
+as separate data, and records both the original context digest and the delivered
+context digest plus repair number/feedback digest. Feedback is not source truth,
+replacement instructions or authority. It shares the existing evidence size
+limit; malformed or oversized feedback fails before a paid dispatch. The
+existing maximum of three explicit read repairs is unchanged.
+
+## Workflow Agent turns
+
+Durable Agent steps resolve their reviewed task and utility/reasoning/deep profile
+with required capability `tools`. The maintained host makes one tool-enabled model
+call per durable turn; Tool declarations have no provider-side execute callbacks.
+Core retains the response before Tool dispatch. The step output-token bound and
+Instance model bound both apply, with zero SDK retries and a maximum 120-second
+model timeout. Existing language-attempt evidence records each call and its actual
+role, input/output/cache tokens and unknown quantities. A continuing conversation
+preserves prior messages and Tool outputs; it does not create a new model per phase.

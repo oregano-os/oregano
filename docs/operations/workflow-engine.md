@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-12
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -442,6 +442,18 @@ substituting stale rows. Effects are not automatically retried by this mechanism
 Before downgrading to a runtime that predates `records` waits, drain those waits
 on the newer runtime; immutable old artifacts and completed runs are unchanged.
 
+## Resume a pending Brain write
+
+The maintained Brain write Tools also use a bounded durable `effect` wait when
+Git receipt reconciliation or post-commit indexing is pending. This preserves
+the original run, input and effect identities. Every 30 seconds, for at most
+15 minutes after preparation, the exact standard Tool may recheck provider
+receipt evidence and refresh the index; it cannot dispatch another Git mutation.
+Company Tool text and unrelated unknown effects cannot opt into this behavior.
+After the bound, an authorized operator may resume the same reconciliation
+through `resume`. Missing proof still blocks. Drain these waits before deploying
+a runtime without `effect` wait support. See the [Brain contract](../specifications/brain-read.md).
+
 ## Inspect a deduplicated child from a scanner
 
 The existing `start` step returns `run_id`, `status`, `blocked` and
@@ -454,3 +466,141 @@ a rejection or skip branch, so successful business completion may additionally
 require a particular verification step in `succeeded_steps`. A scanner never
 reopens a rejected or cancelled child merely by starting it again. The child
 keeps its original conversation, pinned artifact, approvals and receipts.
+
+## Repair a blocked read phase
+
+Ordinary `resume` retains successful outputs. If a successful model response is
+invalid downstream, or previously read context is stale, the authenticated
+operator may use `repair-read-phase` with `runId`, `fromStepId`, the exact
+observed `expectedRevision`, and a bounded `reason`. Optional `feedback` contains
+1–2,000 characters without control characters describing the observed validation
+problem. Core retains it immutably in the repair snapshot and includes its digest
+in control events and paid-attempt evidence. Only the first repaired step receives
+it through trusted invocation context. Language generation encloses the original
+input and this diagnostic as separate evidence fields; feedback never replaces
+source facts, Skill instructions, model selection, grants or validation. Later
+steps and conversation calls do not inherit it. Existing repairs without feedback
+keep their original behavior. Core accepts only a
+previously attempted linear R0 Tool path ending at the blocked cursor. Every
+resolved Capability must be read-only. The operation cannot cross a route, wait,
+human decision or write, reopen a completed run, replace its Artifact or source
+admission, or alter any prior effect. A pending wait must reconcile normally.
+
+Each run allows at most three explicit repairs. Core archives the exact prior
+step outputs, input digests and item receipts with operator/time/reason evidence
+before restarting the selected path. New model calls retain separate attempts
+and costs; failed responses remain inspectable. Workers never choose this
+operation automatically. Failed or uncertain writes continue through their
+existing effect recovery, not read repair. The unchanged 64 MiB snapshot bound
+also applies to retained repair history.
+
+A transcript import binding may additionally declare at most 100 exact
+`nonTranscriptSources` entries with `identity`, `version` and
+`kind: discussion`. These reviewed source versions use the same source-keyed
+Workflow and normal Records/Tool permissions while retaining a distinct immutable
+non-transcript admission proof. They never allocate, refill, or change transcript
+cohort slots. Unknown versions and overlap with any admitted transcript fail
+closed. This is a finite selection, not a channel wildcard or an automatic
+expansion policy. Earlier completed source versions remain deduplicated.
+
+An optional `processingField` points to an exact Workspace configuration subset
+`{ max_transcripts, sources: [{ identity, version }] }`. An empty list pauses
+transcript execution. The list must fit the declared maximum, contain distinct
+identities already in the frozen cohort, and use exact content versions. Core
+checks the current activated subset both before opening and before executing or
+resuming historical runs. Reducing this subset preserves all original admission
+receipts, Records, prior attempts and completed pages; retries cannot refill it.
+A later reviewed configuration activation may intentionally expand it. Discussion
+selections remain independently exact and do not consume transcript slots.
+
+
+
+## Exact retained Record version reads
+
+The existing Records query accepts optional `source_version_id`, the exact
+64-character normalized version ID returned in a prior row. Omission or null
+preserves ordinary current reads. A selected version is read only from the
+current projection's at most 100 contributing source generations, after the
+active subject passes current projection and source access. It uses existing
+immutable version storage and reapplies the current projection's source/type
+selection, field allowlist and filters. It never falls back to another binding,
+Instance, arbitrary provider revision or nearby observation. Missing, deleted or
+nonmatching versions return no rows; invalid provenance or modified immutable
+content fails. No provider call or database migration is involved.
+
+The result marks `retained_version_id`, uses the original observation time and
+sets `fresh_until` to that same time. It provides no source-completeness or
+current-scan proof. Cursor, all-pages and completeness/scan requirements cannot
+be combined with this mode. The exact result is capped at 2,500,000 serialized
+characters without truncation. Consumers must retain the earlier row version ID;
+a provider's own content hash is a distinct value. Current source access changes
+and binding generations remain effective for historical reads.
+
+
+Historical Evidence Workflow queries may include `match_fields` for one selected
+Workflow and at most four exact declared instance-key values. The store applies
+the predicate before ordering and the result limit; the Connector independently
+checks every returned identity. Unknown/non-key fields and cross-kind use fail.
+Current Agent, Workflow, group, time-window, payload and result bounds remain
+unchanged. This reads existing run history; it does not create a source-progress
+registry, infer outcomes or reset effects.
+
+Historical Workflow evidence defaults to bounded feedback event reads. An explicit
+`include_feedback: false` selects retained outputs without reading the feedback
+event log; each run returns `feedback: null` and coverage records
+`feedback-not-requested`. Complete coverage then refers only to the requested
+projection. It never establishes absence of feedback, approvals or provider events.
+
+## Continuing Agent tasks
+
+The maintained host supports declared durable Agent steps using the same store,
+leases, ModelRecipe resolver, Tool runtime and attempt accounting. Inspect the
+step's Agent journal to distinguish a prepared model turn, retained response,
+completed Tool call and accepted final result. Partial external writes are not
+workflow completion. Resume uses receipt reconciliation for known writes. Unknown
+model outcomes remain stopped; ordinary resume must not generate another paid call.
+Finite budgets and scoped Skill reads are pinned in the Artifact. Deploying a new
+definition does not migrate an existing run or reset its attempts.
+
+
+### Explicit continuation of an unwritten source
+
+The Core `continueUnwrittenSource` operator method can replace an unfinished source
+run exactly once with a reviewed replacement Artifact. It requires current operator
+authority, source admission and processing scope, an exact revision, only attempted
+R0 computations/routing, no decisions, no Agent Tool conversation, and no unknown or
+unfinished model attempt. A possible write is never replayed through this path.
+The existing lease fences cancellation and an immutable successor reference before
+creating the replacement. A lost result reuses that successor; normal source-version
+opening follows the link. Both runs retain their original Artifacts, source version,
+outputs, repairs and all billed attempts. The successor records its predecessor and
+starts the reviewed procedure anew. A further continuation of that successor is
+unsupported; ordinary durable resume and targeted correction apply.
+
+Source-history reads expose these references at the trusted cutoff. The Brain
+procedure accepts only its exact linked cancelled predecessor as unwritten history;
+an unrelated cancelled run or an unchanged completed source is not silently ignored.
+This is an explicit Core operator action, not a model Tool, automatic retry or a
+source-version change. It grants no new sources, Tools or provider access.
+
+A completed effect `for_each` with the canonical empty input digest, empty retained
+item map and exact empty output has no dispatched operation. Source continuation
+may cross that step. Missing, running, nonempty or inconsistent evidence still
+blocks continuation, including in archived read-repair snapshots.
+
+
+### Explicit retry of an unavailable Agent model response
+
+An authenticated operator may call `retry-agent-model` with the exact run revision,
+last attempt ID and reason. Core requires a stopped Agent turn with an unavailable
+model response, no retained response or Tool results, and its unknown dispatched
+attempt receipt. Current activation/source scope and the original task budget still
+apply. This is permission for another paid generation, not proof of zero prior cost.
+
+The journal appends an immutable operator/time/reason receipt; prior responses,
+Tool results, source identity, instructions and unknown usage stay unchanged. The
+next model turn continues the same conversation. No Tool call can be replayed from
+the missing response because Core dispatches only a durably retained response.
+Repeating the same operator request returns its existing authorization. Ordinary
+resume and model-generated inputs cannot authorize this retry. Do not claim complete
+cost accounting until the unknown provider usage is reconciled separately.

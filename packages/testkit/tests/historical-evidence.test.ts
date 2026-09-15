@@ -135,3 +135,42 @@ test("quiet completed reviews remain healthy across a scheduled non-working day"
     configuration: { enabledWorkflowIds: [workflow.id], autoOpenWorkflowIds: [workflow.id], schedulePrincipal: f.run.subjectPrincipal, activatedAt: from, maxLatenessMinutes: 120 } });
   assert.equal(result.status, "healthy"); assert.deepEqual(result.issues, []);
 });
+
+
+test("exact Workflow key history filters before bounds and preserves current scope", async () => {
+  const f = await fixture(), later = workflowStateFixture();
+  later.identity.fields.sprint_id = "period-2"; later.identity.trigger.instant = "2030-01-05T11:00:00.000Z";
+  later.identity.createdAt = later.identity.trigger.instant; later.state.logicalInstant = later.identity.trigger.instant;
+  later.identity.runId = workflowRunId(later.identity); later.identity.originDigest = workflowOriginDigest(later.identity); later.meta.runId = later.identity.runId;
+  await f.store.create(later);
+  const query = { ...f.query, include_linked_builds: false, match_fields: { sprint_id: "period-1" }, limit: 1 };
+  const result = (await f.connector.invoke("evidence.query", query, f.context)).output;
+  assert.deepEqual(result.items.map(row => row.id), [f.run.runId]); assert.equal(result.coverage.complete, true);
+  assert.deepEqual((await f.connector.invoke("evidence.query", { ...query, match_fields: { sprint_id: "period-*" } }, f.context)).output.items, []);
+  let reads = 0; const history = f.store.history.bind(f.store); f.store.history = async args => { reads++; return history(args); };
+  for (const change of [{ match_fields: {} }, { match_fields: { next_sprint_id: "period-2" } }, { match_fields: { unknown: "value" } },
+    { kind: "context", references: [f.path] }, { from: "2020-01-01T00:00:00Z" }, { match_fields: { sprint_id: 2 } }])
+    await assert.rejects(f.connector.invoke("evidence.query", { ...query, ...change }, f.context));
+  assert.equal(reads, 0, "Invalid filter and time requests fail before history access");
+});
+test("Workflow evidence rejects a store response outside the exact key filter", async () => {
+  const f = await fixture(); f.store.history = async () => [f.run];
+  await assert.rejects(f.connector.invoke("evidence.query", { ...f.query, match_fields: { sprint_id: "another-period" } }, f.context), /escaped/);
+});
+
+
+test("explicit output-only history excludes feedback without misreporting a truncated event log as complete", async () => {
+  const f = await fixture();
+  for (let i = 0; i < 201; i++) await f.store.control.appendEvent({ runId: f.run.runId, stepId: "report", actor: "system", event: "workflow.step.completed", evidence: { index: i } });
+  const query = { ...f.query, include_linked_builds: false };
+  const ordinary = (await f.connector.invoke("evidence.query", query, f.context)).output;
+  assert.equal(ordinary.coverage.complete, false);
+  assert.ok(ordinary.coverage.limitations.includes("run-event-history-truncated"));
+  const readEvents = f.store.control.listEvents.bind(f.store.control); let reads = 0;
+  f.store.control.listEvents = async (...args) => { reads++; return readEvents(...args); };
+  const selected = (await f.connector.invoke("evidence.query", { ...query, include_feedback: false }, f.context)).output;
+  assert.equal(reads, 0); assert.equal(selected.coverage.complete, true);
+  assert.equal(selected.items[0]!.feedback, null);
+  assert.ok(selected.coverage.limitations.includes("feedback-not-requested"));
+  assert.deepEqual(selected.items[0]!.steps, ordinary.items[0]!.steps);
+});

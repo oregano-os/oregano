@@ -78,6 +78,11 @@ export function createPostgresDurableTimerStore(options: { executionNamespace?: 
         order by due_at, timer_id`;
       return rows.map((row) => storedTimer(unscoped(row)));
     },
+    async get(args) {
+      const rows = await connection()`select * from companyos_records.durable_timers
+        where instance_id = ${scoped(args.instanceId)} and timer_id = ${args.timerId} limit 1`;
+      return rows.length ? storedTimer(unscoped(rows[0])) : undefined;
+    },
 
     async claimDue(args) {
       await ensureCompanyRecordsSchema();

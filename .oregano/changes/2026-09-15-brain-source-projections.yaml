@@ -1,0 +1,41 @@
+version: 3
+plan_id: brain-source-projections-2026-09-15
+created: 2026-09-15
+title: Select reviewed source projections within one import Workflow
+objective: Consume distinct canonical Records types through their existing projections while preserving one shared Brain import procedure.
+non_goals:
+  - Change Records types, provider access, source admission or canonical Markdown structure.
+  - Add another import runtime or infer provider bindings from source text.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-source-projections.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/blueprints/brain/workflows/brain-import.md
+  - packages/cli/content/templates/brain-import/manifest.json
+  - packages/cli/content/templates/brain-import/tools/brain-source-records/**
+  - packages/cli/content/templates/brain-import/tools/brain-source-projection/**
+  - scripts/materialize-brain-workflow.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - docs/specifications/brain-import.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+architecture:
+  placement:
+    core: Reuse the existing Records projections, identity-bound admission, Workflow references and Tool authorization unchanged.
+    packages: Extend the portable authoring helper with a source-projection selector using the existing records.query Capability and reviewed optional prefix mappings.
+    workspace: Own the default projection and exact non-overlapping identity-prefix mappings for selected sources.
+    instance: Retain provider qualification, credentials, exact source admission and operational state.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can consume authorized heterogeneous Records projections through one reusable Workflow; source names and identity prefixes are explicit company configuration.
+rollback: Restore the prior Workflow and configuration together. Retained runs keep their original immutable definition; no source or knowledge is deleted.

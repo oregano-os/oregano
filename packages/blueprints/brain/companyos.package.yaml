@@ -1,0 +1,44 @@
+schema_version: 1
+id: oregano/brain
+version: 0.1.0
+kind: blueprint
+name: Brain source processing
+description: Portable declarative source processing and pinned instruction
+  assets; restricted Tools remain separate Workbench templates.
+license: MIT
+publisher:
+  id: oregano
+compatibility:
+  companyos_spec: ">=0.7 <0.8"
+  package_contract: "1"
+components:
+  agents: []
+  workflows:
+    - workflows/brain-import.md
+  skills: []
+requires:
+  tools:
+    - company:brain-agent-context
+    - company:brain-agent-outcome
+    - company:brain-check-agent-completion
+    - company:brain-generate
+    - company:brain-prepare-source
+    - company:brain-source-history
+    - company:brain-value-gate
+    - oregano:records/query
+    - oregano:brain/recall
+    - oregano:brain/entity
+    - oregano:brain/remember
+  capabilities:
+    - records.query
+    - brain.recall
+    - brain.entity
+    - brain.remember
+    - language.generate
+    - evidence.query
+permissions:
+  runtime_code: false
+  network: []
+  secret_refs: []
+tests:
+  fixtures: []

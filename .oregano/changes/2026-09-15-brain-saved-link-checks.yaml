@@ -1,0 +1,43 @@
+version: 3
+plan_id: brain-saved-link-checks-2026-09-15
+created: 2026-09-15
+title: Verify saved links and report bounded completion repairs
+objective: Reject known unresolved saved-page links and batch missing-read feedback, without requiring person Timeline structure on linked meeting pages.
+non_goals:
+  - Add grants, relax active Workflow bindings or change source admission.
+  - Modify retained Artifacts or impersonate an active Workflow from the operator CLI.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-saved-link-checks.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/cli/content/templates/brain-import/tools/brain-check-agent-completion/**
+  - packages/cli/content/templates/brain-import/manifest.json
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - docs/specifications/brain-import.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+architecture:
+  placement:
+    core: Validate the actual indexed read-back and return all missing page reads together.
+    packages: The existing portable Brain completion template consumes normal entity results.
+    workspace: Re-materialize the reviewed procedure; preserve page layout and filing vocabulary.
+    instance: Trusted hosting supplies immutable active assignments; a reviewed rebuild activates the new manifest semantics.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Reuse durable Agent completion feedback and Brain index link resolution; no new runtime or source access.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every adopting company benefits from repaired source links and fewer redundant model turns; fixtures use invented pages only.
+rollback: Restore the prior portable validator and rebuild the reviewed configuration; retained runs keep their original instructions and receipts.

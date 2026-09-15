@@ -1,0 +1,57 @@
+version: 3
+plan_id: read-repair-feedback-2026-09-15
+created: 2026-09-15
+title: Carry bounded validation feedback through an authorized read repair
+objective: Make existing read repairs useful for a retained model response that failed validation, without replacing its Artifact, inputs, prior outputs or authority.
+non_goals:
+  - Increase retry limits, erase attempts, override validation or change source selection.
+  - Treat operator feedback as source facts, a Skill replacement or effect authority.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-read-repair-feedback.yaml
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/workflow-engine/**
+  - packages/runtime/companyos-runtime.ts
+  - packages/capabilities/contracts.ts
+  - packages/connectors/language-model.ts
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/tests/workflow-read-repair.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/blueprints/brain/adoption.json
+  - packages/cli/content/templates/brain-import/**
+  - docs/operations/workflow-engine.md
+  - docs/specifications/model-recipes.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-read-repair.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - specification.model-recipes
+    - specification.brain-skill-adoption
+    - status.current
+architecture:
+  placement:
+    core: Extend existing read repair snapshots and trusted invocation context with bounded immutable feedback; expose it only as generation data for the repaired first step.
+    packages: Clarify existing normalization validator constraints and include complete-source coverage facts in portable triage inputs.
+    workspace: Reviewed phase adoption, company perspective and source selection remain company-owned.
+    instance: Authenticated operator submits exact revision and correction; existing control state retains attempts and feedback.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Extend the existing maximum-three read repair operation with attributed feedback; no new recovery or permission path.
+    - mechanism: model-recipe-resolver
+      reason: Retain all model bindings and budgets while attributing the exact feedback and delivered evidence to a new paid attempt.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can correct a model output validation failure using the same authenticated bounded operation, regardless of phase names or provider.
+rollback: Stop new repairs and restore the previous host after preserving immutable feedback snapshots and paid attempts; old runs without feedback remain compatible.

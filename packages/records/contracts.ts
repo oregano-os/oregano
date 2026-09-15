@@ -163,6 +163,8 @@ export interface RecordReconciliationReceipt extends RecordSyncReceipt {
 }
 
 export interface RecordQuery {
+  /** Exact normalized retained version; null/omission selects the ordinary current query. */
+  source_version_id?: string | null;
   projection_id: string;
   filters?: Record<string, JsonValue>;
   limit?: number;
@@ -191,6 +193,8 @@ export interface RecordSourceProof {
 }
 
 export interface RecordQueryResult {
+  /** Retained observation, never proof of current provider state or coverage. */
+  retained_version_id?: string;
   projection_id: string;
   rows: RecordProjectionRow[];
   next_cursor?: string;

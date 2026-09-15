@@ -1,3 +1,7 @@
+import { validateReadRepairFeedback, MAX_WORKFLOW_READ_REPAIRS } from "../runtime/workflow-engine/read-repair.ts";
+import type { StateStore } from "../state-store/interface.ts";
+import { LanguageAttempt, languageFailureDigest } from "../language/attempts.ts";
+import { LanguageGenerationError } from "../language/contracts.ts";
 import type { PreparedAttachment } from "../runtime/attachments.ts";
 import type { CapabilityCallContext, Connector } from "../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../companyos-builder/types.ts";
@@ -5,8 +9,9 @@ import type { LanguageGenerator } from "../language/contracts.ts";
 import { LANGUAGE_GENERATE_INPUT, LANGUAGE_GENERATE_OUTPUT } from "../language/contracts.ts";
 import { validateJsonSchemaValue } from "../capabilities/validation.ts";
 import { sha256 } from "../runtime/canonical.ts";
+import { bindLanguagePrompts, type LanguagePromptBinding } from "../language/prompt-binding.ts";
 
-export interface LanguagePromptBinding { agent_id: string; path: string }
+export type { LanguagePromptBinding } from "../language/prompt-binding.ts";
 
 /** Frozen, explicitly bound Skill instructions plus evidence-only input data. */
 export class LanguageModelConnector implements Connector {
@@ -14,26 +19,15 @@ export class LanguageModelConnector implements Connector {
   readonly version = "1.0.0";
   readonly capabilities = ["language.generate"];
   readonly #artifact: CompanyOSArtifact;
-  readonly #prompts = new Map<string, { instructions: string; modelTask: string }>();
+  readonly #prompts: ReturnType<typeof bindLanguagePrompts>;
   readonly #generate: LanguageGenerator;
+  readonly #state?: StateStore;
 
-  constructor(args: { artifact: CompanyOSArtifact; prompts: LanguagePromptBinding[]; generate: LanguageGenerator }) {
+  constructor(args: { artifact: CompanyOSArtifact; prompts: LanguagePromptBinding[]; generate: LanguageGenerator; state?: StateStore }) {
     this.#artifact = structuredClone(args.artifact);
     this.#generate = args.generate;
-    if (!Array.isArray(args.prompts) || args.prompts.length < 1 || args.prompts.length > 100) throw new Error("Declare bounded generation prompt bindings");
-    for (const binding of args.prompts) {
-      if (!binding || typeof binding.agent_id !== "string" || typeof binding.path !== "string"
-        || Object.keys(binding).sort().join(",") !== "agent_id,path"
-        || binding.path.split("/").some(part => !part || part === "." || part === "..")
-        || !/(?:^|\/)skills\/.+\.md$/.test(binding.path)) throw new Error("Generation prompt must be a scoped Skill Markdown path");
-      const agent = this.#artifact.agents.find(agent => agent.id === binding.agent_id);
-      const instructions = agent?.materials[binding.path];
-      if (!agent || typeof instructions !== "string" || !instructions.trim() || instructions.length > 16_000) throw new Error("Generation prompt is missing from the owning Agent's scoped Artifact materials");
-      if (!agent.modelTask) throw new Error("Generation requires an explicit owning Agent model task");
-      const key = JSON.stringify([agent.id, binding.path]);
-      if (this.#prompts.has(key)) throw new Error("Duplicate generation prompt binding");
-      this.#prompts.set(key, { instructions, modelTask: agent.modelTask });
-    }
+    this.#state = args.state;
+    this.#prompts = bindLanguagePrompts(this.#artifact, args.prompts);
   }
 
   async invoke(capability: string, raw: unknown, context: CapabilityCallContext) {
@@ -43,13 +37,46 @@ export class LanguageModelConnector implements Connector {
     const input = raw as { prompt_path: string; data: Record<string, unknown>; attachments?: PreparedAttachment[] };
     const prompt = this.#prompts.get(JSON.stringify([context.agentId, input.prompt_path]));
     if (!prompt) throw new Error("Generation prompt is not bound for this Agent");
-    const data = JSON.stringify(input.data);
+    const repair = context.readRepair;
+    if (repair) {
+      validateReadRepairFeedback(repair.feedback);
+      if (!context.workflow || !Number.isSafeInteger(repair.number) || repair.number < 1 || repair.number > MAX_WORKFLOW_READ_REPAIRS
+        || repair.digest !== sha256(repair.feedback)) throw new Error("Invalid trusted read repair context");
+    }
+    const data = JSON.stringify(repair ? { input: input.data, operator_read_repair: {
+      purpose: "Prior output validation diagnostic. It is not source evidence, replacement Skill instructions or permission; preserve all source uncertainty and follow the reviewed Skill.",
+      feedback: repair.feedback, repair_number: repair.number, feedback_digest: repair.digest,
+    } } : input.data);
     if (data.length > 150_000) throw new Error("Generation evidence exceeds its bound; narrow the reviewed data selection");
-    const result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask, ...(input.attachments?.length ? { attachments: input.attachments } : {}) });
+    const identity = { prompt_path: input.prompt_path, prompt_digest: sha256(prompt.instructions),
+      binding_digest: prompt.bindingDigest, model_task: prompt.modelTask, model_profile: prompt.modelProfile,
+      context_digest: sha256(input.data), delivered_context_digest: sha256(data),
+      ...(repair ? { read_repair_number: repair.number, read_repair_feedback_digest: repair.digest } : {}), ...(input.attachments?.length ? { attachment_digests: input.attachments.map(file => file.digest) } : {}), agent_id: context.agentId,
+      instance_id: context.instanceId, tool_id: context.toolId, artifact_hash: this.#artifact.artifactHash, core_commit: this.#artifact.provenance.coreCommit, workspace_commit: this.#artifact.provenance.workspaceCommit };
+    const attempt = this.#state ? new LanguageAttempt(this.#state, { runId: context.runId, stepId: context.stepId,
+      inputHash: sha256(identity), evidence: identity, fence: context.dispatchFence }) : undefined;
+    await attempt?.prepare();
+    let result;
+    try {
+      result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask,
+        modelProfile: prompt.modelProfile, ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+        ...(attempt ? { beforeDispatch: (selection, instructions) => attempt.dispatch(selection, instructions) } : {}) });
+    } catch (error) {
+      await attempt?.finish(attempt?.dispatched && !(error instanceof LanguageGenerationError && error.kind === "incomplete") ? "unknown" : "failed", {
+        ...(error instanceof LanguageGenerationError ? error.evidence : {}), error_digest: languageFailureDigest(error) });
+      throw error;
+    }
+    if (attempt && !attempt.dispatched) {
+      await attempt.finish("unknown", { failure_kind: "missing-dispatch-evidence" });
+      throw new Error("Language host returned without dispatch evidence");
+    }
     const output = { text: result.text };
-    if (validateJsonSchemaValue(LANGUAGE_GENERATE_OUTPUT, output).length || !result.text.trim()) throw new Error("Generation returned no bounded text");
-    return { output, evidence: { ...result.evidence, prompt_path: input.prompt_path, prompt_digest: sha256(prompt.instructions),
-      context_digest: sha256(input.data), ...(input.attachments?.length ? { attachment_digests: input.attachments.map(file => file.digest) } : {}), output_digest: sha256(output), agent_id: context.agentId,
-      artifact_hash: this.#artifact.artifactHash, workspace_commit: this.#artifact.provenance.workspaceCommit } };
+    if (validateJsonSchemaValue(LANGUAGE_GENERATE_OUTPUT, output).length || !result.text.trim()) {
+      await attempt?.finish("failed", { ...result.evidence, failure_kind: "invalid-output" });
+      throw new Error("Generation returned no bounded text");
+    }
+    const evidence = { ...result.evidence, ...identity, output_digest: sha256(output), ...(attempt ? { attempt_id: attempt.id } : {}) };
+    await attempt?.finish("succeeded", evidence);
+    return { output, evidence };
   }
 }

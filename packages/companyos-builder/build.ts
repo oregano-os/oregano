@@ -1,3 +1,4 @@
+import { parseBrainRepositoryBinding } from "../brain/repository-binding.ts";
 import { compileRecordsBuildInputs, type RecordsBuildInputs } from "./records-build-input.ts";
 import { CORE_CAPABILITY_CATALOG } from "../capabilities/catalog.ts";
 import { assertValidJsonSchema } from "../capabilities/validation.ts";
@@ -15,6 +16,10 @@ import { validateWorkflowInstanceBindings } from "./instance-loader.ts";
 import { compileWorkflows } from "./workflow-compiler.ts";
 import YAML from "yaml";
 import { compileWorkspaceReleasePolicy } from "../runtime/release/policy.ts";
+import { bindLanguagePrompts, type LanguagePromptBinding } from "../language/prompt-binding.ts";
+import { STANDARD_BRAIN_TOOLS } from "../standard-tools/brain.ts";
+import { brainAgentGuidance, scopedBrainDescription } from "../brain/tools.ts";
+import { compileBrainAdoption, compileWorkspaceRuntimePolicy } from "./brain-adoption.ts";
 
 export function buildCompanyOSArtifact(args: {
   workspaceRoot: string;
@@ -34,6 +39,7 @@ export function buildCompanyOSArtifact(args: {
     ...STANDARD_DIRECTORY_TOOLS,
     ...STANDARD_WORK_ITEM_TOOLS,
     ...STANDARD_COMMUNICATION_TOOLS,
+    ...STANDARD_BRAIN_TOOLS,
   ];
   for (const [label, value] of [["coreCommit", args.coreCommit], ["workspaceCommit", args.workspaceCommit]] as const) {
     if (!/^[0-9a-f]{40}$/.test(value)) throw new Error(`${label} must be an immutable 40-character Git SHA.`);
@@ -45,30 +51,37 @@ export function buildCompanyOSArtifact(args: {
     assertValidJsonSchema(contract.outputSchema, `${contract.id} output schema`);
   }
   const workspace = loadCompanyWorkspace(args.workspaceRoot, { includeBuilder: true });
+  const runtimePolicy = compileWorkspaceRuntimePolicy(workspace.allFiles);
+  const brain = compileBrainAdoption(workspace.allFiles, runtimePolicy);
   if (args.instance.builder && !workspace.agents.some((agent) => agent.id === "builder")) {
     throw new Error("Builder execution bindings require a Workspace Builder definition.");
   }
   const agents = workspace.agents.map((agent) => {
+    const effectiveGrants = [...agent.grants, ...(runtimePolicy?.commonToolGrants ?? [])];
+    const scopedStandardTools = standardTools.map(tool => tool.contract.runtimeId.startsWith("oregano:brain/")
+      ? { ...tool, contract: { ...tool.contract, description: scopedBrainDescription(tool.contract.runtimeId.slice("oregano:brain/".length), effectiveGrants) } } : tool);
     const toolSet = resolveToolSet({
       agentId: agent.id,
       grants: agent.grants,
+      ...(runtimePolicy ? { commonGrants: { grants: runtimePolicy.commonToolGrants, path: runtimePolicy.path, digest: runtimePolicy.digest } } : {}),
       companyTools: agent.tools.map((tool) => tool.contract),
-      standardTools: standardTools.map((tool) => tool.contract),
+      standardTools: scopedStandardTools.map((tool) => tool.contract),
       capabilityCatalog: CORE_CAPABILITY_CATALOG,
       allowedCapabilities: workspace.allowedCapabilities,
       bindings: args.instance.bindings,
     });
     const resolvedIds = new Set(toolSet.tools.map((tool) => tool.runtimeId));
+    if (!brain && [...resolvedIds].some(id => id.startsWith("oregano:brain/"))) throw new Error("Brain grants require explicit Workspace adoption.");
     return {
       id: agent.id,
       ...(agent.id === "builder" ? { sourcePaths: Object.keys(workspace.allFiles).sort() } : {}),
-      instructions: agent.instructions,
+      instructions: agent.instructions + (brain ? brainAgentGuidance([...resolvedIds], brain.configuration.filing_guidance) : ""),
       ...(agent.description === undefined ? {} : { description: agent.description }),
       ...(agent.modelTask === undefined ? {} : { modelTask: agent.modelTask }),
       ...(agent.conversationCoordinator === undefined ? {} : { conversationCoordinator: agent.conversationCoordinator }),
       materials: scopedMaterials(workspace, agent.scopeRead),
       toolSet,
-      tools: [...agent.tools, ...standardTools].filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
+      tools: [...agent.tools, ...scopedStandardTools].filter((tool) => resolvedIds.has(tool.contract.runtimeId)),
     };
   });
   const resolvedToolSetHash = sha256(agents.map((agent) => ({ id: agent.id, hash: agent.toolSet.hash })));
@@ -102,6 +115,7 @@ export function buildCompanyOSArtifact(args: {
     bindings: [...args.instance.bindings].sort((a, b) => a.capability.localeCompare(b.capability)),
     connectors: compileRecordsBuildInputs(args.instance.connectors ?? [], args.recordsBuildInputs ?? {}, { instanceId: args.instance.instanceId, coreCommit: args.coreCommit, coreVersion, workspaceCommit: args.workspaceCommit, workbenchVersion }).sort((a, b) => a.id.localeCompare(b.id)),
     roster: workspace.roster,
+    ...(brain ? { brain } : {}),
     agents,
     agentRouting,
     ...(args.instance.workflowBindings ? { workflowBindings: args.instance.workflowBindings } : {}),
@@ -113,5 +127,23 @@ export function buildCompanyOSArtifact(args: {
     ...withoutHash,
     provenance: { ...withoutHash.provenance, builtAt: undefined },
   };
-  return { ...withoutHash, artifactHash: sha256(hashInput) };
+  const artifact: CompanyOSArtifact = { ...withoutHash, artifactHash: "" };
+  for (const connector of artifact.connectors ?? []) {
+    if (connector.connector === "oregano/brain") {
+      if (connector.connectorVersion !== "0.1.0" || !brain) throw new Error("Brain connector requires supported version and explicit Workspace adoption.");
+      const binding = parseBrainRepositoryBinding(connector.configuration, artifact.instance.id);
+      if (args.instance.builder && (binding.repositoryId !== args.instance.builder.repository.repositoryId
+        || binding.bindingId !== args.instance.builder.repository.sourceBinding)) throw new Error("Brain must reuse the Company's existing Workspace repository installation.");
+    }
+    if (connector.connector !== "oregano/language-model" || connector.connectorVersion !== "1.0.0") continue;
+    if (Object.keys(connector.configuration).join(",") !== "prompts") throw new Error("Language connector configuration requires only prompt bindings");
+    const prompts = connector.configuration.prompts as unknown as LanguagePromptBinding[];
+    bindLanguagePrompts(artifact, prompts);
+    for (const prompt of prompts) if (prompt.conversation_context === false) {
+      const agent = artifact.agents.find(agent => agent.id === prompt.agent_id)!;
+      agent.generationOnlyMaterials = [...new Set([...(agent.generationOnlyMaterials ?? []), prompt.path])].sort();
+    }
+  }
+  artifact.artifactHash = sha256(hashInput);
+  return artifact;
 }

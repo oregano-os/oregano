@@ -1,3 +1,4 @@
+import { checkBrainWorkspace } from "./brain-operations.mjs";
 import { inspectWorkflowSteps } from "./workflow-steps.mjs";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
@@ -33,7 +34,7 @@ const EXECUTION_MODES = new Set(["supervised", "unattended"]);
 const riskPattern = /\bR[0-4]\b/;
 
 const allMarkdown = (root) => walkFiles(root, {
-  include: (path) => path.endsWith(".md"),
+  include: (path) => path.endsWith(".md") && !relativePath(root, path).startsWith("brain/"),
   skip: [".git", "node_modules", ".companyos-cache"],
 });
 
@@ -59,6 +60,7 @@ export function validateWorkspace(root) {
     catch (error) { diagnostics.push(diagnostic("WSI001", "error", error.message, { file: WORKSPACE_INSTANCE_PATH })); }
   }
 
+  diagnostics.push(...checkBrainWorkspace(root).diagnostics);
   const documents = parsedMarkdown(root);
   const byPath = new Map(documents.map((document) => [document.relative, document]));
   for (const document of documents) {

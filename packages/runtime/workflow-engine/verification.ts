@@ -1,3 +1,5 @@
+import { agentCallKey, agentToolName, AGENT_FINISH_TOOL, AGENT_SKILL_TOOL } from "./agent-contract.ts";
+import { validateAgentState } from "./agent-state.ts";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { StateStore } from "../../state-store/interface.ts";
@@ -107,6 +109,35 @@ export async function verifyCompletedWorkflow(args: { artifact: CompanyOSArtifac
           snapshotId: output.snapshot_id, digest: sha256({ required, snapshot: output.snapshot_id, proofs }),
           sources: proofs.map((proof: any) => ({ sourceId: proof.source_id, sourceDigest: proof.source_digest, syncRunId: proof.run_id,
             scanStartedAt: proof.scan_started_at, scanCompletedAt: proof.scan_completed_at, inventoryDigest: proof.inventory_digest, watermarkDigest: sha256(proof.watermark) })) });
+      }
+      if (step.agent) {
+        validateAgentState(stored, step, stored);
+        check("agent-completion", eventFor("workflow.agent-completed", step.id).length === 1, step.id);
+        for (const [turnIndex, turn] of (stored.agent?.turns ?? []).entries()) {
+          const attempt = object(await control.getEffect(turn.attemptId));
+          check("agent-model-attempt", attempt.status === (turn.failure ? "failed" : "succeeded") && field(attempt, "runId", "run_id") === run.runId, step.id);
+          for (const [callIndex, callResult] of turn.results.entries()) {
+            const call = turn.response!.calls[callIndex]!;
+            if (callResult.error || [AGENT_FINISH_TOOL, AGENT_SKILL_TOOL].includes(call.name)) continue;
+            const entry = step.agent.tools.find(entry => agentToolName(entry.tool.grantId) === call.name);
+            const tool = artifact.agents.find(agent => agent.id === workflow!.agentId)?.tools.find(tool => tool.contract.runtimeId === entry?.tool.runtimeId);
+            if (!check("agent-pinned-tool", !!tool && sha256(tool.contract) === entry?.tool.contractDigest, step.id)) continue;
+            const key = agentCallKey(turnIndex, callIndex), executionStepId = workflowExecutionStepId(step.id, key);
+            const input = { ...object(call.input), ...object(resolveWorkflowValue(entry!.bind, workflow!, context)) };
+            check("agent-call-input", jsonDigest(input) === jsonDigest(callResult.input), step.id);
+            check("agent-call-guard", eventFor("workflow.tool-validated", executionStepId).some(event => object(event.payload).artifact_hash === artifact.artifactHash && object(event.payload).item_key === key), step.id);
+            const effectful = tool!.contract.capabilities.some(id => artifact.capabilityCatalog.some(capability => capability.id === id && capability.mode === "effect"));
+            if (!effectful) continue;
+            const effectKey = workflowEffectKey(artifact, { ...context, itemKey: key });
+            const effect = object(await control.getEffect(effectKey)), evidence = object(effect.evidence);
+            const inputDigest = jsonDigest(input), outputDigest = jsonDigest(callResult.output);
+            check("agent-effect-receipt", effect.status === "succeeded" && field(effect, "stepId", "step_id") === executionStepId
+              && field(effect, "inputHash", "input_hash") === inputDigest && jsonDigest(evidence.output) === outputDigest, step.id);
+            syntheticEvidence ||= Array.isArray(evidence.capabilityEvidence) && evidence.capabilityEvidence.some((entry: unknown) => object(entry).synthetic === true);
+            receipts.push({ stepId: executionStepId, effectKey, inputDigest, outputDigest });
+          }
+        }
+        continue;
       }
       if (!step.tool) continue;
       const tool = artifact.agents.find((entry) => entry.id === workflow!.agentId)?.tools.find((entry) => entry.contract.runtimeId === step.tool!.runtimeId);

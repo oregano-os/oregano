@@ -47,6 +47,12 @@ export class InMemoryDurableTimerStore implements DurableTimerStore {
         ...(row.completedAt ? { completedAt: row.completedAt } : {}),
       }));
   }
+  async get(args: { instanceId: string; timerId: string }): Promise<StoredDurableTimer | undefined> {
+    const row = this.rows.get(key(args.instanceId, args.timerId));
+    if (!row) return undefined;
+    const { leaseOwner, leaseToken, leaseExpiresAt, ...stored } = row;
+    return structuredClone(stored);
+  }
 
   async claimDue(args: { instanceId: string; timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit: number }): Promise<ClaimedDurableTimer[]> {
     const due = [...this.rows.values()]

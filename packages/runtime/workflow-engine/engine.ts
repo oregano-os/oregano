@@ -1,5 +1,11 @@
+import { assertUnwrittenSource, sourceContinuationOrigin, sourceContinuationRunId } from "./source-continuation.ts";
+import { readLanguageAttempts } from "../../language/attempts.ts";
+import { advanceWorkflowAgent } from "./agent-execution.ts";
+import type { WorkflowAgentGenerator } from "./agent-contract.ts";
+import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
 import { validateCollection, validateCollectionCandidate } from "./collection.ts";
 import { randomUUID } from "node:crypto";
+import { prepareWorkflowReadRepair } from "./read-repair.ts";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { CompiledWorkflow, CompiledWorkflowStep, WorkflowSchedule } from "../../companyos-builder/workflow-types.ts";
@@ -23,6 +29,8 @@ import { verifyCompletedWorkflow } from "./verification.ts";
 import type { WorkflowVerificationRequirement } from "./verification-requirements.ts";
 import { prepareDecisionRecovery, type VerifyPublicationNotSent } from "./decision-recovery.ts";
 import { RecordScanPendingError } from "../../records/current-scan.ts";
+import { BrainRecoveryPendingError } from "../../brain/writes.ts";
+import { standardBrainWriteCapability } from "../../standard-tools/brain.ts";
 
 export interface WorkflowEngineOptions {
   artifact: CompanyOSArtifact;
@@ -31,6 +39,8 @@ export interface WorkflowEngineOptions {
   timers: DurableTimerService;
   /** Exact enabled processes and authenticated operator principals are Instance authority. */
   enabledWorkflowIds: readonly string[];
+  transcriptImports?: readonly TranscriptImportBinding[];
+  agentGenerator?: WorkflowAgentGenerator;
   operatorPrincipals: readonly string[];
   currentRoster: () => Promise<RosterMember[]>;
   connectors: (artifact: CompanyOSArtifact) => Promise<Connector[]>;
@@ -54,7 +64,8 @@ export class WorkflowEngine {
   constructor(options: WorkflowEngineOptions) {
     this.#artifact = structuredClone(options.artifact); assertWorkflowArtifact(this.#artifact);
     if (options.timers.instanceId !== options.artifact.instance.id) throw new Error("Workflow timers belong to another Instance");
-    this.#options = { ...options, enabledWorkflowIds: [...options.enabledWorkflowIds], operatorPrincipals: [...options.operatorPrincipals] };
+    this.#options = { ...options, enabledWorkflowIds: [...options.enabledWorkflowIds], operatorPrincipals: [...options.operatorPrincipals],
+      transcriptImports: parseTranscriptImportBindings(options.transcriptImports, this.#artifact, options.enabledWorkflowIds) };
     const ttl = options.assignmentLifetimeMs ?? 30 * 86_400_000;
     if (!Number.isSafeInteger(ttl) || ttl < 60_000 || ttl > 3660 * 86_400_000) throw new Error("Workflow conversation lifetime is outside the supported bound");
   }
@@ -71,6 +82,16 @@ export class WorkflowEngine {
     const workflow = artifact?.workflows?.find((workflow) => workflow.id === run.workflowId);
     const step = workflow?.steps.find((step) => step.id === run.state.cursor);
     if (!artifact || !workflow || !step || workflow.manifestHash !== run.manifestHash) throw new Error("Workflow historical Artifact, manifest or step is unavailable");
+    const binding = this.#options.transcriptImports?.find(binding => binding.workflowId === run.workflowId);
+    if (binding?.processingField !== undefined) {
+      const currentWorkflow = this.#artifact.workflows?.find(item => item.id === run.workflowId);
+      if (!currentWorkflow || !run.state.sourceAdmission) throw new Error("Current transcript processing scope requires retained source admission");
+      await transcriptImportOrigin({ store: this.#options.control, instanceId: run.instanceId,
+        workflow: currentWorkflow, binding, fields: {
+          [binding.sourceIdentityField]: run.state.sourceAdmission.sourceIdentity,
+          [binding.sourceVersionField]: run.state.sourceAdmission.sourceVersion,
+        } });
+    }
     return { artifact, workflow, step };
   }
   #calendar(workflow: CompiledWorkflow, path?: string): WorkflowSchedule | undefined {
@@ -135,7 +156,7 @@ export class WorkflowEngine {
     return this.#open({ ...args, params: occurrence.params }, originKey);
   }
 
-  async #open(args: { workflowId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }, originKey: string): Promise<WorkflowRun> {
+  async #open(args: { workflowId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }, originKey: string, predecessor?: WorkflowRun): Promise<WorkflowRun> {
     const workflow = this.#artifact.workflows?.find((workflow) => workflow.id === args.workflowId);
     if (!workflow) throw new Error("Unknown workflow");
     const now = this.#now(), instant = args.instant ?? now; workflowInstant(instant);
@@ -152,6 +173,18 @@ export class WorkflowEngine {
       trigger.previous_instant = workflowPreviousTrigger(calendar, workflow.trigger.id, instant).instant;
     }
     if (trigger.previous_instant && trigger.previous_instant >= instant) throw new Error("Previous trigger must precede this opening");
+    const transcriptBinding = this.#options.transcriptImports?.find(binding => binding.workflowId === workflow.id);
+    const sourceAdmission = transcriptBinding ? await transcriptImportOrigin({ store: this.#options.control, instanceId: this.#artifact.instance.id,
+      workflow, binding: transcriptBinding, fields }) : undefined;
+    if (sourceAdmission) originKey = sourceAdmission.originKey;
+    if (predecessor) {
+      const restart = predecessor.state.sourceRestart;
+      if (!sourceAdmission || !restart || predecessor.state.status !== "cancelled" || restart.artifactHash !== this.#artifact.artifactHash
+        || sourceAdmission.receipt.sourceIdentity !== predecessor.state.sourceAdmission?.sourceIdentity
+        || sourceAdmission.receipt.sourceVersion !== predecessor.state.sourceAdmission?.sourceVersion
+        || sourceAdmission.receipt.importId !== predecessor.state.sourceAdmission?.importId) throw new Error("Source continuation differs from retained admission or reviewed replacement Artifact");
+      originKey = sourceContinuationOrigin(predecessor.runId);
+    }
     const identity: WorkflowRunIdentity = { instanceId: this.#artifact.instance.id, workflowId: workflow.id, runId: "", artifactHash: this.#artifact.artifactHash,
       manifestHash: workflow.manifestHash, originKey, originDigest: "", subjectPrincipal: args.principal,
       trigger, fields, createdAt: now };
@@ -159,26 +192,78 @@ export class WorkflowEngine {
     const prior = await this.#options.store.findOrigin(identity.instanceId, identity.workflowId, identity.originKey);
     if (prior) {
       // A request without an explicit instant retains its original opening time on retry.
-      if (!args.instant) {
+      if (!args.instant || transcriptBinding) {
         identity.trigger.instant = prior.trigger.instant; identity.fields.run_date = prior.fields.run_date!;
         if (workflow.instance.fields.includes("trigger_instant")) identity.fields.trigger_instant = prior.trigger.instant;
-        if (!args.previousInstant) identity.trigger.previous_instant = prior.trigger.previous_instant;
+        if (!args.previousInstant || transcriptBinding) identity.trigger.previous_instant = prior.trigger.previous_instant;
         identity.originDigest = workflowOriginDigest(identity);
       }
       if (prior.originDigest !== identity.originDigest) throw new Error("Workflow opening identity conflicts with changed input");
-      return prior;
+      return prior.state.sourceRestart ? this.#continueSource(prior) : prior;
     }
     const agent = this.#artifact.agents.find((agent) => agent.id === workflow.agentId)!;
     await this.#options.store.putArtifact(this.#artifact);
-    return this.#options.store.create({ identity, state: { status: "running", cursor: workflow.entry, logicalInstant: instant, steps: {}, decisions: {} },
+    return this.#options.store.create({ identity, state: { status: "running", cursor: workflow.entry, logicalInstant: instant, steps: {}, decisions: {},
+        ...(sourceAdmission ? { sourceAdmission: predecessor?.state.sourceAdmission ?? sourceAdmission.receipt } : {}),
+        ...(predecessor ? { sourcePredecessor: { runId: predecessor.runId, artifactHash: predecessor.artifactHash } } : {}) },
       meta: { runId: identity.runId, workflow: workflow.id, workflowVersion: String(workflow.version), companyCommit: this.#artifact.provenance.workspaceCommit,
         companySnapshotHash: this.#artifact.provenance.workspaceHash, agentDefinitionHash: sha256({ instructions: agent.instructions, materials: agent.materials }), agentAdapter: "companyos-workflow-engine", adapterVersion: "1" } });
+  }
+
+  async #continueSource(predecessor: WorkflowRun): Promise<WorkflowRun> {
+    const restart = predecessor.state.sourceRestart;
+    if (!restart || predecessor.state.status !== "cancelled" || restart.successorRunId !== sourceContinuationRunId(predecessor)) throw new Error("Invalid retained source continuation");
+    const successor = await this.#options.store.read(predecessor.instanceId, restart.successorRunId);
+    if (successor) {
+      if (successor.artifactHash !== restart.artifactHash || successor.state.sourcePredecessor?.runId !== predecessor.runId
+        || successor.state.sourcePredecessor?.artifactHash !== predecessor.artifactHash
+        || jsonDigest(successor.state.sourceAdmission!) !== jsonDigest(predecessor.state.sourceAdmission!)) throw new Error("Source continuation receipt conflicts with its predecessor");
+      return successor;
+    }
+    const fields = Object.fromEntries(Object.entries(predecessor.fields).filter(([key]) => !["trigger_id", "run_date", "trigger_instant"].includes(key)));
+    return this.#open({ workflowId: predecessor.workflowId, principal: predecessor.subjectPrincipal, fields,
+      instant: predecessor.updatedAt }, sourceContinuationOrigin(predecessor.runId), predecessor);
+  }
+
+  /** One explicit migration of a source with no attempted writes; paid attempts remain on both linked runs. */
+  async continueUnwrittenSource(runId: string, principal: string, expectedRevision: number, reason: string): Promise<WorkflowRun> {
+    await this.#operator(principal); opaqueId(reason);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error("Source continuation needs an exact revision");
+    const existing = await this.#options.store.read(this.#artifact.instance.id, runId);
+    if (!existing) throw new Error("Source predecessor is unavailable");
+    this.#enabled(existing.workflowId);
+    await this.#definition(existing); // Enforce the current activated processing subset, including historical runs.
+    if (existing.state.sourceRestart) return this.#continueSource(existing);
+    const now = this.#now(), run = await this.#options.store.claim({ instanceId: existing.instanceId, runId,
+      owner: "workflow-source-continuation", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Source predecessor is leased or terminal");
+    try {
+      if (run.revision !== expectedRevision) throw new Error("Source predecessor changed before continuation");
+      const { artifact } = await this.#definition(run);
+      assertUnwrittenSource(run.state, run.workflowId, artifact);
+      if (artifact.artifactHash === this.#artifact.artifactHash) throw new Error("Source continuation requires a reviewed replacement Artifact");
+      const attempts = await readLanguageAttempts(this.#options.control, [runId]);
+      if (attempts.some(attempt => !["succeeded", "failed"].includes(attempt.status))) throw new Error("Unknown or unfinished model attempt requires reconciliation before source continuation");
+      const binding = this.#options.transcriptImports?.find(item => item.workflowId === run.workflowId);
+      const replacement = this.#artifact.workflows?.find(item => item.id === run.workflowId);
+      if (!binding || !replacement || replacement.trigger.kind !== "operator") throw new Error("Source continuation needs the enabled operator Workflow and reviewed admission binding");
+      await transcriptImportOrigin({ store: this.#options.control, instanceId: run.instanceId, workflow: replacement, binding, fields: run.fields });
+      await this.#options.store.putArtifact(this.#artifact);
+      const state = structuredClone(run.state);
+      state.sourceRestart = { successorRunId: sourceContinuationRunId(run), artifactHash: this.#artifact.artifactHash,
+        principal, authorizedAt: now, reasonDigest: sha256(reason) };
+      state.status = "cancelled"; delete state.wait;
+      const cancelled = await this.#save(run, state, "workflow.source-continued", { ...state.sourceRestart,
+        previous_artifact_hash: run.artifactHash, retained_attempt_count: attempts.length }, undefined, principal);
+      return this.#continueSource(cancelled);
+    } finally { await this.#options.store.release({ instanceId: existing.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 
   async step(runId: string): Promise<WorkflowRun | undefined> {
     const store = this.#options.store, instanceId = this.#artifact.instance.id;
     const existing = await store.read(instanceId, runId);
     if (!existing || terminal(existing)) return existing;
+    if (this.#options.transcriptImports?.some(binding => binding.workflowId === existing.workflowId && binding.processingField !== undefined)) await this.#definition(existing);
     if (existing.state.blocked) return this.#deliverReview(existing);
     this.#enabled(existing.workflowId); await this.#ensureTimers(existing);
     if (existing.state.status === "waiting") return existing;
@@ -193,6 +278,11 @@ export class WorkflowEngine {
       if (run.trigger.instant > now && !Object.keys(state.steps).length) {
         state.status = "waiting"; state.wait = { stepId: step.id, kind: "start", dueAt: run.trigger.instant, timerId: timerId(run, step.id, "start", run.trigger.instant) };
         return await this.#save(run, state, "workflow.awaiting-start");
+      }
+      if (step.agent) {
+        const advanced = await advanceWorkflowAgent({ run, artifact, workflow, step, options: this.#options, now });
+        if (advanced.output !== undefined) this.#finish(advanced.state, step, advanced.output, this.#now());
+        return await this.#save(run, advanced.state, advanced.event, advanced.evidence);
       }
       if (step.route) {
         const outcome = resolveWorkflowValue(step.route.on, workflow, ctx);
@@ -275,10 +365,19 @@ export class WorkflowEngine {
     } catch (error) {
       if (error instanceof WorkflowLeaseLostError) return store.read(instanceId, runId);
       const state = structuredClone(run.state), message = error instanceof Error ? error.message : String(error);
-      const pinned = error instanceof RecordScanPendingError ? await store.getArtifact(run.artifactHash) : undefined;
+      const pinned = error instanceof RecordScanPendingError || error instanceof BrainRecoveryPendingError ? await store.getArtifact(run.artifactHash) : undefined;
       const failedStep = pinned?.workflows?.find(entry => entry.id === run.workflowId)?.steps.find(entry => entry.id === state.cursor);
       const startedAt = state.steps[state.cursor!]?.startedAt;
       const now = this.#now();
+      const brainTool = pinned?.agents.find(agent => agent.id === pinned.workflows?.find(entry => entry.id === run.workflowId)?.agentId)?.tools
+        .find(tool => tool.contract.runtimeId === failedStep?.tool?.runtimeId);
+      if (error instanceof BrainRecoveryPendingError && brainTool && standardBrainWriteCapability(brainTool)
+        && startedAt && Date.parse(now) < Date.parse(startedAt) + 15 * 60_000) {
+        const dueAt = new Date(Math.min(Date.parse(now) + 30_000, Date.parse(startedAt) + 15 * 60_000)).toISOString();
+        state.status = "waiting";
+        state.wait = { stepId: state.cursor!, kind: "effect", dueAt, timerId: timerId(run, state.cursor!, "effect", dueAt) };
+        return await this.#save(run, state, "workflow.awaiting-effect-reconciliation", { due_at: dueAt });
+      }
       if (error instanceof RecordScanPendingError && failedStep?.tool?.runtimeId === "oregano:records/query"
         && failedStep.maxRisk === "R0" && failedStep.requireScanStartedAfter !== undefined
         && startedAt && Date.parse(now) < Date.parse(startedAt) + 15 * 60_000) {
@@ -651,6 +750,58 @@ export class WorkflowEngine {
     } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 
+  async repairReadPhase(runId: string, principal: string, request: { fromStepId: string; expectedRevision: number; reason: string; feedback?: string }): Promise<WorkflowRun> {
+    await this.#operator(principal);
+    if (!Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 1) throw new Error("Read repair requires the exact observed run revision");
+    const now = this.#now(), store = this.#options.store;
+    const run = await store.claim({ instanceId: this.#artifact.instance.id, runId, owner: "workflow-operator", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Workflow read repair is busy or closed");
+    try {
+      this.#enabled(run.workflowId);
+      if (run.revision !== request.expectedRevision) throw new Error("Workflow read repair revision is stale");
+      const { artifact, workflow } = await this.#definition(run);
+      const state = prepareWorkflowReadRepair({ artifact, workflow, state: run.state, fromStepId: request.fromStepId, principal, now, reason: request.reason, feedback: request.feedback });
+      return await this.#save(run, state, "workflow.read-repair-authorized", {
+        from_step_id: request.fromStepId, through_step_id: run.state.cursor,
+        repair_number: state.readRepairs!.length, reason_digest: sha256(request.reason),
+        ...(request.feedback === undefined ? {} : { feedback_digest: sha256(request.feedback) }),
+      }, undefined, principal);
+    } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
+  }
+
+  /** A paid generation retry with no possible Tool replay; unknown billing remains retained. */
+  async retryAgentModel(runId: string, principal: string, expectedRevision: number, attemptId: string, reason: string): Promise<WorkflowRun> {
+    await this.#operator(principal); opaqueId(reason);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || !/^language-attempt:[a-f0-9-]{36}$/.test(attemptId)) throw new Error("Agent retry requires exact revision and attempt identity");
+    const existing = await this.#options.store.read(this.#artifact.instance.id, runId);
+    if (!existing) throw new Error("Agent retry run is unavailable");
+    this.#enabled(existing.workflowId);
+    const authorizedStep = Object.entries(existing.state.steps).find(([, step]) => step.agent?.turns.some(turn => turn.attemptId === attemptId && turn.retryAuthorization));
+    const authorized = authorizedStep?.[1].agent!.turns.find(turn => turn.attemptId === attemptId)!.retryAuthorization;
+    if (authorized) {
+      await this.#definition({ ...existing, state: { ...existing.state, cursor: authorizedStep![0] } });
+      if (authorized.principal !== principal || authorized.reasonDigest !== sha256(reason)) throw new Error("Agent retry already has different authority");
+      return existing;
+    }
+    await this.#definition(existing);
+    const now = this.#now(), run = await this.#options.store.claim({ instanceId: existing.instanceId, runId, owner: "workflow-agent-retry", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Agent retry run is leased or terminal");
+    try {
+      if (run.revision !== expectedRevision) throw new Error("Agent retry revision is stale");
+      const { step } = await this.#definition(run), stored = run.state.steps[step.id], turns = stored?.agent?.turns, last = turns?.at(-1);
+      if (!step.agent || !last || last.attemptId !== attemptId || last.failure?.outcome !== "unknown" || last.response || last.results.length || last.retryAuthorization
+        || !run.state.blocked || run.state.blocked.stepId !== step.id || run.state.status !== "waiting") throw new Error("Agent retry requires a blocked unavailable model response with no Tool calls");
+      if (turns!.length >= step.agent.budget.turns) throw new Error("Agent model-turn budget exhausted");
+      const attempt = (await readLanguageAttempts(this.#options.control, [runId])).find(item => item.attempt_id === attemptId);
+      if (attempt?.status !== "unknown" || !attempt.dispatched_at || attempt.step_id !== step.id) throw new Error("Unavailable model attempt receipt is required");
+      const state = structuredClone(run.state), target = state.steps[step.id]!;
+      target.agent!.turns.at(-1)!.retryAuthorization = { principal, authorizedAt: now, reasonDigest: sha256(reason) };
+      target.status = "running"; state.status = "running"; delete state.blocked;
+      return await this.#save(run, state, "workflow.agent-model-retry-authorized", { attempt_id: attemptId, principal,
+        reason_digest: sha256(reason), prior_cost_status: "unknown", tool_calls_from_unavailable_response: 0 }, undefined, principal);
+    } finally { await this.#options.store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
+  }
+
   async resume(runId: string, principal: string): Promise<WorkflowRun> {
     await this.#operator(principal);
     const now = this.#now(), run = await this.#options.store.claim({ instanceId: this.#artifact.instance.id, runId, owner: "workflow-operator", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
@@ -662,7 +813,11 @@ export class WorkflowEngine {
         : step.decision ? run.state.decisions[step.id]?.recipients ?? [] : [undefined];
       for (const itemKey of keys) {
         const effect = await this.#options.control.getEffect(workflowEffectKey(artifact, { ...ctx, ...(itemKey === undefined ? {} : { itemKey }) }));
-        if (effect && effect.status !== "succeeded") throw new Error("Unknown, failed or claimed workflow effect requires reconciliation; it cannot be retried blindly");
+        const tool = artifact.agents.find(agent => agent.id === workflow.agentId)?.tools.find(tool => tool.contract.runtimeId === step.tool?.runtimeId);
+        // The exact maintained Brain Tool will enter read-only receipt reconciliation,
+        // retaining the original outer and source-operation effect identities.
+        const brainRecovery = tool && standardBrainWriteCapability(tool) && ["unknown", "dispatched"].includes(String(effect?.status));
+        if (effect && effect.status !== "succeeded" && !brainRecovery) throw new Error("Unknown, failed or claimed workflow effect requires reconciliation; it cannot be retried blindly");
       }
       const state = structuredClone(run.state); delete state.blocked; state.status = "running";
       if (state.steps[step.id]) state.steps[step.id]!.status = "running";

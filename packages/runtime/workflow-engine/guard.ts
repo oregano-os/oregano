@@ -1,3 +1,4 @@
+import { agentToolName } from "./agent-contract.ts";
 import { workflowDecisionNoticeInput } from "./decision-notice.ts";
 import { workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
@@ -121,6 +122,16 @@ export async function guardWorkflowInvocation(args: {
     if (canonicalJson(workflowReviewNoticeInput(args.artifact, workflow, step, context)) !== canonicalJson(args.request.input)) throw new Error("Effect review page or destination differs from its frozen state");
   } else if (context.mode === "conversation") {
     if (context.status !== "waiting" || !step.conversationalTools.includes(args.request.grantId) || reserved) throw new Error("Tool is outside the waiting step's conversational allowlist");
+  } else if (step.agent) {
+    const entry = step.agent.tools.find(entry => entry.tool.grantId === args.request.grantId);
+    if (context.status !== "running" || !context.agentCall || !entry || args.risk !== entry.tool.risk
+      || RISK_ORDER[args.risk] > RISK_ORDER.R1 || args.tool.contract.confirmation === "subject"
+      || context.agentCall.name !== agentToolName(entry.tool.grantId)
+      || entry.tool.contractDigest !== sha256(args.tool.contract) || entry.tool.version !== args.tool.contract.version) throw new Error("Agent call is outside its pinned step grant");
+    const input = context.agentCall.input;
+    if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Agent Tool input must be an object");
+    const expected = { ...input, ...resolveWorkflowValue(entry.bind, workflow, context) as Record<string, JsonValue> };
+    if (canonicalJson(expected) !== canonicalJson(args.request.input)) throw new Error("Agent call differs from its persisted input or fixed bindings");
   } else {
     if (context.status !== "running") throw new Error("Workflow run is not eligible for dispatch");
     if (!step.allowedTools.includes(args.tool.contract.runtimeId) || step.tool?.grantId !== args.request.grantId) throw new Error("Tool is outside the current workflow step");

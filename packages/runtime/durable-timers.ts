@@ -18,6 +18,9 @@ export class DurableTimerService {
   async list(timerKind?: string): Promise<StoredDurableTimer[]> {
     return this.store.list({ instanceId: this.instanceId, ...(timerKind ? { timerKind } : {}) });
   }
+  get(timerId: string): Promise<StoredDurableTimer | undefined> {
+    return this.store.get({ instanceId: this.instanceId, timerId });
+  }
 
   async claimDue(args: { timerKind?: string; now: string; owner: string; leaseToken: string; leaseExpiresAt: string; limit?: number }): Promise<ClaimedDurableTimer[]> {
     return this.store.claimDue({ ...args, instanceId: this.instanceId, limit: Math.min(Math.max(args.limit ?? 50, 1), 200) });

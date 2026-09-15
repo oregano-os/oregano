@@ -57,6 +57,14 @@ test("Postgres current scans preserve exact immutable membership across edits, f
   assert.equal((await query()).snapshot_id, first.snapshot_id);
   await sync("edited", ["one"], "current edit", "2031-02-01T16:59:02Z");
   const edited = await query();
+  const retainedQuery = { projection_id: projection.id, source_version_id: first.rows[0]!.source_version_id };
+  const retained = await new CompanyRecordsService({ instanceId, registry, store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) }).query({ subject, query: retainedQuery });
+  assert.deepEqual(retained.rows.map(row => row.values), [{ payload: { status: "original" } }]);
+  assert.equal(retained.retained_version_id, first.rows[0]!.source_version_id);
+  assert.equal(retained.fresh_until, retained.observed_at); assert.deepEqual(retained.source_proofs, []);
+  assert.deepEqual(validateJsonSchemaValue(RECORD_QUERY_OUTPUT_SCHEMA, retained), []);
+  await assert.rejects(new CompanyRecordsService({ instanceId, registry, store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) })
+    .query({ subject: { ...subject, status: "revoked" }, query: retainedQuery }));
   assert.deepEqual(edited.rows.map((row) => row.values), [{ payload: { status: "current edit" } }]);
   assert.equal(edited.source_scan_proofs?.[0]?.run_id, "edited");
   const sql = neon(process.env.DATABASE_URL!);
@@ -94,6 +102,13 @@ test("Postgres retains independent source and projection generations with exact 
   assert.equal(original.rows.length, 2, "new process reads exact persisted provenance");
   await assert.rejects(query(second), /not completely synchronized/);
   await sync(second, "new-one", ["one"]);
+  const retainedQuery = { projection_id: projection.id, source_version_id: original.rows[0]!.source_version_id };
+  const readRetained = (registry: CompanyRecordsRegistry) => new CompanyRecordsService({ instanceId, registry,
+    store: createPostgresCompanyRecordsStore(), now: () => new Date(instant) }).query({ subject, query: retainedQuery });
+  assert.equal((await readRetained(createRegistry("resource-a"))).rows.length, 1);
+  assert.equal((await readRetained(second)).rows.length, 0, "Retained lookup cannot cross a source binding generation");
+  const renamed = createRegistry("resource-a", { ...projection, fields: [{ name: "renamed", path: "payload" }], filters: {} });
+  assert.deepEqual((await readRetained(renamed)).rows[0]!.values, { renamed: { status: "open" } }, "Current exposed fields govern historical reads");
   assert.equal((await query(second)).rows.length, 1);
   assert.equal((await query(first)).snapshot_id, original.snapshot_id);
   const scopes = { [second.projectionStorageId(projection.id)]: [second.sourceStorageId(source.id)] };
@@ -116,6 +131,7 @@ test("Postgres retains independent source and projection generations with exact 
   await sql`update companyos_records.object_versions set source_receipt = '{}'::jsonb where instance_id = ${instanceId}`;
   assert.ok(frozen.rowSources!.every((origin) => origin.source_digest === second.sourceDigest(source.id)));
   await assert.rejects(query(second), /source-binding provenance/);
+  await assert.rejects(readRetained(first), /generation/);
 });
 
 test("Postgres preserves immutable complete reads, source proof and JSONB query identity after restart", { skip }, async () => {

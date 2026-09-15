@@ -7,12 +7,28 @@ export interface WorkflowStepState {
   startedAt: string;
   completedAt?: string;
   inputDigest?: string;
+  agent?: { turns: WorkflowAgentTurn[] };
   output?: JsonValue;
   /** Only actual completed item outputs, indexed by the canonical typed key digest. */
   items?: Record<string, { key: string | number; output: JsonValue }>;
   evidence?: JsonValue;
   /** One operator-authorized no-send recovery per decision recipient. Prior effects stay immutable. */
   publicationRecoveries?: Record<string, { priorEffectKey: string; inputDigest: string; proof: JsonValue; principal: string; authorizedAt: string }>;
+}
+export interface WorkflowAgentResponse {
+  /** Provider-neutral serialized conversation messages, retained as untrusted data. */
+  messages: JsonValue[];
+  calls: Array<{ id: string; name: string; input: JsonValue }>;
+  text: string;
+  finishReason: string;
+}
+export interface WorkflowAgentTurn {
+  attemptId: string;
+  response?: WorkflowAgentResponse;
+  failure?: { outcome: "failed" | "unknown"; digest: string };
+  /** Explicit further generation, never a claim that the unavailable attempt was free. */
+  retryAuthorization?: { principal: string; authorizedAt: string; reasonDigest: string };
+  results: Array<{ callId: string; input?: JsonValue; output?: JsonValue; error?: string }>;
 }
 export interface WorkflowStoredDecision {
   stepId: string;
@@ -29,13 +45,49 @@ export interface WorkflowStoredDecision {
   recipients: string[];
   deliveries: Record<string, JsonValue>;
 }
+export interface WorkflowSourceAdmission {
+  kind: "transcript-cohort" | "non-transcript-selection";
+  sourceKind?: "discussion";
+  importId: string;
+  cohortId: string;
+  policyDigest: string;
+  sourceIdentity: string;
+  sourceVersion: string;
+}
+export interface WorkflowReadRepair {
+  fromStepId: string;
+  throughStepId: string;
+  principal: string;
+  authorizedAt: string;
+  reasonDigest: string;
+  /** Optional validation diagnostic, never replacement source facts or instructions. */
+  feedback?: string;
+  blocked: { stepId: string; code: string; errorDigest: string };
+  steps: Record<string, WorkflowStepState>;
+}
+export interface WorkflowSourceRestart {
+  successorRunId: string;
+  artifactHash: string;
+  principal: string;
+  authorizedAt: string;
+  reasonDigest: string;
+}
 export interface WorkflowMutableState {
+  /** One explicit read-only source continuation; original outputs and costs stay on this cancelled run. */
+  sourceRestart?: WorkflowSourceRestart;
+  /** Immutable opening link; continuing a continuation is intentionally unsupported. */
+  sourcePredecessor?: { runId: string; artifactHash: string };
+
+  /** At most three explicit R0 repairs; prior results remain immutable and chargeable. */
+  readRepairs?: WorkflowReadRepair[];
+  /** Immutable opening proof; no source payload or runtime credential. */
+  sourceAdmission?: WorkflowSourceAdmission;
   status: "running" | "waiting" | "done" | "cancelled" | "failed";
   cursor: string | null;
   logicalInstant: string;
   steps: Record<string, WorkflowStepState>;
   decisions: Record<string, WorkflowStoredDecision>;
-  wait?: { stepId: string; kind: "step" | "delivery" | "decision" | "start" | "records"; timerId: string; dueAt: string };
+  wait?: { stepId: string; kind: "step" | "delivery" | "decision" | "start" | "records" | "effect"; timerId: string; dueAt: string };
   blocked?: { stepId: string; code: string; errorDigest: string };
   /** Frozen control notice pages; advancing them never advances the business cursor. */
   reviewDelivery?: WorkflowReviewDelivery;
@@ -110,7 +162,7 @@ export interface WorkflowStateCommit {
 }
 export interface WorkflowExecutionStore {
   /** Bounded retained history ordered by logical occurrence, not the hashed run ID. */
-  history(args: { instanceId: string; workflowIds: string[]; from: string; to: string; excludeRunId?: string; limit: number }): Promise<WorkflowRun[]>;
+  history(args: { instanceId: string; workflowIds: string[]; from: string; to: string; excludeRunId?: string; matchFields?: Record<string, string>; limit: number }): Promise<WorkflowRun[]>;
   putArtifact(artifact: CompanyOSArtifact): Promise<void>;
   getArtifact(hash: string): Promise<CompanyOSArtifact | undefined>;
   /** Creates control metadata and the execution record together; an opening event cannot select new inputs on redelivery. */

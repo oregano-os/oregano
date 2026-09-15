@@ -5,7 +5,7 @@ kind: status
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-12
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -14,6 +14,40 @@ audience:
 ---
 
 # Current System Status
+
+The experimental Brain import foundation now includes frozen cumulative transcript
+selection and per-attempt model usage/cost evidence through existing control state.
+Workspace values set dates and quantities; no import Workflow or live source is
+activated by these helpers. See [bounded import policy](../specifications/brain-import.md).
+
+
+The Brain Blueprint now includes a reusable 66-step operator import declaration.
+A separate Workbench template contains 31 restricted Tools; its pure materializer
+returns the Workflow, explicit Workspace policy and 21 scoped prompt bindings.
+Synthetic checks cover different company vocabularies and history/count settings,
+all Tool compilations and the absence of implicit grants or activation. The
+Blueprint passes standalone declarative inspection. This is authoring support,
+not a live ingestion or company adoption claim.
+
+Experimental trusted language prompt bindings now support explicit task/profile
+pairs and a measured per-binding instruction capacity up to 30,000 units;
+existing bindings retain 16,000. Static pinned Brain Skill materialization is
+covered by synthetic integrity, scope and budget checks. A protected model-only
+Preview qualified representative source triage and meeting phases, including the
+largest prompt and bounded repair. This proves the bounded prompt foundation;
+full import model qualification and company adoption remain pending.
+See [Brain Skill adoption](../specifications/brain-skill-adoption.md).
+
+The experimental Brain implements Markdown/Takes checking, scoped projection
+sync, seven Tools and common Workspace grants through the normal Agent runtime.
+Bounded private hosted reads and synthesis have been qualified. Writes and
+delta now have synthetic adapter/runtime tests, with durable effect recovery,
+atomic Git publication and explicit freshness bindings. Isolated hosted Markdown write, Git publication and indexed read-back have been
+qualified; full automatic ingestion remains pending. The additive database
+target is 3.1.0, with five derived Brain tables beside existing control and
+Records state. See the [Brain contract](../specifications/brain-read.md) and
+[maintained implementation](../operations/brain-read.md).
+
 
 Authenticated Agent file inputs now share experimental PDF, PNG/JPEG/WebP and
 Markdown preparation for qualified direct model providers. Core provider policy data
@@ -1337,3 +1371,115 @@ Synthetic regressions exercise the actual maintained chat adapter with fenced
 drafts and supplementary characters around chunk boundaries. Conversation
 selection, collection, approval and working-status lifecycle are unchanged;
 native client rendering still requires a live acceptance check.
+
+Bounded Workflow read repair is available to existing authenticated operators:
+an exact-revision request may restart a linear R0 Tool phase of a blocked run
+while archiving all previous results. Three repairs per run are permitted;
+effects, decisions, waits and changed Artifacts are excluded. Synthetic tests
+qualify this contract; hosted company adoption needs separate evidence.
+
+A transcript import binding may additionally declare at most 100 exact
+`nonTranscriptSources` entries with `identity`, `version` and
+`kind: discussion`. These reviewed source versions use the same source-keyed
+Workflow and normal Records/Tool permissions while retaining a distinct immutable
+non-transcript admission proof. They never allocate, refill, or change transcript
+cohort slots. Unknown versions and overlap with any admitted transcript fail
+closed. This is a finite selection, not a channel wildcard or an automatic
+expansion policy. Earlier completed source versions remain deduplicated.
+
+
+## Exact retained Record version reads
+
+The existing Records query accepts optional `source_version_id`, the exact
+64-character normalized version ID returned in a prior row. Omission or null
+preserves ordinary current reads. A selected version is read only from the
+current projection's at most 100 contributing source generations, after the
+active subject passes current projection and source access. It uses existing
+immutable version storage and reapplies the current projection's source/type
+selection, field allowlist and filters. It never falls back to another binding,
+Instance, arbitrary provider revision or nearby observation. Missing, deleted or
+nonmatching versions return no rows; invalid provenance or modified immutable
+content fails. No provider call or database migration is involved.
+
+The result marks `retained_version_id`, uses the original observation time and
+sets `fresh_until` to that same time. It provides no source-completeness or
+current-scan proof. Cursor, all-pages and completeness/scan requirements cannot
+be combined with this mode. The exact result is capped at 2,500,000 serialized
+characters without truncation. Consumers must retain the earlier row version ID;
+a provider's own content hash is a distinct value. Current source access changes
+and binding generations remain effective for historical reads.
+
+
+Historical Evidence Workflow queries may include `match_fields` for one selected
+Workflow and at most four exact declared instance-key values. The store applies
+the predicate before ordering and the result limit; the Connector independently
+checks every returned identity. Unknown/non-key fields and cross-kind use fail.
+Current Agent, Workflow, group, time-window, payload and result bounds remain
+unchanged. This reads existing run history; it does not create a source-progress
+registry, infer outcomes or reset effects.
+
+The Brain prompt Blueprint materializes source correction and correction verification
+phases from the existing pinned filing, quality and enrichment UPDATE sections.
+They preserve original versions, unrelated knowledge, stable Takes and earlier
+Timeline entries; a low-value incoming version does not waive reconciliation.
+These are proposal-only reasoning/deep phases under the unchanged generation
+bounds. Workspace execution and live correction qualification remain separate.
+
+Historical Workflow evidence defaults to bounded feedback event reads. An explicit
+`include_feedback: false` selects retained outputs without reading the feedback
+event log; each run returns `feedback: null` and coverage records
+`feedback-not-requested`. Complete coverage then refers only to the requested
+projection. It never establishes absence of feedback, approvals or provider events.
+
+
+Scoped language generation retains an explicit final output-format reminder and
+records the actual delivered system-instruction digest and length in attempt
+evidence. Strict downstream parsers still reject malformed responses, and
+bounded read repair preserves all prior attempts. Synthetic request checks pass;
+private import model qualification remains separately evidenced.
+
+
+Hosted scoped generation accepts one complete outer `json` code fence containing a
+valid JSON object or array as a transport encoding. It preserves the exact inner
+text and all fields; it never extracts JSON from commentary, joins blocks, repairs
+invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
+response records the encoding and both provider/delivered text digests alongside
+usage. Strict downstream schema, score, citation and content checks still apply.
+Existing failed attempts remain in the journal; a repair never replaces their cost.
+
+
+### Attributed read-repair diagnostics — September 15, 2026
+
+The existing operator read repair accepts optional bounded validation feedback.
+Core archives it with the exact prior outputs and exposes it only as data for the
+first repaired step. Language attempts retain original and delivered context
+digests and feedback attribution. Pinned Artifacts, model policy, validation,
+source admission and the maximum of three repairs remain unchanged. Portable
+Brain normalization instructions now state the enforced identity confidence and
+lookup enums explicitly; triage inputs expose complete retained source coverage.
+Resolution prompts also state exact lookup-key semantics, valid subject types,
+provisional-subject coverage and required page backlinks. Synthetic checks cover
+authorization, immutable history, isolation, input bounds and exact Connector delivery. Live qualification remains separate.
+
+## Incremental Agent import candidate
+
+The Brain candidate now includes durable tool-using Agent steps and an incremental
+source-processing Blueprint. Synthetic checks cover persisted model turns, bounded
+feedback, unknown-outcome holds and recovery of a saved Brain commit after a lost
+Workflow snapshot. This is implementation evidence, not completion of a company
+transcript cohort or production activation. Historical runs retain their original
+definitions and all costs; the changed import procedure still needs live qualification.
+
+The incremental source candidate now delivers all adopted procedure sections to the
+Agent, permits explicit no-write notability skips and verifies per-page read-back.
+Empty completed effect loops do not block an otherwise unwritten source continuation.
+These corrections have synthetic regression coverage; live qualification is separate.
+
+The [maintained source guide](../workbench/guides/connect-company-record-source.md#opt-in-complete-slack-discussions) describes the opt-in complete discussion field on root messages,
+with provider permalinks, ordered attribution and stable update versions. Legacy
+message delivery remains available. Live source delivery requires its own exact
+channel/binding qualification; the capability does not activate company imports.
+
+Stopped Agent tasks support an explicit operator-authorized generation retry when
+no response or Tool call was retained. Unknown usage remains unknown; this operation
+does not repeat Tools, change source versions or waive the task's completion checks.

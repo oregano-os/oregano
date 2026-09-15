@@ -1,3 +1,4 @@
+import { validateReadRepairFeedback } from "../../../runtime/workflow-engine/read-repair.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { loadArtifact } from "./artifact.ts";
 import { authenticateWorkflowOperator, authenticateWorkflowScheduler, decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "./workflow-configuration.ts";
@@ -12,6 +13,9 @@ export type WorkflowOperatorRequest =
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel" | "recover-unpublished-decision"; runId: string }
+  | { action: "retry-agent-model"; runId: string; expectedRevision: number; attemptId: string; reason: string }
+  | { action: "continue-unwritten-source"; runId: string; expectedRevision: number; reason: string }
+  | { action: "repair-read-phase"; runId: string; fromStepId: string; expectedRevision: number; reason: string; feedback?: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
@@ -39,6 +43,25 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
       return { action: "open", ...common, requestId: text("requestId"), ...(input.triggerVariant === undefined ? {} : { triggerVariant: input.triggerVariant as number }) };
     }
     return { action: "schedule", ...common, instant: text("instant") };
+  }
+  if (input.action === "retry-agent-model") {
+    exact(["runId", "expectedRevision", "attemptId", "reason"]);
+    if (!Number.isSafeInteger(input.expectedRevision) || Number(input.expectedRevision) < 0) throw new Error("Invalid Agent retry revision");
+    return { action: "retry-agent-model", runId: text("runId", /^workflow:[a-f0-9]{64}$/), expectedRevision: Number(input.expectedRevision),
+      attemptId: text("attemptId", /^language-attempt:[a-f0-9-]{36}$/), reason: text("reason") };
+  }
+  if (input.action === "continue-unwritten-source") {
+    exact(["runId", "expectedRevision", "reason"]);
+    if (!Number.isSafeInteger(input.expectedRevision) || Number(input.expectedRevision) < 0) throw new Error("Invalid source continuation revision");
+    return { action: "continue-unwritten-source", runId: text("runId", /^workflow:[a-f0-9]{64}$/), expectedRevision: Number(input.expectedRevision), reason: text("reason") };
+  }
+  if (input.action === "repair-read-phase") {
+    exact(["runId", "fromStepId", "expectedRevision", "reason", "feedback"]);
+    if (Object.hasOwn(input, "feedback")) validateReadRepairFeedback(input.feedback);
+    if (!Number.isSafeInteger(input.expectedRevision) || Number(input.expectedRevision) < 1) throw new Error("Invalid Workflow repair revision");
+    return { action: "repair-read-phase", runId: text("runId", /^workflow:[a-f0-9]{64}$/),
+      fromStepId: text("fromStepId", /^[a-z][a-z0-9-]{1,62}$/), expectedRevision: Number(input.expectedRevision), reason: text("reason"),
+      ...(input.feedback === undefined ? {} : { feedback: input.feedback as string }) };
   }
   if (input.action === "verify") {
     exact(["runId", "requirements"]);
@@ -138,6 +161,9 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
       } }, { status: verification.ok ? 200 : 409 });
     }
     if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
+    if (action.action === "repair-read-phase") return Response.json({ ok: true, run: summary(await host.engine.repairReadPhase(action.runId, principal, action)) });
+    if (action.action === "continue-unwritten-source") return Response.json({ ok: true, run: summary(await host.engine.continueUnwrittenSource(action.runId, principal, action.expectedRevision, action.reason)) });
+    if (action.action === "retry-agent-model") return Response.json({ ok: true, run: summary(await host.engine.retryAgentModel(action.runId, principal, action.expectedRevision, action.attemptId, action.reason)) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
     if (action.action === "recover-unpublished-decision") return Response.json({ ok: true, run: summary(await host.engine.recoverUnpublishedDecision(action.runId, principal)) });
     if (action.action === "recover-reply") {

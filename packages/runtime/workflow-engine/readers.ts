@@ -2,6 +2,8 @@ import { findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from
 import type { WorkflowConversation, WorkflowExecutionStore, WorkflowRun } from "../../state-store/workflow-engine.ts";
 import type { WorkflowContextReader, WorkflowInvocationContext } from "./context.ts";
 import { workflowItems } from "./references.ts";
+import { workflowReadRepairFeedback } from "./read-repair.ts";
+import { agentCallKey } from "./agent-contract.ts";
 import { canonicalJson } from "../canonical.ts";
 import { workflowReviewNoticeInput, workflowReviewStepId } from "./review-notice.ts";
 
@@ -14,6 +16,7 @@ export function workflowContext(run: WorkflowRun, roster: RosterMember[]): Workf
   return {
     mode: "engine", runId: run.runId, workflowId: run.workflowId, stepId: run.state.cursor,
     artifactHash: run.artifactHash, manifestHash: run.manifestHash, status: run.state.status, subjectPrincipal: run.subjectPrincipal,
+    readRepair: workflowReadRepairFeedback(run.state),
     publicationRecoveries: structuredClone(run.state.steps[run.state.cursor]?.publicationRecoveries),
     steps: Object.fromEntries(Object.entries(run.state.steps).filter(([, step]) => step.status === "succeeded").map(([id, step]) => [id, structuredClone(step.output!)])),
     trigger: structuredClone(run.trigger), instance: structuredClone(run.fields), currentRoster: structuredClone(roster),
@@ -43,6 +46,14 @@ export class WorkflowRunContextReader implements WorkflowContextReader {
       const workflow = artifact?.workflows?.find((workflow) => workflow.id === run.workflowId);
       const step = workflow?.steps.find((step) => step.id === ctx.stepId);
       if (!artifact || !workflow || !step) throw new Error("Workflow historical Artifact or step is unavailable");
+      if (step.agent) {
+        const turns = run.state.steps[step.id]?.agent?.turns ?? [];
+        const turnIndex = turns.length - 1, turn = turns[turnIndex], callIndex = turn?.results.length ?? 0;
+        const call = turn?.response?.calls[callIndex];
+        if (!call || this.#args.itemKey !== agentCallKey(turnIndex, callIndex)) throw new Error("Agent call is not the next persisted Tool call");
+        ctx.itemKey = this.#args.itemKey; ctx.agentCall = { name: call.name, input: structuredClone(call.input) };
+        return ctx;
+      }
       if (step.decision) {
         ctx.itemKey = this.#args.itemKey;
         return ctx;

@@ -1,0 +1,41 @@
+version: 3
+plan_id: brain-triage-calibration-2026-09-15
+created: 2026-09-15
+title: Ground triage scores and honor supported model output limits
+objective: Clarify operational-fragment scoring while preserving meaningful short content, existing routing thresholds and explicit no-write outcomes.
+non_goals:
+  - Add another semantic gate, change source admission or alter existing Markdown structure.
+  - Rewrite historical outcomes or claim a live import from a qualification replay.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-triage-calibration.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/blueprints/brain/sections/triage.md
+  - packages/blueprints/brain/adoption.json
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - docs/specifications/brain-import.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+architecture:
+  placement:
+    core: Preserve existing capability validation, model routing, attempt accounting and no-write completion checks; raise the documented language-host output ceiling to 12000 tokens.
+    packages: Clarify reusable triage instructions with source-grounded significance rather than tone or metadata alone.
+    workspace: Retain company perspective, selected sources and configured thresholds and model limits.
+    instance: Execute bounded model qualification using existing credentials and record all attempts separately from historical import completion.
+  mechanisms_extended: []
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can classify weak source fragments without rejecting meaningful short statements or introducing a second import system.
+rollback: Restore the prior instruction assets and host limit; preserve all source, attempt and qualification evidence.

@@ -795,3 +795,121 @@ The navigation reference is optional and distinct from `thread`, which places
 the decision notice itself inside a conversation. Omitted navigation preserves
 historical notice inputs and verification. Workspace chooses the conversation
 and its content; provider navigation rendering belongs to the Connector.
+
+## Bounded read-phase repair
+
+An authorized active operator may restart a previously attempted linear R0 Tool
+phase of a blocked run using the exact observed revision. Both Tool risk and
+all declared Capability modes must qualify as reads under the historical
+Artifact. Decisions, routes, waits, child starts, and effects are excluded.
+There is no automatic retry loop or model-selected authority.
+
+The leased transition appends an immutable exact snapshot of all selected step
+states, the blocked diagnostic, operator, time, and reason digest. Only those
+active step entries are removed before execution resumes; all other state,
+source admission, Artifact identity, effects and paid attempt evidence remain.
+The durable validator enforces this exception to completed-output immutability,
+with at most three repairs per run and the existing total snapshot bound.
+
+A transcript import binding may additionally declare at most 100 exact
+`nonTranscriptSources` entries with `identity`, `version` and
+`kind: discussion`. These reviewed source versions use the same source-keyed
+Workflow and normal Records/Tool permissions while retaining a distinct immutable
+non-transcript admission proof. They never allocate, refill, or change transcript
+cohort slots. Unknown versions and overlap with any admitted transcript fail
+closed. This is a finite selection, not a channel wildcard or an automatic
+expansion policy. Earlier completed source versions remain deduplicated.
+
+
+Historical Evidence Workflow queries may include `match_fields` for one selected
+Workflow and at most four exact declared instance-key values. The store applies
+the predicate before ordering and the result limit; the Connector independently
+checks every returned identity. Unknown/non-key fields and cross-kind use fail.
+Current Agent, Workflow, group, time-window, payload and result bounds remain
+unchanged. This reads existing run history; it does not create a source-progress
+registry, infer outcomes or reset effects.
+
+Historical Workflow evidence defaults to bounded feedback event reads. An explicit
+`include_feedback: false` selects retained outputs without reading the feedback
+event log; each run returns `feedback: null` and coverage records
+`feedback-not-requested`. Complete coverage then refers only to the requested
+projection. It never establishes absence of feedback, approvals or provider events.
+
+## Durable Agent steps
+
+An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-demand
+`skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
+a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, `output_schema`
+and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+Each selected Skill is at most 30000 characters. Subject-confirmed and R2–R4 Tools
+remain outside this step type. Optional `validate` names a granted pure R0 Company
+Tool with no capabilities; it receives `{context: {task, calls}, facts}` and returns
+`{accepted, feedback}` through the existing isolated completion-validation path.
+
+Agent steps consume existing R0/R1 grants; they do not reserve those Tools from
+ordinary authorized conversations or administrator operations. Their fixed inputs
+and budgets apply whenever the trusted host supplies the active Agent-step context.
+That context cannot be removed or substituted through model input. A Tool reserved
+by an effect, message or decision step remains reserved, including when an Agent
+step also uses it. Compilation neither adds a grant nor changes subject access,
+Tool risk or capability policy. Previously built manifests retain their original
+reservations until a reviewed rebuild; in-flight runs keep their pinned manifest.
+
+The existing Workflow snapshot stores each prepared model attempt, complete response
+and ordered Tool results. A worker performs one model or Tool quantum per lease.
+Responses are persisted before their calls execute. The trusted context reader binds
+the next pending call to its compiled Tool contract and exact fixed inputs. Effect
+keys include immutable turn/call position; they do not include mutable input hashes.
+A lost write-result snapshot reuses the existing effect receipt. A lost read result
+may repeat the read. Unknown model outcomes stop without an automatic paid retry;
+known incomplete output retains usage and receives bounded continuation feedback.
+
+`companyos_finish_task` validates the result and optional Company validator. Feedback
+keeps the same conversation open. Accepted completion returns `{result, calls}`; the
+call journal is Core-owned evidence. Ordinary read-repair does not rewind Agent
+steps or erase their writes. Retrospective workflow verification includes Agent
+attempts, guarded calls and effect receipts. No chat-specific provider or runtime is
+introduced into a Workspace.
+
+
+### Explicit continuation of an unwritten source
+
+The Core `continueUnwrittenSource` operator method can replace an unfinished source
+run exactly once with a reviewed replacement Artifact. It requires current operator
+authority, source admission and processing scope, an exact revision, only attempted
+R0 computations/routing, no decisions, no Agent Tool conversation, and no unknown or
+unfinished model attempt. A possible write is never replayed through this path.
+The existing lease fences cancellation and an immutable successor reference before
+creating the replacement. A lost result reuses that successor; normal source-version
+opening follows the link. Both runs retain their original Artifacts, source version,
+outputs, repairs and all billed attempts. The successor records its predecessor and
+starts the reviewed procedure anew. A further continuation of that successor is
+unsupported; ordinary durable resume and targeted correction apply.
+
+Source-history reads expose these references at the trusted cutoff. The Brain
+procedure accepts only its exact linked cancelled predecessor as unwritten history;
+an unrelated cancelled run or an unchanged completed source is not silently ignored.
+This is an explicit Core operator action, not a model Tool, automatic retry or a
+source-version change. It grants no new sources, Tools or provider access.
+
+A completed effect `for_each` with the canonical empty input digest, empty retained
+item map and exact empty output has no dispatched operation. Source continuation
+may cross that step. Missing, running, nonempty or inconsistent evidence still
+blocks continuation, including in archived read-repair snapshots.
+
+
+### Explicit retry of an unavailable Agent model response
+
+An authenticated operator may call `retry-agent-model` with the exact run revision,
+last attempt ID and reason. Core requires a stopped Agent turn with an unavailable
+model response, no retained response or Tool results, and its unknown dispatched
+attempt receipt. Current activation/source scope and the original task budget still
+apply. This is permission for another paid generation, not proof of zero prior cost.
+
+The journal appends an immutable operator/time/reason receipt; prior responses,
+Tool results, source identity, instructions and unknown usage stay unchanged. The
+next model turn continues the same conversation. No Tool call can be replayed from
+the missing response because Core dispatches only a durably retained response.
+Repeating the same operator request returns its existing authorization. Ordinary
+resume and model-generated inputs cannot authorize this retry. Do not claim complete
+cost accounting until the unknown provider usage is reconciled separately.

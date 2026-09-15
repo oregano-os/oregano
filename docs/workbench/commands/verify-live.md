@@ -95,8 +95,8 @@ See the [maintained host profile](../../operations/maintained-host-profile.md).
 
 :::
 
-The current Core target uses database manifest 3.0.0. Health verifies the
-required control and Company Records tables without creating schemas or
+The current Core target uses database manifest 3.1.0. Health verifies the
+required control, Company Records and derived Brain tables without creating schemas or
 running migrations. Existing historical tables and shared extensions may remain.
 Knowledge is not required for a valid current receipt.
 
@@ -236,3 +236,7 @@ from the ordinary Oregano connector cannot complete a candidate installation.
 See the [maintained host profile](../../operations/maintained-host-profile.md).
 
 :::
+
+Optional Brain adoption uses the existing database and requires explicit
+Workspace reading policy, grants and an Instance repository binding. See the
+[Brain read implementation](../../operations/brain-read.md).

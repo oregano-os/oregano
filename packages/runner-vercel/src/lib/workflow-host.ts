@@ -1,3 +1,4 @@
+import { generateWorkflowAgent } from "./workflow-agent.ts";
 import { ConversationChoiceService } from "../../../runtime/conversation-choice.ts";
 import { createPostgresChatState } from "./postgres-chat-state.ts";
 import { loadArtifact } from "./artifact.ts";
@@ -34,6 +35,7 @@ export async function createWorkflowHost() {
   // Validate required bindings and non-secret snapshots before persisting any opening.
   await connectors(artifact);
   const engine = new WorkflowEngine({ artifact, store, control, timers, enabledWorkflowIds: configuration.enabledWorkflowIds,
+    transcriptImports: configuration.transcriptImports, agentGenerator: generateWorkflowAgent,
     verifyPublicationNotSent: verifySlackPublicationNotSent,
     operatorPrincipals: configuration.operators.map((operator) => operator.principal), currentRoster: roster, connectors,
     qualifyMessageDestinations: (pinned, inputs) => qualifyWorkflowMessageInputs({ scope: slack, artifact: pinned, inputs, roster }),

@@ -683,3 +683,37 @@ inventory through the same maintained source path; do not treat that failure as
 an empty channel or increase bounds to hide it. The selected history window and
 older-root discovery constraints are unchanged, and these checks create no
 historical synchronization watermark.
+
+
+::: implementation-example
+
+### Opt-in complete Slack discussions
+
+Slack Record Source `0.1.5` retains the existing communication-message representation.
+A binding may set `thread_content: true` with `include_threads: true`. Versions
+`0.1.3` and `0.1.4` remain supported and reject this new opt-in. Without it, message
+payloads and history-window behavior are unchanged.
+
+The date window selects root messages. For those roots, the adapter reads all
+current reply pages, including replies after `latest_at`, and obtains original
+message URLs with Slack's [chat.getPermalink](https://docs.slack.dev/reference/methods/chat.getPermalink/).
+The complete ordered discussion is exposed only on root objects as
+`thread_content`: identity, stable content version, kind `discussion`, text,
+original URL, occurrence time, complete flag and message-level source context.
+Map these reviewed fields into a Records projection; select only roots. Edits and
+new replies change the source version; provider request IDs and scan time do not.
+The adapter never infers human names or business meaning from Slack identifiers.
+
+A limited thread, missing reply, changed root during scanning, missing permalink
+or pagination/resource bound fails the inventory instead of returning truncated
+content marked complete. Existing scope qualification, bot membership, rate-limit
+errors and bounded pagination apply. A channel token must actually support
+[conversations.replies](https://docs.slack.dev/reference/methods/conversations.replies/);
+qualification of metadata alone does not demonstrate successful thread delivery.
+
+This is a bounded source read, not Brain activation. The Company Workspace and
+Instance still select channels, date windows, declarations, secrets and schedules.
+
+See the [maintained host profile](../../operations/maintained-host-profile.md).
+
+:::

@@ -5,7 +5,7 @@ kind: vision
 status: approved
 authority: canonical
 language: en
-updated: 2026-08-25
+updated: 2026-09-14
 owners:
   - oregano-maintainers
 audience:
@@ -47,9 +47,11 @@ must never grant company authority, secrets, or runtime access.
 
 Company members keep their Handbook as ordinary Markdown in the reviewed
 Company Workspace. Agents use only the files selected by existing Workspace
-scopes. Handbook edits follow normal governance; there is no separate search,
-Knowledge database, source-ingestion or promotion subsystem. A retained
-provider integration may remain available independently of that retired pipeline.
+scopes. Handbook edits follow normal governance; Handbook authority has no separate search or promotion subsystem. The optional
+Brain keeps ordinary sourced knowledge in a separate `brain/` tree and exposes
+governed reads and evidenced Markdown writes through a rebuildable projection. Brain content never changes
+Handbook authority, the roster or Agent instructions. A retained provider
+integration may remain available independently of the retired Knowledge pipeline.
 
 ## Non-negotiable principles
 

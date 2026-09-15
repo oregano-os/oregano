@@ -8,6 +8,7 @@ import type {
 } from "../capabilities/contracts.ts";
 import { validateJsonSchemaValue } from "../capabilities/validation.ts";
 import { batchItemIds, capabilityEffectReview, matchingBatchReview } from "../capabilities/effect-review.ts";
+import { BrainRecoveryPendingError } from "../brain/writes.ts";
 
 export class ConnectorRegistry {
   readonly #contracts = new Map<string, CapabilityContract>();
@@ -32,6 +33,16 @@ export class ConnectorRegistry {
   }
 
   async invoke(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult> {
+    const result = await this.#call(capability, input, context, false);
+    if (!result) throw new Error("Connector invocation returned no result.");
+    return result;
+  }
+
+  async reconcile(capability: string, input: unknown, context: CapabilityCallContext): Promise<CapabilityResult | undefined> {
+    return this.#call(capability, input, context, true);
+  }
+
+  async #call(capability: string, input: unknown, context: CapabilityCallContext, recovery: boolean): Promise<CapabilityResult | undefined> {
     const contract = this.#contracts.get(capability);
     if (!contract) throw new Error(`Unknown Capability '${capability}'.`);
     const inputErrors = validateJsonSchemaValue(contract.inputSchema, input);
@@ -52,8 +63,12 @@ export class ConnectorRegistry {
       return new CapabilityEffectOutcomeUnknownError(message, { ...identity, provider_evidence: evidence, ...(review ? { effect_review: review } : {}) });
     };
     let result: CapabilityResult;
-    try { result = await connector.invoke(capability, input, context); }
+    if (recovery && !connector.reconcile) return undefined;
+    try { result = recovery ? await connector.reconcile!(capability, input, context) : await connector.invoke(capability, input, context); }
     catch (error) {
+      if (error instanceof BrainRecoveryPendingError && connector.id === "oregano/brain" && ["brain.remember", "brain.forget"].includes(capability)) {
+        throw new BrainRecoveryPendingError({ ...identity, provider_evidence: error.evidence });
+      }
       if (error instanceof CapabilityEffectOutcomeUnknownError) throw unknown(error.message, error.evidence);
       throw error;
     }

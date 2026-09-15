@@ -101,6 +101,20 @@ export function compileWorkflows(args: {
         return { ...base, kind: "route", route: { on: raw.on, targets }, next: [...new Set(Object.values(targets))] };
       }
       if (raw.tool === "start") return { ...base, kind: "start", start: { workflowId: raw.workflow, fields: raw.input } };
+      if (raw.tool === "agent") {
+        const tools = raw.tools.map((entry: Declaration) => {
+          const { resolved, tool } = resolveTool(entry.tool, raw.id);
+          if (Number(resolved.risk.slice(1)) > 1 || tool.contract.confirmation === "subject") throw new Error("Agent steps permit only R0/R1 Tools without subject confirmation");
+          return { tool: structuredClone(resolved), bind: entry.bind ?? {} };
+        });
+        const instructions = raw.instructions as string[];
+        if ([...instructions, ...(raw.skills ?? [])].some(path => typeof agent.materials[path] !== "string" || agent.materials[path]!.length > 30000)) throw new Error("Agent step instructions must belong to the compiled owning Agent scope");
+        const validator = raw.validate === undefined ? undefined : resolveTool(raw.validate, raw.id);
+        if (validator && (validator.resolved.risk !== "R0" || validator.tool.contract.capabilities.length || !raw.validate.startsWith("company:"))) throw new Error("Agent completion validator must be a pure granted Company Tool");
+        return { ...base, kind: "agent", allowedTools: tools.map((entry: any) => entry.tool.runtimeId), maxRisk: maximumRisk(...tools.map((entry: any) => entry.tool.risk)),
+          agent: { context: raw.context, instructions, ...(raw.skills ? { skills: raw.skills } : {}), profile: raw.profile, task: raw.task, tools, outputSchema: raw.output_schema,
+            ...(validator ? { validator: structuredClone(validator.resolved) } : {}), budget: { turns: raw.budget.turns, toolCalls: raw.budget.tool_calls, outputTokens: raw.budget.output_tokens } } };
+      }
       if (raw.tool === "collect") {
         const path = calendar(); usedSchedules.add(path);
         let validator;
@@ -155,7 +169,7 @@ export function compileWorkflows(args: {
       return result;
     });
     for (const step of steps) {
-      const consumed = [step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
+      const consumed = [step.agent?.context, step.agent?.profile, step.agent?.tools.map(entry => entry.bind), step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
         const match = reference.exec(text);
         if (!match) return;

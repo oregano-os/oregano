@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import { ensureCompanyOSSchema } from "./migrate.ts";
 import { postgresTimestampToIso } from "./postgres-values.ts";
 import { ensureCompanyRecordsSchema } from "./records-migrate.ts";
+import { ensureBrainSchema } from "./brain-migrate.ts";
 
 const CONTROL_TABLES = [
   "approval_requests",
@@ -53,17 +54,19 @@ const RECORDS_REQUIRED_INDEXES_PHASE_EIGHT = [
 const RECORDS_REQUIRED_INDEXES = [...RECORDS_REQUIRED_INDEXES_PHASE_EIGHT].sort();
 
 const RECORDS_REQUIRED_CONSTRAINTS: readonly string[] = [];
+const BRAIN_TABLES = ["changes", "links", "pages", "revisions", "takes"] as const;
 
-/** The retired subsystem is removed through a separate explicit migration. */
+/** Brain is a derived schema added through the existing explicit database lifecycle. */
 export const COMPANY_DATABASE_MANIFEST = Object.freeze({
   schemaVersion: 2,
   id: "companyos-postgres",
-  version: "3.0.0",
-  predecessorVersion: "2.1.0",
-  migrationMode: "explicit-retirement",
+  version: "3.1.0",
+  predecessorVersion: "3.0.0",
+  migrationMode: "additive",
   schemas: Object.freeze({
     companyos: Object.freeze({ tables: CONTROL_TABLES }),
     companyos_records: Object.freeze({ tables: Object.freeze(RECORDS_TABLES) }),
+    companyos_brain: Object.freeze({ tables: BRAIN_TABLES }),
   }),
   requiredIndexes: Object.freeze([
     "companyos.chat_lists_key_sequence_idx",
@@ -71,9 +74,20 @@ export const COMPANY_DATABASE_MANIFEST = Object.freeze({
     ...RECORDS_REQUIRED_INDEXES,
     "companyos.workflow_executions_status_idx",
     "companyos.workflow_thread_assignments_run_idx",
+    "companyos_brain.brain_pages_search_idx",
+    "companyos_brain.brain_pages_title_idx",
+    "companyos_brain.brain_pages_aliases_idx",
+    "companyos_brain.brain_takes_search_idx",
+    "companyos_brain.brain_links_target_idx",
+    "companyos_brain.brain_changes_time_idx",
   ]),
   requiredConstraints: Object.freeze([...RECORDS_REQUIRED_CONSTRAINTS,
-    "companyos.workflow_execution_origin_unique", "companyos.workflow_execution_revision_check", "companyos.workflow_execution_lease_check"]),
+    "companyos.workflow_execution_origin_unique", "companyos.workflow_execution_revision_check", "companyos.workflow_execution_lease_check",
+    ...BRAIN_TABLES.map(table => `companyos_brain.${table}_pkey`),
+    "companyos_brain.takes_instance_id_repository_id_page_slug_fkey",
+    "companyos_brain.pages_instance_id_repository_id_fkey",
+    "companyos_brain.links_instance_id_repository_id_from_slug_fkey",
+    "companyos_brain.changes_instance_id_repository_id_fkey"]),
   optionalFeatures: Object.freeze([]),
 });
 
@@ -82,6 +96,7 @@ export const COMPANY_DATABASE_MANIFEST_DIGEST = createHash("sha256")
 
 // Frozen identities allow existing instances to upgrade without carrying old schema constructors.
 export const LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS: Readonly<Record<string, string>> = Object.freeze({
+  "3.0.0": "b1d8cb410130d937af216299ffc4336ce5b011a46f39a71cdf4e328d5c216b75",
   "2.1.0": "2e9d59368faaf6e69ffd333658ba9799242cf2b9ff0af25a4cbcaf6c4fb805d9",
   "2.0.0": "c18e31ab0729557a1e073f19fe2c83cdde3ff4b88cb4105e7799fdf6470cc925",
   "1.0.0": "0bbe79c8c2f5a6f370f35a7e4f09f1aa7440ded33f0548aa5778fad70aa42cc0",
@@ -106,6 +121,7 @@ export interface CompanyDatabaseQualificationReceipt {
   schemas: {
     companyos: { tableCount: number };
     companyosRecords: { tableCount: number };
+    companyosBrain: { tableCount: number };
   };
   features: Record<string, never>;
 }
@@ -118,8 +134,8 @@ export interface CompanyDatabasePreparationReceipt {
 }
 
 export interface CompanyDatabaseStateInspection {
-  schemas: { companyos: boolean; companyosRecords: boolean };
-  tableCounts: { companyos: number; companyosRecords: number };
+  schemas: { companyos: boolean; companyosRecords: boolean; companyosBrain: boolean };
+  tableCounts: { companyos: number; companyosRecords: number; companyosBrain: number };
   manifests: Array<{ manifestId: string; manifestVersion: string; manifestDigest: string; appliedAt: string }>;
 }
 
@@ -175,16 +191,17 @@ export async function inspectCompanyDatabaseState(): Promise<CompanyDatabaseStat
   const relations = (await sql`select
     to_regnamespace('companyos')::text as control_schema,
     to_regnamespace('companyos_records')::text as records_schema,
+    to_regnamespace('companyos_brain')::text as brain_schema,
     to_regclass('companyos.schema_manifests')::text as manifest_ledger`)[0] ?? {};
   const tableRows = await sql`select schemaname, count(*)::int as table_count from pg_tables
-    where schemaname in ('companyos', 'companyos_records') group by schemaname order by schemaname`;
+    where schemaname in ('companyos', 'companyos_records', 'companyos_brain') group by schemaname order by schemaname`;
   const tableCounts = new Map(tableRows.map((row) => [String(row.schemaname), Number(row.table_count)]));
   const manifestRows = relations.manifest_ledger
     ? await sql`select manifest_id, manifest_version, manifest_digest, applied_at from companyos.schema_manifests order by applied_at, manifest_id, manifest_version`
     : [];
   return {
-    schemas: { companyos: Boolean(relations.control_schema), companyosRecords: Boolean(relations.records_schema) },
-    tableCounts: { companyos: tableCounts.get("companyos") ?? 0, companyosRecords: tableCounts.get("companyos_records") ?? 0 },
+    schemas: { companyos: Boolean(relations.control_schema), companyosRecords: Boolean(relations.records_schema), companyosBrain: Boolean(relations.brain_schema) },
+    tableCounts: { companyos: tableCounts.get("companyos") ?? 0, companyosRecords: tableCounts.get("companyos_records") ?? 0, companyosBrain: tableCounts.get("companyos_brain") ?? 0 },
     manifests: manifestRows.map((row) => ({
       manifestId: String(row.manifest_id), manifestVersion: String(row.manifest_version),
       manifestDigest: String(row.manifest_digest), appliedAt: postgresTimestampToIso(row.applied_at),
@@ -206,7 +223,8 @@ export function assertCompanyDatabaseQualificationReceipt(value: unknown): asser
   if (!receipt.qualifiedAt || Number.isNaN(Date.parse(receipt.qualifiedAt))) throw new Error("Database qualification receipt requires an ISO timestamp.");
   if (receipt.schemas?.companyos?.tableCount !== CONTROL_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos table count.");
   if (receipt.schemas?.companyosRecords?.tableCount !== RECORDS_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos_records table count.");
-  if (!receipt.schemas || Object.keys(receipt.schemas).sort().join(",") !== "companyos,companyosRecords") throw new Error("Database qualification receipt contains obsolete or unsupported schemas.");
+  if (receipt.schemas?.companyosBrain?.tableCount !== BRAIN_TABLES.length) throw new Error("Database qualification receipt has the wrong companyos_brain table count.");
+  if (!receipt.schemas || Object.keys(receipt.schemas).sort().join(",") !== "companyos,companyosBrain,companyosRecords") throw new Error("Database qualification receipt contains obsolete or unsupported schemas.");
   if (!receipt.features || Array.isArray(receipt.features) || typeof receipt.features !== "object" || Object.keys(receipt.features).length) throw new Error("Database qualification receipt contains unsupported features.");
 }
 
@@ -219,6 +237,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
   const expectedTables = [
     ...CONTROL_TABLES.map((name) => `companyos.${name}`),
     ...RECORDS_TABLES.map((name) => `companyos_records.${name}`),
+    ...BRAIN_TABLES.map((name) => `companyos_brain.${name}`),
   ];
   // Compare in one read-only database snapshot. Healthy qualification returns no
   // catalog names, regardless of how many unrelated objects the Instance holds.
@@ -273,6 +292,7 @@ export async function qualifyCompanyDatabase(): Promise<CompanyDatabaseQualifica
     schemas: {
       companyos: { tableCount: CONTROL_TABLES.length },
       companyosRecords: { tableCount: RECORDS_TABLES.length },
+      companyosBrain: { tableCount: BRAIN_TABLES.length },
     },
     features: {},
   };
@@ -284,6 +304,7 @@ export async function bootstrapCompanyDatabase(): Promise<CompanyDatabaseQualifi
   await ensureCompanyOSSchema();
   await ensureWorkflowExecutionSchema();
   await ensureCompanyRecordsSchema();
+  await ensureBrainSchema();
   const sql = neon(databaseUrl());
   const rows = await sql`insert into companyos.schema_manifests
       (manifest_id, manifest_version, manifest_digest, features)
@@ -301,12 +322,13 @@ export async function prepareCompanyDatabase(): Promise<CompanyDatabasePreparati
   const relation = (await sql`select
     to_regnamespace('companyos')::text as control_schema,
     to_regnamespace('companyos_records')::text as records_schema,
+    to_regnamespace('companyos_brain')::text as brain_schema,
     to_regclass('companyos.schema_manifests')::text as manifest_ledger`)[0] ?? {};
   const previousManifestVersions = relation.manifest_ledger
     ? assertSupportedCompanyDatabaseManifestHistory(await sql`select manifest_version, manifest_digest from companyos.schema_manifests
         where manifest_id = ${COMPANY_DATABASE_MANIFEST.id} order by manifest_version`)
     : [];
-  const hasExistingState = Boolean(relation.control_schema || relation.records_schema || relation.manifest_ledger);
+  const hasExistingState = Boolean(relation.control_schema || relation.records_schema || relation.brain_schema || relation.manifest_ledger);
   const operation = previousManifestVersions.includes(COMPANY_DATABASE_MANIFEST.version)
     ? "verify" : hasExistingState ? "upgrade" : "bootstrap";
   const qualification = operation === "verify" ? await qualifyCompanyDatabase() : await bootstrapCompanyDatabase();

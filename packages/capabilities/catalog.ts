@@ -3,6 +3,7 @@ import { EVIDENCE_QUERY_INPUT, EVIDENCE_QUERY_OUTPUT } from "./evidence.ts";
 import { RECORD_QUERY_INPUT_SCHEMA, RECORD_QUERY_OUTPUT_SCHEMA } from "../records/query-schema.ts";
 import { DIRECTORY_QUERY_INPUT_SCHEMA, DIRECTORY_QUERY_OUTPUT_SCHEMA } from "../directory/contracts.ts";
 import { LANGUAGE_GENERATE_INPUT, LANGUAGE_GENERATE_OUTPUT } from "../language/contracts.ts";
+import { BRAIN_CAPABILITIES } from "../brain/tools.ts";
 
 const object = (required: string[], properties: Record<string, JsonSchema>): JsonSchema => ({
   type: "object" as const,
@@ -16,6 +17,7 @@ const object = (required: string[], properties: Record<string, JsonSchema>): Jso
  * intentionally smaller than any provider SDK. Additions are Core changes.
  */
 export const CORE_CAPABILITY_CATALOG: readonly CapabilityContract[] = [
+  ...BRAIN_CAPABILITIES,
   {
     id: "evidence.query", version: "1.0.0",
     description: "Read bounded retained evidence and selected Artifact context under explicit current and invocation scope.",

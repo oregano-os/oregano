@@ -16,12 +16,13 @@ const qualification = () => ({
   schemas: {
     companyos: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length },
     companyosRecords: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length },
+    companyosBrain: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_brain.tables.length },
   }, features: {},
 });
 
 test("database contract retains execution and Records and requires no retired schema or vector service", () => {
-  assert.equal(COMPANY_DATABASE_MANIFEST.version, "3.0.0");
-  assert.deepEqual(Object.keys(COMPANY_DATABASE_MANIFEST.schemas).sort(), ["companyos", "companyos_records"]);
+  assert.equal(COMPANY_DATABASE_MANIFEST.version, "3.1.0");
+  assert.deepEqual(Object.keys(COMPANY_DATABASE_MANIFEST.schemas).sort(), ["companyos", "companyos_brain", "companyos_records"]);
   assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length, 15);
   assert.equal(COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length, 11);
   assert.deepEqual(COMPANY_DATABASE_MANIFEST.optionalFeatures, []);
@@ -37,12 +38,13 @@ test("qualification rejects obsolete receipts and retained-schema identity or co
     { ...qualification(), features: { vector: false } },
     { ...qualification(), schemas: { ...qualification().schemas, companyosKnowledge: { tableCount: 67 } } },
     { ...qualification(), schemas: { ...qualification().schemas, companyosRecords: { tableCount: 0 } } },
+    { ...qualification(), schemas: { ...qualification().schemas, companyosBrain: { tableCount: 0 } } },
   ]) assert.throws(() => assertCompanyDatabaseQualificationReceipt(invalid));
 });
 
 test("upgrades recognize frozen historical manifest identities without accepting modified or unknown history", () => {
   const rows = Object.entries(LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS).map(([manifest_version, manifest_digest]) => ({ manifest_version, manifest_digest }));
-  assert.equal(assertSupportedCompanyDatabaseManifestHistory(rows).length, 12);
+  assert.equal(assertSupportedCompanyDatabaseManifestHistory(rows).length, 13);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ ...rows[0], manifest_digest: "0".repeat(64) }]), /conflicting/);
   assert.throws(() => assertSupportedCompanyDatabaseManifestHistory([{ manifest_version: "9.0.0", manifest_digest: "0".repeat(64) }]), /unsupported/);
 });
@@ -80,7 +82,7 @@ test("retirement upgrades a known manifest without deleting historical domain au
   await sql`insert into companyos_records.sprint_events (id, payload) values ('retained-audit-fixture', '{"historical":true}'::jsonb) on conflict (id) do nothing`;
   await sql`insert into companyos.schema_manifests (manifest_id, manifest_version, manifest_digest, features) values (${COMPANY_DATABASE_MANIFEST.id}, ${"2.1.0"}, ${LEGACY_COMPANY_DATABASE_MANIFEST_DIGESTS["2.1.0"]}, '{"vector":false}'::jsonb) on conflict do nothing`;
   const upgraded = await bootstrapCompanyDatabase();
-  assert.equal(upgraded.manifestVersion, "3.0.0");
+  assert.equal(upgraded.manifestVersion, "3.1.0");
   assertCompanyDatabaseQualificationReceipt(await qualifyCompanyDatabase());
   const rows = await sql`select payload from companyos_records.sprint_events where id = 'retained-audit-fixture'`;
   assert.deepEqual(rows[0]?.payload, { historical: true });

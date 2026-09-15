@@ -91,10 +91,11 @@ export function modelExecutionEvidence(
   return {
     ...selection,
     promptCaching: resolvePromptCachingMode(selection),
-    responseId: result.response.id,
-    responseModel: result.response.modelId,
-    inputTokens: usage.inputTokens ?? 0,
-    outputTokens: usage.outputTokens ?? 0,
+    responseId: result.response.id || null,
+    responseModel: result.response.modelId || null,
+    inputTokens: usage.inputTokens ?? null,
+    outputTokens: usage.outputTokens ?? null,
+    reasoningTokens: usage.outputTokenDetails?.reasoningTokens ?? null,
     cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? null,
     cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? null,
     uncachedInputTokens: usage.inputTokenDetails?.noCacheTokens ?? null,
@@ -104,5 +105,6 @@ export function modelExecutionEvidence(
 interface ModelUsage {
   readonly inputTokens?: number;
   readonly outputTokens?: number;
+  readonly outputTokenDetails?: { readonly reasoningTokens?: number };
   readonly inputTokenDetails?: { readonly cacheReadTokens?: number; readonly cacheWriteTokens?: number; readonly noCacheTokens?: number };
 }

@@ -1,0 +1,86 @@
+version: 3
+plan_id: durable-agent-step-2026-09-15
+created: 2026-09-15
+title: Continue bounded Agent tasks through durable Workflow steps
+objective: Let an owning Agent read and incrementally change knowledge through its
+  existing Tool grants, preserving each model turn, Tool result and completion check.
+non_goals:
+  - Add company-specific runtime behavior or a second Agent or effect engine.
+  - Permit R2-R4 effects, subject-confirmed operations or arbitrary provider access.
+  - Rewrite historical run definitions or discard prior model costs.
+placement: core
+change_class: security
+files_expected:
+  - packages/runtime/companyos-runtime.ts
+  - packages/brain/mutations.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - .oregano/changes/2026-09-15-durable-agent-step.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/companyos-builder/**
+  - packages/runtime/workflow-engine/**
+  - packages/state-store/workflow-engine.ts
+  - packages/language/attempts.ts
+  - packages/runner-vercel/src/lib/workflow-agent.ts
+  - packages/runner-vercel/src/lib/workflow-agent.test.ts
+  - packages/runner-vercel/src/lib/workflow-host.ts
+  - packages/testkit/workflow-engine-fixture.ts
+  - packages/testkit/tests/workflow-agent.test.ts
+  - packages/blueprints/brain/**
+  - packages/cli/**
+  - scripts/materialize-brain-workflow.ts
+  - scripts/materialize-brain-prompts.ts
+  - package.json
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/specifications/brain-import.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/specifications/model-recipes.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-agent.test.ts
+  - packages/runner-vercel/src/lib/workflow-agent.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+    - specification.brain-import
+    - specification.brain-skill-adoption
+    - specification.model-recipes
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Generic durable Agent turns, exact pinned Tool dispatch, bounded completion
+      validation and existing attempt accounting within the Workflow engine.
+    packages: Portable source-understanding, incremental filing and saved-page
+      verification guidance; no company authority.
+    workspace: Source selection, vocabulary, model roles, bounded workflow settings,
+      Agent grants and company knowledge.
+    instance: Existing model credentials, effect receipts, immutable Artifacts,
+      source admission, Workflow snapshots, leases and repository bindings.
+  mechanisms_extended:
+    - mechanism: agent-resolver
+      reason: Bind a continuing workflow task to the already compiled owning Agent
+        and selected Skill material rather than isolated generation prompts.
+    - mechanism: toolset-resolver
+      reason: Compile an exact subset of existing R0/R1 grants and fixed inputs for
+        durable Agent dispatch; neither the model nor retrieved text grants authority.
+    - mechanism: model-recipe-resolver
+      reason: Host one tool-enabled model turn at a time with finite budgets and
+        existing per-attempt usage evidence across continuation.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Extend existing Workflow snapshots and effect keys with immutable
+        model-turn and call identities, receipt replay and completion feedback.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can declare a bounded tool-using Agent step using
+    its own existing grants, policies, source selection and completion validator.
+rollback: Disable new Agent-step admission and restore the preceding compatible
+  Artifact for new runs. Retain existing run snapshots, partial Markdown writes,
+  receipts and all model attempts; never reinterpret historical definitions.

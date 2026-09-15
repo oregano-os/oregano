@@ -3,6 +3,10 @@
   "buildCommand": "pnpm build",
   "crons": [
     {
+      "path": "/api/brain/reconcile",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/builder/worker",
       "schedule": "* * * * *"
     },

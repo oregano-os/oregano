@@ -37,7 +37,7 @@ export class SlackWebApiClient {
   }
 
   async call<T extends Record<string, unknown>>(method: string, parameters: Record<string, string | number | boolean | undefined> = {}): Promise<SlackApiResult<T>> {
-    if (!/^[a-z][a-z.]+$/.test(method)) throw new Error(`Slack API method '${method}' is invalid`);
+    if (!/^[a-z][a-zA-Z.]+$/.test(method)) throw new Error(`Slack API method '${method}' is invalid`);
     const url = new URL(`${this.endpoint.replace(/\/$/, "")}/${method}`);
     for (const [key, value] of Object.entries(parameters)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -85,11 +85,16 @@ export class SlackWebApiClient {
     });
   }
 
-  replies(args: { channel: string; ts: string; oldest: string; latest?: string; limit: number; cursor?: string }) {
+  permalink(channel: string, messageTs: string) {
+    return this.call<{ ok: true; channel: string; permalink: string }>("chat.getPermalink", { channel, message_ts: messageTs });
+  }
+
+  replies(args: { channel: string; ts: string; oldest?: string; latest?: string; limit: number; cursor?: string }) {
     return this.call<{
       ok: true;
       messages: Array<Record<string, unknown>>;
       has_more?: boolean;
+      is_limited?: boolean;
       response_metadata?: { next_cursor?: string };
     }>("conversations.replies", {
       channel: args.channel,

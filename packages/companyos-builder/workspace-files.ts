@@ -5,12 +5,13 @@ import YAML from "yaml";
 export type WorkspaceFiles = Readonly<Record<string, string>>;
 
 /** Capture bytes once. No subsequent compilation phase reopens Workspace files. */
-export function readWorkspaceFiles(root: string): WorkspaceFiles {
+export function readWorkspaceFiles(root: string, options: { excludeBrain?: boolean } = {}): WorkspaceFiles {
   const files: Record<string, string> = {};
   const base = realpathSync(root);
   const visit = (directory: string): void => {
     for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       if ([".git", "node_modules", ".companyos-cache"].includes(entry.name)) continue;
+      if (options.excludeBrain && directory === base && entry.name === "brain") continue;
       const path = join(directory, entry.name);
       if (entry.isSymbolicLink() || lstatSync(path).isSymbolicLink()) throw new Error("Workspace declarations cannot use symlinks");
       const actual = realpathSync(path);

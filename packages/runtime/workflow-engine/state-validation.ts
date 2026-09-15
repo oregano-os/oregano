@@ -1,3 +1,5 @@
+import { validateSourceContinuation } from "./source-continuation.ts";
+import { validateAgentState } from "./agent-state.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { RunMeta } from "../../state-store/interface.ts";
 import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, WorkflowRunIdentity } from "../../state-store/workflow-engine.ts";
@@ -5,6 +7,7 @@ import { canonicalJson, sha256, jsonDigest } from "../canonical.ts";
 import { assertWorkflowArtifact } from "./guard.ts";
 import { workflowReviewDeliveryDigest } from "./review-notice.ts";
 import { workflowReviewDecision } from "./review-dependency.ts";
+import { validateWorkflowReadRepairs } from "./read-repair.ts";
 
 export function workflowInstant(value: string): void {
   if (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) throw new Error("Workflow state requires an exact UTC ISO instant");
@@ -49,16 +52,28 @@ export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: W
   if (meta.runId !== identity.runId || meta.workflow !== identity.workflowId || meta.workflowVersion !== String(workflow.version)
     || meta.companyCommit !== artifact.provenance.workspaceCommit || meta.companySnapshotHash !== artifact.provenance.workspaceHash
     || meta.agentDefinitionHash !== sha256({ instructions: agent.instructions, materials: agent.materials })) throw new Error("Workflow control metadata differs from its pinned Artifact");
-  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery) throw new Error("New workflow must start at its empty entry state");
+  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery || state.readRepairs || state.sourceRestart) throw new Error("New workflow must start at its empty entry state");
   validateWorkflowState(state, identity.workflowId, artifact);
 }
 
 export function validateWorkflowState(state: WorkflowMutableState, workflowId: string, artifact: CompanyOSArtifact, previous?: WorkflowMutableState): void {
   safeObject(state); safeObject(state.steps); safeObject(state.decisions);
+  validateSourceContinuation(state, previous, workflowId, artifact);
+  if (previous && canonicalJson(previous.sourceAdmission ?? null) !== canonicalJson(state.sourceAdmission ?? null)) throw new Error("Workflow source admission is immutable");
+  if (state.sourceAdmission) {
+    const proof = state.sourceAdmission; safeObject(proof);
+    const expected = proof.kind === "non-transcript-selection" ? "cohortId,importId,kind,policyDigest,sourceIdentity,sourceKind,sourceVersion" : "cohortId,importId,kind,policyDigest,sourceIdentity,sourceVersion";
+    if (!["transcript-cohort", "non-transcript-selection"].includes(proof.kind) || Object.keys(proof).sort().join(",") !== expected
+      || (proof.kind === "non-transcript-selection" && proof.sourceKind !== "discussion")) throw new Error("Invalid Workflow source admission proof");
+    digest(proof.cohortId); digest(proof.policyDigest);
+    identifier(proof.importId);
+    for (const value of [proof.sourceIdentity, proof.sourceVersion]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\x00-\x1f]/.test(value)) throw new Error("Invalid source admission identity or version");
+  }
   if (!["running", "waiting", "done", "cancelled", "failed"].includes(state.status)) throw new Error("Invalid workflow status");
   workflowInstant(state.logicalInstant);
   const workflow = artifact.workflows?.find((candidate) => candidate.id === workflowId);
   if (!workflow) throw new Error("Workflow is missing from its historical Artifact");
+  const repairedSteps = validateWorkflowReadRepairs(state, workflow, artifact, previous);
   const ids = new Set(workflow.steps.map((step) => step.id));
   if (state.cursor !== null && !ids.has(state.cursor)) throw new Error("Workflow cursor is not a compiled step");
   if (state.status === "done" && state.cursor !== null) throw new Error("Completed workflow cannot retain an active cursor");
@@ -71,6 +86,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     if (step.status === "succeeded" && (!step.completedAt || step.output === undefined)) throw new Error("Completed step requires time and output evidence");
     if (step.inputDigest) digest(step.inputDigest);
     const prior = previous?.steps[id];
+    validateAgentState(step, workflow.steps.find(entry => entry.id === id)!, prior);
     if (prior?.status === "succeeded" && canonicalJson(prior) !== canonicalJson(step)) throw new Error("Completed workflow output is immutable");
     if (prior?.inputDigest && prior.inputDigest !== step.inputDigest) throw new Error("Workflow step input identity is immutable");
     for (const [key, item] of Object.entries(prior?.items ?? {})) if (canonicalJson(step.items?.[key]) !== canonicalJson(item)) throw new Error("Completed workflow item output is immutable");
@@ -105,7 +121,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
       for (const [key, receipt] of Object.entries(prior.deliveries)) if (canonicalJson(receipt) !== canonicalJson(decision.deliveries[key])) throw new Error("Workflow decision delivery evidence is immutable");
     }
   }
-  for (const id of Object.keys(previous?.steps ?? {})) if (!Object.hasOwn(state.steps, id)) throw new Error("Workflow step history cannot be removed");
+  for (const id of Object.keys(previous?.steps ?? {})) if (!Object.hasOwn(state.steps, id) && !repairedSteps.has(id)) throw new Error("Workflow step history cannot be removed");
   for (const id of Object.keys(previous?.decisions ?? {})) if (!Object.hasOwn(state.decisions, id)) throw new Error("Workflow decision history cannot be removed");
   const delivery = state.reviewDelivery, priorDelivery = previous?.reviewDelivery;
   if (priorDelivery && !delivery) throw new Error("Effect review delivery history cannot be removed");
@@ -134,7 +150,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     for (const output of delivery.outputs as Record<string, unknown>[]) if (typeof output?.message_id !== "string" || output.destination_binding !== receipt?.destination_binding || output.thread_reference !== receipt?.thread_reference) throw new Error("Effect review receipt differs from the original conversation");
   }
   if (state.wait) {
-    if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision", "start", "records"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
+    if (state.wait.stepId !== state.cursor || !["step", "delivery", "decision", "start", "records", "effect"].includes(state.wait.kind)) throw new Error("Workflow wait does not match its cursor");
     workflowInstant(state.wait.dueAt); identifier(state.wait.timerId);
   }
 }

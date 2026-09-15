@@ -1,0 +1,77 @@
+version: 3
+plan_id: brain-workflow-template-2026-09-15
+created: 2026-09-15
+title: Materialize portable Brain import procedures through the Workbench
+objective: Distribute the generic Brain import Workflow as a declarative
+  Blueprint and its restricted Tool sources as separate Workbench templates.
+  Require reviewed Workspace inputs and preserve ordinary grants, bindings,
+  admission and activation.
+non_goals:
+  - Add a provider, model route, import registry or automatic authority.
+  - Replace the pinned upstream rules with a new semantic rubric.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-workflow-template.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/blueprints/brain/**
+  - packages/cli/content/templates/brain-import/**
+  - scripts/materialize-brain-workflow.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - docs/specifications/brain-import.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+    - specification.brain-skill-adoption
+    - status.current
+architecture:
+  placement:
+    core: Static Workbench materialization and validation; reuse existing runtime
+      enforcement unchanged.
+    packages: Declarative Blueprint Workflow plus separate restricted Workbench Tool
+      source templates; no runtime code inside the Blueprint.
+    workspace: Owning Agent, source selection and history bounds, model-phase paths,
+      triage policy, vocabulary and directory mapping, Tool grants and ordinary
+      review.
+    instance: Qualified source bindings, frozen admission receipts, model
+      credentials, schedule activation and exact deployment pairing.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Use existing reasoning and deep task bindings; preserve logical role and
+        attempt accounting.
+    - mechanism: capability-contracts-and-connectors
+      reason: Existing language generation and Brain Tools retain their grants and
+        runtime bounds.
+    - mechanism: agent-resolver
+      reason: Require the existing owning Agent identifier; do not create or resolve
+        company identities.
+    - mechanism: toolset-resolver
+      reason: Return requirements for ordinary Workspace grants and compilation;
+        materialization grants nothing.
+    - mechanism: company-records
+      reason: Require the consuming Workspace projection and reuse exact retained
+        version reads; provider selection remains outside the Blueprint.
+    - mechanism: timers-and-business-time
+      reason: Keep operator triggering; no schedule, timer or background worker is
+        added or activated.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve existing Workflow admission, version identity and Brain effect
+        receipts; adoption is an ordinary reviewed Workspace diff.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every required company choice is a reviewed materialization
+    input. All public fixtures are synthetic. No real company values, source
+    content, accounts, credentials or grants are distributed.
+rollback: Restore the previous Core template and reviewed Workspace files
+  without removing retained source versions, cohort admissions or completed
+  effect evidence.

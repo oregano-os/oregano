@@ -1,0 +1,42 @@
+version: 3
+plan_id: agent-shared-grants-2026-09-15
+created: 2026-09-15
+title: Preserve ordinary grants when a durable Agent step reuses a Tool
+objective: Keep existing R0/R1 Tool grants available outside Agent-step assignments while enforcing exact active contexts and all static effect reservations.
+non_goals:
+  - Add grants, relax active Workflow bindings or change source admission.
+  - Modify retained Artifacts or impersonate an active Workflow from the operator CLI.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-agent-shared-grants.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/testkit/tests/workflow-agent.test.ts
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-agent.test.ts
+  - packages/testkit/tests/workflow-runtime-guard.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.workflow-execution-v1
+architecture:
+  placement:
+    core: Compile static effect reservations without treating ordinary Agent-step use as a global grant revocation; keep runtime authorization and active context checks.
+    packages: Existing Agent-step declarations and standard Tools are reused unchanged.
+    workspace: Existing reviewed Tool grants remain the source of ordinary authority.
+    instance: Trusted hosting supplies immutable active assignments; a reviewed rebuild activates the new manifest semantics.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      decision: extend
+      reason: Distinguish a granted Agent Tool from an exclusively reserved static Workflow effect without changing execution receipts.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can reuse an already granted low-risk Tool in durable Agent work without disabling normal authorized conversations.
+rollback: Restore the previous compiler and rebuild the affected configuration; retained runs keep their original manifests and receipts.

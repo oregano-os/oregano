@@ -22,9 +22,11 @@ audience:
 In Core 0.13.0 and Workbench 0.1.0-experimental.22, the entire
 Brain/Knowledge subsystem, including Handbook search, has been
 removed. Handbook source files and the structured roster remain in the
-Workspace. The current database manifest is `companyos-postgres@3.0.0` and
-qualifies 15 control/Workflow tables and 11 Records tables with receipt version
-`2`. Historical `1.0.0` through `2.0.0` identities remain recognizable for
+Workspace. The retirement release used database manifest `companyos-postgres@3.0.0`,
+qualifying 15 control/Workflow tables and 11 Records tables with receipt version
+`2`. The additive current target 3.1.0 also preserves five derived Brain tables;
+this retirement procedure never targets `companyos_brain`. See the
+[new Brain contract](../../specifications/brain-read.md). Historical `1.0.0` through `2.0.0` identities remain recognizable for
 upgrade; their schema constructors are not retained.
 
 ## Repository and Workspace transition
@@ -46,7 +48,7 @@ Test the replacement runtime before changing a live Instance.
 ## Explicit database retirement
 
 The target is the `companyos_knowledge` schema, not the shared database or Neon
-project. `companyos` and `companyos_records` must remain. Ordinary preparation
+project. `companyos`, `companyos_records` and any `companyos_brain` projection must remain. Ordinary preparation
 and health neither create nor delete the retired schema; a transitional
 Instance can run the new Core before its old data is explicitly removed.
 

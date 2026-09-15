@@ -1,0 +1,51 @@
+version: 3
+plan_id: workflow-history-key-filter-2026-09-15
+created: 2026-09-15
+title: Filter bounded Workflow evidence by exact declared instance keys
+objective: Read earlier runs for the same source or business object through existing evidence and history contracts before reconciling a changed version.
+non_goals:
+  - Broaden historical read scopes, time windows or result limits.
+  - Introduce a processing registry or expose storage access to Company Tools.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-workflow-history-key-filter.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/capabilities/evidence.ts
+  - packages/connectors/historical-evidence.ts
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/workflow-engine/memory-store.ts
+  - packages/state-postgres/workflow-store.ts
+  - packages/testkit/tests/historical-evidence.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/historical-evidence.test.ts
+  - packages/testkit/tests/workflow-state-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Exact declared key filters applied before history ordering and result bounds, with current evidence scope checks.
+    packages: Existing evidence.query Capability; no extra Tool or provider adapter.
+    workspace: Chooses which object key to compare and interprets earlier source-version outcomes.
+    instance: Existing immutable run identities and state retain all prior results and model costs.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend bounded Historical Evidence reads; preserve current Agent, Workflow, group and time-window authorization.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Read existing durable execution records without resetting completed effects or allocating another import slot.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can inspect prior executions for one declared business key without loading unrelated run payloads or creating a duplicate history store.
+rollback: Omit exact key filters to retain prior bounded query behavior; preserve existing executions and evidence.

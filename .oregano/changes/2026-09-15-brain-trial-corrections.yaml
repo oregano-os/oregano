@@ -1,0 +1,57 @@
+version: 3
+plan_id: brain-trial-corrections-2026-09-15
+created: 2026-09-15
+title: Deliver adopted instructions and preserve per-operation completion
+objective: Supply the complete adopted procedure to the continuing Agent, allow
+  an evidenced no-write notability skip, verify each page after its own last
+  mutation, and permit continuation across a proven empty effect loop.
+non_goals:
+  - Change company source selection, model roles or the Brain folder structure.
+  - Restart any attempted effect, discard model receipts or reinterpret old runs.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-trial-corrections.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/runtime/workflow-engine/source-continuation.ts
+  - packages/testkit/tests/workflow-source-continuation.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/blueprints/brain/agent-instructions.md
+  - packages/blueprints/brain/workflows/brain-import.md
+  - packages/cli/content/templates/brain-import/**
+  - scripts/materialize-brain-workflow.ts
+  - docs/specifications/brain-import.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/workflow-source-continuation.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+    - specification.brain-skill-adoption
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Existing Workflow continuation verifies a completed empty iteration.
+    packages: Generic adopted source instructions and completion validation.
+    workspace: Source selection, model settings, reviewed instructions and knowledge.
+    instance: Existing immutable runs, receipts, retained sources and credentials.
+  mechanisms_extended:
+    - mechanism: approvals-effects-and-idempotency
+      reason: Recognize an authenticated zero-item completed loop as no effect attempt.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can use the same source notability, page verification
+    and empty-loop continuation without provider or company-specific rules.
+rollback: Restore the preceding procedure for new runs. Preserve existing immutable
+  definitions, incomplete tasks, all effects and model attempts.

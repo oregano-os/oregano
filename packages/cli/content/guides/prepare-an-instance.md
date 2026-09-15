@@ -314,9 +314,9 @@ recipe, key, endpoint, or model.
 
 ::: implementation-example
 
-Database preparation targets `companyos-postgres@3.0.0` and qualification
-receipt version 2. It creates or upgrades the 15 control/Workflow and 11 Records
-tables. Handbook Markdown requires no database projection, vector extension,
+Database preparation targets `companyos-postgres@3.1.0` and qualification
+receipt version 2. It creates or upgrades the 15 control/Workflow, 11 Records
+and five derived Brain tables. Handbook Markdown requires no database projection, vector extension,
 Knowledge model task, source binding or activation. Run the separate read-only
 qualification after preparation.
 
@@ -344,3 +344,10 @@ Records snapshots, provider account/recipient checks, source cutoff coverage and
 real human decision evidence. `companyos onboard` keeps these as external
 Instance verification; passing local validation or the Tool-free starter check
 cannot establish workflow execution readiness.
+
+Optional Brain adoption uses the existing database and requires explicit
+Workspace reading policy, grants and an Instance repository binding. See the
+[Brain read implementation](../../operations/brain-read.md).
+Database manifest 3.1.0 provisions the Brain schema in every Instance, including
+those without Brain adoption. An upgrade from 3.0.0 requires fresh database
+preparation and verification; prior version-2 qualification receipts are insufficient.

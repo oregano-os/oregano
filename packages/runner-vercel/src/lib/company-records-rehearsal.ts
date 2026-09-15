@@ -1,3 +1,4 @@
+import { GoogleMeetRecordSourceConnector } from "../../../connectors/google-meet/records-source.ts";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import type { JsonValue } from "../../../capabilities/contracts.ts";
@@ -402,7 +403,7 @@ function selectedSlackQualificationBinding(configuration: CompanyRecordsRehearsa
     throw new CompanyRecordsRehearsalError("invalid-declaration", `Source '${sourceId}' does not select the maintained Slack Record Source Connector`, 503);
   }
   const provider = object(binding.configuration, `binding '${sourceId}'.configuration`);
-  exactKeys(provider, ["team_id", "channel_id", "conversation_kind", "oldest_at", "latest_at", "include_threads", "page_size", "max_pages", "max_thread_pages", "max_messages", "credential_provider"], `binding '${sourceId}'.configuration`);
+  exactKeys(provider, ["team_id", "channel_id", "conversation_kind", "oldest_at", "latest_at", "include_threads", "thread_content", "page_size", "max_pages", "max_thread_pages", "max_messages", "credential_provider"], `binding '${sourceId}'.configuration`);
   const teamId = string(provider.team_id, `binding '${sourceId}'.configuration.team_id`, /^[A-Z][A-Z0-9]{4,31}$/);
   const channelId = string(provider.channel_id, `binding '${sourceId}'.configuration.channel_id`, /^[CG][A-Z0-9]{4,31}$/);
   const conversationKind = string(provider.conversation_kind, `binding '${sourceId}'.configuration.conversation_kind`);
@@ -492,9 +493,9 @@ export function validatedCompanyRecordsSelection(configuration: CompanyRecordsRu
     registry.registerProjection(candidate as unknown as CompanyRecordProjectionDeclaration);
   }
   const connectors = new RecordSourceConnectorRegistry([
+    new GoogleMeetRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
     new MondayRecordSourceConnector({ resolveSecret: resolveEnvironmentSecretRef }),
-    new SlackRecordSourceConnector({ resolveSecret: async () => await resolveRecordSourceCredential(binding) }),
-    new SlackRecordSourceConnector({ version: "0.1.3", resolveSecret: async () => await resolveRecordSourceCredential(binding) }),
+    ...SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS.map(version => new SlackRecordSourceConnector({ version, resolveSecret: async () => await resolveRecordSourceCredential(binding) })),
   ]);
   for (const candidate of configuration.sources) {
     const candidateSource = registry.source(String(candidate.id));

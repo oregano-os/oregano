@@ -120,6 +120,7 @@ const databaseQualification = (overrides = {}) => ({
   qualifiedAt: "2026-08-26T12:00:00.000Z",
   schemas: {
     companyos: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos.tables.length },
+    companyosBrain: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_brain.tables.length },
     companyosRecords: { tableCount: COMPANY_DATABASE_MANIFEST.schemas.companyos_records.tables.length },
   },
   features: {},

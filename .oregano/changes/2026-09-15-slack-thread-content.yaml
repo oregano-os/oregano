@@ -1,0 +1,49 @@
+version: 3
+plan_id: slack-thread-content-2026-09-15
+created: 2026-09-15
+title: Retain complete coherent Slack threads in existing message Records
+objective: Let a reviewed Records projection select one source-versioned discussion per Slack root without losing replies, attribution or original links.
+non_goals:
+  - Select company channels or dates, activate imports, read DMs or post messages.
+  - Change legacy message consumers, classify source value or dispatch model calls.
+placement: core
+change_class: security
+files_expected:
+  - packages/cli/src/records-operations.mjs
+  - .oregano/changes/2026-09-15-slack-thread-content.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/connectors/slack/client.ts
+  - packages/connectors/slack/records-source.ts
+  - packages/connectors/slack/thread-content.ts
+  - packages/runner-vercel/src/lib/company-records-rehearsal.ts
+  - packages/testkit/tests/slack-thread-content.test.ts
+  - packages/cli/content/guides/connect-company-record-source.md
+  - docs/workbench/guides/connect-company-record-source.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/slack-thread-content.test.ts
+  - packages/testkit/tests/slack-record-source.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - guide.connect-company-record-source
+    - status.current
+architecture:
+  placement:
+    core: Extend the maintained read-only Slack source adapter with an opt-in complete thread field and provider-returned permalinks on existing message Records.
+    packages: Existing Brain discussion processing consumes normalized text and source provenance without provider logic.
+    workspace: Select channels, root history bounds, complete-thread scope and projection fields; retain company-wide reading policy.
+    instance: Existing installation, credential resolver, qualification, Records inventory and isolated delivery receipts.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Preserve communication-message storage and expose complete thread content only on roots through existing field mappings and projections.
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the maintained Slack source adapter behind its versioned contract; no new source lifecycle or API credentials.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can opt into coherent, source-versioned channel discussions. The adapter knows only declared provider identities and bounds, never company relevance or operating rules.
+rollback: Restore the earlier source binding and projection selection in a reviewed change. Existing message adapter versions remain available; preserve retained versions and receipts.

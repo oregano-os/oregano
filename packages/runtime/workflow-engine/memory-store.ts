@@ -72,6 +72,7 @@ export class InMemoryWorkflowExecutionStore implements WorkflowExecutionStore {
   async history(args: Parameters<WorkflowExecutionStore["history"]>[0]): Promise<WorkflowRun[]> {
     if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 101 || !args.workflowIds.length) throw new Error("Invalid workflow history bound");
     return [...this.#runs.values()].filter(run => run.instanceId === args.instanceId && args.workflowIds.includes(run.workflowId)
+      && Object.entries(args.matchFields ?? {}).every(([key, value]) => Object.hasOwn(run.fields, key) && run.fields[key] === value)
       && run.runId !== args.excludeRunId && Date.parse(run.trigger.instant) > Date.parse(args.from) && Date.parse(run.trigger.instant) <= Date.parse(args.to))
       .sort((a, b) => Date.parse(b.trigger.instant) - Date.parse(a.trigger.instant) || b.runId.localeCompare(a.runId))
       .slice(0, args.limit).map(run => structuredClone(run));

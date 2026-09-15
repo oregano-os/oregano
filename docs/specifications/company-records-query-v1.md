@@ -254,3 +254,25 @@ Workflow authoring, the compiler, trusted input guard and hosted retained-run
 verification support the explicit current-scan requirement; see the
 [workflow contract](workflow-execution-v1-draft.md). Operating Workspace adoption
 and actual provider acceptance remain separate delivery work.
+
+
+## Exact retained Record version reads
+
+The existing Records query accepts optional `source_version_id`, the exact
+64-character normalized version ID returned in a prior row. Omission or null
+preserves ordinary current reads. A selected version is read only from the
+current projection's at most 100 contributing source generations, after the
+active subject passes current projection and source access. It uses existing
+immutable version storage and reapplies the current projection's source/type
+selection, field allowlist and filters. It never falls back to another binding,
+Instance, arbitrary provider revision or nearby observation. Missing, deleted or
+nonmatching versions return no rows; invalid provenance or modified immutable
+content fails. No provider call or database migration is involved.
+
+The result marks `retained_version_id`, uses the original observation time and
+sets `fresh_until` to that same time. It provides no source-completeness or
+current-scan proof. Cursor, all-pages and completeness/scan requirements cannot
+be combined with this mode. The exact result is capped at 2,500,000 serialized
+characters without truncation. Consumers must retain the earlier row version ID;
+a provider's own content hash is a distinct value. Current source access changes
+and binding generations remain effective for historical reads.
