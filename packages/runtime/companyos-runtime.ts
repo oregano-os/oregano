@@ -322,6 +322,7 @@ export class CompanyOSRuntime {
                 idempotencyKey,
                 subject: accessSubject,
                 ...(guard?.context.dispatchFence ? { dispatchFence: guard.context.dispatchFence } : {}),
+                ...(guard?.context.mode === "engine" && guard.context.readRepair ? { readRepair: guard.context.readRepair } : {}),
                 ...(guard ? { workflow: { id: guard.workflow.id, cutoff: guard.context.trigger.instant } } : {}),
               });
               capabilityEvidence.push(result.evidence);

@@ -1,5 +1,5 @@
 import type { WorkflowDispatchFence } from "../../state-store/interface.ts";
-import type { JsonValue } from "../../capabilities/contracts.ts";
+import type { CapabilityCallContext, JsonValue } from "../../capabilities/contracts.ts";
 import type { RosterMember } from "../../state-store/roster.ts";
 import type { WorkflowReviewDelivery, WorkflowStepState } from "../../state-store/workflow-engine.ts";
 
@@ -33,6 +33,7 @@ export interface WorkflowInvocationContext extends WorkflowReferenceContext {
   decisions: Record<string, WorkflowDecisionEvidence>;
   currentRoster: RosterMember[];
   dispatchFence?: WorkflowDispatchFence;
+  readRepair?: CapabilityCallContext["readRepair"];
   reviewDelivery?: WorkflowReviewDelivery;
   publicationRecoveries?: WorkflowStepState["publicationRecoveries"];
 }

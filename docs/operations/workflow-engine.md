@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-12
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -472,7 +472,15 @@ keeps its original conversation, pinned artifact, approvals and receipts.
 Ordinary `resume` retains successful outputs. If a successful model response is
 invalid downstream, or previously read context is stale, the authenticated
 operator may use `repair-read-phase` with `runId`, `fromStepId`, the exact
-observed `expectedRevision`, and a bounded `reason`. Core accepts only a
+observed `expectedRevision`, and a bounded `reason`. Optional `feedback` contains
+1–2,000 characters without control characters describing the observed validation
+problem. Core retains it immutably in the repair snapshot and includes its digest
+in control events and paid-attempt evidence. Only the first repaired step receives
+it through trusted invocation context. Language generation encloses the original
+input and this diagnostic as separate evidence fields; feedback never replaces
+source facts, Skill instructions, model selection, grants or validation. Later
+steps and conversation calls do not inherit it. Existing repairs without feedback
+keep their original behavior. Core accepts only a
 previously attempted linear R0 Tool path ending at the blocked cursor. Every
 resolved Capability must be read-only. The operation cannot cross a route, wait,
 human decision or write, reopen a completed run, replace its Artifact or source

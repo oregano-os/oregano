@@ -1446,3 +1446,16 @@ invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
 response records the encoding and both provider/delivered text digests alongside
 usage. Strict downstream schema, score, citation and content checks still apply.
 Existing failed attempts remain in the journal; a repair never replaces their cost.
+
+
+### Attributed read-repair diagnostics — September 15, 2026
+
+The existing operator read repair accepts optional bounded validation feedback.
+Core archives it with the exact prior outputs and exposes it only as data for the
+first repaired step. Language attempts retain original and delivered context
+digests and feedback attribution. Pinned Artifacts, model policy, validation,
+source admission and the maximum of three repairs remain unchanged. Portable
+Brain normalization instructions now state the enforced identity confidence and
+lookup enums explicitly; triage inputs expose complete retained source coverage.
+Synthetic checks cover authorization, immutable history, isolation, input bounds
+and exact Connector delivery. Live qualification remains separate.

@@ -3,6 +3,8 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { materializeBrainWorkflow, type BrainWorkflowInputs } from "../../../scripts/materialize-brain-workflow.ts";
+import { executeIsolatedCompanyTool } from "../../tool-sdk/isolated-runner.ts";
+import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { loadCompanyTool } from "../../companyos-builder/workspace-loader.ts";
 import { workspaceDocument } from "../../companyos-builder/workspace-files.ts";
 // @ts-expect-error The maintained Package inspector is a JavaScript Workbench module.
@@ -74,4 +76,26 @@ test("the Brain Blueprint remains independently inspectable and declarative", ()
   const report = inspectCompanyOSPackage(fileURLToPath(new URL("../../blueprints/brain/", import.meta.url)), root);
   assert.deepEqual(report.diagnostics, []); assert.equal(report.package.kind, "blueprint");
   assert.equal(report.package.trust_tier, "declarative"); assert.equal(report.package.installation, "not-implemented");
+});
+
+
+test("triage retains every source character and distinguishes complete coverage from a segment", async () => {
+  const result = materializeBrainWorkflow(input), tool = loadCompanyTool(result.materials, "analyst", "brain-prepare-source");
+  for (const text of ["A very short retained utterance.", "Line \"\\\n😀".repeat(10000)]) {
+    const source = { identity: "synthetic-meeting", version: "synthetic-version", complete: true, kind: "meeting", text,
+      original_url: "https://example.invalid/transcript", occurred_at: "2030-01-01T00:00:00.000Z" };
+    const output = await executeIsolatedCompanyTool({ compiledSource: tool.compiledSource, input: {
+      identity: source.identity, version: source.version, segment_characters: 60000,
+      records: { rows: [{ values: source, source_version_id: "a".repeat(64) }], access_decision: { allowed: true } },
+    }, context: { instanceId: "synthetic", runId: "coverage", stepId: "prepare", agentId: "analyst", toolId: tool.contract.runtimeId },
+    allowedCapabilities: [], invokeCapability: async () => { throw new Error("No provider access"); } }) as any;
+    assert.deepEqual(validateJsonSchemaValue(tool.contract.outputSchema, output), []);
+    assert.equal(output.segments.map((s: any) => s.data.segment.text).join(""), text);
+    for (const segment of output.segments) {
+      assert.equal(segment.data.source.context.companyos_retained_source.complete, true);
+      assert.equal(segment.data.source.context.companyos_retained_source.segments, output.segments.length);
+      assert.equal(segment.data.source.context.companyos_retained_source.characters, text.length);
+      assert.ok(JSON.stringify(segment.data).length <= 100000);
+    }
+  }
 });

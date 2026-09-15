@@ -671,7 +671,7 @@ export class WorkflowEngine {
     } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 
-  async repairReadPhase(runId: string, principal: string, request: { fromStepId: string; expectedRevision: number; reason: string }): Promise<WorkflowRun> {
+  async repairReadPhase(runId: string, principal: string, request: { fromStepId: string; expectedRevision: number; reason: string; feedback?: string }): Promise<WorkflowRun> {
     await this.#operator(principal);
     if (!Number.isSafeInteger(request.expectedRevision) || request.expectedRevision < 1) throw new Error("Read repair requires the exact observed run revision");
     const now = this.#now(), store = this.#options.store;
@@ -681,10 +681,11 @@ export class WorkflowEngine {
       this.#enabled(run.workflowId);
       if (run.revision !== request.expectedRevision) throw new Error("Workflow read repair revision is stale");
       const { artifact, workflow } = await this.#definition(run);
-      const state = prepareWorkflowReadRepair({ artifact, workflow, state: run.state, fromStepId: request.fromStepId, principal, now, reason: request.reason });
+      const state = prepareWorkflowReadRepair({ artifact, workflow, state: run.state, fromStepId: request.fromStepId, principal, now, reason: request.reason, feedback: request.feedback });
       return await this.#save(run, state, "workflow.read-repair-authorized", {
         from_step_id: request.fromStepId, through_step_id: run.state.cursor,
         repair_number: state.readRepairs!.length, reason_digest: sha256(request.reason),
+        ...(request.feedback === undefined ? {} : { feedback_digest: sha256(request.feedback) }),
       }, undefined, principal);
     } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }

@@ -2,6 +2,7 @@ import { findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from
 import type { WorkflowConversation, WorkflowExecutionStore, WorkflowRun } from "../../state-store/workflow-engine.ts";
 import type { WorkflowContextReader, WorkflowInvocationContext } from "./context.ts";
 import { workflowItems } from "./references.ts";
+import { workflowReadRepairFeedback } from "./read-repair.ts";
 import { canonicalJson } from "../canonical.ts";
 import { workflowReviewNoticeInput, workflowReviewStepId } from "./review-notice.ts";
 
@@ -14,6 +15,7 @@ export function workflowContext(run: WorkflowRun, roster: RosterMember[]): Workf
   return {
     mode: "engine", runId: run.runId, workflowId: run.workflowId, stepId: run.state.cursor,
     artifactHash: run.artifactHash, manifestHash: run.manifestHash, status: run.state.status, subjectPrincipal: run.subjectPrincipal,
+    readRepair: workflowReadRepairFeedback(run.state),
     publicationRecoveries: structuredClone(run.state.steps[run.state.cursor]?.publicationRecoveries),
     steps: Object.fromEntries(Object.entries(run.state.steps).filter(([, step]) => step.status === "succeeded").map(([id, step]) => [id, structuredClone(step.output!)])),
     trigger: structuredClone(run.trigger), instance: structuredClone(run.fields), currentRoster: structuredClone(roster),

@@ -48,6 +48,8 @@ export interface CapabilityCallContext {
   /** Set by the runtime's authenticated Workflow guard, never by Company Tool input. */
   workflow?: { id: string; cutoff: string };
   idempotencyKey?: string;
+  /** Authenticated read-repair context, supplied by Core only for its first step. */
+  readRepair?: { number: number; feedback: string; digest: string };
   /** Trusted runtime fence for a prepared effect; never supplied by a Tool. */
   dispatchFence?: WorkflowDispatchFence;
   subject?: {

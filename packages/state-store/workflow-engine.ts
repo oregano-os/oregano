@@ -44,6 +44,8 @@ export interface WorkflowReadRepair {
   principal: string;
   authorizedAt: string;
   reasonDigest: string;
+  /** Optional validation diagnostic, never replacement source facts or instructions. */
+  feedback?: string;
   blocked: { stepId: string; code: string; errorDigest: string };
   steps: Record<string, WorkflowStepState>;
 }

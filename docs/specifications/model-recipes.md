@@ -5,7 +5,7 @@ kind: specification
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-14
+updated: 2026-09-15
 owners:
   - oregano-maintainers
 audience:
@@ -144,3 +144,13 @@ invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
 response records the encoding and both provider/delivered text digests alongside
 usage. Strict downstream schema, score, citation and content checks still apply.
 Existing failed attempts remain in the journal; a repair never replaces their cost.
+
+
+Authenticated Workflow read repairs may carry an immutable, bounded validation
+diagnostic into the first repaired step. The language Connector keeps the pinned
+Skill and model binding unchanged, wraps the exact original input and diagnostic
+as separate data, and records both the original context digest and the delivered
+context digest plus repair number/feedback digest. Feedback is not source truth,
+replacement instructions or authority. It shares the existing evidence size
+limit; malformed or oversized feedback fails before a paid dispatch. The
+existing maximum of three explicit read repairs is unchanged.

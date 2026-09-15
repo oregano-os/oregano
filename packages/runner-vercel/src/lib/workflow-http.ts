@@ -1,3 +1,4 @@
+import { validateReadRepairFeedback } from "../../../runtime/workflow-engine/read-repair.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { loadArtifact } from "./artifact.ts";
 import { authenticateWorkflowOperator, authenticateWorkflowScheduler, decodeWorkflowHostingConfiguration, workflowHostingEnabled } from "./workflow-configuration.ts";
@@ -12,7 +13,7 @@ export type WorkflowOperatorRequest =
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel" | "recover-unpublished-decision"; runId: string }
-  | { action: "repair-read-phase"; runId: string; fromStepId: string; expectedRevision: number; reason: string }
+  | { action: "repair-read-phase"; runId: string; fromStepId: string; expectedRevision: number; reason: string; feedback?: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
   | { action: "list"; afterRunId?: string }
@@ -42,10 +43,12 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
     return { action: "schedule", ...common, instant: text("instant") };
   }
   if (input.action === "repair-read-phase") {
-    exact(["runId", "fromStepId", "expectedRevision", "reason"]);
+    exact(["runId", "fromStepId", "expectedRevision", "reason", "feedback"]);
+    if (Object.hasOwn(input, "feedback")) validateReadRepairFeedback(input.feedback);
     if (!Number.isSafeInteger(input.expectedRevision) || Number(input.expectedRevision) < 1) throw new Error("Invalid Workflow repair revision");
     return { action: "repair-read-phase", runId: text("runId", /^workflow:[a-f0-9]{64}$/),
-      fromStepId: text("fromStepId", /^[a-z][a-z0-9-]{1,62}$/), expectedRevision: Number(input.expectedRevision), reason: text("reason") };
+      fromStepId: text("fromStepId", /^[a-z][a-z0-9-]{1,62}$/), expectedRevision: Number(input.expectedRevision), reason: text("reason"),
+      ...(input.feedback === undefined ? {} : { feedback: input.feedback as string }) };
   }
   if (input.action === "verify") {
     exact(["runId", "requirements"]);

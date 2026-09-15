@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { engineFixture, ENGINE_OPERATOR, ENGINE_OWNER } from "../workflow-engine-fixture.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 import { validateWorkflowState } from "../../runtime/workflow-engine/state-validation.ts";
-import { prepareWorkflowReadRepair } from "../../runtime/workflow-engine/read-repair.ts";
+import { workflowReadRepairFeedback, prepareWorkflowReadRepair } from "../../runtime/workflow-engine/read-repair.ts";
 import { parseWorkflowOperatorRequest } from "../../runner-vercel/src/lib/workflow-http.ts";
 import type { WorkflowRun } from "../../state-store/workflow-engine.ts";
 
@@ -13,9 +13,9 @@ const open = (h: ReturnType<typeof engineFixture>) => h.engine().openOperator({ 
 const repair = (h: ReturnType<typeof engineFixture>, run: WorkflowRun, fromStepId = "participant-roles") => h.engine().repairReadPhase(run.runId, ENGINE_OPERATOR, { fromStepId, expectedRevision: run.revision, reason: "Refresh the invalid read result" });
 
 function invalidRoles() {
-  let valid = false, reads = 0;
-  const h = engineFixture({ recordsConnector: { id: "test/engine", version: "1.0.0", capabilities: ["records.query"], async invoke(_capability, raw) {
-    reads++;
+  let valid = false, reads = 0; const contexts: any[] = [];
+  const h = engineFixture({ recordsConnector: { id: "test/engine", version: "1.0.0", capabilities: ["records.query"], async invoke(_capability, raw, context) {
+    contexts.push(context); reads++;
     const input = raw as Record<string, any>, now = "2030-01-04T14:30:00.000Z";
     const rows = ["jonas-owner", "lea-contributor", "tim-contributor"].map(id => ({ record_id: `role-${id}`, values: { person_ids: [id], lifecycle_state: "active", role: valid ? "delivery" : " " },
       instance_id: h.artifact.instance.id, projection_id: input.projection_id, record_type: "synthetic", source_version_id: sha256(id), projected_at: now }));
@@ -23,7 +23,7 @@ function invalidRoles() {
       synced_through: input.require_synced_through ?? now, source_proofs: [{ source_id: "synthetic-test-source", source_digest: sha256(rows), run_id: "synthetic-sync", synced_through: now, watermark: "synthetic" }],
       access_decision: { allowed: true, projection_id: input.projection_id, principal_id: ENGINE_OPERATOR, policy_digest: "synthetic-test-policy", reason: "role-allowed", decided_at: now } }, evidence: { synthetic: true } };
   } } });
-  return { h, accept() { valid = true; }, get reads() { return reads; } };
+  return { h, contexts, accept() { valid = true; }, get reads() { return reads; } };
 }
 
 test("blocked read repair archives invalid successful results and refreshes only the selected suffix", async () => {
@@ -104,4 +104,37 @@ test("hosted repair input is exact and cannot carry replacement data or another 
   const input = { action: "repair-read-phase", runId: `workflow:${"a".repeat(64)}`, fromStepId: "read-source", expectedRevision: 4, reason: "Refresh stale read" };
   assert.deepEqual(parseWorkflowOperatorRequest(input), input);
   for (const patch of [{ expectedRevision: 0 }, { expectedRevision: 1.5 }, { reason: "" }, { fromStepId: "../write" }, { output: {} }, { artifactHash: "a".repeat(64) }]) assert.throws(() => parseWorkflowOperatorRequest({ ...input, ...patch }));
+});
+
+
+test("read repair feedback is bounded, immutable and delivered only to the first repaired step", async () => {
+  const source = invalidRoles(), { h } = source;
+  let run = (await h.engine().advance((await open(h)).runId))!;
+  const before = structuredClone(run.state), feedback = "The role field must contain a nonempty role from the retained Records evidence.";
+  const request = { fromStepId: "participant-roles", expectedRevision: run.revision, reason: "Explain validation failure", feedback };
+  for (const invalid of ["", " ", "x".repeat(2001), "line\nline", "bad\u007fvalue", 1, null]) {
+    await assert.rejects(h.engine().repairReadPhase(run.runId, ENGINE_OPERATOR, { ...request, feedback: invalid as any }), /feedback/);
+  }
+  run = await h.engine().repairReadPhase(run.runId, ENGINE_OPERATOR, request);
+  assert.equal(run.state.readRepairs![0]!.feedback, feedback);
+  assert.deepEqual(run.state.readRepairs![0]!.steps["participant-roles"], before.steps["participant-roles"]);
+  const expected = { number: 1, feedback, digest: sha256(feedback) };
+  assert.deepEqual(workflowReadRepairFeedback(run.state), expected);
+  assert.equal(workflowReadRepairFeedback({ ...run.state, cursor: "snapshot-participants" }), undefined);
+  assert.equal(workflowReadRepairFeedback({ ...run.state, status: "waiting" }), undefined);
+  const tampered = structuredClone(run.state); tampered.readRepairs![0]!.feedback = "Changed after authorization";
+  assert.throws(() => validateWorkflowState(tampered, run.workflowId, h.artifact, run.state), /immutable/);
+  source.accept(); run = (await h.engine().advance(run.runId))!;
+  assert.deepEqual(source.contexts.at(-1).readRepair, expected, "actual isolated Tool invocation receives trusted context at the Connector boundary");
+  assert.equal(workflowReadRepairFeedback(run.state), undefined);
+  const event = (await h.control.listEvents(run.runId)).find(e => e.event === "workflow.read-repair-authorized")!;
+  assert.equal((event.evidence as any).feedback_digest, sha256(feedback));
+  assert.ok(!JSON.stringify(event).includes(feedback), "control event contains only the diagnostic digest");
+});
+
+test("hosted feedback cannot carry replacement fields and rejects malformed diagnostics", () => {
+  const input = { action: "repair-read-phase", runId: `workflow:${"b".repeat(64)}`, fromStepId: "read-source", expectedRevision: 9, reason: "Validation issue", feedback: "Unknown identities require low confidence." };
+  assert.deepEqual(parseWorkflowOperatorRequest(input), input);
+  for (const feedback of [null, 1, "", " ", "x".repeat(2001), "two\nlines", undefined]) assert.throws(() => parseWorkflowOperatorRequest({ ...input, feedback }));
+  for (const extra of [{ output: {} }, { artifactHash: "a".repeat(64) }, { model: "different" }]) assert.throws(() => parseWorkflowOperatorRequest({ ...input, ...extra }));
 });

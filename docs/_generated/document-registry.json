@@ -1124,7 +1124,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-12",
+    "updated": "2026-09-15",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -1622,7 +1622,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-14",
+    "updated": "2026-09-15",
     "availability": null,
     "migration_sources": [],
     "relations": {}

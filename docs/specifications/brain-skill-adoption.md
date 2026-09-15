@@ -132,3 +132,12 @@ invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
 response records the encoding and both provider/delivered text digests alongside
 usage. Strict downstream schema, score, citation and content checks still apply.
 Existing failed attempts remain in the journal; a repair never replaces their cost.
+
+
+The normalization output contract explicitly states the existing validator's
+constraints: an unresolved (`null`) attendee name requires low confidence, and
+lookup types are `person`, `company`, `concept` or `meeting` (including meeting
+deduplication). Prepared triage segments include the retained source character
+count, segment count and complete coverage flag, so meeting duration cannot be
+mistaken for omitted transcript text. These facts do not weaken the original
+escalation principle or determine a classification.

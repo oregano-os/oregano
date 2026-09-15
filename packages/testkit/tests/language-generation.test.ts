@@ -107,3 +107,29 @@ test("phase-only conversation context is trusted binding policy, never a caller 
   await assert.rejects(connector.invoke("language.generate", { ...input, conversation_context: true }, context), /Invalid/);
   assert.equal((await connector.invoke("language.generate", input, context)).output.text, "Bound output");
 });
+
+
+test("authorized repair feedback remains evidence, retains inputs, and is attributed without changing Skill or model", async () => {
+  const feedback = "An unresolved name requires low confidence.", repair = { number: 1, feedback, digest: sha256(feedback) };
+  let calls = 0;
+  const connector = new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path }], generate: async request => {
+    calls++;
+    assert.equal(request.instructions, "Summarize supported results; state gaps."); assert.equal(request.modelTask, "analyst.review");
+    const data = JSON.parse(request.data); assert.deepEqual(data.input, input.data);
+    assert.equal(data.operator_read_repair.feedback, feedback); assert.equal(data.operator_read_repair.feedback_digest, repair.digest);
+    assert.match(data.operator_read_repair.purpose, /not source evidence/);
+    return { text: "Uncertainty retained", evidence: {} };
+  } });
+  const trusted = { ...context, workflow: { id: "report", cutoff: "2030-01-01T00:00:00.000Z" }, readRepair: repair };
+  const result = await connector.invoke("language.generate", input, trusted);
+  assert.equal(result.evidence.context_digest, sha256(input.data));
+  assert.equal(result.evidence.read_repair_feedback_digest, repair.digest); assert.equal(result.evidence.read_repair_number, 1);
+  assert.match(result.evidence.delivered_context_digest, /^[a-f0-9]{64}$/);
+  assert.ok(!JSON.stringify(result.evidence).includes(feedback));
+  for (const readRepair of [{ ...repair, number: 4 }, { ...repair, number: 1.1 }, { ...repair, digest: "0".repeat(64) }, { ...repair, feedback: "x".repeat(2001) }]) {
+    await assert.rejects(connector.invoke("language.generate", input, { ...trusted, readRepair }));
+  }
+  await assert.rejects(connector.invoke("language.generate", input, { ...context, readRepair: repair }));
+  await assert.rejects(connector.invoke("language.generate", { ...input, readRepair: repair }, context));
+  assert.equal(calls, 1);
+});

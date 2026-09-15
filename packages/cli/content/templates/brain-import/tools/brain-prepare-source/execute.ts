@@ -18,11 +18,12 @@ export default defineCompanyTool({ async execute(input) {
   const boundary = (end: number) => end < v.text.length && /[\uD800-\uDBFF]/.test(v.text[end - 1]) && /[\uDC00-\uDFFF]/.test(v.text[end]) ? end - 1 : end;
   for (let start = 0; start < v.text.length;) {
     let end = boundary(Math.min(v.text.length, start + x.segment_characters));
-    // Escaping can expand JSON. Retain all context and every source character.
-    while (end > start && JSON.stringify({source, segment: {id: 'segment-1000', start, end, text: v.text.slice(start, end)}}).length > 100000) end = boundary(start + Math.floor((end - start) / 2));
+    // Reserve 500 characters for complete coverage metadata; escaping can expand JSON.
+    while (end > start && JSON.stringify({source, segment: {id: 'segment-1000', start, end, text: v.text.slice(start, end)}}).length > 99500) end = boundary(start + Math.floor((end - start) / 2));
     if (end <= start || segments.length >= 1000) throw new Error("Source segmentation cannot preserve complete coverage within bounds");
     const id = 'segment-' + String(segments.length + 1).padStart(4, '0');
     segments.push({key: id, data: {source, segment: {id, start, end, text: v.text.slice(start, end)}}}); start = end;
   }
+  source.context.companyos_retained_source = { complete: true, characters: v.text.length, segments: segments.length, note: "Segments cover all retained text; meeting duration does not imply unprovided transcript text." };
   return {source, source_complete: true, expected_segments: segments.map(x => x.key), segments};
 } });
