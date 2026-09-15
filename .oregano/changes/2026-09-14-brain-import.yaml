@@ -34,6 +34,7 @@ files_expected:
   - packages/connectors/slack/records-source.ts
   - packages/connectors/slack/thread-content.ts
   - packages/testkit/tests/slack-thread-content.test.ts
+  - packages/cli/content/guides/connect-company-record-source.md
   - docs/workbench/guides/connect-company-record-source.md
   - .oregano/changes/2026-09-15-read-repair-feedback.yaml
   - .oregano/changes/2026-09-15-language-output-format.yaml

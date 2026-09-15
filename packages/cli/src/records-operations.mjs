@@ -9,7 +9,7 @@ import {
   MONDAY_RECORD_SOURCE_CONNECTOR_VERSION,
   MondayRecordSourceConnector,
 } from "../../connectors/monday/records-source.ts";
-import { SLACK_RECORD_SOURCE_CONNECTOR_ID, SlackRecordSourceConnector } from "../../connectors/slack/records-source.ts";
+import { SLACK_RECORD_SOURCE_CONNECTOR_ID, SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS, SlackRecordSourceConnector } from "../../connectors/slack/records-source.ts";
 import { reconcileRecordSnapshot } from "../../records/reconciliation.ts";
 import { CompanyRecordsRegistry } from "../../records/registry.ts";
 import { RecordIdentityDirectory } from "../../records/identity-directory.ts";
@@ -239,8 +239,7 @@ export function createMaintainedRecordSourceConnectorRegistry({ resolveSecret = 
   return new RecordSourceConnectorRegistry([
     new GoogleMeetRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
     new MondayRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
-    new SlackRecordSourceConnector({ resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
-    new SlackRecordSourceConnector({ version: "0.1.3", resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) }),
+    ...SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS.map(version => new SlackRecordSourceConnector({ version, resolveSecret, ...(fetcher ? { fetcher } : {}), ...(now ? { now } : {}) })),
   ]);
 }
 

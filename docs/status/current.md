@@ -1474,3 +1474,8 @@ The incremental source candidate now delivers all adopted procedure sections to 
 Agent, permits explicit no-write notability skips and verifies per-page read-back.
 Empty completed effect loops do not block an otherwise unwritten source continuation.
 These corrections have synthetic regression coverage; live qualification is separate.
+
+The [maintained source guide](../workbench/guides/connect-company-record-source.md#opt-in-complete-slack-discussions) describes the opt-in complete discussion field on root messages,
+with provider permalinks, ordered attribution and stable update versions. Legacy
+message delivery remains available. Live source delivery requires its own exact
+channel/binding qualification; the capability does not activate company imports.

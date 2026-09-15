@@ -4,11 +4,12 @@ import type { CompanyRecordSourceDeclaration } from "../../records/contracts.ts"
 import type { CompanyRecordSourceBinding, RecordSourceConnector, RecordSourceInventory } from "../../records/source-connector.ts";
 import { recordSourceBindingDigest } from "../../records/source-connector.ts";
 import { SlackWebApiClient, type SlackFetch } from "./client.ts";
+import { completeSlackThread, slackMessagePermalink } from "./thread-content.ts";
 import { qualifySlackRecordSource } from "./record-source-qualification.ts";
 
 export const SLACK_RECORD_SOURCE_CONNECTOR_ID = "oregano/slack-record-source";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.4";
-export const SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS = ["0.1.3", SLACK_RECORD_SOURCE_CONNECTOR_VERSION] as const;
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSION = "0.1.5";
+export const SLACK_RECORD_SOURCE_CONNECTOR_VERSIONS = ["0.1.3", "0.1.4", SLACK_RECORD_SOURCE_CONNECTOR_VERSION] as const;
 
 type SlackConversationKind = "public-channel" | "private-channel";
 
@@ -74,6 +75,8 @@ const configuration = (
   const latestAt = value.latest_at === undefined ? undefined : exactIso(value.latest_at, "Slack latest_at");
   if (latestAt && latestAt < oldestAt) throw new Error("Slack latest_at must not precede oldest_at");
   const includeThreads = boolean(value.include_threads, "Slack include_threads", true);
+  const threadContent = boolean(value.thread_content, "Slack thread_content", false);
+  if (threadContent && (!includeThreads || binding.connector_version !== "0.1.5")) throw new Error("Complete thread content requires Slack 0.1.5 and include_threads");
   const pageSize = integer(value.page_size, "Slack page_size", 100, 1, 200);
   const maxPages = integer(value.max_pages, "Slack max_pages", 100, 1, 1_000);
   const maxThreadPages = integer(value.max_thread_pages, "Slack max_thread_pages", 20, 1, 1_000);
@@ -98,7 +101,7 @@ const configuration = (
   const scopes = new Set(Array.isArray(discovery.scopes) ? discovery.scopes.map(String) : []);
   const missingScope = requiredScopes.find((scope) => !scopes.has(scope));
   if (missingScope) throw new Error(`Slack qualification lacks required scope '${missingScope}'`);
-  return { teamId, channelId, conversationKind, botUserId: discovery.bot_user_id as string, oldestAt, latestAt, includeThreads, pageSize, maxPages, maxThreadPages, maxMessages };
+  return { teamId, channelId, conversationKind, botUserId: discovery.bot_user_id as string, oldestAt, latestAt, includeThreads, threadContent, pageSize, maxPages, maxThreadPages, maxMessages };
 };
 
 const normalizeMessage = (args: {
@@ -173,7 +176,8 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
   }
 
   validateBinding(args: { source: CompanyRecordSourceDeclaration; binding: CompanyRecordSourceBinding; qualification: Record<string, unknown> }): void {
-    configuration(args.source, args.binding, args.qualification);
+    const config = configuration(args.source, args.binding, args.qualification);
+    if (config.threadContent && this.version !== "0.1.5") throw new Error("Complete thread content requires Slack 0.1.5");
   }
 
   async readCompleteInventory(args: {
@@ -182,6 +186,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
     qualification: Record<string, unknown>;
   }): Promise<RecordSourceInventory> {
     const config = configuration(args.source, args.binding, args.qualification);
+    if (config.threadContent && this.version !== "0.1.5") throw new Error("Complete thread content requires Slack 0.1.5");
     const scanStartedAt = this.now().toISOString();
     const token = await this.resolveSecret(args.binding.secret_ref);
     if (!token) throw new Error(`Record Source Connector secret '${args.binding.secret_ref}' is unavailable`);
@@ -237,6 +242,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
 
     if (config.includeThreads) {
       for (const root of roots) {
+        if (config.threadContent && root.thread_ts && root.thread_ts !== root.ts) continue;
         if (!(typeof root.reply_count === "number" && root.reply_count > 0)) continue;
         const rootTs = String(root.ts ?? "");
         if (!rootTs) throw new Error("Slack threaded message has no stable root timestamp");
@@ -250,20 +256,26 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
           const result = await client.replies({
             channel: config.channelId,
             ts: rootTs,
-            oldest: slackTimestamp(config.oldestAt),
-            ...(config.latestAt ? { latest: slackTimestamp(config.latestAt) } : {}),
+            // In opt-in mode the window selects roots; their complete current replies
+            // are included even after the root-selection end, to preserve discussion context.
+            ...(config.threadContent ? {} : { oldest: slackTimestamp(config.oldestAt), ...(config.latestAt ? { latest: slackTimestamp(config.latestAt) } : {}) }),
             limit: config.pageSize,
             ...(threadCursor ? { cursor: threadCursor } : {}),
           });
           rememberReceipt(result);
           pagesForThread += 1;
           threadPages += 1;
+          if (config.threadContent && result.data.is_limited === true) throw new Error("Slack thread is limited by provider retention");
           for (const message of result.data.messages) {
             const replyTs = String(message.ts ?? "");
             // Slack includes the root as the first conversations.replies item.
             // Keep the history representation already frozen above and count
             // only true replies when checking thread completeness.
-            if (replyTs === rootTs) continue;
+            if (replyTs === rootTs) {
+              if (config.threadContent && digest(normalizeMessage({ sourceId: args.source.id, teamId: config.teamId, channelId: config.channelId, message }))
+                !== digest(messages.get(`${config.channelId}:${rootTs}`))) throw new Error("Slack root changed during its complete thread scan; retry the inventory");
+              continue;
+            }
             if (replyTs) observedReplies.add(replyTs);
             remember(message, rootTs);
           }
@@ -276,9 +288,22 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
         // `reply_count` describes the complete live thread, not the selected
         // historical window. It is therefore a valid completeness check only
         // when the inventory has no upper time bound.
-        if (!config.latestAt && observedReplies.size < expectedReplies) {
+        if (config.threadContent ? observedReplies.size !== expectedReplies : !config.latestAt && observedReplies.size < expectedReplies) {
           throw new Error(`Slack thread '${rootTs}' returned ${observedReplies.size} of ${expectedReplies} declared replies and cannot support a complete inventory claim`);
         }
+      }
+    }
+    if (config.threadContent) {
+      // Resolve actual provider links for every retained message. Never synthesize URLs.
+      for (const message of messages.values()) {
+        if (message.is_deleted === true) throw new Error("A deleted Slack message has no verifiable original link");
+        const response = await client.permalink(config.channelId, String(message.message_id));
+        rememberReceipt(response);
+        if (response.data.channel !== config.channelId) throw new Error("Slack returned a permalink for another channel");
+        message.permalink = slackMessagePermalink(response.data.permalink, config.channelId);
+      }
+      for (const message of messages.values()) if (message.is_thread_root === true) {
+        message.thread_content = completeSlackThread(message, [...messages.values()]);
       }
     }
     const objects = [...messages.values()].sort((left, right) => String(left.message_id).localeCompare(String(right.message_id)));
@@ -303,6 +328,7 @@ export class SlackRecordSourceConnector implements RecordSourceConnector {
         oldest_at: config.oldestAt,
         ...(config.latestAt ? { latest_at: config.latestAt } : {}),
         include_threads: config.includeThreads,
+        ...(config.threadContent ? { thread_content: true, thread_scope: "complete-current-discussions-selected-by-root-date" } : {}),
         history_pages: historyPages,
         thread_pages: threadPages,
         request_ids: [...new Set(requestIds)].sort(),
