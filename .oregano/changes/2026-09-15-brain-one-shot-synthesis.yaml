@@ -6,7 +6,9 @@ objective: Prefetch relevant current Brain pages, synthesize one meeting source 
   a structured multi-page proposal with one tool-free reasoning/deep generation,
   validate provenance and page structure, persist through the standard Brain
   operation and verify exact saved Markdown. Fall back before effects when the
-  source or output exceeds the safe bound.
+  source or output exceeds the safe bound. Decode literal control characters
+  inside JSON strings without changing their Markdown value; keep all other
+  schema and source checks strict before writing.
 non_goals:
   - Introduce company-specific names, tags, filing values or provider credentials
     into Core.
@@ -39,7 +41,6 @@ documentation_impact:
   required: true
   affected_documents:
     - specification.brain-import
-    - specification.brain-read
 architecture:
   placement:
     core: Generic bounded retrieval, structured-output validation, source-version

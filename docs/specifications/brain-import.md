@@ -31,8 +31,12 @@ participant names fall back before generation rather than being guessed. One too
 reasoning/deep generation proposes complete meeting and entity Markdown pages in
 a source-scoped JSON result. A restricted R1 Tool rejects mismatched source
 identity, duplicate/unsafe page paths, missing source links, absent meeting
-sections and attendee Timeline backlinks before calling
-the standard `brain.remember` operation. It then reads each saved page through
+sections and attendee Timeline backlinks before calling the standard
+`brain.remember` operation. If the model emitted literal control characters
+inside JSON strings, the host escapes only those characters for JSON decoding;
+the decoded Markdown remains identical and the correction is recorded as an
+import gap. Other invalid JSON and page proposals still fail before effects.
+The Tool then reads each saved page through
 `brain.entity` and compares the exact Markdown. The Tool retains Git/index
 receipts and marks semantic checks that cannot be proven deterministically as
 flagged uncertainty; a model observation alone is not a passed saved-page check.

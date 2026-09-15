@@ -68,6 +68,24 @@ function citeNewPage(markdown: string, evidence: string): { markdown: string; ad
   return { markdown: next, added };
 }
 
+function parseJsonWithLiteralStringControls(raw: string): { value: any; escaped: number } {
+  try { return { value: JSON.parse(raw), escaped: 0 }; }
+  catch (firstError) {
+    let quoted = false, escaped = false, repaired = "", count = 0;
+    for (const char of raw) {
+      if (escaped) { repaired += char; escaped = false; continue; }
+      if (char === "\\" && quoted) { repaired += char; escaped = true; continue; }
+      if (char === '"') { quoted = !quoted; repaired += char; continue; }
+      if (quoted && char.charCodeAt(0) < 32) {
+        repaired += "\\u" + char.charCodeAt(0).toString(16).padStart(4, "0"); count++; continue;
+      }
+      repaired += char;
+    }
+    if (!count) throw firstError;
+    return { value: JSON.parse(repaired), escaped: count };
+  }
+}
+
 export default defineCompanyTool({ async execute(input: any, context: any) {
   const { task, route, prompt_paths, processing_instant } = input;
   if (task?.triage?.coverage_complete !== true || !["reasoning", "deep"].includes(route)
@@ -133,7 +151,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
         triage: task.triage, prior: task.prior, directories, internal_evidence_page: evidence,
         existing_pages: existing, retrieval } }) as any;
     if (typeof generated?.text !== "string" || generated.text.length > 60000) throw Error("One-shot output is incomplete or unbounded");
-    const draft = JSON.parse(generated.text);
+    const parsed = parseJsonWithLiteralStringControls(generated.text), draft = parsed.value;
     if (draft.source_identity !== source.identity || draft.source_version !== source.version
       || !Array.isArray(draft.pages) || draft.pages.length < 1 || draft.pages.length > 15
       || Object.keys(draft).sort().join(",") !== "gaps,meetings,pages,source_identity,source_version,verification"
@@ -226,6 +244,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       source_identity: source.identity, source_version: source.version, pages: verified, receipts: [receipt],
       indexed_revision: receipt.indexed_revision, verification,
       gaps: [...draft.gaps,
+        ...(parsed.escaped ? ["Escaped " + parsed.escaped + " literal JSON control character(s) inside string values without changing the decoded page content."] : []),
         ...(removedQuotes ? ["Removed " + removedQuotes + " proposed non-verbatim blockquote(s) before saving."] : []),
         ...(citedNewPages || draft.verification.some((item: any) => item.detail === undefined)
           ? ["Host supplied source citations on " + citedNewPages + " new page(s); model omitted "

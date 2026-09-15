@@ -132,13 +132,19 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
   task.original_text = task.original_text.padEnd(120_000, " ");
   const longSource = await run(JSON.stringify(proposal));
   assert.equal(longSource.route, "one-shot"); assert.equal(modelCalls, 4, "A bounded long source still uses one synthesis call");
+  const literalControl = JSON.stringify(proposal).replace("\\n\\n## Summary", "\n\n## Summary");
+  assert.notEqual(literalControl, JSON.stringify(proposal));
+  const recovered = await run(literalControl);
+  assert.equal(recovered.route, "one-shot"); assert.equal(modelCalls, 5);
+  assert.ok(recovered.outcome.gaps.some((gap: string) => /Escaped 2 literal JSON control character/.test(gap)));
+  assert.equal(saved.get(meetingSlug)!.includes("## Summary\nAlex discussed"), true, "Decoded Markdown remains unchanged");
   task.original_text = task.original_text.padEnd(130_001, " ");
   const tooLong = await run(JSON.stringify(proposal));
-  assert.equal(tooLong.route, "agent"); assert.equal(modelCalls, 4, "An oversized source falls back before a paid call");
+  assert.equal(tooLong.route, "agent"); assert.equal(modelCalls, 5, "An oversized source falls back before a paid call");
   task.original_text = "Alex discussed a first design goal. No decision or action was recorded.";
   task.source.context.participants = Array.from({ length: 9 }, (_, index) => "Person " + index);
   const oversized = await run(JSON.stringify(proposal));
-  assert.equal(oversized.route, "agent"); assert.equal(modelCalls, 4, "Unbounded participants cannot trigger a paid one-shot call");
+  assert.equal(oversized.route, "agent"); assert.equal(modelCalls, 5, "Unbounded participants cannot trigger a paid one-shot call");
 });
 
 test("missing, inconsistent, unsafe and unbounded company inputs fail before adoption", () => {
