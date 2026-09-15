@@ -114,9 +114,16 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
   assert.match(saved.get(personSlug)!, /tags: \[person\]/);
   const rejected = await run(JSON.stringify({ ...proposal, source_version: "wrong" }));
   assert.equal(rejected.route, "agent"); assert.equal(writeCalls, 1, "Invalid model output cannot write");
+  task.original_text = task.original_text.padEnd(120_000, " ");
+  const longSource = await run(JSON.stringify(proposal));
+  assert.equal(longSource.route, "one-shot"); assert.equal(modelCalls, 3, "A bounded long source still uses one synthesis call");
+  task.original_text = task.original_text.padEnd(130_001, " ");
+  const tooLong = await run(JSON.stringify(proposal));
+  assert.equal(tooLong.route, "agent"); assert.equal(modelCalls, 3, "An oversized source falls back before a paid call");
+  task.original_text = "Alex discussed a first design goal. No decision or action was recorded.";
   task.source.context.participants = Array.from({ length: 9 }, (_, index) => "Person " + index);
   const oversized = await run(JSON.stringify(proposal));
-  assert.equal(oversized.route, "agent"); assert.equal(modelCalls, 2, "Unbounded participants cannot trigger a paid one-shot call");
+  assert.equal(oversized.route, "agent"); assert.equal(modelCalls, 3, "Unbounded participants cannot trigger a paid one-shot call");
 });
 
 test("missing, inconsistent, unsafe and unbounded company inputs fail before adoption", () => {

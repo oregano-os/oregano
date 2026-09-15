@@ -48,7 +48,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
     || Object.values(prompt_paths).some((value: any) => typeof value !== "string" || !value.startsWith("agents/"))) throw Error("Reviewed one-shot prompt bindings are required");
   sourceDay(source.occurred_at);
   processingDay(processing_instant);
-  if (source.kind !== "meeting" || task.original_text.length > 110000 || task.prior.requests.length > 8) return { route: "agent", reason: "Source type or reconciliation context exceeds the bounded meeting synthesis", outcome: null };
+  if (source.kind !== "meeting" || task.original_text.length > 130000 || task.prior.requests.length > 8) return { route: "agent", reason: "Source type or reconciliation context exceeds the bounded meeting synthesis", outcome: null };
   let effectStarted = false;
   try {
     const prefetch = new Map<string, PageRead>();
