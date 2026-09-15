@@ -18,6 +18,11 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - .oregano/changes/2026-09-15-workflow-read-repair.yaml
+  - .oregano/changes/2026-09-15-non-transcript-source-selection.yaml
+  - docs/specifications/workflow-execution-v1-draft.md
+  - packages/runner-vercel/src/lib/workflow-http.ts
+  - packages/testkit/tests/workflow-read-repair.test.ts
   - packages/runner-vercel/src/lib/workflow-configuration.ts
   - packages/runner-vercel/src/lib/workflow-host.ts
   - packages/testkit/workflow-engine-fixture.ts
@@ -98,6 +103,7 @@ files_expected:
   - packages/runner-vercel/src/lib/agent-instructions.ts
   - packages/runner-vercel/src/lib/prompt-caching.test.ts
 tests:
+  - packages/testkit/tests/workflow-read-repair.test.ts
   - packages/testkit/tests/brain-import-admission.test.ts
   - packages/testkit/tests/google-meet-source.test.ts
   - packages/testkit/tests/brain-documents.test.ts
@@ -125,6 +131,7 @@ documentation_impact:
     - specification.brain-read
     - operations.brain-read
     - operations.workflow-engine
+    - specification.workflow-execution-v1
     - status.current
     - onboarding.index
     - onboarding.company-workspace

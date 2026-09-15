@@ -13,6 +13,8 @@ export interface TranscriptImportBinding {
   policyField: string;
   sourceIdentityField: string;
   sourceVersionField: string;
+  /** Exact reviewed discussion versions; never a wildcard, channel expansion or transcript slot. */
+  nonTranscriptSources?: Array<{ identity: string; version: string; kind: "discussion" }>;
 }
 const identifier = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9_-]{0,62}$/.test(value);
 export function parseTranscriptImportBindings(raw: unknown, artifact: CompanyOSArtifact, enabled: readonly string[]): TranscriptImportBinding[] {
@@ -21,9 +23,16 @@ export function parseTranscriptImportBindings(raw: unknown, artifact: CompanyOSA
   const seen = new Set<string>();
   return raw.map(item => {
     const fields = ["workflowId", "importId", "policyField", "sourceIdentityField", "sourceVersionField"];
-    if (!item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).sort().join(",") !== [...fields, "cohortId"].sort().join(",")
+    if (!item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).filter(key => key !== "nonTranscriptSources").sort().join(",") !== [...fields, "cohortId"].sort().join(",")
       || fields.some(key => !identifier(item[key])) || typeof item.cohortId !== "string" || !/^[a-f0-9]{64}$/.test(item.cohortId)) throw new Error("Invalid transcript import binding");
     const binding = item as TranscriptImportBinding;
+    if (binding.nonTranscriptSources !== undefined) {
+      const selected = binding.nonTranscriptSources;
+      if (!Array.isArray(selected) || selected.length > 100 || selected.some(source => !source || typeof source !== "object"
+        || Object.keys(source).sort().join(",") !== "identity,kind,version" || source.kind !== "discussion"
+        || [source.identity, source.version].some(value => typeof value !== "string" || !value.length || value.length > 1000 || /[\x00-\x1f]/.test(value)))
+        || new Set(selected.map(source => source.identity)).size !== selected.length) throw new Error("Invalid exact non-transcript source selection");
+    }
     const workflow = artifact.workflows?.find(workflow => workflow.id === binding.workflowId);
     if (!workflow || !enabled.includes(workflow.id) || seen.has(workflow.id)
       || binding.sourceIdentityField === binding.sourceVersionField
@@ -55,7 +64,12 @@ export async function transcriptImportOrigin(args: {
   const selected = state.cohorts.slice(0, index + 1).flatMap(cohort => cohort.admitted);
   if (selected.length !== cohort.cumulative_count || new Set(selected.map(item => item.identity)).size !== selected.length
     || cohort.cumulative_count > cohort.policy.max_transcripts) throw new Error("Retained transcript admissions violate the cohort ceiling");
-  if (!selected.some(item => item.identity === source)) throw new Error("Source identity is outside the frozen transcript cohort");
+  const extra = binding.nonTranscriptSources?.find(item => item.identity === source);
+  if (binding.nonTranscriptSources?.some(item => selected.some(transcript => transcript.identity === item.identity))) throw new Error("A transcript cannot be reclassified as a non-transcript source");
+  if (!selected.some(item => item.identity === source) && (!extra || extra.version !== version)) throw new Error("Source identity or version is outside the frozen transcript cohort or exact non-transcript selection");
+  if (extra) return { originKey: `transcript:${sha256({ import_id: binding.importId, source_identity: source, source_version: version })}`,
+    receipt: { kind: "non-transcript-selection", sourceKind: extra.kind, importId: binding.importId, cohortId: cohort.id,
+      policyDigest: sha256({ policyDigest, selected: extra }), sourceIdentity: source, sourceVersion: version } };
   // The initial discovery version may be metadata-only. The Workflow must read
   // the exact content version from authorized Records before any model step.
   // Policy/cohort/Artifact/request changes never reset a completed source version.

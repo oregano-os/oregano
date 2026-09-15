@@ -1369,3 +1369,12 @@ an exact-revision request may restart a linear R0 Tool phase of a blocked run
 while archiving all previous results. Three repairs per run are permitted;
 effects, decisions, waits and changed Artifacts are excluded. Synthetic tests
 qualify this contract; hosted company adoption needs separate evidence.
+
+A transcript import binding may additionally declare at most 100 exact
+`nonTranscriptSources` entries with `identity`, `version` and
+`kind: discussion`. These reviewed source versions use the same source-keyed
+Workflow and normal Records/Tool permissions while retaining a distinct immutable
+non-transcript admission proof. They never allocate, refill, or change transcript
+cohort slots. Unknown versions and overlap with any admitted transcript fail
+closed. This is a finite selection, not a channel wildcard or an automatic
+expansion policy. Earlier completed source versions remain deduplicated.

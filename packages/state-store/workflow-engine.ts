@@ -30,7 +30,8 @@ export interface WorkflowStoredDecision {
   deliveries: Record<string, JsonValue>;
 }
 export interface WorkflowSourceAdmission {
-  kind: "transcript-cohort";
+  kind: "transcript-cohort" | "non-transcript-selection";
+  sourceKind?: "discussion";
   importId: string;
   cohortId: string;
   policyDigest: string;

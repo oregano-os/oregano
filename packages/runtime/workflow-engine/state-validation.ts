@@ -59,7 +59,9 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
   if (previous && canonicalJson(previous.sourceAdmission ?? null) !== canonicalJson(state.sourceAdmission ?? null)) throw new Error("Workflow source admission is immutable");
   if (state.sourceAdmission) {
     const proof = state.sourceAdmission; safeObject(proof);
-    if (proof.kind !== "transcript-cohort" || Object.keys(proof).sort().join(",") !== "cohortId,importId,kind,policyDigest,sourceIdentity,sourceVersion") throw new Error("Invalid Workflow source admission proof");
+    const expected = proof.kind === "non-transcript-selection" ? "cohortId,importId,kind,policyDigest,sourceIdentity,sourceKind,sourceVersion" : "cohortId,importId,kind,policyDigest,sourceIdentity,sourceVersion";
+    if (!["transcript-cohort", "non-transcript-selection"].includes(proof.kind) || Object.keys(proof).sort().join(",") !== expected
+      || (proof.kind === "non-transcript-selection" && proof.sourceKind !== "discussion")) throw new Error("Invalid Workflow source admission proof");
     digest(proof.cohortId); digest(proof.policyDigest);
     identifier(proof.importId);
     for (const value of [proof.sourceIdentity, proof.sourceVersion]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\x00-\x1f]/.test(value)) throw new Error("Invalid source admission identity or version");

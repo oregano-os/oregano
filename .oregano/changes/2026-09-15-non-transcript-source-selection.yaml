@@ -1,0 +1,50 @@
+version: 3
+plan_id: non-transcript-source-selection-2026-09-15
+created: 2026-09-15
+title: Admit explicitly selected non-transcript source versions in a shared import
+objective: Keep a cumulative transcript cohort while explicitly admitting a separate bounded list of non-transcript source versions into the same Workflow.
+non_goals:
+  - Automatically retry model calls or increase provider budgets.
+  - Change the pinned Artifact, previously recorded source admission, decisions, or completed effects.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-non-transcript-source-selection.yaml
+  - packages/state-store/workflow-engine.ts
+  - packages/runtime/workflow-engine/**
+  - packages/brain/import-admission.ts
+  - packages/testkit/tests/brain-import-admission.test.ts
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-import-admission.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - operations.workflow-engine
+    - specification.workflow-execution-v1
+    - status.current
+architecture:
+  placement:
+    core: Exact bounded source selection, transcript cohort isolation, and immutable source-version admission evidence.
+    packages: No new Package; existing declared Tools supply the read phase.
+    workspace: The same Workflow may route retained transcripts and selected discussions through its shared gate; it cannot add selected source identities.
+    instance: The reviewed Instance binding fixes each non-transcript identity, version and kind; existing control state retains admissions and all attempts.
+  mechanisms_extended:
+    - mechanism: identity-and-authorization
+      reason: Reuse the current active human operator allowlist and authenticated hosting endpoint.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reuse the existing cohort registry and source-version origin identity; explicitly selected discussions do not allocate or refill transcript slots.
+    - mechanism: capability-contracts-and-connectors
+      reason: Preserve current Tool grants and authorized complete Record reads; source selection grants no provider access.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can process explicitly selected discussion versions alongside a fixed transcript pilot without another runtime, quota registry or provider-specific gate.
+rollback: Remove non-transcript selections to stop new openings, preserving completed admissions, cohort counts, outputs and costs.

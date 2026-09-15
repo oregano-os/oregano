@@ -83,3 +83,36 @@ test("the maintained hosted configuration retains the reviewed admission binding
   const env = { VERCEL_ENV: "preview", TEST_OPERATOR_SECRET: "a".repeat(48), CRON_SECRET: "b".repeat(48), [WORKFLOW_CONFIGURATION_ENV]: gzipSync(JSON.stringify(config)).toString("base64") };
   assert.deepEqual(decodeWorkflowHostingConfiguration(f.h.artifact, env).transcriptImports, [f.binding]);
 });
+
+test("exact discussion versions share the Workflow without consuming or reopening transcript cohort slots", async () => {
+  const f = await fixture(), source = { identity: "discussion:synthetic-thread", version: "thread-version-1", kind: "discussion" as const };
+  const h = engineFixture({ artifact: f.h.artifact, store: f.h.store, control: f.h.control, timerStore: f.h.timerStore,
+    transcriptImports: [{ ...f.binding, nonTranscriptSources: [source] }] });
+  const key = `brain-import-cohorts:${sha256({ instance_id: f.h.artifact.instance.id, import_id: f.binding.importId })}`;
+  const before = structuredClone(await h.control.getEffect(key));
+  const first = await f.open("discussion", source.identity, source.version, h);
+  assert.equal(first.state.sourceAdmission?.kind, "non-transcript-selection");
+  assert.equal(first.state.sourceAdmission?.sourceKind, "discussion");
+  const done = await h.engine().advance(first.runId); assert.equal(done?.state.status, "done");
+  assert.deepEqual(await f.open("different-request", source.identity, source.version, h), done);
+  await assert.rejects(f.open("unselected-version", source.identity, "thread-version-2", h), /outside/);
+  await assert.rejects(f.open("unselected-thread", "discussion:another-thread", source.version, h), /outside/);
+  await assert.rejects(f.open("transcript-refill", "c", "v1", h), /outside/);
+  assert.deepEqual(await h.control.getEffect(key), before, "Discussion admission cannot mutate the transcript registry");
+  const changed = structuredClone(first.state); changed.sourceAdmission!.kind = "transcript-cohort";
+  assert.throws(() => validateWorkflowState(changed, first.workflowId, h.artifact, first.state), /immutable/);
+});
+
+test("non-transcript selections reject overlap, wildcards, duplicate identities and unbounded configuration", async () => {
+  const f = await fixture(), source = { identity: "discussion:synthetic", version: "v1", kind: "discussion" };
+  for (const sources of [null, [source, source], [{ ...source, kind: "meeting" }], [{ ...source, version: "" }], [{ ...source, all_versions: true }], Array.from({ length: 101 }, (_, i) => ({ ...source, identity: `discussion:${i}` }))]) {
+    assert.throws(() => parseTranscriptImportBindings([{ ...f.binding, nonTranscriptSources: sources }], f.h.artifact, [f.binding.workflowId]));
+  }
+  const h = engineFixture({ artifact: f.h.artifact, store: f.h.store, control: f.h.control, timerStore: f.h.timerStore,
+    transcriptImports: [{ ...f.binding, nonTranscriptSources: [{ identity: "a", version: "v1", kind: "discussion" }] }] });
+  await assert.rejects(f.open("reclassify", "a", "v1", h), /cannot be reclassified/);
+  // A literal star is an exact identity, never a pattern authorizing arbitrary sources.
+  const wildcard = engineFixture({ artifact: f.h.artifact, store: f.h.store, control: f.h.control, timerStore: f.h.timerStore,
+    transcriptImports: [{ ...f.binding, nonTranscriptSources: [{ ...source, identity: "discussion:*", kind: "discussion" }] }] });
+  await assert.rejects(f.open("wildcard", "discussion:unselected", "v1", wildcard), /outside/);
+});

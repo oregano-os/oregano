@@ -810,3 +810,12 @@ active step entries are removed before execution resumes; all other state,
 source admission, Artifact identity, effects and paid attempt evidence remain.
 The durable validator enforces this exception to completed-output immutability,
 with at most three repairs per run and the existing total snapshot bound.
+
+A transcript import binding may additionally declare at most 100 exact
+`nonTranscriptSources` entries with `identity`, `version` and
+`kind: discussion`. These reviewed source versions use the same source-keyed
+Workflow and normal Records/Tool permissions while retaining a distinct immutable
+non-transcript admission proof. They never allocate, refill, or change transcript
+cohort slots. Unknown versions and overlap with any admitted transcript fail
+closed. This is a finite selection, not a channel wildcard or an automatic
+expansion policy. Earlier completed source versions remain deduplicated.
