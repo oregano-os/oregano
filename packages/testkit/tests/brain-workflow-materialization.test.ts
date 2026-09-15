@@ -23,6 +23,7 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   const workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
   assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 13);
+  assert.equal(workflow.steps.find((step: any) => Object.keys(step)[0] === "agent-context")?.input?.processing_instant, "$trigger.instant");
   assert.equal(config.source_projection, "studio-sources"); assert.equal(config.transcripts.max_transcripts, 4);
   assert.equal(config.transcripts.meeting_date.start_at, "2025-12-31T23:00:00.000Z");
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
@@ -37,6 +38,7 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.equal(result.prompts.length, 23);
   assert.equal(config.agent.budget.turns, 12);
   assert.equal(config.prompts.one_shot.deep, "agents/analyst/skills/brain-one-shot-deep/SKILL.md");
+  assert.match(result.materials["agents/analyst/skills/brain-task/SKILL.md"], /trusted `processing_day`/);
   assert.equal(result.report.activated, false); assert.equal(result.report.grants_applied, false);
   assert.equal(result.report.provider_bindings_applied, false); assert.equal(result.report.admission_created, false);
   assert.ok(Object.keys(result.materials).every(path => /^(agents\/analyst\/|workflows\/brain-import)/.test(path)));

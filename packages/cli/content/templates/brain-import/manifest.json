@@ -1,14 +1,14 @@
 {
   "version": 2,
-  "workflow_digest": "051e2c7b8531ae275c9fce3fe79f9067a8f2fa90211e35ad487597b3f9984dfb",
+  "workflow_digest": "26ecc96c5fd6109d9e590cdab2ee653088f3eb497db483c15585c5f2ebda1bdc",
   "files": [
     {
       "path": "tools/brain-agent-context/TOOL.md",
-      "digest": "5f3ff9f6ea4230b8ddc750691b4649e5da31983d5af13ecf9f7a9aa5fad58667"
+      "digest": "092256f77e50fd3a261bd61cd640bbceb62dc4b4bbec15328ec897d5c390b454"
     },
     {
       "path": "tools/brain-agent-context/execute.ts",
-      "digest": "2f5c52c6a34aa2a553febedc9bc42d30347bf443f37819dda986fc4ed62a31cd"
+      "digest": "954d7e684c8603323529497e5c873a613bf8a4162468bcc2f8e5741f5b2a9aeb"
     },
     {
       "path": "tools/brain-agent-outcome/TOOL.md",
@@ -299,5 +299,5 @@
       "digest": "bbe58d1bf14e624ba8406b456d5b81a07e8aa8776c94eb6af8192db1a8c60457"
     }
   ],
-  "agent_instruction_digest": "584d5770649a5ac24fa2bd4d6901b14278338812857ef199051c9122b64f6e78"
+  "agent_instruction_digest": "43a8f56914b02a318746ad4fda0a546669b553cff9cc2df828ed574d0511c8de"
 }

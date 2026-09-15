@@ -271,8 +271,9 @@ include its reviewed admission binding; installing Skills alone activates nothin
 
 ## Continuing Agent imports
 
-The `process-source` Agent step has a finite Workspace-reviewed budget (materialized
-starting values: 48 model turns, 192 Tool calls, 12000 output tokens per response).
+The `process-source` Agent fallback has a finite Workspace-reviewed budget
+(materialized starting values: 12 model turns, 48 Tool calls, 12000 output tokens
+per response).
 Actual provider limits may tighten those values. Haiku utility triage is separate;
 the continuing task uses the resolved reasoning/deep profile through ModelRecipe.
 Each paid attempt, including failure or uncertain transport, remains chargeable and
@@ -284,6 +285,12 @@ entity, source-update and verification Skills are delivered in full from compile
 Agent materials, each bounded to 30000 characters. A Skill read grants no Tool or
 provider authority. Full originals remain in task evidence and Records; the host
 never silently truncates them or substitutes a recorder summary.
+The task receives a trusted processing day. Its derived-page guidance requires
+source-grounded tags, creation and update dates, and the original event date for
+meetings. It preserves existing creation metadata and aliases rather than
+inventing values for legacy pages. This guidance also asks for the substantive
+meeting and entity detail supported by the original, while keeping inline
+source evidence, Takes and Timeline history.
 
 The completion validator uses Core-retained calls and receipts, not model-invented
 write claims. It requires each page read after its own last write, source identity and

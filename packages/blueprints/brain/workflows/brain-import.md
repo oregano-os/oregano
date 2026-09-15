@@ -52,6 +52,7 @@ steps:
       gate: $steps.gate
       history: $steps.source-history
       directories: $config.page_directories
+      processing_instant: $trigger.instant
   - choose-route: route
     on: $steps.agent-context.route
     skip: finish-skip

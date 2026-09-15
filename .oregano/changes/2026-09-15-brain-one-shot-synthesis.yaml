@@ -18,6 +18,7 @@ change_class: security
 files_expected:
   - .oregano/changes/2026-09-15-brain-one-shot-synthesis.yaml
   - packages/blueprints/brain/workflows/brain-import.md
+  - packages/blueprints/brain/agent-instructions.md
   - packages/cli/content/templates/brain-import/**
   - packages/language/contracts.ts
   - packages/runner-vercel/src/lib/language-generation.ts

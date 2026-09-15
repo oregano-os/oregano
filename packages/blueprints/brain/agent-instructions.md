@@ -49,8 +49,21 @@ a skip must never conceal partially written or previously derived knowledge.
 ## Existing Markdown and operation contract
 
 Use the supplied directory mappings. Existing page types are person, company,
-concept, meeting and source. A page has YAML frontmatter with `type` and `title`,
-then readable Markdown. Preserve `<!-- timeline -->` and existing historical prose.
+concept, meeting and source. Derived pages have YAML frontmatter with `type`,
+`title`, `lang`, and source-grounded `tags` (up to eight plain lower-case labels,
+including the page type). Set `created` on a new derived page and `updated` on
+each changed derived page to the trusted `processing_day` in the task. Preserve
+an existing `created` date; leave a legacy page without it undated rather than
+inventing its original creation date. A meeting page also has `date` from the
+original meeting occurrence, which is distinct from page creation. Preserve
+confirmed person aliases and existing metadata. Do not turn an uncertain topic
+into a tag. Then write readable Markdown with source links. Preserve
+`<!-- timeline -->` and existing historical prose.
+Write the depth the source supports: meeting objective and topics, actual
+decisions versus proposals, actions with supported owners, and verbatim quotes;
+concept thesis, reasons, implications and counterpositions; person/company
+compiled truth, attributed views, work and relationships. Mark missing details
+unknown. A source-grounded paragraph is more useful than an unsupported heading.
 The source evidence page retains exact source identity, version, Record version and
 original link. Extend it with `meeting_segments` (slug/start/end character offsets)
 when the original contains meetings, so future versions can locate prior results.
