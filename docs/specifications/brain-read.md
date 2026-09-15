@@ -83,6 +83,12 @@ optional language and aliases, followed by Compiled Truth. The optional
 `<!-- timeline -->` boundary starts a human-readable prose Timeline. Compatible
 upstream separators are understood; ordinary body horizontal rules survive.
 Timeline entries have no separate IDs, event kinds or date-filter API.
+Ordinary YAML metadata such as bounded tags, source-event `date`, page
+`created` and page `updated` is retained for inspection and display. It is
+not an authorization grant or a claim source. `date` and `created` refer to
+different events; missing historical creation dates must not be guessed.
+Company-specific tag vocabularies and directory mappings belong to the
+Workspace, while Core validates the generic page and evidence contracts.
 
 Takes use exactly seven columns, between `<!--- gbrain:takes:begin -->` and
 `<!--- gbrain:takes:end -->`: `#`, `claim`, `kind`, `who`, `weight`, `since`,

@@ -18,7 +18,7 @@ export const LANGUAGE_GENERATE_INPUT: JsonSchema = {
 };
 export const LANGUAGE_GENERATE_OUTPUT: JsonSchema = {
   type: "object", additionalProperties: false, required: ["text"],
-  properties: { text: { type: "string", minLength: 1, maxLength: 20_000 } },
+  properties: { text: { type: "string", minLength: 1, maxLength: 60_000 } },
 };
 
 export interface LanguageInstructionEvidence {

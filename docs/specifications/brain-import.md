@@ -23,16 +23,31 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 ## Reusable authoring assets
 
-`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its ten-step
-operator Workflow retains complete source/triage coverage, then assigns one durable
-tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
-knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its
+thirteen-step operator Workflow retains complete source/triage coverage, then
+prefetches bounded current Brain pages for a meeting source. One tool-free
+reasoning/deep generation proposes complete meeting and entity Markdown pages in
+a source-scoped JSON result. A restricted R1 Tool rejects mismatched source
+identity, duplicate/unsafe page paths, missing source links, unsupported quote
+blocks, absent meeting sections and attendee Timeline backlinks before calling
+the standard `brain.remember` operation. It then reads each saved page through
+`brain.entity` and compares the exact Markdown. The Tool retains Git/index
+receipts and marks semantic checks that cannot be proven deterministically as
+flagged uncertainty; a model observation alone is not a passed saved-page check.
+
+Oversized sources, incomplete retrieval, split meetings and invalid one-shot
+proposals route to a continuing Agent before a write. That fallback has twelve
+turns and 48 Tool calls, rather than the former 48 turns and 192 calls; its
+normal completion checker still requires saved-page verification. A write or
+read-back failure after an attempted Brain effect fails closed and retains its
+stable operation key for reconciliation. The one-shot path does not silently
+start another paid generation or write after an uncertain effect.
 There is no whole-import draft gate before the first write. Each operation retains
 normal Core validation, expected revisions, Git receipts and index reconciliation. Completion feedback lists missing saved-page reads together, rejects unresolved
 links reported by the index, and distinguishes person/company Timeline backlinks
 from ordinary references to other meetings or evidence pages. These checks run
 after writes and do not create a whole-import pre-write gate.
-Eight selected restricted Company Tools prepare source context, apply common triage,
+Ten selected restricted Company Tools prepare source context, apply common triage,
 read exact source Records and their history, validate completion and record outcomes. Historical phase Tool
 templates remain available for retained definitions. Executable code stays outside
 the Blueprint under the Workbench template tree.
@@ -45,9 +60,19 @@ segment size, triage calibration and source-history start. No company quantity,
 date, value threshold, account, model provider or directory vocabulary is a
 Core default. The helper reuses prompt materialization and the Tool contract
 schemas, verifies template content digests, and rejects inconsistent inputs.
-The result contains the Workflow/configuration, 21 scoped prompt bindings and
-eight restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
+The result contains the Workflow/configuration, 23 scoped prompt bindings and
+ten restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
 and every required Tool without applying a grant.
+
+New meeting and entity proposals include ordinary `type`, `title`, `lang` and
+bounded `tags`. The host stamps `created` for new pages and `updated` at
+processing time; an existing page keeps its original `created` value. Existing
+legacy pages without a trustworthy creation date are not assigned an invented
+date. Meeting `date` comes from the retained source occurrence, not the page
+creation date. The body carries the evidenced summary, decisions/actions/quotes
+and exact internal source links; entity pages preserve existing Timeline history
+and meeting backlinks. Tags improve browsing but are not authority or a
+substitute for provenance.
 
 A consuming Workspace must declare a matching Records projection with `identity`,
 `version`, `kind`, `original_url`, `occurred_at`, `text`, `complete` and preserved

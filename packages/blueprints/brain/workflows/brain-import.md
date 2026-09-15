@@ -1,7 +1,7 @@
 ---
 type: workflow
 id: brain-import
-version: 2
+version: 3
 owner: agents/brain-owner
 execution_mode: unattended
 trigger: operator
@@ -55,13 +55,29 @@ steps:
   - choose-route: route
     on: $steps.agent-context.route
     skip: finish-skip
-    reasoning: process-source
-    deep: process-source
+    reasoning: synthesize-source
+    deep: synthesize-source
   - finish-skip: company:brain-agent-outcome
     input:
       task: $steps.agent-context.task
       route: $steps.agent-context.route
       execution: null
+    then: end
+  - synthesize-source: company:brain-one-shot
+    input:
+      task: $steps.agent-context.task
+      route: $steps.agent-context.model_profile
+      prompt_paths: $config.prompts.one_shot
+      processing_instant: $trigger.instant
+  - choose-synthesis: route
+    on: $steps.synthesize-source.route
+    one-shot: finish-one-shot
+    agent: process-source
+  - finish-one-shot: company:brain-one-shot-outcome
+    input:
+      task: $steps.agent-context.task
+      synthesis: $steps.synthesize-source
+      route: $steps.agent-context.route
     then: end
   - process-source: agent
     context: $steps.agent-context.task
@@ -195,5 +211,8 @@ steps:
 6. [brain-owner, R0] Agent context. <!-- step:agent-context -->
 7. [brain-owner, R0] Choose route. <!-- step:choose-route -->
 8. [brain-owner, R0] Finish skip. <!-- step:finish-skip -->
-9. [brain-owner, R1] Understand, read, save meeting knowledge, enrich entities, verify saved pages and correct defects in one continuing Agent task. <!-- step:process-source -->
-10. [brain-owner, R0] Record completion only after accepted saved-page verification. <!-- step:finish-import -->
+9. [brain-owner, R1] Prefetch bounded Brain context, synthesize once without model Tools, validate, save, and read back. <!-- step:synthesize-source -->
+10. [brain-owner, R0] Choose a bounded Agent fallback before any one-shot write. <!-- step:choose-synthesis -->
+11. [brain-owner, R0] Retain a settled one-shot outcome. <!-- step:finish-one-shot -->
+12. [brain-owner, R1] For oversized or incomplete synthesis, save and verify in one continuing Agent task. <!-- step:process-source -->
+13. [brain-owner, R0] Record completion only after accepted saved-page verification. <!-- step:finish-import -->
