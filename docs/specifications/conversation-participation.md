@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: normative
 language: en
-updated: 2026-09-11
+updated: 2026-09-13
 owners: [oregano-maintainers]
 audience: [human, agent]
 relations:
@@ -45,6 +45,18 @@ continue to isolate deployments sharing an app.
 No separate participation Agent or classification call is introduced. The
 existing Agent receives stable participation instructions and attributed recent
 context. At most forty entries and 12,000 history text characters are included.
+Every Agent turn, including the conversation coordinator, also receives up to
+ten provider messages immediately before the current message at the same place:
+the thread root and earlier replies inside a thread, otherwise the main channel
+or direct conversation. They include app posts such as workflow questions and
+are bounded per message and in total. They are untrusted context for
+understanding references, never a request or permission; a provider read
+failure omits them without blocking the turn.
+
+The coordinator uses these messages to attach an answer to the recent post or
+known work it continues instead of opening a new discussion, asks a
+clarification when several works fit, and never describes work as closed unless
+a read work item shows it.
 Sender changes, timestamps and intervening exchanges provide context; there is
 no attention score, timer, hard timeout or additional user-facing mode.
 
