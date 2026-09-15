@@ -25,7 +25,9 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 `packages/blueprints/brain/` is an inspectable declarative Blueprint. Its
 thirteen-step operator Workflow retains complete source/triage coverage, then
-prefetches bounded current Brain pages for a meeting source. One tool-free
+prefetches bounded current Brain pages and resolves source-named participants
+through exact or alias-aware `brain.entity` reads for a meeting source. Ambiguous
+participant names fall back before generation rather than being guessed. One tool-free
 reasoning/deep generation proposes complete meeting and entity Markdown pages in
 a source-scoped JSON result. A restricted R1 Tool rejects mismatched source
 identity, duplicate/unsafe page paths, missing source links, unsupported quote

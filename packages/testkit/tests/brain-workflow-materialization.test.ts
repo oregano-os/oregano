@@ -94,7 +94,10 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
           : { found: false, status: "not_found", candidates: [], indexed_revision: revision };
       }
       if (capability === "brain.recall") return { hits: [], status: "ok", indexed_revision: revision };
-      if (capability === "language.generate") { modelCalls++; return { text: modelText }; }
+      if (capability === "language.generate") {
+        assert.deepEqual(value.data.participant_resolution, [{ name: "Alex", status: "not_found", slug: null }]);
+        modelCalls++; return { text: modelText };
+      }
       if (capability === "brain.remember") {
         writeCalls++;
         for (const page of value.changes.pages) saved.set(page.path.slice(6, -3), page.markdown);
@@ -111,6 +114,9 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
   assert.match(saved.get(personSlug)!, /tags: \[person\]/);
   const rejected = await run(JSON.stringify({ ...proposal, source_version: "wrong" }));
   assert.equal(rejected.route, "agent"); assert.equal(writeCalls, 1, "Invalid model output cannot write");
+  task.source.context.participants = Array.from({ length: 9 }, (_, index) => "Person " + index);
+  const oversized = await run(JSON.stringify(proposal));
+  assert.equal(oversized.route, "agent"); assert.equal(modelCalls, 2, "Unbounded participants cannot trigger a paid one-shot call");
 });
 
 test("missing, inconsistent, unsafe and unbounded company inputs fail before adoption", () => {

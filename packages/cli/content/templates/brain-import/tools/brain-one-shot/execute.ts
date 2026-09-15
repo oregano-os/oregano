@@ -62,6 +62,23 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
     };
     await read(evidence);
     for (const prior of task.prior.requests) await read(prior.slug);
+    const participants = source.context?.participants;
+    if (participants !== undefined && (!Array.isArray(participants) || participants.length > 8)) throw Error("Participant resolution exceeds the bounded one-shot scope");
+    const participantResolution: any[] = [];
+    for (const participant of participants ?? []) {
+      const rawName = typeof participant === "string" ? participant
+        : participant?.name ?? participant?.display_name ?? participant?.displayName ?? participant?.person?.name;
+      if (typeof rawName !== "string" || !rawName.trim() || rawName.length > 160) {
+        participantResolution.push({ name: null, status: "unresolved", slug: null });
+        continue;
+      }
+      const name = rawName.trim();
+      const result = await context.capabilities.call("brain.entity", { name }) as PageRead;
+      if (!result || !["found", "not_found"].includes(result.status)) throw Error("Participant name resolution is ambiguous");
+      if (result.found && (!result.page || result.page.type !== "person" || !slugPattern.test(result.page.slug))) throw Error("Resolved participant is not a canonical person page");
+      if (result.found && result.page) prefetch.set(result.page.slug, result);
+      participantResolution.push({ name, status: result.status, slug: result.page?.slug ?? null });
+    }
     const queries = [...new Set((task.triage.items ?? []).map((item: any) => item.classification?.one_line_summary).filter((value: any) => typeof value === "string" && value.trim()).slice(0, 2))];
     const retrieval: any[] = [];
     for (const query of queries) {
@@ -78,8 +95,9 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
     const generated = await context.capabilities.call("language.generate", { prompt_path: prompt,
       data: { source_identity: source.identity, source_version: source.version, source_kind: source.kind,
         occurred_at: source.occurred_at, original_url: source.original_url, original_text: task.original_text,
-        participants: source.context?.participants ?? [], triage: task.triage, prior: task.prior,
-        directories, internal_evidence_page: evidence, existing_pages: existing, retrieval } }) as any;
+        participants: participants ?? [], participant_resolution: participantResolution,
+        triage: task.triage, prior: task.prior, directories, internal_evidence_page: evidence,
+        existing_pages: existing, retrieval } }) as any;
     if (typeof generated?.text !== "string" || generated.text.length > 60000) throw Error("One-shot output is incomplete or unbounded");
     const draft = JSON.parse(generated.text);
     if (draft.source_identity !== source.identity || draft.source_version !== source.version
