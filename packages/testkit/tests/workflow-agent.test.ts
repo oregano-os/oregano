@@ -11,6 +11,7 @@ import { validateWorkflowState } from "../../runtime/workflow-engine/state-valid
 import { guardWorkflowInvocation } from "../../runtime/workflow-engine/guard.ts";
 import { WorkflowRunContextReader } from "../../runtime/workflow-engine/readers.ts";
 import { AGENT_FINISH_TOOL, agentToolName, type WorkflowAgentGenerator } from "../../runtime/workflow-engine/agent-contract.ts";
+import { parseWorkflowOperatorRequest } from "../../runner-vercel/src/lib/workflow-http.ts";
 import { LanguageGenerationError } from "../../language/contracts.ts";
 import { readLanguageAttempts } from "../../language/attempts.ts";
 import type { ModelExecutionSelection } from "../../runner/model-execution.ts";
@@ -118,4 +119,48 @@ test("incomplete known responses retain costs and allow a bounded continuation",
   const run = (await h.engine().advance((await open(h)).runId))!;
   assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked));
   assert.deepEqual((await readLanguageAttempts(h.control, [run.runId])).map(a => a.status).sort(), ["failed", "succeeded"]);
+});
+
+test("an explicit exact retry continues the same Agent journal while keeping the unavailable attempt and charge", async () => {
+  let count=0;const m=model([[{name:AGENT_FINISH_TOOL,input:{verified:true}}]]);
+  const h=engineFixture({artifact:fixture(),agentGenerator:async request=>{
+    if(count++===0){await request.beforeDispatch(selection,{system_prompt_digest:'b'.repeat(64),system_instruction_characters:10});
+      throw new LanguageGenerationError('Synthetic timeout','provider-error',{model_execution:{...selection,inputTokens:null,outputTokens:null}});}
+    return m.generate(request);
+  }});
+  let run=(await h.engine().advance((await open(h)).runId))!;
+  const before=structuredClone(run),attemptId=run.state.steps.work!.agent!.turns.at(-1)!.attemptId;
+  const attempts=await readLanguageAttempts(h.control,[run.runId]);
+  await assert.rejects(h.engine().retryAgentModel(run.runId,'slack:T10001:U99999',run.revision,attemptId,'Reviewed retry'),/operator/);
+  await assert.rejects(h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,run.revision+1,attemptId,'Reviewed retry'),/stale/);
+  await assert.rejects(h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,run.revision,'language-attempt:'+randomUUID(),'Reviewed retry'),/blocked unavailable/);
+  run=await h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,run.revision,attemptId,'Reviewed retry');
+  assert.equal(run.runId,before.runId);assert.equal(run.artifactHash,before.artifactHash);assert.deepEqual(run.fields,before.fields);
+  assert.deepEqual(run.state.steps.work!.agent!.turns[0]!.failure,before.state.steps.work!.agent!.turns[0]!.failure);
+  assert.equal(run.state.steps.work!.agent!.turns[0]!.retryAuthorization!.principal,ENGINE_OPERATOR);
+  assert.deepEqual(await readLanguageAttempts(h.control,[run.runId]),attempts);assert.equal(count,1);assert.equal(h.calls.length,0);
+  const authorized=structuredClone(run.state);
+  assert.deepEqual((await h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,before.revision,attemptId,'Reviewed retry')).state,authorized);
+  await assert.rejects(h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,run.revision,attemptId,'Different reason'),/different authority/);
+  run=(await h.engine().advance(run.runId))!;assert.equal(run.state.status,'done',JSON.stringify(run.state.blocked));assert.equal(count,2);
+  assert.equal(run.state.steps.work!.agent!.turns.length,2);assert.equal(h.calls.length,0);
+  assert.equal((await h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,before.revision,attemptId,'Reviewed retry')).revision,run.revision);
+  assert.deepEqual((await readLanguageAttempts(h.control,[run.runId])).map(a=>a.status).sort(),['succeeded','unknown']);
+  const changed=structuredClone(run.state);changed.steps.work!.agent!.turns[0]!.retryAuthorization!.principal='slack:T10001:U99999';
+  assert.throws(()=>validateWorkflowState(changed,run.workflowId,h.artifact,run.state),/immutable/);
+});
+
+test("a retained model response cannot be discarded as an unavailable turn",async()=>{
+ const artifact=fixture(),name=agentToolName(artifact.workflows![0]!.steps[0]!.agent!.tools[0]!.tool.grantId);
+ const m=model([[{name,input:{}}]]),h=engineFixture({artifact,agentGenerator:m.generate});let run=await open(h);
+ run=(await h.engine().step(run.runId))!;run=(await h.engine().step(run.runId))!;
+ const attempt=run.state.steps.work!.agent!.turns[0]!.attemptId;
+ await assert.rejects(h.engine().retryAgentModel(run.runId,ENGINE_OPERATOR,run.revision,attempt,'Cannot discard response'),/blocked unavailable/);
+ assert.equal(m.calls,1);assert.equal(h.calls.length,0);
+});
+
+test("model retry is an exact operator action, never a replacement response or source reset",()=>{
+ const request={action:'retry-agent-model',runId:'workflow:'+'a'.repeat(64),expectedRevision:7,attemptId:'language-attempt:'+randomUUID(),reason:'Authorized bounded retry'};
+ assert.deepEqual(parseWorkflowOperatorRequest(request),request);
+ for(const fields of [{expectedRevision:-1},{attemptId:'arbitrary'},{response:{}},{source_version:'v2'},{reason:''}])assert.throws(()=>parseWorkflowOperatorRequest({...request,...fields}));
 });

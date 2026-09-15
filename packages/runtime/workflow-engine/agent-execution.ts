@@ -32,7 +32,7 @@ export async function advanceWorkflowAgent(args: {
   stored.status = "running";
   const turns = stored.agent.turns, last = turns.at(-1);
   const result = (event: string, evidence: JsonValue = {}, output?: JsonValue) => ({ state, event, evidence, output });
-  if (last?.failure?.outcome === "unknown") throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
+  if (last?.failure?.outcome === "unknown" && !last.retryAuthorization) throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
   if (!last || last.failure || (last.response && last.results.length === last.response.calls.length)) {
     if (turns.length >= definition.budget.turns) throw new Error("Agent model-turn budget exhausted");
     turns.push({ attemptId: `language-attempt:${randomUUID()}`, results: [] });

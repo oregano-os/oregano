@@ -887,3 +887,20 @@ A completed effect `for_each` with the canonical empty input digest, empty retai
 item map and exact empty output has no dispatched operation. Source continuation
 may cross that step. Missing, running, nonempty or inconsistent evidence still
 blocks continuation, including in archived read-repair snapshots.
+
+
+### Explicit retry of an unavailable Agent model response
+
+An authenticated operator may call `retry-agent-model` with the exact run revision,
+last attempt ID and reason. Core requires a stopped Agent turn with an unavailable
+model response, no retained response or Tool results, and its unknown dispatched
+attempt receipt. Current activation/source scope and the original task budget still
+apply. This is permission for another paid generation, not proof of zero prior cost.
+
+The journal appends an immutable operator/time/reason receipt; prior responses,
+Tool results, source identity, instructions and unknown usage stay unchanged. The
+next model turn continues the same conversation. No Tool call can be replayed from
+the missing response because Core dispatches only a durably retained response.
+Repeating the same operator request returns its existing authorization. Ordinary
+resume and model-generated inputs cannot authorize this retry. Do not claim complete
+cost accounting until the unknown provider usage is reconciled separately.

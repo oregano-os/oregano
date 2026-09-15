@@ -26,6 +26,8 @@ export interface WorkflowAgentTurn {
   attemptId: string;
   response?: WorkflowAgentResponse;
   failure?: { outcome: "failed" | "unknown"; digest: string };
+  /** Explicit further generation, never a claim that the unavailable attempt was free. */
+  retryAuthorization?: { principal: string; authorizedAt: string; reasonDigest: string };
   results: Array<{ callId: string; input?: JsonValue; output?: JsonValue; error?: string }>;
 }
 export interface WorkflowStoredDecision {

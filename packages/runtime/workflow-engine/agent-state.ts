@@ -21,6 +21,15 @@ export function validateAgentState(step: WorkflowStepState, declaration: Compile
       if (turn.results.length < before.results.length || turn.results.length > before.results.length + 1
         || before.results.some((result, i) => canonicalJson(result) !== canonicalJson(turn.results[i]))) throw new Error("Agent Tool results are immutable and ordered");
     } else if (turn.response || turn.failure || turn.results.length) throw new Error("New Agent turn must be prepared before dispatch");
+    if (before?.retryAuthorization && canonicalJson(before.retryAuthorization) !== canonicalJson(turn.retryAuthorization)) throw new Error("Agent model retry authorization is immutable");
+    if (turn.retryAuthorization) {
+      const retry = turn.retryAuthorization;
+      if (turn.failure?.outcome !== "unknown" || turn.response || turn.results.length
+        || Object.keys(retry).sort().join(",") !== "authorizedAt,principal,reasonDigest"
+        || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,254}$/.test(retry.principal) || !/^[a-f0-9]{64}$/.test(retry.reasonDigest)
+        || !Number.isFinite(Date.parse(retry.authorizedAt)) || new Date(retry.authorizedAt).toISOString() !== retry.authorizedAt
+        || (!before?.retryAuthorization && (!before?.failure || index !== old.length - 1 || turns.length !== old.length))) throw new Error("Invalid explicit Agent model retry proof");
+    }
     if (turn.failure && (!['failed', 'unknown'].includes(turn.failure.outcome) || !/^[a-f0-9]{64}$/.test(turn.failure.digest))) throw new Error("Invalid Agent failure evidence");
     if (turn.response) {
       const response = turn.response;
@@ -36,7 +45,7 @@ export function validateAgentState(step: WorkflowStepState, declaration: Compile
     for (const [i, result] of turn.results.entries()) if (result.callId !== turn.response!.calls[i]!.id
       || (result.error === undefined) === (result.output === undefined)
       || (result.error !== undefined && (typeof result.error !== "string" || !result.error.length || result.error.length > 2000))) throw new Error("Invalid Agent Tool result");
-    if (index < turns.length - 1 && (turn.failure?.outcome === "unknown" || (!turn.failure && (!turn.response || turn.results.length !== turn.response.calls.length)))) throw new Error("Agent cannot advance beyond an unresolved turn");
+    if (index < turns.length - 1 && (turn.failure?.outcome === "unknown" && !turn.retryAuthorization || (!turn.failure && (!turn.response || turn.results.length !== turn.response.calls.length)))) throw new Error("Agent cannot advance beyond an unresolved turn");
   }
   if (calls > declaration.agent.budget.toolCalls) throw new Error("Agent Tool budget exhausted");
   if (step.status === "succeeded") {

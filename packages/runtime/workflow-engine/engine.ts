@@ -769,6 +769,39 @@ export class WorkflowEngine {
     } finally { await store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 
+  /** A paid generation retry with no possible Tool replay; unknown billing remains retained. */
+  async retryAgentModel(runId: string, principal: string, expectedRevision: number, attemptId: string, reason: string): Promise<WorkflowRun> {
+    await this.#operator(principal); opaqueId(reason);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || !/^language-attempt:[a-f0-9-]{36}$/.test(attemptId)) throw new Error("Agent retry requires exact revision and attempt identity");
+    const existing = await this.#options.store.read(this.#artifact.instance.id, runId);
+    if (!existing) throw new Error("Agent retry run is unavailable");
+    this.#enabled(existing.workflowId);
+    const authorizedStep = Object.entries(existing.state.steps).find(([, step]) => step.agent?.turns.some(turn => turn.attemptId === attemptId && turn.retryAuthorization));
+    const authorized = authorizedStep?.[1].agent!.turns.find(turn => turn.attemptId === attemptId)!.retryAuthorization;
+    if (authorized) {
+      await this.#definition({ ...existing, state: { ...existing.state, cursor: authorizedStep![0] } });
+      if (authorized.principal !== principal || authorized.reasonDigest !== sha256(reason)) throw new Error("Agent retry already has different authority");
+      return existing;
+    }
+    await this.#definition(existing);
+    const now = this.#now(), run = await this.#options.store.claim({ instanceId: existing.instanceId, runId, owner: "workflow-agent-retry", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Agent retry run is leased or terminal");
+    try {
+      if (run.revision !== expectedRevision) throw new Error("Agent retry revision is stale");
+      const { step } = await this.#definition(run), stored = run.state.steps[step.id], turns = stored?.agent?.turns, last = turns?.at(-1);
+      if (!step.agent || !last || last.attemptId !== attemptId || last.failure?.outcome !== "unknown" || last.response || last.results.length || last.retryAuthorization
+        || !run.state.blocked || run.state.blocked.stepId !== step.id || run.state.status !== "waiting") throw new Error("Agent retry requires a blocked unavailable model response with no Tool calls");
+      if (turns!.length >= step.agent.budget.turns) throw new Error("Agent model-turn budget exhausted");
+      const attempt = (await readLanguageAttempts(this.#options.control, [runId])).find(item => item.attempt_id === attemptId);
+      if (attempt?.status !== "unknown" || !attempt.dispatched_at || attempt.step_id !== step.id) throw new Error("Unavailable model attempt receipt is required");
+      const state = structuredClone(run.state), target = state.steps[step.id]!;
+      target.agent!.turns.at(-1)!.retryAuthorization = { principal, authorizedAt: now, reasonDigest: sha256(reason) };
+      target.status = "running"; state.status = "running"; delete state.blocked;
+      return await this.#save(run, state, "workflow.agent-model-retry-authorized", { attempt_id: attemptId, principal,
+        reason_digest: sha256(reason), prior_cost_status: "unknown", tool_calls_from_unavailable_response: 0 }, undefined, principal);
+    } finally { await this.#options.store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
+  }
+
   async resume(runId: string, principal: string): Promise<WorkflowRun> {
     await this.#operator(principal);
     const now = this.#now(), run = await this.#options.store.claim({ instanceId: this.#artifact.instance.id, runId, owner: "workflow-operator", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });

@@ -1479,3 +1479,7 @@ The [maintained source guide](../workbench/guides/connect-company-record-source.
 with provider permalinks, ordered attribution and stable update versions. Legacy
 message delivery remains available. Live source delivery requires its own exact
 channel/binding qualification; the capability does not activate company imports.
+
+Stopped Agent tasks support an explicit operator-authorized generation retry when
+no response or Tool call was retained. Unknown usage remains unknown; this operation
+does not repeat Tools, change source versions or waive the task's completion checks.
