@@ -4,7 +4,7 @@ import { slackRecentMessages, type SlackHistoryClient } from "../../runner-verce
 import { SharedConversationTurn, EMPTY_ATTENTION } from "../../runtime/shared-conversation.ts";
 import { CONVERSATION_COORDINATOR_INSTRUCTIONS } from "../../runner-vercel/src/lib/conversation-coordinator.ts";
 
-const roster = [{ name: "Peter Nötzel", role: "owner", status: "active", mayApprove: [], principals: ["slack:T1:U1"] }] as any;
+const roster = [{ name: "Alex Taylor", role: "owner", status: "active", mayApprove: [], principals: ["slack:T1:U1"] }] as any;
 const ts = (n: number) => `1789303${String(n).padStart(3, "0")}.000100`;
 
 function client(messages: Record<string, unknown>[], calls: unknown[] = []): SlackHistoryClient {
@@ -23,7 +23,7 @@ test("a main-channel or DM message receives the ten previous messages, including
   assert.equal(recent.length, 10);
   assert.equal(recent.at(-1)!.kind, "app"); assert.equal(recent.at(-1)!.sender, "oregano");
   assert.match(recent.at(-1)!.text, /prepare the brief/);
-  assert.equal(recent[0]!.sender, "Peter Nötzel"); assert.equal(recent[0]!.kind, "human");
+  assert.equal(recent[0]!.sender, "Alex Taylor"); assert.equal(recent[0]!.kind, "human");
   assert.ok(recent.every((m, i) => i === 0 || Number(m.messageId) > Number(recent[i - 1]!.messageId)));
 });
 
@@ -75,7 +75,7 @@ test("coordinator instructions use recent messages to attach answers and forbid 
 
 test("every answering Agent receives the recent messages at the same place as untrusted context", async () => {
   const { conversationContext } = await import("../../runtime/conversation-participation.ts");
-  const message = { id: ts(60), text: "Objective: shorter prep", senderId: "slack:T1:U1", senderName: "Peter Nötzel", sentAt: "2030-01-04T12:00:00Z", conversationId: "slack:D1:" + ts(60), shared: false, mentioned: false } as any;
+  const message = { id: ts(60), text: "Objective: shorter prep", senderId: "slack:T1:U1", senderName: "Alex Taylor", sentAt: "2030-01-04T12:00:00Z", conversationId: "slack:D1:" + ts(60), shared: false, mentioned: false } as any;
   const recent = [{ messageId: ts(59), sentAt: "2030-01-04T11:59:00Z", sender: "oregano", kind: "app" as const, text: "Let us prepare the brief for this planned card." + "y".repeat(2000) }];
   const context = JSON.parse(conversationContext(message, [], recent));
   assert.equal(context.recentMessagesAtThisPlace.length, 1);
