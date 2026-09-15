@@ -26,6 +26,7 @@ files_expected:
   - packages/testkit/tests/brain-workflow-materialization.test.ts
   - packages/testkit/tests/language-attempts.test.ts
   - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
   - docs/specifications/brain-import.md
   - docs/specifications/brain-read.md
   - docs/_generated/**
