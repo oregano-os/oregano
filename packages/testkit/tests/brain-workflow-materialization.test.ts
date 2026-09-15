@@ -124,12 +124,19 @@ test("source history accepts only its exact unwritten predecessor link and never
   const result = materializeBrainWorkflow(input), tool = loadCompanyTool(result.materials, "analyst", "brain-source-history");
   const prior = { id: "workflow:prior", workflow_id: "brain-import", fields: { source_identity: "synthetic-source", source_version: "v1" },
     status: "cancelled", source_restart: { successorRunId: "workflow:child" }, steps: {} };
-  const run = (item: any) => executeIsolatedCompanyTool({ compiledSource: tool.compiledSource,
-    input: { workflow_id: "brain-import", history_from: "2030-01-01T00:00:00.000Z", cutoff: "2030-01-02T00:00:00.000Z", identity: "synthetic-source", version: "v1" },
+  const run = (item: any, version = "v1") => executeIsolatedCompanyTool({ compiledSource: tool.compiledSource,
+    input: { workflow_id: "brain-import", history_from: "2030-01-01T00:00:00.000Z", cutoff: "2030-01-02T00:00:00.000Z", identity: "synthetic-source", version },
     context: { instanceId: "synthetic", runId: "workflow:child", stepId: "history", agentId: "analyst", toolId: tool.contract.runtimeId },
-    allowedCapabilities: ["evidence.query"], invokeCapability: async () => ({ coverage: { complete: true }, items: [item] }) });
+    allowedCapabilities: ["evidence.query"], invokeCapability: async () => ({ coverage: { complete: true }, items: Array.isArray(item) ? item : [item] }) });
   const output = await run(prior) as any;
   assert.deepEqual(output.prior_runs, [prior.id]); assert.deepEqual(output.requests, []);
+  const archived = { ...prior, artifact_hash: "old-artifact", source_restart: { successorRunId: "workflow:previous-successor", artifactHash: "replacement-artifact" } };
+  const successor = { id: "workflow:previous-successor", workflow_id: prior.workflow_id, fields: prior.fields,
+    artifact_hash: "replacement-artifact", source_predecessor: { runId: prior.id, artifactHash: "old-artifact" }, status: "done",
+    steps: { "finish-import": { status: "succeeded", output: { source_identity: "synthetic-source", source_version: "v1", status: "ingested", pages: [{ slug: "meetings/previous" }], receipts: [{}] } } } };
+  const correction = await run([archived, successor], "v2") as any;
+  assert.deepEqual(correction.prior_runs, [prior.id, successor.id]); assert.deepEqual(correction.requests, [{ key: "prior-0", slug: "meetings/previous" }]);
+  await assert.rejects(run([archived, { ...successor, source_predecessor: { runId: "workflow:unrelated", artifactHash: "old-artifact" } }], "v2"));
   for (const changed of [{ ...prior, source_restart: undefined }, { ...prior, source_restart: { successorRunId: "workflow:other" } },
     { ...prior, status: "done" }, { ...prior, fields: { ...prior.fields, source_version: "v0" } }]) await assert.rejects(run(changed));
 });

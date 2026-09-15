@@ -7,7 +7,14 @@ export default defineCompanyTool({async execute(input:any,context:any){
  const prior_runs:string[]=[],prior_skipped_versions:string[]=[],slugs=new Set<string>();
  for(const run of history.items){
   if(run.id===context.runId||run.workflow_id!==input.workflow_id||run.fields.source_identity!==input.identity)throw Error('Earlier source run identity is inconsistent');
-  if(run.status==='cancelled'&&run.fields.source_version===input.version&&run.source_restart?.successorRunId===context.runId){prior_runs.push(run.id);continue;}
+  if(run.status==='cancelled'&&run.source_restart){
+   const target=run.source_restart.successorRunId,successor=history.items.find((item:any)=>item.id===target);
+   const current=target===context.runId&&run.fields.source_version===input.version;
+   const retained=successor&&successor.workflow_id===run.workflow_id&&successor.fields.source_identity===input.identity
+    &&successor.fields.source_version===run.fields.source_version&&successor.source_predecessor?.runId===run.id
+    &&successor.source_predecessor.artifactHash===run.artifact_hash&&successor.artifact_hash===run.source_restart.artifactHash;
+   if(current||retained){prior_runs.push(run.id);continue;}
+  }
   if(run.fields.source_version===input.version)throw Error('An unchanged completed source must reuse its retained run');
   if(run.status!=='done')throw Error('Finish or reconcile the earlier source-version run before opening another version');
   const step=run.steps['finish-discussion']??run.steps['finish-import']??run.steps['finish-skip'],result=step?.output;

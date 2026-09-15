@@ -272,3 +272,8 @@ procedure accepts only its exact linked cancelled predecessor as unwritten histo
 an unrelated cancelled run or an unchanged completed source is not silently ignored.
 This is an explicit Core operator action, not a model Tool, automatic retry or a
 source-version change. It grants no new sources, Tools or provider access.
+
+A later changed source version also follows the retained predecessor/successor
+references: skip only the proven unwritten predecessor, then read the completed
+successor outcome and its actual pages as correction context. An unrelated or
+incomplete successor cannot make a cancelled source safe to ignore.
