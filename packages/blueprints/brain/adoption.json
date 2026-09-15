@@ -683,7 +683,7 @@
         "meeting-contract",
         "meeting-page"
       ],
-      "output": "Return only one complete meeting page as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence, filename heading, or commentary outside the page. The Phase 5 template is the page body, not its outer serialization. Use the complete source, supplied normalization and host page-read receipt: found requires the existing page; complete not_found permits creation; absent read evidence returns JSON gaps. Flag unsupported claims. Include a dated Timeline after <!-- timeline -->. Cite host_context.internal_evidence_page with [[slug]] links in source-grounded text and every Timeline entry/Take; that evidence page preserves the original source reference. No other pages are drafted."
+      "output": "Return only one complete meeting page as raw Markdown, starting with YAML frontmatter between --- fences containing type and title. No enclosing code fence, filename heading, or commentary outside the page. The Phase 5 template is the page body, not its outer serialization. Use the complete source, supplied normalization and host page-read receipt: found requires the existing page; complete not_found permits creation; absent read evidence returns JSON gaps. Flag unsupported claims. Include a dated Timeline after <!-- timeline -->. Cite host_context.internal_evidence_page with [[slug]] links in source-grounded text and every Timeline entry/Take; that evidence page preserves the original source reference. No other pages are drafted. Put only the verbatim spoken text inside each blockquote; put speaker attribution and citations in the following ordinary paragraph so the host can check the entire quote against the retained transcript."
     },
     {
       "id": "meeting-entities",
@@ -716,7 +716,7 @@
         "meeting-verify",
         "meeting-report"
       ],
-      "output": "Return JSON with V1 through V6 verdicts, evidence references, unresolved gaps and required repairs for the supplied pages. A missing page or source is a failure. Do not claim ingestion or effects completed; the host combines this result with actual write/read receipts."
+      "output": "Return only JSON with exactly checks, gaps and repairs arrays. checks has exactly six entries, one each for V1, V2, V3, V4, V5 and V6. Each entry has exactly id, verdict (pass or block) and evidence (a non-empty explanation referring to the supplied source/pages). Apply the complete adopted checklist to the target meeting and all supplied entity drafts, using prior page reads for conflicts. gaps records explicit unresolved or withheld claims as strings; repairs lists required corrections as strings. Missing pages or source, an ungrounded quote, or a hard sequence contradiction requires block and a repair. An uncertainty already flagged appropriately may remain in gaps while passing. No implicit waive: only explicit host authorization can acknowledge a V6 contradiction. Never claim ingestion or effects completed; the host combines the checked verdict with actual write/read receipts."
     },
     {
       "id": "discussion-extract",

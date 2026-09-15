@@ -41,6 +41,11 @@ test("static phase materialization includes shared instructions and produces bin
       assert.match(bound.instructions, /When sources conflict, note the contradiction/);
       assert.match(bound.instructions, /Brain-First Lookup Convention/);
     }
+    if (prompt.path.includes("brain-meeting-verify")) {
+      assert.match(bound.instructions, /one each for V1, V2, V3, V4, V5 and V6/);
+      assert.match(bound.instructions, /No implicit waive/);
+      assert.match(bound.instructions, /V6 — Sequence verify/);
+    }
     if (prompt.path.includes("brain-meeting-entities")) {
       assert.match(bound.instructions, /\| # \| claim \| kind \| who \| weight \| since \| source \|/);
       assert.match(bound.instructions, /<!--- gbrain:takes:end -->/);

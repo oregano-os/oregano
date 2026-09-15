@@ -105,3 +105,5 @@ receipt-aware output contract. Complete candidate pages accompany each retained
 meeting chunk; ambiguous names and duplicate candidates cannot become accepted
 identities from search excerpts. Unresolved issues remain explicit. Existing
 meeting matches still require original-source comparison before any merge.
+
+The verification phase serializes the unchanged V1–V6 checklist into six unique verdicts with supporting explanations, visible gaps and required repairs. A passed model verdict is not a write receipt or an automatic waiver. The meeting page output places speaker attribution and citations outside blockquotes so a host can compare every complete quoted passage with retained source text; it does not permit paraphrasing or silent quote deletion. Dependent Workflows must supply complete meeting/entity drafts and the relevant prior reads, validate coverage and block before writes on failed checks. This serialization requires fresh live qualification before full ingestion is claimed.
