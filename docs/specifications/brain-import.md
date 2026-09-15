@@ -30,12 +30,17 @@ through exact or alias-aware `brain.entity` reads for a meeting source. Ambiguou
 participant names fall back before generation rather than being guessed. One tool-free
 reasoning/deep generation proposes complete meeting and entity Markdown pages in
 a source-scoped JSON result. A restricted R1 Tool rejects mismatched source
-identity, duplicate/unsafe page paths, missing source links, unsupported quote
-blocks, absent meeting sections and attendee Timeline backlinks before calling
+identity, duplicate/unsafe page paths, missing source links, absent meeting
+sections and attendee Timeline backlinks before calling
 the standard `brain.remember` operation. It then reads each saved page through
 `brain.entity` and compares the exact Markdown. The Tool retains Git/index
 receipts and marks semantic checks that cannot be proven deterministically as
 flagged uncertainty; a model observation alone is not a passed saved-page check.
+Exact and labeled Wiki links are accepted because both resolve to the same Brain
+slug. Proposed blockquotes are checked against contiguous text in the retained
+original: unsupported quotes are removed before the write, and the count is
+recorded as a gap. The saved quote check therefore covers only retained verbatim
+spans, not the model's claim that all proposed quotes were accurate.
 
 Oversized sources, incomplete retrieval, split meetings and invalid one-shot
 proposals route to a continuing Agent before a write. That fallback has twelve

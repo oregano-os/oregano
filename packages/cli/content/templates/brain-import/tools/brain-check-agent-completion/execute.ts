@@ -1,4 +1,5 @@
 import { defineCompanyTool } from "@companyos/tool-sdk";
+const hasLink=(markdown:string,slug:string)=>markdown.includes('[['+slug+']]')||new RegExp('\\[\\['+slug+'\\|[^\\]\\n]{1,160}\\]\\]').test(markdown);
 export default defineCompanyTool({ async execute(input: any, context: any) {
 
  const {task,calls}=input.context,facts=input.facts;
@@ -49,14 +50,14 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  for(const meeting of facts.meetings){
   const page=reads.get(meeting.slug).page.markdown;
   for(const heading of ['Summary','Key Decisions','Action Items','Notable Quotes'])if(!new RegExp('^## '+heading+'\\s*$','m').test(page))return reject('V1: restore the adopted meeting section '+heading+' on '+meeting.slug);
-  if(!page.includes('[['+task.evidence.slug+']]'))return reject('Meeting page must cite its internal original-source evidence: '+meeting.slug);
+  if(!hasLink(page,task.evidence.slug))return reject('Meeting page must cite its internal original-source evidence: '+meeting.slug);
   for(const slug of [...meeting.attendees,...meeting.entities]){
    const entity=reads.get(slug).page.markdown;
    const referenced=reads.get(slug).page;
    // Cross-references to evidence/other meetings are not person/company
    // attendance entries and must not force Timeline sections into those pages.
    const needsTimeline=!['meeting','source'].includes(referenced.type);
-   if(!page.includes('[['+slug+']]')||(needsTimeline&&!entity.slice(entity.indexOf('<!-- timeline -->')).includes('[['+meeting.slug+']]')))missingBacklinks.push(slug);
+   if(!hasLink(page,slug)||(needsTimeline&&!hasLink(entity.slice(entity.indexOf('<!-- timeline -->')),meeting.slug)))missingBacklinks.push(slug);
   }
  }
  if(missingBacklinks.length)return reject('Complete the meeting links and entity Timeline backlinks: '+[...new Set(missingBacklinks)].join(', '));

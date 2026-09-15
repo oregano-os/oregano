@@ -2,6 +2,8 @@ import { defineCompanyTool } from "@companyos/tool-sdk";
 
 type PageRead = { found: boolean; status: string; page?: { slug: string; type: string; markdown: string; content_hash: string }; indexed_revision: { git_commit: string } };
 const slugPattern = /^[a-z][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,119}$/;
+const hasLink = (markdown: string, slug: string) => markdown.includes("[[" + slug + "]]")
+  || new RegExp("\\[\\[" + slug + "\\|[^\\]\\n]{1,160}\\]\\]").test(markdown);
 const yamlField = (markdown: string, key: string) => new RegExp("^" + key + ":[ \\t]*(.+)$", "m").exec(markdown)?.[1]?.trim();
 const sourceDay = (value: string) => {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(value)) throw Error("An exact source event date is required");
@@ -32,6 +34,21 @@ function stampMetadata(markdown: string, type: string, existing: PageRead | unde
   if (rawTags && (!/^\[[a-z0-9_-]+(?:, ?[a-z0-9_-]+){0,7}\]$/.test(rawTags) || rawTags.length > 160)) throw Error("Tags must be a bounded list of plain labels");
   if (!rawTags) next += "\ntags: [" + type + "]";
   return "---\n" + next.trim() + "\n---\n" + markdown.slice(match[0].length);
+}
+function pruneNonVerbatimQuotes(markdown: string, original: string): { markdown: string; removed: number } {
+  const section = /(^## Notable Quotes\s*\n)([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(markdown);
+  if (!section) return { markdown, removed: 0 };
+  let removed = 0, retained = 0;
+  const body = section[2].split("\n").map(line => {
+    const block = /^>\s*(.+)$/.exec(line);
+    if (!block) return line;
+    const quoted = /^["“]([^"”]+)["”](?:\s+.*)?$/.exec(block[1].trim());
+    const text = quoted?.[1] ?? block[1].trim();
+    if (!text || !original.includes(text)) { removed++; return ""; }
+    retained++; return "> " + text;
+  }).filter(Boolean).join("\n");
+  const next = retained || !removed ? body : "No verbatim quote retained.\n" + body;
+  return { markdown: markdown.slice(0, section.index) + section[1] + next.trimEnd() + "\n\n" + markdown.slice(section.index + section[0].length), removed };
 }
 
 export default defineCompanyTool({ async execute(input: any, context: any) {
@@ -111,6 +128,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       || draft.verification.some((item: any) => !["passed", "not-applicable", "flagged-uncertainty"].includes(item?.status)
         || typeof item?.detail !== "string" || !item.detail.trim() || item.detail.length > 2000)) throw Error("All six proposed verification observations are required");
     const slugs = new Set<string>([evidence]), pages: any[] = [];
+    let removedQuotes = 0;
     const evidenceRead = prefetch.get(evidence)!;
     if (evidenceRead.found && evidenceRead.page?.markdown !== task.evidence.markdown) throw Error("Existing source evidence differs from the exact source version");
     if (!evidenceRead.found) pages.push({ path: "brain/" + evidence + ".md", expected_content_hash: null, markdown: task.evidence.markdown });
@@ -121,8 +139,12 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       const type = types.get(proposal.slug.split("/")[0]);
       if (!type) throw Error("Proposal is outside the reviewed page directories");
       const current = await read(proposal.slug);
-      const markdown = stampMetadata(proposal.markdown, type, current, source.occurred_at, processing_instant);
-      if (!markdown.includes("[[" + evidence + "]]")) throw Error("Page lacks exact internal original-source evidence");
+      let markdown = stampMetadata(proposal.markdown, type, current, source.occurred_at, processing_instant);
+      if (type === "meeting") {
+        const pruned = pruneNonVerbatimQuotes(markdown, task.original_text);
+        markdown = pruned.markdown; removedQuotes += pruned.removed;
+      }
+      if (!hasLink(markdown, evidence)) throw Error("Page lacks exact internal original-source evidence");
       if (type === "meeting" && !["## Summary", "## Key Decisions", "## Action Items", "## Notable Quotes"].every(section => markdown.includes(section))) throw Error("Meeting page lacks required sections");
       if (type !== "meeting" && !markdown.includes("<!-- timeline -->")) throw Error("Entity page lacks a Timeline");
       if (current.found && current.page) {
@@ -143,13 +165,13 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       if (typeof attendee !== "string" || !attendee.startsWith(directories.person + "/") || !slugPattern.test(attendee)) throw Error("Attendee identity is invalid");
       const person = pages.find(page => page.path === "brain/" + attendee + ".md");
       const retained = prefetch.get(attendee);
-      if (!person && !retained?.page?.markdown.split("<!-- timeline -->")[1]?.includes("[[" + meetingSlug + "]]")) throw Error("A confirmed attendee lacks a meeting Timeline backlink");
-      if (!meetingPages[0].markdown.includes("[[" + attendee + "]]")
-        || person && !person.markdown.split("<!-- timeline -->")[1]?.includes("[[" + meetingSlug + "]]")) throw Error("Meeting/person links or Timeline backlink are missing");
+      if (!person && !hasLink(retained?.page?.markdown.split("<!-- timeline -->")[1] ?? "", meetingSlug)) throw Error("A confirmed attendee lacks a meeting Timeline backlink");
+      if (!hasLink(meetingPages[0].markdown, attendee)
+        || person && !hasLink(person.markdown.split("<!-- timeline -->")[1] ?? "", meetingSlug)) throw Error("Meeting/person links or Timeline backlink are missing");
     }
     for (const entity of meeting.entities) {
       if (typeof entity !== "string" || !slugPattern.test(entity)
-        || !meetingPages[0].markdown.includes("[[" + entity + "]]")
+        || !hasLink(meetingPages[0].markdown, entity)
         || !pages.some(page => page.path === "brain/" + entity + ".md") && !prefetch.get(entity)?.found) throw Error("Meeting entity reference is unresolved");
     }
     const quoteSection = meetingPages[0].markdown.split("## Notable Quotes")[1]?.split(/^## /m)[0] ?? "";
@@ -181,7 +203,8 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
     }));
     return { route: "one-shot", reason: null, outcome: { status: task.prior.requests.length ? "reconciled" : "ingested",
       source_identity: source.identity, source_version: source.version, pages: verified, receipts: [receipt],
-      indexed_revision: receipt.indexed_revision, verification, gaps: draft.gaps } };
+      indexed_revision: receipt.indexed_revision, verification,
+      gaps: removedQuotes ? [...draft.gaps, "Removed " + removedQuotes + " proposed non-verbatim blockquote(s) before saving."] : draft.gaps } };
   } catch (error) {
     if (effectStarted) throw error;
     return { route: "agent", reason: String(error instanceof Error ? error.message : error).slice(0, 500), outcome: null };

@@ -76,8 +76,8 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
     prior: { requests: [] }, directories: { source: "sources", meeting: "meetings", person: "people", company: "companies", concept: "topics" } };
   const proposal = { source_identity: source.identity, source_version: source.version,
     pages: [
-      { slug: meetingSlug, markdown: "---\ntype: meeting\ntitle: Design goal\nlang: en\ntags: [meeting, design]\n---\n\n## Summary\nAlex discussed the goal. [[" + sourceSlug + "]] [[" + personSlug + "]]\n## Key Decisions\nNone evidenced.\n## Action Items\nNone evidenced.\n## Notable Quotes\nNone evidenced.\n" },
-      { slug: personSlug, markdown: "---\ntype: person\ntitle: Alex\nlang: en\naliases: [Alex]\n---\n\nAlex discussed a goal. [[" + sourceSlug + "]]\n<!-- timeline -->\n- Discussed the goal in [[" + meetingSlug + "]] [[" + sourceSlug + "]]\n" },
+      { slug: meetingSlug, markdown: "---\ntype: meeting\ntitle: Design goal\nlang: en\ntags: [meeting, design]\n---\n\n## Summary\nAlex discussed the goal. [[" + sourceSlug + "|original]] [[" + personSlug + "|Alex]]\n## Key Decisions\nNone evidenced.\n## Action Items\nNone evidenced.\n## Notable Quotes\n> \"Alex discussed a first design goal.\" — Alex\n> \"An invented quote.\" — Alex\n" },
+      { slug: personSlug, markdown: "---\ntype: person\ntitle: Alex\nlang: en\naliases: [Alex]\n---\n\nAlex discussed a goal. [[" + sourceSlug + "|original]]\n<!-- timeline -->\n- Discussed the goal in [[" + meetingSlug + "|meeting]] [[" + sourceSlug + "|original]]\n" },
     ], meetings: [{ slug: meetingSlug, attendees: [personSlug], entities: [] }],
     verification: ["V1", "V2", "V3", "V4", "V5", "V6"].map(check => ({ check, status: "passed", detail: "Synthetic source evidence." })), gaps: [] };
   let modelCalls = 0, writeCalls = 0;
@@ -113,6 +113,9 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
   assert.equal(output.outcome.pages.length, 3);
   assert.match(saved.get(meetingSlug)!, /date: 2030-01-01/);
   assert.match(saved.get(meetingSlug)!, /created: 2030-01-02/);
+  assert.match(saved.get(meetingSlug)!, /> Alex discussed a first design goal\./);
+  assert.doesNotMatch(saved.get(meetingSlug)!, /An invented quote/);
+  assert.match(output.outcome.gaps.at(-1), /Removed 1 proposed non-verbatim blockquote/);
   assert.match(saved.get(personSlug)!, /tags: \[person\]/);
   const rejected = await run(JSON.stringify({ ...proposal, source_version: "wrong" }));
   assert.equal(rejected.route, "agent"); assert.equal(writeCalls, 1, "Invalid model output cannot write");
