@@ -31,3 +31,24 @@ important moment is higher than the cost of an extra deep-tier call.
 
 ### Chat archives (messages, group threads)
 - Triage: "Is this a real conversation or logistics?"
+
+
+## Evidence-based score calibration
+
+Score the retained content, not the existence or packaging of a recording.
+A title, participant list, known colleague, timestamp or recording duration does
+not establish meaningful conversation, advice, a decision or a relationship event.
+Do not reconstruct missing dialogue from those fields.
+
+Emotional significance means a source-grounded event or reaction with lasting
+personal or working significance. An isolated expletive, emphatic punctuation,
+greeting or start/stop command without such context is not that evidence.
+For a purely operational fragment with no supported insight, event, commitment or
+meaningful emotional context, use the configured low-value category and low scores
+(0–2). Explain the missing substance in one_line_summary; do not raise significance
+merely because the missing context is uncertain.
+
+Brevity alone is never a reason to skip. A single supported sentence can contain
+an important decision, deadline, commitment, original idea or meaningful personal
+news. Score that actual meaning normally. Escalate uncertainty about a supported
+significant claim; do not invent significance in an otherwise content-free fragment.

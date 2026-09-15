@@ -42,7 +42,7 @@ export function createLanguageGenerator(dependencies: {
     // Explicit portable effort keeps provider defaults from consuming the
     // bounded call's output budget before any answer text is produced.
     reasoning: "low",
-    maxOutputTokens: Math.min(execution.selection.maxOutputTokens ?? 2_500, 4_000),
+    maxOutputTokens: Math.min(execution.selection.maxOutputTokens ?? 2_500, 12_000),
     maxRetries: 0,
     abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 55_000, 55_000)),
   }); } catch {

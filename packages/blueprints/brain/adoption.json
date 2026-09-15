@@ -386,12 +386,16 @@
       ],
       "source_excerpt_sha256": "3e70a80b1ae522a13f5527d51c3a7afb13e5d2bc73eab7b7e8f8d225160b992e",
       "path": "sections/triage.md",
-      "sha256": "8fa8e2afc5324e3792dd068408a2edb76787356ebe4f975dbc4d77a77dc10370",
-      "adaptation_reason": "Preserve the original minimal triage shape and uncertainty guidance. Trusted inputs supply categories and relevance perspective; the deterministic gate owns routing.",
+      "sha256": "cf7548d2e5c9fc93bb4fc61e5b472c2a30ad15c0ea3e4d15036cbe8c80296461",
+      "adaptation_reason": "Preserve the original minimal triage shape and uncertainty guidance. Trusted inputs supply categories and relevance perspective; the deterministic gate owns routing. Clarify evidence-based scoring of operational fragments and meaningful short statements; retain the configured gate thresholds.",
       "adaptations": [
         {
           "kind": "scoped-contract-adaptation",
           "description": "Preserve the original minimal triage shape and uncertainty guidance. Trusted inputs supply categories and relevance perspective; the deterministic gate owns routing."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Score substantive evidence rather than isolated tone or recording metadata; do not reject meaningful content merely because it is short."
         }
       ]
     },

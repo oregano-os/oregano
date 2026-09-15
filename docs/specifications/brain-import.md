@@ -318,3 +318,23 @@ the missing response because Core dispatches only a durably retained response.
 Repeating the same operator request returns its existing authorization. Ordinary
 resume and model-generated inputs cannot authorize this retry. Do not claim complete
 cost accounting until the unknown provider usage is reconciled separately.
+
+
+### Triage calibration and no-write qualification
+
+The adopted triage instructions distinguish source-grounded significance from
+recording metadata or isolated emotional tone. Purely operational fragments without
+supported knowledge receive low-value classification and low scores; meaningful
+short decisions or commitments remain eligible. Company-configured routing
+thresholds are unchanged. This scoring clarification is an explicit adaptation of
+the upstream instructions, not a claimed upstream mechanical rejection guarantee.
+
+The maintained language host supports configured output limits up to 12000 tokens
+per call, including provider reasoning usage. Lower configured limits and the
+2500-token fallback remain unchanged; the existing 55-second phase timeout and
+output validation still apply. The Agent host retains its separate bounded calls.
+
+Qualification may replay exact retained source evidence through the current prompt
+and pure routing/outcome Tools without changing source admission or historical
+Workflow results. Such calls are separate qualification evidence, retain every
+model attempt and cost, and cannot be reported as a newly completed live import.

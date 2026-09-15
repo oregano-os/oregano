@@ -48,14 +48,14 @@ test("actual SDK request explicitly bounds adaptive thinking instead of relying 
     const body = JSON.parse(String(init?.body));
     assert.equal(body.thinking.type, "adaptive");
     assert.equal(body.output_config.effort, "low");
-    assert.equal(body.max_tokens, 4000);
+    assert.equal(body.max_tokens, 12000);
     assert.equal(body.system.at(-1).text, languageSystemInstructions("Write a short assessment"));
     return new Response(JSON.stringify({ type: "message", id: "msg_synthetic", role: "assistant", model: "claude-sonnet-5",
       content: [{ type: "text", text: "Supported summary." }], stop_reason: "end_turn", stop_sequence: null,
       usage: { input_tokens: 10, output_tokens: 5 } }), { headers: { "content-type": "application/json" } });
   } })("claude-sonnet-5");
   const generate = createLanguageGenerator({ resolve: (() => ({ model, selection: {
-    route: "anthropic-direct", model: "anthropic/claude-sonnet-5", maxOutputTokens: 4096,
+    route: "anthropic-direct", model: "anthropic/claude-sonnet-5", maxOutputTokens: 12000,
   } })) as unknown as typeof resolveModelExecution, generate: actualGenerateText });
   const result = await generate({ instructions: "Write a short assessment", data: "{}", agentId: "analyst", modelTask: "analyst.review" });
   assert.equal(calls, 1);
@@ -81,7 +81,7 @@ test("the owning model's policy validates inline files before generation", async
   assert.equal(calls, 1);
 });
 
-test("trusted language phase profiles resolve through the existing recipe path with unchanged output bounds", async () => {
+test("trusted language phase profiles honor configured limits up to the supported host ceiling", async () => {
   for (const profile of ["utility", "reasoning", "deep"] as const) {
     const generate = createLanguageGenerator({
       resolve: ((input) => {
@@ -89,7 +89,7 @@ test("trusted language phase profiles resolve through the existing recipe path w
         return { model: "test", selection: { maxOutputTokens: 90_000, timeoutMs: 900_000 } };
       }) as typeof resolveModelExecution,
       generate: (async (input: Parameters<typeof generateText>[0]) => {
-        assert.equal(input.maxOutputTokens, 4_000); assert.equal(input.tools, undefined); assert.equal(input.maxRetries, 0);
+        assert.equal(input.maxOutputTokens, 12_000); assert.equal(input.tools, undefined); assert.equal(input.maxRetries, 0);
         return { text: "Complete", finishReason: "stop", response: { id: "synthetic", modelId: "test" }, usage: {} };
       }) as unknown as typeof generateText,
     });

@@ -188,3 +188,33 @@ test("one import Workflow routes heterogeneous source projections without wideni
   const agent = workflow.steps.find((step: any) => step["process-source"] === "agent");
   assert.equal(agent.tools.find((entry: any) => entry.tool === "oregano:records/query").bind.projection_id, "$steps.source-record.projection_id");
 });
+
+test("triage score boundaries preserve low-value skips and meaningful short content without writes", async () => {
+  const result = materializeBrainWorkflow({ ...input, triage: { ...input.triage,
+    skip_scores_below: 3, deep_business_at_least: 7, deep_emotional_at_least: 5 } });
+  const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]!);
+  const execute = (name: string, value: unknown) => {
+    const tool = loadCompanyTool(result.materials, "analyst", name);
+    return executeIsolatedCompanyTool({ compiledSource: tool.compiledSource, input: value,
+      context: { instanceId: "synthetic", runId: "triage-boundary", stepId: name, agentId: "analyst", toolId: tool.contract.runtimeId },
+      allowedCapabilities: [], invokeCapability: async () => { throw Error("Qualification must never dispatch provider writes"); } }) as Promise<any>;
+  };
+  const base = { filing: "low_value", user_writing_present: false, user_writing_quality: 0,
+    emotional_significance: 2, business_significance: 1, era: "unknown", one_line_summary: "Only recording-control chatter, with no supported event or commitment." };
+  for (const [classification, route] of [
+    [base, "skip"], [{ ...base, emotional_significance: 3 }, "reasoning"],
+    [{ ...base, filing: "business", business_significance: 7, one_line_summary: "One explicit launch approval with a deadline." }, "deep"],
+  ] as const) {
+    const gate = await execute("brain-value-gate", { source_complete: true, expected_segments: ["part-1"], settings: config.triage,
+      results: [{ key: "part-1", output: { text: JSON.stringify(classification) } }] });
+    assert.equal(gate.route, route); assert.deepEqual(gate.items[0].classification, classification);
+    if (route === "skip") {
+      const task = { source: { identity: "synthetic:fragment", version: "v1" }, prior: { requests: [] } };
+      const outcome = await execute("brain-agent-outcome", { task, route, execution: null });
+      assert.equal(outcome.status, "skipped"); assert.deepEqual(outcome.pages, []); assert.deepEqual(outcome.receipts, []);
+      assert.equal(outcome.source_version, "v1");
+      await assert.rejects(execute("brain-agent-outcome", { task, route, execution: { result: {} } }));
+      await assert.rejects(execute("brain-agent-outcome", { task: { ...task, prior: { requests: [{ slug: "sessions/prior" }] } }, route, execution: null }));
+    }
+  }
+});
