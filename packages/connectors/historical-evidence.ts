@@ -143,6 +143,8 @@ export class HistoricalEvidenceConnector implements Connector {
         items.push({ id: run.runId, kind: "workflow-run", workflow_id: run.workflowId, occurred_at: run.trigger.instant,
           observed_at: run.updatedAt, artifact_hash: run.artifactHash, manifest_hash: run.manifestHash, fields: run.fields,
           status: Date.parse(run.updatedAt) > Date.parse(input.to) ? "unknown-at-cutoff" : run.state.status,
+          ...(run.state.sourceRestart && Date.parse(run.state.sourceRestart.authorizedAt) <= Date.parse(input.to) ? { source_restart: run.state.sourceRestart } : {}),
+          ...(run.state.sourcePredecessor ? { source_predecessor: run.state.sourcePredecessor } : {}),
           blocked: run.state.blocked ?? null, steps, output_refs: outputRefs, decisions, effects, feedback: input.include_feedback === false ? null : feedback, builds });
       }
       if (input.include_feedback === false) limitations.push("feedback-not-requested");

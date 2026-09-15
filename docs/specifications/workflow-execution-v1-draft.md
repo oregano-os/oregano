@@ -861,3 +861,24 @@ call journal is Core-owned evidence. Ordinary read-repair does not rewind Agent
 steps or erase their writes. Retrospective workflow verification includes Agent
 attempts, guarded calls and effect receipts. No chat-specific provider or runtime is
 introduced into a Workspace.
+
+
+### Explicit continuation of an unwritten source
+
+The Core `continueUnwrittenSource` operator method can replace an unfinished source
+run exactly once with a reviewed replacement Artifact. It requires current operator
+authority, source admission and processing scope, an exact revision, only attempted
+R0 computations/routing, no decisions, no Agent Tool conversation, and no unknown or
+unfinished model attempt. A possible write is never replayed through this path.
+The existing lease fences cancellation and an immutable successor reference before
+creating the replacement. A lost result reuses that successor; normal source-version
+opening follows the link. Both runs retain their original Artifacts, source version,
+outputs, repairs and all billed attempts. The successor records its predecessor and
+starts the reviewed procedure anew. A further continuation of that successor is
+unsupported; ordinary durable resume and targeted correction apply.
+
+Source-history reads expose these references at the trusted cutoff. The Brain
+procedure accepts only its exact linked cancelled predecessor as unwritten history;
+an unrelated cancelled run or an unchanged completed source is not silently ignored.
+This is an explicit Core operator action, not a model Tool, automatic retry or a
+source-version change. It grants no new sources, Tools or provider access.

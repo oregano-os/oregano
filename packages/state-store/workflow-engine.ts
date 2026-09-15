@@ -63,7 +63,19 @@ export interface WorkflowReadRepair {
   blocked: { stepId: string; code: string; errorDigest: string };
   steps: Record<string, WorkflowStepState>;
 }
+export interface WorkflowSourceRestart {
+  successorRunId: string;
+  artifactHash: string;
+  principal: string;
+  authorizedAt: string;
+  reasonDigest: string;
+}
 export interface WorkflowMutableState {
+  /** One explicit read-only source continuation; original outputs and costs stay on this cancelled run. */
+  sourceRestart?: WorkflowSourceRestart;
+  /** Immutable opening link; continuing a continuation is intentionally unsupported. */
+  sourcePredecessor?: { runId: string; artifactHash: string };
+
   /** At most three explicit R0 repairs; prior results remain immutable and chargeable. */
   readRepairs?: WorkflowReadRepair[];
   /** Immutable opening proof; no source payload or runtime credential. */

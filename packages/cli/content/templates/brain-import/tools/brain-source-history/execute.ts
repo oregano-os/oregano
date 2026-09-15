@@ -6,7 +6,9 @@ export default defineCompanyTool({async execute(input:any,context:any){
  if(history.coverage.complete!==true)throw Error('Complete retained source-run evidence is required before source processing');
  const prior_runs:string[]=[],prior_skipped_versions:string[]=[],slugs=new Set<string>();
  for(const run of history.items){
-  if(run.id===context.runId||run.workflow_id!==input.workflow_id||run.fields.source_identity!==input.identity||run.fields.source_version===input.version)throw Error('Earlier source run identity is inconsistent');
+  if(run.id===context.runId||run.workflow_id!==input.workflow_id||run.fields.source_identity!==input.identity)throw Error('Earlier source run identity is inconsistent');
+  if(run.status==='cancelled'&&run.fields.source_version===input.version&&run.source_restart?.successorRunId===context.runId){prior_runs.push(run.id);continue;}
+  if(run.fields.source_version===input.version)throw Error('An unchanged completed source must reuse its retained run');
   if(run.status!=='done')throw Error('Finish or reconcile the earlier source-version run before opening another version');
   const step=run.steps['finish-discussion']??run.steps['finish-import']??run.steps['finish-skip'],result=step?.output;
   if(step?.status!=='succeeded'||!result||result.source_identity!==input.identity||result.source_version!==run.fields.source_version)throw Error('Earlier source completion has no exact final outcome');

@@ -191,6 +191,17 @@ to an enabled Workflow. Each binding names `workflowId`, `importId`, `cohortId`,
 distinct declared Workflow key fields; the policy field selects the normalized
 Workspace configuration. It is not supplied by a model or source record.
 
+An optional `processingField` points to an exact Workspace configuration subset
+`{ max_transcripts, sources: [{ identity, version }] }`. An empty list pauses
+transcript execution. The list must fit the declared maximum, contain distinct
+identities already in the frozen cohort, and use exact content versions. Core
+checks the current activated subset both before opening and before executing or
+resuming historical runs. Reducing this subset preserves all original admission
+receipts, Records, prior attempts and completed pages; retries cannot refill it.
+A later reviewed configuration activation may intentionally expand it. Discussion
+selections remain independently exact and do not consume transcript slots.
+
+
 Before creating a bound run, the existing engine reads the durable cohort effect
 and verifies the Workspace policy and cumulative admitted identities through that
 cohort. Missing state, changed unactivated policy and out-of-cohort sources fail
@@ -240,3 +251,24 @@ Source updates read previous originals and derived pages, update compiled truth 
 supersede old claims without losing Timeline/Takes identity. An unchanged completed
 version is deduplicated; historical runs keep their pinned Artifact and costs.
 Migration or continuation across definitions must be explicit and preserve admission.
+
+
+### Explicit continuation of an unwritten source
+
+The Core `continueUnwrittenSource` operator method can replace an unfinished source
+run exactly once with a reviewed replacement Artifact. It requires current operator
+authority, source admission and processing scope, an exact revision, only attempted
+R0 computations/routing, no decisions, no Agent Tool conversation, and no unknown or
+unfinished model attempt. A possible write is never replayed through this path.
+The existing lease fences cancellation and an immutable successor reference before
+creating the replacement. A lost result reuses that successor; normal source-version
+opening follows the link. Both runs retain their original Artifacts, source version,
+outputs, repairs and all billed attempts. The successor records its predecessor and
+starts the reviewed procedure anew. A further continuation of that successor is
+unsupported; ordinary durable resume and targeted correction apply.
+
+Source-history reads expose these references at the trusted cutoff. The Brain
+procedure accepts only its exact linked cancelled predecessor as unwritten history;
+an unrelated cancelled run or an unchanged completed source is not silently ignored.
+This is an explicit Core operator action, not a model Tool, automatic retry or a
+source-version change. It grants no new sources, Tools or provider access.

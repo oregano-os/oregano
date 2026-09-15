@@ -1,3 +1,5 @@
+import { assertUnwrittenSource, sourceContinuationOrigin, sourceContinuationRunId } from "./source-continuation.ts";
+import { readLanguageAttempts } from "../../language/attempts.ts";
 import { advanceWorkflowAgent } from "./agent-execution.ts";
 import type { WorkflowAgentGenerator } from "./agent-contract.ts";
 import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
@@ -80,6 +82,16 @@ export class WorkflowEngine {
     const workflow = artifact?.workflows?.find((workflow) => workflow.id === run.workflowId);
     const step = workflow?.steps.find((step) => step.id === run.state.cursor);
     if (!artifact || !workflow || !step || workflow.manifestHash !== run.manifestHash) throw new Error("Workflow historical Artifact, manifest or step is unavailable");
+    const binding = this.#options.transcriptImports?.find(binding => binding.workflowId === run.workflowId);
+    if (binding?.processingField !== undefined) {
+      const currentWorkflow = this.#artifact.workflows?.find(item => item.id === run.workflowId);
+      if (!currentWorkflow || !run.state.sourceAdmission) throw new Error("Current transcript processing scope requires retained source admission");
+      await transcriptImportOrigin({ store: this.#options.control, instanceId: run.instanceId,
+        workflow: currentWorkflow, binding, fields: {
+          [binding.sourceIdentityField]: run.state.sourceAdmission.sourceIdentity,
+          [binding.sourceVersionField]: run.state.sourceAdmission.sourceVersion,
+        } });
+    }
     return { artifact, workflow, step };
   }
   #calendar(workflow: CompiledWorkflow, path?: string): WorkflowSchedule | undefined {
@@ -144,7 +156,7 @@ export class WorkflowEngine {
     return this.#open({ ...args, params: occurrence.params }, originKey);
   }
 
-  async #open(args: { workflowId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }, originKey: string): Promise<WorkflowRun> {
+  async #open(args: { workflowId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }, originKey: string, predecessor?: WorkflowRun): Promise<WorkflowRun> {
     const workflow = this.#artifact.workflows?.find((workflow) => workflow.id === args.workflowId);
     if (!workflow) throw new Error("Unknown workflow");
     const now = this.#now(), instant = args.instant ?? now; workflowInstant(instant);
@@ -165,6 +177,14 @@ export class WorkflowEngine {
     const sourceAdmission = transcriptBinding ? await transcriptImportOrigin({ store: this.#options.control, instanceId: this.#artifact.instance.id,
       workflow, binding: transcriptBinding, fields }) : undefined;
     if (sourceAdmission) originKey = sourceAdmission.originKey;
+    if (predecessor) {
+      const restart = predecessor.state.sourceRestart;
+      if (!sourceAdmission || !restart || predecessor.state.status !== "cancelled" || restart.artifactHash !== this.#artifact.artifactHash
+        || sourceAdmission.receipt.sourceIdentity !== predecessor.state.sourceAdmission?.sourceIdentity
+        || sourceAdmission.receipt.sourceVersion !== predecessor.state.sourceAdmission?.sourceVersion
+        || sourceAdmission.receipt.importId !== predecessor.state.sourceAdmission?.importId) throw new Error("Source continuation differs from retained admission or reviewed replacement Artifact");
+      originKey = sourceContinuationOrigin(predecessor.runId);
+    }
     const identity: WorkflowRunIdentity = { instanceId: this.#artifact.instance.id, workflowId: workflow.id, runId: "", artifactHash: this.#artifact.artifactHash,
       manifestHash: workflow.manifestHash, originKey, originDigest: "", subjectPrincipal: args.principal,
       trigger, fields, createdAt: now };
@@ -179,20 +199,71 @@ export class WorkflowEngine {
         identity.originDigest = workflowOriginDigest(identity);
       }
       if (prior.originDigest !== identity.originDigest) throw new Error("Workflow opening identity conflicts with changed input");
-      return prior;
+      return prior.state.sourceRestart ? this.#continueSource(prior) : prior;
     }
     const agent = this.#artifact.agents.find((agent) => agent.id === workflow.agentId)!;
     await this.#options.store.putArtifact(this.#artifact);
     return this.#options.store.create({ identity, state: { status: "running", cursor: workflow.entry, logicalInstant: instant, steps: {}, decisions: {},
-        ...(sourceAdmission ? { sourceAdmission: sourceAdmission.receipt } : {}) },
+        ...(sourceAdmission ? { sourceAdmission: predecessor?.state.sourceAdmission ?? sourceAdmission.receipt } : {}),
+        ...(predecessor ? { sourcePredecessor: { runId: predecessor.runId, artifactHash: predecessor.artifactHash } } : {}) },
       meta: { runId: identity.runId, workflow: workflow.id, workflowVersion: String(workflow.version), companyCommit: this.#artifact.provenance.workspaceCommit,
         companySnapshotHash: this.#artifact.provenance.workspaceHash, agentDefinitionHash: sha256({ instructions: agent.instructions, materials: agent.materials }), agentAdapter: "companyos-workflow-engine", adapterVersion: "1" } });
+  }
+
+  async #continueSource(predecessor: WorkflowRun): Promise<WorkflowRun> {
+    const restart = predecessor.state.sourceRestart;
+    if (!restart || predecessor.state.status !== "cancelled" || restart.successorRunId !== sourceContinuationRunId(predecessor)) throw new Error("Invalid retained source continuation");
+    const successor = await this.#options.store.read(predecessor.instanceId, restart.successorRunId);
+    if (successor) {
+      if (successor.artifactHash !== restart.artifactHash || successor.state.sourcePredecessor?.runId !== predecessor.runId
+        || successor.state.sourcePredecessor?.artifactHash !== predecessor.artifactHash
+        || jsonDigest(successor.state.sourceAdmission!) !== jsonDigest(predecessor.state.sourceAdmission!)) throw new Error("Source continuation receipt conflicts with its predecessor");
+      return successor;
+    }
+    const fields = Object.fromEntries(Object.entries(predecessor.fields).filter(([key]) => !["trigger_id", "run_date", "trigger_instant"].includes(key)));
+    return this.#open({ workflowId: predecessor.workflowId, principal: predecessor.subjectPrincipal, fields,
+      instant: predecessor.updatedAt }, sourceContinuationOrigin(predecessor.runId), predecessor);
+  }
+
+  /** One explicit migration of a source with no attempted writes; paid attempts remain on both linked runs. */
+  async continueUnwrittenSource(runId: string, principal: string, expectedRevision: number, reason: string): Promise<WorkflowRun> {
+    await this.#operator(principal); opaqueId(reason);
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error("Source continuation needs an exact revision");
+    const existing = await this.#options.store.read(this.#artifact.instance.id, runId);
+    if (!existing) throw new Error("Source predecessor is unavailable");
+    this.#enabled(existing.workflowId);
+    await this.#definition(existing); // Enforce the current activated processing subset, including historical runs.
+    if (existing.state.sourceRestart) return this.#continueSource(existing);
+    const now = this.#now(), run = await this.#options.store.claim({ instanceId: existing.instanceId, runId,
+      owner: "workflow-source-continuation", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    if (!run) throw new Error("Source predecessor is leased or terminal");
+    try {
+      if (run.revision !== expectedRevision) throw new Error("Source predecessor changed before continuation");
+      const { artifact } = await this.#definition(run);
+      assertUnwrittenSource(run.state, run.workflowId, artifact);
+      if (artifact.artifactHash === this.#artifact.artifactHash) throw new Error("Source continuation requires a reviewed replacement Artifact");
+      const attempts = await readLanguageAttempts(this.#options.control, [runId]);
+      if (attempts.some(attempt => !["succeeded", "failed"].includes(attempt.status))) throw new Error("Unknown or unfinished model attempt requires reconciliation before source continuation");
+      const binding = this.#options.transcriptImports?.find(item => item.workflowId === run.workflowId);
+      const replacement = this.#artifact.workflows?.find(item => item.id === run.workflowId);
+      if (!binding || !replacement || replacement.trigger.kind !== "operator") throw new Error("Source continuation needs the enabled operator Workflow and reviewed admission binding");
+      await transcriptImportOrigin({ store: this.#options.control, instanceId: run.instanceId, workflow: replacement, binding, fields: run.fields });
+      await this.#options.store.putArtifact(this.#artifact);
+      const state = structuredClone(run.state);
+      state.sourceRestart = { successorRunId: sourceContinuationRunId(run), artifactHash: this.#artifact.artifactHash,
+        principal, authorizedAt: now, reasonDigest: sha256(reason) };
+      state.status = "cancelled"; delete state.wait;
+      const cancelled = await this.#save(run, state, "workflow.source-continued", { ...state.sourceRestart,
+        previous_artifact_hash: run.artifactHash, retained_attempt_count: attempts.length }, undefined, principal);
+      return this.#continueSource(cancelled);
+    } finally { await this.#options.store.release({ instanceId: existing.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 
   async step(runId: string): Promise<WorkflowRun | undefined> {
     const store = this.#options.store, instanceId = this.#artifact.instance.id;
     const existing = await store.read(instanceId, runId);
     if (!existing || terminal(existing)) return existing;
+    if (this.#options.transcriptImports?.some(binding => binding.workflowId === existing.workflowId && binding.processingField !== undefined)) await this.#definition(existing);
     if (existing.state.blocked) return this.#deliverReview(existing);
     this.#enabled(existing.workflowId); await this.#ensureTimers(existing);
     if (existing.state.status === "waiting") return existing;

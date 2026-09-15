@@ -13,6 +13,7 @@ export type WorkflowOperatorRequest =
   | { action: "open"; workflowId: string; requestId: string; fields: Record<string, string>; triggerVariant?: number }
   | { action: "schedule"; workflowId: string; instant: string; fields: Record<string, string> }
   | { action: "read" | "resume" | "cancel" | "recover-unpublished-decision"; runId: string }
+  | { action: "continue-unwritten-source"; runId: string; expectedRevision: number; reason: string }
   | { action: "repair-read-phase"; runId: string; fromStepId: string; expectedRevision: number; reason: string; feedback?: string }
   | { action: "verify"; runId: string; requirements?: WorkflowVerificationRequirement[] }
   | { action: "review"; runId: string; offset?: number }
@@ -41,6 +42,11 @@ export function parseWorkflowOperatorRequest(value: unknown): WorkflowOperatorRe
       return { action: "open", ...common, requestId: text("requestId"), ...(input.triggerVariant === undefined ? {} : { triggerVariant: input.triggerVariant as number }) };
     }
     return { action: "schedule", ...common, instant: text("instant") };
+  }
+  if (input.action === "continue-unwritten-source") {
+    exact(["runId", "expectedRevision", "reason"]);
+    if (!Number.isSafeInteger(input.expectedRevision) || Number(input.expectedRevision) < 0) throw new Error("Invalid source continuation revision");
+    return { action: "continue-unwritten-source", runId: text("runId", /^workflow:[a-f0-9]{64}$/), expectedRevision: Number(input.expectedRevision), reason: text("reason") };
   }
   if (input.action === "repair-read-phase") {
     exact(["runId", "fromStepId", "expectedRevision", "reason", "feedback"]);
@@ -149,6 +155,7 @@ export async function handleWorkflowOperator(request: Request): Promise<Response
     }
     if (action.action === "review") return Response.json({ ok: true, review: await host.engine.review(action.runId, principal, action.offset) });
     if (action.action === "repair-read-phase") return Response.json({ ok: true, run: summary(await host.engine.repairReadPhase(action.runId, principal, action)) });
+    if (action.action === "continue-unwritten-source") return Response.json({ ok: true, run: summary(await host.engine.continueUnwrittenSource(action.runId, principal, action.expectedRevision, action.reason)) });
     if (action.action === "resume") return Response.json({ ok: true, run: summary(await host.engine.resume(action.runId, principal)) });
     if (action.action === "recover-unpublished-decision") return Response.json({ ok: true, run: summary(await host.engine.recoverUnpublishedDecision(action.runId, principal)) });
     if (action.action === "recover-reply") {

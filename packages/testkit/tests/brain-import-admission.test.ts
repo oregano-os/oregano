@@ -116,3 +116,44 @@ test("non-transcript selections reject overlap, wildcards, duplicate identities 
     transcriptImports: [{ ...f.binding, nonTranscriptSources: [{ ...source, identity: "discussion:*", kind: "discussion" }] }] });
   await assert.rejects(f.open("wildcard", "discussion:unselected", "v1", wildcard), /outside/);
 });
+
+function processingArtifact(original: ReturnType<typeof candidate>, sources: Array<{ identity: string; version: string }>, maximum = sources.length) {
+  const artifact = structuredClone(original), workflow = artifact.workflows!.find(w => w.id === "weekday-digest")!;
+  workflow.config!.value.processing = { max_transcripts: maximum, sources };
+  const { manifestHash, ...workflowBody } = workflow; workflow.manifestHash = sha256(workflowBody);
+  const { artifactHash, ...body } = artifact; artifact.artifactHash = sha256({ ...body, provenance: { ...body.provenance, builtAt: undefined } });
+  return artifact;
+}
+test("an activated processing subset blocks new and historical work without rewriting admission or attempts", async () => {
+  const f = await fixture(), retained = await f.open("before-reduction", "b");
+  const artifact = processingArtifact(f.h.artifact, [{ identity: "a", version: "content-version" }]);
+  const h = engineFixture({ artifact, store: f.h.store, control: f.h.control, timerStore: f.h.timerStore,
+    transcriptImports: [{ ...f.binding, processingField: "processing" }] });
+  const key = `brain-import-cohorts:${sha256({ instance_id: artifact.instance.id, import_id: f.binding.importId })}`;
+  const before = structuredClone(await h.control.getEffect(key));
+  await assert.rejects(f.open("held", "b", "content-version", h), /processing scope/);
+  await assert.rejects(f.open("changed", "a", "another-version", h), /processing scope/);
+  await assert.rejects(h.engine().resume(retained.runId, ENGINE_OPERATOR), /processing scope|no resumable blocked state/);
+  await assert.rejects(h.engine().advance(retained.runId), /processing scope/);
+  const after = await h.store.read(artifact.instance.id, retained.runId);
+  assert.deepEqual(after!.state, retained.state); assert.equal(after!.revision, retained.revision);
+  assert.equal(h.calls.length, 0);
+  const allowed = await f.open("allowed", "a", "content-version", h);
+  assert.equal((await h.engine().advance(allowed.runId))?.state.status, "done");
+  assert.equal((await f.open("retry", "a", "content-version", h)).runId, allowed.runId);
+  assert.deepEqual(await h.control.getEffect(key), before, "No slot was released, allocated or refilled");
+});
+test("processing scope rejects over-capacity, duplicate, foreign or malformed sources and an empty scope pauses", async () => {
+  const f = await fixture(), binding = { ...f.binding, processingField: "processing" };
+  for (const sources of [[{ identity: "a", version: "v" }, { identity: "b", version: "v" }],
+    [{ identity: "a", version: "v" }, { identity: "a", version: "v" }], [{ identity: "a", version: "" }]]) {
+    const artifact = processingArtifact(f.h.artifact, sources, 1);
+    assert.throws(() => parseTranscriptImportBindings([binding], artifact, [binding.workflowId]), /processing scope/);
+  }
+  for (const sources of [[], [{ identity: "c", version: "content-version" }]]) {
+    const artifact = processingArtifact(f.h.artifact, sources, 1);
+    const h = engineFixture({ artifact, store: f.h.store, control: f.h.control, timerStore: f.h.timerStore, transcriptImports: [binding] });
+    await assert.rejects(f.open("held", "a", "content-version", h), /processing scope/);
+  }
+  assert.throws(() => parseTranscriptImportBindings([{ ...binding, processingField: "absent" }], f.h.artifact, [binding.workflowId]));
+});

@@ -11,6 +11,8 @@ export interface TranscriptImportBinding {
   importId: string;
   cohortId: string;
   policyField: string;
+  /** Optional exact processing subset in current Workspace configuration; never allocates new slots. */
+  processingField?: string;
   sourceIdentityField: string;
   sourceVersionField: string;
   /** Exact reviewed discussion versions; never a wildcard, channel expansion or transcript slot. */
@@ -23,9 +25,10 @@ export function parseTranscriptImportBindings(raw: unknown, artifact: CompanyOSA
   const seen = new Set<string>();
   return raw.map(item => {
     const fields = ["workflowId", "importId", "policyField", "sourceIdentityField", "sourceVersionField"];
-    if (!item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).filter(key => key !== "nonTranscriptSources").sort().join(",") !== [...fields, "cohortId"].sort().join(",")
+    if (!item || typeof item !== "object" || Array.isArray(item) || Object.keys(item).filter(key => !["nonTranscriptSources", "processingField"].includes(key)).sort().join(",") !== [...fields, "cohortId"].sort().join(",")
       || fields.some(key => !identifier(item[key])) || typeof item.cohortId !== "string" || !/^[a-f0-9]{64}$/.test(item.cohortId)) throw new Error("Invalid transcript import binding");
     const binding = item as TranscriptImportBinding;
+    if (binding.processingField !== undefined && (!identifier(binding.processingField) || binding.processingField === binding.policyField)) throw new Error("Invalid transcript processing field");
     if (binding.nonTranscriptSources !== undefined) {
       const selected = binding.nonTranscriptSources;
       if (!Array.isArray(selected) || selected.length > 100 || selected.some(source => !source || typeof source !== "object"
@@ -38,9 +41,29 @@ export function parseTranscriptImportBindings(raw: unknown, artifact: CompanyOSA
       || binding.sourceIdentityField === binding.sourceVersionField
       || [binding.sourceIdentityField, binding.sourceVersionField].some(field => ["trigger_id", "run_date", "trigger_instant"].includes(field) || !workflow.instance.fields.includes(field) || !workflow.instance.key.includes(field))) throw new Error("Transcript import binding requires one enabled Workflow and distinct declared source key fields");
     validateTranscriptSelectionPolicy(workflow.config?.value[binding.policyField]);
+    if (binding.processingField !== undefined) validateTranscriptProcessingScope(workflow.config?.value[binding.processingField]);
     seen.add(workflow.id);
     return structuredClone(binding);
   });
+}
+
+export interface TranscriptProcessingScope {
+  max_transcripts: number;
+  sources: Array<{ identity: string; version: string }>;
+}
+/** A reviewed subset can tighten execution without changing immutable admission history. */
+export function validateTranscriptProcessingScope(raw: unknown): TranscriptProcessingScope {
+  const value = raw as TranscriptProcessingScope;
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || Object.keys(value).sort().join(",") !== "max_transcripts,sources"
+    || !Number.isSafeInteger(value.max_transcripts) || value.max_transcripts < 1 || value.max_transcripts > 10000
+    || !Array.isArray(value.sources) || value.sources.length > value.max_transcripts
+    || value.sources.some(source => !source || typeof source !== "object" || Array.isArray(source)
+      || Object.keys(source).sort().join(",") !== "identity,version"
+      || [source.identity, source.version].some(part => typeof part !== "string" || !part.length || part.length > 1000 || /[\x00-\x1f]/.test(part)))
+    || new Set(value.sources.map(source => source.identity)).size !== value.sources.length)
+    throw new Error("Invalid bounded exact transcript processing scope");
+  return structuredClone(value);
 }
 
 /** Read the existing cohort registry before opening any source-version Workflow. Never allocate a slot here. */
@@ -64,6 +87,13 @@ export async function transcriptImportOrigin(args: {
   const selected = state.cohorts.slice(0, index + 1).flatMap(cohort => cohort.admitted);
   if (selected.length !== cohort.cumulative_count || new Set(selected.map(item => item.identity)).size !== selected.length
     || cohort.cumulative_count > cohort.policy.max_transcripts) throw new Error("Retained transcript admissions violate the cohort ceiling");
+  const processing = binding.processingField === undefined ? undefined
+    : validateTranscriptProcessingScope(workflow.config?.value[binding.processingField]);
+  if (processing?.sources.some(source => !selected.some(item => item.identity === source.identity)))
+    throw new Error("Transcript processing scope contains an identity outside the frozen cohort");
+  if (processing && selected.some(item => item.identity === source)
+    && !processing.sources.some(item => item.identity === source && item.version === version))
+    throw new Error("Source identity or version is outside the activated transcript processing scope");
   const extra = binding.nonTranscriptSources?.find(item => item.identity === source);
   if (binding.nonTranscriptSources?.some(item => selected.some(transcript => transcript.identity === item.identity))) throw new Error("A transcript cannot be reclassified as a non-transcript source");
   if (!selected.some(item => item.identity === source) && (!extra || extra.version !== version)) throw new Error("Source identity or version is outside the frozen transcript cohort or exact non-transcript selection");

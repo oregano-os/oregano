@@ -832,6 +832,17 @@ For a reviewed import, add `transcriptImports` to the existing credential-free
 The host passes validated bindings to the ordinary Workflow engine. Keep the
 existing Artifact identity and operator authentication checks unchanged.
 
+An optional `processingField` points to an exact Workspace configuration subset
+`{ max_transcripts, sources: [{ identity, version }] }`. An empty list pauses
+transcript execution. The list must fit the declared maximum, contain distinct
+identities already in the frozen cohort, and use exact content versions. Core
+checks the current activated subset both before opening and before executing or
+resuming historical runs. Reducing this subset preserves all original admission
+receipts, Records, prior attempts and completed pages; retries cannot refill it.
+A later reviewed configuration activation may intentionally expand it. Discussion
+selections remain independently exact and do not consume transcript slots.
+
+
 Freeze the qualified source selection through the existing cohort setup before
 activation. Opening validates the retained cohort and exact Workspace policy,
 then deduplicates the source version independently of request IDs or deployments.

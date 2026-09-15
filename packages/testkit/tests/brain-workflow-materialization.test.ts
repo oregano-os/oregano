@@ -119,3 +119,17 @@ test('incremental completion checks actual saved pages and returns correction fe
  const premature={...facts,verification:facts.verification.slice(1)};assert.match((await check({context:{task,calls},facts:premature})).feedback,/V1–V6/);
  const mismatch=structuredClone(calls);mismatch.at(-1).output.page.markdown='Unrelated current content';assert.match((await check({context:{task,calls:mismatch},facts})).feedback,/differs/);
 });
+
+test("source history accepts only its exact unwritten predecessor link and never ignores another cancelled source", async () => {
+  const result = materializeBrainWorkflow(input), tool = loadCompanyTool(result.materials, "analyst", "brain-source-history");
+  const prior = { id: "workflow:prior", workflow_id: "brain-import", fields: { source_identity: "synthetic-source", source_version: "v1" },
+    status: "cancelled", source_restart: { successorRunId: "workflow:child" }, steps: {} };
+  const run = (item: any) => executeIsolatedCompanyTool({ compiledSource: tool.compiledSource,
+    input: { workflow_id: "brain-import", history_from: "2030-01-01T00:00:00.000Z", cutoff: "2030-01-02T00:00:00.000Z", identity: "synthetic-source", version: "v1" },
+    context: { instanceId: "synthetic", runId: "workflow:child", stepId: "history", agentId: "analyst", toolId: tool.contract.runtimeId },
+    allowedCapabilities: ["evidence.query"], invokeCapability: async () => ({ coverage: { complete: true }, items: [item] }) });
+  const output = await run(prior) as any;
+  assert.deepEqual(output.prior_runs, [prior.id]); assert.deepEqual(output.requests, []);
+  for (const changed of [{ ...prior, source_restart: undefined }, { ...prior, source_restart: { successorRunId: "workflow:other" } },
+    { ...prior, status: "done" }, { ...prior, fields: { ...prior.fields, source_version: "v0" } }]) await assert.rejects(run(changed));
+});

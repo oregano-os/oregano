@@ -1,3 +1,4 @@
+import { validateSourceContinuation } from "./source-continuation.ts";
 import { validateAgentState } from "./agent-state.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { RunMeta } from "../../state-store/interface.ts";
@@ -51,12 +52,13 @@ export function validateWorkflowCreation(identity: WorkflowRunIdentity, state: W
   if (meta.runId !== identity.runId || meta.workflow !== identity.workflowId || meta.workflowVersion !== String(workflow.version)
     || meta.companyCommit !== artifact.provenance.workspaceCommit || meta.companySnapshotHash !== artifact.provenance.workspaceHash
     || meta.agentDefinitionHash !== sha256({ instructions: agent.instructions, materials: agent.materials })) throw new Error("Workflow control metadata differs from its pinned Artifact");
-  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery || state.readRepairs) throw new Error("New workflow must start at its empty entry state");
+  if (state.status !== "running" || state.cursor !== workflow.entry || Object.keys(state.steps).length || Object.keys(state.decisions).length || state.wait || state.blocked || state.reviewDelivery || state.readRepairs || state.sourceRestart) throw new Error("New workflow must start at its empty entry state");
   validateWorkflowState(state, identity.workflowId, artifact);
 }
 
 export function validateWorkflowState(state: WorkflowMutableState, workflowId: string, artifact: CompanyOSArtifact, previous?: WorkflowMutableState): void {
   safeObject(state); safeObject(state.steps); safeObject(state.decisions);
+  validateSourceContinuation(state, previous, workflowId, artifact);
   if (previous && canonicalJson(previous.sourceAdmission ?? null) !== canonicalJson(state.sourceAdmission ?? null)) throw new Error("Workflow source admission is immutable");
   if (state.sourceAdmission) {
     const proof = state.sourceAdmission; safeObject(proof);
