@@ -539,3 +539,14 @@ Historical Workflow evidence defaults to bounded feedback event reads. An explic
 event log; each run returns `feedback: null` and coverage records
 `feedback-not-requested`. Complete coverage then refers only to the requested
 projection. It never establishes absence of feedback, approvals or provider events.
+
+## Continuing Agent tasks
+
+The maintained host supports declared durable Agent steps using the same store,
+leases, ModelRecipe resolver, Tool runtime and attempt accounting. Inspect the
+step's Agent journal to distinguish a prepared model turn, retained response,
+completed Tool call and accepted final result. Partial external writes are not
+workflow completion. Resume uses receipt reconciliation for known writes. Unknown
+model outcomes remain stopped; ordinary resume must not generate another paid call.
+Finite budgets and scoped Skill reads are pinned in the Artifact. Deploying a new
+definition does not migrate an existing run or reset its attempts.

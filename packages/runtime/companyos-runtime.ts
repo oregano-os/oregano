@@ -238,7 +238,7 @@ export class CompanyOSRuntime {
     const idempotencyKey = guard?.idempotencyKey ?? `${tool.contract.runtimeId}:${request.runId}:${inputHash}`;
     const accessSubject = this.#resolveAccessSubject(request.subjectPrincipal, guard?.context.currentRoster ?? this.#roster);
     const checkedResult = (result: unknown): unknown => {
-      if ((guard?.context.mode === "engine" || guard?.context.mode === "review") && !guard.step.forEach) {
+      if ((guard?.context.mode === "engine" || guard?.context.mode === "review") && !guard.step.forEach && !guard.step.agent) {
         const outputStep = guard.step.decision ? { ...guard.step, requiredOutputPaths: [["thread_reference"]] } : guard.step;
         assertWorkflowOutput(outputStep, (result as { output?: unknown })?.output);
       }

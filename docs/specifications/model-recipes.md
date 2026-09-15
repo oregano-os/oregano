@@ -154,3 +154,14 @@ context digest plus repair number/feedback digest. Feedback is not source truth,
 replacement instructions or authority. It shares the existing evidence size
 limit; malformed or oversized feedback fails before a paid dispatch. The
 existing maximum of three explicit read repairs is unchanged.
+
+## Workflow Agent turns
+
+Durable Agent steps resolve their reviewed task and utility/reasoning/deep profile
+with required capability `tools`. The maintained host makes one tool-enabled model
+call per durable turn; Tool declarations have no provider-side execute callbacks.
+Core retains the response before Tool dispatch. The step output-token bound and
+Instance model bound both apply, with zero SDK retries and a maximum 120-second
+model timeout. Existing language-attempt evidence records each call and its actual
+role, input/output/cache tokens and unknown quantities. A continuing conversation
+preserves prior messages and Tool outputs; it does not create a new model per phase.

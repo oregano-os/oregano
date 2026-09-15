@@ -22,13 +22,13 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.deepEqual(input, before, "Materialization does not mutate caller policy");
   const workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
-  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 66);
+  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 10);
   assert.equal(config.source_projection, "studio-sources"); assert.equal(config.transcripts.max_transcripts, 4);
   assert.equal(config.transcripts.meeting_date.start_at, "2025-12-31T23:00:00.000Z");
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
   assert.deepEqual(config.triage, input.triage); assert.equal(config.page_directories.concept, "topics");
   const tools = result.report.requirements.tools.filter(id => id.startsWith("company:"));
-  assert.equal(tools.length, 31);
+  assert.equal(tools.length, 7);
   for (const id of tools) {
     const tool = loadCompanyTool(result.materials, "analyst", id.slice(8));
     assert.equal(tool.contract.agentId, "analyst"); assert.equal(tool.contract.risk, "R0");
@@ -98,4 +98,24 @@ test("triage retains every source character and distinguishes complete coverage 
       assert.ok(JSON.stringify(segment.data).length <= 100000);
     }
   }
+});
+
+test('incremental completion checks actual saved pages and returns correction feedback', async () => {
+ const result=materializeBrainWorkflow(input), tool=loadCompanyTool(result.materials,'analyst','brain-check-agent-completion');
+ const source='sources/import-example',meeting='meetings/example',person='people/example';
+ const evidence='source_identity: "source:1"\nsource_version: "v1"\nrecord_version_id: '+ 'a'.repeat(64);
+ const meetingText='A sourced meeting. [['+source+']] [['+person+']]';
+ const entity='A participant.\n<!-- timeline -->\n- Meeting [['+meeting+']] [['+source+']]';
+ const pages=[{path:'brain/'+source+'.md',markdown:evidence},{path:'brain/'+meeting+'.md',markdown:meetingText},{path:'brain/'+person+'.md',markdown:entity}];
+ const task={source:{identity:'source:1',version:'v1',kind:'meeting',context:{companyos_record_version:'a'.repeat(64)}},evidence:{slug:source},prior:{requests:[]}};
+ const facts={source_identity:'source:1',source_version:'v1',status:'ingested',pages:[source,meeting,person],meetings:[{slug:meeting,attendees:[person],entities:[]}],
+  verification:['V1','V2','V3','V4','V5','V6'].map(check=>({check,status:'passed',detail:'Synthetic check evidence.'})),gaps:[]};
+ const calls:any[]=[{name:'oregano_brain_remember',input:{provenance:{source_id:'source:1',source_version:'v1'},changes:{pages}},output:{status:'saved',saved_commit:'b'.repeat(40),sync_status:'indexed',changed_paths:pages.map(page=>page.path)}},
+  ...pages.map(page=>({name:'oregano_brain_entity',output:{status:'found',found:true,page:{slug:page.path.slice(6,-3),markdown:page.markdown},indexed_revision:{git_commit:'b'.repeat(40)}}}))];
+ const check=async(value:any)=>executeIsolatedCompanyTool({compiledSource:tool.compiledSource,input:value,context:{instanceId:'synthetic',runId:'workflow:test',stepId:'process',agentId:'analyst',toolId:tool.contract.runtimeId},allowedCapabilities:[],invokeCapability:async()=>{throw Error('Pure validation cannot call a provider');}}) as Promise<any>;
+ assert.equal((await check({context:{task,calls},facts})).accepted,true);
+ assert.match((await check({context:{task,calls:calls.slice(0,-1)},facts})).feedback,/Read every/);
+ const stale=[calls[1],calls[0],...calls.slice(2)];assert.equal((await check({context:{task,calls:stale},facts})).accepted,false);
+ const premature={...facts,verification:facts.verification.slice(1)};assert.match((await check({context:{task,calls},facts:premature})).feedback,/V1–V6/);
+ const mismatch=structuredClone(calls);mismatch.at(-1).output.page.markdown='Unrelated current content';assert.match((await check({context:{task,calls:mismatch},facts})).feedback,/differs/);
 });

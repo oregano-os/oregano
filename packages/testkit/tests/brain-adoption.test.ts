@@ -306,3 +306,66 @@ test("maintained Brain writes preserve typed validation failures across the isol
     assert.equal(writes, 0);
   } finally { f.cleanup(); }
 });
+
+test("a continuing Agent saves Brain knowledge before completion and recovers a lost snapshot without a second commit", async () => {
+  const { mkdirSync } = await import("node:fs");
+  const { WorkflowEngine } = await import("../../runtime/workflow-engine/engine.ts");
+  const { InMemoryWorkflowExecutionStore } = await import("../../runtime/workflow-engine/memory-store.ts");
+  const { InMemoryDurableTimerStore } = await import("../../runtime/memory-durable-timers.ts");
+  const { DurableTimerService } = await import("../../runtime/durable-timers.ts");
+  const { InMemoryCompanyRecordsStore } = await import("../../records/memory-store.ts");
+  const { BrainWrites } = await import("../../brain/writes.ts");
+  const f = fixture();
+  try {
+    f.adopt(["oregano:brain/remember", "oregano:brain/entity"]);
+    const skill = "agents/growth/skills/brain-task/SKILL.md";
+    mkdirSync(join(f.root, "agents/growth/skills/brain-task"), { recursive: true });
+    writeFileSync(join(f.root, skill), "---\nname: brain-task\ndescription: Synthetic incremental task.\n---\nSave and read the fictional page.\n");
+    const path = "brain/topics/expansion.md", input = { changes: { expected_revision: "a".repeat(40), pages: [{ path,
+      expected_content_hash: sha256(brainFiles[path]), markdown: brainFiles[path].replace("No shared decision yet.", "A sourced incremental update.") }] },
+      provenance: { source_id: "review:1", source_version: "v1", action: "update", evidence: ["sources/review"] }, operation_key: "agent-source-v1-update" };
+    const declaration = { type: "workflow", id: "brain-update", version: 1, owner: "agents/growth", execution_mode: "unattended", trigger: "operator",
+      steps: [{ work: "agent", context: { source: "Synthetic retained original" }, instructions: [skill], profile: "reasoning", task: "brain.test",
+        tools: [{ tool: "oregano:brain/remember", bind: { provenance: input.provenance } }, { tool: "oregano:brain/entity" }],
+        output_schema: { type: "object", properties: { verified: { const: true } }, required: ["verified"] }, budget: { turns: 3, tool_calls: 6, output_tokens: 8000 } }] };
+    writeFileSync(join(f.root, "workflows/brain-update.md"), `---\n${YAML.stringify(declaration)}---\n1. [growth, R1] Save and verify. <!-- step:work -->\n`);
+    const artifact = f.build(), executions = new InMemoryWorkflowExecutionStore(), store = new InMemoryBrainStore(), leases = new InMemoryCompanyRecordsStore();
+    const scope = { instance_id: artifact.instance.id, repository_id: "example/company" }, binding = { instanceId: scope.instance_id, repositoryId: scope.repository_id, bindingId: "repository", branch: "brain-test" };
+    let now = "2030-01-01T00:00:00.000Z", head = "a".repeat(40), commits = 0, models = 0, files: Record<string, string> = structuredClone(brainFiles);
+    let receipt: import("../../runtime/repository/contracts.ts").BrainRepositoryCommitReceipt | undefined;
+    const repository: import("../../runtime/repository/contracts.ts").BrainRepositoryMutationSource = {
+      brainRevision: async () => head, brainFiles: async (_binding, revision) => structuredClone(revision === "a".repeat(40) ? brainFiles : files),
+      brainCommit: async request => { commits++; head = "b".repeat(40); files[path] = request.changes[0]!.markdown!;
+        return receipt = { repositoryId: binding.repositoryId, branch: binding.branch, baseCommit: request.baseCommit, commit: head, operationId: request.operationId, inputDigest: request.inputDigest }; },
+      brainFindCommit: async () => receipt,
+    };
+    const connector = new BrainConnector({ artifact, reads: new BrainReads(store, scope), writes: () => new BrainWrites({ scope, binding,
+      configuration: brainConfig, store, effects: executions.control, leases, repository, now: () => new Date(now) }) });
+    const principal = "test:solstice:morgan", timers = new DurableTimerService({ instanceId: scope.instance_id, store: new InMemoryDurableTimerStore() });
+    const engine = () => new WorkflowEngine({ artifact, store: executions, control: executions.control, timers,
+      enabledWorkflowIds: ["brain-update"], operatorPrincipals: [principal], currentRoster: async () => artifact.roster, connectors: async () => [connector],
+      qualifyMessageDestinations: async () => { throw new Error("Unexpected messaging"); }, conversationForReceipt: async () => { throw new Error("Unexpected conversation"); }, clock: () => now,
+      agentGenerator: async request => {
+        await request.beforeDispatch({ model: "synthetic/test", profile: "reasoning", route: "openai-compatible" } as any,
+          { system_prompt_digest: "c".repeat(64), system_instruction_characters: 10 });
+        models++;
+        const calls: import("../../state-store/workflow-engine.ts").WorkflowAgentResponse["calls"] = models === 1 ? [{ id: "save", name: "oregano_brain_remember", input }]
+          : [{ id: "read", name: "oregano_brain_entity", input: { name: "topics/expansion" } }, { id: "finish", name: "companyos_finish_task", input: { verified: true } }];
+        if (models === 2) assert.equal((request.turns[0]!.results[0]!.output as any).saved_commit, head);
+        return { response: { messages: [], text: "", calls, finishReason: "tool-calls" }, evidence: { synthetic: true } };
+      } });
+    let run = await engine().openOperator({ workflowId: "brain-update", requestId: "source:1", principal, fields: {} });
+    await engine().step(run.runId); await engine().step(run.runId);
+    const commit = executions.commit.bind(executions); let drop = true;
+    executions.commit = async args => { if (drop && args.event.name === "workflow.agent-tool-completed") { drop = false; return undefined; } return commit(args); };
+    run = (await engine().step(run.runId))!;
+    assert.equal(commits, 1); assert.equal(models, 1); assert.equal(run.state.status, "running"); assert.ok(files[path]!.includes("A sourced incremental update."));
+    now = "2030-01-01T00:06:00.000Z";
+    run = (await engine().advance(run.runId))!;
+    assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(commits, 1); assert.equal(models, 2);
+    assert.equal((run.state.steps.work!.agent!.turns[1]!.results[0]!.output as any).page.markdown, files[path]);
+    const proof = await engine().verify(run.runId, principal);
+    assert.deepEqual(proof.checks.filter(check => !check.passed && !check.code.startsWith("required-")), [], "Retrospective proof must verify dynamic Agent calls and the saved effect");
+    assert.equal(proof.counts.effects, 1);
+  } finally { f.cleanup(); }
+});

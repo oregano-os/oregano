@@ -204,7 +204,11 @@
             "type": "string",
             "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"
           },
-          "review_format": { "enum": ["message"] },
+          "review_format": {
+            "enum": [
+              "message"
+            ]
+          },
           "binds": {
             "type": "string",
             "pattern": "^\\$(?:config|steps|trigger|item|instance)(?:\\.[A-Za-z0-9_-]+)*$"
@@ -297,6 +301,68 @@
           "workflow": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "instructions": {
+            "oneOf": [
+              {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string",
+                "pattern": "^\\$config(?:\\.[A-Za-z0-9_-]+)+$"
+              }
+            ]
+          },
+          "profile": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "tools": {
+            "oneOf": [
+              {
+                "type": "array"
+              },
+              {
+                "type": "string",
+                "pattern": "^\\$config(?:\\.[A-Za-z0-9_-]+)+$"
+              }
+            ]
+          },
+          "output_schema": {
+            "type": "object"
+          },
+          "budget": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string",
+                "pattern": "^\\$config(?:\\.[A-Za-z0-9_-]+)+$"
+              }
+            ]
+          },
+          "skills": {
+            "oneOf": [
+              {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string",
+                "pattern": "^\\$config(?:\\.[A-Za-z0-9_-]+)+$"
+              }
+            ]
           }
         },
         "additionalProperties": {

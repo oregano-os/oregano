@@ -3,6 +3,7 @@ import type { WorkflowConversation, WorkflowExecutionStore, WorkflowRun } from "
 import type { WorkflowContextReader, WorkflowInvocationContext } from "./context.ts";
 import { workflowItems } from "./references.ts";
 import { workflowReadRepairFeedback } from "./read-repair.ts";
+import { agentCallKey } from "./agent-contract.ts";
 import { canonicalJson } from "../canonical.ts";
 import { workflowReviewNoticeInput, workflowReviewStepId } from "./review-notice.ts";
 
@@ -45,6 +46,14 @@ export class WorkflowRunContextReader implements WorkflowContextReader {
       const workflow = artifact?.workflows?.find((workflow) => workflow.id === run.workflowId);
       const step = workflow?.steps.find((step) => step.id === ctx.stepId);
       if (!artifact || !workflow || !step) throw new Error("Workflow historical Artifact or step is unavailable");
+      if (step.agent) {
+        const turns = run.state.steps[step.id]?.agent?.turns ?? [];
+        const turnIndex = turns.length - 1, turn = turns[turnIndex], callIndex = turn?.results.length ?? 0;
+        const call = turn?.response?.calls[callIndex];
+        if (!call || this.#args.itemKey !== agentCallKey(turnIndex, callIndex)) throw new Error("Agent call is not the next persisted Tool call");
+        ctx.itemKey = this.#args.itemKey; ctx.agentCall = { name: call.name, input: structuredClone(call.input) };
+        return ctx;
+      }
       if (step.decision) {
         ctx.itemKey = this.#args.itemKey;
         return ctx;

@@ -23,14 +23,16 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 ## Reusable authoring assets
 
-`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its 66-step
-operator Workflow handles full-source triage, prior-source reconciliation,
-meeting normalization and candidate resolution, discussion extraction, complete
-page evidence, V1–V6 checks, bounded Markdown commits and indexed read-back.
-Executable code is excluded from the Blueprint. The 31 restricted Company Tool
-sources live separately under `packages/cli/content/templates/brain-import/`.
-Their only requested capabilities are the existing `language.generate` and
-`evidence.query`; provider and repository access remain in governed Core Tools.
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its ten-step
+operator Workflow retains complete source/triage coverage, then assigns one durable
+tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
+knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
+There is no whole-import draft gate before the first write. Each operation retains
+normal Core validation, expected revisions, Git receipts and index reconciliation.
+Seven selected restricted Company Tools prepare source context, apply common triage,
+read source history, validate completion and record outcomes. Historical phase Tool
+templates remain available for retained definitions. Executable code stays outside
+the Blueprint under the Workbench template tree.
 
 The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
 `BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the
@@ -41,7 +43,7 @@ date, value threshold, account, model provider or directory vocabulary is a
 Core default. The helper reuses prompt materialization and the Tool contract
 schemas, verifies template content digests, and rejects inconsistent inputs.
 The result contains the Workflow/configuration, 21 scoped prompt bindings and
-31 restricted Tool pairs. Its report identifies every resulting content digest
+seven restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
 and every required Tool without applying a grant.
 
 A consuming Workspace must declare a matching Records projection with `identity`,
@@ -209,3 +211,32 @@ Unbound Workflows retain their existing request/schedule identity semantics.
 These bindings are part of existing authenticated Workflow hosting configuration,
 not a new Brain Tool, source database, model loop or queue. Enabling an import must
 include its reviewed admission binding; installing Skills alone activates nothing.
+
+## Continuing Agent imports
+
+The `process-source` Agent step has a finite Workspace-reviewed budget (materialized
+starting values: 48 model turns, 192 Tool calls, 12000 output tokens per response).
+Actual provider limits may tighten those values. Haiku utility triage is separate;
+the continuing task uses the resolved reasoning/deep profile through ModelRecipe.
+Each paid attempt, including failure or uncertain transport, remains chargeable and
+is recorded by the existing language-attempt service. No per-microphase model reset
+or prewrite meeting/entity draft bundle is required.
+
+The initial task Skill carries shared filing and authority rules. Reviewed meeting,
+entity, source-update and verification Skills are available on demand from compiled
+Agent materials, each bounded to 30000 characters. A Skill read grants no Tool or
+provider authority. Full originals remain in task evidence and Records; the host
+never silently truncates them or substitutes a recorder summary.
+
+The completion validator uses Core-retained calls and receipts, not model-invented
+write claims. It requires final page reads after the last write, source identity and
+Record version, actual saved content, meeting links and entity Timeline backlinks,
+and all six adopted semantic check results. Rejected completion returns feedback to
+the same Agent conversation. Existing partial pages remain saved and the source
+remains unfinished. Semantic quality still requires representative real-source
+qualification; synthetic tests prove execution and validation behavior only.
+
+Source updates read previous originals and derived pages, update compiled truth and
+supersede old claims without losing Timeline/Takes identity. An unchanged completed
+version is deduplicated; historical runs keep their pinned Artifact and costs.
+Migration or continuation across definitions must be explicit and preserve admission.

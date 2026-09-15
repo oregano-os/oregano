@@ -33,6 +33,7 @@ export interface WorkflowInvocationContext extends WorkflowReferenceContext {
   decisions: Record<string, WorkflowDecisionEvidence>;
   currentRoster: RosterMember[];
   dispatchFence?: WorkflowDispatchFence;
+  agentCall?: { name: string; input: JsonValue };
   readRepair?: CapabilityCallContext["readRepair"];
   reviewDelivery?: WorkflowReviewDelivery;
   publicationRecoveries?: WorkflowStepState["publicationRecoveries"];

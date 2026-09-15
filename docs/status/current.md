@@ -1460,3 +1460,12 @@ lookup enums explicitly; triage inputs expose complete retained source coverage.
 Resolution prompts also state exact lookup-key semantics, valid subject types,
 provisional-subject coverage and required page backlinks. Synthetic checks cover
 authorization, immutable history, isolation, input bounds and exact Connector delivery. Live qualification remains separate.
+
+## Incremental Agent import candidate
+
+The Brain candidate now includes durable tool-using Agent steps and an incremental
+source-processing Blueprint. Synthetic checks cover persisted model turns, bounded
+feedback, unknown-outcome holds and recovery of a saved Brain commit after a lost
+Workflow snapshot. This is implementation evidence, not completion of a company
+transcript cohort or production activation. Historical runs retain their original
+definitions and all costs; the changed import procedure still needs live qualification.

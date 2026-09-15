@@ -42,8 +42,8 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
   const transcripts = validateTranscriptSelectionPolicy(input.transcripts);
   const history = validateTranscriptSelectionPolicy({ mode: "bounded", max_transcripts: 1, meeting_date: { start_at: input.history_from, end_at: null } }).meeting_date.start_at;
   if (!history || typeof input.source_projection !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(input.source_projection)) throw new Error("Explicit source projection and history start are required");
-  const manifest = JSON.parse(readAsset(toolRoot, "manifest.json")) as { version: number; files: { path: string; digest: string }[]; workflow_digest: string };
-  if (manifest.version !== 1 || !Array.isArray(manifest.files) || !manifest.files.length) throw new Error("Invalid Brain template manifest");
+  const manifest = JSON.parse(readAsset(toolRoot, "manifest.json")) as { version: number; files: { path: string; digest: string }[]; workflow_digest: string; agent_instruction_digest: string };
+  if (manifest.version !== 2 || !Array.isArray(manifest.files) || !manifest.files.length) throw new Error("Invalid Brain template manifest");
   const assets: Record<string, string> = {};
   for (const entry of manifest.files) {
     if (!/^tools\/brain-[a-z-]+\/(?:execute\.ts|TOOL\.md)$/.test(entry.path) || Object.hasOwn(assets, entry.path)) throw new Error("Invalid or duplicate Brain Tool template");
@@ -66,23 +66,48 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
   if (sha256(source) !== manifest.workflow_digest) throw new Error("Changed Brain Workflow template; review its manifest before materialization");
   const { value: workflow, body } = frontmatter(source);
   if (workflow.id !== "brain-import" || workflow.owner !== "agents/brain-owner" || workflow.trigger !== "operator") throw new Error("Unexpected Brain Workflow authority template");
-  const declaredTools = [...new Set<string>(workflow.steps.map((step: Record<string, unknown>) => Object.values(step)[0]).filter((tool: unknown) => typeof tool === "string" && tool.startsWith("company:")))].sort();
+  const declaredTools = [...new Set<string>(workflow.steps.flatMap((step: Record<string, unknown>) => [Object.values(step)[0], step.validate]).filter((tool: unknown) => typeof tool === "string" && tool.startsWith("company:")))].sort();
   const availableTools = Object.keys(assets).filter(path => path.endsWith("/TOOL.md")).map(path => `company:${path.split("/")[1]}`).sort();
-  if (JSON.stringify(declaredTools) !== JSON.stringify(availableTools) || availableTools.some(tool => !assets[`tools/${tool.slice(8)}/execute.ts`])) throw new Error("Brain Workflow and restricted Tool templates do not resolve together");
+  if (declaredTools.some(tool => !availableTools.includes(tool)) || availableTools.some(tool => !assets[`tools/${tool.slice(8)}/execute.ts`])) throw new Error("Brain Workflow and restricted Tool templates do not resolve together");
   workflow.owner = `agents/${input.prompt.agent_id}`;
   const binding = (phase: string) => {
     const path = `agents/${input.prompt.agent_id}/skills/brain-${phase}/SKILL.md`;
     if (!prompts.materials[path]) throw new Error("Workflow phase is missing its reviewed prompt");
     return path;
   };
+  const taskInstructions = readAsset(blueprintRoot, "agent-instructions.md");
+  if (sha256(taskInstructions) !== manifest.agent_instruction_digest) throw new Error("Changed incremental Agent instructions; review their manifest before materialization");
+  const adoption = JSON.parse(readAsset(blueprintRoot, "adoption.json"));
+  const section = (id: string) => {
+    const entry = adoption.sections.find((entry: any) => entry.id === id);
+    if (!entry) throw new Error("Missing adopted Agent Skill section");
+    const text = readAsset(blueprintRoot, entry.path);
+    if (sha256(text) !== entry.sha256) throw new Error("Changed adopted Agent Skill section");
+    return text.replace(/\{\{([a-z_]+)\}\}/g, (_: string, key: keyof typeof input.prompt.directories) => input.prompt.directories[key]);
+  };
+  const groups = {
+    task: [taskInstructions, `Reviewed perspective: ${input.prompt.perspective}\nDirectory mappings: ${JSON.stringify(input.prompt.directories)}`, ...["filing", "quality", "untrusted", "lookup", "model-roles"].map(section)],
+    "meeting-work": ["meeting-contract", "meeting-normalize", "meeting-page"].map(section),
+    "entity-work": ["meeting-entities", "enrich"].map(section),
+    "verify-work": ["meeting-verify", "meeting-report"].map(section),
+    "source-work": ["ingest", "extraction"].map(section),
+  };
+  const agentSkills = Object.fromEntries(Object.entries(groups).map(([name, sections]) => {
+    const path = `agents/${input.prompt.agent_id}/skills/brain-${name}/SKILL.md`;
+    const text = `---\nname: brain-${name}\ndescription: Reviewed ${name} guidance for continuing source ingestion.\n---\n\n` + sections.join("\n\n");
+    if (text.length > 30000 || text.includes("{{")) throw new Error("Incremental Agent Skill exceeds its reviewed instruction bound");
+    return [path, text];
+  }));
   const directories = input.prompt.directories;
   const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, segment_characters: input.segment_characters,
     prompts: { triage: binding("triage"), ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
     page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
+    agent: { instructions: [`agents/${input.prompt.agent_id}/skills/brain-task/SKILL.md`],
+      skills: Object.keys(agentSkills).filter(path => !path.endsWith("/brain-task/SKILL.md")), budget: { turns: 48, tool_calls: 192, output_tokens: 12000 } },
     source_history: { workflow_id: "brain-import", from: history } };
-  const materials: Record<string, string> = { ...prompts.materials, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
-  for (const [path, text] of Object.entries(assets)) materials[`agents/${input.prompt.agent_id}/${path}`] = text;
-  const tools = Object.keys(assets).filter(path => path.endsWith("/TOOL.md")).map(path => `company:${path.split("/")[1]}`).sort();
+  const materials: Record<string, string> = { ...prompts.materials, ...agentSkills, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
+  for (const [path, text] of Object.entries(assets).filter(([path]) => declaredTools.includes(`company:${path.split("/")[1]}`))) materials[`agents/${input.prompt.agent_id}/${path}`] = text;
+  const tools = declaredTools;
   return { materials, prompts: prompts.prompts, report: { version: 1, blueprint: "oregano/brain", inputs_digest: sha256(input), workflow_steps: workflow.steps.length,
     files: Object.entries(materials).map(([path, text]) => ({ path, digest: sha256(text) })), prompt_qualification: prompts.report,
     requirements: { tools: [...tools, "oregano:records/query", "oregano:brain/recall", "oregano:brain/entity", "oregano:brain/remember"], source_projection: input.source_projection },

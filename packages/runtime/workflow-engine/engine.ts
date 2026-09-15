@@ -1,3 +1,5 @@
+import { advanceWorkflowAgent } from "./agent-execution.ts";
+import type { WorkflowAgentGenerator } from "./agent-contract.ts";
 import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
 import { validateCollection, validateCollectionCandidate } from "./collection.ts";
 import { randomUUID } from "node:crypto";
@@ -36,6 +38,7 @@ export interface WorkflowEngineOptions {
   /** Exact enabled processes and authenticated operator principals are Instance authority. */
   enabledWorkflowIds: readonly string[];
   transcriptImports?: readonly TranscriptImportBinding[];
+  agentGenerator?: WorkflowAgentGenerator;
   operatorPrincipals: readonly string[];
   currentRoster: () => Promise<RosterMember[]>;
   connectors: (artifact: CompanyOSArtifact) => Promise<Connector[]>;
@@ -204,6 +207,11 @@ export class WorkflowEngine {
       if (run.trigger.instant > now && !Object.keys(state.steps).length) {
         state.status = "waiting"; state.wait = { stepId: step.id, kind: "start", dueAt: run.trigger.instant, timerId: timerId(run, step.id, "start", run.trigger.instant) };
         return await this.#save(run, state, "workflow.awaiting-start");
+      }
+      if (step.agent) {
+        const advanced = await advanceWorkflowAgent({ run, artifact, workflow, step, options: this.#options, now });
+        if (advanced.output !== undefined) this.#finish(advanced.state, step, advanced.output, this.#now());
+        return await this.#save(run, advanced.state, advanced.event, advanced.evidence);
       }
       if (step.route) {
         const outcome = resolveWorkflowValue(step.route.on, workflow, ctx);

@@ -32,11 +32,18 @@ export interface WorkflowDecisionRequirement {
 export interface CompiledWorkflowStep {
   id: string;
   owner: string;
-  kind: "start" | "collect" | "compute" | "effect" | "message" | "wait" | "route" | "decision";
+  kind: "agent" | "start" | "collect" | "compute" | "effect" | "message" | "wait" | "route" | "decision";
   tool?: ResolvedTool;
   allowedTools: string[];
   maxRisk: RiskLevel;
   input?: WorkflowValue;
+  agent?: {
+    context: WorkflowValue; instructions: string[]; skills?: string[]; profile: WorkflowValue; task: string;
+    tools: Array<{ tool: ResolvedTool; bind: Record<string, WorkflowValue> }>;
+    outputSchema: import("../capabilities/contracts.ts").JsonSchema;
+    validator?: ResolvedTool;
+    budget: { turns: number; toolCalls: number; outputTokens: number };
+  };
   message?: { template: string; vars: Record<string, WorkflowValue>; destination: WorkflowValue; recipient?: WorkflowValue; thread?: WorkflowValue };
   start?: { workflowId: string; fields: Record<string, WorkflowValue> };
   collect?: { from: WorkflowValue; context: WorkflowValue; fields: string[]; timeoutBusinessDays: number; calendarPath: string; validator?: ResolvedTool };

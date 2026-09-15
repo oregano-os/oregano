@@ -215,7 +215,19 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
     return null;
   };
 
-    const steps = stepsOf(data);
+    const steps = stepsOf(data).map((step: any) => {
+      if (step.tool !== "agent") return step;
+      const configValue = (value: any): any => {
+        if (typeof value === "string" && value.startsWith("$config.")) {
+          let found: any = config;
+          for (const key of value.slice(8).split(".")) found = found && Object.hasOwn(found, key) ? found[key] : undefined;
+          if (found === undefined) throw new Error(`Missing Agent configuration ${value}`);
+          return structuredClone(found);
+        }
+        return value;
+      };
+      return { ...step, ...Object.fromEntries(["instructions", "skills", "budget", "tools"].filter(key => step[key] !== undefined).map(key => [key, configValue(step[key])])) };
+    });
     const ids: string[] = steps.map((s: any) => s.id);
     const flow = validateStepFlow(steps, f, err);
     const idset = new Set(ids);
@@ -259,6 +271,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         run_id: { type: "string" }, status: { type: "string", enum: ["running", "waiting", "done", "cancelled", "failed"] }, blocked: { type: "boolean" },
         succeeded_steps: { type: "array", items: { type: "string" } },
       } });
+      else if (s.tool === "agent") outputOf.set(s.id, { type: "object", required: ["result", "calls"], additionalProperties: false, properties: { result: s.output_schema, calls: { type: "array", items: { type: "object" } } } });
       else if (s.tool === "collect") outputOf.set(s.id, { type: "object", additionalProperties: false, required: s.fields, properties: Object.fromEntries((s.fields ?? []).map((field: string) => [field, { type: "string", minLength: 1, maxLength: 4000 }])) });
       else if (s.tool === "wait") outputOf.set(s.id, { type: "object", required: ["instant"], properties: { instant: { type: "string", format: "date-time" } } });
       else if (s.tool === "route") outputOf.set(s.id, { type: "object", properties: {} });
@@ -416,7 +429,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         const key = schemaAt(itemSchema, itemSchema, [s.for_each.key]);
         if (key && (key.__optional || !["string", "integer"].includes(key.type))) err(f, `${s.id}: for_each key must be a required string or integer`);
       }
-      const expectedRisk = schemas ? schemas.risk : (["wait", "route", "collect", "start"].includes(s.tool) ? "R0" : null);
+      const expectedRisk = s.tool === "agent" ? maximumRisk(...(s.tools ?? []).map((entry: any) => toolSchemas(entry.tool)?.risk ?? "R0")) : schemas ? schemas.risk : (["wait", "route", "collect", "start"].includes(s.tool) ? "R0" : null);
       if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         if (!grants.has("oregano:communications/publish")) err(f, `${s.id}: human decision delivery requires the communication Tool grant`);
         if (!marker.startsWith("human:")) err(f, `${s.id}: decision step must carry a [human:<role>] marker, found [${marker}]`);
@@ -477,6 +490,35 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       if (s.labels !== undefined) {
         if (!s.labels || typeof s.labels !== "object" || Array.isArray(s.labels)
           || Object.entries(s.labels).some(([key, value]) => !["approve", "reject"].includes(key) || typeof value !== "string" || !/^[^\u0000-\u001f]{1,75}$/.test(value))) err(f, `${s.id}: labels must contain bounded approve/reject text`);
+      }
+      if (s.tool === "agent") {
+        validateInput(s.context, {}, s.id);
+        validateInput(s.profile, { type: "string", enum: ["utility", "reasoning", "deep"] }, s.id);
+        if (typeof s.task !== "string" || !/^[a-z][a-z0-9._-]{0,255}$/.test(s.task)) err(f, `${s.id}: agent requires a model task name`);
+        if (!Array.isArray(s.instructions) || !s.instructions.length || s.instructions.length > 16
+          || s.instructions.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path))) err(f, `${s.id}: instructions must select existing owning Agent Skill files`);
+        if (s.skills !== undefined && (!Array.isArray(s.skills) || s.skills.length > 16 || s.skills.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path)))) err(f, `${s.id}: on-demand Skills must belong to the owning Agent`);
+        if (!s.output_schema || s.output_schema.type !== "object" || !ajv.validateSchema(s.output_schema)) err(f, `${s.id}: agent requires an object output_schema`);
+        const b = s.budget;
+        if (!b || Object.keys(b).sort().join(",") !== "output_tokens,tool_calls,turns"
+          || !Number.isSafeInteger(b.turns) || b.turns < 1 || b.turns > 64
+          || !Number.isSafeInteger(b.tool_calls) || b.tool_calls < 1 || b.tool_calls > 256
+          || !Number.isSafeInteger(b.output_tokens) || b.output_tokens < 256 || b.output_tokens > 16000) err(f, `${s.id}: agent budget exceeds maintained finite bounds`);
+        if (!Array.isArray(s.tools) || !s.tools.length || s.tools.length > 32 || new Set(s.tools.map((entry: any) => entry.tool)).size !== s.tools.length) err(f, `${s.id}: agent requires a unique bounded Tool subset`);
+        for (const entry of Array.isArray(s.tools) ? s.tools : []) {
+          const contract = toolSchemas(entry.tool);
+          if (!contract || !grants.has(entry.tool) || Number(contract.risk.slice(1)) > 1 || Object.keys(entry).some(key => !["tool", "bind"].includes(key))) err(f, `${s.id}: agent permits only granted R0/R1 Tools`);
+          if (entry.bind !== undefined && (!entry.bind || typeof entry.bind !== "object" || Array.isArray(entry.bind))) err(f, `${s.id}: Tool bindings must be an object`);
+          for (const [key, value] of Object.entries(entry.bind ?? {})) {
+            const schema = contract?.input?.properties?.[key];
+            if (!schema) err(f, `${s.id}: bound input ${key} is absent from the Tool contract`);
+            else validateInput(value, schema, s.id);
+          }
+        }
+        if (s.validate !== undefined) {
+          const declaration = companyTools.get(s.validate), validator = toolSchemas(s.validate);
+          if (!grants.has(s.validate) || !declaration || validator?.risk !== "R0" || declaration.capabilities?.length !== 0) err(f, `${s.id}: agent validation requires a granted pure R0 Company Tool`);
+        }
       }
       if (s.tool === "start") {
         const target = parsed.find((entry) => entry.data.id === s.workflow)?.data;
@@ -594,6 +636,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
+  else if (step.tool === "agent") allowed.push("context", "instructions", "skills", "profile", "task", "tools", "output_schema", "validate", "budget");
   else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout", "validate");
   else if (step.tool === "wait") allowed.push("for");
   else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format"];

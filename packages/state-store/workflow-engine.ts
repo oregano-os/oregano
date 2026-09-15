@@ -7,12 +7,26 @@ export interface WorkflowStepState {
   startedAt: string;
   completedAt?: string;
   inputDigest?: string;
+  agent?: { turns: WorkflowAgentTurn[] };
   output?: JsonValue;
   /** Only actual completed item outputs, indexed by the canonical typed key digest. */
   items?: Record<string, { key: string | number; output: JsonValue }>;
   evidence?: JsonValue;
   /** One operator-authorized no-send recovery per decision recipient. Prior effects stay immutable. */
   publicationRecoveries?: Record<string, { priorEffectKey: string; inputDigest: string; proof: JsonValue; principal: string; authorizedAt: string }>;
+}
+export interface WorkflowAgentResponse {
+  /** Provider-neutral serialized conversation messages, retained as untrusted data. */
+  messages: JsonValue[];
+  calls: Array<{ id: string; name: string; input: JsonValue }>;
+  text: string;
+  finishReason: string;
+}
+export interface WorkflowAgentTurn {
+  attemptId: string;
+  response?: WorkflowAgentResponse;
+  failure?: { outcome: "failed" | "unknown"; digest: string };
+  results: Array<{ callId: string; input?: JsonValue; output?: JsonValue; error?: string }>;
 }
 export interface WorkflowStoredDecision {
   stepId: string;

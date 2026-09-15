@@ -10,11 +10,15 @@ interface AttemptContext {
 
 /** Existing control events/effects retain payload-free evidence for every paid attempt. */
 export class LanguageAttempt {
-  readonly id = `language-attempt:${randomUUID()}`;
+  readonly id: string;
   #dispatched = false;
   readonly store: StateStore;
   readonly context: AttemptContext;
-  constructor(store: StateStore, context: AttemptContext) { this.store = store; this.context = context; }
+  constructor(store: StateStore, context: AttemptContext, retainedId?: string) {
+    this.id = retainedId ?? `language-attempt:${randomUUID()}`;
+    if (!/^language-attempt:[a-f0-9-]{36}$/.test(this.id)) throw new Error("Invalid retained language attempt identity");
+    this.store = store; this.context = context;
+  }
   get dispatched() { return this.#dispatched; }
   async prepare() {
     if (!await this.store.claimEffect({ idempotencyKey: this.id, runId: this.context.runId, stepId: this.context.stepId, inputHash: this.context.inputHash })) throw new Error("Language attempt identity already exists");

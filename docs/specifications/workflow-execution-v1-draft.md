@@ -834,3 +834,30 @@ Historical Workflow evidence defaults to bounded feedback event reads. An explic
 event log; each run returns `feedback: null` and coverage records
 `feedback-not-requested`. Complete coverage then refers only to the requested
 projection. It never establishes absence of feedback, approvals or provider events.
+
+## Durable Agent steps
+
+An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-demand
+`skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
+a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, `output_schema`
+and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+Each selected Skill is at most 30000 characters. Subject-confirmed and R2–R4 Tools
+remain outside this step type. Optional `validate` names a granted pure R0 Company
+Tool with no capabilities; it receives `{context: {task, calls}, facts}` and returns
+`{accepted, feedback}` through the existing isolated completion-validation path.
+
+The existing Workflow snapshot stores each prepared model attempt, complete response
+and ordered Tool results. A worker performs one model or Tool quantum per lease.
+Responses are persisted before their calls execute. The trusted context reader binds
+the next pending call to its compiled Tool contract and exact fixed inputs. Effect
+keys include immutable turn/call position; they do not include mutable input hashes.
+A lost write-result snapshot reuses the existing effect receipt. A lost read result
+may repeat the read. Unknown model outcomes stop without an automatic paid retry;
+known incomplete output retains usage and receives bounded continuation feedback.
+
+`companyos_finish_task` validates the result and optional Company validator. Feedback
+keeps the same conversation open. Accepted completion returns `{result, calls}`; the
+call journal is Core-owned evidence. Ordinary read-repair does not rewind Agent
+steps or erase their writes. Retrospective workflow verification includes Agent
+attempts, guarded calls and effect receipts. No chat-specific provider or runtime is
+introduced into a Workspace.

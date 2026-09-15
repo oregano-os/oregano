@@ -14,9 +14,9 @@ export class CollectionNeedsInput extends Error {
 /** Called only after the engine verifies the current human, assignment and lease. */
 export async function validateCollectionCandidate(args: {
   artifact: CompanyOSArtifact; agentId: string; runId: string; step: CompiledWorkflowStep;
-  context: JsonValue; facts: JsonValue;
+  context: JsonValue; facts: JsonValue; validator?: CompiledWorkflowStep["tool"];
 }): Promise<void> {
-  const selected = args.step.collect?.validator;
+  const selected = args.validator ?? args.step.collect?.validator;
   if (!selected) return;
   const agent = args.artifact.agents.find(a => a.id === args.agentId);
   const grant = agent?.toolSet.tools.find(t => t.grantId === selected.grantId);

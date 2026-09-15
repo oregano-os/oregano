@@ -83,7 +83,7 @@ function finishMutation(before: Record<string, string>, after: Record<string, st
   }
   for (const change of changes) assertBrainPath(change.path);
   const checked = checkBrainCorpus(after, config);
-  if (checked.diagnostics.some(item => item.severity === "error")) fail("invalid_batch", "The complete proposed corpus has invalid pages or evidence; run Brain check before publishing.");
+  if (checked.diagnostics.some(item => item.severity === "error")) fail("invalid_batch", "Brain validation: " + checked.diagnostics.filter(item => item.severity === "error").slice(0, 12).map(item => `${item.path}: ${item.code}: ${item.message}`).join("; "));
   return { files: after, changes, diagnostics: checked.diagnostics };
 }
 

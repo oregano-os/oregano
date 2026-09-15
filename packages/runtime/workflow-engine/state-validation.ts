@@ -1,3 +1,4 @@
+import { validateAgentState } from "./agent-state.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { RunMeta } from "../../state-store/interface.ts";
 import type { WorkflowAssignment, WorkflowConversation, WorkflowMutableState, WorkflowRunIdentity } from "../../state-store/workflow-engine.ts";
@@ -83,6 +84,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     if (step.status === "succeeded" && (!step.completedAt || step.output === undefined)) throw new Error("Completed step requires time and output evidence");
     if (step.inputDigest) digest(step.inputDigest);
     const prior = previous?.steps[id];
+    validateAgentState(step, workflow.steps.find(entry => entry.id === id)!, prior);
     if (prior?.status === "succeeded" && canonicalJson(prior) !== canonicalJson(step)) throw new Error("Completed workflow output is immutable");
     if (prior?.inputDigest && prior.inputDigest !== step.inputDigest) throw new Error("Workflow step input identity is immutable");
     for (const [key, item] of Object.entries(prior?.items ?? {})) if (canonicalJson(step.items?.[key]) !== canonicalJson(item)) throw new Error("Completed workflow item output is immutable");
