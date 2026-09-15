@@ -102,8 +102,8 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
   const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, segment_characters: input.segment_characters,
     prompts: { triage: binding("triage"), ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
     page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
-    agent: { instructions: [`agents/${input.prompt.agent_id}/skills/brain-task/SKILL.md`],
-      skills: Object.keys(agentSkills).filter(path => !path.endsWith("/brain-task/SKILL.md")), budget: { turns: 48, tool_calls: 192, output_tokens: 12000 } },
+    agent: { instructions: Object.keys(agentSkills),
+      skills: [], budget: { turns: 48, tool_calls: 192, output_tokens: 12000 } },
     source_history: { workflow_id: "brain-import", from: history } };
   const materials: Record<string, string> = { ...prompts.materials, ...agentSkills, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
   for (const [path, text] of Object.entries(assets).filter(([path]) => declaredTools.includes(`company:${path.split("/")[1]}`))) materials[`agents/${input.prompt.agent_id}/${path}`] = text;

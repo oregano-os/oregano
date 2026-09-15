@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { engineArtifact, engineFixture, ENGINE_OPERATOR } from "../workflow-engine-fixture.ts";
-import { sha256 } from "../../runtime/canonical.ts";
+import { sha256, jsonDigest } from "../../runtime/canonical.ts";
 import { freezeTranscriptCohort } from "../../brain/import-policy.ts";
 import { LanguageAttempt, readLanguageAttempts } from "../../language/attempts.ts";
 import { assertUnwrittenSource } from "../../runtime/workflow-engine/source-continuation.ts";
@@ -88,4 +88,25 @@ test("the authenticated operator request cannot select an Artifact, new source v
   const request = { action: "continue-unwritten-source", runId: "workflow:" + "a".repeat(64), expectedRevision: 3, reason: "Reviewed replacement" };
   assert.deepEqual(parseWorkflowOperatorRequest(request), request);
   for (const change of [{ artifactHash: "b".repeat(64) }, { fields: {} }, { expectedRevision: -1 }, { reason: "" }]) assert.throws(() => parseWorkflowOperatorRequest({ ...request, ...change }));
+});
+
+test("a completed zero-item effect loop is unwritten, but every uncertain or attempted variant is rejected", async () => {
+  const f = await fixture(), artifact = structuredClone(f.old.artifact);
+  const workflow = artifact.workflows!.find(w => w.id === "weekday-digest")!, step = workflow.steps[0]!;
+  step.kind = "effect"; step.maxRisk = "R1"; step.forEach = { over: [], key: "key", maxItems: 10000 };
+  const empty = { status: "succeeded" as const, startedAt: f.old.now, completedAt: f.old.now,
+    inputDigest: jsonDigest([]), items: {}, output: { items: [] } };
+  const state = structuredClone(f.predecessor.state); state.steps.finish = empty;
+  assert.doesNotThrow(() => assertUnwrittenSource(state, workflow.id, artifact));
+  for (const change of [{ status: "running" }, { inputDigest: jsonDigest(["candidate"]) }, { completedAt: undefined },
+    { items: { attempted: { key: "candidate" } } }, { items: undefined }, { output: { items: [{}] } },
+    { publicationRecoveries: [] }, { evidence: { operation: "unknown" } }, { agent: { turns: [] } }]) {
+    const unsafe = structuredClone(state); Object.assign(unsafe.steps.finish!, change);
+    assert.throws(() => assertUnwrittenSource(unsafe, workflow.id, artifact), /without possible writes/);
+  }
+  const noLoop = structuredClone(artifact); delete noLoop.workflows!.find(w => w.id === workflow.id)!.steps[0]!.forEach;
+  assert.throws(() => assertUnwrittenSource(state, workflow.id, noLoop), /without possible writes/);
+  const archived = structuredClone(state);
+  archived.readRepairs = [{ steps: { finish: { ...empty, inputDigest: jsonDigest(["candidate"]) } } }] as any;
+  assert.throws(() => assertUnwrittenSource(archived, workflow.id, artifact), /without possible writes/);
 });

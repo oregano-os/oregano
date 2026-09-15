@@ -234,13 +234,13 @@ is recorded by the existing language-attempt service. No per-microphase model re
 or prewrite meeting/entity draft bundle is required.
 
 The initial task Skill carries shared filing and authority rules. Reviewed meeting,
-entity, source-update and verification Skills are available on demand from compiled
+entity, source-update and verification Skills are delivered in full from compiled
 Agent materials, each bounded to 30000 characters. A Skill read grants no Tool or
 provider authority. Full originals remain in task evidence and Records; the host
 never silently truncates them or substitutes a recorder summary.
 
 The completion validator uses Core-retained calls and receipts, not model-invented
-write claims. It requires final page reads after the last write, source identity and
+write claims. It requires each page read after its own last write, source identity and
 Record version, actual saved content, meeting links and entity Timeline backlinks,
 and all six adopted semantic check results. Rejected completion returns feedback to
 the same Agent conversation. Existing partial pages remain saved and the source
@@ -277,3 +277,16 @@ A later changed source version also follows the retained predecessor/successor
 references: skip only the proven unwritten predecessor, then read the completed
 successor outcome and its actual pages as correction context. An unrelated or
 incomplete successor cannot make a cancelled source safe to ignore.
+
+A completed effect `for_each` with the canonical empty input digest, empty retained
+item map and exact empty output has no dispatched operation. Source continuation
+may cross that step. Missing, running, nonempty or inconsistent evidence still
+blocks continuation, including in archived read-repair snapshots.
+
+The continuing Agent may decline an insubstantial source before any write, with an
+explicit notability reason and no existing derived pages. This records `skipped`
+without inventing a meeting, attendee update or evidence-page write. Once a write
+is attempted, or previous source pages exist, reconciliation is mandatory. The
+completed source history keeps both triage skips and Agent notability skips.
+Retained meetings use the adopted V1–V6 meanings and required page headings;
+read-back of one page is not invalidated by a later write to another page.

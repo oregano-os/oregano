@@ -582,3 +582,8 @@ procedure accepts only its exact linked cancelled predecessor as unwritten histo
 an unrelated cancelled run or an unchanged completed source is not silently ignored.
 This is an explicit Core operator action, not a model Tool, automatic retry or a
 source-version change. It grants no new sources, Tools or provider access.
+
+A completed effect `for_each` with the canonical empty input digest, empty retained
+item map and exact empty output has no dispatched operation. Source continuation
+may cross that step. Missing, running, nonempty or inconsistent evidence still
+blocks continuation, including in archived read-repair snapshots.

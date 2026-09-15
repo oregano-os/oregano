@@ -153,5 +153,12 @@ coverage clarifications; identities and substantive claims remain source-grounde
 The incremental materializer additionally composes five scoped Agent Skills from
 these same checked upstream sections. It preserves the section hashes and coverage
 map, with a reviewed Core-operation preface in `agent-instructions.md`. Meeting,
-entity, source-update and verification guidance is read on demand inside one durable
+entity, source-update and verification guidance is supplied in full inside one durable
 Agent conversation. Neither a new source nor a new Tool grant is admitted by a Skill.
+
+All five reviewed procedure Skills are in the task's instruction list, each within
+the existing 30000-character limit. This makes the original meeting template and
+V1–V6 definitions available without depending on an optional Tool call. The filing
+rules can produce a no-write notability skip; routing to a higher model tier does
+not override them. Public regressions cover skipped sources, per-page read-back,
+required sections and unchanged prior-source reconciliation constraints.

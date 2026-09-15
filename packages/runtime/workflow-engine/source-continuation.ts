@@ -1,6 +1,6 @@
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
 import type { WorkflowRun, WorkflowMutableState } from "../../state-store/workflow-engine.ts";
-import { sha256, canonicalJson } from "../canonical.ts";
+import { sha256, canonicalJson, jsonDigest } from "../canonical.ts";
 
 export const sourceContinuationOrigin = (runId: string) => `source-continuation:${sha256({ predecessor: runId })}`;
 export const sourceContinuationRunId = (run: Pick<WorkflowRun, "instanceId" | "workflowId" | "runId">) =>
@@ -14,6 +14,13 @@ export function assertUnwrittenSource(state: WorkflowMutableState, workflowId: s
     throw new Error("Source continuation requires an unfinished original source run without decisions or a prior continuation");
   for (const [id, result] of [...Object.entries(state.steps), ...(state.readRepairs ?? []).flatMap(repair => Object.entries(repair.steps))]) {
     const step = workflow.steps.find(item => item.id === id);
+    // The engine persists an empty foreach input before completing it without Tool dispatch.
+    // Require the full canonical proof, including archived repair snapshots.
+    if (step?.kind === "effect" && step.forEach && !result.agent && !result.publicationRecoveries
+      && result.status === "succeeded" && result.completedAt && result.inputDigest === jsonDigest([])
+      && result.items && Object.keys(result.items).length === 0
+      && canonicalJson(result.output) === canonicalJson({ items: [] })
+      && Object.keys(result).every(key => ["status", "startedAt", "completedAt", "inputDigest", "items", "output"].includes(key))) continue;
     if (!step || result.agent || result.publicationRecoveries || !["compute", "route"].includes(step.kind) || step.maxRisk !== "R0"
       || (step.tool && (step.tool.risk !== "R0" || step.tool.capabilities.some(binding => !artifact.capabilityCatalog.some(capability =>
         capability.id === binding.id && capability.version === binding.version && capability.mode === "read" && capability.minimumRisk === "R0")))))

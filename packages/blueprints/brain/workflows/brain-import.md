@@ -105,6 +105,7 @@ steps:
           enum:
             - ingested
             - reconciled
+            - skipped
         pages:
           type: array
           maxItems: 200
@@ -153,6 +154,7 @@ steps:
               - detail
             properties:
               check:
+                description: "Adopted checks: V1 sections; V2 page and Timeline backlinks; V3 speaker resolution; V4 verbatim quotes; V5 attendee evidence; V6 event sequence."
                 enum:
                   - V1
                   - V2

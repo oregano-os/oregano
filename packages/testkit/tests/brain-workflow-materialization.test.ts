@@ -104,7 +104,7 @@ test('incremental completion checks actual saved pages and returns correction fe
  const result=materializeBrainWorkflow(input), tool=loadCompanyTool(result.materials,'analyst','brain-check-agent-completion');
  const source='sources/import-example',meeting='meetings/example',person='people/example';
  const evidence='source_identity: "source:1"\nsource_version: "v1"\nrecord_version_id: '+ 'a'.repeat(64);
- const meetingText='A sourced meeting. [['+source+']] [['+person+']]';
+ const meetingText='## Summary\nA sourced meeting. [['+source+']] [['+person+']]\n## Key Decisions\nDiscussion only.\n## Action Items\nNo commitments.\n## Notable Quotes\nNo notable quotes.';
  const entity='A participant.\n<!-- timeline -->\n- Meeting [['+meeting+']] [['+source+']]';
  const pages=[{path:'brain/'+source+'.md',markdown:evidence},{path:'brain/'+meeting+'.md',markdown:meetingText},{path:'brain/'+person+'.md',markdown:entity}];
  const task={source:{identity:'source:1',version:'v1',kind:'meeting',context:{companyos_record_version:'a'.repeat(64)}},evidence:{slug:source},prior:{requests:[]}};
@@ -116,6 +116,16 @@ test('incremental completion checks actual saved pages and returns correction fe
  assert.equal((await check({context:{task,calls},facts})).accepted,true);
  assert.match((await check({context:{task,calls:calls.slice(0,-1)},facts})).feedback,/Read every/);
  const stale=[calls[1],calls[0],...calls.slice(2)];assert.equal((await check({context:{task,calls:stale},facts})).accepted,false);
+ // A later write to another page does not invalidate a verified read of this page.
+ const incremental=pages.flatMap((page,i)=>[{...calls[0],input:{...calls[0].input,changes:{pages:[page]}},output:{...calls[0].output,changed_paths:[page.path]}},calls[i+1]]);
+ assert.equal((await check({context:{task,calls:incremental},facts})).accepted,true);
+ const missingSections=structuredClone(calls);missingSections[0].input.changes.pages[1].markdown='Bare meeting';missingSections[2].output.page.markdown='Bare meeting';
+ assert.match((await check({context:{task,calls:missingSections},facts})).feedback,/V1/);
+ const skipped={...facts,status:'skipped',pages:[],meetings:[],gaps:['No substantive content to file.'],verification:facts.verification.map(v=>({...v,status:'not-applicable'}))};
+ assert.equal((await check({context:{task,calls:[]},facts:skipped})).accepted,true);
+ for(const value of [{context:{task,calls},facts:skipped},{context:{task:{...task,prior:{requests:[{slug:person}]}},calls:[]},facts:skipped},
+   {context:{task,calls:[]},facts:{...skipped,gaps:[]}}, {context:{task,calls:[{name:'oregano_brain_remember',error:'uncertain'}]},facts:skipped}])
+   assert.equal((await check(value)).accepted,false);
  const premature={...facts,verification:facts.verification.slice(1)};assert.match((await check({context:{task,calls},facts:premature})).feedback,/V1–V6/);
  const mismatch=structuredClone(calls);mismatch.at(-1).output.page.markdown='Unrelated current content';assert.match((await check({context:{task,calls:mismatch},facts})).feedback,/differs/);
 });
@@ -139,4 +149,18 @@ test("source history accepts only its exact unwritten predecessor link and never
   await assert.rejects(run([archived, { ...successor, source_predecessor: { runId: "workflow:unrelated", artifactHash: "old-artifact" } }], "v2"));
   for (const changed of [{ ...prior, source_restart: undefined }, { ...prior, source_restart: { successorRunId: "workflow:other" } },
     { ...prior, status: "done" }, { ...prior, fields: { ...prior.fields, source_version: "v0" } }]) await assert.rejects(run(changed));
+});
+
+test("all adopted procedures are delivered as instructions and a no-write notability skip retains its reason", async () => {
+ const result=materializeBrainWorkflow(input), config=YAML.parse(result.materials['workflows/brain-import/config.yaml']!);
+ assert.equal(config.agent.instructions.length,5);assert.deepEqual(config.agent.skills,[]);
+ const delivered=config.agent.instructions.map((path:string)=>result.materials[path]).join('\n');
+ for(const text of ['V1 — Required sections','V4 — Every quote','## Key Decisions','Before writing anything'])assert.ok(delivered.includes(text));
+ const tool=loadCompanyTool(result.materials,'analyst','brain-agent-outcome');
+ const task={source:{identity:'source:1',version:'v1'},prior:{requests:[]}};
+ const resultFacts={status:'skipped',source_identity:'source:1',source_version:'v1',pages:[],meetings:[],verification:[],gaps:['Insufficient content for a substantive page.']};
+ const run=(value:any)=>executeIsolatedCompanyTool({compiledSource:tool.compiledSource,input:value,context:{instanceId:'synthetic',runId:'workflow:test',stepId:'finish',agentId:'analyst',toolId:tool.contract.runtimeId},allowedCapabilities:[],invokeCapability:async()=>{throw Error('No provider');}}) as Promise<any>;
+ const outcome=await run({task,route:'reasoning',execution:{result:resultFacts,calls:[]}});
+ assert.equal(outcome.status,'skipped');assert.deepEqual(outcome.receipts,[]);assert.deepEqual(outcome.gaps,resultFacts.gaps);
+ await assert.rejects(run({task:{...task,prior:{requests:[{slug:'meetings/old'}]}},route:'reasoning',execution:{result:resultFacts,calls:[]}}));
 });

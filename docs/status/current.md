@@ -1469,3 +1469,8 @@ feedback, unknown-outcome holds and recovery of a saved Brain commit after a los
 Workflow snapshot. This is implementation evidence, not completion of a company
 transcript cohort or production activation. Historical runs retain their original
 definitions and all costs; the changed import procedure still needs live qualification.
+
+The incremental source candidate now delivers all adopted procedure sections to the
+Agent, permits explicit no-write notability skips and verifies per-page read-back.
+Empty completed effect loops do not block an otherwise unwritten source continuation.
+These corrections have synthetic regression coverage; live qualification is separate.

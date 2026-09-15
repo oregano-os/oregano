@@ -5,14 +5,20 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  const reject=(feedback:string)=>({accepted:false,feedback});
  if(facts.source_identity!==task.source.identity||facts.source_version!==task.source.version)return reject('Completion must refer to this exact source identity and version.');
  if(facts.verification.length!==6||new Set(facts.verification.map((v:any)=>v.check)).size!==6)return reject('Run and report every adopted V1–V6 check on the saved pages.');
- const reads=new Map<string,any>(),writes:any[]=[],changed=new Set<string>();let lastWrite=-1;
+ if(facts.status==='skipped'){
+  if(task.prior.requests.length||facts.pages.length||facts.meetings.length||calls.some((c:any)=>c.name==='oregano_brain_remember'))return reject('A notability skip requires no prior knowledge and no attempted writes. Reconcile saved or prior pages instead.');
+  if(!facts.gaps.some((gap:string)=>gap.trim())||facts.verification.some((v:any)=>v.status!=='not-applicable'))return reject('Explain the notability skip and mark saved-page checks not applicable.');
+  return {accepted:true,feedback:''};
+ }
+ const reads=new Map<string,any>(),writes:any[]=[],changed=new Set<string>(),lastWrites=new Map<string,number>();
  for(let i=0;i<calls.length;i++){
   const c=calls[i];if(c.error)continue;
   if(c.name==='oregano_brain_entity'&&c.output?.found===true&&c.output.status==='found')reads.set(c.output.page.slug,{...c.output,index:i});
   if(c.name==='oregano_brain_remember'&&['saved','unchanged'].includes(c.output?.status)){
    if(!['indexed','current_head_indexed'].includes(c.output.sync_status)||(c.output.status==='saved'&&!c.output.saved_commit))return reject('Reconcile the saved Git receipt and index before completing.');
    if(c.input?.provenance?.source_id!==task.source.identity||c.input.provenance.source_version!==task.source.version)return reject('A write is missing the exact source provenance.');
-   writes.push(c);lastWrite=i;
+   writes.push(c);
+   for(const page of c.input.changes.pages)lastWrites.set(page.path.replace(/^brain\//,'').replace(/\.md$/,''),i);
    for(const path of c.output.changed_paths)changed.add(path.replace(/^brain\//,'').replace(/\.md$/,''));
   }
  }
@@ -21,9 +27,10 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  const required=new Set<string>([...changed,task.evidence.slug,...task.prior.requests.map((r:any)=>r.slug)]);
  for(const m of facts.meetings)for(const slug of [m.slug,...m.attendees,...m.entities])required.add(slug);
  if(task.source.kind==='meeting'&&!facts.meetings.length)return reject('A retained meeting needs its actual meeting page(s), with resolved or explicitly flagged attendees.');
+ if(facts.meetings.length&&facts.verification.some((v:any)=>v.status!=='passed'&&!(v.check==='V6'&&v.status==='flagged-uncertainty')))return reject('Apply the actual adopted V1–V6 checklist to retained meetings; only unresolved sequence uncertainty may remain flagged.');
  for(const slug of required){
   const page=reads.get(slug);
-  if(!facts.pages.includes(slug)||!page?.page?.markdown||page.index<lastWrite||!page.indexed_revision)return reject('Read every saved/affected page after the final write and include it in completion: '+slug);
+  if(!facts.pages.includes(slug)||!page?.page?.markdown||page.index<(lastWrites.get(slug)??-1)||!page.indexed_revision)return reject('Read every affected page, after its own final write if changed, and include it in completion: '+slug);
   const last=writes.filter(w=>w.input.changes.pages.some((p:any)=>p.path==='brain/'+slug+'.md')).at(-1);
   const expected=last?.input.changes.pages.find((p:any)=>p.path==='brain/'+slug+'.md');
   if(expected&&expected.markdown!==page.page.markdown)return reject('Saved content differs from the final write; reread and reconcile: '+slug);
@@ -33,6 +40,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  if(!evidence?.includes(JSON.stringify(task.source.identity))||!evidence.includes(JSON.stringify(task.source.version))||!evidence.includes(task.source.context.companyos_record_version))return reject('Retain exact source identity, version and original Record provenance on the evidence page.');
  for(const meeting of facts.meetings){
   const page=reads.get(meeting.slug).page.markdown;
+  for(const heading of ['Summary','Key Decisions','Action Items','Notable Quotes'])if(!new RegExp('^## '+heading+'\\s*$','m').test(page))return reject('V1: restore the adopted meeting section '+heading+' on '+meeting.slug);
   if(!page.includes('[['+task.evidence.slug+']]'))return reject('Meeting page must cite its internal original-source evidence: '+meeting.slug);
   for(const slug of [...meeting.attendees,...meeting.entities]){
    const entity=reads.get(slug).page.markdown;
