@@ -846,6 +846,15 @@ remain outside this step type. Optional `validate` names a granted pure R0 Compa
 Tool with no capabilities; it receives `{context: {task, calls}, facts}` and returns
 `{accepted, feedback}` through the existing isolated completion-validation path.
 
+Agent steps consume existing R0/R1 grants; they do not reserve those Tools from
+ordinary authorized conversations or administrator operations. Their fixed inputs
+and budgets apply whenever the trusted host supplies the active Agent-step context.
+That context cannot be removed or substituted through model input. A Tool reserved
+by an effect, message or decision step remains reserved, including when an Agent
+step also uses it. Compilation neither adds a grant nor changes subject access,
+Tool risk or capability policy. Previously built manifests retain their original
+reservations until a reviewed rebuild; in-flight runs keep their pinned manifest.
+
 The existing Workflow snapshot stores each prepared model attempt, complete response
 and ordered Tool results. A worker performs one model or Tool quantum per lease.
 Responses are persisted before their calls execute. The trusted context reader binds

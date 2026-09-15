@@ -210,7 +210,7 @@ export function compileWorkflows(args: {
       trigger: triggerId ? { kind: "schedule" as const, id: triggerId, schedulePath: startingSchedule!.path } : { kind: "operator" as const },
       instance: { key, fields }, ...(config ? { config } : {}),
       schedules: schedules.filter((schedule) => usedSchedules.has(schedule.path)), templates: [...templates.values()].sort((a, b) => a.path.localeCompare(b.path)),
-      entry: steps[0]!.id, steps, reservedEffects: [...new Set(steps.filter((step) => ["agent", "effect", "message", "decision"].includes(step.kind)).flatMap((step) => step.allowedTools))].sort(),
+      entry: steps[0]!.id, steps, reservedEffects: [...new Set(steps.filter((step) => ["effect", "message", "decision"].includes(step.kind)).flatMap((step) => step.allowedTools))].sort(),
     };
     return freeze({ ...manifest, manifestHash: sha256(manifest) } as CompiledWorkflow);
   }).sort((a, b) => a.id.localeCompare(b.id));

@@ -9,7 +9,7 @@ import { readWorkspaceFiles } from "../../companyos-builder/workspace-files.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 import { validateWorkflowState } from "../../runtime/workflow-engine/state-validation.ts";
 import { guardWorkflowInvocation } from "../../runtime/workflow-engine/guard.ts";
-import { WorkflowRunContextReader } from "../../runtime/workflow-engine/readers.ts";
+import { workflowContext } from "../../runtime/workflow-engine/readers.ts";
 import { AGENT_FINISH_TOOL, agentToolName, type WorkflowAgentGenerator } from "../../runtime/workflow-engine/agent-contract.ts";
 import { parseWorkflowOperatorRequest } from "../../runner-vercel/src/lib/workflow-http.ts";
 import { LanguageGenerationError } from "../../language/contracts.ts";
@@ -163,4 +163,25 @@ test("model retry is an exact operator action, never a replacement response or s
  const request={action:'retry-agent-model',runId:'workflow:'+'a'.repeat(64),expectedRevision:7,attemptId:'language-attempt:'+randomUUID(),reason:'Authorized bounded retry'};
  assert.deepEqual(parseWorkflowOperatorRequest(request),request);
  for(const fields of [{expectedRevision:-1},{attemptId:'arbitrary'},{response:{}},{source_version:'v2'},{reason:''}])assert.throws(()=>parseWorkflowOperatorRequest({...request,...fields}));
+});
+
+
+test("Agent-step grants remain available to ordinary contexts while active assignments stay exact", async () => {
+  const artifact = fixture(), workflow = artifact.workflows![0]!, selected = workflow.steps[0]!.agent!.tools[0]!.tool;
+  const tool = artifact.agents.find(agent => agent.id === workflow.agentId)!.tools.find(tool => tool.contract.runtimeId === selected.runtimeId)!;
+  const request = { runId: "ordinary-tool-invocation", stepId: "lookup", agentId: workflow.agentId, grantId: selected.grantId, input: {}, subjectPrincipal: ENGINE_OPERATOR };
+  assert.deepEqual(workflow.reservedEffects, []);
+  assert.equal(await guardWorkflowInvocation({ artifact, tool, risk: "R0", request, reader: { read: async () => undefined } }), undefined);
+  await assert.rejects(guardWorkflowInvocation({ artifact, tool, risk: "R0", request }), /trusted workflow context/);
+  const h = engineFixture({ artifact }); const run = await open(h);
+  await h.engine().step(run.runId);
+  const context = { ...workflowContext(run, artifact.roster), agentCall: { name: agentToolName(selected.grantId), input: {} } };
+  const reader = { read: async () => context };
+  await assert.rejects(guardWorkflowInvocation({ artifact, tool, risk: "R0", request, reader }), /assignment/);
+  const assigned = { ...request, runId: run.runId, stepId: "work" };
+  assert.ok(await guardWorkflowInvocation({ artifact, tool, risk: "R0", request: assigned, reader }));
+  await assert.rejects(guardWorkflowInvocation({ artifact, tool, risk: "R0", request: { ...assigned, input: { injected: true } }, reader }), /persisted input/);
+  // Reservations owned by another declared effect are not removed by Agent reuse.
+  const retained = structuredClone(artifact); retained.workflows![0]!.reservedEffects = [selected.runtimeId];
+  await assert.rejects(guardWorkflowInvocation({ artifact: retained, tool, risk: "R0", request, reader: { read: async () => undefined } }), /reserved/);
 });
