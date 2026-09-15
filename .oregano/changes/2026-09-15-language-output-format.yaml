@@ -1,12 +1,13 @@
 version: 3
 plan_id: language-output-format-2026-09-15
 created: 2026-09-15
-title: Reinforce the declared phase output format in hosted generation
+title: Reinforce and account for hosted generation output formats
 objective: Prevent Markdown wrappers and extra commentary from invalidating a
-  reviewed JSON-only phase while retaining strict downstream validation and
+  reviewed JSON-only phase, admitting only a single complete JSON transport fence,
+  while retaining strict downstream validation and
   complete paid-attempt evidence.
 non_goals:
-  - Parse or discard model commentary, change semantic rules or increase retries.
+  - Discard model commentary, repair JSON contents, change semantic rules or increase retries.
   - Change source selection, model routing, Tool grants or Workspace policy.
 placement: core
 change_class: security
@@ -35,7 +36,7 @@ documentation_impact:
     - status.current
 architecture:
   placement:
-    core: Generic host serialization reminder and exact system-instruction digest retained before dispatch.
+    core: Generic host serialization reminder, exact instruction evidence, and lossless single-JSON-fence decoding with both response digests.
     packages: Prompt measurement reuses the same host wrapper as generation.
     workspace: Reviewed phase output contracts and semantic rules remain unchanged.
     instance: Existing model bindings, retained run definitions and paid-attempt evidence.

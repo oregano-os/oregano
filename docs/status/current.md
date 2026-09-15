@@ -1437,3 +1437,12 @@ records the actual delivered system-instruction digest and length in attempt
 evidence. Strict downstream parsers still reject malformed responses, and
 bounded read repair preserves all prior attempts. Synthetic request checks pass;
 private import model qualification remains separately evidenced.
+
+
+Hosted scoped generation accepts one complete outer `json` code fence containing a
+valid JSON object or array as a transport encoding. It preserves the exact inner
+text and all fields; it never extracts JSON from commentary, joins blocks, repairs
+invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
+response records the encoding and both provider/delivered text digests alongside
+usage. Strict downstream schema, score, citation and content checks still apply.
+Existing failed attempts remain in the journal; a repair never replaces their cost.

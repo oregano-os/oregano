@@ -135,3 +135,12 @@ Before paid dispatch, attempt evidence includes the exact delivered system-promp
 count, including both host wrapper and reviewed Skill. Prompt measurements use
 the same assembly function as the actual request. Existing retained Workflow
 Artifacts remain immutable when a compatible host correction is deployed.
+
+
+Hosted scoped generation accepts one complete outer `json` code fence containing a
+valid JSON object or array as a transport encoding. It preserves the exact inner
+text and all fields; it never extracts JSON from commentary, joins blocks, repairs
+invalid JSON, or removes gaps. Other Markdown and code remain unchanged. Each
+response records the encoding and both provider/delivered text digests alongside
+usage. Strict downstream schema, score, citation and content checks still apply.
+Existing failed attempts remain in the journal; a repair never replaces their cost.

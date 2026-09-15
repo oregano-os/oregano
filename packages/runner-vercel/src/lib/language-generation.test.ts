@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { LANGUAGE_OUTPUT_SUFFIX, languageSystemInstructions } from "../../../language/contracts.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
-import { createLanguageGenerator } from "./language-generation.ts";
+import { createLanguageGenerator, decodeSingleJsonFence } from "./language-generation.ts";
 import type { resolveModelExecution } from "./model-execution.ts";
 import type { generateText } from "ai";
 import { generateText as actualGenerateText } from "ai";
@@ -150,5 +150,31 @@ test("host supplies exact output-format guidance without repairing or hiding inv
   assert.equal(result.text, invalid, "strict downstream validators must still see malformed output");
   assert.equal(result.evidence.system_prompt_digest, sha256(system));
   assert.equal(result.evidence.system_instruction_characters, system.length);
+  assert.equal((result.evidence.model_execution as Record<string, unknown>).outputTokens, 20);
+});
+
+
+test("a single complete JSON envelope preserves every inner byte; prose and malformed JSON are not extracted", () => {
+  const body = '{\n  "summary": "Synthetic", "gaps": ["Unknown owner"], "score": 1\n}';
+  assert.deepEqual(decodeSingleJsonFence('```json\n' + body + '\n```'), { text: body, encoding: "single-json-fence" });
+  assert.deepEqual(decodeSingleJsonFence('```json\r\n[1, 2]\r\n```'), { text: '[1, 2]', encoding: "single-json-fence" });
+  for (const text of [
+    'Notes\n```json\n{}\n```', '```json\n{}\n```\nUnknown owner',
+    '```json\n{}\n```\n```json\n{}\n```', '```json\n{"missing":}\n```',
+    '```json\n{}', '```json\nnull\n```', '```markdown\n# Title\n```',
+    '```js\nconst x = {};\n```', '```\n{}\n```', '{"value":1}',
+  ]) assert.deepEqual(decodeSingleJsonFence(text), { text, encoding: "plain" });
+});
+
+test("host records the provider and delivered response identities after lossless JSON-envelope decoding", async () => {
+  const text = '```json\n{"summary":"Synthetic", "gaps":["Unknown owner"]}\n```';
+  const generate = createLanguageGenerator({ resolve: (() => ({ model: "synthetic", selection: { model: "compatible/example" } })) as typeof resolveModelExecution,
+    generate: (async () => ({ text, finishReason: "stop", response: { id: "envelope-response", modelId: "example" },
+      usage: { inputTokens: 30, outputTokens: 20 } })) as unknown as typeof generateText });
+  const result = await generate({ instructions: "Return a JSON assessment with gaps", data: "{}", agentId: "analyst", modelTask: "review" });
+  assert.deepEqual(JSON.parse(result.text), { summary: "Synthetic", gaps: ["Unknown owner"] });
+  assert.equal(result.evidence.response_encoding, "single-json-fence");
+  assert.equal(result.evidence.provider_text_digest, sha256(text));
+  assert.equal(result.evidence.delivered_text_digest, sha256(result.text));
   assert.equal((result.evidence.model_execution as Record<string, unknown>).outputTokens, 20);
 });

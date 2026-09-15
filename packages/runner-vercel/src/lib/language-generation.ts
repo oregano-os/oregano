@@ -6,6 +6,22 @@ import type { LanguageGenerator } from "../../../language/contracts.ts";
 import { languageSystemInstructions, LanguageGenerationError } from "../../../language/contracts.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
 
+/** Decode only one complete JSON transport fence; never extract a value from prose.
+ * The inner bytes are preserved, including every field and uncertainty. All semantic
+ * validation remains with the caller. Non-JSON Markdown and code samples stay text.
+ */
+export function decodeSingleJsonFence(text: string): { text: string; encoding: "plain" | "single-json-fence" } {
+ const plain = text.trim();
+ const match = /^```json\r?\n([\s\S]*?)\r?\n```$/.exec(plain);
+ if (match) {
+  try {
+   const value: unknown = JSON.parse(match[1]!);
+   if (value !== null && typeof value === "object") return { text: match[1]!, encoding: "single-json-fence" };
+  } catch { /* Invalid or multiple blocks remain visible to the downstream validator. */ }
+ }
+ return { text: plain, encoding: "plain" };
+}
+
 /** Resolve a trusted phase binding or the existing owning-Agent default. */
 export function createLanguageGenerator(dependencies: {
  resolve: typeof resolveModelExecution;
@@ -44,7 +60,10 @@ export function createLanguageGenerator(dependencies: {
     (dependencies.reportIncomplete ?? ((event) => console.warn(JSON.stringify(event))))(diagnostic);
     throw new LanguageGenerationError("Language generation did not complete; no successful text was produced", "incomplete", evidence);
   }
-  return { text: result.text.trim(), evidence };
+  const decoded = decodeSingleJsonFence(result.text);
+  return { text: decoded.text, evidence: { ...evidence,
+    response_encoding: decoded.encoding, provider_text_digest: sha256(result.text),
+    delivered_text_digest: sha256(decoded.text) } };
  };
 }
 export const generateLanguage = createLanguageGenerator();
