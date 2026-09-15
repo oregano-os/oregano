@@ -14,6 +14,7 @@ const phaseNames = { normalization: "meeting-normalize", resolution: "meeting-re
 export interface BrainWorkflowInputs {
   prompt: BrainPromptInputs;
   source_projection: string;
+  source_routes?: Array<{ identity_prefix: string; projection: string }>;
   transcripts: TranscriptSelectionPolicy;
   segment_characters: number;
   history_from: string;
@@ -37,11 +38,18 @@ const frontmatter = (text: string) => {
 
 /** Pure authoring helper: returns ordinary reviewed files; never writes, grants, binds or activates. */
 export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
-  if (!input || Object.keys(input).sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
+  if (!input || Object.keys(input).filter(key => key !== "source_routes").sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
   const prompts = materializeBrainPrompts(input.prompt);
   const transcripts = validateTranscriptSelectionPolicy(input.transcripts);
   const history = validateTranscriptSelectionPolicy({ mode: "bounded", max_transcripts: 1, meeting_date: { start_at: input.history_from, end_at: null } }).meeting_date.start_at;
   if (!history || typeof input.source_projection !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(input.source_projection)) throw new Error("Explicit source projection and history start are required");
+  const sourceRoutes = input.source_routes ?? [];
+  if (!Array.isArray(sourceRoutes) || sourceRoutes.length > 32 || sourceRoutes.some((route, index) => !route
+    || Object.keys(route).sort().join(",") !== "identity_prefix,projection"
+    || typeof route.identity_prefix !== "string" || !route.identity_prefix.length || route.identity_prefix.length > 1000
+    || /[\x00-\x1f\x7f]/.test(route.identity_prefix) || !/^[a-z][a-z0-9-]{0,63}$/.test(route.projection)
+    || sourceRoutes.slice(0, index).some(other => route.identity_prefix.startsWith(other.identity_prefix) || other.identity_prefix.startsWith(route.identity_prefix))))
+    throw new Error("Invalid or overlapping reviewed source projection routes");
   const manifest = JSON.parse(readAsset(toolRoot, "manifest.json")) as { version: number; files: { path: string; digest: string }[]; workflow_digest: string; agent_instruction_digest: string };
   if (manifest.version !== 2 || !Array.isArray(manifest.files) || !manifest.files.length) throw new Error("Invalid Brain template manifest");
   const assets: Record<string, string> = {};
@@ -99,7 +107,7 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     return [path, text];
   }));
   const directories = input.prompt.directories;
-  const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, segment_characters: input.segment_characters,
+  const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, source_routes: structuredClone(sourceRoutes), segment_characters: input.segment_characters,
     prompts: { triage: binding("triage"), ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
     page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
     agent: { instructions: Object.keys(agentSkills),

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "workflow_digest": "960a0dada39bf20f0cb8a6f5249a1123440c020d85fc41b9f3e2314b5455db1e",
+  "workflow_digest": "d159ac0f67dfc332dc425eb609045f235c5a3fa02625aa96aa6eab831dfa2c5e",
   "files": [
     {
       "path": "tools/brain-agent-context/TOOL.md",
@@ -35,20 +35,20 @@
       "digest": "e0b770d30a3df6396a03b8452eaf62524efd111815e9ca7c1206a8d1de5c6a0e"
     },
     {
-      "path": "tools/brain-check-discussion/TOOL.md",
-      "digest": "ca67f252b90e11ce3346c1e4eb75553e19ff815efcec35ecf4e0cb7a5fb046d7"
-    },
-    {
-      "path": "tools/brain-check-discussion/execute.ts",
-      "digest": "d1afa85abeeaa62d9909fd85c064c87e891a795ec88349225298358f943a04d8"
-    },
-    {
       "path": "tools/brain-check-discussion-pages/TOOL.md",
       "digest": "f4a1e1539538a34a046ed931a645a9f3893f1df6cac767e7fc9cf4cb2220de72"
     },
     {
       "path": "tools/brain-check-discussion-pages/execute.ts",
       "digest": "4a56ecf1292f95dfb19fce2704bd288e03008f1bb794c41dc9e099cf4e7f98c8"
+    },
+    {
+      "path": "tools/brain-check-discussion/TOOL.md",
+      "digest": "ca67f252b90e11ce3346c1e4eb75553e19ff815efcec35ecf4e0cb7a5fb046d7"
+    },
+    {
+      "path": "tools/brain-check-discussion/execute.ts",
+      "digest": "d1afa85abeeaa62d9909fd85c064c87e891a795ec88349225298358f943a04d8"
     },
     {
       "path": "tools/brain-check-lookups/TOOL.md",
@@ -147,14 +147,6 @@
       "digest": "bf19520fb28d20be5a9845c14696dd25c9eb679835aabf0d592dbe5ba83d9daa"
     },
     {
-      "path": "tools/brain-prepare-correction/TOOL.md",
-      "digest": "89452fc2a6d7d5d8caee80d311b96dc83699334e00c7c8a0ef99ebd75459fb63"
-    },
-    {
-      "path": "tools/brain-prepare-correction/execute.ts",
-      "digest": "9f7157a464f5259f4f555bd9be05c3323b1e00f993aa4979d4e269d7ab1c0450"
-    },
-    {
       "path": "tools/brain-prepare-correction-records/TOOL.md",
       "digest": "ec1e59fdef696dc7059ba56544cf5ea0755af0abc90d2ac0481e03fb42a5adc6"
     },
@@ -171,12 +163,12 @@
       "digest": "08bcf6723817a74b30b70af384caee8f3683571936acf78afe478bd303a101b1"
     },
     {
-      "path": "tools/brain-prepare-discussion/TOOL.md",
-      "digest": "2eac814f5a0b365731c225c404b137ab4add495fff744f1437da17760485bc57"
+      "path": "tools/brain-prepare-correction/TOOL.md",
+      "digest": "89452fc2a6d7d5d8caee80d311b96dc83699334e00c7c8a0ef99ebd75459fb63"
     },
     {
-      "path": "tools/brain-prepare-discussion/execute.ts",
-      "digest": "4ae54df51dccaed3e67a6bfff2774e5e7984c689db88ca3f6d15e44c1fb2a02c"
+      "path": "tools/brain-prepare-correction/execute.ts",
+      "digest": "9f7157a464f5259f4f555bd9be05c3323b1e00f993aa4979d4e269d7ab1c0450"
     },
     {
       "path": "tools/brain-prepare-discussion-pages/TOOL.md",
@@ -185,6 +177,14 @@
     {
       "path": "tools/brain-prepare-discussion-pages/execute.ts",
       "digest": "2f52a0c4074897dc7a4deac914077f86581b786f40474f000cbc598bc3c851a0"
+    },
+    {
+      "path": "tools/brain-prepare-discussion/TOOL.md",
+      "digest": "2eac814f5a0b365731c225c404b137ab4add495fff744f1437da17760485bc57"
+    },
+    {
+      "path": "tools/brain-prepare-discussion/execute.ts",
+      "digest": "4ae54df51dccaed3e67a6bfff2774e5e7984c689db88ca3f6d15e44c1fb2a02c"
     },
     {
       "path": "tools/brain-prepare-entity-pages/TOOL.md",
@@ -227,20 +227,20 @@
       "digest": "3a5cf159fec99f20235fd2abd28f706effb03af00016651041f5a46d5195b80d"
     },
     {
-      "path": "tools/brain-prepare-source/TOOL.md",
-      "digest": "07b19bad9d189a7e7166595f016c608efcd30e86b8e8e09318778728316e24af"
-    },
-    {
-      "path": "tools/brain-prepare-source/execute.ts",
-      "digest": "a92ebdc653ec7e0e0ed0268eb348935b68ed4366498c48d42c609cdd590205aa"
-    },
-    {
       "path": "tools/brain-prepare-source-history/TOOL.md",
       "digest": "ae32a1bc2f7354ca8a2e41f24a9ba9d9f0f7307fff243d1c53ab2fdab35baf86"
     },
     {
       "path": "tools/brain-prepare-source-history/execute.ts",
       "digest": "7b1b5fab27586c569bc25406fdd1f0003ddbc7fee6f74aa8f979268550be5da6"
+    },
+    {
+      "path": "tools/brain-prepare-source/TOOL.md",
+      "digest": "07b19bad9d189a7e7166595f016c608efcd30e86b8e8e09318778728316e24af"
+    },
+    {
+      "path": "tools/brain-prepare-source/execute.ts",
+      "digest": "a92ebdc653ec7e0e0ed0268eb348935b68ed4366498c48d42c609cdd590205aa"
     },
     {
       "path": "tools/brain-prepare-verification/TOOL.md",
@@ -265,6 +265,14 @@
     {
       "path": "tools/brain-source-history/execute.ts",
       "digest": "3e2eae16e67432cb2363c7aacdbbdf78ebcafbc0780c4caf51220e9dde594908"
+    },
+    {
+      "path": "tools/brain-source-projection/TOOL.md",
+      "digest": "49cb379ee4adb3f3f3d0426ba01fae284938ac4634d434540428e35cf9f3524e"
+    },
+    {
+      "path": "tools/brain-source-projection/execute.ts",
+      "digest": "8a02882498172256719f2c42b557ee27337d46f6f5eee03d6fca09d60230299e"
     },
     {
       "path": "tools/brain-value-gate/TOOL.md",

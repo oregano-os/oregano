@@ -23,13 +23,13 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 ## Reusable authoring assets
 
-`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its ten-step
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its eleven-step
 operator Workflow retains complete source/triage coverage, then assigns one durable
 tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
 knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
 There is no whole-import draft gate before the first write. Each operation retains
 normal Core validation, expected revisions, Git receipts and index reconciliation.
-Seven selected restricted Company Tools prepare source context, apply common triage,
+Eight selected restricted Company Tools prepare source context, apply common triage,
 read source history, validate completion and record outcomes. Historical phase Tool
 templates remain available for retained definitions. Executable code stays outside
 the Blueprint under the Workbench template tree.
@@ -43,7 +43,7 @@ date, value threshold, account, model provider or directory vocabulary is a
 Core default. The helper reuses prompt materialization and the Tool contract
 schemas, verifies template content digests, and rejects inconsistent inputs.
 The result contains the Workflow/configuration, 21 scoped prompt bindings and
-seven restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
+eight restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
 and every required Tool without applying a grant.
 
 A consuming Workspace must declare a matching Records projection with `identity`,
@@ -52,6 +52,16 @@ A consuming Workspace must declare a matching Records projection with `identity`
 still apply. The projection name alone does not authorize access. Source text and
 participant metadata stay in the consuming Instance and Workspace, never in the
 Blueprint or template fixtures.
+
+Optional `source_routes` maps non-overlapping source identity prefixes to existing
+Records projections. An empty list preserves the single `source_projection` default.
+The pure first Workflow step selects the projection before reading the source and
+binds the same projection into the continuing Agent's Records Tool. Every projection
+must expose the common source fields above. This allows communication-message
+thread roots and meeting sources to keep their existing canonical Records types.
+These reviewed mappings never grant a Tool, widen source admission, discover a
+provider or accept a projection name from source text. The ordinary Records access
+checks and exact source-version admission still apply.
 
 Materialize as a normal Workspace diff, review its grants and source declarations,
 validate and inspect it, and bind the exact Core/Workspace pair. Package inspection
