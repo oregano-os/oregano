@@ -525,3 +525,9 @@ checks every returned identity. Unknown/non-key fields and cross-kind use fail.
 Current Agent, Workflow, group, time-window, payload and result bounds remain
 unchanged. This reads existing run history; it does not create a source-progress
 registry, infer outcomes or reset effects.
+
+Historical Workflow evidence defaults to bounded feedback event reads. An explicit
+`include_feedback: false` selects retained outputs without reading the feedback
+event log; each run returns `feedback: null` and coverage records
+`feedback-not-requested`. Complete coverage then refers only to the requested
+projection. It never establishes absence of feedback, approvals or provider events.

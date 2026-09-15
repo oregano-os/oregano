@@ -157,3 +157,20 @@ test("Workflow evidence rejects a store response outside the exact key filter", 
   const f = await fixture(); f.store.history = async () => [f.run];
   await assert.rejects(f.connector.invoke("evidence.query", { ...f.query, match_fields: { sprint_id: "another-period" } }, f.context), /escaped/);
 });
+
+
+test("explicit output-only history excludes feedback without misreporting a truncated event log as complete", async () => {
+  const f = await fixture();
+  for (let i = 0; i < 201; i++) await f.store.control.appendEvent({ runId: f.run.runId, stepId: "report", actor: "system", event: "workflow.step.completed", evidence: { index: i } });
+  const query = { ...f.query, include_linked_builds: false };
+  const ordinary = (await f.connector.invoke("evidence.query", query, f.context)).output;
+  assert.equal(ordinary.coverage.complete, false);
+  assert.ok(ordinary.coverage.limitations.includes("run-event-history-truncated"));
+  const readEvents = f.store.control.listEvents.bind(f.store.control); let reads = 0;
+  f.store.control.listEvents = async (...args) => { reads++; return readEvents(...args); };
+  const selected = (await f.connector.invoke("evidence.query", { ...query, include_feedback: false }, f.context)).output;
+  assert.equal(reads, 0); assert.equal(selected.coverage.complete, true);
+  assert.equal(selected.items[0]!.feedback, null);
+  assert.ok(selected.coverage.limitations.includes("feedback-not-requested"));
+  assert.deepEqual(selected.items[0]!.steps, ordinary.items[0]!.steps);
+});

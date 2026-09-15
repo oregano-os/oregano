@@ -1416,3 +1416,9 @@ They preserve original versions, unrelated knowledge, stable Takes and earlier
 Timeline entries; a low-value incoming version does not waive reconciliation.
 These are proposal-only reasoning/deep phases under the unchanged generation
 bounds. Workspace execution and live correction qualification remain separate.
+
+Historical Workflow evidence defaults to bounded feedback event reads. An explicit
+`include_feedback: false` selects retained outputs without reading the feedback
+event log; each run returns `feedback: null` and coverage records
+`feedback-not-requested`. Complete coverage then refers only to the requested
+projection. It never establishes absence of feedback, approvals or provider events.

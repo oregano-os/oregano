@@ -113,7 +113,7 @@ export class HistoricalEvidenceConnector implements Connector {
           const effect = await control.getEffect(key);
           if (effect) effects.push({ id: key, step_id: step.id, status: effect.status, evidence: effect.evidence ?? null });
         }
-        const events = await control.listEvents(run.runId, 201);
+        const events = input.include_feedback === false ? [] : await control.listEvents(run.runId, 201);
         if (events.length > 200) gap("run-event-history-truncated");
         const capturedFeedback = events.slice(0, 200).filter(event => event.event === "workflow.feedback.received")
           .map(event => event.evidence as Record<string, unknown>).filter(value => value && typeof value.occurred_at === "string" && compareRecordInstants(value.occurred_at, input.to) <= 0);
@@ -143,8 +143,9 @@ export class HistoricalEvidenceConnector implements Connector {
         items.push({ id: run.runId, kind: "workflow-run", workflow_id: run.workflowId, occurred_at: run.trigger.instant,
           observed_at: run.updatedAt, artifact_hash: run.artifactHash, manifest_hash: run.manifestHash, fields: run.fields,
           status: Date.parse(run.updatedAt) > Date.parse(input.to) ? "unknown-at-cutoff" : run.state.status,
-          blocked: run.state.blocked ?? null, steps, output_refs: outputRefs, decisions, effects, feedback, builds });
+          blocked: run.state.blocked ?? null, steps, output_refs: outputRefs, decisions, effects, feedback: input.include_feedback === false ? null : feedback, builds });
       }
+      if (input.include_feedback === false) limitations.push("feedback-not-requested");
       limitations.push("retained-run-history-only; missing openings and uncaptured feedback are not proved absent");
     }
     if (items.length > limit) gap("result-limit");

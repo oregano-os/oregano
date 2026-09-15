@@ -13,6 +13,7 @@ export const EVIDENCE_QUERY_INPUT: JsonSchema = {
       patternProperties: { "^[a-z][a-z0-9_-]{0,62}$": { type: "string", minLength: 1, maxLength: 1000 } } },
     step_ids: { type: "array", minItems: 1, maxItems: 20, uniqueItems: true, items: text },
     include_linked_builds: { type: "boolean" },
+    include_feedback: { type: "boolean" },
   },
 };
 export const EVIDENCE_QUERY_OUTPUT: JsonSchema = {
@@ -49,4 +50,6 @@ export interface EvidenceQuery {
   match_fields?: Record<string, string>;
   step_ids?: string[];
   include_linked_builds?: boolean;
+  /** Defaults to true. False explicitly excludes feedback event history. */
+  include_feedback?: boolean;
 }
