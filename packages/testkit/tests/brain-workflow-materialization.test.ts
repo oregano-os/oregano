@@ -22,7 +22,7 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.deepEqual(input, before, "Materialization does not mutate caller policy");
   const workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
-  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 11);
+  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 10);
   assert.equal(config.source_projection, "studio-sources"); assert.equal(config.transcripts.max_transcripts, 4);
   assert.equal(config.transcripts.meeting_date.start_at, "2025-12-31T23:00:00.000Z");
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
@@ -32,7 +32,7 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   for (const id of tools) {
     const tool = loadCompanyTool(result.materials, "analyst", id.slice(8));
     assert.equal(tool.contract.agentId, "analyst"); assert.equal(tool.contract.risk, "R0");
-    assert.ok(tool.contract.capabilities.every(capability => ["language.generate", "evidence.query"].includes(capability)));
+    assert.ok(tool.contract.capabilities.every(capability => ["language.generate", "evidence.query", "records.query"].includes(capability)));
   }
   assert.equal(result.prompts.length, 21);
   assert.equal(result.report.activated, false); assert.equal(result.report.grants_applied, false);
@@ -171,18 +171,20 @@ test("one import Workflow routes heterogeneous source projections without wideni
   const result = materializeBrainWorkflow(configured), workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
   assert.deepEqual(config.source_routes, configured.source_routes);
-  const tool = loadCompanyTool(result.materials, "analyst", "brain-source-projection");
+  const tool = loadCompanyTool(result.materials, "analyst", "brain-source-records");
   const select = (identity: string, routes = config.source_routes) => executeIsolatedCompanyTool({ compiledSource: tool.compiledSource,
-    input: { identity, default_projection: config.source_projection, routes }, context: { instanceId: "synthetic", runId: "routing", stepId: "projection", agentId: "analyst", toolId: tool.contract.runtimeId },
-    allowedCapabilities: [], invokeCapability: async () => { throw Error("Selecting a projection cannot call a provider"); } });
-  assert.deepEqual(await select("discussion:studio:thread-1"), { projection_id: "studio-discussions" });
-  assert.deepEqual(await select("meeting:session-1"), { projection_id: "studio-sources" });
-  assert.deepEqual(await select("discussion:studio:thread-1", []), { projection_id: "studio-sources" });
+    input: { identity, version: "v1", default_projection: config.source_projection, routes }, context: { instanceId: "synthetic", runId: "routing", stepId: "projection", agentId: "analyst", toolId: tool.contract.runtimeId },
+    allowedCapabilities: ["records.query"], invokeCapability: async (capability, query: any) => {
+      assert.equal(capability, "records.query"); assert.deepEqual(query.filters, { identity, version: "v1" }); assert.equal(query.all_pages, true); return { rows: [], access_decision: { allowed: true } };
+    } });
+  assert.deepEqual(await select("discussion:studio:thread-1"), { projection_id: "studio-discussions", records: { rows: [], access_decision: { allowed: true } } });
+  assert.deepEqual(await select("meeting:session-1"), { projection_id: "studio-sources", records: { rows: [], access_decision: { allowed: true } } });
+  assert.deepEqual(await select("discussion:studio:thread-1", []), { projection_id: "studio-sources", records: { rows: [], access_decision: { allowed: true } } });
   const overlap = [...config.source_routes, { identity_prefix: "discussion:", projection: "other" }];
   await assert.rejects(select("meeting:session-1", overlap), /overlap/);
   for (const source_routes of [overlap, [{ identity_prefix: "", projection: "other" }], [{ identity_prefix: "discussion:", projection: "../other" }]])
     assert.throws(() => materializeBrainWorkflow({ ...input, source_routes }), /source projection/);
-  assert.equal(workflow.steps[1].input.projection_id, "$steps.source-projection.projection_id");
+  assert.equal(workflow.steps[1].input.records, "$steps.source-record.records");
   const agent = workflow.steps.find((step: any) => step["process-source"] === "agent");
-  assert.equal(agent.tools.find((entry: any) => entry.tool === "oregano:records/query").bind.projection_id, "$steps.source-projection.projection_id");
+  assert.equal(agent.tools.find((entry: any) => entry.tool === "oregano:records/query").bind.projection_id, "$steps.source-record.projection_id");
 });

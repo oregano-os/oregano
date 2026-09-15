@@ -23,14 +23,14 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 ## Reusable authoring assets
 
-`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its eleven-step
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its ten-step
 operator Workflow retains complete source/triage coverage, then assigns one durable
 tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
 knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
 There is no whole-import draft gate before the first write. Each operation retains
 normal Core validation, expected revisions, Git receipts and index reconciliation.
 Eight selected restricted Company Tools prepare source context, apply common triage,
-read source history, validate completion and record outcomes. Historical phase Tool
+read exact source Records and their history, validate completion and record outcomes. Historical phase Tool
 templates remain available for retained definitions. Executable code stays outside
 the Blueprint under the Workbench template tree.
 
@@ -55,7 +55,8 @@ Blueprint or template fixtures.
 
 Optional `source_routes` maps non-overlapping source identity prefixes to existing
 Records projections. An empty list preserves the single `source_projection` default.
-The pure first Workflow step selects the projection before reading the source and
+The first restricted Tool selects the projection and calls the existing
+`records.query` Capability for the exact identity/version, then
 binds the same projection into the continuing Agent's Records Tool. Every projection
 must expose the common source fields above. This allows communication-message
 thread roots and meeting sources to keep their existing canonical Records types.

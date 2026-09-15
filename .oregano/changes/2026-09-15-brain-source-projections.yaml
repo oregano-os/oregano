@@ -13,6 +13,7 @@ files_expected:
   - .oregano/changes/2026-09-14-brain-import.yaml
   - packages/blueprints/brain/workflows/brain-import.md
   - packages/cli/content/templates/brain-import/manifest.json
+  - packages/cli/content/templates/brain-import/tools/brain-source-records/**
   - packages/cli/content/templates/brain-import/tools/brain-source-projection/**
   - scripts/materialize-brain-workflow.ts
   - packages/testkit/tests/brain-workflow-materialization.test.ts
@@ -27,7 +28,7 @@ documentation_impact:
 architecture:
   placement:
     core: Reuse the existing Records projections, identity-bound admission, Workflow references and Tool authorization unchanged.
-    packages: Extend the portable authoring helper with a pure source-projection selector and reviewed optional prefix mappings.
+    packages: Extend the portable authoring helper with a source-projection selector using the existing records.query Capability and reviewed optional prefix mappings.
     workspace: Own the default projection and exact non-overlapping identity-prefix mappings for selected sources.
     instance: Retain provider qualification, credentials, exact source admission and operational state.
   mechanisms_extended: []

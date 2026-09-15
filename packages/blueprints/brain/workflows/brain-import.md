@@ -14,21 +14,15 @@ instance:
     - source_identity
     - source_version
 steps:
-  - source-projection: company:brain-source-projection
+  - source-record: company:brain-source-records
     input:
       identity: $instance.source_identity
+      version: $instance.source_version
       default_projection: $config.source_projection
       routes: $config.source_routes
-  - source-record: oregano:records/query
-    input:
-      projection_id: $steps.source-projection.projection_id
-      filters:
-        identity: $instance.source_identity
-        version: $instance.source_version
-    all_pages: true
   - prepare: company:brain-prepare-source
     input:
-      records: $steps.source-record
+      records: $steps.source-record.records
       identity: $instance.source_identity
       version: $instance.source_version
       segment_characters: $config.segment_characters
@@ -80,7 +74,7 @@ steps:
       - tool: oregano:brain/entity
       - tool: oregano:records/query
         bind:
-          projection_id: $steps.source-projection.projection_id
+          projection_id: $steps.source-record.projection_id
           filters:
             identity: $instance.source_identity
       - tool: oregano:brain/remember

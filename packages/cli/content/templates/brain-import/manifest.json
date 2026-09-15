@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "workflow_digest": "d159ac0f67dfc332dc425eb609045f235c5a3fa02625aa96aa6eab831dfa2c5e",
+  "workflow_digest": "3221bd6fe9e5b1f010c9bdf41b5c444b1cfa4123d58b436df158ef0372013913",
   "files": [
     {
       "path": "tools/brain-agent-context/TOOL.md",
@@ -267,12 +267,12 @@
       "digest": "3e2eae16e67432cb2363c7aacdbbdf78ebcafbc0780c4caf51220e9dde594908"
     },
     {
-      "path": "tools/brain-source-projection/TOOL.md",
-      "digest": "49cb379ee4adb3f3f3d0426ba01fae284938ac4634d434540428e35cf9f3524e"
+      "path": "tools/brain-source-records/TOOL.md",
+      "digest": "26f72f206bad415682e0c4bc3f4358289dfef2afcbde35645d0210cf1c5aae5c"
     },
     {
-      "path": "tools/brain-source-projection/execute.ts",
-      "digest": "8a02882498172256719f2c42b557ee27337d46f6f5eee03d6fca09d60230299e"
+      "path": "tools/brain-source-records/execute.ts",
+      "digest": "4da9f3cce38277deac671ddfbb9b62ac01b18bdb6354d35273f5ffeb4c5f1add"
     },
     {
       "path": "tools/brain-value-gate/TOOL.md",
