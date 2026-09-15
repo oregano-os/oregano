@@ -126,6 +126,19 @@ test('incremental completion checks actual saved pages and returns correction fe
  for(const value of [{context:{task,calls},facts:skipped},{context:{task:{...task,prior:{requests:[{slug:person}]}},calls:[]},facts:skipped},
    {context:{task,calls:[]},facts:{...skipped,gaps:[]}}, {context:{task,calls:[{name:'oregano_brain_remember',error:'uncertain'}]},facts:skipped}])
    assert.equal((await check(value)).accepted,false);
+ const partial=await check({context:{task,calls:[calls[0]]},facts});
+ for(const slug of [source,meeting,person])assert.ok(partial.feedback.includes(slug),'One response lists every missing read');
+ const manyMissing=await check({context:{task:{...task,prior:{requests:Array.from({length:80},(_,i)=>({slug:'people/'+String(i)+'-'+'x'.repeat(60)}))}},calls},facts});
+ assert.ok(manyMissing.feedback.length<=2000);assert.match(manyMissing.feedback,/Additional repairs remain/);
+ const dangling=structuredClone(calls);dangling[2].output.outgoing=[{target:'sources/mistyped',resolved:null}];
+ assert.match((await check({context:{task,calls:dangling},facts})).feedback,/Repair unresolved.*sources\/mistyped/);
+ const fixed=structuredClone(dangling);fixed[2].output.outgoing[0].resolved=source;
+ assert.equal((await check({context:{task,calls:fixed},facts})).accepted,true);
+ const referencedMeeting='meetings/earlier';
+ const linked=structuredClone(calls);linked[0].input.changes.pages[1].markdown+='\n[['+referencedMeeting+']]';linked[2].output.page.markdown=linked[0].input.changes.pages[1].markdown;
+ linked.push({name:'oregano_brain_entity',output:{found:true,status:'found',indexed_revision:"current",page:{slug:referencedMeeting,type:'meeting',markdown:'## Summary\nAn earlier meeting; no entity Timeline section.'}}});
+ const linkedFacts={...facts,pages:[...facts.pages,referencedMeeting],meetings:[{...facts.meetings[0],entities:[referencedMeeting]}]};
+ assert.equal((await check({context:{task,calls:linked},facts:linkedFacts})).accepted,true,'Meeting cross-references do not require person/company Timeline structure');
  const premature={...facts,verification:facts.verification.slice(1)};assert.match((await check({context:{task,calls},facts:premature})).feedback,/V1–V6/);
  const mismatch=structuredClone(calls);mismatch.at(-1).output.page.markdown='Unrelated current content';assert.match((await check({context:{task,calls:mismatch},facts})).feedback,/differs/);
 });

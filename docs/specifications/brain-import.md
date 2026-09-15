@@ -28,7 +28,10 @@ operator Workflow retains complete source/triage coverage, then assigns one dura
 tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
 knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
 There is no whole-import draft gate before the first write. Each operation retains
-normal Core validation, expected revisions, Git receipts and index reconciliation.
+normal Core validation, expected revisions, Git receipts and index reconciliation. Completion feedback lists missing saved-page reads together, rejects unresolved
+links reported by the index, and distinguishes person/company Timeline backlinks
+from ordinary references to other meetings or evidence pages. These checks run
+after writes and do not create a whole-import pre-write gate.
 Eight selected restricted Company Tools prepare source context, apply common triage,
 read exact source Records and their history, validate completion and record outcomes. Historical phase Tool
 templates remain available for retained definitions. Executable code stays outside

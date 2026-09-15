@@ -2,7 +2,7 @@ import { defineCompanyTool } from "@companyos/tool-sdk";
 export default defineCompanyTool({ async execute(input: any, context: any) {
 
  const {task,calls}=input.context,facts=input.facts;
- const reject=(feedback:string)=>({accepted:false,feedback});
+ const reject=(feedback:string)=>({accepted:false,feedback:feedback.length<=2000?feedback:feedback.slice(0,1900)+' Additional repairs remain; repeat the check after these corrections.'});
  if(facts.source_identity!==task.source.identity||facts.source_version!==task.source.version)return reject('Completion must refer to this exact source identity and version.');
  if(facts.verification.length!==6||new Set(facts.verification.map((v:any)=>v.check)).size!==6)return reject('Run and report every adopted V1–V6 check on the saved pages.');
  if(facts.status==='skipped'){
@@ -28,25 +28,38 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  for(const m of facts.meetings)for(const slug of [m.slug,...m.attendees,...m.entities])required.add(slug);
  if(task.source.kind==='meeting'&&!facts.meetings.length)return reject('A retained meeting needs its actual meeting page(s), with resolved or explicitly flagged attendees.');
  if(facts.meetings.length&&facts.verification.some((v:any)=>v.status!=='passed'&&!(v.check==='V6'&&v.status==='flagged-uncertainty')))return reject('Apply the actual adopted V1–V6 checklist to retained meetings; only unresolved sequence uncertainty may remain flagged.');
+ const missingReads:string[]=[],mismatched:string[]=[],unresolved:string[]=[];
  for(const slug of required){
   const page=reads.get(slug);
-  if(!facts.pages.includes(slug)||!page?.page?.markdown||page.index<(lastWrites.get(slug)??-1)||!page.indexed_revision)return reject('Read every affected page, after its own final write if changed, and include it in completion: '+slug);
+  if(!facts.pages.includes(slug)||!page?.page?.markdown||page.index<(lastWrites.get(slug)??-1)||!page.indexed_revision){missingReads.push(slug);continue;}
   const last=writes.filter(w=>w.input.changes.pages.some((p:any)=>p.path==='brain/'+slug+'.md')).at(-1);
   const expected=last?.input.changes.pages.find((p:any)=>p.path==='brain/'+slug+'.md');
-  if(expected&&expected.markdown!==page.page.markdown)return reject('Saved content differs from the final write; reread and reconcile: '+slug);
+  if(expected&&expected.markdown!==page.page.markdown)mismatched.push(slug);
+  // The Core index reports actual unresolved links; an Agent cannot waive a
+  // broken source reference by describing it as cosmetic in its completion.
+  for(const link of page.outgoing??[])if(!link.resolved)unresolved.push(slug+' -> '+link.target);
  }
+ if(missingReads.length)return reject('Read every affected page after its own final write and include all of these in completion: '+missingReads.join(', '));
+ if(mismatched.length)return reject('Saved content differs from the final write; reread and reconcile: '+mismatched.join(', '));
+ if(unresolved.length)return reject('Repair unresolved saved-page links, then reread affected pages: '+[...new Set(unresolved)].join(', '));
  for(const slug of facts.pages)if(!required.has(slug)&&!reads.has(slug))return reject('Completion contains an unread page: '+slug);
  const evidence=reads.get(task.evidence.slug)?.page.markdown;
  if(!evidence?.includes(JSON.stringify(task.source.identity))||!evidence.includes(JSON.stringify(task.source.version))||!evidence.includes(task.source.context.companyos_record_version))return reject('Retain exact source identity, version and original Record provenance on the evidence page.');
+ const missingBacklinks:string[]=[];
  for(const meeting of facts.meetings){
   const page=reads.get(meeting.slug).page.markdown;
   for(const heading of ['Summary','Key Decisions','Action Items','Notable Quotes'])if(!new RegExp('^## '+heading+'\\s*$','m').test(page))return reject('V1: restore the adopted meeting section '+heading+' on '+meeting.slug);
   if(!page.includes('[['+task.evidence.slug+']]'))return reject('Meeting page must cite its internal original-source evidence: '+meeting.slug);
   for(const slug of [...meeting.attendees,...meeting.entities]){
    const entity=reads.get(slug).page.markdown;
-   if(!page.includes('[['+slug+']]')||!entity.slice(entity.indexOf('<!-- timeline -->')).includes('[['+meeting.slug+']]'))return reject('Complete the meeting link and entity Timeline backlink: '+slug);
+   const referenced=reads.get(slug).page;
+   // Cross-references to evidence/other meetings are not person/company
+   // attendance entries and must not force Timeline sections into those pages.
+   const needsTimeline=!['meeting','source'].includes(referenced.type);
+   if(!page.includes('[['+slug+']]')||(needsTimeline&&!entity.slice(entity.indexOf('<!-- timeline -->')).includes('[['+meeting.slug+']]')))missingBacklinks.push(slug);
   }
  }
+ if(missingBacklinks.length)return reject('Complete the meeting links and entity Timeline backlinks: '+[...new Set(missingBacklinks)].join(', '));
  return {accepted:true,feedback:''};
 
 } });
