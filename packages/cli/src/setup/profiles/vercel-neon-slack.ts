@@ -89,6 +89,8 @@ export const VERCEL_NEON_SLACK_PROFILE = defineSetupProviderProfile({
     agentDisplayName: "oregano",
     triggerPath: "/api/webhooks/slack",
     userAuthorizationScopes: ["identity.basic"],
+    /** Bot permissions the maintained Runner needs: post, read the ten recent messages per place, resolve people. */
+    requiredBotScopes: ["chat:write", "channels:history", "groups:history", "im:history", "users:read"],
     expectedConnectorUid() {
       return `${this.connectorService}/${this.agentDisplayName}`;
     },

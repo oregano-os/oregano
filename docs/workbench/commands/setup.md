@@ -5,7 +5,7 @@ kind: command
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -170,6 +170,12 @@ See the [maintained host profile](../../operations/maintained-host-profile.md).
 4. Require the bot event `message.im` for direct messages. Explicit connector
    event selections without it fail setup and final verification. Provider
    default selections are not evidence that Slack has verified its Request URL.
+   Setup also requires the bot permissions `chat:write`, `channels:history`,
+   `groups:history`, `im:history` and `users:read`, as reported by the
+   connector. Agents read the ten latest messages at the same place with the
+   history permissions. A missing permission stops setup and names it; add it
+   under **OAuth & Permissions → Bot Token Scopes**, reinstall the app, then
+   continue.
 5. Compare scopes before and after provider UI edits. Slack can automatically
    add `groups:read` and `mpim:read` when saving
    `member_joined_channel`. The supervised starter does not consume that

@@ -450,7 +450,12 @@ for (const identity of [
   }), /Slack identity verification failed/);
 });
 
-const syntheticSlackConnector = () => ({ triggers: { enabled: true }, triggerDestinations: [{ projectId: "prj_example", path: "/api/webhooks/slack" }], id: "scl_example", uid: "slack/example", service: "slack", defaultInstallationId: "T12345678", data: { appId: "A12345678", slackTeam: { id: "T12345678" }, clientSecret: "synthetic-secret" } });
+const syntheticSlackConnector = () => ({ triggers: { enabled: true }, triggerDestinations: [{ projectId: "prj_example", path: "/api/webhooks/slack" }], id: "scl_example", uid: "slack/example", service: "slack", defaultInstallationId: "T12345678", data: { appId: "A12345678", slackTeam: { id: "T12345678" }, clientSecret: "synthetic-secret", botScopes: ["app_mentions:read", "channels:history", "channels:read", "chat:write", "groups:history", "groups:read", "users:read", "im:history", "im:read", "im:write", "assistant:write"] } });
+for (const [scopes, pattern] of [[undefined, /did not report its bot permissions/], [["chat:write", "channels:history", "groups:history", "users:read"], /missing bot permissions: im:history\..*api\.slack\.com\/apps\/A12345678\/oauth/], [[], /missing bot permissions: chat:write, channels:history, groups:history, im:history, users:read/]]) test(`Slack setup requires bot permissions for posting and recent messages: ${JSON.stringify(scopes)}`, () => {
+  const connector = syntheticSlackConnector(); connector.data = { ...connector.data, botScopes: scopes };
+  if (scopes === undefined) delete connector.data.botScopes;
+  assert.throws(() => resolveSlackApp({ run: (_file, args) => ({ status: 0, stdout: JSON.stringify(args.some(arg => arg.endsWith("/projects/prj_example")) ? { environments: ["production"] } : connector), stderr: "" }) }, "/tmp/core", "example", { id: "scl_example", uid: "slack/example" }, "T12345678", "prj_example"), pattern);
+});
 for (const events of [[], ['app_mention'], 'message.im']) test(`Slack rejects unusable explicit direct-message subscriptions: ${JSON.stringify(events)}`, () => {
   assert.throws(() => resolveSlackApp({ run: () => ({ status: 0, stdout: JSON.stringify({ ...syntheticSlackConnector(), events }), stderr: '' }) }, '/tmp/core', 'example', { id: 'scl_example', uid: 'slack/example' }, 'T12345678', 'prj_example'), /message.im/);
 });

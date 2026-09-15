@@ -16,6 +16,7 @@ import { decisionCard } from "./decision-cards.ts";
 import { recordWorkflowButtonResponse } from "./workflow-button-response.ts";
 import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
+import { slackRecentMessages, type SlackHistoryClient } from "./slack-recent-messages.ts";
 import { connectSlackAdapter } from "@vercel/connect/chat";
 import { hasSubmittedCollection, hasDeliveredCollectionReview } from "./workflow-conversation-presentation.ts";
 import { stepCountIs, ToolLoopAgent, generateText, jsonSchema, tool, type ModelMessage, type ToolSet } from "ai";
@@ -297,6 +298,32 @@ async function handleMessage(thread: Thread, message: ChatInput, builderContinua
 
 interface CoordinatedTurn { agent: CompiledAgent; session?: WorkflowConversationSession; concern: CheckedConcern; }
 
+/** The ten latest Slack messages before a verified message at the same place, for every Agent. */
+async function slackPlaceMessages(accountId: string, channelId: string, threadId: string, messageId: string) {
+  const adapter = botInstance?.getAdapter?.("slack") as unknown as { webClient?: SlackHistoryClient } | undefined;
+  if (!adapter?.webClient) return [];
+  return slackRecentMessages({ client: adapter.webClient, accountId, channelId, threadId, messageId, roster: artifact.roster });
+}
+async function recentPlaceMessages(thread: Thread, message: Pick<Message, "id" | "author">) {
+  try {
+    const [surface, channelId, threadId] = workflowInboundThreadId(thread.id, message.id).split(":");
+    const accountId = rosterMember(message.author)?.teamId ?? rosterMember(message.author)?.principals?.find(p => p.startsWith("slack:"))?.split(":")[1];
+    if (surface !== "slack" || !channelId || !threadId || !accountId) return [];
+    return await slackPlaceMessages(accountId, channelId, threadId, message.id);
+  } catch { return []; }
+}
+
+/** A reply in a thread already waiting for this person's workflow answer needs no separate coordinator pass.
+ * The ordinary workflow receive path still verifies the reply; any failure keeps the coordinator as fallback. */
+async function awaitsWorkflowCollection(thread: Thread, message: Pick<Message, "id" | "author">): Promise<boolean> {
+  if (!workflowHostingEnabled() || !message.author.userId) return false;
+  try {
+    const { createWorkflowHost } = await import("./workflow-host.ts");
+    const host = await createWorkflowHost();
+    return await host.conversations.awaitsCollection({ threadId: workflowInboundThreadId(thread.id, message.id), messageId: message.id, authorId: message.author.userId });
+  } catch { return false; }
+}
+
 /** The Slack adapter only translates verified addresses. Interpretation and state are shared Core. */
 async function coordinateConversation(thread: Thread, message: ChatInput, trace: import("./workflow-slack-diagnostics.ts").WorkflowSlackTrace): Promise<boolean> {
   const member = rosterMember(message.author);
@@ -319,6 +346,8 @@ async function coordinateConversation(thread: Thread, message: ChatInput, trace:
       throw new Error("Conversation history crosses the verified audience");
     return state.getList<ConversationEntry>(`conversation:slack:${address.channelId}:${address.threadId}:${agentId}`);
   };
+  source.recentMessages = async (verifiedScope, address, messageId) => address.channelId === verifiedScope.channelId
+    ? slackPlaceMessages(verifiedScope.accountId, address.channelId, address.threadId, messageId) : [];
   const verifiedPending = workflowHostingEnabled() && message.id !== threadId
     ? await (await (await import("./workflow-host.ts")).createWorkflowHost()).conversations.pendingChoiceForCoordinator({ threadId: sourceThread, authorId: message.author.userId })
     : undefined;
@@ -404,7 +433,7 @@ async function processConversationMessage(thread: Thread, message: ChatInput,
   const incoming = incomingMember ? slackConversationMessage(thread, message, { id: principal(incomingMember), name: incomingMember.name }) : undefined;
   if (!builderContinuation && !coordinated && await builderRelease?.receive({ conversation: thread.id, author: message.author, participation: incoming,
     messageId: message.id, text: message.text, occurredAt: message.metadata.dateSent.toISOString() })) return;
-  if (!builderContinuation && !coordinated && !setupVerificationResponse(message.text)) {
+  if (!builderContinuation && !coordinated && !setupVerificationResponse(message.text) && !await awaitsWorkflowCollection(thread, message)) {
     try { if (await coordinateConversation(thread, message, trace)) return; }
     catch (error) {
       if (error instanceof AttachmentInputError) throw error;
@@ -583,8 +612,9 @@ async function processConversationMessage(thread: Thread, message: ChatInput,
     ...(resolved.selection.maxOutputTokens === undefined ? {} : { maxOutputTokens: resolved.selection.maxOutputTokens }),
     ...(resolved.selection.retries === undefined ? {} : { maxRetries: resolved.selection.retries }),
   });
+  const recentMessages = await recentPlaceMessages(thread, message);
   const messages: ModelMessage[] = [{ role: "user", content: await agentAttachmentContent({
-    text: conversationContext(participation.message, history), selection: resolved.selection, store: state, instanceId: artifact.instance.id,
+    text: conversationContext(participation.message, history, recentMessages), selection: resolved.selection, store: state, instanceId: artifact.instance.id,
     references: [...sharedAttachments, ...(message.attachmentRefs ?? []), ...history.flatMap(entry => entry.attachments ?? [])],
   }) }];
   const abortSignal = resolveSlackTurnAbortSignal(thread.signal, resolved.selection.timeoutMs);

@@ -143,7 +143,7 @@ export function compileWorkflows(args: {
           templates.set(path, { path, content: template.body, format: template.data.format, digest: sha256(workspaceFile(files, path)) });
           message = { template: path, vars: raw.message.vars };
         }
-        const presentation = { version: 1 as const, ...(raw.review_format === "message" ? { reviewFormat: "message" as const } : {}), ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
+        const presentation = { version: 1 as const, ...(raw.title ? { title: raw.title } : {}), ...(raw.review_format === "message" ? { reviewFormat: "message" as const } : {}), ...(message ? { message } : {}), labels: { approve: raw.labels?.approve ?? "Approve", reject: raw.labels?.reject ?? "Reject" } };
 
         const path = calendar(); usedSchedules.add(path);
         const { resolved, tool } = resolveTool("oregano:communications/publish", raw.id);
@@ -157,7 +157,7 @@ export function compileWorkflows(args: {
         const path = `${data.owner}/skills/${skill}/assets/${name}`;
         const template = workspaceDocument(files, path);
         templates.set(path, { path, content: template.body, format: template.data.format, digest: sha256(workspaceFile(files, path)) });
-        const thread = raw.thread ?? literalConfig(data.defaults?.thread);
+        const thread = raw.thread === "none" ? undefined : raw.thread ?? literalConfig(data.defaults?.thread);
         result.kind = "message";
         result.message = { template: path, vars: raw.vars, destination: raw.destination ?? literalConfig(data.defaults?.destination), ...(raw.recipient !== undefined ? { recipient: raw.recipient } : {}), ...(thread !== undefined ? { thread } : {}) };
         // Recipient-specific destination resolution is an Instance service; never concatenate IDs.
@@ -168,6 +168,29 @@ export function compileWorkflows(args: {
       }
       return result;
     });
+    // A private decision card that is not itself threaded opens its own conversation by default. Later
+    // messages to the same recipient that can only be reached through the card continue in its thread,
+    // unless they declare `thread` explicitly (`thread: none` posts a new root message).
+    const rawById = new Map(rawSteps.map((raw) => [raw.id, raw]));
+    const privateRoot = (raw: any) => typeof raw?.tool === "string" && raw.tool.startsWith("human:") && raw.recipient !== undefined && !!raw.labels
+      && raw.thread === undefined && raw.continue_in === undefined && !raw.for_each;
+    const reachable = (excluded?: string) => {
+      const seen = new Set<string>(), queue = [steps[0]!.id];
+      while (queue.length) {
+        const id = queue.pop()!;
+        if (id === "end" || id === excluded || seen.has(id)) continue;
+        seen.add(id); queue.push(...(steps.find((candidate) => candidate.id === id)?.next ?? []));
+      }
+      return seen;
+    };
+    const all = reachable();
+    for (const step of steps) {
+      if (!step.decision || !privateRoot(rawById.get(step.id))) continue;
+      step.decision.conversationRoot = true;
+      const outside = reachable(step.id), reference = `$steps.${step.id}.thread_reference`;
+      for (const other of steps) if (other.message && other.message.thread === undefined && rawById.get(other.id)?.thread === undefined && !other.forEach
+        && all.has(other.id) && !outside.has(other.id) && JSON.stringify(other.message.recipient) === JSON.stringify(step.decision.recipient)) other.message.thread = reference;
+    }
     for (const step of steps) {
       const consumed = [step.agent?.context, step.agent?.profile, step.agent?.tools.map(entry => entry.bind), step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {

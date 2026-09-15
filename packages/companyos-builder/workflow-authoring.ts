@@ -228,6 +228,9 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       };
       return { ...step, ...Object.fromEntries(["instructions", "skills", "budget", "tools"].filter(key => step[key] !== undefined).map(key => [key, configValue(step[key])])) };
     });
+    // A private decision notice may itself root the conversation that follows it.
+    const decisionRoot = (entry: any) => typeof entry?.tool === "string" && entry.tool.startsWith("human:") && !!entry.recipient && !!entry.labels
+      && entry.thread === undefined && entry.continue_in === undefined && !entry.for_each;
     const ids: string[] = steps.map((s: any) => s.id);
     const flow = validateStepFlow(steps, f, err);
     const idset = new Set(ids);
@@ -277,7 +280,8 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       else if (s.tool === "route") outputOf.set(s.id, { type: "object", properties: {} });
       else if (typeof s.tool === "string" && s.tool.startsWith("human:")) {
         const bound = resolveReference(String(s.binds ?? ""), s.id);
-        outputOf.set(s.id, { type: "object", required: ["bound", "option"], properties: { bound: bound ?? { type: "unknown" }, option: { type: "string" } } });
+        outputOf.set(s.id, { type: "object", required: ["bound", "option"], properties: { bound: bound ?? { type: "unknown" }, option: { type: "string" },
+          thread_reference: { type: "string" }, destination_binding: { type: "string" }, message_id: { type: "string" } } });
       } else if (typeof s.tool === "string" && (s.tool.startsWith("oregano:") || s.tool.startsWith("company:"))) { err(f, `${s.id}: unknown Tool ${s.tool}`); outputOf.set(s.id, { type: "object" }); }
       else { err(f, `${s.id}: unknown step kind ${JSON.stringify(s.tool)}`); outputOf.set(s.id, { type: "object" }); }
       if (s.for_each && outputOf.has(s.id)) outputOf.set(s.id, {
@@ -471,6 +475,9 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         for (const value of [s.thread ?? data.defaults?.thread, s.destination ?? data.defaults?.destination, s.recipient]) {
           if (value !== undefined) validateInput(value, { type: "string", minLength: 1 }, s.id, itemSchema);
         }
+        const threadSource = steps.find((entry: any) => typeof entry.tool === "string" && entry.tool.startsWith("human:") && s.thread === `$steps.${entry.id}.thread_reference`);
+        if (!s.message && threadSource && (!decisionRoot(threadSource) || s.for_each || JSON.stringify(s.recipient) !== JSON.stringify(threadSource.recipient)))
+          err(f, `${s.id}: a reply in a decision thread requires a private root decision with the same explicit recipient`);
         if (m.template) {
           const match = String(m.template).match(/^([a-z][a-z0-9-]*)\/([a-z][a-z0-9-]*\.md)$/);
           const path = match ? `${data.owner}/skills/${match[1]}/assets/${match[2]}` : "";
@@ -533,7 +540,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         validateInput(s.from, { type: "string" }, s.id);
         const match = /^\$steps\.([a-z][a-z0-9-]*)\.thread_reference$/.exec(s.from ?? "");
         const source = steps.find((candidate: any) => candidate.id === match?.[1]);
-        if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each) err(f, `${s.id}: collect requires a prior private root message with one explicit recipient`);
+        if (!source || !(source.tool === "oregano:communications/publish" ? source.recipient && !source.thread && !source.for_each : decisionRoot(source))) err(f, `${s.id}: collect requires a prior private root message with one explicit recipient`);
         const checkReferences = (value: any): void => { if (typeof value === "string" && value.startsWith("$")) resolveReference(value, s.id); else if (value && typeof value === "object") Object.values(value).forEach(checkReferences); };
         checkReferences(s.context);
         if (s.validate !== undefined) {
@@ -558,6 +565,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
           if (!source || source.tool !== "oregano:communications/publish" || !source.recipient || source.thread || source.for_each || !s.recipient || JSON.stringify(source.recipient) !== JSON.stringify(s.recipient) || !s.labels)
             err(f, `${s.id}: threaded decision requires controls and a prior private root publication to the same explicit recipient`);
         }
+        if (s.title !== undefined && (typeof s.title !== "string" || !s.labels || !/^[^\p{Cc}]{1,150}$/u.test(s.title))) err(f, `${s.id}: decision title requires bounded single-line text and decision labels`);
         if (s.review_format !== undefined && (s.review_format !== "message" || !s.message || !s.labels)) err(f, `${s.id}: message-only review requires a complete message template and decision labels`);
         if (s.tool === "human:subject" && !s.recipient) err(f, `${s.id}: subject confirmation requires one exact recipient`);
         if (!s.binds) err(f, `${s.id}: decision needs binds:`);
@@ -639,7 +647,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
   else if (step.tool === "agent") allowed.push("context", "instructions", "skills", "profile", "task", "tools", "output_schema", "validate", "budget");
   else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout", "validate");
   else if (step.tool === "wait") allowed.push("for");
-  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format"];
+  else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format", "title"];
   else if (step.tool === "oregano:communications/publish") allowed.push("template", "vars", "destination", "recipient", "thread", "for_each");
   else {
     allowed.push("input", "for_each");

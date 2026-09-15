@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -103,7 +103,7 @@ use the full live prompt and announce success at this earlier checkpoint.
 | Source and review | GitHub | Publish one checked operating initial commit under the setup decision and attempt hosted protection |
 | Runtime hosting | Vercel Pro or Enterprise | Detect the selected team's plan before creating hosted resources, then verify the Next.js root `packages/runner-vercel`, include source files outside that root, bind environment values, deploy, and verify health |
 | Durable state | Neon/Postgres through Vercel Marketplace | Create a dedicated resource without pulling credentials to disk; prepare and qualify CompanyOS schemas through the runtime's secret environment |
-| Communication | Slack through Vercel Connect | Use `slack/oregano`, attach `/api/webhooks/slack`, resolve the consenting human, and verify a persisted model-backed round trip |
+| Communication | Slack through Vercel Connect | Use `slack/oregano`, attach `/api/webhooks/slack`, require the bot permissions to post and read recent messages (`chat:write`, `channels:history`, `groups:history`, `im:history`, `users:read`), resolve the consenting human, and verify a persisted model-backed round trip |
 | Model execution | Separate model recipe | Bind the exact route and model; request a Sensitive provider credential only for routes that require one |
 
 The Neon phase currently links the resource to production, preview, and
