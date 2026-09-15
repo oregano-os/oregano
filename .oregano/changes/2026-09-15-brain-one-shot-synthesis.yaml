@@ -1,0 +1,73 @@
+version: 3
+plan_id: brain-one-shot-synthesis-2026-09-15
+created: 2026-09-15
+title: Bound meeting synthesis to one model call before deterministic Brain writes
+objective: Prefetch relevant current Brain pages, synthesize one meeting source into
+  a structured multi-page proposal with one tool-free reasoning/deep generation,
+  validate provenance and page structure, persist through the standard Brain
+  operation and verify exact saved Markdown. Fall back before effects when the
+  source or output exceeds the safe bound. Decode literal control characters
+  inside JSON strings without changing their Markdown value; keep all other
+  schema and source checks strict before writing.
+non_goals:
+  - Introduce company-specific names, tags, filing values or provider credentials
+    into Core.
+  - Write raw provider payloads to Markdown or treat model observations as
+    independent factual verification.
+  - Increase the transcript cohort beyond the consuming Workspace selection.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-one-shot-synthesis.yaml
+  - packages/blueprints/brain/workflows/brain-import.md
+  - packages/blueprints/brain/agent-instructions.md
+  - packages/cli/content/templates/brain-import/**
+  - packages/language/contracts.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runtime/companyos-runtime.ts
+  - scripts/materialize-brain-workflow.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/testkit/tests/language-attempts.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/reference-runtime.test.ts
+  - docs/specifications/brain-import.md
+  - docs/specifications/brain-read.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/testkit/tests/language-attempts.test.ts
+  - packages/testkit/tests/language-generation.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+architecture:
+  placement:
+    core: Generic bounded retrieval, structured-output validation, source-version
+      idempotency, ordinary Brain writes and saved-page read-back.
+    packages: Declarative operator Workflow and restricted Workbench Tool templates.
+    workspace: Reviewed perspective, directories, filing tags, source selection,
+      model bindings, grants and quality evaluation.
+    instance: Provider originals, participant metadata, model credentials,
+      admitted source versions and effect receipts.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse existing entity/recall/remember operations, expected hashes,
+        Git synchronization and indexed read-back.
+    - mechanism: model-recipe-resolver
+      reason: Generate a multi-page JSON proposal in one no-Tool call with the
+        selected reasoning/deep recipe; increase only the output character cap
+        while preserving the 12000 output-token host ceiling. Honor the
+        Workspace's bounded model timeout up to 120 seconds.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Fall back to a bounded Agent before any write when input or output
+        cannot pass the one-shot contract; retain exact source-version history.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: All source values and page vocabulary arrive from the owning
+    Workspace or authenticated Instance. Public fixtures are synthetic.
+rollback: Restore the prior Workflow template and Workspace adoption without
+  deleting completed source-version, Git or model-attempt receipts.

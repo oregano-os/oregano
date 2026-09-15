@@ -15,6 +15,7 @@ input_schema:
     - gate
     - history
     - directories
+    - processing_instant
   properties:
     prepared:
       type: object
@@ -24,6 +25,10 @@ input_schema:
       type: object
     directories:
       type: object
+    processing_instant:
+      type: string
+      minLength: 1
+      maxLength: 40
 output_schema:
   type: object
   additionalProperties: false

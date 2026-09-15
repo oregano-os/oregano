@@ -50,8 +50,8 @@ export class CompanyOSRuntime {
     workflowContext?: WorkflowContextReader;
   }) {
     if (args.toolExecutionTimeoutMs !== undefined && (!Number.isInteger(args.toolExecutionTimeoutMs)
-      || args.toolExecutionTimeoutMs < 100 || args.toolExecutionTimeoutMs > 120_000)) {
-      throw new Error("Tool execution timeout must be an integer from 100 to 120000 ms.");
+      || args.toolExecutionTimeoutMs < 100 || args.toolExecutionTimeoutMs > 180_000)) {
+      throw new Error("Tool execution timeout must be an integer from 100 to 180000 ms.");
     }
     this.#artifact = structuredClone(args.artifact);
     if (this.#artifact.workflows?.length) assertWorkflowArtifact(this.#artifact);
@@ -306,7 +306,7 @@ export class CompanyOSRuntime {
           },
           allowedCapabilities: tool.contract.capabilities,
           ...(this.#toolExecutionTimeoutMs === undefined
-            ? (standardBrainWriteCapability(tool) ? { timeoutMs: 120_000 }
+            ? (standardBrainWriteCapability(tool) ? { timeoutMs: tool.contract.capabilities.includes("language.generate") ? 180_000 : 120_000 }
               : tool.contract.capabilities.some(capability => capability === "language.generate" || capability === "brain.synthesize") ? { timeoutMs: LANGUAGE_TOOL_TIMEOUT_MS } : {})
             : { timeoutMs: this.#toolExecutionTimeoutMs }),
           invokeCapability: async (capability, input) => {

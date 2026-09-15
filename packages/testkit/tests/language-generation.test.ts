@@ -44,7 +44,7 @@ test("generation denies caller model/prompt authority, foreign actors and oversi
 
 test("model failures and invalid outputs never produce a successful substitute", async () => {
   for (const generate of [async () => { throw new Error("Unavailable model"); }, async () => ({ text: " ", evidence: {} }),
-    async () => ({ text: "x".repeat(20_001), evidence: {} })]) {
+    async () => ({ text: "x".repeat(60_001), evidence: {} })]) {
     const connector = new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path }], generate });
     await assert.rejects(connector.invoke("language.generate", input, context));
   }

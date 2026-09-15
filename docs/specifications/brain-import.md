@@ -23,16 +23,53 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 ## Reusable authoring assets
 
-`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its ten-step
-operator Workflow retains complete source/triage coverage, then assigns one durable
-tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
-knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its
+thirteen-step operator Workflow retains complete source/triage coverage, then
+prefetches bounded current Brain pages and resolves source-named participants
+through exact or alias-aware `brain.entity` reads for a meeting source. Ambiguous
+participant names fall back before generation rather than being guessed. One tool-free
+reasoning/deep generation proposes complete meeting and entity Markdown pages in
+a source-scoped JSON result. A restricted R1 Tool rejects mismatched source
+identity, duplicate/unsafe page paths, missing source links, absent meeting
+sections and attendee Timeline backlinks before calling the standard
+`brain.remember` operation. If the model emitted literal control characters
+inside JSON strings, the host escapes only those characters for JSON decoding;
+the decoded Markdown remains identical and the correction is recorded as an
+import gap. Other invalid JSON and page proposals still fail before effects.
+The Tool then reads each saved page through
+`brain.entity` and compares the exact Markdown. The Tool retains Git/index
+receipts and marks semantic checks that cannot be proven deterministically as
+flagged uncertainty; a model observation alone is not a passed saved-page check.
+Exact and labeled Wiki links are accepted because both resolve to the same Brain
+slug. Proposed blockquotes are checked against contiguous text in the retained
+original: unsupported quotes are removed before the write, and the count is
+recorded as a gap. The saved quote check therefore covers only retained verbatim
+spans, not the model's claim that all proposed quotes were accurate.
+For a newly created page only, the host may attach the exact retained source
+reference when the proposal omitted it, and it cites new Timeline bullets from
+that sole source. An update still requires the proposal to preserve prior
+sources and cite the current source itself. Missing model explanations for
+V1–V6 are recorded as uncertainty, while only structural V1/V2/V4 checks can
+become passed after the saved Markdown is read back.
+
+Oversized sources, incomplete retrieval, split meetings and invalid one-shot
+proposals route to a continuing Agent before a write. That fallback has twelve
+turns and 48 Tool calls, rather than the former 48 turns and 192 calls; its
+normal completion checker still requires saved-page verification. A write or
+read-back failure after an attempted Brain effect fails closed and retains its
+stable operation key for reconciliation. The one-shot path does not silently
+start another paid generation or write after an uncertain effect.
+The tool-free generator honors an explicitly selected model timeout up to 120
+seconds; a language-only Company Tool has a 150-second execution ceiling and a
+Company Tool that combines generation with a standard Brain write has 180
+seconds. This leaves time for Git/index receipts and read-back inside the
+five-minute Workflow lease. The owning Workspace keeps shorter utility limits.
 There is no whole-import draft gate before the first write. Each operation retains
 normal Core validation, expected revisions, Git receipts and index reconciliation. Completion feedback lists missing saved-page reads together, rejects unresolved
 links reported by the index, and distinguishes person/company Timeline backlinks
 from ordinary references to other meetings or evidence pages. These checks run
 after writes and do not create a whole-import pre-write gate.
-Eight selected restricted Company Tools prepare source context, apply common triage,
+Ten selected restricted Company Tools prepare source context, apply common triage,
 read exact source Records and their history, validate completion and record outcomes. Historical phase Tool
 templates remain available for retained definitions. Executable code stays outside
 the Blueprint under the Workbench template tree.
@@ -45,9 +82,19 @@ segment size, triage calibration and source-history start. No company quantity,
 date, value threshold, account, model provider or directory vocabulary is a
 Core default. The helper reuses prompt materialization and the Tool contract
 schemas, verifies template content digests, and rejects inconsistent inputs.
-The result contains the Workflow/configuration, 21 scoped prompt bindings and
-eight restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
+The result contains the Workflow/configuration, 23 scoped prompt bindings and
+ten restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
 and every required Tool without applying a grant.
+
+New meeting and entity proposals include ordinary `type`, `title`, `lang` and
+bounded `tags`. The host stamps `created` for new pages and `updated` at
+processing time; an existing page keeps its original `created` value. Existing
+legacy pages without a trustworthy creation date are not assigned an invented
+date. Meeting `date` comes from the retained source occurrence, not the page
+creation date. The body carries the evidenced summary, decisions/actions/quotes
+and exact internal source links; entity pages preserve existing Timeline history
+and meeting backlinks. Tags improve browsing but are not authority or a
+substitute for provenance.
 
 A consuming Workspace must declare a matching Records projection with `identity`,
 `version`, `kind`, `original_url`, `occurred_at`, `text`, `complete` and preserved
@@ -239,8 +286,9 @@ include its reviewed admission binding; installing Skills alone activates nothin
 
 ## Continuing Agent imports
 
-The `process-source` Agent step has a finite Workspace-reviewed budget (materialized
-starting values: 48 model turns, 192 Tool calls, 12000 output tokens per response).
+The `process-source` Agent fallback has a finite Workspace-reviewed budget
+(materialized starting values: 12 model turns, 48 Tool calls, 12000 output tokens
+per response).
 Actual provider limits may tighten those values. Haiku utility triage is separate;
 the continuing task uses the resolved reasoning/deep profile through ModelRecipe.
 Each paid attempt, including failure or uncertain transport, remains chargeable and
@@ -252,6 +300,12 @@ entity, source-update and verification Skills are delivered in full from compile
 Agent materials, each bounded to 30000 characters. A Skill read grants no Tool or
 provider authority. Full originals remain in task evidence and Records; the host
 never silently truncates them or substitutes a recorder summary.
+The task receives a trusted processing day. Its derived-page guidance requires
+source-grounded tags, creation and update dates, and the original event date for
+meetings. It preserves existing creation metadata and aliases rather than
+inventing values for legacy pages. This guidance also asks for the substantive
+meeting and entity detail supported by the original, while keeping inline
+source evidence, Takes and Timeline history.
 
 The completion validator uses Core-retained calls and receipts, not model-invented
 write claims. It requires each page read after its own last write, source identity and

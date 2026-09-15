@@ -22,19 +22,23 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.deepEqual(input, before, "Materialization does not mutate caller policy");
   const workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
-  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 10);
+  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 13);
+  assert.equal(workflow.steps.find((step: any) => Object.keys(step)[0] === "agent-context")?.input?.processing_instant, "$trigger.instant");
   assert.equal(config.source_projection, "studio-sources"); assert.equal(config.transcripts.max_transcripts, 4);
   assert.equal(config.transcripts.meeting_date.start_at, "2025-12-31T23:00:00.000Z");
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
   assert.deepEqual(config.triage, input.triage); assert.equal(config.page_directories.concept, "topics");
   const tools = result.report.requirements.tools.filter(id => id.startsWith("company:"));
-  assert.equal(tools.length, 8);
+  assert.equal(tools.length, 10);
   for (const id of tools) {
     const tool = loadCompanyTool(result.materials, "analyst", id.slice(8));
-    assert.equal(tool.contract.agentId, "analyst"); assert.equal(tool.contract.risk, "R0");
-    assert.ok(tool.contract.capabilities.every(capability => ["language.generate", "evidence.query", "records.query"].includes(capability)));
+    assert.equal(tool.contract.agentId, "analyst"); assert.equal(tool.contract.risk, id === "company:brain-one-shot" ? "R1" : "R0");
+    assert.ok(tool.contract.capabilities.every(capability => ["language.generate", "evidence.query", "records.query", "brain.recall", "brain.entity", "brain.remember"].includes(capability)));
   }
-  assert.equal(result.prompts.length, 21);
+  assert.equal(result.prompts.length, 23);
+  assert.equal(config.agent.budget.turns, 12);
+  assert.equal(config.prompts.one_shot.deep, "agents/analyst/skills/brain-one-shot-deep/SKILL.md");
+  assert.match(result.materials["agents/analyst/skills/brain-task/SKILL.md"], /trusted `processing_day`/);
   assert.equal(result.report.activated, false); assert.equal(result.report.grants_applied, false);
   assert.equal(result.report.provider_bindings_applied, false); assert.equal(result.report.admission_created, false);
   assert.ok(Object.keys(result.materials).every(path => /^(agents\/analyst\/|workflows\/brain-import)/.test(path)));
@@ -58,6 +62,89 @@ test("another company can change vocabulary and the history window without alter
   for (const [path, text] of Object.entries(first.materials).filter(([path]) => path.includes("/tools/"))) {
     assert.equal(next.materials[path.replace("agents/analyst/", "agents/researcher/")], text, "Generic Tool code has no company substitution");
   }
+});
+
+test("one-shot meeting synthesis makes one model call, writes through Brain and verifies Markdown", async () => {
+  const result = materializeBrainWorkflow(input), tool = loadCompanyTool(result.materials, "analyst", "brain-one-shot");
+  const revision = { git_commit: "a".repeat(40), configuration_digest: "b".repeat(64), generation: "g", sequence: 1, indexed_at: "2030-01-02T00:00:00Z" };
+  const sourceSlug = "sources/import-example", meetingSlug = "meetings/example", personSlug = "people/alex";
+  const source = { identity: "source:example", version: "v1", kind: "meeting", occurred_at: "2030-01-01T12:00:00Z",
+    original_url: "https://example.invalid/meeting", context: { participants: ["Alex"] } };
+  const evidence = { slug: sourceSlug, markdown: "---\ntype: source\ntitle: Example source\nsource_identity: source:example\nsource_version: v1\n---\n\n[Original source](https://example.invalid/meeting)\n" };
+  const task = { source, evidence, original_text: "Alex discussed a first design goal. No decision or action was recorded.",
+    triage: { route: "reasoning", coverage_complete: true, items: [{ classification: { one_line_summary: "First design goal" } }] },
+    prior: { requests: [] }, directories: { source: "sources", meeting: "meetings", person: "people", company: "companies", concept: "topics" } };
+  const proposal = { source_identity: source.identity, source_version: source.version,
+    pages: [
+      { slug: meetingSlug, markdown: "---\ntype: meeting\ntitle: Design goal\nlang: en\ntags: [meeting, design]\n---\n\n## Summary\nAlex discussed the goal. [[" + sourceSlug + "|original]] [[" + personSlug + "|Alex]]\n## Key Decisions\nNone evidenced.\n## Action Items\nNone evidenced.\n## Notable Quotes\n> \"Alex discussed a first design goal.\" — Alex\n> \"An invented quote.\" — Alex\n" },
+      { slug: personSlug, markdown: "---\ntype: person\ntitle: Alex\nlang: en\naliases: [Alex]\n---\n\nAlex discussed a goal. [[" + sourceSlug + "|original]]\n<!-- timeline -->\n- Discussed the goal in [[" + meetingSlug + "|meeting]] [[" + sourceSlug + "|original]]\n" },
+    ], meetings: [{ slug: meetingSlug, attendees: [personSlug], entities: [] }],
+    verification: ["V1", "V2", "V3", "V4", "V5", "V6"].map(check => ({ check, status: "passed", detail: "Synthetic source evidence." })), gaps: [] };
+  let modelCalls = 0, writeCalls = 0;
+  const saved = new Map<string, string>();
+  const run = (modelText: string) => executeIsolatedCompanyTool({ compiledSource: tool.compiledSource,
+    input: { task, route: "reasoning", prompt_paths: { reasoning: "agents/analyst/skills/brain-one-shot-reasoning/SKILL.md",
+      deep: "agents/analyst/skills/brain-one-shot-deep/SKILL.md" }, processing_instant: "2030-01-02T10:00:00Z" },
+    context: { instanceId: "synthetic", runId: "workflow:" + "c".repeat(64), stepId: "synthesize-source", agentId: "analyst", toolId: tool.contract.runtimeId },
+    allowedCapabilities: ["brain.entity", "brain.recall", "language.generate", "brain.remember"],
+    invokeCapability: async (capability, raw) => {
+      const value = raw as any;
+      if (capability === "brain.entity") {
+        const markdown = saved.get(value.name);
+        return markdown ? { found: true, status: "found", page: { slug: value.name, type: value.name.split("/")[0] === "meetings" ? "meeting" : value.name.split("/")[0] === "people" ? "person" : "source",
+          markdown, content_hash: "d".repeat(64) }, indexed_revision: revision }
+          : { found: false, status: "not_found", candidates: [], indexed_revision: revision };
+      }
+      if (capability === "brain.recall") return { hits: [], status: "ok", indexed_revision: revision };
+      if (capability === "language.generate") {
+        assert.deepEqual(value.data.participant_resolution, [{ name: "Alex", status: "not_found", slug: null }]);
+        modelCalls++; return { text: modelText };
+      }
+      if (capability === "brain.remember") {
+        writeCalls++;
+        for (const page of value.changes.pages) saved.set(page.path.slice(6, -3), page.markdown);
+        return { status: "saved", sync_status: "indexed", saved_commit: "e".repeat(40), indexed_revision: revision,
+          changed_paths: value.changes.pages.map((page: any) => page.path) };
+      }
+      throw Error("Unexpected capability");
+    } }) as Promise<any>;
+  const output = await run(JSON.stringify(proposal));
+  assert.equal(output.route, "one-shot"); assert.equal(modelCalls, 1); assert.equal(writeCalls, 1);
+  assert.equal(output.outcome.pages.length, 3);
+  assert.match(saved.get(meetingSlug)!, /date: 2030-01-01/);
+  assert.match(saved.get(meetingSlug)!, /created: 2030-01-02/);
+  assert.match(saved.get(meetingSlug)!, /> Alex discussed a first design goal\./);
+  assert.doesNotMatch(saved.get(meetingSlug)!, /An invented quote/);
+  assert.match(output.outcome.gaps.at(-1), /Removed 1 proposed non-verbatim blockquote/);
+  assert.match(saved.get(personSlug)!, /tags: \[person\]/);
+  saved.clear();
+  const repairable = structuredClone(proposal);
+  repairable.pages[1].markdown = repairable.pages[1].markdown.replaceAll("[[" + sourceSlug + "|original]]", "");
+  delete (repairable.verification[4] as any).detail;
+  const repaired = await run(JSON.stringify(repairable));
+  assert.equal(repaired.route, "one-shot"); assert.equal(writeCalls, 2);
+  assert.match(saved.get(personSlug)!, /Source: \[\[sources\/import-example\]\]/);
+  assert.match(saved.get(personSlug)!.split("<!-- timeline -->")[1], /\[\[sources\/import-example\]\]/);
+  assert.match(repaired.outcome.gaps.at(-1), /model omitted 1 verification explanation/);
+  const rejected = await run(JSON.stringify({ ...proposal, source_version: "wrong" }));
+  assert.equal(rejected.route, "agent"); assert.equal(writeCalls, 2, "Invalid model output cannot write");
+  saved.clear();
+  task.original_text = task.original_text.padEnd(120_000, " ");
+  const longSource = await run(JSON.stringify(proposal));
+  assert.equal(longSource.route, "one-shot"); assert.equal(modelCalls, 4, "A bounded long source still uses one synthesis call");
+  const literalControl = JSON.stringify(proposal).replace("\\n\\n## Summary", "\n\n## Summary");
+  assert.notEqual(literalControl, JSON.stringify(proposal));
+  const recovered = await run(literalControl);
+  assert.equal(recovered.route, "one-shot"); assert.equal(modelCalls, 5);
+  assert.ok(recovered.outcome.gaps.some((gap: string) => /Escaped 2 literal JSON control character/.test(gap)));
+  assert.equal(saved.get(meetingSlug)!.includes("## Summary\nAlex discussed"), true, "Decoded Markdown remains unchanged");
+  task.original_text = task.original_text.padEnd(130_001, " ");
+  const tooLong = await run(JSON.stringify(proposal));
+  assert.equal(tooLong.route, "agent"); assert.equal(modelCalls, 5, "An oversized source falls back before a paid call");
+  task.original_text = "Alex discussed a first design goal. No decision or action was recorded.";
+  task.source.context.participants = Array.from({ length: 9 }, (_, index) => "Person " + index);
+  const oversized = await run(JSON.stringify(proposal));
+  assert.equal(oversized.route, "agent"); assert.equal(modelCalls, 5, "Unbounded participants cannot trigger a paid one-shot call");
 });
 
 test("missing, inconsistent, unsafe and unbounded company inputs fail before adoption", () => {
