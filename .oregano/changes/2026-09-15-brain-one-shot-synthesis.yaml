@@ -20,6 +20,8 @@ files_expected:
   - packages/blueprints/brain/workflows/brain-import.md
   - packages/cli/content/templates/brain-import/**
   - packages/language/contracts.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runtime/companyos-runtime.ts
   - scripts/materialize-brain-workflow.ts
   - packages/testkit/tests/brain-workflow-materialization.test.ts
   - packages/testkit/tests/language-attempts.test.ts
@@ -52,7 +54,8 @@ architecture:
     - mechanism: model-recipe-resolver
       reason: Generate a multi-page JSON proposal in one no-Tool call with the
         selected reasoning/deep recipe; increase only the output character cap
-        while preserving the 12000 output-token host ceiling.
+        while preserving the 12000 output-token host ceiling. Honor the
+        Workspace's bounded model timeout up to 120 seconds.
     - mechanism: approvals-effects-and-idempotency
       reason: Fall back to a bounded Agent before any write when input or output
         cannot pass the one-shot contract; retain exact source-version history.

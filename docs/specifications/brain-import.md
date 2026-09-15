@@ -44,6 +44,11 @@ normal completion checker still requires saved-page verification. A write or
 read-back failure after an attempted Brain effect fails closed and retains its
 stable operation key for reconciliation. The one-shot path does not silently
 start another paid generation or write after an uncertain effect.
+The tool-free generator honors an explicitly selected model timeout up to 120
+seconds; a language-only Company Tool has a 150-second execution ceiling and a
+Company Tool that combines generation with a standard Brain write has 180
+seconds. This leaves time for Git/index receipts and read-back inside the
+five-minute Workflow lease. The owning Workspace keeps shorter utility limits.
 There is no whole-import draft gate before the first write. Each operation retains
 normal Core validation, expected revisions, Git receipts and index reconciliation. Completion feedback lists missing saved-page reads together, rejects unresolved
 links reported by the index, and distinguishes person/company Timeline backlinks

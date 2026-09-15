@@ -44,7 +44,7 @@ export function createLanguageGenerator(dependencies: {
     reasoning: "low",
     maxOutputTokens: Math.min(execution.selection.maxOutputTokens ?? 2_500, 12_000),
     maxRetries: 0,
-    abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 55_000, 55_000)),
+    abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 55_000, 120_000)),
   }); } catch {
     throw new LanguageGenerationError("Language provider outcome is unavailable", "provider-error", {
       model_execution: modelExecutionEvidence(execution.selection, { response: { id: "", modelId: "" }, usage: {} }),
