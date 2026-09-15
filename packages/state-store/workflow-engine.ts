@@ -132,7 +132,7 @@ export interface WorkflowStateCommit {
 }
 export interface WorkflowExecutionStore {
   /** Bounded retained history ordered by logical occurrence, not the hashed run ID. */
-  history(args: { instanceId: string; workflowIds: string[]; from: string; to: string; excludeRunId?: string; limit: number }): Promise<WorkflowRun[]>;
+  history(args: { instanceId: string; workflowIds: string[]; from: string; to: string; excludeRunId?: string; matchFields?: Record<string, string>; limit: number }): Promise<WorkflowRun[]>;
   putArtifact(artifact: CompanyOSArtifact): Promise<void>;
   getArtifact(hash: string): Promise<CompanyOSArtifact | undefined>;
   /** Creates control metadata and the execution record together; an opening event cannot select new inputs on redelivery. */

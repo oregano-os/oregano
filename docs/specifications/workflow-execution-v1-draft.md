@@ -819,3 +819,12 @@ non-transcript admission proof. They never allocate, refill, or change transcrip
 cohort slots. Unknown versions and overlap with any admitted transcript fail
 closed. This is a finite selection, not a channel wildcard or an automatic
 expansion policy. Earlier completed source versions remain deduplicated.
+
+
+Historical Evidence Workflow queries may include `match_fields` for one selected
+Workflow and at most four exact declared instance-key values. The store applies
+the predicate before ordering and the result limit; the Connector independently
+checks every returned identity. Unknown/non-key fields and cross-kind use fail.
+Current Agent, Workflow, group, time-window, payload and result bounds remain
+unchanged. This reads existing run history; it does not create a source-progress
+registry, infer outcomes or reset effects.

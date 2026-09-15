@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { neon } from "@neondatabase/serverless";
 import { createPostgresWorkflowExecutionStore } from "../../state-postgres/workflow-store.ts";
 import { createPostgresStateStore } from "../../state-postgres/store.ts";
-import { workflowAssignmentKey, workflowPublicationKey, workflowOriginDigest } from "../../runtime/workflow-engine/state-validation.ts";
+import { workflowAssignmentKey, workflowPublicationKey, workflowOriginDigest, workflowRunId } from "../../runtime/workflow-engine/state-validation.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 import { CompanyOSRuntime } from "../../runtime/companyos-runtime.ts";
 import type { WorkflowInvocationContext } from "../../runtime/workflow-engine/context.ts";
@@ -14,8 +14,9 @@ import { createPostgresDurableTimerStore } from "../../state-postgres/durable-ti
 
 const enabled = process.env.RUN_DATABASE_TESTS === "1";
 if (process.env.COMPANYOS_REQUIRE_DATABASE_TESTS === "1" && (!enabled || !process.env.DATABASE_URL)) throw new Error("Required database configuration is missing.");
-const fixture = async () => {
+const fixture = async (fields?: Record<string, string>) => {
   const args = workflowStateFixture(), store = createPostgresWorkflowExecutionStore(), control = createPostgresStateStore();
+  if (fields) { Object.assign(args.identity.fields, fields); args.identity.runId = workflowRunId(args.identity); args.identity.originDigest = workflowOriginDigest(args.identity); args.meta.runId = args.identity.runId; }
   await store.putArtifact(args.artifact); const run = await store.create(args);
   return { args, store, control, run };
 };
@@ -238,10 +239,13 @@ test("Postgres retains parent conversation and separate review notices across re
 
 
 test("Postgres evidence history is bounded, chronological, scoped and excludes the current run", { skip: !enabled }, async () => {
-  const { args, store, run } = await fixture();
-  const query = { instanceId: run.instanceId, workflowIds: [run.workflowId], from: "2030-01-01T00:00:00.000Z", to: now, limit: 101 };
+  const { args, store, run } = await fixture({ sprint_id: `history-${randomUUID()}` });
+  const query = { instanceId: run.instanceId, workflowIds: [run.workflowId], from: "2030-01-01T00:00:00.000Z", to: now, limit: 101, matchFields: { sprint_id: run.fields.sprint_id! } };
   const rows = await store.history(query);
   assert.ok(rows.some(row => row.runId === run.runId));
+  const filtered = await createPostgresWorkflowExecutionStore().history({ ...query, matchFields: { sprint_id: run.fields.sprint_id! } });
+  assert.ok(filtered.some(row => row.runId === run.runId)); assert.ok(filtered.every(row => row.fields.sprint_id === run.fields.sprint_id));
+  assert.deepEqual(await store.history({ ...query, matchFields: { sprint_id: "never-matched-synthetic-period" } }), []);
   assert.equal((await store.history({ ...query, excludeRunId: run.runId })).some(row => row.runId === run.runId), false);
   assert.deepEqual(await store.history({ ...query, instanceId: "foreign" }), []);
   assert.deepEqual(await store.history({ ...query, workflowIds: ["foreign"] }), []);

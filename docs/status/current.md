@@ -1400,3 +1400,12 @@ be combined with this mode. The exact result is capped at 2,500,000 serialized
 characters without truncation. Consumers must retain the earlier row version ID;
 a provider's own content hash is a distinct value. Current source access changes
 and binding generations remain effective for historical reads.
+
+
+Historical Evidence Workflow queries may include `match_fields` for one selected
+Workflow and at most four exact declared instance-key values. The store applies
+the predicate before ordering and the result limit; the Connector independently
+checks every returned identity. Unknown/non-key fields and cross-kind use fail.
+Current Agent, Workflow, group, time-window, payload and result bounds remain
+unchanged. This reads existing run history; it does not create a source-progress
+registry, infer outcomes or reset effects.

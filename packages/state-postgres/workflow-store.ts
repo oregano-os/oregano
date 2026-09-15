@@ -106,6 +106,7 @@ export function createPostgresWorkflowExecutionStore(options: { prepareArtifactS
       const rows = await connection()`select * from companyos.workflow_executions
         where instance_id = ${scoped(args.instanceId)}
         and workflow_id in (select jsonb_array_elements_text(${JSON.stringify(args.workflowIds)}::jsonb))
+        and (identity_json->'fields') @> ${JSON.stringify(args.matchFields ?? {})}::jsonb
         and (identity_json->'trigger'->>'instant')::timestamptz > ${args.from}::timestamptz
         and (identity_json->'trigger'->>'instant')::timestamptz <= ${args.to}::timestamptz
         and (${args.excludeRunId ?? null}::text is null or run_id <> ${args.excludeRunId ?? null})

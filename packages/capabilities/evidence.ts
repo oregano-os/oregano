@@ -9,6 +9,8 @@ export const EVIDENCE_QUERY_INPUT: JsonSchema = {
     references: { type: "array", minItems: 1, maxItems: 10, uniqueItems: true, items: text },
     from: { ...text, format: "date-time" }, to: { ...text, format: "date-time" },
     limit: { type: "integer", minimum: 1, maximum: 100 },
+    match_fields: { type: "object", minProperties: 1, maxProperties: 4, additionalProperties: false,
+      patternProperties: { "^[a-z][a-z0-9_-]{0,62}$": { type: "string", minLength: 1, maxLength: 1000 } } },
     step_ids: { type: "array", minItems: 1, maxItems: 20, uniqueItems: true, items: text },
     include_linked_builds: { type: "boolean" },
   },
@@ -43,6 +45,8 @@ export interface EvidenceQuery {
   from: string;
   to: string;
   limit?: number;
+  /** Exact declared instance-key values; only for one selected Workflow. */
+  match_fields?: Record<string, string>;
   step_ids?: string[];
   include_linked_builds?: boolean;
 }

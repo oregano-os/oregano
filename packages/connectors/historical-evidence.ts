@@ -62,6 +62,11 @@ export class HistoricalEvidenceConnector implements Connector {
       || Date.parse(input.from) < cutoff - scope.max_history_days * 86_400_000) throw new Error("Evidence query exceeds the trusted invocation time window");
     const allowed = input.kind === "workflows" ? scope.workflow_ids : input.kind === "records" ? scope.source_ids : scope.paths;
     if (input.references.some(id => !allowed.includes(id))) throw new Error("Evidence reference is outside the current read scope");
+    if (input.match_fields) {
+      const selected = artifact.workflows?.find(workflow => workflow.id === input.references[0]);
+      if (input.kind !== "workflows" || input.references.length !== 1 || !selected
+        || Object.keys(input.match_fields).some(key => !selected.instance.key.includes(key))) throw new Error("Evidence field filters require exact declared keys of one Workflow");
+    }
     const items: Record<string, unknown>[] = [], limitations: string[] = [];
     let complete = true;
     const gap = (reason: string) => { complete = false; if (!limitations.includes(reason)) limitations.push(reason); };
@@ -88,9 +93,10 @@ export class HistoricalEvidenceConnector implements Connector {
       const jobs = input.include_linked_builds ? await this.#args.builders?.listForRequester(artifact.instance.id, context.subject.principalId) : [];
       if (jobs?.length === 30) gap("builder-history-truncated");
       const runs = await workflows.history({ instanceId: artifact.instance.id, workflowIds: input.references,
-        from: input.from, to: input.to, excludeRunId: context.runId, limit: limit + 1 });
+        from: input.from, to: input.to, excludeRunId: context.runId, matchFields: input.match_fields, limit: limit + 1 });
       for (const run of runs) {
         if (run.instanceId !== artifact.instance.id || !input.references.includes(run.workflowId) || run.runId === context.runId
+          || Object.entries(input.match_fields ?? {}).some(([key, value]) => !Object.hasOwn(run.fields, key) || run.fields[key] !== value)
           || Date.parse(run.trigger.instant) <= Date.parse(input.from) || Date.parse(run.trigger.instant) > Date.parse(input.to)) throw new Error("Workflow history escaped its scope");
         const pinned = await workflows.getArtifact(run.artifactHash);
         const manifest = pinned?.workflows?.find(workflow => workflow.id === run.workflowId);
