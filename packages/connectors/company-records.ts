@@ -34,6 +34,7 @@ export class CompanyRecordsConnector implements Connector {
         fresh_until: result.fresh_until,
         snapshot_id: result.snapshot_id,
         source_proofs: result.source_proofs,
+        ...(result.retained_version_id ? { retained_version_id: result.retained_version_id } : {}),
         ...(result.synced_through ? { synced_through: result.synced_through } : {}),
         ...(result.scan_started_at ? { scan_started_at: result.scan_started_at, source_scan_proofs: result.source_scan_proofs } : {}),
         access_decision: result.access_decision,

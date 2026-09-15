@@ -1378,3 +1378,25 @@ non-transcript admission proof. They never allocate, refill, or change transcrip
 cohort slots. Unknown versions and overlap with any admitted transcript fail
 closed. This is a finite selection, not a channel wildcard or an automatic
 expansion policy. Earlier completed source versions remain deduplicated.
+
+
+## Exact retained Record version reads
+
+The existing Records query accepts optional `source_version_id`, the exact
+64-character normalized version ID returned in a prior row. Omission or null
+preserves ordinary current reads. A selected version is read only from the
+current projection's at most 100 contributing source generations, after the
+active subject passes current projection and source access. It uses existing
+immutable version storage and reapplies the current projection's source/type
+selection, field allowlist and filters. It never falls back to another binding,
+Instance, arbitrary provider revision or nearby observation. Missing, deleted or
+nonmatching versions return no rows; invalid provenance or modified immutable
+content fails. No provider call or database migration is involved.
+
+The result marks `retained_version_id`, uses the original observation time and
+sets `fresh_until` to that same time. It provides no source-completeness or
+current-scan proof. Cursor, all-pages and completeness/scan requirements cannot
+be combined with this mode. The exact result is capped at 2,500,000 serialized
+characters without truncation. Consumers must retain the earlier row version ID;
+a provider's own content hash is a distinct value. Current source access changes
+and binding generations remain effective for historical reads.

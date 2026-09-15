@@ -6,6 +6,7 @@ const object = (required: string[], properties: Record<string, JsonSchema>): Jso
 
 export const RECORD_QUERY_INPUT_SCHEMA = object(["projection_id"], {
   projection_id: { type: "string", minLength: 1, maxLength: 63 },
+  source_version_id: { anyOf: [{ type: "string", pattern: "^[a-f0-9]{64}$" }, { type: "null" }] },
   filters: { type: "object", maxProperties: 100 },
   limit: { type: "integer", minimum: 1, maximum: 200 },
   cursor: { type: "string", minLength: 1, maxLength: 1_000 },
@@ -19,6 +20,7 @@ export const RECORD_QUERY_OUTPUT_SCHEMA = object(["projection_id", "rows", "obse
   rows: { type: "array", maxItems: 10_000, items: object(["instance_id", "projection_id", "record_id", "record_type", "source_version_id", "projected_at", "values"], {
     instance_id: text, projection_id: text, record_id: text, record_type: text, source_version_id: text, projected_at: instant, values: { type: "object" },
   }) },
+  retained_version_id: { type: "string", pattern: "^[a-f0-9]{64}$" },
   next_cursor: text,
   observed_at: instant,
   fresh_until: instant,

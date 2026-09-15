@@ -1,0 +1,56 @@
+version: 3
+plan_id: record-version-reads-2026-09-15
+created: 2026-09-15
+title: Read exact retained Record versions through their current projection
+objective: Compare earlier source evidence using an exact immutable Record version without broad history scans or a second source archive.
+non_goals:
+  - Reconstruct complete provider history or assert current source freshness.
+  - Read another Instance, source generation, or unauthorized field.
+placement: core
+change_class: security
+files_expected:
+  - packages/testkit/fixtures/lindenhof-studio/compiler-expectations/friday-close.json
+  - packages/testkit/tests/record-query-postgres.test.ts
+  - .oregano/changes/2026-09-15-record-version-reads.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/records/contracts.ts
+  - packages/records/query-schema.ts
+  - packages/records/service.ts
+  - packages/records/retained-version.ts
+  - packages/connectors/company-records.ts
+  - packages/testkit/tests/record-retained-version.test.ts
+  - docs/specifications/company-records-query-v1.md
+  - docs/operations/workflow-engine.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/record-retained-version.test.ts
+  - packages/testkit/tests/record-query.test.ts
+  - packages/testkit/tests/record-binding-evidence.test.ts
+  - packages/testkit/tests/record-query-postgres.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.company-records-query-v1
+    - operations.workflow-engine
+    - status.current
+architecture:
+  placement:
+    core: Exact immutable version lookup with current source and projection authorization, bounded output and explicit historical-read evidence.
+    packages: Existing records.query Tool and Connector expose the optional version selector.
+    workspace: Retains the normalized source version reference and chooses when an earlier original must be compared.
+    instance: Existing generation-scoped Records tables retain immutable observations; no migration or new provider access.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Reuse getObjectVersion, current declared projection, source generations and filter validation instead of scanning or copying raw history.
+    - mechanism: identity-and-authorization
+      reason: Authorize the active subject against current projection and contributing source groups before reading any version.
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing records.query input and receipt without creating another Tool or direct Workspace storage access.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any company can compare exact previously observed source values while respecting its current fields, projection selection and access scope.
+rollback: Stop supplying retained version selectors and use the preceding compatible Core; keep all retained observations and completed runs.

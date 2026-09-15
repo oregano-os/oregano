@@ -1,3 +1,4 @@
+import { readRetainedRecordVersion } from "./retained-version.ts";
 import type { JsonValue } from "../capabilities/contracts.ts";
 import type { CompanyRecordsStore } from "../state-store/records.ts";
 import type {
@@ -101,6 +102,12 @@ export class CompanyRecordsService {
     const accessDecision = decideProjectionAccess({ projection, subject: args.subject, decidedAt });
     await store.appendAccessDecision(accessDecision);
     if (!accessDecision.allowed) throw new RecordAccessDeniedError(accessDecision);
+    if (args.query.source_version_id !== undefined && args.query.source_version_id !== null) {
+      const retained = await readRetainedRecordVersion({ instanceId, registry, store, ...args });
+      const observedAt = retained.observed_at ?? decidedAt;
+      return { projection_id: projection.id, ...retained, observed_at: observedAt,
+        fresh_until: observedAt, access_decision: accessDecision };
+    }
     const sourceIds = projection.source_ids ?? registry.sourceForRecordType(projection.record_type).map((source) => source.id);
     if (sourceIds.some((sourceId) => registry.source(sourceId).record_type !== projection.record_type)) {
       throw new Error(`Projection '${projection.id}' names a source of another record type`);
