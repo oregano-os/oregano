@@ -49,7 +49,7 @@ export class LanguageModelConnector implements Connector {
     try {
       result = await this.#generate({ instructions: prompt.instructions, data, agentId: context.agentId, modelTask: prompt.modelTask,
         modelProfile: prompt.modelProfile, ...(input.attachments?.length ? { attachments: input.attachments } : {}),
-        ...(attempt ? { beforeDispatch: selection => attempt.dispatch(selection) } : {}) });
+        ...(attempt ? { beforeDispatch: (selection, instructions) => attempt.dispatch(selection, instructions) } : {}) });
     } catch (error) {
       await attempt?.finish(attempt?.dispatched && !(error instanceof LanguageGenerationError && error.kind === "incomplete") ? "unknown" : "failed", {
         ...(error instanceof LanguageGenerationError ? error.evidence : {}), error_digest: languageFailureDigest(error) });

@@ -124,3 +124,14 @@ their native representation. The host checks authorized source, metadata and
 actual bytes, and the native model boundary checks the combined request on each
 step. See [Agent attachments](../operations/agent-attachments.md) for adjustment,
 retention, coding-adapter distinctions and context-limit qualifications.
+
+
+Hosted scoped generation appends a generic reminder to follow the reviewed output
+contract exactly: JSON-only phases emit the JSON value without wrappers or
+commentary; Markdown phases emit the requested document directly. Uncertainty
+stays in permitted fields. The host neither strips malformed responses nor
+changes semantic validation, source scope, model selection or retry limits.
+Before paid dispatch, attempt evidence includes the exact delivered system-prompt digest and character
+count, including both host wrapper and reviewed Skill. Prompt measurements use
+the same assembly function as the actual request. Existing retained Workflow
+Artifacts remain immutable when a compatible host correction is deployed.

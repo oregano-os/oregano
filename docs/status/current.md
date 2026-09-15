@@ -1430,3 +1430,10 @@ Historical Workflow evidence defaults to bounded feedback event reads. An explic
 event log; each run returns `feedback: null` and coverage records
 `feedback-not-requested`. Complete coverage then refers only to the requested
 projection. It never establishes absence of feedback, approvals or provider events.
+
+
+Scoped language generation retains an explicit final output-format reminder and
+records the actual delivered system-instruction digest and length in attempt
+evidence. Strict downstream parsers still reject malformed responses, and
+bounded read repair preserves all prior attempts. Synthetic request checks pass;
+private import model qualification remains separately evidenced.

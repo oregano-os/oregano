@@ -2,7 +2,7 @@ import { readFileSync, lstatSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { LANGUAGE_SYSTEM_PREFIX } from "../packages/language/contracts.ts";
+import { languageSystemInstructions } from "../packages/language/contracts.ts";
 import { MAX_INSTRUCTION_CHARACTERS, type LanguagePromptBinding } from "../packages/language/prompt-binding.ts";
 
 const assetRoot = fileURLToPath(new URL("../packages/blueprints/brain/", import.meta.url));
@@ -91,7 +91,7 @@ export function materializeBrainPrompts(input: BrainPromptInputs, read = readAss
       prompts.push({ agent_id: input.agent_id, path, model_task: variant.task, model_profile: variant.profile,
         max_instruction_characters: instructions.length, conversation_context: false });
       measurements.push({ phase: variant.id, path, sections: phase.sections, instructions: instructions.length,
-        system: instructions.length + LANGUAGE_SYSTEM_PREFIX.length, bytes: Buffer.byteLength(instructions), digest: digest(instructions) });
+        system: languageSystemInstructions(instructions).length, bytes: Buffer.byteLength(instructions), digest: digest(instructions) });
     }
   }
   return { materials, prompts, report: { upstream: adoption.upstream, adoption_digest: digest(manifestText),

@@ -1,3 +1,4 @@
+import type { LanguageInstructionEvidence } from "./contracts.ts";
 import { randomUUID } from "node:crypto";
 import type { StateStore, WorkflowDispatchFence } from "../state-store/interface.ts";
 import type { ModelExecutionSelection } from "../runner/model-execution.ts";
@@ -19,11 +20,14 @@ export class LanguageAttempt {
     if (!await this.store.claimEffect({ idempotencyKey: this.id, runId: this.context.runId, stepId: this.context.stepId, inputHash: this.context.inputHash })) throw new Error("Language attempt identity already exists");
     await this.#event("prepared", { outcome: "prepared" });
   }
-  async dispatch(selection: ModelExecutionSelection) {
+  async dispatch(selection: ModelExecutionSelection, instructions?: LanguageInstructionEvidence) {
+    if (instructions && (Object.keys(instructions).sort().join(",") !== "system_instruction_characters,system_prompt_digest"
+      || !/^[a-f0-9]{64}$/.test(instructions.system_prompt_digest)
+      || !Number.isSafeInteger(instructions.system_instruction_characters) || instructions.system_instruction_characters < 1)) throw new Error("Invalid delivered instruction evidence");
     if (this.#dispatched) throw new Error("Language attempt cannot dispatch twice");
     if (!await this.store.markEffectDispatched(this.id, this.context.fence)) throw new Error("Language attempt dispatch fence is no longer valid");
     this.#dispatched = true;
-    await this.#event("dispatched", { outcome: "dispatched", model_execution: selection });
+    await this.#event("dispatched", { outcome: "dispatched", model_execution: selection, ...instructions });
   }
   async finish(outcome: "succeeded" | "failed" | "unknown", evidence: Record<string, unknown>) {
     const receipt = { ...this.context.evidence, ...evidence, attempt_id: this.id, outcome, dispatched: this.#dispatched };

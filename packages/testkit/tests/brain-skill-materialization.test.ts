@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { materializeBrainPrompts, type BrainPromptInputs } from "../../../scripts/materialize-brain-prompts.ts";
 // @ts-expect-error The maintained Workspace validator is a JavaScript Workbench module.
 import { validateWorkspace } from "../../cli/src/workspace-validator.mjs";
+import { languageSystemInstructions } from "../../language/contracts.ts";
 import { sha256 } from "../../runtime/canonical.ts";
 import { agentInstructions } from "../../runner-vercel/src/lib/agent-instructions.ts";
 import { bindLanguagePrompt } from "../../language/prompt-binding.ts";
@@ -34,7 +35,7 @@ test("static phase materialization includes shared instructions and produces bin
     assert.ok(bound.instructions.lastIndexOf("Phase output contract:") > Math.max(...[...bound.instructions.matchAll(/^#{1,6} /gm)].map(match => match.index)));
     const measurement = result.report.measurements.find(row => row.path === prompt.path)!;
     assert.equal(bound.instructions.length, measurement.instructions);
-    assert.ok(measurement.system > measurement.instructions);
+    assert.equal(measurement.system, languageSystemInstructions(bound.instructions).length);
     assert.equal(prompt.max_instruction_characters, measurement.instructions);
     if (!prompt.path.includes("brain-triage/")) {
       assert.match(bound.instructions, /WHO BELIEVES the claim/);

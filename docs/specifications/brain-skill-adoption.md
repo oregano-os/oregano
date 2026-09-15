@@ -59,7 +59,7 @@ rules. Meeting phases also carry the complete meeting contract. The entity
 phase includes claim verification and the applicable enrichment procedure.
 
 The synthetic default mapping measures 24,995 instruction units for the largest
-phase, or 25,184 with the unchanged host wrapper. Materialized Skills include
+phase, before adding the measured host wrapper. Materialized Skills include
 valid YAML frontmatter and pass the ordinary Workspace Markdown validator. Each phase also carries its
 bounded output contract; normalization references retained source segments
 instead of echoing the whole transcript, and entity phases draft one target
@@ -114,3 +114,12 @@ identities from search excerpts. Unresolved issues remain explicit. Existing
 meeting matches still require original-source comparison before any merge.
 
 The verification phase serializes the unchanged V1–V6 checklist into six unique verdicts with supporting explanations, visible gaps and required repairs. A passed model verdict is not a write receipt or an automatic waiver. The meeting page output places speaker attribution and citations outside blockquotes so a host can compare every complete quoted passage with retained source text; it does not permit paraphrasing or silent quote deletion. Dependent Workflows must supply complete meeting/entity drafts and the relevant prior reads, validate coverage and block before writes on failed checks. This serialization requires fresh live qualification before full ingestion is claimed.
+
+
+The generation host now reinforces the declared output format after the complete
+reviewed Skill. This serialization reminder does not change upstream semantic
+rules, hide malformed output or add retries. The measurement report includes its
+exact length through the same assembly function used by the host, and each paid
+attempt retains the actual delivered system-prompt digest and character count.
+The earlier live qualification retains its original wrapper identity; affected
+private examples require renewed qualification before ingestion is claimed.

@@ -1,8 +1,9 @@
+import { sha256 } from "../../../runtime/canonical.ts";
 import { attachmentParts } from "../../../runtime/attachments.ts";
 import { attachmentPolicy } from "../../../runner/attachment-policy.ts";
 import { generateText } from "ai";
 import type { LanguageGenerator } from "../../../language/contracts.ts";
-import { LANGUAGE_SYSTEM_PREFIX, LanguageGenerationError } from "../../../language/contracts.ts";
+import { languageSystemInstructions, LanguageGenerationError } from "../../../language/contracts.ts";
 import { modelExecutionEvidence, resolveModelExecution } from "./model-execution.ts";
 
 /** Resolve a trusted phase binding or the existing owning-Agent default. */
@@ -14,11 +15,13 @@ export function createLanguageGenerator(dependencies: {
  return async (request) => {
   const execution = dependencies.resolve({ profile: request.modelProfile ?? "agent", task: request.modelTask, requiredCapability: "language" });
   const messages = [{ role: "user" as const, content: request.attachments?.length ? [{ type: "text" as const, text: request.data }, ...attachmentParts(request.attachments, attachmentPolicy(execution.selection))] : request.data }];
-  await request.beforeDispatch?.(execution.selection);
+  const system = languageSystemInstructions(request.instructions);
+  const instructionEvidence = { system_prompt_digest: sha256(system), system_instruction_characters: system.length };
+  await request.beforeDispatch?.(execution.selection, instructionEvidence);
   let result;
   try { result = await dependencies.generate({
     model: execution.model,
-    system: LANGUAGE_SYSTEM_PREFIX + request.instructions,
+    system,
     messages,
     // Explicit portable effort keeps provider defaults from consuming the
     // bounded call's output budget before any answer text is produced.
@@ -29,10 +32,10 @@ export function createLanguageGenerator(dependencies: {
   }); } catch {
     throw new LanguageGenerationError("Language provider outcome is unavailable", "provider-error", {
       model_execution: modelExecutionEvidence(execution.selection, { response: { id: "", modelId: "" }, usage: {} }),
-      finish_reason: null, reasoning: "low",
+      finish_reason: null, reasoning: "low", ...instructionEvidence,
     });
   }
-  const evidence = { model_execution: modelExecutionEvidence(execution.selection, { ...result, response: result.response ?? { id: "", modelId: "" } }), finish_reason: result.finishReason, reasoning: "low" };
+  const evidence = { model_execution: modelExecutionEvidence(execution.selection, { ...result, response: result.response ?? { id: "", modelId: "" } }), finish_reason: result.finishReason, reasoning: "low", ...instructionEvidence };
   if (result.finishReason !== "stop" || !result.text.trim()) {
     const diagnostic = { event: "language.generation-incomplete", model: execution.selection.model,
       route: execution.selection.route, reasoning: "low", finish_reason: result.finishReason,
