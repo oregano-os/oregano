@@ -41,6 +41,12 @@ slug. Proposed blockquotes are checked against contiguous text in the retained
 original: unsupported quotes are removed before the write, and the count is
 recorded as a gap. The saved quote check therefore covers only retained verbatim
 spans, not the model's claim that all proposed quotes were accurate.
+For a newly created page only, the host may attach the exact retained source
+reference when the proposal omitted it, and it cites new Timeline bullets from
+that sole source. An update still requires the proposal to preserve prior
+sources and cite the current source itself. Missing model explanations for
+V1–V6 are recorded as uncertainty, while only structural V1/V2/V4 checks can
+become passed after the saved Markdown is read back.
 
 Oversized sources, incomplete retrieval, split meetings and invalid one-shot
 proposals route to a continuing Agent before a write. That fallback has twelve

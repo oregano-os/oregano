@@ -50,6 +50,23 @@ function pruneNonVerbatimQuotes(markdown: string, original: string): { markdown:
   const next = retained || !removed ? body : "No verbatim quote retained.\n" + body;
   return { markdown: markdown.slice(0, section.index) + section[1] + next.trimEnd() + "\n\n" + markdown.slice(section.index + section[0].length), removed };
 }
+function citeNewPage(markdown: string, evidence: string): { markdown: string; added: boolean } {
+  const marker = markdown.indexOf("<!-- timeline -->");
+  let added = false, next = markdown;
+  if (!hasLink(next, evidence)) {
+    const timelineHeading = marker < 0 ? -1 : next.lastIndexOf("## Timeline", marker);
+    const position = timelineHeading >= 0 ? timelineHeading : marker >= 0 ? marker : next.length;
+    next = next.slice(0, position).trimEnd() + "\n\nSource: [[" + evidence + "]]\n\n" + next.slice(position);
+    added = true;
+  }
+  const timeline = next.indexOf("<!-- timeline -->");
+  if (timeline >= 0) {
+    const before = next.slice(0, timeline), after = next.slice(timeline).split("\n").map(line =>
+      /^-\s/.test(line) && !hasLink(line, evidence) ? line.trimEnd() + " [[" + evidence + "]]" : line).join("\n");
+    next = before + after;
+  }
+  return { markdown: next, added };
+}
 
 export default defineCompanyTool({ async execute(input: any, context: any) {
   const { task, route, prompt_paths, processing_instant } = input;
@@ -121,14 +138,14 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       || !Array.isArray(draft.pages) || draft.pages.length < 1 || draft.pages.length > 15
       || Object.keys(draft).sort().join(",") !== "gaps,meetings,pages,source_identity,source_version,verification"
       || !Array.isArray(draft.meetings) || !Array.isArray(draft.verification) || !Array.isArray(draft.gaps)
-      || draft.gaps.length > 100 || draft.gaps.some((gap: any) => typeof gap !== "string" || gap.length > 2000)) throw Error("One-shot source identity or page coverage is invalid");
+      || draft.gaps.length > 98 || draft.gaps.some((gap: any) => typeof gap !== "string" || gap.length > 2000)) throw Error("One-shot source identity or page coverage is invalid");
     const types = new Map([[directories.person, "person"], [directories.company, "company"], [directories.concept, "concept"], [directories.meeting, "meeting"]]);
     if (draft.verification.length !== 6 || new Set(draft.verification.map((item: any) => item?.check)).size !== 6
       || !["V1", "V2", "V3", "V4", "V5", "V6"].every(check => draft.verification.some((item: any) => item?.check === check))
       || draft.verification.some((item: any) => !["passed", "not-applicable", "flagged-uncertainty"].includes(item?.status)
-        || typeof item?.detail !== "string" || !item.detail.trim() || item.detail.length > 2000)) throw Error("All six proposed verification observations are required");
+        || item?.detail !== undefined && (typeof item.detail !== "string" || !item.detail.trim() || item.detail.length > 2000))) throw Error("All six proposed verification observations are required");
     const slugs = new Set<string>([evidence]), pages: any[] = [];
-    let removedQuotes = 0;
+    let removedQuotes = 0, citedNewPages = 0;
     const evidenceRead = prefetch.get(evidence)!;
     if (evidenceRead.found && evidenceRead.page?.markdown !== task.evidence.markdown) throw Error("Existing source evidence differs from the exact source version");
     if (!evidenceRead.found) pages.push({ path: "brain/" + evidence + ".md", expected_content_hash: null, markdown: task.evidence.markdown });
@@ -143,6 +160,10 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       if (type === "meeting") {
         const pruned = pruneNonVerbatimQuotes(markdown, task.original_text);
         markdown = pruned.markdown; removedQuotes += pruned.removed;
+      }
+      if (!current.found) {
+        const cited = citeNewPage(markdown, evidence);
+        markdown = cited.markdown; if (cited.added) citedNewPages++;
       }
       if (!hasLink(markdown, evidence)) throw Error("Page lacks exact internal original-source evidence");
       if (type === "meeting" && !["## Summary", "## Key Decisions", "## Action Items", "## Notable Quotes"].every(section => markdown.includes(section))) throw Error("Meeting page lacks required sections");
@@ -199,12 +220,16 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
       status: ["V1", "V2", "V4"].includes(item.check) ? "passed" : item.status === "not-applicable" ? "not-applicable" : "flagged-uncertainty",
       detail: ["V1", "V2", "V4"].includes(item.check)
         ? "Saved Markdown passed the deterministic sections, backlinks or verbatim blockquote check."
-        : "Model observation after structural read-back: " + item.detail,
+        : "Model observation after structural read-back: " + (item.detail ?? "No explanation supplied; semantic status remains unverified."),
     }));
     return { route: "one-shot", reason: null, outcome: { status: task.prior.requests.length ? "reconciled" : "ingested",
       source_identity: source.identity, source_version: source.version, pages: verified, receipts: [receipt],
       indexed_revision: receipt.indexed_revision, verification,
-      gaps: removedQuotes ? [...draft.gaps, "Removed " + removedQuotes + " proposed non-verbatim blockquote(s) before saving."] : draft.gaps } };
+      gaps: [...draft.gaps,
+        ...(removedQuotes ? ["Removed " + removedQuotes + " proposed non-verbatim blockquote(s) before saving."] : []),
+        ...(citedNewPages || draft.verification.some((item: any) => item.detail === undefined)
+          ? ["Host supplied source citations on " + citedNewPages + " new page(s); model omitted "
+            + draft.verification.filter((item: any) => item.detail === undefined).length + " verification explanation(s)."] : [])] } };
   } catch (error) {
     if (effectStarted) throw error;
     return { route: "agent", reason: String(error instanceof Error ? error.message : error).slice(0, 500), outcome: null };
