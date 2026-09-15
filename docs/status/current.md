@@ -1457,5 +1457,6 @@ digests and feedback attribution. Pinned Artifacts, model policy, validation,
 source admission and the maximum of three repairs remain unchanged. Portable
 Brain normalization instructions now state the enforced identity confidence and
 lookup enums explicitly; triage inputs expose complete retained source coverage.
-Synthetic checks cover authorization, immutable history, isolation, input bounds
-and exact Connector delivery. Live qualification remains separate.
+Resolution prompts also state exact lookup-key semantics, valid subject types,
+provisional-subject coverage and required page backlinks. Synthetic checks cover
+authorization, immutable history, isolation, input bounds and exact Connector delivery. Live qualification remains separate.

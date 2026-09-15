@@ -141,3 +141,10 @@ deduplication). Prepared triage segments include the retained source character
 count, segment count and complete coverage flag, so meeting duration cannot be
 mistaken for omitted transcript text. These facts do not weaken the original
 escalation principle or determine a classification.
+
+Resolution contracts identify `lookup_key` as the exact host-provided lookup key
+rather than a person or concept name. Every provisional subject stays represented
+or explicitly unresolved even when also an attendee. Meeting and entity output
+contracts name the required resolved-entity and Timeline backlink lists so their
+existing validators are visible before a paid draft. These are serialization and
+coverage clarifications; identities and substantive claims remain source-grounded.
