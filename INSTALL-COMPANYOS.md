@@ -96,6 +96,9 @@ For pending checks and provider receipts, wait with bounded backoff and submit
 `retry`; do not ask the human to approve each wait or run technical commands.
 Before inviting the first message, the agent checks Slack's saved Request URL
 using steps 1–4 of [Slack delivery recovery](docs/workbench/commands/setup.md#slack-delivery-recovery).
+If setup reports missing Slack bot permissions, ask the human to add exactly the
+named ones under OAuth & Permissions → Bot Token Scopes, reinstall the app, and
+submit `retry`.
 Then open the returned Slack link and invite the human to send an ordinary first
 message. No test phrase, nonce, channel ID, or copied response is required.
 If a reply remains unverified, follow the returned delivery diagnostic and

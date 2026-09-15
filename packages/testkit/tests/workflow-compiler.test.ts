@@ -260,6 +260,65 @@ test("decision conversation navigation requires a prior private root and the sam
   assert.match(validateWorkflowFiles(files).join("\n"), /same explicit recipient/);
 });
 
+test("a private decision notice can root its own conversation with a readable title", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  editWorkflow(files, (data) => {
+    const index = data.steps.findIndex((step: any) => step["approve-rollover"]);
+    const decision = data.steps[index];
+    const retro = data.steps.find((step: any) => step.retro);
+    Object.assign(decision, { recipient: "jonas-owner", labels: { approve: "Yes, help me", reject: "No, thanks" }, title: "Friday Sprint Update", approve: "rollover-note" });
+    data.steps.splice(index + 1, 0, { "rollover-note": "oregano:communications/publish", recipient: "jonas-owner", thread: "$steps.approve-rollover.thread_reference",
+      template: retro.template, vars: retro.vars, then: "apply-rollover" });
+  });
+  files[closePath] = files[closePath]!.replace("<!-- step:approve-rollover -->", "<!-- step:approve-rollover -->\n19. [sprint, R2] Continue in the decision's own thread. <!-- step:rollover-note -->");
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  const workflow = compile(files).find((w) => w.steps.some((s) => s.id === "rollover-note"))!;
+  const decision = workflow.steps.find((s) => s.id === "approve-rollover")!;
+  assert.equal(decision.decision!.conversationRoot, true);
+  assert.equal(decision.decision!.presentation!.title, "Friday Sprint Update");
+  assert.ok(decision.requiredOutputPaths.some((p) => p.join(".") === "thread_reference"));
+  assert.equal(workflow.steps.find((s) => s.id === "rollover-note")!.message!.thread, "$steps.approve-rollover.thread_reference");
+  const unchanged = compile({ ...readWorkspaceFiles(fixture) }).find((w) => w.id === "friday-close")!;
+  assert.equal(unchanged.steps.find((s) => s.id === "approve-rollover")!.decision!.conversationRoot, undefined, "historical decisions keep their exact manifest");
+  const other = { ...files };
+  editWorkflow(other, (data) => { data.steps.find((step: any) => step["rollover-note"]).recipient = "different-owner"; });
+  assert.match(validateWorkflowFiles(other).join("\n"), /reply in a decision thread requires/);
+  const threaded = { ...files };
+  editWorkflow(threaded, (data) => { data.steps.find((step: any) => step["approve-rollover"]).thread = "$steps.open-close-thread.thread_reference"; });
+  assert.match(validateWorkflowFiles(threaded).join("\n"), /reply in a decision thread requires/);
+  const untitled = { ...files };
+  editWorkflow(untitled, (data) => { data.steps.find((step: any) => step["approve-rollover"]).title = "Two\nlines"; });
+  assert.match(validateWorkflowFiles(untitled).join("\n"), /decision title requires/);
+});
+
+test("private decision cards root their conversation by default and later messages to the same person follow them", () => {
+  const files = { ...readWorkspaceFiles(fixture) };
+  editWorkflow(files, (data) => {
+    const index = data.steps.findIndex((step: any) => step["approve-rollover"]);
+    const decision = data.steps[index];
+    const retro = data.steps.find((step: any) => step.retro);
+    Object.assign(decision, { recipient: "jonas-owner", labels: { approve: "Yes", reject: "No" }, approve: "rollover-note", reject: "rollover-declined" });
+    data.steps.splice(index + 1, 0,
+      { "rollover-note": "oregano:communications/publish", recipient: "jonas-owner", template: retro.template, vars: retro.vars, then: "apply-rollover" },
+      { "rollover-declined": "oregano:communications/publish", recipient: "jonas-owner", thread: "none", template: retro.template, vars: retro.vars, then: "end" });
+  });
+  files[closePath] = files[closePath]!.replace("<!-- step:approve-rollover -->", "<!-- step:approve-rollover -->\n19. [sprint, R2] Continue by default. <!-- step:rollover-note -->\n19. [sprint, R2] Post a new root by choice. <!-- step:rollover-declined -->");
+  assert.deepEqual(validateWorkflowFiles(files), []);
+  const workflow = compile(files).find((w) => w.steps.some((s) => s.id === "rollover-note"))!;
+  const step = (id: string) => workflow.steps.find((s) => s.id === id)!;
+  assert.equal(step("approve-rollover").decision!.conversationRoot, true, "no explicit title or reference is needed");
+  assert.equal(step("rollover-note").message!.thread, "$steps.approve-rollover.thread_reference");
+  assert.ok(step("approve-rollover").requiredOutputPaths.some((p) => p.join(".") === "thread_reference"));
+  assert.equal(step("rollover-declined").message!.thread, undefined, "thread: none keeps a new root message");
+  assert.equal(step("report").message!.thread, "$steps.open-close-thread.thread_reference", "explicit threads and other recipients are unchanged");
+  const navigated = { ...files };
+  editWorkflow(navigated, (data) => { Object.assign(data.steps.find((s: any) => s["open-close-thread"]), { recipient: "jonas-owner" });
+    data.steps.find((s: any) => s["approve-rollover"]).continue_in = "$steps.open-close-thread.thread_reference"; });
+  const kept = compile(navigated).find((w) => w.steps.some((s) => s.id === "rollover-note"))!;
+  assert.equal(kept.steps.find((s) => s.id === "approve-rollover")!.decision!.conversationRoot, undefined, "continue_in keeps navigating to the earlier conversation");
+  assert.equal(kept.steps.find((s) => s.id === "rollover-note")!.message!.thread, undefined);
+});
+
 test('collection validation authoring requires an explicit pure grant and compatible contracts', () => {
   const files = {...readWorkspaceFiles(fixture)};
   const existing = workspaceDocument(files,closePath);

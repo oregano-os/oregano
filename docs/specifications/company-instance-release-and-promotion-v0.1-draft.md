@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: normative
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
   - product-owner
@@ -477,7 +477,8 @@ Before requesting the first message and during final verification, setup MUST
 check current source forwarding, the exact production webhook destination,
 and a production-only project attachment. A destination receipt alone MUST NOT
 be treated as evidence that incoming forwarding is enabled. Explicit event
-selections MUST include `message.im`. A repeated missing first reply MUST expose
+selections MUST include `message.im`. The connector's reported bot permissions
+MUST include `chat:write`, `channels:history`, `groups:history`, `im:history` and `users:read`; setup MUST stop and name any missing permission. A repeated missing first reply MUST expose
 exact-app delivery recovery instead of only repeating the message invitation.
 Recovery MUST distinguish Vercel synchronization, Slack Request URL verification,
 and actual message delivery. It MUST preserve approved scopes when the provider
