@@ -1,0 +1,44 @@
+version: 3
+plan_id: source-reconciliation-prompts-2026-09-15
+created: 2026-09-15
+title: Materialize scoped source correction and verification phases
+objective: Reuse adopted source precedence and UPDATE guidance to correct prior knowledge after a source version changes, independently of the new-source value gate.
+non_goals:
+  - Add a provider, model route, import registry or automatic authority.
+  - Replace the pinned upstream rules with a new semantic rubric.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-source-reconciliation-prompts.yaml
+  - .oregano/changes/2026-09-14-brain-import.yaml
+  - packages/blueprints/brain/adoption.json
+  - scripts/materialize-brain-prompts.ts
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - docs/specifications/brain-read.md
+  - docs/status/current.md
+  - docs/_generated/**
+tests:
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-read
+    - status.current
+architecture:
+  placement:
+    core: Existing measured static prompt materializer; runtime bounds remain unchanged.
+    packages: Two bounded phase output contracts assemble existing pinned source precedence and enrichment UPDATE sections.
+    workspace: Supplies exact earlier pages and original versions, interprets correction output and requests governed writes.
+    instance: Existing Record versions, Workflow history, model bindings and effect receipts.
+  mechanisms_extended:
+    - mechanism: model-recipe-resolver
+      reason: Use existing reasoning and deep task bindings; preserve logical role and attempt accounting.
+    - mechanism: capability-contracts-and-connectors
+      reason: Existing language generation and Brain Tools retain their grants and runtime bounds.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any adopting company can correct existing sourced pages without a company-specific source handler or scoring exception.
+rollback: Restore the previous prompt adoption and Workspace pin while retaining prior source versions and completed effect evidence.

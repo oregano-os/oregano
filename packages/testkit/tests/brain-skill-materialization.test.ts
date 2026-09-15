@@ -21,7 +21,7 @@ const read = (path: string) => readFileSync(new URL(`../../blueprints/brain/${pa
 
 test("static phase materialization includes shared instructions and produces bindable measured prompts", () => {
   const result = materializeBrainPrompts(input);
-  assert.equal(result.prompts.length, 17);
+  assert.equal(result.prompts.length, 21);
   assert.equal(result.report.model_context_qualified, false);
   assert.ok(Math.max(...result.report.measurements.map(row => row.instructions)) < 30_000);
   const artifact = { agents: [{ id: input.agent_id, materials: result.materials }] } as unknown as CompanyOSArtifact;
@@ -45,6 +45,11 @@ test("static phase materialization includes shared instructions and produces bin
       assert.match(bound.instructions, /one each for V1, V2, V3, V4, V5 and V6/);
       assert.match(bound.instructions, /No implicit waive/);
       assert.match(bound.instructions, /V6 — Sequence verify/);
+    }
+    if (prompt.path.includes("brain-source-reconcile/")) {
+      assert.match(bound.instructions, /UPDATE path/);
+      assert.match(bound.instructions, /Strike withdrawn Takes without renumbering/);
+      assert.match(bound.instructions, /Superseded source versions are historical evidence/);
     }
     if (prompt.path.includes("brain-meeting-entities")) {
       assert.match(bound.instructions, /\| # \| claim \| kind \| who \| weight \| since \| source \|/);

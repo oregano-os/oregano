@@ -1409,3 +1409,10 @@ checks every returned identity. Unknown/non-key fields and cross-kind use fail.
 Current Agent, Workflow, group, time-window, payload and result bounds remain
 unchanged. This reads existing run history; it does not create a source-progress
 registry, infer outcomes or reset effects.
+
+The Brain prompt Blueprint materializes source correction and correction verification
+phases from the existing pinned filing, quality and enrichment UPDATE sections.
+They preserve original versions, unrelated knowledge, stable Takes and earlier
+Timeline entries; a low-value incoming version does not waive reconciliation.
+These are proposal-only reasoning/deep phases under the unchanged generation
+bounds. Workspace execution and live correction qualification remain separate.

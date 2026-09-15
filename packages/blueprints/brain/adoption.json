@@ -762,6 +762,34 @@
         "meeting-verify"
       ],
       "output": "Return JSON with the checklist verdicts for this supplied sample item, supporting references and required repairs. The host aggregates the small sample across separate bounded calls. Do not authorize or claim a completed bulk import."
+    },
+    {
+      "id": "source-reconcile",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "enrich"
+      ],
+      "output": "Return one complete raw Markdown replacement for host_context.target_page. Apply the adopted UPDATE path to the exact current page, complete superseded originals and current source version. Reconcile only claims supported by the changed source; preserve unrelated knowledge, manual assessments, stable Take IDs and the complete earlier Timeline. Superseded source versions are historical evidence, never preferred because they are longer. Strike withdrawn Takes without renumbering; retain unsupported uncertainty explicitly and update compiled truth with both citations. Preserve metadata, append a dated correction Timeline citing host_context.internal_evidence_page, and introduce no new entity or meeting. Do not reinterpret a low-value gate as evidence that old claims remain valid. Return JSON gaps if context is incomplete; never claim completed writes."
+    },
+    {
+      "id": "source-reconcile-verify",
+      "task": "brain.ingest",
+      "profile": "reasoning",
+      "sections": [
+        "filing",
+        "quality",
+        "untrusted",
+        "lookup",
+        "model-roles",
+        "enrich"
+      ],
+      "output": "Return only JSON with verdict (pass or block), evidence (non-empty explanation), gaps and repairs (string arrays). Compare the proposed correction with the complete earlier page, retained original versions and current source. Apply the adopted UPDATE, source precedence, citation and quality guidance. Require withdrawn or superseded source-backed claims to leave current truth and active Takes while preserving stable row IDs, unrelated claims, manual assessments and the complete earlier Timeline. Require exact source citations and a dated correction entry. Block invented facts/quotes, erased history, missing context or unresolved required repairs. This is a correction check, not the specialized meeting V1-V6 checklist; do not claim completed writes."
     }
   ]
 }

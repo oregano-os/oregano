@@ -237,3 +237,10 @@ The local upstream directory retains its license.
 The [Skill adoption specification](brain-skill-adoption.md) covers the separately
 qualified import prompt foundation. Neither wording reuse nor passing parser
 tests proves equivalent semantic quality on real company material.
+
+The Brain prompt Blueprint materializes source correction and correction verification
+phases from the existing pinned filing, quality and enrichment UPDATE sections.
+They preserve original versions, unrelated knowledge, stable Takes and earlier
+Timeline entries; a low-value incoming version does not waive reconciliation.
+These are proposal-only reasoning/deep phases under the unchanged generation
+bounds. Workspace execution and live correction qualification remain separate.
