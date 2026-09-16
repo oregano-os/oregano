@@ -76,7 +76,9 @@ The source is retained in Records; do not copy the complete raw transcript into 
 Use the existing `oregano_brain_remember` Tool for Markdown changes. Its provenance
 is fixed by this task. Supply an exact current `expected_revision`, page
 `expected_content_hash` (null only after an absence read), and a
-stable unique `operation_key` for this source-version action. Prefer one page per
+stable unique `operation_key` for this source-version action. Each replacement
+page object has only `path`, `expected_content_hash` and `markdown`; do not add
+`kind` (that field belongs to other operations). Prefer one page per
 write; an evidence page and its meeting may share one bounded batch. An identical
 retry keeps its operation key; a corrected payload is a new action with a new key.
 For changed current knowledge, new pages or source corrections, supply complete
@@ -100,7 +102,33 @@ around a table with columns `| # | claim | kind | who | weight | since | source 
 Preserve stable positive row numbers and actual holders. kind is fact/take/bet/hunch;
 weight follows the adopted 0.05 grid; source cites the internal evidence page.
 Supersede a changed claim with strikethrough and a new row, retaining the original row
-identity. Escape pipes in cells. Omit unsupported Takes.
+identity. Escape pipes in cells. Omit unsupported Takes. Put the entire Takes
+fence BEFORE `<!-- timeline -->`, which starts the rest of the page's history.
+Never place Takes below that marker, even below a new heading. A Timeline entry
+needs a real internal evidence link, not only a `[Source: ...]` prose label.
+
+Canonical body order (replace this fictional claim, holder and source with actual
+supported values; this example does not authorize creating them):
+
+```markdown
+## Current knowledge
+
+Source-grounded prose.
+
+<!--- gbrain:takes:begin -->
+| # | claim | kind | who | weight | since | source |
+|---|---|---|---|---|---|---|
+| 1 | Review the proposal first | take | people/alex-example | 0.75 | 2030-01-02 | [[sources/review-example]] |
+<!--- gbrain:takes:end -->
+
+<!-- timeline -->
+## Timeline
+
+- 2030-01-02: Alex proposed a review. [[sources/review-example]]
+```
+
+When validation returns a page path, diagnostic code and repair guidance, correct
+that exact defect. Do not repeat unchanged invalid Markdown or call an unavailable CLI.
 
 Before completion, read each written page after the last write to that page and read
 all other affected pages. Later writes to other pages do not invalidate a read. Include

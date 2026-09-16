@@ -45,6 +45,23 @@ test("remember requires source provenance, source chains and a valid complete re
   assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, { ...input, provenance: { ...provenance, source_version: "" } }), code("invalid_input"));
 });
 
+test("invalid page feedback identifies a repairable Takes placement without requiring CLI access", () => {
+  const original = brainFiles[path];
+  const fence = original.match(/<!--- gbrain:takes:begin -->[\s\S]*?<!--- gbrain:takes:end -->/)![0];
+  const invalid = original.replace(fence, "") + "\n" + fence;
+  assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, remember(invalid)), (error: unknown) => {
+    assert.ok(error instanceof BrainError);
+    assert.equal(error.code, "invalid_batch");
+    assert.ok(error.message.includes(path));
+    assert.match(error.message, /takes_in_timeline: Takes belong before the Timeline separator/);
+    assert.ok(error.message.length <= 1800);
+    assert.ok(!error.message.includes("Delay the branch"), "Feedback must not echo source claims");
+    return true;
+  });
+  // The same proposed content becomes valid when its Takes fence precedes Timeline.
+  assert.doesNotThrow(() => prepareBrainRemember(brainFiles, brainConfig, remember(original)));
+});
+
 test("page preconditions preserve concurrent changes and never rebase a stale replacement blindly", () => {
   const proposed = remember(brainFiles[path].replace("No shared decision yet.", "A review is pending."));
   const concurrent = { ...brainFiles, [path]: brainFiles[path].replace("No shared decision yet.", "Another reviewer has added evidence.") };

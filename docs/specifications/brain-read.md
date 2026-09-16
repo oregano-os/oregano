@@ -90,7 +90,7 @@ different events; missing historical creation dates must not be guessed.
 Company-specific tag vocabularies and directory mappings belong to the
 Workspace, while Core validates the generic page and evidence contracts.
 
-Takes use exactly seven columns, between `<!--- gbrain:takes:begin -->` and
+Takes precede the Timeline boundary and use exactly seven columns, between `<!--- gbrain:takes:begin -->` and
 `<!--- gbrain:takes:end -->`: `#`, `claim`, `kind`, `who`, `weight`, `since`,
 `source`. Positive row numbers are stable identity. Kind is `fact`, `take`,
 `bet` or `hunch`. Holder is `world`, `brain`, or a reference to a person or
@@ -105,6 +105,11 @@ Every Timeline entry and Take must link to an existing internal evidence page;
 that page must link to an original source. Ordinary unresolved or ambiguous
 references produce diagnostics. Invalid evidence chains prevent indexing. Body
 and mapped frontmatter links form outgoing relationships; backlinks are derived.
+Write validation returns the affected page path and bounded diagnostic codes with
+repair guidance, including malformed frontmatter and Takes placed after Timeline.
+It does not echo page content or require the calling Agent to have administrator
+CLI access. The caller corrects the specific defect within its existing task and
+budgets; diagnostics do not restart a stopped task.
 The checker never creates stub pages. Mechanical validity does not prove factual
 accuracy or that an attendee page is meaningful; source-based review remains
 necessary when preparing or ingesting knowledge.

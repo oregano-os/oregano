@@ -57,7 +57,11 @@ function expectedFile(files: Record<string, string>, path: string, expected: str
 function parsedPage(path: string, markdown: string, config: BrainConfiguration): BrainPage {
   if (typeof markdown !== "string") fail("target_missing", "The selected page is absent.");
   const parsed = parseBrainPage(path, markdown, config);
-  if (!parsed.page || parsed.diagnostics.some(item => item.severity === "error")) fail("invalid_batch", "A selected page is invalid; run Brain check for diagnostics.");
+  if (!parsed.page || parsed.diagnostics.some(item => item.severity === "error")) {
+    const diagnostics = parsed.diagnostics.filter(item => item.severity === "error").slice(0, 4)
+      .map(item => `${item.code}: ${item.message}`).join("; ");
+    fail("invalid_batch", `Invalid page ${path}: ${diagnostics || "The page could not be parsed."}`.slice(0, 1800));
+  }
   return parsed.page!;
 }
 
