@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-15
+updated: 2026-09-16
 owners:
   - oregano-maintainers
 audience:
@@ -193,3 +193,9 @@ saved-page verification on a fixed admitted sample. Retain role-wise calls,
 uncached input, cache writes, cache reads and output tokens, including failed and
 unknown attempts. Do not label local mocks or prior one-shot outcomes as a live
 reference run. No Dream workflow or synthesized new knowledge is introduced.
+
+The continuing ingestion instructions use the existing `remember.timeline_add`
+page alternative for small evidenced events on existing pages. Current-knowledge
+changes and corrections keep the full read/edit/replace path. Completion compares
+actual post-write page hashes with durable `page_results`, including unchanged
+targets, rather than expecting the model to have generated a whole page.

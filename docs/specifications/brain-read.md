@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: canonical
 language: en
-updated: 2026-09-14
+updated: 2026-09-16
 owners: [oregano-maintainers]
 audience: [human, agent]
 availability: experimental
@@ -174,8 +174,19 @@ No automatic Agent polling or new session store is created.
 ## Bounded writes and recovery
 
 `remember(changes, provenance, operation_key, dry_run?)` supplies at most 16
-distinct complete page replacements and 400,000 changed UTF-16 text units.
-Each replacement carries the previously read content hash, or null for creation.
+distinct page changes and 400,000 changed UTF-16 text units. Each page selects
+complete `markdown` or `timeline_add: {date, summary, detail?, evidence}`. Complete
+replacements carry the previously read content hash, or null for creation.
+Timeline additions require an existing page and its exact hash, a real YYYY-MM-DD
+event date, a single-line summary (500 units), optional single-line detail (2,000
+units), and one to 16 canonical evidence slugs also declared in provenance.
+Core edits dated Markdown deterministically without a model call. It preserves
+frontmatter, current knowledge, Takes and unrelated history, normalizes recognized
+legacy Timeline separators, and inserts before the first older/equal dated bullet
+(or at the end when none exists) without reordering existing prose. Exact repeated
+entries are unchanged; operation-key replay also prevents duplicate commits.
+Source corrections and changed current assertions use full page replacement or
+explicit unique-passage withdrawal. They must not append contradictory events.
 Provenance identifies source, version, processing action and internal evidence
 pages linking to originals. Validate the complete resulting corpus before one
 atomic commit. A newer branch head is accepted only while every selected page
@@ -207,7 +218,13 @@ removed prose and raw withdrawal reasons are not copied into effect logs.
 A preparation checkpoint precedes dispatch; a verified Git receipt precedes
 sync. Results separate `saved_commit` from `indexed_revision`; `sync_status` is
 `indexed`, `current_head_indexed` or `pending`. Pending means saved knowledge
-still needs indexing. Replay resumes sync without another commit. A lost receipt
+still needs indexing. New receipts include `page_results` with resulting content
+hashes (null for deleted pages), including unchanged remember targets. These hashes
+belong to the saved operation's result, not a possibly newer indexed head. Verify
+actual page reads after the final write against these hashes. Legacy checkpoints
+remain replayable without this optional field; full-replacement consumers may
+compare the saved Markdown instead. Narrow changes cannot complete without a hash
+receipt. Replay resumes sync without another commit. A lost receipt
 is recovered only from exact provider proof matching operation, input, parent
 and contents. Missing proof never authorizes another dispatch. A retained claim
 that was never dispatched can resume through an authorized invocation;

@@ -75,12 +75,23 @@ The source is retained in Records; do not copy the complete raw transcript into 
 
 Use the existing `oregano_brain_remember` Tool for Markdown changes. Its provenance
 is fixed by this task. Supply an exact current `expected_revision`, page
-`expected_content_hash` (null only after an absence read), complete Markdown, and a
+`expected_content_hash` (null only after an absence read), and a
 stable unique `operation_key` for this source-version action. Prefer one page per
 write; an evidence page and its meeting may share one bounded batch. An identical
 retry keeps its operation key; a corrected payload is a new action with a new key.
+For changed current knowledge, new pages or source corrections, supply complete
+`markdown` after reading the page. For a simple event on an existing page, supply
+`timeline_add: {date, summary, detail?, evidence}` instead of `markdown`: use the
+actual evidenced YYYY-MM-DD event date, single-line summary/detail and canonical
+internal evidence slugs also listed in provenance. Put the meeting link in the
+summary/detail when a meeting backlink is required. Core preserves frontmatter
+(including dates), current knowledge, Takes and unrelated history. This operation
+does not update current assertions or correct an earlier event. Reconcile those
+through the full read/edit/replace path; do not append contradictory claims.
 The Tool validates, commits/pushes through the existing repository adapter and returns
 a receipt. Read status, saved_commit and sync_status; never claim success from prose.
+Read each affected page after its final write and compare `content_hash` with the
+matching `page_results` receipt, including an unchanged Timeline addition.
 A stale page requires a fresh read and merge. A saved/pending outcome requires receipt
 reconciliation, not another logical write. Validation feedback belongs in this task.
 

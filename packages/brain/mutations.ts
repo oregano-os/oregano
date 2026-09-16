@@ -3,12 +3,14 @@ import { BrainError, type BrainConfiguration, type BrainPage } from "./contracts
 import { checkBrainCorpus, parseBrainPage, resolveBrainName, serializeBrainPage } from "./documents.ts";
 import { assertBrainPath } from "./paths.ts";
 import { parseTakes, renderTakes, TAKES_BEGIN, TAKES_END } from "./takes.ts";
+import { addBrainTimeline, type BrainTimelineAddition } from "./timeline-mutation.ts";
 
 export const MAX_BRAIN_WRITE_FILES = 16;
 export const MAX_BRAIN_WRITE_UNITS = 400_000;
-export interface BrainReplacement { path: string; expected_content_hash: string | null; markdown: string }
+export interface BrainReplacement { path: string; expected_content_hash: string | null; markdown: string; timeline_add?: never }
+export interface BrainTimelineChange { path: string; expected_content_hash: string; timeline_add: BrainTimelineAddition; markdown?: never }
 export interface BrainRememberInput {
-  changes: { expected_revision: string; pages: BrainReplacement[] };
+  changes: { expected_revision: string; pages: Array<BrainReplacement | BrainTimelineChange> };
   provenance: { source_id: string; source_version: string; action: string; evidence: string[] };
   operation_key: string;
   dry_run?: boolean;
@@ -92,18 +94,23 @@ export function prepareBrainRemember(files: Record<string, string>, config: Brai
   assertBrainWriteIdentity(input.changes?.expected_revision, input.operation_key);
   const replacements = input.changes.pages;
   if (!Array.isArray(replacements) || !replacements.length || replacements.length > MAX_BRAIN_WRITE_FILES
-    || new Set(replacements.map(change => change.path)).size !== replacements.length) fail("invalid_input", "Provide one bounded set of distinct page replacements.");
+    || replacements.some(change => !change || typeof change !== "object")
+    || new Set(replacements.map(change => change.path)).size !== replacements.length) fail("invalid_input", "Provide one bounded set of distinct page changes.");
   const provenance = input.provenance;
   if (!provenance || [provenance.source_id, provenance.source_version, provenance.action].some(value => typeof value !== "string" || !value.trim() || value.length > 256)
     || !Array.isArray(provenance.evidence) || !provenance.evidence.length || provenance.evidence.length > 16
     || provenance.evidence.some(value => typeof value !== "string" || !value.trim() || value.length > 160)) fail("invalid_input", "Source identity, version, processing action and internal evidence are required.");
   const next = { ...files };
   for (const change of replacements) {
+    if (Object.hasOwn(change, "timeline_add") === Object.hasOwn(change, "markdown")) fail("invalid_input", "Choose a complete Markdown replacement or one Timeline addition for each page.");
+    if (Object.hasOwn(change, "timeline_add") && !digest(change.expected_content_hash)) fail("invalid_input", "A Timeline addition requires an existing page and its read content hash.");
     const previous = expectedFile(files, change.path, change.expected_content_hash);
-    if (typeof change.markdown !== "string") fail("invalid_input", "Remember supplies complete Markdown pages; use forget for deletion.");
-    const page = parsedPage(change.path, change.markdown, config);
+    const markdown = Object.hasOwn(change, "timeline_add")
+      ? addBrainTimeline(parsedPage(change.path, previous!, config), change.timeline_add!) : change.markdown;
+    if (typeof markdown !== "string") fail("invalid_input", "Remember supplies complete Markdown pages or a Timeline addition; use forget for deletion.");
+    const page = parsedPage(change.path, markdown!, config);
     if (previous !== undefined) assertBrainTakeContinuity(parsedPage(change.path, previous, config), page);
-    next[change.path] = change.markdown;
+    next[change.path] = markdown!;
   }
   const prepared = finishMutation(files, next, config);
   const corpus = checkBrainCorpus(next, config);
@@ -112,6 +119,9 @@ export function prepareBrainRemember(files: Record<string, string>, config: Brai
     if (found.length !== 1 || config.types[found[0].type].role !== "evidence" || !found[0].original_links.length) {
       fail("provenance_missing", "Provenance must resolve to existing internal evidence with an original-source link.");
     }
+  }
+  for (const change of replacements) for (const source of change.timeline_add?.evidence ?? []) {
+    if (!provenance.evidence.includes(source)) fail("provenance_missing", "Every Timeline evidence reference must be declared in this write's provenance.");
   }
   return prepared;
 }

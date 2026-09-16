@@ -27,7 +27,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  }
  if(!writes.length)return reject('No saved knowledge receipt exists. Save the sourced pages before completing.');
  if(new Set(facts.pages).size!==facts.pages.length)return reject('Final page identities must be unique.');
- const required=new Set<string>([...changed,task.evidence.slug,...task.prior.requests.map((r:any)=>r.slug)]);
+ const required=new Set<string>([...changed,...lastWrites.keys(),task.evidence.slug,...task.prior.requests.map((r:any)=>r.slug)]);
  for(const m of facts.meetings)for(const slug of [m.slug,...m.attendees,...m.entities])required.add(slug);
  if(task.source.kind==='meeting'&&!facts.meetings.length)return reject('A retained meeting needs its actual meeting page(s), with resolved or explicitly flagged attendees.');
  if(facts.meetings.length&&facts.verification.some((v:any)=>v.status!=='passed'&&!(v.check==='V6'&&v.status==='flagged-uncertainty')))return reject('Apply the actual adopted V1–V6 checklist to retained meetings; only unresolved sequence uncertainty may remain flagged.');
@@ -37,7 +37,9 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
   if(!facts.pages.includes(slug)||!page?.page?.markdown||page.index<(lastWrites.get(slug)??-1)||!page.indexed_revision){missingReads.push(slug);continue;}
   const last=writes.filter(w=>w.input.changes.pages.some((p:any)=>p.path==='brain/'+slug+'.md')).at(-1);
   const expected=last?.input.changes.pages.find((p:any)=>p.path==='brain/'+slug+'.md');
-  if(expected&&expected.markdown!==page.page.markdown)mismatched.push(slug);
+  const receipt=last?.output.page_results?.find((p:any)=>p.path==='brain/'+slug+'.md');
+  if(expected&&(receipt ? !/^[a-f0-9]{64}$/.test(receipt.content_hash??'')||receipt.content_hash!==page.page.content_hash
+    : typeof expected.markdown!=='string'||expected.markdown!==page.page.markdown))mismatched.push(slug);
   // The Core index reports actual unresolved links; an Agent cannot waive a
   // broken source reference by describing it as cosmetic in its completion.
   for(const link of page.outgoing??[])if(!link.resolved)unresolved.push(slug+' -> '+link.target);

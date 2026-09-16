@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sha256 } from "../../runtime/canonical.ts";
+import { BRAIN_WRITE_CAPABILITIES } from "../../brain/tools.ts";
+import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
 import { BrainError } from "../../brain/contracts.ts";
 import { parseBrainPage } from "../../brain/documents.ts";
 import { prepareBrainRemember, prepareBrainForget, type BrainRememberInput, type BrainForgetInput } from "../../brain/mutations.ts";
@@ -52,7 +54,7 @@ test("page preconditions preserve concurrent changes and never rebase a stale re
   assert.equal(result.files["brain/people/sam.md"], unrelated["brain/people/sam.md"]);
   assert.equal(result.changes.length, 1);
   assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, { ...proposed, changes: { ...proposed.changes,
-    pages: [{ ...proposed.changes.pages[0], expected_content_hash: null }] } }), code("write_conflict"));
+    pages: [{ path, markdown: proposed.changes.pages[0].markdown!, expected_content_hash: null }] } }), code("write_conflict"));
 });
 
 test("writes reject path escapes, instruction/configuration paths and oversized batches before publication", () => {
@@ -116,4 +118,62 @@ test("page withdrawal is explicit and cannot leave invalid evidence dependencies
   const input = forget(); input.target.path = "brain/sources/review.md"; input.target.expected_content_hash = sha256(brainFiles[input.target.path as keyof typeof brainFiles]);
   assert.throws(() => prepareBrainForget(brainFiles, brainConfig, input), code("invalid_batch"));
   assert.equal(Object.hasOwn(brainFiles, path), true);
+});
+
+test("Timeline-only edits preserve raw metadata, current knowledge, Takes and existing history", () => {
+  const source = brainFiles[path].replace('title:', '# Preserve this comment\ntitle:').replaceAll('\n', '\r\n');
+  const files = { ...brainFiles, [path]: source };
+  const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [{ path, expected_content_hash: sha256(source),
+    timeline_add: { date: '2026-09-15', summary: 'Reviewed the proposal.', detail: 'No shared decision was made.', evidence: ['sources/review'] } }] }, provenance, operation_key: 'timeline:1' };
+  assert.deepEqual(validateJsonSchemaValue(BRAIN_WRITE_CAPABILITIES[0].inputSchema, input), []);
+  const result = prepareBrainRemember(files, brainConfig, input), saved = result.files[path];
+  const marker = '<!-- timeline -->';
+  assert.equal(saved.slice(0, saved.indexOf(marker)), source.slice(0, source.indexOf(marker)));
+  const entry = '- 2026-09-15: Reviewed the proposal. — No shared decision was made. [[sources/review]]\r\n';
+  assert.equal(saved.replace(entry, ''), source);
+  assert.deepEqual(parseBrainPage(path, saved, brainConfig).page!.takes, parseBrainPage(path, source, brainConfig).page!.takes);
+  const again = structuredClone(input); again.operation_key = 'timeline:2'; again.changes.pages[0].expected_content_hash = sha256(saved);
+  assert.equal(prepareBrainRemember(result.files, brainConfig, again).changes.length, 0);
+  assert.throws(() => prepareBrainRemember(result.files, brainConfig, input), code('write_conflict'));
+  const mixed=source.replace('\r\n', '\n'); const mixedInput=structuredClone(input); mixedInput.changes.pages[0].expected_content_hash=sha256(mixed);
+  assert.equal(prepareBrainRemember({...files,[path]:mixed},brainConfig,mixedInput).files[path].replace(entry,''),mixed);
+});
+
+test("Timeline additions normalize legacy delimiters and preserve unrelated later sections", () => {
+  const bodies = [
+    'Current account.\n\n---\n\nA normal horizontal rule.',
+    'Current account.\n\n--- timeline ---\n\n- 2026-09-14: Earlier event. [[sources/review]]',
+    'Current account.\n\n---\n## History\n- 2026-09-14: Earlier event. [[sources/review]]',
+    'Current account.\n\n## History\n- 2026-09-14: Earlier event. [[sources/review]]\n\n## Unrelated\nKeep this prose as current knowledge.',
+  ];
+  for (const body of bodies) {
+    const original = page('topic', 'Example', body), files = { ...brainFiles, [path]: original };
+    const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [{ path, expected_content_hash: sha256(original),
+      timeline_add: { date: '2026-09-15', summary: 'New event.', evidence: ['sources/review'] } }] }, provenance, operation_key: 'timeline:legacy' };
+    const saved = prepareBrainRemember(files, brainConfig, input).files[path], parsed = parseBrainPage(path, saved, brainConfig).page!;
+    assert.ok(saved.includes('<!-- timeline -->')); assert.ok(parsed.compiled_truth.includes('Current account.'));
+    if (body.includes('Unrelated')) assert.ok(parsed.compiled_truth.includes('Keep this prose as current knowledge.'));
+    if (body.includes('Earlier')) assert.ok(parsed.timeline.indexOf('2026-09-15') < parsed.timeline.indexOf('2026-09-14'));
+    if (body.includes('horizontal')) assert.ok(parsed.compiled_truth.includes('---\n\nA normal horizontal rule.'));
+  }
+});
+
+test("Timeline additions reject malformed events, undeclared evidence and absent targets before saving", () => {
+  const timeline_add = { date: '2026-09-15', summary: 'Review occurred.', evidence: ['sources/review'] };
+  const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [{ path, expected_content_hash: sha256(brainFiles[path]), timeline_add }] }, provenance, operation_key: 'timeline:invalid' };
+  for (const patch of [{ date: '2026-02-30' }, { date: 'yesterday' }, { summary: 'Fake\n<!-- timeline -->' }, { detail: '\nInjected block' },
+    { evidence: [] }, { evidence: ['sources/review', 'sources/review'] }, { evidence: ['../AGENTS'] }, { evidence: ['sources/missing'] }, { evidence: ['people/alex'] }]) {
+    const invalid = structuredClone(input); Object.assign(invalid.changes.pages[0].timeline_add!, patch);
+    assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, invalid));
+  }
+  for (const patch of [{ expected_content_hash: null }, { markdown: brainFiles[path] }]) {
+    const invalid = structuredClone(input); Object.assign(invalid.changes.pages[0], patch);
+    assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, invalid), code('invalid_input'));
+  }
+  const added = prepareBrainRemember(brainFiles, brainConfig, input);
+  const replacement = added.files[path].replace('2026-09-15: Review occurred.', '2026-09-14: Review occurred (date corrected from the source).');
+  const correction = remember(replacement); correction.changes.pages[0].expected_content_hash = sha256(added.files[path]); correction.provenance.source_version = 'v2';
+  const saved = prepareBrainRemember(added.files, brainConfig, correction).files[path];
+  assert.ok(saved.includes('date corrected')); assert.ok(!saved.includes('2026-09-15: Review occurred.'));
+  assert.deepEqual(parseBrainPage(path, saved, brainConfig).page!.takes, parseBrainPage(path, brainFiles[path], brainConfig).page!.takes);
 });

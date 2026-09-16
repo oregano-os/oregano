@@ -9,7 +9,12 @@ For EACH attendee:
    orders).
 3. If YES → update compiled truth with meeting context (subject to Phase 6).
 4. Add a timeline entry on the person's page:
-   `remember (Timeline page change) {person-slug} {date} "Attended {meeting-title}"`
+   `remember` with `timeline_add: {date, summary, detail?, evidence}` on the
+   existing person's page, its read content hash and repository revision. Include
+   the meeting's canonical link in summary/detail and original-source evidence in
+   evidence/provenance. Core preserves the rest of the page. Use complete Markdown
+   instead for a new page or changed current knowledge; corrections never blindly
+   append a contradictory event.
 
 Back-link known people who are MENTIONED or SPEAK in the transcript too, not
 just attendees — but high-confidence identifications only. Never backlink a

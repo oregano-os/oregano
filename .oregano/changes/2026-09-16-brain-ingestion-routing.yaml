@@ -5,7 +5,9 @@ title: Route source content through bounded incremental ingestion Skills
 objective: Separate source transport from content procedure. Route normalized
   sources to the applicable adopted ingestion Skill, write meetings before entity
   enrichment, and verify actual saved pages. Remove automatic one-shot fallback,
-  bound continuing Agent cost and stop repeated attempts without progress.
+  bound continuing Agent cost and stop repeated attempts without progress. Add a
+  deterministic evidenced Timeline addition within remember and verify saved-page
+  hashes through durable write receipts without rewriting unrelated page content.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.
@@ -18,7 +20,16 @@ files_expected:
   - packages/blueprints/brain/**
   - packages/cli/content/templates/brain-import/**
   - scripts/materialize-brain-workflow.ts
-  - packages/brain/import-admission.ts
+  - .oregano/changes/2026-09-15-brain-one-shot-synthesis.yaml
+  - .oregano/changes/2026-09-16-language-evidence-bound.yaml
+  - packages/brain/**
+  - packages/connectors/language-model.ts
+  - packages/language/contracts.ts
+  - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runtime/companyos-runtime.ts
+  - packages/cli/content/guides/author-a-company-tool.md
+  - docs/workbench/guides/author-a-company-tool.md
+  - docs/specifications/brain-read.md
   - packages/schema/workflow-steps-v1.schema.json
   - docs/_generated/**
   - packages/companyos-builder/workflow-*.ts
@@ -31,11 +42,17 @@ files_expected:
   - docs/specifications/workflow-execution-v1-draft.md
   - docs/operations/workflow-engine.md
 tests:
+  - packages/testkit/tests/brain-mutations.test.ts
+  - packages/testkit/tests/brain-writes.test.ts
+  - packages/testkit/tests/language-attempts.test.ts
+  - packages/testkit/tests/language-generation.test.ts
   - packages/testkit/tests/brain-workflow-materialization.test.ts
   - packages/testkit/tests/workflow-agent.test.ts
 documentation_impact:
   required: true
   affected_documents:
+    - specification.brain-read
+    - guide.author-company-tool
     - specification.brain-import
     - specification.brain-skill-adoption
     - specification.workflow-execution-v1

@@ -32,7 +32,7 @@ Every fact written to a brain page must carry an inline `[Source: ...]` citation
    - Read the entity's page with entity to check if it exists
    - If exists: update compiled_truth (rewrite current-knowledge section with new info, don't append)
    - If new: check notability gate, then store the page in the Brain with the appropriate type and slug
-3. **Append to timeline.** Add a timeline entry in the Brain for each event, with date, summary, and source citation.
+3. **Append to timeline.** For a simple event on an existing page, use `remember` with `timeline_add` (actual event date, single-line summary/detail and canonical evidence slugs), its read content hash and repository revision. Do not regenerate the page for this event alone. New pages, changed current knowledge and corrections still require a full read/edit/replacement.
 4. **Create cross-reference links.** Link entities in the Brain for every entity pair mentioned together, using the appropriate relationship type.
 5. **Back-link all entities.** Update EVERY mentioned entity's page with a back-link to this page (Iron Law).
 6. **Timeline merge.** The same event appears on ALL mentioned entities' timelines. If Alice met Bob at Acme Corp, the event goes on Alice's page, Bob's page, and Acme Corp's page.
