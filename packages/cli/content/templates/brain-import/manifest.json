@@ -24,7 +24,7 @@
     },
     {
       "path": "tools/brain-check-agent-completion/execute.ts",
-      "digest": "63fef6ce21f266c188c70ba10192d0d4d2f8011768690bc525b5ef1fcff52c26"
+      "digest": "7ce8eb72796a3845a624fb56091e94292a3b197ad52322400966a9c2600b3f1e"
     },
     {
       "path": "tools/brain-check-correction-verification/TOOL.md",
@@ -307,5 +307,5 @@
       "digest": "bbe58d1bf14e624ba8406b456d5b81a07e8aa8776c94eb6af8192db1a8c60457"
     }
   ],
-  "agent_instruction_digest": "db327ac8d83364bea27773cd150b468365c9b550d8f9812bac7f5200bfbd471a"
+  "agent_instruction_digest": "fafea207cb311a1592af82109d05557b34d41224aee46c6be535ee69868a4e60"
 }

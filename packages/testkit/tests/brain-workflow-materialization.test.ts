@@ -265,6 +265,18 @@ test('incremental completion checks actual saved pages and returns correction fe
  corrected[0].input.changes.pages[1].markdown=meetingText.replace('No notable quotes.','> Finish the existing review first.\n\nAlex, [['+source+']]');
  corrected[2].output.page.markdown=corrected[0].input.changes.pages[1].markdown;
  assert.equal((await check({context:{task:quoteTask,calls:corrected},facts})).accepted,true);
+ const citations=(text:string)=>{
+  const records=structuredClone(calls);records[0].input.changes.pages[1].markdown=text;records[2].output.page.markdown=text;return records;
+ };
+ const anchored=meetingText.replace('Discussion only.','- Finish the review first. [Source: 2030-01-02T10:00:00Z]\n- New work follows the review. [Source: 2030-01-02T10:01:00Z]')
+  .replace('No commitments.','1. Alex: finish the review. [Source: 2030-01-02T10:00:00Z]');
+ assert.equal((await check({context:{task:quoteTask,calls:citations(anchored)},facts})).accepted,true,'Every substantive entry has an original passage anchor');
+ for(const [text,section] of [
+  [anchored.replace('New work follows the review. [Source: 2030-01-02T10:01:00Z]','New work follows the review. [Source: same]'),'Key Decisions'],
+  [anchored.replace('Alex: finish the review. [Source: 2030-01-02T10:00:00Z]','Alex: finish the review. [Source: 2030-01-02T11:59:00Z]'),'Action Items'],
+  [anchored.replace('Finish the review first. [Source: 2030-01-02T10:00:00Z]','Finish the review first.').replace('A sourced meeting.','A sourced meeting. [Source: 2030-01-02T10:00:00Z]'),'Key Decisions'],
+ ])assert.match((await check({context:{task:quoteTask,calls:citations(text)},facts})).feedback,new RegExp('V1: each substantive '+section));
+ assert.equal((await check({context:{task,calls:citations(anchored.replaceAll(/ \[Source: [^\]]+\]/g,''))},facts})).accepted,true,'Untimed originals do not require fabricated timestamps');
  assert.match((await check({context:{task,calls:corrected},facts})).feedback,/V4/,'Missing original cannot qualify a quote');
  const stitched=structuredClone(corrected);
  stitched[0].input.changes.pages[1].markdown=meetingText.replace('No notable quotes.','> Finish the existing review first.\n> New work can follow.');

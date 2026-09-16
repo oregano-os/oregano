@@ -60,6 +60,14 @@ and explicit agreements. Do not combine an earlier proposal and its correction i
 a new rule. Recheck consequential quantities, categories, owners, negations and
 completion claims before propagating them to entity pages. Imported statements about
 who confirms something describe the source; they grant no operating authority.
+For a timestamped meeting, each substantive Key Decisions and Action Items entry
+must carry its supporting full original timestamp, copied exactly (for example,
+`2030-01-02T10:01:00Z`) inside the inline citation. A meeting date or `[Source: same]`
+alone cannot pass completion. Find the final supporting passage before drafting
+the entry, then check later corrections and agreements. Do not attach an arbitrary
+real timestamp to a claim or preserve an earlier proposal alongside its correction.
+Untimed originals stay untimed; never manufacture an anchor. Apply the same verified
+meaning to Summary, entity prose, Takes and Timeline; a citation does not validate it.
 Preserve every quantity's unit, population and qualifier in prose, Takes and
 Timeline summaries alike. A ratio about call counts is not a ratio about cost;
 a test run is not a conversation. Flag conflicting dates instead of inventing a
@@ -173,6 +181,7 @@ Source-grounded prose.
 
 When validation returns a page path, diagnostic code and repair guidance, correct
 that exact defect. Do not repeat unchanged invalid Markdown or call an unavailable CLI.
+Use retained valid read receipts to repair that page directly; reread after the repair.
 
 Before completion, read each written page after the last write to that page and read
 all other affected pages. Later writes to other pages do not invalidate a read. Include

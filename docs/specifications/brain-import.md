@@ -75,6 +75,12 @@ They reserve the existing bounded conversation for saved-page checks and repairs
 no run limit is raised. Decision/action citations retain available original anchors,
 and verification rechecks final agreements, logical alternatives and pronoun
 addressees against those passages rather than trusting an earlier summary.
+For originals with bracketed ISO-timestamped utterances, completion requires each
+substantive Key Decisions and Action Items entry to cite a full timestamp present
+in that original. Missing or invented anchors return same-task repair feedback;
+explicit no-decision/no-action explanations and untimed originals remain supported.
+This checks citation presence and membership only, not whether the passage supports
+the interpretation. Independent source-first acceptance remains necessary.
 
 The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
 `BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the

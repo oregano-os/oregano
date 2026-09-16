@@ -2,7 +2,8 @@ version: 3
 plan_id: brain-ingestion-routing-2026-09-16
 created: 2026-09-16
 title: Route source content through bounded incremental ingestion Skills
-objective: Separate source transport from content procedure. Route normalized
+objective: Require original timestamp citations for saved meeting decisions and actions,
+  with semantic source-first acceptance remaining independent. Separate source transport from content procedure. Route normalized
   sources to the applicable adopted ingestion Skill, write meetings before entity
   enrichment, and verify actual saved pages. Remove automatic one-shot fallback,
   bound continuing Agent cost and stop repeated attempts without progress. Add a

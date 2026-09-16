@@ -1,5 +1,12 @@
 import { defineCompanyTool } from "@companyos/tool-sdk";
 const hasLink=(markdown:string,slug:string)=>markdown.includes('[['+slug+']]')||new RegExp('\\[\\['+slug+'\\|[^\\]\\n]{1,160}\\]\\]').test(markdown);
+const timestampPattern='\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})';
+const sourceAnchors=(text:string)=>new Set([...text.matchAll(new RegExp('^\\[('+timestampPattern+')\\]','gm'))].map(match=>match[1]));
+const claimEntries=(page:string,heading:string)=>{
+ const section=page.match(new RegExp('^## '+heading+'\\s*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))','m'))?.[1]??'';
+ return section.split(/\n(?=\s*(?:[-*]|\d+[.)])\s)|\n\s*\n/).map(entry=>entry.trim()).filter(entry=>entry&&!/^#{1,6} /.test(entry)
+  &&!/^[-*\d.)\s_]*(?:No (?:decisions|commitments|actions|action items)\b|None\b|Discussion only\b|Exploratory conversation\b)/i.test(entry));
+};
 export default defineCompanyTool({ async execute(input: any, context: any) {
 
  const {task,calls}=input.context,facts=input.facts;
@@ -59,6 +66,16 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
   if(!hasLink(page,task.evidence.slug))issues.push('Meeting page must cite its internal original-source evidence: '+meeting.slug);
   const normalized=(text:string)=>text.normalize('NFC').replace(/\s+/g,' ').trim();
   const original=typeof task.original_text==='string'?normalized(task.original_text):'';
+  const anchors=sourceAnchors(task.original_text??'');
+  // Citation membership is a mechanical requirement, never a semantic verdict.
+  // Untimed originals must remain untimed rather than acquire invented anchors.
+  if(anchors.size)for(const heading of ['Key Decisions','Action Items']){
+   const missing=claimEntries(page,heading).some(entry=>{
+    const cited=[...entry.matchAll(new RegExp(timestampPattern,'g'))].map(match=>match[0]);
+    return !cited.length||cited.some(anchor=>!anchors.has(anchor));
+   });
+   if(missing)issues.push('V1: each substantive '+heading+' entry on '+meeting.slug+' must cite a complete original timestamp copied from its supporting passage. A date or [Source: same] is insufficient. Recheck later corrections, alternatives and the actual action owner before citing; timestamp membership alone does not prove meaning.');
+  }
   const quotes=[...page.matchAll(/(?:^>[^\n]*(?:\n|$))+/gm)].map((match:any)=>match[0].replace(/^>[ \t]?/gm,''));
   if(quotes.some((quote:string)=>!original||!original.includes(normalized(quote))))issues.push('V4: repair non-verbatim blockquotes on '+meeting.slug+'. Copy a short contiguous passage exactly from original_text; only spoken text belongs inside the blockquote. Put attribution/citations outside, then save and reread the corrected page.');
   for(const slug of [...meeting.attendees,...meeting.entities]){

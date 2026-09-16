@@ -56,7 +56,11 @@ preserve and flag the conflict rather than silently resolving it.
 
 For each decision and action, locate the exact supporting passage in the complete
 original and check subsequent corrections before accepting the claim. Include the
-source timestamp or message reference in its citation when one exists. Preserve
+full original timestamp in each Key Decisions and Action Items entry when the
+original is timestamped; use the original message reference for message sources.
+A date or `[Source: same]` alone is not a passage reference. Do this on the first
+draft and on repairs. Citation membership is checked mechanically at completion,
+but you must check that the cited passage actually supports the claim. Preserve
 logical alternatives: "one of A or B" does not mean A is mandatory and B optional,
 or that two different fields must both be set. Resolve "I", "you" and "we" using
 the named speaker and evidenced addressee; do not substitute the speaker for the
