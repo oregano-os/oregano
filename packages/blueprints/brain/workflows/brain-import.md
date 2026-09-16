@@ -107,4 +107,4 @@ steps:
 8. [brain-owner, R0] Choose the model role. <!-- step:choose-route -->
 9. [brain-owner, R0] Retain a supported skip. <!-- step:finish-skip -->
 10. [brain-owner, R1] Follow the selected Skills: read, write incrementally, verify saved pages and correct defects. <!-- step:process-source -->
-11. [brain-owner, R0] Complete only after accepted saved-page verification. <!-- step:finish-import -->
+11. [brain-owner, R0] Retain the final Agent report and actual write receipts. <!-- step:finish-import -->
