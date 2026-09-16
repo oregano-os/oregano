@@ -2,7 +2,7 @@ version: 3
 plan_id: brain-workflow-integration-2026-09-15
 created: 2026-09-15
 title: Integrate governed Brain with existing conversation-root workflow behavior
-objective: Preserve current Brain, native attachment and common Tool grant behavior while integrating the existing conversation-root branch. Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, skip the coordinator pass for replies a waiting collection expects, and give the coordinator and every Agent the ten latest Slack messages at the same place, and make setup require the matching bot permissions.
+objective: Preserve current Brain, native attachment and common Tool grant behavior while integrating the existing conversation-root branch. Make a private human decision notice the default root of the following conversation, thread later messages to the same person there unless declared otherwise, link the affirmative control to that own thread, add an optional readable card title, skip the coordinator pass for replies a waiting collection expects, and give the coordinator and every Agent the ten latest Slack messages at the same place, and make setup require the matching bot permissions. Follow bounded thread pagination so an incomplete history is never presented as the latest replies.
 non_goals:
   - Change decision authority, recipient qualification or approval risk rules.
   - Remove continue_in navigation or the historical generic heading for existing workflows.
@@ -56,6 +56,7 @@ files_expected:
   - packages/testkit/tests/workflow-compiler.test.ts
   - packages/testkit/tests/workflow-decision-conversation-root.test.ts
 tests:
+  - packages/testkit/tests/slack-recent-messages.test.ts
   - packages/testkit/tests/brain-reads.test.ts
   - packages/testkit/tests/brain-writes.test.ts
   - packages/testkit/tests/brain-postgres.test.ts

@@ -2,15 +2,17 @@ import type { ConversationTranscriptMessage } from "../../../runtime/shared-conv
 import type { RosterMember } from "../../../state-store/roster.ts";
 
 type SlackMessage = { ts?: string; user?: string; bot_id?: string; username?: string; subtype?: string; text?: string; thread_ts?: string };
+type SlackHistoryPage = { ok?: boolean; messages?: SlackMessage[]; has_more?: boolean; response_metadata?: { next_cursor?: string } };
 export interface SlackHistoryClient {
   conversations: {
-    history(args: { channel: string; latest: string; inclusive: boolean; limit: number }): Promise<{ ok?: boolean; messages?: SlackMessage[] }>;
-    replies(args: { channel: string; ts: string; latest: string; inclusive: boolean; limit: number }): Promise<{ ok?: boolean; messages?: SlackMessage[] }>;
+    history(args: { channel: string; latest: string; inclusive: boolean; limit: number }): Promise<SlackHistoryPage>;
+    replies(args: { channel: string; ts: string; latest: string; inclusive: boolean; limit: number; cursor?: string }): Promise<SlackHistoryPage>;
   };
 }
 
 const TS = /^\d+\.\d+$/;
 export const RECENT_MESSAGE_LIMIT = 10;
+const THREAD_PAGE_LIMIT = 10;
 
 /**
  * Reads the messages immediately before one verified message at the same place:
@@ -22,11 +24,23 @@ export async function slackRecentMessages(args: {
 }): Promise<ConversationTranscriptMessage[]> {
   if (!TS.test(args.threadId) || !TS.test(args.messageId)) throw new Error("Recent messages require exact Slack message identities");
   const inThread = args.threadId !== args.messageId;
-  const response = inThread
+  let response = inThread
     ? await args.client.conversations.replies({ channel: args.channelId, ts: args.threadId, latest: args.messageId, inclusive: false, limit: 200 })
     : await args.client.conversations.history({ channel: args.channelId, latest: args.messageId, inclusive: false, limit: RECENT_MESSAGE_LIMIT });
   if (response.ok === false || !Array.isArray(response.messages)) throw new Error("Slack returned no readable conversation history");
-  const before = response.messages.filter(message => typeof message.ts === "string" && TS.test(message.ts) && Number(message.ts) < Number(args.messageId)
+  const messages = [...response.messages];
+  // Replies are oldest first. The last ten on an unfinished page are not the latest ten.
+  const cursors = new Set<string>();
+  for (let pages = 1; inThread; pages++) {
+    const cursor = response.response_metadata?.next_cursor?.trim();
+    if (!cursor && !response.has_more) break;
+    if (!cursor || cursors.has(cursor) || pages >= THREAD_PAGE_LIMIT) throw new Error("Slack thread history is incomplete within the recent-message page limit");
+    cursors.add(cursor);
+    response = await args.client.conversations.replies({ channel: args.channelId, ts: args.threadId, latest: args.messageId, inclusive: false, limit: 200, cursor });
+    if (response.ok === false || !Array.isArray(response.messages)) throw new Error("Slack returned no readable conversation history");
+    messages.push(...response.messages);
+  }
+  const before = [...new Map(messages.map(message => [message.ts, message])).values()].filter(message => typeof message.ts === "string" && TS.test(message.ts) && Number(message.ts) < Number(args.messageId)
     && (!inThread || message.ts === args.threadId || message.thread_ts === args.threadId));
   before.sort((a, b) => Number(a.ts) - Number(b.ts));
   const selected = inThread
