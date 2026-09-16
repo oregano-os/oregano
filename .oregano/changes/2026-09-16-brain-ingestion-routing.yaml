@@ -8,6 +8,8 @@ objective: Separate source transport from content procedure. Route normalized
   bound continuing Agent cost and stop repeated attempts without progress. Add a
   deterministic evidenced Timeline addition within remember and verify saved-page
   hashes through durable write receipts without rewriting unrelated page content.
+  Allow an explicitly named ordinary Workflow for isolated qualification while
+  retaining existing source identities, admissions and ordinary deduplication.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.
@@ -42,6 +44,7 @@ files_expected:
   - docs/specifications/workflow-execution-v1-draft.md
   - docs/operations/workflow-engine.md
 tests:
+  - packages/testkit/tests/brain-import-admission.test.ts
   - packages/testkit/tests/brain-mutations.test.ts
   - packages/testkit/tests/brain-writes.test.ts
   - packages/testkit/tests/language-attempts.test.ts

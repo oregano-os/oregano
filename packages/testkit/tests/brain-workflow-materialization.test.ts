@@ -365,3 +365,20 @@ test("triage score boundaries preserve low-value skips and meaningful short cont
     }
   }
 });
+
+test('an explicitly named qualification Workflow reuses the same procedure with independent history', () => {
+ const normal=materializeBrainWorkflow(input), isolated=materializeBrainWorkflow({...input,workflow_id:'brain-qualification'});
+ assert.equal(isolated.materials['workflows/brain-import.md'],undefined);
+ const text=isolated.materials['workflows/brain-qualification.md'];
+ const definition=YAML.parse(/^---\n([\s\S]*?)\n---/.exec(text)![1]);
+ const ordinary=YAML.parse(/^---\n([\s\S]*?)\n---/.exec(normal.materials['workflows/brain-import.md'])![1]);
+ assert.deepEqual(definition.steps,ordinary.steps);
+ assert.deepEqual(definition.instance,ordinary.instance);
+ assert.equal(definition.config,'workflows/brain-qualification/config.yaml');
+ const config=YAML.parse(isolated.materials[definition.config]);
+ assert.equal(config.source_history.workflow_id,'brain-qualification');
+ assert.deepEqual(config.transcripts,YAML.parse(normal.materials['workflows/brain-import/config.yaml']).transcripts);
+ assert.equal(isolated.report.activated,false); assert.equal(isolated.report.admission_created,false);
+ for(const [path,text] of Object.entries(normal.materials))if(path.startsWith('agents/'))assert.equal(isolated.materials[path],text);
+ for(const workflow_id of ['../brain-import','a/b','MixedCase',''])assert.throws(()=>materializeBrainWorkflow({...input,workflow_id}),/identity/);
+});

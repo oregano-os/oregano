@@ -12,6 +12,8 @@ const toolRoot = fileURLToPath(new URL("../packages/cli/content/templates/brain-
 const workflowPath = "workflows/brain-import.md";
 const phaseNames = { normalization: "meeting-normalize", resolution: "meeting-resolve", meeting_page: "meeting-page", entity_page: "meeting-entities", verification: "meeting-verify", discussion_extraction: "discussion-extract", discussion_entity: "discussion-entities", source_reconciliation: "source-reconcile", source_reconciliation_verification: "source-reconcile-verify" };
 export interface BrainWorkflowInputs {
+  /** Explicit independent Workflow identity; never restarts an existing run. */
+  workflow_id?: string;
   prompt: BrainPromptInputs;
   source_projection: string;
   source_routes?: Array<{ identity_prefix: string; projection: string }>;
@@ -38,7 +40,9 @@ const frontmatter = (text: string) => {
 
 /** Pure authoring helper: returns ordinary reviewed files; never writes, grants, binds or activates. */
 export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
-  if (!input || Object.keys(input).filter(key => key !== "source_routes").sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
+  if (!input || Object.keys(input).filter(key => !["source_routes", "workflow_id"].includes(key)).sort().join(",") !== "history_from,prompt,segment_characters,source_projection,transcripts,triage") throw new Error("Invalid reviewed Brain Workflow inputs");
+  const workflowId = input.workflow_id ?? "brain-import";
+  if (!/^[a-z][a-z0-9-]{0,62}$/.test(workflowId)) throw new Error("Invalid reviewed Brain Workflow identity");
   const prompts = materializeBrainPrompts(input.prompt);
   const transcripts = validateTranscriptSelectionPolicy(input.transcripts);
   const history = validateTranscriptSelectionPolicy({ mode: "bounded", max_transcripts: 1, meeting_date: { start_at: input.history_from, end_at: null } }).meeting_date.start_at;
@@ -78,6 +82,8 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
   const availableTools = Object.keys(assets).filter(path => path.endsWith("/TOOL.md")).map(path => `company:${path.split("/")[1]}`).sort();
   if (declaredTools.some(tool => !availableTools.includes(tool)) || availableTools.some(tool => !assets[`tools/${tool.slice(8)}/execute.ts`])) throw new Error("Brain Workflow and restricted Tool templates do not resolve together");
   workflow.owner = `agents/${input.prompt.agent_id}`;
+  workflow.id = workflowId;
+  workflow.config = `workflows/${workflowId}/config.yaml`;
   const binding = (phase: string) => {
     const path = `agents/${input.prompt.agent_id}/skills/brain-${phase}/SKILL.md`;
     if (!prompts.materials[path]) throw new Error("Workflow phase is missing its reviewed prompt");
@@ -115,7 +121,7 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     return [path, text];
   }));
   const directories = input.prompt.directories;
-  const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, source_routes: structuredClone(sourceRoutes), segment_characters: input.segment_characters,
+  const config = { schema_version: 2, id: workflowId, transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, source_routes: structuredClone(sourceRoutes), segment_characters: input.segment_characters,
     prompts: { triage: binding("triage"),
       ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
     page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
@@ -130,8 +136,8 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     agent: { instructions: [`agents/${input.prompt.agent_id}/skills/brain-task/SKILL.md`],
       skills: Object.keys(agentSkills).filter(path => !path.endsWith("/brain-task/SKILL.md")),
       budget: { turns: 12, tool_calls: 48, output_tokens: 12000, total_input_bytes: 2000000, total_output_tokens: 48000, no_progress_turns: 2 } },
-    source_history: { workflow_id: "brain-import", from: history } };
-  const materials: Record<string, string> = { ...prompts.materials, ...agentSkills, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
+    source_history: { workflow_id: workflowId, from: history } };
+  const materials: Record<string, string> = { ...prompts.materials, ...agentSkills, [`workflows/${workflowId}.md`]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, [workflow.config]: YAML.stringify(config) };
   for (const [path, text] of Object.entries(assets).filter(([path]) => declaredTools.includes(`company:${path.split("/")[1]}`))) materials[`agents/${input.prompt.agent_id}/${path}`] = text;
   const tools = declaredTools;
   return { materials, prompts: prompts.prompts, report: { version: 1, blueprint: "oregano/brain", inputs_digest: sha256(input), workflow_steps: workflow.steps.length,

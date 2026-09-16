@@ -397,3 +397,23 @@ Qualification may replay exact retained source evidence through the current prom
 and pure routing/outcome Tools without changing source admission or historical
 Workflow results. Such calls are separate qualification evidence, retain every
 model attempt and cost, and cannot be reported as a newly completed live import.
+
+### Isolated procedure qualification
+
+The materializer accepts an optional reviewed `workflow_id` (default
+`brain-import`). It changes only the declarative Workflow/configuration identity
+and its source-history scope; instruction assets, steps, source identities,
+budgets and admission rules are identical. This authoring option does not open,
+activate or restart a run. Enabling another Workflow still needs ordinary
+Workspace review and an exact Instance admission binding.
+
+For an authorized isolated qualification of already completed source versions,
+use a separately named Workflow in a protected Preview, an explicitly isolated
+Git branch and test database, and the existing frozen cohort with the same exact
+processing subset. Retain original Records, ordinary runs, pages and cost receipts.
+The qualification uses its own source-history scope and separate run/effect IDs;
+never represent that scope as proof of ordinary delivery or of no historical
+knowledge. Record both identities, the source-version equality and the unchanged
+cohort proof. Repeated delivery within either Workflow still deduplicates. A
+normal unchanged delivery proves deduplication, not execution of a revised
+procedure. `continueUnwrittenSource` remains limited to eligible unwritten runs.
