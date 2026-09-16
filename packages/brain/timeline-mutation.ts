@@ -22,7 +22,7 @@ export function addBrainTimeline(page: BrainPage, addition: BrainTimelineAdditio
   const entry = `- ${addition.date}: ${addition.summary.trim()}${addition.detail ? ` — ${addition.detail.trim()}` : ""} ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")}`;
   // Exact duplicate protection also covers an intentional retry with a fresh key
   // after rereading. Source corrections still require an explicit replacement.
-  if (page.timeline.split(/\r?\n/).some(line => line === entry)) return page.markdown;
+  if (timelineProseLines(page.timeline).some(line => line.text === entry)) return page.markdown;
 
   const raw = page.markdown, newline = raw.includes("\r\n") ? "\r\n" : "\n";
   const header = raw.match(/^\uFEFF?\s*---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)!;
@@ -54,10 +54,29 @@ export function addBrainTimeline(page: BrainPage, addition: BrainTimelineAdditio
   }
   // Insert among ordinary dated bullets when present, without sorting or
   // rewriting existing prose. Legacy undated history remains untouched.
-  const older = [...history.matchAll(/^[ \t]*[-*+]\s+(?:\*\*)?(\d{4}-\d{2}-\d{2})\b[^\r\n]*/gm)]
-    .find(match => match[1] <= addition.date);
-  const position = older?.index ?? history.length;
+  const older = timelineProseLines(history).find(line => {
+    const match = /^[ \t]*[-*+]\s+(?:\*\*)?(\d{4}-\d{2}-\d{2})\b/.exec(line.text);
+    return match && match[1] <= addition.date;
+  });
+  const position = older?.offset ?? history.length;
   const before = history.slice(0, position), after = history.slice(position);
   const separator = before.endsWith("\n") ? "" : newline;
   return current + "<!-- timeline -->" + before + separator + entry + newline + after;
+}
+
+/** Fenced examples are preserved text, not events or duplicate write receipts. */
+function timelineProseLines(text: string): Array<{ text: string; offset: number }> {
+  const lines: Array<{ text: string; offset: number }> = [];
+  let fence: string | undefined, length = 0;
+  for (const match of text.matchAll(/[^\r\n]+/g)) {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(match[0]);
+    if (marker) {
+      if (!fence) { fence = marker[1][0]; length = marker[1].length; }
+      else if (marker[1][0] === fence && marker[1].length >= length && !match[0].slice(marker[0].length).trim()) fence = undefined;
+      continue;
+    }
+    if (!fence) lines.push({ text: match[0], offset: match.index });
+  }
+  if (fence) throw new BrainError("ambiguous_target", "Timeline has an unclosed code fence; repair it with a reviewed full-page replacement before adding an event.");
+  return lines;
 }

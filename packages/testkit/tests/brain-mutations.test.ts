@@ -177,3 +177,16 @@ test("Timeline additions reject malformed events, undeclared evidence and absent
   assert.ok(saved.includes('date corrected')); assert.ok(!saved.includes('2026-09-15: Review occurred.'));
   assert.deepEqual(parseBrainPage(path, saved, brainConfig).page!.takes, parseBrainPage(path, brainFiles[path], brainConfig).page!.takes);
 });
+
+test('Timeline insertion and duplicate detection leave fenced examples untouched', () => {
+ const entry='- 2026-09-15: Reviewed expansion. [[sources/review]]';
+ const history='A sourced example follows. [[sources/review]]\n```markdown\n'+entry+'\n```\n\n- 2026-09-14: Earlier event. [[sources/review]]\n';
+ const original=page('topic','Expansion','Current account.\n\n<!-- timeline -->\n\n'+history);
+ const request:BrainRememberInput={changes:{expected_revision:revision,pages:[{path,expected_content_hash:sha256(original),timeline_add:{date:'2026-09-15',summary:'Reviewed expansion.',evidence:['sources/review']}}]},provenance,operation_key:'timeline:code-example'};
+ const saved=prepareBrainRemember({...brainFiles,[path]:original},brainConfig,request).files[path];
+ assert.equal(saved.split(entry).length,3,'A fenced illustration cannot suppress a real event');
+ assert.ok(saved.includes('```markdown\n'+entry+'\n```'),'The example survives byte for byte');
+ assert.ok(saved.includes(entry+'\n- 2026-09-14: Earlier event.'));
+ const open=original.replace('\n```\n','\n');request.changes.pages[0].expected_content_hash=sha256(open);
+ assert.throws(()=>prepareBrainRemember({...brainFiles,[path]:open},brainConfig,request),code('ambiguous_target'));
+});
