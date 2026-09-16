@@ -49,6 +49,9 @@ Phase 4. An unflagged anonymous label means speaker resolution was skipped.
 
 **V5 — Fabricated-attendee sanity checks.**
 Recorders confidently invent names and emails for unlabeled speakers.
+This check applies to every ingested meeting, including meetings with no emails.
+After verifying supported names and flagging unresolved identities, report
+`passed`; absence of email fields does not make V5 `not-applicable`.
 - An attendee name that appears NOWHERE in the transcript or roster evidence
   did not survive the evidence — treat it as a guess. Identify the real person
   from in-call tells (companies, shared history) or remove the name.

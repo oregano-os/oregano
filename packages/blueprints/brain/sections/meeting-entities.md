@@ -21,7 +21,11 @@ just attendees — but high-confidence identifications only. Never backlink a
 garbled name or a low-confidence guess; a wrong backlink pollutes the graph
 worse than a missing one.
 
-**Note:** Write readable meeting-to-attendee links using Workspace page mappings and dated evidence on the related entity pages in the same bounded write batch. Sync derives graph links and computed incoming links. There is no separate link-writing Tool or auto-link response contract.
+**Note:** Complete these links within the same bounded Agent task, using the
+Workspace page mappings. Save the source and meeting first, then enrich individual
+entities in small writes. Do not hold every page for one combined write batch.
+Sync derives graph links and computed incoming links. There is no separate
+link-writing Tool or auto-link response contract.
 
 ### Phase 8: Entity propagation + timeline merge (MANDATORY)
 
@@ -30,6 +34,12 @@ For each company, project, or concept discussed:
 2. Create/update as needed (claims subject to Phase 6).
 3. Add a timeline entry referencing the meeting.
 4. Back-link from entity page to meeting page.
+
+Inventory notable subjects from the source, not only the links already drafted
+on the meeting page. The Workspace's own company is included when its operations,
+decisions or processes are discussed. People pages do not replace company knowledge.
+Apply the filing/notability gate to incidental mentions; report any unresolved
+subject instead of silently omitting it.
 
 **Timeline merge:** the same event appears on ALL mentioned entities'
 timelines. If alice-example met charlie-example at acme-example, the event

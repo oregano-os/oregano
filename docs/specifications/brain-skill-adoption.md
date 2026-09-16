@@ -186,6 +186,14 @@ walking are not granted by these Skills. Publication procedures are retained as
 adapter requirements; publication input currently stops before a paid call.
 This explicit acquisition gap is not full GBrain execution parity.
 
+Entity propagation occurs through small writes within the same Agent task, after
+the source and meeting have been saved. The adopted entity section must not demand
+a single combined batch. Subject coverage includes the Workspace company when
+notable company processes are discussed. Claim verification preserves quantitative
+units and final corrected agreements across prose, Takes and Timeline summaries,
+and flags conflicting source dates. V5 checks attendee names even without email
+fields; an ingested meeting still requires a passed verdict.
+
 Qualification must separate upstream procedure conformance from provider and
 model execution. A copied Skill is neither a runtime nor a cost guarantee.
 Compare phase/operation order, source updates, entity/quote/backlink quality and

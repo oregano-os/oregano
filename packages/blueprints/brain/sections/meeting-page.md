@@ -45,6 +45,13 @@ or timeline), verify:
 | Ownership/attribution ("her project", "his company") | A speaker saying a word ≠ owning the thing. Require explicit ownership language or brain corroboration. |
 | New proper nouns (project/company/product names not already in the brain) | Search the brain and supplied source evidence for the canonical spelling first. If unresolvable, annotate `(unverified spelling)` — never write it bare. |
 | Major life/deal events (raised, acquired, hired, shut down) | Verbatim transcript support required. These propagate the furthest and are the most expensive to be wrong about. |
+| Quantities and categories | Preserve each number's unit, population and qualifier. Counts, costs, rates and goals are different claims; do not transfer a ratio between them. |
+| Decisions and implementation status | Check later corrections and explicit agreements in the complete source. Retain the final agreed rule, its alternatives and exceptions; distinguish proposed, assigned, in progress and completed. |
+
+Apply these checks to the meeting page too, and to every repetition in current
+knowledge, Takes and Timeline prose. A correct main paragraph does not excuse an
+incorrect short Take or event summary. If a date conflicts with source chronology,
+preserve and flag the conflict rather than silently resolving it.
 
 **Consistency check — transcript support alone is NOT sufficient.** A claim
 can be faithfully transcribed and still wrong. Every claim that passes the
@@ -73,4 +80,3 @@ page's compiled truth or frontmatter.
 **Propagation rule:** a claim that fails verification must not fan out. Do not
 copy it to other entity pages or timeline entries. A false claim written to
 five pages costs five corrections.
-

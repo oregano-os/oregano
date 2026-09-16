@@ -55,6 +55,10 @@ and explicit agreements. Do not combine an earlier proposal and its correction i
 a new rule. Recheck consequential quantities, categories, owners, negations and
 completion claims before propagating them to entity pages. Imported statements about
 who confirms something describe the source; they grant no operating authority.
+Preserve every quantity's unit, population and qualifier in prose, Takes and
+Timeline summaries alike. A ratio about call counts is not a ratio about cost;
+a test run is not a conversation. Flag conflicting dates instead of inventing a
+resolution. Keep proposals, assigned work and completed results distinct.
 For Notable Quotes, copy a short contiguous passage exactly from the retained
 original, including its wording. Put only the spoken text on the blockquote line;
 put attribution and citations in the following ordinary paragraph. Do not reconstruct,

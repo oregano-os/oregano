@@ -482,8 +482,8 @@
       ],
       "source_excerpt_sha256": "db95831fd36316f29f837fcf5b8be022c3148710a1692be98b383356752a1fff",
       "path": "sections/meeting-page.md",
-      "sha256": "f51fadca9474e89b7d8522857ee8a643536706f77aae1c183e5b53a6a116f0f8",
-      "adaptation_reason": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded.",
+      "sha256": "d7b5dd643620991e893f0725115eb94f66999d8c4888d3d3529206868c800541",
+      "adaptation_reason": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded. Preserve quantitative units and final corrected decisions in every representation, and flag conflicting dates.",
       "adaptations": [
         {
           "kind": "scoped-contract-adaptation",
@@ -492,6 +492,10 @@
         {
           "kind": "terminology-operation-or-synthetic-example",
           "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Preserve quantitative units and final corrected decisions in every representation, and flag conflicting dates."
         }
       ]
     },
@@ -506,8 +510,8 @@
       ],
       "source_excerpt_sha256": "17ce1a4e31a4448c6e7bd7a3afdf32eb2627d02d2d82a68178d908e99f1398a6",
       "path": "sections/meeting-entities.md",
-      "sha256": "f5fbcd32bbfb25803ab8648944a73ca0f3b89b9968985141a9cdb7b536a89d67",
-      "adaptation_reason": "Preserve confirmed-attendee coverage and subject-specific propagation; links are derived during sync, with no separate auto-link response or rewrite pass. Use the existing remember Timeline alternative for a small evidenced event; keep full replacements for current knowledge and source corrections.",
+      "sha256": "e5bc3b7e584b474b4cbf81243ec003630e233d4837273b3c64bd17479ce3354f",
+      "adaptation_reason": "Preserve confirmed-attendee coverage and subject-specific propagation; links are derived during sync, with no separate auto-link response or rewrite pass. Use the existing remember Timeline alternative for a small evidenced event; keep full replacements for current knowledge and source corrections. Write source and meeting before individual entity updates in the same bounded task, including notable Workspace-company knowledge.",
       "adaptations": [
         {
           "kind": "scoped-contract-adaptation",
@@ -520,6 +524,10 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Use the existing remember Timeline alternative for a small evidenced event; keep full replacements for current knowledge and source corrections."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Write source and meeting before individual entity updates in the same bounded task, including notable Workspace-company knowledge."
         }
       ]
     },
@@ -534,8 +542,8 @@
       ],
       "source_excerpt_sha256": "8b87550cf48c4ada65e1c6cc51c0901b2901cef77ab0d9c278e941f9df972eed",
       "path": "sections/meeting-verify.md",
-      "sha256": "0161bd9819d85af900dcb746704a6e124e0194cc8ed3b06b3e6453ebc160fb68",
-      "adaptation_reason": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries.",
+      "sha256": "b3100f9f10c75e8563c08d5b5e486885e931f3c2ee01f594408c67ee01cb6e1c",
+      "adaptation_reason": "Preserve all six completion checks. Use already gathered complete source evidence and page/Timeline reads instead of unsupported transcript sidecars or day-event queries. Apply V5 to ingested meetings without email fields; verifying supported names requires a passed verdict.",
       "adaptations": [
         {
           "kind": "scoped-contract-adaptation",
@@ -544,6 +552,10 @@
         {
           "kind": "terminology-operation-or-synthetic-example",
           "description": "Adapt source terminology, operation names, illustrative identities or configurable directories."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Apply V5 to ingested meetings without email fields; verifying supported names requires a passed verdict."
         }
       ]
     },
