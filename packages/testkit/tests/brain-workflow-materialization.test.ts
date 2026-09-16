@@ -236,6 +236,22 @@ test('incremental completion checks actual saved pages and returns correction fe
  assert.equal(displayNameFeedback.accepted,false);
  assert.match(displayNameFeedback.feedback,/canonical Brain page slugs.*page.slug.*never display names/);
  assert.doesNotMatch(displayNameFeedback.feedback,/Read every affected page/);
+ const quoteCalls=structuredClone(calls);
+ quoteCalls[0].input.changes.pages[1].markdown=meetingText.replace('No notable quotes.','> Finish everything today.');
+ quoteCalls[2].output.page.markdown=quoteCalls[0].input.changes.pages[1].markdown;
+ const quoteTask={...task,original_text:'[2030-01-02T10:00:00Z] Alex: Finish the existing review first.\n[2030-01-02T10:01:00Z] Alex: New work can follow.'};
+ const combined=await check({context:{task:quoteTask,calls:quoteCalls.filter((_c,i)=>i!==1)},facts:displayNames});
+ assert.equal(combined.accepted,false);
+ for(const expected of [/canonical Brain page slugs/,/Read every affected page.*sources\/import-example/,/V4: repair non-verbatim/])assert.match(combined.feedback,expected,'Return all independently known repairs in one bounded response');
+ const corrected=structuredClone(quoteCalls);
+ corrected[0].input.changes.pages[1].markdown=meetingText.replace('No notable quotes.','> Finish the existing review first.\n\nAlex, [['+source+']]');
+ corrected[2].output.page.markdown=corrected[0].input.changes.pages[1].markdown;
+ assert.equal((await check({context:{task:quoteTask,calls:corrected},facts})).accepted,true);
+ assert.match((await check({context:{task,calls:corrected},facts})).feedback,/V4/,'Missing original cannot qualify a quote');
+ const stitched=structuredClone(corrected);
+ stitched[0].input.changes.pages[1].markdown=meetingText.replace('No notable quotes.','> Finish the existing review first.\n> New work can follow.');
+ stitched[2].output.page.markdown=stitched[0].input.changes.pages[1].markdown;
+ assert.match((await check({context:{task:quoteTask,calls:stitched},facts})).feedback,/V4/,'Separate utterances cannot silently become one contiguous quotation');
  assert.match((await check({context:{task,calls:calls.slice(0,-1)},facts})).feedback,/Read every/);
  const stale=[calls[1],calls[0],...calls.slice(2)];assert.equal((await check({context:{task,calls:stale},facts})).accepted,false);
  // A later write to another page does not invalidate a verified read of this page.

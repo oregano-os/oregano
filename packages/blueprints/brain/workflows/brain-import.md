@@ -113,6 +113,7 @@ steps:
             - reconciled
             - skipped
         pages:
+          description: "Every affected page.slug, including the source evidence page. Use directory/slug, never brain/ paths, .md suffixes or display names. Read every page after its last write before submitting."
           type: array
           maxItems: 200
           items:
@@ -131,10 +132,12 @@ steps:
               - entities
             properties:
               slug:
+                description: "Canonical meeting page.slug from its saved read."
                 type: string
                 minLength: 1
                 maxLength: 2000
               attendees:
+                description: "Canonical person page.slug values, never participant display names."
                 type: array
                 maxItems: 100
                 items:
@@ -142,6 +145,7 @@ steps:
                   minLength: 1
                   maxLength: 2000
               entities:
+                description: "Canonical page.slug values for all other affected entities."
                 type: array
                 maxItems: 100
                 items:

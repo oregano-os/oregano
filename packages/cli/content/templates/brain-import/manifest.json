@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "workflow_digest": "a508e2bbc6086a35be0ead0eddb0c37d53ab48cc034c256bbdd1c6b27c15fb18",
+  "workflow_digest": "b57727d76273a314634e8acaf3bb2e26b0f8ee0f97444cc1df85a12e2ff16106",
   "files": [
     {
       "path": "tools/brain-agent-context/TOOL.md",
@@ -20,11 +20,11 @@
     },
     {
       "path": "tools/brain-check-agent-completion/TOOL.md",
-      "digest": "b4692145e84748c41a8c63bd260e54581f76cea459753c5d96bf454b07083815"
+      "digest": "b498eb0b53012d9efbe56cf979375d909ff7834fa173f8ffeb832ac5960dab5b"
     },
     {
       "path": "tools/brain-check-agent-completion/execute.ts",
-      "digest": "e371989d99245f00198e6fd45ea6adcb22503e1c2293444bf32850e0dfe7cbe6"
+      "digest": "aa2c4aa4b5ccb02aac9f2f36f5cfe7f8b123b9bd5cd58acbf2703668cade3349"
     },
     {
       "path": "tools/brain-check-correction-verification/TOOL.md",
@@ -307,5 +307,5 @@
       "digest": "bbe58d1bf14e624ba8406b456d5b81a07e8aa8776c94eb6af8192db1a8c60457"
     }
   ],
-  "agent_instruction_digest": "f2ae7a0af521166aa435d43d4f95601ce2b33a66570a1dc9f460b679fc761e39"
+  "agent_instruction_digest": "e343b35c6e06b0dcc5fe92c718dcb1077434d55d51a424e9d1ba89045cb366a1"
 }

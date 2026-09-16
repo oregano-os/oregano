@@ -16,6 +16,9 @@ objective: Separate source transport from content procedure. Route normalized
   and make the canonical Takes-before-Timeline serialization explicit.
   Explain atomic batch rejection and missing declared evidence so a repair
   resends required source pages instead of assuming a partial save.
+  Return concurrent completion defects together, check saved verbatim quotations
+  against the retained original, and omit redundant outgoing-link excerpts from
+  model replay while preserving complete Markdown and durable Tool receipts.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.

@@ -16,10 +16,14 @@ const request = (): WorkflowAgentRequest => ({ agent: { id: "analyst", instructi
 test("Brain model context contains Markdown once while preserving the full verification receipt", () => {
   const text = "Supported knowledge. ".repeat(1000), markdown = `---\ntype: concept\ntitle: Example\n---\n\n${text}`;
   const receipt = { found: true, status: "found", page: { slug: "concepts/example", markdown, compiled_truth: text, search_text: text,
-    timeline: "", takes: [], content_hash: "a".repeat(64) }, outgoing: [{ target: "people/example", resolved: "people/example" }], indexed_revision: { git_commit: "b".repeat(40) } };
+    timeline: "", takes: [], links: [{ target: "people/example", context: text }], content_hash: "a".repeat(64) },
+    outgoing: [{ target: "people/example", resolved: "people/example", context: text }],
+    backlinks: [{ from: "meetings/other", context: "Independent evidence from another page" }], indexed_revision: { git_commit: "b".repeat(40) } };
   const original = structuredClone(receipt), projected = modelToolResult("oregano_brain_entity", receipt) as any;
   assert.deepEqual(receipt, original); assert.equal(projected.page.markdown, markdown);
-  assert.equal(projected.page.content_hash, receipt.page.content_hash); assert.deepEqual(projected.outgoing, receipt.outgoing);
+  assert.equal(projected.page.content_hash, receipt.page.content_hash);
+  assert.deepEqual(projected.outgoing, [{ target: "people/example", resolved: "people/example" }]);
+  assert.deepEqual(projected.page.links, [{ target: "people/example" }]);assert.deepEqual(projected.backlinks,receipt.backlinks);
   assert.deepEqual(projected.indexed_revision, receipt.indexed_revision);
   assert.ok(JSON.stringify(projected).length < JSON.stringify(receipt).length / 2);
   assert.equal(modelToolResult("another_tool", receipt), receipt);

@@ -57,10 +57,15 @@ maintained Connector qualification before activation.
 
 Each Brain operation retains normal validation, expected revisions, Git/index
 receipts and read-back. Completion feedback distinguishes canonical slugs from
-display names, lists missing reads together and rejects unresolved saved links.
+display names, combines independently known repairs (including missing reads),
+and rejects unresolved saved links. Saved meeting blockquotes must match a
+contiguous passage in the full original, allowing Unicode/whitespace normalization
+only. Attribution and citations stay outside blockquotes. This mechanical check
+does not establish the correctness of surrounding summaries or decisions.
 The complete source and complete Tool receipts remain in Records/run evidence.
 Only the model-facing Brain entity response omits derived copies of text already
-present in its canonical Markdown; hashes, revisions and graph evidence remain.
+present in its canonical Markdown, including duplicate outgoing-link excerpts;
+hashes, revisions, link-resolution identities and incoming graph evidence remain.
 
 The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
 `BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the
