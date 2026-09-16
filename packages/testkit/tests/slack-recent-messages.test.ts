@@ -51,6 +51,36 @@ async function turnWith(recentMessages: any) {
     authorize: async () => { throw new Error("Unexpected handoff"); } });
 }
 
+test("paginated threads keep the root and the latest replies across pages", async () => {
+  const calls: any[] = [], root = ts(0);
+  const messages = [{ ts: root, text: "Root" }, ...Array.from({ length: 220 }, (_, i) => ({ ts: ts(i + 1), thread_ts: root, text: `reply ${i + 1}` }))];
+  const provider = client([]);
+  provider.conversations.replies = async args => {
+    calls.push(args);
+    return args.cursor === "next" ? { ok: true, messages: messages.slice(199) }
+      : { ok: true, messages: messages.slice(0, 200), has_more: true, response_metadata: { next_cursor: "next" } };
+  };
+  const recent = await slackRecentMessages({ client: provider, accountId: "T1", channelId: "D1", threadId: root, messageId: ts(230), roster });
+  assert.deepEqual(recent.map(m => m.messageId), [root, ...messages.slice(-10).map(m => m.ts)]);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1], { channel: "D1", ts: root, latest: ts(230), inclusive: false, limit: 200, cursor: "next" });
+});
+
+test("incomplete or cyclic thread pagination cannot supply stale recent context", async () => {
+  for (const mode of ["missing", "cycle", "limit", "error"] as const) {
+    let calls = 0;
+    const provider = client([]);
+    provider.conversations.replies = async () => {
+      calls++;
+      if (mode === "error" && calls === 2) return { ok: false };
+      return { ok: true, messages: [{ ts: ts(calls), thread_ts: ts(0), text: "Old reply" }], has_more: true,
+        response_metadata: { next_cursor: mode === "missing" ? "" : mode === "cycle" ? "same" : String(calls) } };
+    };
+    await assert.rejects(slackRecentMessages({ client: provider, accountId: "T1", channelId: "D1", threadId: ts(0), messageId: ts(999), roster }), /incomplete|no readable/);
+    assert.equal(calls, mode === "missing" ? 1 : mode === "limit" ? 10 : 2);
+  }
+});
+
 test("the coordinator context carries bounded recent messages and survives a transport failure", async () => {
   const long = Array.from({ length: 10 }, (_, i) => ({ messageId: ts(i), sentAt: "2030-01-04T11:00:00Z", sender: "oregano", kind: "app", text: "x".repeat(3000) }));
   const context = await (await turnWith(async (_scope: unknown, address: any, messageId: string) => {

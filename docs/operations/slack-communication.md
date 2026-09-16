@@ -8,7 +8,7 @@ language: en
 implementation_scope: provider
 providers:
   - slack
-updated: 2026-09-13
+updated: 2026-09-16
 owners:
   - oregano-maintainers
 audience:
@@ -48,6 +48,10 @@ Agent turns read up to ten earlier messages at the same place with
 (thread). The Slack app therefore needs the history read scope for each
 conversation type it serves: `channels:history`, `groups:history` and
 `im:history`. Without the scope the context is omitted; the turn still runs.
+Thread replies arrive oldest first, so the Connector follows pagination before
+selecting the latest ten replies and the root. It reads at most ten pages of
+200 messages. Failed, cyclic or incomplete pagination omits this optional
+context instead of labeling stale replies as recent; the turn still runs.
 
 An original human thread reply can also be shared to the main conversation.
 Slack labels this representation [`thread_broadcast`](https://docs.slack.dev/reference/events/message/thread_broadcast/).
