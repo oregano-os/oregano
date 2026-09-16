@@ -6,6 +6,7 @@
 **Attendees:** {list with links to people pages}
 **Date:** {YYYY-MM-DD}
 **Duration:** {if available}
+**Original source:** {internal evidence-page link from task.evidence.link}
 
 ## Summary
 {3-5 bullet key outcomes}
@@ -52,6 +53,16 @@ Apply these checks to the meeting page too, and to every repetition in current
 knowledge, Takes and Timeline prose. A correct main paragraph does not excuse an
 incorrect short Take or event summary. If a date conflicts with source chronology,
 preserve and flag the conflict rather than silently resolving it.
+
+For each decision and action, locate the exact supporting passage in the complete
+original and check subsequent corrections before accepting the claim. Include the
+source timestamp or message reference in its citation when one exists. Preserve
+logical alternatives: "one of A or B" does not mean A is mandatory and B optional,
+or that two different fields must both be set. Resolve "I", "you" and "we" using
+the named speaker and evidenced addressee; do not substitute the speaker for the
+listener. If the addressee cannot be resolved, keep that ownership uncertain.
+Compare the saved decision/action wording against those passages again during
+final verification, not only against your own earlier summary.
 
 **Consistency check — transcript support alone is NOT sufficient.** A claim
 can be faithfully transcribed and still wrong. Every claim that passes the

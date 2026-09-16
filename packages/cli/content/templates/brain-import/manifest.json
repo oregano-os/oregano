@@ -8,7 +8,7 @@
     },
     {
       "path": "tools/brain-agent-context/execute.ts",
-      "digest": "954d7e684c8603323529497e5c873a613bf8a4162468bcc2f8e5741f5b2a9aeb"
+      "digest": "b0555b93ec7db9e1af166bf07a5547a63cbf9c985463c2a0d37683397b081ba7"
     },
     {
       "path": "tools/brain-agent-outcome/TOOL.md",
@@ -307,5 +307,5 @@
       "digest": "bbe58d1bf14e624ba8406b456d5b81a07e8aa8776c94eb6af8192db1a8c60457"
     }
   ],
-  "agent_instruction_digest": "ace7c2d81c2f59fb7a23c440c70f57938dbf1e9b1ee43f73f3eb5507dc1f6baa"
+  "agent_instruction_digest": "db327ac8d83364bea27773cd150b468365c9b550d8f9812bac7f5200bfbd471a"
 }

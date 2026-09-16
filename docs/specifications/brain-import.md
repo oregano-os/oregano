@@ -68,6 +68,13 @@ The complete source and complete Tool receipts remain in Records/run evidence.
 Only the model-facing Brain entity response omits derived copies of text already
 present in its canonical Markdown, including duplicate outgoing-link excerpts;
 hashes, revisions, link-resolution identities and incoming graph evidence remain.
+The prepared evidence context supplies both the canonical page slug and its exact
+write path/internal link. Adopted instructions distinguish those representations,
+batch independent initial/final reads, and retain small source/meeting-first writes.
+They reserve the existing bounded conversation for saved-page checks and repairs;
+no run limit is raised. Decision/action citations retain available original anchors,
+and verification rechecks final agreements, logical alternatives and pronoun
+addressees against those passages rather than trusting an earlier summary.
 
 The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
 `BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the

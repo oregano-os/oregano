@@ -26,6 +26,11 @@ a skip must never conceal partially written or previously derived knowledge.
 1. Search first. Look up canonical names, first names and explicit aliases with
    recall/entity. A full-name miss is not proof that a short-name page is absent.
    Preserve existing identities; never guess a match from similarity alone.
+   Plan the attendee/company/subject inventory from the complete source first.
+   Request independent lookups together (at most 16 Tools per response), including
+   known aliases, instead of spending one model turn on each already-known name.
+   Read results before dependent lookups or writes. Batch the final independent
+   saved-page reads too; reserve turns and input budget for verification and repairs.
 2. For source updates, read all prior source pages and affected derived pages.
    Evidence pages retain `record_version_id`; query that exact earlier Record version
    with the source projection fixed by the Tool binding. Correct superseded current
@@ -103,8 +108,15 @@ is fixed by this task. Supply an exact current `expected_revision`, page
 `expected_content_hash` (null only after an absence read), and a
 stable unique `operation_key` for this source-version action. Each replacement
 page object has only `path`, `expected_content_hash` and `markdown`; do not add
-`kind` (that field belongs to other operations). Prefer one page per
-write; an evidence page and its meeting may share one bounded batch. An identical
+`kind` (that field belongs to other operations). A write path is
+`brain/<directory>/<slug>.md`, while an entity name or link uses `<directory>/<slug>`.
+Copy `task.evidence.path` for the prepared source page and `task.evidence.link`
+for its internal citation. Every meeting must include that link; every entity
+Timeline entry and Take must directly include it as well as any meeting backlink.
+Keep batches small: save source/meeting first, then independently prepared entity
+updates may share a bounded batch. Never postpone the meeting to draft every entity.
+Separate write calls depend on the preceding receipt's revision and must not be
+issued together against the same stale revision. An identical
 retry keeps its operation key; a corrected payload is a new action with a new key.
 For changed current knowledge, new pages or source corrections, supply complete
 `markdown` after reading the page. For a simple event on an existing page, supply

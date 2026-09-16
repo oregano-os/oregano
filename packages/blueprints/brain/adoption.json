@@ -482,8 +482,8 @@
       ],
       "source_excerpt_sha256": "db95831fd36316f29f837fcf5b8be022c3148710a1692be98b383356752a1fff",
       "path": "sections/meeting-page.md",
-      "sha256": "d7b5dd643620991e893f0725115eb94f66999d8c4888d3d3529206868c800541",
-      "adaptation_reason": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded. Preserve quantitative units and final corrected decisions in every representation, and flag conflicting dates.",
+      "sha256": "cae0cdd60f8079c0f993779de9cb77e704b4442a963e29c726382e0363c362dd",
+      "adaptation_reason": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded. Preserve quantitative units and final corrected decisions in every representation, and flag conflicting dates. Retain available original decision/action anchors and verify final logical alternatives and speaker/addressee attribution before propagation and completion.",
       "adaptations": [
         {
           "kind": "scoped-contract-adaptation",
@@ -496,6 +496,10 @@
         {
           "kind": "scoped-contract-adaptation",
           "description": "Preserve quantitative units and final corrected decisions in every representation, and flag conflicting dates."
+        },
+        {
+          "kind": "scoped-contract-adaptation",
+          "description": "Retain available original decision/action anchors and verify final logical alternatives and speaker/addressee attribution before propagation and completion."
         }
       ]
     },
