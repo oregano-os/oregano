@@ -94,9 +94,12 @@ test("selected instructions cannot escape the declared owning Agent Skill scope"
 
 test("routing eagerly delivers the selected Skill and excludes other scoped procedures", async () => {
   const selected = "agents/sprint/skills/selected/SKILL.md", unrelated = "agents/sprint/skills/unrelated/SKILL.md";
+  const retired = "agents/sprint/skills/retired/SKILL.md";
   const artifact = fixture((data, files, agent) => {
     files[selected] = agent.materials[selected] = "Selected meeting procedure";
     files[unrelated] = agent.materials[unrelated] = "Unrelated media procedure";
+    files[retired] = agent.materials[retired] = "Retired procedure still readable by the Agent";
+    agent.materials["handbook/company.md"] = "Company reference context";
     data.steps[0].skills = [selected, unrelated]; data.steps[0].instruction_selection = [selected];
   });
   const m = model([[{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
@@ -104,6 +107,8 @@ test("routing eagerly delivers the selected Skill and excludes other scoped proc
     assert.ok(request.instructions.includes("Selected meeting procedure"));
     assert.ok(!request.instructions.includes("Unrelated media procedure"));
     assert.equal(request.agent.materials[unrelated], undefined);
+    assert.equal(request.agent.materials[retired], undefined);
+    assert.equal(request.agent.materials["handbook/company.md"], "Company reference context");
     assert.deepEqual(request.skills, []);
     return m.generate(request);
   } });

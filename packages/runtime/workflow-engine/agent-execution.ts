@@ -62,7 +62,10 @@ export async function advanceWorkflowAgent(args: {
     const selected = chosen as string[];
     const instructions = [...new Set([...definition.instructions, ...selected])];
     const scopedAgent = definition.instructionSelection === undefined ? agent : { ...agent,
-      materials: Object.fromEntries(Object.entries(agent.materials).filter(([path]) => !definition.skills?.includes(path) || selected.includes(path))) };
+      // Explicit routing also excludes retired or unrelated Skills present in a
+      // broad Agent read scope but absent from this step's declared choices.
+      materials: Object.fromEntries(Object.entries(agent.materials).filter(([path]) =>
+        !/^agents\/[^/]+\/skills\//.test(path) || instructions.includes(path))) };
     await attempt.prepare();
     let received = false;
     try {

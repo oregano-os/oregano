@@ -10,6 +10,8 @@ objective: Separate source transport from content procedure. Route normalized
   hashes through durable write receipts without rewriting unrelated page content.
   Allow an explicitly named ordinary Workflow for isolated qualification while
   retaining existing source identities, admissions and ordinary deduplication.
+  Exclude every unselected Skill from explicitly routed model context, including
+  retired procedures still present in broad Agent read scopes.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.

@@ -870,7 +870,10 @@ and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
 Optional `instruction_selection` resolves a subset of the declared `skills`
 allowlist and includes only those procedures as eager instructions; it cannot
 load a file outside the compiled owning Agent scope. Unselected Skill content is
-removed from the model request. Without selection, on-demand behavior is unchanged.
+removed from the model request, including retired Skills that remain in the
+Agent's read scope but are absent from this step's allowlist. Only the fixed
+instructions and selected Skills are delivered; ordinary non-Skill reference
+materials remain available. Without selection, on-demand behavior is unchanged.
 Optional budget fields `total_input_bytes` (1,000–16,000,000),
 `total_output_tokens` (at least `output_tokens`, at most 128,000), and
 `no_progress_turns` (1–8) bound the whole Agent step. Input size counts serialized
