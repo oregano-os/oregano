@@ -195,7 +195,7 @@ export function compileWorkflows(args: {
         && all.has(other.id) && !outside.has(other.id) && JSON.stringify(other.message.recipient) === JSON.stringify(step.decision.recipient)) other.message.thread = reference;
     }
     for (const step of steps) {
-      const consumed = [step.agent?.context, step.agent?.profile, step.agent?.tools.map(entry => entry.bind), step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
+      const consumed = [step.agent?.context, step.agent?.profile, step.agent?.task, step.agent?.tools.map(entry => entry.bind), step.start?.fields,step.collect?.from, step.collect?.context, step.input, step.message?.vars, step.message?.destination, step.message?.recipient, step.message?.thread, step.requireSyncedThrough, step.requireScanStartedAfter, step.route?.on, step.decision?.thread, step.decision?.continueIn, step.decision?.recipient, step.decision?.binds, step.decision?.via, step.decision?.presentation?.message?.vars, step.forEach?.over];
       for (const value of consumed) visit(value, (text) => {
         const match = reference.exec(text);
         if (!match) return;

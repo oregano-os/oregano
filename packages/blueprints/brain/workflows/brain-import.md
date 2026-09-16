@@ -75,7 +75,7 @@ steps:
     skills: $config.agent.skills
     instruction_selection: $steps.ingestion-router.instructions
     profile: $steps.agent-context.model_profile
-    task: brain.ingest
+    task: $steps.agent-context.model_task
     tools:
       - tool: oregano:brain/recall
       - tool: oregano:brain/entity

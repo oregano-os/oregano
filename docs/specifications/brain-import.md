@@ -300,6 +300,11 @@ per response, 2,000,000 cumulative serialized input bytes, 48,000 cumulative
 output tokens and two consecutive turns without new Tool evidence).
 Actual provider limits may tighten those values. Haiku utility triage is separate;
 the continuing task uses the resolved reasoning/deep profile through ModelRecipe.
+The restricted context Tool maps that route to `brain.ingest` or
+`brain.ingest.deep` respectively. The Workflow binds both profile and task from
+that validated output; source text cannot supply either model-task name. This
+preserves distinct task-specific model bindings even when a Company uses the
+same model for both roles. Actual attempt evidence records the selected task.
 Each paid attempt, including failure or uncertain transport, remains chargeable and
 is recorded by the existing language-attempt service. No per-microphase model reset
 or prewrite meeting/entity draft bundle is required.

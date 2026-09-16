@@ -32,6 +32,9 @@ objective: Require original timestamp citations for saved meeting decisions and 
   and verify anchored final decisions and pronoun addressees within existing bounds.
   Allow trusted Model Recipe bindings to select scoped Workflow reasoning effort,
   preserving low as the default and every output, time, retry and cumulative bound.
+  Resolve the continuing Agent model task through validated Workflow bindings so
+  reasoning and deep select their distinct ModelRecipe tasks. Freeze referenced
+  tasks before dispatch while retaining historical literal-task journal digests.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.

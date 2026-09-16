@@ -26,6 +26,7 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
   assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 11);
   assert.equal(workflow.steps.find((step: any) => Object.keys(step)[0] === "agent-context")?.input?.processing_instant, "$trigger.instant");
+  assert.equal(workflow.steps.find((step: any) => Object.keys(step)[0] === "process-source")?.task, "$steps.agent-context.model_task");
   assert.equal(config.source_projection, "studio-sources"); assert.equal(config.transcripts.max_transcripts, 4);
   assert.equal(config.transcripts.meeting_date.start_at, "2025-12-31T23:00:00.000Z");
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
@@ -209,16 +210,20 @@ test("triage retains every source character and distinguishes complete coverage 
     assert.deepEqual(validateJsonSchemaValue(tool.contract.outputSchema, output), []);
     assert.equal(output.segments.map((s: any) => s.data.segment.text).join(""), text);
     const contextTool = loadCompanyTool(result.materials, "analyst", "brain-agent-context");
+    for (const route of ["reasoning", "deep", "skip"]) {
     const prepared = await executeIsolatedCompanyTool({ compiledSource: contextTool.compiledSource,
-      input: { prepared: output, gate: { coverage_complete: true, route: "deep" }, history: { requests: [] },
+      input: { prepared: output, gate: { coverage_complete: true, route }, history: { requests: [] },
         directories: { person: "people", company: "companies", concept: "topics", meeting: "meetings", source: "references" },
         processing_instant: "2030-01-02T10:00:00Z" },
       context: { instanceId: "synthetic", runId: "coverage", stepId: "context", agentId: "analyst", toolId: contextTool.contract.runtimeId },
       allowedCapabilities: [], invokeCapability: async () => { throw new Error("No provider access"); } }) as any;
     assert.deepEqual(validateJsonSchemaValue(contextTool.contract.outputSchema, prepared), []);
+    assert.equal(prepared.model_task, route === "deep" ? "brain.ingest.deep" : "brain.ingest");
+    assert.equal(prepared.model_profile, route === "deep" ? "deep" : "reasoning");
     assert.equal(prepared.task.original_text, text, "Evidence helpers never replace or shorten the complete original");
     assert.equal(prepared.task.evidence.path, "brain/references/import-" + "a".repeat(64) + ".md");
     assert.equal(prepared.task.evidence.link, "[[" + prepared.provenance.evidence[0] + "]]");
+    }
     for (const segment of output.segments) {
       assert.equal(segment.data.source.context.companyos_retained_source.complete, true);
       assert.equal(segment.data.source.context.companyos_retained_source.segments, output.segments.length);

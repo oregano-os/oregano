@@ -867,6 +867,13 @@ An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-d
 `skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
 a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, `output_schema`
 and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+`task` accepts a literal model-task name or an ordinary Workflow reference to a
+string. The compiler checks its producer and requires referenced output paths;
+the runtime resolves and validates the name before preparing a paid attempt.
+Referenced task values are frozen with the Agent input and recorded as resolved
+names in dispatch evidence. Existing literal-task journals retain their original
+input digest. Task bindings retain ModelRecipe precedence over profile bindings;
+changing a profile alone does not select a different task binding.
 Optional `instruction_selection` resolves a subset of the declared `skills`
 allowlist and includes only those procedures as eager instructions; it cannot
 load a file outside the compiled owning Agent scope. Unselected Skill content is

@@ -15,6 +15,6 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  const markdown='---\ntype: source\ntitle: "Imported source version"\nsource_identity: '+JSON.stringify(source.identity)+'\nsource_version: '+JSON.stringify(source.version)+'\nrecord_version_id: '+JSON.stringify(source.context.companyos_record_version)+'\nsource_kind: '+JSON.stringify(source.kind)+'\n---\n\n# Imported source version\n\nComplete original text and participants are retained in the authorized Company Record.\n\n[Original source]('+source.original_url.replace(/[()<>\s]/g,(c:string)=>encodeURIComponent(c))+')\n';
  const route=gate.route==='skip'&&history.requests.length?'reasoning':gate.route;
  const provenance={source_id:source.identity,source_version:source.version,action:'incremental-import',evidence:[slug]};
- return {route,model_profile:gate.route==='deep'?'deep':'reasoning',provenance,task:{source,original_text:text,triage:gate,prior:history,directories,evidence:{slug,path:'brain/'+slug+'.md',link:'[['+slug+']]',markdown},processing_day,provenance}};
+ return {route,model_profile:gate.route==='deep'?'deep':'reasoning',model_task:gate.route==='deep'?'brain.ingest.deep':'brain.ingest',provenance,task:{source,original_text:text,triage:gate,prior:history,directories,evidence:{slug,path:'brain/'+slug+'.md',link:'[['+slug+']]',markdown},processing_day,provenance}};
 
 } });

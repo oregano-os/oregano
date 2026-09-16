@@ -27,7 +27,11 @@ export async function advanceWorkflowAgent(args: {
   const state = structuredClone(run.state), context = workflowContext(run, await options.currentRoster());
   const task = resolveWorkflowValue(definition.context, workflow, context), profile = resolveWorkflowValue(definition.profile, workflow, context);
   if (profile !== "utility" && profile !== "reasoning" && profile !== "deep") throw new Error("Invalid Agent model role");
-  const inputDigest = jsonDigest({ context: task, profile });
+  const modelTask = resolveWorkflowValue(definition.task, workflow, context);
+  if (typeof modelTask !== "string" || !/^[a-z][a-z0-9._-]{0,255}$/.test(modelTask)) throw new Error("Invalid Agent model task");
+  // Static tasks remain frozen by the Artifact. Preserve their historical digest
+  // so existing journals resume unchanged; bind newly supported references too.
+  const inputDigest = jsonDigest({ context: task, profile, ...(definition.task.startsWith("$") ? { modelTask } : {}) });
   const stored = state.steps[step.id] ??= { status: "running", startedAt: now, inputDigest, agent: { turns: [] } };
   if (stored.inputDigest !== inputDigest || !stored.agent) throw new Error("Agent task input changed after preparation");
   stored.status = "running";
@@ -50,7 +54,7 @@ export async function advanceWorkflowAgent(args: {
     const fence = (await reader.read()).dispatchFence;
     const attempt = new LanguageAttempt(options.control, { runId: run.runId, stepId: step.id,
       inputHash: sha256({ inputDigest, turns }), fence,
-      evidence: { workflow_id: workflow.id, artifact_hash: artifact.artifactHash, model_profile: profile, model_task: definition.task, agent_turn: turns.length - 1 } }, last.attemptId);
+      evidence: { workflow_id: workflow.id, artifact_hash: artifact.artifactHash, model_profile: profile, model_task: modelTask, agent_turn: turns.length - 1 } }, last.attemptId);
     const previous = turns.slice(0, -1), used = agentBudgetUsed(previous);
     if ((definition.budget.totalInputBytes !== undefined || definition.budget.totalOutputTokens !== undefined)
       && previous.some(turn => !turn.requestBudget)) throw new Error("Cumulative Agent budget evidence is missing");
@@ -70,7 +74,7 @@ export async function advanceWorkflowAgent(args: {
     let received = false;
     try {
       const generated = await options.agentGenerator({ agent: scopedAgent, instructions: instructions.map(path => agent.materials[path]!),
-        context: task, skills: definition.instructionSelection === undefined ? definition.skills : [], profile, task: definition.task, outputTokens,
+        context: task, skills: definition.instructionSelection === undefined ? definition.skills : [], profile, task: modelTask, outputTokens,
         outputSchema: definition.outputSchema, turns: turns.slice(0, -1),
         tools: definition.tools.map(entry => {
           const tool = agent.tools.find(tool => tool.contract.runtimeId === entry.tool.runtimeId)!;

@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { engineArtifact, engineFixture, ENGINE_OPERATOR } from "../workflow-engine-fixture.ts";
 import { compileWorkflows } from "../../companyos-builder/workflow-compiler.ts";
 import { readWorkspaceFiles } from "../../companyos-builder/workspace-files.ts";
-import { sha256 } from "../../runtime/canonical.ts";
+import { sha256, jsonDigest } from "../../runtime/canonical.ts";
 import { validateWorkflowState } from "../../runtime/workflow-engine/state-validation.ts";
 import { guardWorkflowInvocation } from "../../runtime/workflow-engine/guard.ts";
 import { workflowContext } from "../../runtime/workflow-engine/readers.ts";
@@ -15,6 +15,8 @@ import { parseWorkflowOperatorRequest } from "../../runner-vercel/src/lib/workfl
 import { LanguageGenerationError } from "../../language/contracts.ts";
 import { readLanguageAttempts } from "../../language/attempts.ts";
 import type { ModelExecutionSelection } from "../../runner/model-execution.ts";
+import { resolveModelExecutionSelection } from "../../runner/model-execution.ts";
+import { advanceWorkflowAgent } from "../../runtime/workflow-engine/agent-execution.ts";
 
 const selection = { profile: "reasoning", model: "synthetic/test", route: "openai-compatible" } as ModelExecutionSelection;
 function fixture(change: (data: any, files: Record<string, string>, agent: any) => void = () => {}) {
@@ -30,13 +32,13 @@ function fixture(change: (data: any, files: Record<string, string>, agent: any) 
   // Use the actual directory grant spelling resolved by the fixture.
   declaration.steps[0]!.tools[0]!.tool = agent.toolSet.tools.find(tool => tool.runtimeId.includes("directory"))!.grantId;
   change(declaration, files, agent);
-  files["workflows/agent-task.md"] = `---\n${YAML.stringify(declaration)}---\n## Steps\n1. [sprint, R0] Continue the task. <!-- step:work -->\n`;
+  files["workflows/agent-task.md"] = `---\n${YAML.stringify(declaration)}---\n## Steps\n${declaration.steps.map((step, i) => `${i + 1}. [sprint, R0] Continue the task. <!-- step:${Object.keys(step)[0]} -->`).join("\n")}\n`;
   artifact.workflows = compileWorkflows({ files, agents: artifact.agents, provenance: artifact.workflows![0]!.provenance });
   const { artifactHash, ...content } = artifact;
   artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
   return artifact;
 }
-const open = (h: ReturnType<typeof engineFixture>) => h.engine().openOperator({ workflowId: "agent-task", requestId: randomUUID(), principal: ENGINE_OPERATOR, fields: {} });
+const open = (h: ReturnType<typeof engineFixture>, fields: Record<string, string> = {}) => h.engine().openOperator({ workflowId: "agent-task", requestId: randomUUID(), principal: ENGINE_OPERATOR, fields });
 function model(rounds: Array<Array<{ name: string; input: any }>>) {
   let calls = 0; const requests: any[] = [];
   const generate: WorkflowAgentGenerator = async request => {
@@ -56,6 +58,62 @@ test("compiler binds an Agent step to scoped Skills, finite budgets and exact R0
   assert.throws(() => fixture(data => data.steps[0].instructions = ["company.md"]), /Skill/);
   assert.throws(() => fixture(data => data.steps[0].tools = [{ tool: "oregano:communications/publish" }]), /R0.R1/);
   assert.throws(() => fixture(data => data.steps[0].tools.push(data.steps[0].tools[0])), /unique/);
+});
+
+test("a referenced model task reaches task-specific resolution and durable attempt evidence", async () => {
+  for (const role of ["reasoning", "deep"] as const) {
+    const modelTask = role === "deep" ? "analyst.ingest.deep" : "analyst.ingest";
+    const artifact = fixture(data => {
+      const work = data.steps[0];
+      const { work: tool, ...options } = structuredClone(work);
+      data.steps.unshift({ select: tool, ...options, output_schema: { type: "object", required: ["model_task"],
+        properties: { model_task: { type: "string", enum: ["analyst.ingest", "analyst.ingest.deep"] } } } });
+      work.task = "$steps.select.result.model_task"; work.profile = role;
+    });
+    assert.ok(artifact.workflows![0]!.steps[0]!.requiredOutputPaths.some(path => path.join(".") === "result.model_task"));
+    const m = model([[{ name: AGENT_FINISH_TOOL, input: { model_task: modelTask } }], [{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+    const h = engineFixture({ artifact, agentGenerator: async request => {
+      if (request.task !== "sprint.test") {
+        assert.equal(request.task, modelTask); assert.equal(request.profile, role);
+        const binding = resolveModelExecutionSelection({ task: request.task, profile: request.profile, environment: {}, configuration: {
+          version: 1, tasks: {
+            "analyst.ingest": { route: "vercel-ai-gateway", model: "synthetic/reasoning" },
+            "analyst.ingest.deep": { route: "vercel-ai-gateway", model: "synthetic/deep" },
+          },
+        } });
+        assert.equal(binding.model, `synthetic/${role}`);
+      }
+      return m.generate(request);
+    } });
+    const run = (await h.engine().advance((await open(h)).runId))!;
+    assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(m.calls, 2);
+    const attempt = (await readLanguageAttempts(h.control, [run.runId])).find(attempt => attempt.step_id === "work")!;
+    assert.equal(attempt.evidence.model_task, modelTask);
+  }
+  assert.throws(() => fixture(data => data.steps[0].task = "$steps.missing.model_task"), /missing|unknown/);
+});
+
+test("invalid or changed task references stop before paid dispatch and literals retain resume identity", async () => {
+  const referenced = () => fixture(data => { data.instance = { fields: ["model_task"] }; data.steps[0].task = "$instance.model_task"; });
+  const m = model([[{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  for (const value of ["$instance.injected", "not a task", "x".repeat(257)]) {
+    const h = engineFixture({ artifact: referenced(), agentGenerator: m.generate });
+    const run = (await h.engine().advance((await open(h, { model_task: value })).runId))!;
+    assert.equal(run.state.status, "waiting"); assert.equal(m.calls, 0);
+    assert.equal((await readLanguageAttempts(h.control, [run.runId])).length, 0);
+  }
+  const h = engineFixture({ artifact: referenced(), agentGenerator: m.generate });
+  await assert.rejects(open(h), /model_task/);
+  const run = (await h.engine().step((await open(h, { model_task: "analyst.ingest" })).runId))!;
+  const changed = structuredClone(run); changed.fields.model_task = "analyst.ingest.deep";
+  await assert.rejects(advanceWorkflowAgent({ run: changed, artifact: h.artifact, workflow: h.artifact.workflows![0]!,
+    step: h.artifact.workflows![0]!.steps[0]!, now: h.now,
+    options: { agentGenerator: m.generate, currentRoster: async () => h.roster } as any }), /input changed/);
+  assert.equal(m.calls, 0);
+  const literal = engineFixture({ artifact: fixture(), agentGenerator: m.generate });
+  const prepared = (await literal.engine().step((await open(literal)).runId))!;
+  assert.equal(prepared.state.steps.work!.inputDigest, jsonDigest({ context: { source: "Synthetic transcript", identity: "source-1" }, profile: "reasoning" }));
+  assert.equal((await literal.engine().advance(prepared.runId))!.state.status, "done"); assert.equal(m.calls, 1);
 });
 
 test("cumulative input budget stops before another paid dispatch and survives resume", async () => {

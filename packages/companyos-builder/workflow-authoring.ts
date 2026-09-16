@@ -501,7 +501,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
       if (s.tool === "agent") {
         validateInput(s.context, {}, s.id);
         validateInput(s.profile, { type: "string", enum: ["utility", "reasoning", "deep"] }, s.id);
-        if (typeof s.task !== "string" || !/^[a-z][a-z0-9._-]{0,255}$/.test(s.task)) err(f, `${s.id}: agent requires a model task name`);
+        validateInput(s.task, { type: "string", pattern: "^[a-z][a-z0-9._-]{0,255}$" }, s.id);
         if (!Array.isArray(s.instructions) || !s.instructions.length || s.instructions.length > 16
           || s.instructions.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path))) err(f, `${s.id}: instructions must select existing owning Agent Skill files`);
         if (s.skills !== undefined && (!Array.isArray(s.skills) || s.skills.length > 16 || s.skills.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path)))) err(f, `${s.id}: on-demand Skills must belong to the owning Agent`);
