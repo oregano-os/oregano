@@ -5,7 +5,7 @@ kind: specification
 status: implemented
 authority: canonical
 language: en
-updated: 2026-09-15
+updated: 2026-09-16
 owners:
   - oregano-maintainers
 audience:
@@ -41,6 +41,16 @@ responsibility of their Core layers. Technical smoke tests establish model
 readiness, not company authority.
 
 ## Scoped generation phases
+
+A trusted Model Recipe binding may set `reasoningEffort` to `low`, `medium` or
+`high` for hosted scoped language generation and Workflow Agent turns. These
+bounded callers retain `low` when omitted; the field does not change ordinary
+conversation defaults. Task/profile/default precedence stays in the existing
+resolver. Imported text and Tool inputs cannot select effort. Dispatch and
+outcome evidence retain the resolved effort, including incomplete attempts.
+Effort shares the existing output-token allowance: it never increases the
+response cap, timeout, retries or cumulative Agent budget, and a model may still
+exhaust a bound. Actual content quality requires separate source-first review.
 
 The trusted `oregano/language-model` prompt binding may declare `model_task`
 and `model_profile` together. Supported language profiles are `agent`,

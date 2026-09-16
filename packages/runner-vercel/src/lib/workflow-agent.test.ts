@@ -63,3 +63,21 @@ test("output exhaustion exposes actual usage but never dispatches partial Tool c
   await assert.rejects(generate(request()), error => error instanceof LanguageGenerationError && error.kind === "incomplete"
     && (error.evidence.model_execution as any).outputTokens === 12000 && !JSON.stringify(error.evidence).includes("private partial"));
 });
+
+test("trusted scoped effort reaches the provider and dispatch evidence without increasing the turn cap", async () => {
+  for (const configured of [undefined, "medium", "high"] as const) {
+    const effort = configured ?? "low";
+    const generate = createWorkflowAgentGenerator({ resolve: (() => ({ model: "test", selection: {
+      reasoningEffort: configured, maxOutputTokens: 12000,
+    } })) as typeof resolveModelExecution, generate: (async (options: any) => {
+      assert.equal(options.reasoning, effort); assert.equal(options.maxOutputTokens, 12000); assert.equal(options.maxRetries, 0);
+      return { text: "", finishReason: "stop", toolCalls: [], response: { id: "effort", modelId: "test", messages: [] }, usage: {} };
+    }) as unknown as typeof generateText });
+    const input = request();
+    input.beforeDispatch = async (selection, instructions, budget) => {
+      assert.equal(selection.reasoningEffort, effort); assert.ok(budget); assert.equal(budget.outputTokens, 12000);
+      assert.deepEqual(Object.keys(instructions).sort(), ["system_instruction_characters", "system_prompt_digest"]);
+    };
+    const result = await generate(input); assert.equal(result.evidence.reasoning, effort);
+  }
+});

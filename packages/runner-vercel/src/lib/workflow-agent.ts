@@ -14,6 +14,8 @@ export function createWorkflowAgentGenerator(dependencies: {
 } = { resolve: resolveModelExecution, generate: generateText }): WorkflowAgentGenerator {
   return async request => {
     const execution = dependencies.resolve({ profile: request.profile, task: request.task, requiredCapability: "tools" });
+    const reasoning = execution.selection.reasoningEffort ?? "low";
+    const selection = { ...execution.selection, reasoningEffort: reasoning };
     const declarations = [...request.tools, { name: AGENT_FINISH_TOOL,
       description: "Submit the completed task only after reading back and verifying its saved results. Validation feedback keeps this same task open. This Tool does not itself write knowledge.", inputSchema: request.outputSchema }];
     if (request.skills?.length) declarations.push({ name: AGENT_SKILL_TOOL,
@@ -42,15 +44,15 @@ export function createWorkflowAgentGenerator(dependencies: {
     const outputTokens = Math.min(request.outputTokens, execution.selection.maxOutputTokens ?? request.outputTokens);
     // Includes tool schemas and all replayed history, including cached content.
     const inputBytes = Buffer.byteLength(JSON.stringify({ system, messages, tools: declarations }));
-    await request.beforeDispatch(execution.selection, instructionEvidence, { inputBytes, outputTokens });
+    await request.beforeDispatch(selection, instructionEvidence, { inputBytes, outputTokens });
     let generated;
     try { generated = await dependencies.generate({ model: execution.model, system, messages, tools,
-      reasoning: "low", maxOutputTokens: outputTokens,
+      reasoning, maxOutputTokens: outputTokens,
       maxRetries: 0, abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 90_000, 120_000)) }); }
     catch { throw new LanguageGenerationError("Agent provider outcome is unavailable", "provider-error", {
-      model_execution: modelExecutionEvidence(execution.selection, { response: { id: "", modelId: "" }, usage: {} }), ...instructionEvidence, finish_reason: null,
+      model_execution: modelExecutionEvidence(selection, { response: { id: "", modelId: "" }, usage: {} }), ...instructionEvidence, reasoning, finish_reason: null,
     }); }
-    const evidence = { model_execution: modelExecutionEvidence(execution.selection, generated), ...instructionEvidence, finish_reason: generated.finishReason };
+    const evidence = { model_execution: modelExecutionEvidence(selection, generated), ...instructionEvidence, reasoning, finish_reason: generated.finishReason };
     if (!["stop", "tool-calls"].includes(generated.finishReason)) throw new LanguageGenerationError("Agent response did not complete", "incomplete", evidence);
     const response = {
       // SDK validation may synthesize Tool errors; Core supplies the sole ordered Tool-result journal.

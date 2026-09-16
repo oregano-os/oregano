@@ -30,31 +30,32 @@ export function createLanguageGenerator(dependencies: {
 } = { resolve: resolveModelExecution, generate: generateText }): LanguageGenerator {
  return async (request) => {
   const execution = dependencies.resolve({ profile: request.modelProfile ?? "agent", task: request.modelTask, requiredCapability: "language" });
+  const reasoning = execution.selection.reasoningEffort ?? "low";
+  const selection = { ...execution.selection, reasoningEffort: reasoning };
   const messages = [{ role: "user" as const, content: request.attachments?.length ? [{ type: "text" as const, text: request.data }, ...attachmentParts(request.attachments, attachmentPolicy(execution.selection))] : request.data }];
   const system = languageSystemInstructions(request.instructions);
   const instructionEvidence = { system_prompt_digest: sha256(system), system_instruction_characters: system.length };
-  await request.beforeDispatch?.(execution.selection, instructionEvidence);
+  await request.beforeDispatch?.(selection, instructionEvidence);
   let result;
   try { result = await dependencies.generate({
     model: execution.model,
     system,
     messages,
-    // Explicit portable effort keeps provider defaults from consuming the
-    // bounded call's output budget before any answer text is produced.
-    reasoning: "low",
+    // Trusted bindings may opt in; unconfigured calls keep the bounded low default.
+    reasoning,
     maxOutputTokens: Math.min(execution.selection.maxOutputTokens ?? 2_500, 12_000),
     maxRetries: 0,
     abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 55_000, 120_000)),
   }); } catch {
     throw new LanguageGenerationError("Language provider outcome is unavailable", "provider-error", {
-      model_execution: modelExecutionEvidence(execution.selection, { response: { id: "", modelId: "" }, usage: {} }),
-      finish_reason: null, reasoning: "low", ...instructionEvidence,
+      model_execution: modelExecutionEvidence(selection, { response: { id: "", modelId: "" }, usage: {} }),
+      finish_reason: null, reasoning, ...instructionEvidence,
     });
   }
-  const evidence = { model_execution: modelExecutionEvidence(execution.selection, { ...result, response: result.response ?? { id: "", modelId: "" } }), finish_reason: result.finishReason, reasoning: "low", ...instructionEvidence };
+  const evidence = { model_execution: modelExecutionEvidence(selection, { ...result, response: result.response ?? { id: "", modelId: "" } }), finish_reason: result.finishReason, reasoning, ...instructionEvidence };
   if (result.finishReason !== "stop" || !result.text.trim()) {
     const diagnostic = { event: "language.generation-incomplete", model: execution.selection.model,
-      route: execution.selection.route, reasoning: "low", finish_reason: result.finishReason,
+      route: execution.selection.route, reasoning, finish_reason: result.finishReason,
       input_tokens: result.usage?.inputTokens ?? null, output_tokens: result.usage?.outputTokens ?? null,
       text_characters: result.text.length, reasoning_characters: result.reasoningText?.length ?? 0 };
     (dependencies.reportIncomplete ?? ((event) => console.warn(JSON.stringify(event))))(diagnostic);

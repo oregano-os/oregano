@@ -29,6 +29,8 @@ objective: Separate source transport from content procedure. Route normalized
   Check each action's own addressee and retain unspecified owners and roles.
   Supply exact evidence write paths and internal links, batch independent reads,
   and verify anchored final decisions and pronoun addressees within existing bounds.
+  Allow trusted Model Recipe bindings to select scoped Workflow reasoning effort,
+  preserving low as the default and every output, time, retry and cumulative bound.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.
@@ -47,6 +49,8 @@ files_expected:
   - packages/connectors/language-model.ts
   - packages/language/contracts.ts
   - packages/runner-vercel/src/lib/language-generation.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/runner/model-execution.ts
   - packages/runtime/companyos-runtime.ts
   - packages/cli/content/guides/author-a-company-tool.md
   - docs/workbench/guides/author-a-company-tool.md
@@ -59,10 +63,14 @@ files_expected:
   - packages/runner-vercel/src/lib/workflow-agent*
   - packages/testkit/tests/**
   - docs/specifications/brain-import.md
+  - docs/specifications/model-recipes.md
   - docs/specifications/brain-skill-adoption.md
   - docs/specifications/workflow-execution-v1-draft.md
   - docs/operations/workflow-engine.md
 tests:
+  - packages/testkit/tests/model-recipes.test.ts
+  - packages/runner-vercel/src/lib/language-generation.test.ts
+  - packages/runner-vercel/src/lib/workflow-agent.test.ts
   - packages/testkit/tests/brain-import-admission.test.ts
   - packages/testkit/tests/brain-mutations.test.ts
   - packages/testkit/tests/brain-writes.test.ts
@@ -76,6 +84,7 @@ documentation_impact:
     - specification.brain-read
     - guide.author-company-tool
     - specification.brain-import
+    - specification.model-recipes
     - specification.brain-skill-adoption
     - specification.workflow-execution-v1
     - operations.workflow-engine
