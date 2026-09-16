@@ -78,6 +78,12 @@ original meeting occurrence, which is distinct from page creation. Preserve
 confirmed person aliases and existing metadata. Do not turn an uncertain topic
 into a tag. Then write readable Markdown with source links. Preserve
 `<!-- timeline -->` and existing historical prose.
+Source observation, export and ingestion timestamps are not event dates. When
+the source says its original date is unknown, keep it unknown in every page,
+Take and Timeline. Describe the undated event explicitly in Markdown; leave the
+Take `since` cell empty. Do not use `timeline_add` for an undated event, and do
+not substitute the Record's observation date or `processing_day`. Processing
+dates remain valid for page `created`/`updated` metadata only.
 Write the depth the source supports: meeting objective and topics, actual
 decisions versus proposals, actions with supported owners, and verbatim quotes;
 concept thesis, reasons, implications and counterpositions; person/company
