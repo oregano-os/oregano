@@ -24,7 +24,7 @@
     },
     {
       "path": "tools/brain-check-agent-completion/execute.ts",
-      "digest": "aa2c4aa4b5ccb02aac9f2f36f5cfe7f8b123b9bd5cd58acbf2703668cade3349"
+      "digest": "63fef6ce21f266c188c70ba10192d0d4d2f8011768690bc525b5ef1fcff52c26"
     },
     {
       "path": "tools/brain-check-correction-verification/TOOL.md",

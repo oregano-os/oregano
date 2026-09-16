@@ -198,7 +198,8 @@ The continuing task explicitly rechecks final agreements against earlier proposa
 before entity propagation. Its quote serialization uses short contiguous original
 passages, with attribution/citations outside the quote. Completion mechanically
 compares saved blockquotes with the retained original using Unicode/whitespace
-normalization only; it returns quote, identifier and read-back defects together.
+normalization only; it returns quote, identifier and read-back defects together,
+including when the reported meeting verification verdict also needs correction.
 This stricter serialization is an Oregano adaptation of V4, not an independent
 semantic critic or proof that every paraphrased decision is correct.
 

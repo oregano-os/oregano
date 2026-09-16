@@ -243,6 +243,13 @@ test('incremental completion checks actual saved pages and returns correction fe
  const combined=await check({context:{task:quoteTask,calls:quoteCalls.filter((_c,i)=>i!==1)},facts:displayNames});
  assert.equal(combined.accepted,false);
  for(const expected of [/canonical Brain page slugs/,/Read every affected page.*sources\/import-example/,/V4: repair non-verbatim/])assert.match(combined.feedback,expected,'Return all independently known repairs in one bounded response');
+ const incompleteVerdict={...facts,verification:facts.verification.map(v=>v.check==='V5'?{...v,status:'not-applicable'}:v)};
+ const missingEvidence=structuredClone(quoteCalls);
+ missingEvidence[0].input.changes.pages[1].markdown=missingEvidence[0].input.changes.pages[1].markdown.replace('[['+source+']]','');
+ missingEvidence[2].output.page.markdown=missingEvidence[0].input.changes.pages[1].markdown;
+ const verdictFeedback=await check({context:{task:quoteTask,calls:missingEvidence.filter((_c,i)=>i!==1)},facts:incompleteVerdict});
+ assert.equal(verdictFeedback.accepted,false);
+ for(const expected of [/actual adopted V1–V6/,/Read every affected page.*sources\/import-example/,/Meeting page must cite/,/V4: repair non-verbatim/])assert.match(verdictFeedback.feedback,expected,'An invalid verdict must not mask independently known saved-page repairs');
  const corrected=structuredClone(quoteCalls);
  corrected[0].input.changes.pages[1].markdown=meetingText.replace('No notable quotes.','> Finish the existing review first.\n\nAlex, [['+source+']]');
  corrected[2].output.page.markdown=corrected[0].input.changes.pages[1].markdown;

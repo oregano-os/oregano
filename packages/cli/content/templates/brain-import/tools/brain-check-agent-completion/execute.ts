@@ -32,7 +32,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  const required=new Set<string>([...changed,...lastWrites.keys(),task.evidence.slug,...task.prior.requests.map((r:any)=>r.slug)]);
  for(const m of facts.meetings)for(const slug of [m.slug,...m.attendees,...m.entities])if(canonical(slug))required.add(slug);
  if(task.source.kind==='meeting'&&!facts.meetings.length)return reject('A retained meeting needs its actual meeting page(s), with resolved or explicitly flagged attendees.');
- if(facts.meetings.length&&facts.verification.some((v:any)=>v.status!=='passed'&&!(v.check==='V6'&&v.status==='flagged-uncertainty')))return reject('Apply the actual adopted V1–V6 checklist to retained meetings; only unresolved sequence uncertainty may remain flagged.');
+ if(facts.meetings.length&&facts.verification.some((v:any)=>v.status!=='passed'&&!(v.check==='V6'&&v.status==='flagged-uncertainty')))issues.push('Apply the actual adopted V1–V6 checklist to retained meetings; only unresolved sequence uncertainty may remain flagged.');
  const missingReads:string[]=[],mismatched:string[]=[],unresolved:string[]=[];
  for(const slug of required){
   const page=reads.get(slug);

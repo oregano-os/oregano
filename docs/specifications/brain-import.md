@@ -56,7 +56,9 @@ Source acquisition, media extraction and feed enumeration require their own
 maintained Connector qualification before activation.
 
 Each Brain operation retains normal validation, expected revisions, Git/index
-receipts and read-back. Completion feedback distinguishes canonical slugs from
+receipts and read-back. An invalid meeting verification verdict does not mask
+independently known source-link, quotation or read-back defects in that feedback.
+Completion feedback distinguishes canonical slugs from
 display names, combines independently known repairs (including missing reads),
 and rejects unresolved saved links. Saved meeting blockquotes must match a
 contiguous passage in the full original, allowing Unicode/whitespace normalization

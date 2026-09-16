@@ -19,6 +19,8 @@ objective: Separate source transport from content procedure. Route normalized
   Return concurrent completion defects together, check saved verbatim quotations
   against the retained original, and omit redundant outgoing-link excerpts from
   model replay while preserving complete Markdown and durable Tool receipts.
+  Keep invalid meeting verification verdicts in the combined feedback instead of
+  masking independently known saved-page source, quotation and read-back defects.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.
