@@ -62,6 +62,37 @@ test("invalid page feedback identifies a repairable Takes placement without requ
   assert.doesNotThrow(() => prepareBrainRemember(brainFiles, brainConfig, remember(original)));
 });
 
+test("a rejected source batch explains atomicity and preserves missing dependencies in a correction", () => {
+  const source = { path: "brain/sources/new-review.md", expected_content_hash: null,
+    markdown: page("source", "New review", "Synthetic source. [Original](https://example.org/reviews/new)") };
+  const meeting = { path: "brain/topics/new-review.md", expected_content_hash: null,
+    markdown: page("topic", "Review notes", "The review is pending. [[sources/new-review]]") };
+  const person = { path: "brain/people/reviewer.md", expected_content_hash: null,
+    markdown: page("person", "Reviewer Example", "Review participant.\n\n<!-- timeline -->\n\n- 2030-01-02: Reviewed the proposal. [[topics/new-review]]") };
+  const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [source, meeting, person] },
+    provenance: { ...provenance, evidence: ["sources/new-review"] }, operation_key: "new-review:v1:initial" };
+  const before = structuredClone(brainFiles);
+  assert.throws(() => prepareBrainRemember(before, brainConfig, input), (error: unknown) => {
+    assert.ok(error instanceof BrainError && error.code === "invalid_batch");
+    assert.match(error.message, /entire batch was rejected before saving/);
+    assert.match(error.message, /directly cite declared evidence \[\[sources\/new-review\]\]/);
+    assert.match(error.message, /meeting\/content backlink alone is insufficient/);
+    return true;
+  });
+  assert.deepEqual(before, brainFiles, "The proposed source and meeting were not partially saved");
+  const repaired = { ...person, markdown: person.markdown + "\n[[sources/new-review]]\n" };
+  // Repeating only the corrected person omits the rejected source dependency.
+  assert.throws(() => prepareBrainRemember(before, brainConfig, { ...input, changes: { ...input.changes, pages: [repaired] } }), (error: unknown) => {
+    assert.ok(error instanceof BrainError && error.code === "provenance_missing");
+    assert.match(error.message, /Declared evidence sources\/new-review/);
+    assert.match(error.message, /Include its complete source page in this batch/);
+    return true;
+  });
+  const fixed = { ...person, markdown: person.markdown.replace("[[topics/new-review]]", "[[topics/new-review]] [[sources/new-review]]") };
+  const result = prepareBrainRemember(before, brainConfig, { ...input, changes: { ...input.changes, pages: [source, meeting, fixed] } });
+  assert.equal(result.changes.length, 3);
+});
+
 test("page preconditions preserve concurrent changes and never rebase a stale replacement blindly", () => {
   const proposed = remember(brainFiles[path].replace("No shared decision yet.", "A review is pending."));
   const concurrent = { ...brainFiles, [path]: brainFiles[path].replace("No shared decision yet.", "Another reviewer has added evidence.") };

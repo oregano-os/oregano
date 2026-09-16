@@ -37,7 +37,11 @@ export interface BrainPreparedMutation {
   diagnostics: ReturnType<typeof checkBrainCorpus>["diagnostics"];
 }
 
-const fail = (code: string, message: string): never => { throw new BrainError(code, message); };
+const fail = (code: string, message: string): never => {
+  const atomic = ["invalid_batch", "provenance_missing"].includes(code)
+    ? "The entire batch was rejected before saving; none of its page changes were applied. " : "";
+  throw new BrainError(code, atomic + message);
+};
 const digest = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 export function assertBrainWriteIdentity(revision: unknown, operationKey: unknown): void {
   if (typeof revision !== "string" || !/^[a-f0-9]{40}$/.test(revision)) fail("invalid_input", "An exact expected repository revision is required.");
@@ -81,7 +85,7 @@ export function assertBrainTakeContinuity(previous: BrainPage, next: BrainPage):
   }
 }
 
-function finishMutation(before: Record<string, string>, after: Record<string, string>, config: BrainConfiguration): BrainPreparedMutation {
+function finishMutation(before: Record<string, string>, after: Record<string, string>, config: BrainConfiguration, evidence: string[] = []): BrainPreparedMutation {
   const changes = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()
     .filter(path => before[path] !== after[path]).map(path => ({ path, markdown: after[path] ?? null }));
   if (changes.length > MAX_BRAIN_WRITE_FILES || changes.reduce((size, change) => size + (change.markdown?.length ?? 0), 0) > MAX_BRAIN_WRITE_UNITS) {
@@ -89,7 +93,12 @@ function finishMutation(before: Record<string, string>, after: Record<string, st
   }
   for (const change of changes) assertBrainPath(change.path);
   const checked = checkBrainCorpus(after, config);
-  if (checked.diagnostics.some(item => item.severity === "error")) fail("invalid_batch", "Brain validation: " + checked.diagnostics.filter(item => item.severity === "error").slice(0, 12).map(item => `${item.path}: ${item.code}: ${item.message}`).join("; "));
+  const errors = checked.diagnostics.filter(item => item.severity === "error");
+  if (errors.length) {
+    const hint = evidence.length && errors.some(item => ["timeline_evidence_missing", "take_evidence_missing"].includes(item.code))
+      ? `Timeline entries and Takes must directly cite declared evidence ${evidence.slice(0, 4).map(slug => `[[${slug}]]`).join(", ")}; a meeting/content backlink alone is insufficient. ` : "";
+    fail("invalid_batch", hint + "Brain validation: " + errors.slice(0, 12).map(item => `${item.path}: ${item.code}: ${item.message}`).join("; "));
+  }
   return { files: after, changes, diagnostics: checked.diagnostics };
 }
 
@@ -116,18 +125,17 @@ export function prepareBrainRemember(files: Record<string, string>, config: Brai
     if (previous !== undefined) assertBrainTakeContinuity(parsedPage(change.path, previous, config), page);
     next[change.path] = markdown!;
   }
-  const prepared = finishMutation(files, next, config);
   const corpus = checkBrainCorpus(next, config);
   for (const source of provenance.evidence) {
     const found = resolveBrainName(corpus.pages, source);
     if (found.length !== 1 || config.types[found[0].type].role !== "evidence" || !found[0].original_links.length) {
-      fail("provenance_missing", "Provenance must resolve to existing internal evidence with an original-source link.");
+      fail("provenance_missing", `Declared evidence ${source} must resolve to an evidence-role page with an original-source link. Include its complete source page in this batch if it has not been saved; pages from a rejected batch do not exist.`);
     }
   }
   for (const change of replacements) for (const source of change.timeline_add?.evidence ?? []) {
     if (!provenance.evidence.includes(source)) fail("provenance_missing", "Every Timeline evidence reference must be declared in this write's provenance.");
   }
-  return prepared;
+  return finishMutation(files, next, config, provenance.evidence);
 }
 
 function withoutExactPassage(page: BrainPage, text: string, config: BrainConfiguration): string {

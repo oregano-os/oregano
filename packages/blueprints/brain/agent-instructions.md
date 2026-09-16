@@ -92,6 +92,13 @@ does not update current assertions or correct an earlier event. Reconcile those
 through the full read/edit/replace path; do not append contradictory claims.
 The Tool validates, commits/pushes through the existing repository adapter and returns
 a receipt. Read status, saved_commit and sync_status; never claim success from prose.
+A rejected batch saves NONE of its pages, including a source page proposed with
+it. On repair, include every still-absent dependency again or save the valid source
+and meeting first. Never assume that the other pages in a rejected batch succeeded.
+An entity Timeline or Take needs a direct link to this task's internal source
+evidence page as well as its meeting backlink; the meeting is a content page,
+not an evidence-role page. Use canonical `[[directory/slug]]` links from the task
+and read results for indexed internal references.
 Read each affected page after its final write and compare `content_hash` with the
 matching `page_results` receipt, including an unchanged Timeline addition.
 A stale page requires a fresh read and merge. A saved/pending outcome requires receipt

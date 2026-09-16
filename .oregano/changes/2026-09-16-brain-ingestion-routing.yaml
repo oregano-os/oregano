@@ -14,6 +14,8 @@ objective: Separate source transport from content procedure. Route normalized
   retired procedures still present in broad Agent read scopes.
   Return bounded actionable page-validation diagnostics to the continuing Agent
   and make the canonical Takes-before-Timeline serialization explicit.
+  Explain atomic batch rejection and missing declared evidence so a repair
+  resends required source pages instead of assuming a partial save.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.

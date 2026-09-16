@@ -110,6 +110,10 @@ repair guidance, including malformed frontmatter and Takes placed after Timeline
 It does not echo page content or require the calling Agent to have administrator
 CLI access. The caller corrects the specific defect within its existing task and
 budgets; diagnostics do not restart a stopped task.
+Batch validation failures explicitly report that none of the proposed pages were
+saved. Repair must include any still-absent source pages. Missing provenance names
+the declared evidence reference; Timeline/Take feedback distinguishes direct
+evidence citations from links to a content or meeting page.
 The checker never creates stub pages. Mechanical validity does not prove factual
 accuracy or that an attendee page is meaningful; source-based review remains
 necessary when preparing or ingesting knowledge.
