@@ -126,8 +126,8 @@ test("one-shot meeting synthesis makes one model call, writes through Brain and 
   assert.match(saved.get(personSlug)!, /Source: \[\[sources\/import-example\]\]/);
   assert.match(saved.get(personSlug)!.split("<!-- timeline -->")[1], /\[\[sources\/import-example\]\]/);
   assert.match(repaired.outcome.gaps.at(-1), /model omitted 1 verification explanation/);
-  const rejected = await run(JSON.stringify({ ...proposal, source_version: "wrong" }));
-  assert.equal(rejected.route, "agent"); assert.equal(writeCalls, 2, "Invalid model output cannot write");
+  await assert.rejects(run(JSON.stringify({ ...proposal, source_version: "wrong" })), /source identity or page coverage/);
+  assert.equal(writeCalls, 2, "Invalid paid model output cannot write or silently start an Agent fallback");
   saved.clear();
   task.original_text = task.original_text.padEnd(120_000, " ");
   const longSource = await run(JSON.stringify(proposal));
@@ -201,6 +201,11 @@ test('incremental completion checks actual saved pages and returns correction fe
   ...pages.map(page=>({name:'oregano_brain_entity',output:{status:'found',found:true,page:{slug:page.path.slice(6,-3),markdown:page.markdown},indexed_revision:{git_commit:'b'.repeat(40)}}}))];
  const check=async(value:any)=>executeIsolatedCompanyTool({compiledSource:tool.compiledSource,input:value,context:{instanceId:'synthetic',runId:'workflow:test',stepId:'process',agentId:'analyst',toolId:tool.contract.runtimeId},allowedCapabilities:[],invokeCapability:async()=>{throw Error('Pure validation cannot call a provider');}}) as Promise<any>;
  assert.equal((await check({context:{task,calls},facts})).accepted,true);
+ const displayNames={...facts,meetings:[{...facts.meetings[0],attendees:['Alex Example']}]};
+ const displayNameFeedback=await check({context:{task,calls},facts:displayNames});
+ assert.equal(displayNameFeedback.accepted,false);
+ assert.match(displayNameFeedback.feedback,/canonical Brain page slugs.*page.slug.*never display names/);
+ assert.doesNotMatch(displayNameFeedback.feedback,/Read every affected page/);
  assert.match((await check({context:{task,calls:calls.slice(0,-1)},facts})).feedback,/Read every/);
  const stale=[calls[1],calls[0],...calls.slice(2)];assert.equal((await check({context:{task,calls:stale},facts})).accepted,false);
  // A later write to another page does not invalidate a verified read of this page.

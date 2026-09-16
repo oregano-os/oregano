@@ -101,7 +101,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
   sourceDay(source.occurred_at);
   processingDay(processing_instant);
   if (source.kind !== "meeting" || task.original_text.length > 130000 || task.prior.requests.length > 8) return { route: "agent", reason: "Source type or reconciliation context exceeds the bounded meeting synthesis", outcome: null };
-  let effectStarted = false;
+  let effectStarted = false, modelStarted = false;
   try {
     const prefetch = new Map<string, PageRead>();
     const read = async (slug: string) => {
@@ -144,6 +144,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
     }));
     if (JSON.stringify(existing).length > 30000) return { route: "agent", reason: "Relevant existing pages exceed the one-shot context budget", outcome: null };
     const prompt = route === "deep" ? prompt_paths.deep : prompt_paths.reasoning;
+    modelStarted = true;
     const generated = await context.capabilities.call("language.generate", { prompt_path: prompt,
       data: { source_identity: source.identity, source_version: source.version, source_kind: source.kind,
         occurred_at: source.occurred_at, original_url: source.original_url, original_text: task.original_text,
@@ -250,7 +251,7 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
           ? ["Host supplied source citations on " + citedNewPages + " new page(s); model omitted "
             + draft.verification.filter((item: any) => item.detail === undefined).length + " verification explanation(s)."] : [])] } };
   } catch (error) {
-    if (effectStarted) throw error;
+    if (effectStarted || modelStarted) throw error;
     return { route: "agent", reason: String(error instanceof Error ? error.message : error).slice(0, 500), outcome: null };
   }
 } });

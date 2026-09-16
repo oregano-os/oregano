@@ -1,0 +1,54 @@
+version: 3
+plan_id: language-evidence-bound-2026-09-16
+created: 2026-09-16
+title: Admit up to 200000 serialized language-generation evidence units
+objective: Raise the generic Connector evidence ceiling to 200000 JavaScript
+  string units so complete bounded sources and retrieved Brain context fit one
+  generation. Count the entire serialized request evidence, including trusted
+  read-repair feedback, and reject oversized data before paid dispatch.
+  Stop failed one-shot generations before a second paid Agent path, and give
+  precise completion feedback when page names are confused with canonical slugs.
+non_goals:
+  - Raise model output-token, instruction, source-selection or Agent-turn limits.
+  - Add company data or credentials to Core.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-15-brain-one-shot-synthesis.yaml
+  - .oregano/changes/2026-09-16-language-evidence-bound.yaml
+  - packages/connectors/language-model.ts
+  - packages/testkit/tests/language-generation.test.ts
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/cli/content/templates/brain-import/**
+  - packages/cli/content/guides/author-a-company-tool.md
+  - docs/specifications/brain-import.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/workbench/guides/author-a-company-tool.md
+tests:
+  - packages/testkit/tests/language-generation.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-skill-adoption
+    - specification.brain-import
+    - guide.author-company-tool
+architecture:
+  placement:
+    core: Generic serialized evidence ceiling and pre-dispatch enforcement.
+    packages: Existing language.generate capability remains unchanged.
+    workspace: Selects relevant source and context within the generic ceiling.
+    instance: Retains private evidence and actual model-attempt receipts.
+  mechanisms_extended:
+    - mechanism: capability-contracts-and-connectors
+      reason: Extend the existing bounded language Connector without adding a second dispatch path.
+    - mechanism: model-recipe-resolver
+      reason: Preserve existing trusted model task, profile, output and timeout selection.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Reject oversized serialized evidence before preparing or dispatching a paid attempt.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Every Workspace uses the same bound; fixtures contain only synthetic text.
+rollback: Restore the prior Connector ceiling without deleting model-attempt or source receipts.

@@ -5,6 +5,8 @@ export default defineCompanyTool({ async execute(input: any, context: any) {
  const {task,calls}=input.context,facts=input.facts;
  const reject=(feedback:string)=>({accepted:false,feedback:feedback.length<=2000?feedback:feedback.slice(0,1900)+' Additional repairs remain; repeat the check after these corrections.'});
  if(facts.source_identity!==task.source.identity||facts.source_version!==task.source.version)return reject('Completion must refer to this exact source identity and version.');
+ const references=[...facts.pages,...facts.meetings.flatMap((m:any)=>[m.slug,...m.attendees,...m.entities])];
+ if(references.some((slug:any)=>typeof slug!=='string'||! /^[a-z][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,119}$/.test(slug)))return reject('Completion pages, meeting attendees and entities must use canonical Brain page slugs from successful reads (page.slug), never display names. Keep the existing read receipts and replace the names in completion with those canonical slugs.');
  if(facts.verification.length!==6||new Set(facts.verification.map((v:any)=>v.check)).size!==6)return reject('Run and report every adopted V1–V6 check on the saved pages.');
  if(facts.status==='skipped'){
   if(task.prior.requests.length||facts.pages.length||facts.meetings.length||calls.some((c:any)=>c.name==='oregano_brain_remember'))return reject('A notability skip requires no prior knowledge and no attempted writes. Reconcile saved or prior pages instead.');

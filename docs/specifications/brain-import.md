@@ -52,13 +52,18 @@ sources and cite the current source itself. Missing model explanations for
 V1–V6 are recorded as uncertainty, while only structural V1/V2/V4 checks can
 become passed after the saved Markdown is read back.
 
-Oversized sources, incomplete retrieval, split meetings and invalid one-shot
-proposals route to a continuing Agent before a write. That fallback has twelve
+Oversized sources and incomplete retrieval can route to a continuing Agent
+before a one-shot model attempt. That fallback has twelve
 turns and 48 Tool calls, rather than the former 48 turns and 192 calls; its
 normal completion checker still requires saved-page verification. A write or
 read-back failure after an attempted Brain effect fails closed and retains its
-stable operation key for reconciliation. The one-shot path does not silently
-start another paid generation or write after an uncertain effect.
+stable operation key for reconciliation. Once one-shot generation has been
+attempted, invalid JSON, invalid page proposals and model failures stop the run
+with retained attempt evidence. They do not automatically start another paid
+generation or an Agent conversation. A corrected candidate requires explicit
+bounded requalification; attempted writes still require effect reconciliation.
+Fallback completion feedback distinguishes canonical page slugs from person
+display names so a valid saved read is not repeatedly requested by its label.
 The tool-free generator honors an explicitly selected model timeout up to 120
 seconds; a language-only Company Tool has a 150-second execution ceiling and a
 Company Tool that combines generation with a standard Brain write has 180

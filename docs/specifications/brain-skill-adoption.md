@@ -85,9 +85,11 @@ host wrapper and serialized evidence size, selected-model context limits, token
 usage and available cost evidence, finish reason and elapsed time. Exercise the
 largest applicable phase and preserve source/context/prior-result dependencies
 across calls. The model has no Tools or write authority. Oversized evidence and
-incomplete output are failures, not successful truncated drafts. Existing limits
-remain 150,000 evidence units, at most 4,000 output tokens and 20,000 returned
-units, 55 seconds generation and 65 seconds enclosing Tool time.
+incomplete output are failures, not successful truncated drafts. The generation
+Connector admits at most 200,000 serialized JavaScript string units of evidence,
+including trusted repair feedback. Brain import output and timeout limits follow
+the [current import contract](brain-import.md); narrower phase-specific bounds
+still apply and never permit source truncation.
 
 The automated tests use synthetic fixtures and model transports. A separate
 protected model-only Preview qualified representative source triage, normalization,

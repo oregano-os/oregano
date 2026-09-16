@@ -35,11 +35,28 @@ test("generation denies caller model/prompt authority, foreign actors and oversi
   let calls = 0;
   const connector = new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path }], generate: async () => { calls++; throw new Error("Must not run"); } });
   for (const raw of [{ ...input, model: "caller/model" }, { ...input, prompt_path: "handbook/private.md" },
-    { ...input, data: { text: "x".repeat(150_001) } }]) await assert.rejects(connector.invoke("language.generate", raw, context));
+    { ...input, data: { text: "x".repeat(200_001) } }]) await assert.rejects(connector.invoke("language.generate", raw, context));
   for (const changed of [{ ...context, agentId: "other" }, { ...context, instanceId: "other" },
     { ...context, subject: { ...context.subject!, status: "inactive" as const } }]) await assert.rejects(connector.invoke("language.generate", input, changed));
   assert.equal(calls, 0);
   assert.throws(() => new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path: "agents/analyst/skills/../private.md" }], generate: async () => { throw new Error(); } }), /scoped/);
+});
+
+test("generation admits exactly 200000 serialized evidence units and includes repair overhead in the bound", async () => {
+  let calls = 0;
+  const data = { text: "x".repeat(200_000 - JSON.stringify({ text: "" }).length) };
+  const connector = new LanguageModelConnector({ artifact: artifact(), prompts: [{ agent_id: "analyst", path }], generate: async request => {
+    calls++; assert.equal(request.data.length, 200_000);
+    assert.deepEqual(JSON.parse(request.data), data);
+    return { text: "Bound output", evidence: {} };
+  } });
+  await connector.invoke("language.generate", { ...input, data }, context);
+  await assert.rejects(connector.invoke("language.generate", { ...input, data: { text: data.text + "x" } }, context), /evidence exceeds/);
+  const feedback = "Retain uncertainty.";
+  await assert.rejects(connector.invoke("language.generate", { ...input, data }, { ...context,
+    workflow: { id: "report", cutoff: "2030-01-01T00:00:00.000Z" },
+    readRepair: { number: 1, feedback, digest: sha256(feedback) } }), /evidence exceeds/);
+  assert.equal(calls, 1, "Oversized serialized evidence is rejected before any paid model dispatch");
 });
 
 test("model failures and invalid outputs never produce a successful substitute", async () => {

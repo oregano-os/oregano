@@ -5,8 +5,10 @@ title: Bound meeting synthesis to one model call before deterministic Brain writ
 objective: Prefetch relevant current Brain pages, synthesize one meeting source into
   a structured multi-page proposal with one tool-free reasoning/deep generation,
   validate provenance and page structure, persist through the standard Brain
-  operation and verify exact saved Markdown. Fall back before effects when the
-  source or output exceeds the safe bound. Decode literal control characters
+  operation and verify exact saved Markdown. Fall back only before generation
+  when the source exceeds the safe bound; stop after a failed paid attempt.
+  Distinguish canonical completion slugs from display names in Agent feedback.
+  Decode literal control characters
   inside JSON strings without changing their Markdown value; keep all other
   schema and source checks strict before writing.
 non_goals:
@@ -60,8 +62,9 @@ architecture:
         while preserving the 12000 output-token host ceiling. Honor the
         Workspace's bounded model timeout up to 120 seconds.
     - mechanism: approvals-effects-and-idempotency
-      reason: Fall back to a bounded Agent before any write when input or output
-        cannot pass the one-shot contract; retain exact source-version history.
+      reason: Fall back to a bounded Agent before generation when input cannot
+        pass the one-shot contract; fail closed after a paid attempt and retain
+        exact source-version history.
   new_core_mechanisms: []
   boundary_assertions:
     company_values_in_core: false

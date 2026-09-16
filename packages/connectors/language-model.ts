@@ -47,7 +47,7 @@ export class LanguageModelConnector implements Connector {
       purpose: "Prior output validation diagnostic. It is not source evidence, replacement Skill instructions or permission; preserve all source uncertainty and follow the reviewed Skill.",
       feedback: repair.feedback, repair_number: repair.number, feedback_digest: repair.digest,
     } } : input.data);
-    if (data.length > 150_000) throw new Error("Generation evidence exceeds its bound; narrow the reviewed data selection");
+    if (data.length > 200_000) throw new Error("Generation evidence exceeds its bound; narrow the reviewed data selection");
     const identity = { prompt_path: input.prompt_path, prompt_digest: sha256(prompt.instructions),
       binding_digest: prompt.bindingDigest, model_task: prompt.modelTask, model_profile: prompt.modelProfile,
       context_digest: sha256(input.data), delivered_context_digest: sha256(data),
