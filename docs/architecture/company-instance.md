@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -46,7 +46,8 @@ require both the enabled source and an exact production-only project attachment
 and webhook destination; neither connector authentication nor health implies
 that incoming messages are delivered. Slack URL verification is a separate
 provider handshake, and its challenge is not conversational evidence. Explicit
-event selections must include direct messages. Readiness still requires a
+event selections must include direct messages, and the connector must report the
+bot permissions `chat:write`, `channels:history`, `groups:history`, `im:history` and `users:read` so Agents can post and read recent messages. Readiness still requires a
 persisted, delivered model-backed reply.
 
 See the [maintained host profile](../operations/maintained-host-profile.md).

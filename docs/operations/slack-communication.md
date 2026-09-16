@@ -8,7 +8,7 @@ language: en
 implementation_scope: provider
 providers:
   - slack
-updated: 2026-09-12
+updated: 2026-09-16
 owners:
   - oregano-maintainers
 audience:
@@ -35,6 +35,23 @@ A new DM message creates and subscribes its own reply root. A reply or decision
 inside an existing DM thread retains that parent and returns the new message
 ID separately. The same rule applies to a later completion message. The
 Connector must not silently move a failed reply to the main DM conversation.
+
+A decision compiled as a conversation root is posted as a new DM or channel
+root. After Slack returns the message timestamp, the Connector updates that same
+message so the affirmative button also links to the message's own thread, and
+subscribes that thread. A failed update is an uncertain effect with the published
+message identity; it never posts a second card. The optional decision title
+replaces the generic `Approval required` card heading.
+
+Agent turns read up to ten earlier messages at the same place with
+`conversations.history` (main channel or DM) or `conversations.replies`
+(thread). The Slack app therefore needs the history read scope for each
+conversation type it serves: `channels:history`, `groups:history` and
+`im:history`. Without the scope the context is omitted; the turn still runs.
+Thread replies arrive oldest first, so the Connector follows pagination before
+selecting the latest ten replies and the root. It reads at most ten pages of
+200 messages. Failed, cyclic or incomplete pagination omits this optional
+context instead of labeling stale replies as recent; the turn still runs.
 
 An original human thread reply can also be shared to the main conversation.
 Slack labels this representation [`thread_broadcast`](https://docs.slack.dev/reference/events/message/thread_broadcast/).

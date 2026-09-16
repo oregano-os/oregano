@@ -8,6 +8,7 @@ import type { StateAdapter } from "chat";
 import { attachmentPolicy, CORE_ATTACHMENT_POLICIES } from "../../../runner/attachment-policy.ts";
 import { attachmentParts, prepareAttachments } from "../../../runtime/attachments.ts";
 import { agentAttachmentContent, retainAttachments, loadAttachments } from "./agent-attachments.ts";
+import { conversationContext } from "../../../runtime/conversation-participation.ts";
 import { attachmentMiddleware, attachmentPolicyFetch } from "./attachment-middleware.ts";
 
 const selection = { route: "openai-direct", model: "openai/gpt-5.4-nano" } as const;
@@ -21,8 +22,10 @@ test("retained files survive history/handoff while instance and integrity checks
   const references = await retainAttachments({ store: state, instanceId: "synthetic", source: "thread-a", messageId: "one", selection,
     attachments: [{ name: "spec.pdf", mimeType: "application/pdf", data: pdf }] });
   const args = { store: state, instanceId: "synthetic", references, selection };
-  const content = await agentAttachmentContent({ ...args, references: [...references, ...references], text: "Follow-up" });
+  const content = await agentAttachmentContent({ ...args, references: [...references, ...references], text: conversationContext({ id: "current", text: "Follow-up", senderId: "slack:T1:U1", senderName: "Alex", sentAt: "2030-01-04T12:00:00Z", conversationId: "thread-a", shared: false, mentioned: false }, [], [{ messageId: "prior", sentAt: "2030-01-04T11:59:00Z", sender: "assistant", kind: "app", text: "Read the attached brief." }]) });
   assert.ok(Array.isArray(content)); assert.deepEqual(content.map(p => p.type), ["text", "text", "file"]);
+  assert.equal(JSON.parse((content[0] as { text: string }).text).recentMessagesAtThisPlace[0].text, "Read the attached brief.");
+  assert.match(JSON.parse((content[0] as { text: string }).text).note, /attached files.*untrusted/i);
   assert.equal((await loadAttachments({ ...args, selection: { route: "anthropic-direct", model: "anthropic/claude-sonnet-4-6" } }))[0].data, pdf.toString("base64"));
   await assert.rejects(loadAttachments({ ...args, instanceId: "another-company" }), /no longer available/);
   await assert.rejects(loadAttachments({ ...args, store: store() }), /no longer available/);

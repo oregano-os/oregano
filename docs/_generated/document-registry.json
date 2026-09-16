@@ -7,7 +7,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -24,7 +24,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -385,7 +385,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -420,7 +420,7 @@
     "status": "implemented",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-12",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -621,7 +621,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-08-22",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -938,7 +938,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -958,7 +958,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -977,7 +977,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {
@@ -1072,7 +1072,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-12",
+    "updated": "2026-09-16",
     "availability": null,
     "migration_sources": [],
     "relations": {}
@@ -1111,7 +1111,7 @@
     "status": "approved",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-08",
+    "updated": "2026-09-13",
     "availability": "experimental",
     "migration_sources": [],
     "relations": {}
@@ -1409,7 +1409,7 @@
     "status": "draft",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-09",
+    "updated": "2026-09-13",
     "availability": "planned",
     "migration_sources": [],
     "relations": {
@@ -1564,7 +1564,7 @@
     "status": "building",
     "authority": "normative",
     "language": "en",
-    "updated": "2026-09-11",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {
@@ -1653,7 +1653,7 @@
     "status": "draft",
     "authority": "canonical",
     "language": "en",
-    "updated": "2026-09-06",
+    "updated": "2026-09-13",
     "availability": null,
     "migration_sources": [],
     "relations": {}

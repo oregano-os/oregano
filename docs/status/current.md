@@ -60,6 +60,18 @@ not establish live deployment or model-quality qualification. See
 [Agent attachments and provider policies](../operations/agent-attachments.md).
 
 
+Unreleased on main after Core 0.15.0: a private workflow decision card roots
+the conversation that follows it by default. Later messages to the same person
+use the card's own thread unless a Workspace declares otherwise, the affirmative
+control links there, an optional title replaces the generic card heading, and a
+reply that a waiting workflow collection expects skips the coordinator pass.
+Every Agent turn and the coordinator also receive the ten latest provider messages
+at the same place, so answers posted outside a thread can attach to the recent
+workflow question they continue. Compiler, engine and Connector
+publisher tests are synthetic; delivery in a deployed chat client still requires
+Instance verification. Decisions without the new references keep their
+manifests and notice inputs.
+
 Core 0.13.0 adds the explicitly scoped `evidence.query` contract over existing
 stores, opt-in bounded current work-item comments, attributable report feedback
 and authenticated model-independent workflow health. The implementation and

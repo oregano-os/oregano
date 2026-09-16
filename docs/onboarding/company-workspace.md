@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-09
+updated: 2026-09-13
 owners:
   - oregano-maintainers
 audience:
@@ -76,7 +76,8 @@ ID; it neither disables deployment protection nor creates bypass credentials.
 The Slack connector is created with incoming triggers enabled. Registering a
 trigger destination alone does not enable forwarding; the current source flag,
 project, production environment and route are checked before the message gate.
-Explicit event selections must include direct messages. If the first reply is
+Explicit event selections must include direct messages, and the bot must hold
+`chat:write`, `channels:history`, `groups:history`, `im:history` and `users:read`; setup names a missing permission. If the first reply is
 still missing on retry, use the [delivery recovery](../workbench/commands/setup.md#slack-delivery-recovery)
 for the exact app and connector. Check Slack URL verification separately from
 Vercel synchronization, and preserve approved permissions when saving in Slack.

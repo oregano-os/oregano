@@ -103,8 +103,19 @@ export class WorkflowEngine {
     return workflow.schedules.find((schedule) => workflow.trigger.kind === "schedule" && schedule.path === workflow.trigger.schedulePath)?.declaration
       ?? workflow.schedules[0]?.declaration;
   }
+  /** A conversation-root decision exposes its single delivered notice receipt to later thread replies. */
+  #decisionOutput(step: CompiledWorkflowStep, decision: WorkflowMutableState["decisions"][string], status: "approved" | "rejected" | "timed-out"): JsonValue {
+    const output: Record<string, JsonValue> = { bound: decision.bound, decision: status };
+    if (!step.decision?.conversationRoot) return output;
+    const receipt = decision.recipients.length === 1 ? decision.deliveries[decision.recipients[0]!] as Record<string, JsonValue> | undefined : undefined;
+    if (receipt === undefined && status === "timed-out") return output;
+    if (typeof receipt?.thread_reference !== "string" || typeof receipt.destination_binding !== "string" || typeof receipt.message_id !== "string")
+      throw new Error("Conversation-root decision has no exact delivered notice receipt");
+    return { ...output, thread_reference: receipt.thread_reference, destination_binding: receipt.destination_binding, message_id: receipt.message_id };
+  }
   #finish(state: WorkflowMutableState, step: CompiledWorkflowStep, output: JsonValue, now: string, target = step.next[0]!): void {
-    assertWorkflowOutput(step, output);
+    // An undelivered timed-out root decision ends the run; no later step can read its thread.
+    if (!(step.decision?.conversationRoot && target === "end" && (output as Record<string, JsonValue>)?.decision === "timed-out")) assertWorkflowOutput(step, output);
     const prior = state.steps[step.id];
     state.steps[step.id] = { ...prior, status: "succeeded", startedAt: prior?.startedAt ?? now, completedAt: now, output };
     state.cursor = target === "end" ? null : target; state.status = state.cursor ? "running" : "done";
@@ -462,7 +473,7 @@ export class WorkflowEngine {
     if (decision.status !== "pending") throw new Error("Workflow decision was already resolved");
     if (decision.expiresAt <= now) {
       decision.status = "timed-out"; decision.decidedAt = now;
-      this.#finish(state, step, { bound: decision.bound, decision: "timed-out" }, now, declaration.targets.timeout);
+      this.#finish(state, step, this.#decisionOutput(step, decision, "timed-out"), now, declaration.targets.timeout);
       return await this.#save(run, state, "workflow.decision-timed-out");
     }
     const calendar = this.#calendar(workflow, declaration.calendarPath)!, dueAt = workflowDeliveryInstant(calendar, now);
@@ -536,7 +547,7 @@ export class WorkflowEngine {
       if (onValidated) { try { await onValidated(artifact.language); } catch { /* Continue durable processing if presentation fails. */ } }
       const state = structuredClone(run.state), recorded = state.decisions[step.id]!;
       recorded.status = args.decision; recorded.approvingPrincipal = args.principal; recorded.responseEventId = args.eventId; recorded.decidedAt = now;
-      this.#finish(state, step, { bound: recorded.bound, decision: args.decision }, now, args.decision === "approved" ? step.decision.targets.approve : step.decision.targets.reject);
+      this.#finish(state, step, this.#decisionOutput(step, recorded, args.decision), now, args.decision === "approved" ? step.decision.targets.approve : step.decision.targets.reject);
       return await this.#save(run, state, `workflow.decision-${args.decision}`, { principal: args.principal, response_event_id: args.eventId, bound_digest: recorded.boundDigest }, undefined, args.principal);
     } finally {
       await store.release({ instanceId, runId: run.runId, leaseToken: run.lease!.token });
@@ -564,7 +575,7 @@ export class WorkflowEngine {
           await this.#save(run, state, "workflow.stale-timer"); return this.#options.timers.complete(timer, { outcome: "stale" }, now);
         }
         decision.status = "timed-out"; decision.decidedAt = now;
-        this.#finish(state, step, { bound: decision.bound, decision: "timed-out" }, now, step.decision.targets.timeout);
+        this.#finish(state, step, this.#decisionOutput(step, decision, "timed-out"), now, step.decision.targets.timeout);
       } else {
         if (state.wait?.timerId !== timer.timerId || state.wait.dueAt !== payload.instant || step.id !== payload.step_id) {
           await this.#save(run, state, "workflow.stale-timer"); return this.#options.timers.complete(timer, { outcome: "stale" }, now);
