@@ -1,0 +1,64 @@
+version: 3
+plan_id: brain-ingestion-routing-2026-09-16
+created: 2026-09-16
+title: Route source content through bounded incremental ingestion Skills
+objective: Separate source transport from content procedure. Route normalized
+  sources to the applicable adopted ingestion Skill, write meetings before entity
+  enrichment, and verify actual saved pages. Remove automatic one-shot fallback,
+  bound continuing Agent cost and stop repeated attempts without progress.
+non_goals:
+  - Implement Dream, reflection, consolidation or concept synthesis workflows.
+  - Change Brain directories, page authority, provider grants or source selection.
+  - Claim that a Skill provides an unavailable media extractor or publication crawler.
+  - Include private source content, company identifiers or credentials in Core.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-16-brain-ingestion-routing.yaml
+  - packages/blueprints/brain/**
+  - packages/cli/content/templates/brain-import/**
+  - scripts/materialize-brain-workflow.ts
+  - packages/brain/import-admission.ts
+  - packages/schema/workflow-steps-v1.schema.json
+  - docs/_generated/**
+  - packages/companyos-builder/workflow-*.ts
+  - packages/runtime/workflow-engine/**
+  - packages/state-store/workflow-engine.ts
+  - packages/runner-vercel/src/lib/workflow-agent*
+  - packages/testkit/tests/**
+  - docs/specifications/brain-import.md
+  - docs/specifications/brain-skill-adoption.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/operations/workflow-engine.md
+tests:
+  - packages/testkit/tests/brain-workflow-materialization.test.ts
+  - packages/testkit/tests/workflow-agent.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - specification.brain-import
+    - specification.brain-skill-adoption
+    - specification.workflow-execution-v1
+    - operations.workflow-engine
+architecture:
+  placement:
+    core: Generic bounded Agent execution, model context projection and source admission.
+    packages: Portable ingestion router, adopted Skills and restricted workflow Tools.
+    workspace: Content mappings, source selections, perspective, directories and budgets.
+    instance: Existing source versions, provider credentials, Git writes and cost receipts.
+  mechanisms_extended:
+    - mechanism: company-records
+      reason: Reuse complete normalized source versions; classify content independently of transport.
+    - mechanism: model-recipe-resolver
+      reason: Preserve utility triage and reasoning/deep roles while bounding continuing execution.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Preserve durable operations and stop failures or repeated no-progress model turns.
+    - mechanism: capability-contracts-and-connectors
+      reason: Reuse Brain reads and evidenced Git writes; add no provider execution in Workspaces.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Content procedures and budgets apply to every company without provider names or private selection in the Blueprint.
+rollback: Restore the prior pinned artifact for new imports; retain all writes, source versions and failed attempt receipts. Never replay a partially written import as a new success.

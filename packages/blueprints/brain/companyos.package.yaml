@@ -18,6 +18,8 @@ components:
   skills: []
 requires:
   tools:
+    - company:brain-ingestion-router
+    - company:brain-source-records
     - company:brain-agent-context
     - company:brain-agent-outcome
     - company:brain-check-agent-completion

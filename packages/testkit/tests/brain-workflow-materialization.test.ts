@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { readFileSync } from "node:fs";
 import { materializeBrainWorkflow, type BrainWorkflowInputs } from "../../../scripts/materialize-brain-workflow.ts";
 import { executeIsolatedCompanyTool } from "../../tool-sdk/isolated-runner.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
@@ -22,22 +23,25 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.deepEqual(input, before, "Materialization does not mutate caller policy");
   const workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
   const config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
-  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 13);
+  assert.equal(workflow.owner, "agents/analyst"); assert.equal(workflow.trigger, "operator"); assert.equal(workflow.steps.length, 11);
   assert.equal(workflow.steps.find((step: any) => Object.keys(step)[0] === "agent-context")?.input?.processing_instant, "$trigger.instant");
   assert.equal(config.source_projection, "studio-sources"); assert.equal(config.transcripts.max_transcripts, 4);
   assert.equal(config.transcripts.meeting_date.start_at, "2025-12-31T23:00:00.000Z");
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
   assert.deepEqual(config.triage, input.triage); assert.equal(config.page_directories.concept, "topics");
   const tools = result.report.requirements.tools.filter(id => id.startsWith("company:"));
-  assert.equal(tools.length, 10);
+  assert.equal(tools.length, 9);
   for (const id of tools) {
     const tool = loadCompanyTool(result.materials, "analyst", id.slice(8));
     assert.equal(tool.contract.agentId, "analyst"); assert.equal(tool.contract.risk, id === "company:brain-one-shot" ? "R1" : "R0");
     assert.ok(tool.contract.capabilities.every(capability => ["language.generate", "evidence.query", "records.query", "brain.recall", "brain.entity", "brain.remember"].includes(capability)));
   }
-  assert.equal(result.prompts.length, 23);
+  assert.equal(result.prompts.length, 21);
   assert.equal(config.agent.budget.turns, 12);
-  assert.equal(config.prompts.one_shot.deep, "agents/analyst/skills/brain-one-shot-deep/SKILL.md");
+  assert.equal(config.prompts.one_shot, undefined);
+  assert.equal(config.agent.budget.total_input_bytes, 2000000);
+  assert.equal(config.agent.budget.no_progress_turns, 2);
+  assert.ok(!JSON.stringify(workflow).includes("one-shot"));
   assert.match(result.materials["agents/analyst/skills/brain-task/SKILL.md"], /trusted `processing_day`/);
   assert.equal(result.report.activated, false); assert.equal(result.report.grants_applied, false);
   assert.equal(result.report.provider_bindings_applied, false); assert.equal(result.report.admission_created, false);
@@ -64,8 +68,33 @@ test("another company can change vocabulary and the history window without alter
   }
 });
 
+test("content routing is provider-independent and unavailable discovery cannot start a model", async () => {
+  const result = materializeBrainWorkflow(input), config = YAML.parse(result.materials["workflows/brain-import/config.yaml"]);
+  const tool = loadCompanyTool(result.materials, "analyst", "brain-ingestion-router");
+  const route = (kind: string, identity = "provider-a:item") => executeIsolatedCompanyTool({ compiledSource: tool.compiledSource,
+    input: { source: { kind, identity }, routes: config.ingestion.routes },
+    context: { instanceId: "synthetic", runId: "router", stepId: "router", agentId: "analyst", toolId: tool.contract.runtimeId },
+    allowedCapabilities: [], invokeCapability: async () => { throw Error("Router must not call a provider or model"); } });
+  assert.deepEqual(await route("meeting"), await route("meeting", "provider-b:different-item"));
+  assert.deepEqual((await route("meeting") as any).instructions, config.ingestion.routes.meeting);
+  for (const [kind, skill] of [["discussion", "source-work"], ["article", "idea-work"], ["idea", "idea-work"], ["document", "media-work"], ["media", "media-work"]]) {
+    const selected = (await route(kind!) as any).instructions;
+    assert.ok(selected.some((path: string) => path.endsWith(`/brain-${skill}/SKILL.md`)));
+    assert.ok(!selected.some((path: string) => path.includes("meeting-work")));
+  }
+  await assert.rejects(route("publication"), /Publication enumeration/);
+  await assert.rejects(route("unknown"), /Unsupported content kind/);
+  const workflow = workspaceDocument(result.materials, "workflows/brain-import.md").data;
+  assert.equal(workflow.steps[2]["ingestion-router"], "company:brain-ingestion-router");
+  assert.equal(workflow.steps.find((s: any) => s["process-source"])?.instruction_selection, "$steps.ingestion-router.instructions");
+  assert.equal(workflow.steps.some((s: any) => s["choose-synthesis"]), false);
+});
+
 test("one-shot meeting synthesis makes one model call, writes through Brain and verifies Markdown", async () => {
-  const result = materializeBrainWorkflow(input), tool = loadCompanyTool(result.materials, "analyst", "brain-one-shot");
+  // Historical retained artifacts still require their old Tool contract tests.
+  const result = materializeBrainWorkflow(input);
+  for (const file of ["TOOL.md", "execute.ts"]) result.materials[`agents/analyst/tools/brain-one-shot/${file}`] = readFileSync(new URL(`../../cli/content/templates/brain-import/tools/brain-one-shot/${file}`, import.meta.url), "utf8");
+  const tool = loadCompanyTool(result.materials, "analyst", "brain-one-shot");
   const revision = { git_commit: "a".repeat(40), configuration_digest: "b".repeat(64), generation: "g", sequence: 1, indexed_at: "2030-01-02T00:00:00Z" };
   const sourceSlug = "sources/import-example", meetingSlug = "meetings/example", personSlug = "people/alex";
   const source = { identity: "source:example", version: "v1", kind: "meeting", occurred_at: "2030-01-01T12:00:00Z",
@@ -256,10 +285,10 @@ test("source history accepts only its exact unwritten predecessor link and never
     { ...prior, status: "done" }, { ...prior, fields: { ...prior.fields, source_version: "v0" } }]) await assert.rejects(run(changed));
 });
 
-test("all adopted procedures are delivered as instructions and a no-write notability skip retains its reason", async () => {
+test("applicable adopted procedures are delivered as instructions and a no-write notability skip retains its reason", async () => {
  const result=materializeBrainWorkflow(input), config=YAML.parse(result.materials['workflows/brain-import/config.yaml']!);
- assert.equal(config.agent.instructions.length,5);assert.deepEqual(config.agent.skills,[]);
- const delivered=config.agent.instructions.map((path:string)=>result.materials[path]).join('\n');
+ assert.equal(config.agent.instructions.length,1);assert.equal(config.agent.skills.length,7);
+ const delivered=[...config.agent.instructions,...config.ingestion.routes.meeting].map((path:string)=>result.materials[path]).join('\n');
  for(const text of ['V1 — Required sections','V4 — Every quote','## Key Decisions','Before writing anything'])assert.ok(delivered.includes(text));
  const tool=loadCompanyTool(result.materials,'analyst','brain-agent-outcome');
  const task={source:{identity:'source:1',version:'v1'},prior:{requests:[]}};

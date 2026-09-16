@@ -164,3 +164,32 @@ V1–V6 definitions available without depending on an optional Tool call. The fi
 rules can produce a no-write notability skip; routing to a higher model tier does
 not override them. Public regressions cover skipped sources, per-page read-back,
 required sections and unchanged prior-source reconciliation constraints.
+
+## Content routing revision (2026-09-16)
+
+New Workflow materializations use incremental Skill-led ingestion rather than
+meeting one-shot synthesis. `ingestion-adoption.json` pins additional scoped
+idea/media/blog adaptations to GBrain commit
+`668b9bac302705f3bca0ae4792a49fab0a79a74e`, with source and adopted-content hashes.
+The meeting Skill at that commit is byte-identical to the existing pinned source
+(SHA-256 `949a491b98e7dabe51e3d1640f49a7dbfacb543703d22619a1aed36611eb383b`);
+its existing reviewed normalization, claim, propagation and V1–V6 sections remain.
+Shared filing, quality, untrusted-content, lookup and model-role rules are reused.
+
+Source transport and content kind are independent. The router selects applicable
+compiled instructions before model use; mandatory selected Skills are eagerly
+included, not left to an optional Skill read. Meetings write before completing
+entity drafts, then verify and repair actual saved pages. Articles/ideas use
+author resolution and sourced analysis. Documents/media use format-aware content
+and entity propagation after extraction. Provider retrieval, OCR/STT and feed
+walking are not granted by these Skills. Publication procedures are retained as
+adapter requirements; publication input currently stops before a paid call.
+This explicit acquisition gap is not full GBrain execution parity.
+
+Qualification must separate upstream procedure conformance from provider and
+model execution. A copied Skill is neither a runtime nor a cost guarantee.
+Compare phase/operation order, source updates, entity/quote/backlink quality and
+saved-page verification on a fixed admitted sample. Retain role-wise calls,
+uncached input, cache writes, cache reads and output tokens, including failed and
+unknown attempts. Do not label local mocks or prior one-shot outcomes as a live
+reference run. No Dream workflow or synthesized new knowledge is introduced.

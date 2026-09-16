@@ -630,3 +630,22 @@ the missing response because Core dispatches only a durably retained response.
 Repeating the same operator request returns its existing authorization. Ordinary
 resume and model-generated inputs cannot authorize this retry. Do not claim complete
 cost accounting until the unknown provider usage is reconciled separately.
+
+### Continuing Agent cost stops
+
+An adopted Agent step may declare cumulative input-byte and output-token budgets
+and a consecutive no-progress limit. The immutable turn journal records host
+request reservations and actual output usage when available. Cached inputs still
+count toward the serialized input bound. These bounds cover the Agent step;
+include earlier generation steps such as utility triage in complete import cost
+reports. Missing usage is not zero cost.
+
+Unknown model responses stop without an automatic paid continuation. With
+`failure_policy: stop` (used by new Brain imports), known incomplete responses stop
+as well; historical definitions retain their original bounded continuation policy. `resume` does not authorize another model call. An explicit exact
+`retry-agent-model` action can authorize another attempt only for a dispatched
+failed/unknown response; it retains prior costs and cannot reset the original
+budgets or discard saved Tool results. A local pre-dispatch budget rejection
+requires correcting the reviewed configuration, not pretending it was a paid
+failure or silently switching to another pipeline. No-progress stops similarly
+remain unfinished; never mark a partially written source as ingested.

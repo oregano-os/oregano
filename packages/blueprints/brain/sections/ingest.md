@@ -25,7 +25,7 @@ Every fact written to a brain page must carry an inline `[Source: ...]` citation
 
 ## Phases
 
-> **Router note:** Use this general procedure for selected discussions and the included meeting procedure for transcripts. Other specialized providers and procedures are outside this adoption.
+> **Router note:** Use this general procedure for discussions. The content router selects meeting-work for meetings, idea-work for articles/ideas, and media-work for complete document/media extracts. Publication enumeration precedes item ingestion and requires a separately available source adapter; provider identity does not determine content kind.
 
 1. **Parse the source.** Extract people, companies, dates, and events from the input.
 2. **For each entity mentioned:**

@@ -867,6 +867,19 @@ An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-d
 `skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
 a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, `output_schema`
 and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+Optional `instruction_selection` resolves a subset of the declared `skills`
+allowlist and includes only those procedures as eager instructions; it cannot
+load a file outside the compiled owning Agent scope. Unselected Skill content is
+removed from the model request. Without selection, on-demand behavior is unchanged.
+Optional budget fields `total_input_bytes` (1,000–16,000,000),
+`total_output_tokens` (at least `output_tokens`, at most 128,000), and
+`no_progress_turns` (1–8) bound the whole Agent step. Input size counts serialized
+system, messages and Tool declarations, including replayed/cacheable content;
+it is a payload measure, not a provider token count or dollar limit. Actual output
+usage replaces the reserved ceiling when available; unavailable usage retains the
+reservation. The host must supply input/output reservation evidence before paid
+dispatch for a cumulative budget. Repeated identical successful Tool evidence and
+rejected finishes are not progress. A stop preserves the journal and all costs.
 Each selected Skill is at most 30000 characters. Subject-confirmed and R2–R4 Tools
 remain outside this step type. Optional `validate` names a granted pure R0 Company
 Tool with no capabilities; it receives `{context: {task, calls}, facts}` and returns
@@ -888,7 +901,10 @@ the next pending call to its compiled Tool contract and exact fixed inputs. Effe
 keys include immutable turn/call position; they do not include mutable input hashes.
 A lost write-result snapshot reuses the existing effect receipt. A lost read result
 may repeat the read. Unknown model outcomes stop without an automatic paid retry;
-known incomplete output retains usage and receives bounded continuation feedback.
+the opt-in `failure_policy: stop` also stops known incomplete output with retained
+usage. Both stopped outcomes require an explicit exact operator retry; resume alone
+never repeats a paid generation. Historical definitions without this policy retain
+their bounded known-incomplete continuation behavior and immutable journals.
 
 `companyos_finish_task` validates the result and optional Company validator. Feedback
 keeps the same conversation open. Accepted completion returns `{result, calls}`; the
@@ -927,7 +943,7 @@ blocks continuation, including in archived read-repair snapshots.
 ### Explicit retry of an unavailable Agent model response
 
 An authenticated operator may call `retry-agent-model` with the exact run revision,
-last attempt ID and reason. Core requires a stopped Agent turn with an unavailable
+last attempt ID and reason. Core requires a stopped Agent turn with an unavailable or known incomplete
 model response, no retained response or Tool results, and its unknown dispatched
 attempt receipt. Current activation/source scope and the original task budget still
 apply. This is permission for another paid generation, not proof of zero prior cost.

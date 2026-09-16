@@ -1,3 +1,4 @@
+import { modelToolResult } from "./workflow-agent-context.ts";
 import { generateText, tool, jsonSchema, type ModelMessage } from "ai";
 import type { JsonValue } from "../../../capabilities/contracts.ts";
 import type { WorkflowAgentGenerator } from "../../../runtime/workflow-engine/agent-contract.ts";
@@ -13,9 +14,12 @@ export function createWorkflowAgentGenerator(dependencies: {
 } = { resolve: resolveModelExecution, generate: generateText }): WorkflowAgentGenerator {
   return async request => {
     const execution = dependencies.resolve({ profile: request.profile, task: request.task, requiredCapability: "tools" });
-    const tools = Object.fromEntries(request.tools.map(entry => [entry.name, tool({ description: entry.description, inputSchema: jsonSchema(entry.inputSchema) })]));
-    tools[AGENT_FINISH_TOOL] = tool({ description: "Submit the completed task only after reading back and verifying its saved results. Validation feedback keeps this same task open. This Tool does not itself write knowledge.", inputSchema: jsonSchema(request.outputSchema) });
-    if (request.skills?.length) tools[AGENT_SKILL_TOOL] = tool({ description: "Read a reviewed Skill from this task's exact declared scope before performing its procedure.", inputSchema: jsonSchema({ type: "object", additionalProperties: false, required: ["path"], properties: { path: { type: "string", enum: request.skills } } }) });
+    const declarations = [...request.tools, { name: AGENT_FINISH_TOOL,
+      description: "Submit the completed task only after reading back and verifying its saved results. Validation feedback keeps this same task open. This Tool does not itself write knowledge.", inputSchema: request.outputSchema }];
+    if (request.skills?.length) declarations.push({ name: AGENT_SKILL_TOOL,
+      description: "Read a reviewed Skill from this task's exact declared scope before performing its procedure.",
+      inputSchema: { type: "object", additionalProperties: false, required: ["path"], properties: { path: { type: "string", enum: request.skills } } } });
+    const tools = Object.fromEntries(declarations.map(entry => [entry.name, tool({ description: entry.description, inputSchema: jsonSchema(entry.inputSchema) })]));
     const selected = new Set(request.skills ?? []);
     const ordinary = { ...request.agent, materials: Object.fromEntries(Object.entries(request.agent.materials).filter(([path, content]) => !selected.has(path) && !request.instructions.includes(content))) };
     const system = agentInstructions(ordinary, Object.keys(tools)) +
@@ -28,17 +32,20 @@ export function createWorkflowAgentGenerator(dependencies: {
       messages.push(...turn.response.messages as unknown as ModelMessage[]);
       if (turn.results.length) messages.push({ role: "tool", content: turn.results.map((result, i) => ({
         type: "tool-result", toolCallId: result.callId, toolName: turn.response!.calls[i]!.name,
-        output: result.error === undefined ? { type: "json", value: result.output! } : { type: "error-text", value: result.error },
+        output: result.error === undefined ? { type: "json", value: modelToolResult(turn.response!.calls[i]!.name, result.output!) } : { type: "error-text", value: result.error },
       })) });
       if (!turn.response.calls.length) messages.push({ role: "user", content: "Continue with the registered Tools, or submit verified completion through companyos_finish_task." });
     }
     // Never truncate a source or silently replace prior Tool results to fit a prompt.
     if (Buffer.byteLength(JSON.stringify({ system, messages })) > 4 * 1024 * 1024) throw new Error("Agent conversation exceeds the supported input byte budget");
     const instructionEvidence = { system_prompt_digest: sha256(system), system_instruction_characters: system.length };
-    await request.beforeDispatch(execution.selection, instructionEvidence);
+    const outputTokens = Math.min(request.outputTokens, execution.selection.maxOutputTokens ?? request.outputTokens);
+    // Includes tool schemas and all replayed history, including cached content.
+    const inputBytes = Buffer.byteLength(JSON.stringify({ system, messages, tools: declarations }));
+    await request.beforeDispatch(execution.selection, instructionEvidence, { inputBytes, outputTokens });
     let generated;
     try { generated = await dependencies.generate({ model: execution.model, system, messages, tools,
-      reasoning: "low", maxOutputTokens: Math.min(request.outputTokens, execution.selection.maxOutputTokens ?? request.outputTokens),
+      reasoning: "low", maxOutputTokens: outputTokens,
       maxRetries: 0, abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 90_000, 120_000)) }); }
     catch { throw new LanguageGenerationError("Agent provider outcome is unavailable", "provider-error", {
       model_execution: modelExecutionEvidence(execution.selection, { response: { id: "", modelId: "" }, usage: {} }), ...instructionEvidence, finish_reason: null,

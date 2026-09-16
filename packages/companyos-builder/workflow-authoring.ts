@@ -506,11 +506,19 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
           || s.instructions.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path))) err(f, `${s.id}: instructions must select existing owning Agent Skill files`);
         if (s.skills !== undefined && (!Array.isArray(s.skills) || s.skills.length > 16 || s.skills.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path)))) err(f, `${s.id}: on-demand Skills must belong to the owning Agent`);
         if (!s.output_schema || s.output_schema.type !== "object" || !ajv.validateSchema(s.output_schema)) err(f, `${s.id}: agent requires an object output_schema`);
+        if (s.failure_policy !== undefined && s.failure_policy !== "stop") err(f, `${s.id}: unsupported Agent failure policy`);
+        if (s.instruction_selection !== undefined) {
+          if (!s.skills?.length) err(f, `${s.id}: instruction selection requires a declared Skill scope`);
+          validateInput(s.instruction_selection, { type: "array", minItems: 1, maxItems: 16, items: { type: "string" } }, s.id);
+        }
         const b = s.budget;
-        if (!b || Object.keys(b).sort().join(",") !== "output_tokens,tool_calls,turns"
+        if (!b || Object.keys(b).filter(key => !["total_input_bytes", "total_output_tokens", "no_progress_turns"].includes(key)).sort().join(",") !== "output_tokens,tool_calls,turns"
           || !Number.isSafeInteger(b.turns) || b.turns < 1 || b.turns > 64
           || !Number.isSafeInteger(b.tool_calls) || b.tool_calls < 1 || b.tool_calls > 256
-          || !Number.isSafeInteger(b.output_tokens) || b.output_tokens < 256 || b.output_tokens > 16000) err(f, `${s.id}: agent budget exceeds maintained finite bounds`);
+          || !Number.isSafeInteger(b.output_tokens) || b.output_tokens < 256 || b.output_tokens > 16000
+          || (b.total_input_bytes !== undefined && (!Number.isSafeInteger(b.total_input_bytes) || b.total_input_bytes < 1000 || b.total_input_bytes > 16000000))
+          || (b.total_output_tokens !== undefined && (!Number.isSafeInteger(b.total_output_tokens) || b.total_output_tokens < b.output_tokens || b.total_output_tokens > 128000))
+          || (b.no_progress_turns !== undefined && (!Number.isSafeInteger(b.no_progress_turns) || b.no_progress_turns < 1 || b.no_progress_turns > 8))) err(f, `${s.id}: agent budget exceeds maintained finite bounds`);
         if (!Array.isArray(s.tools) || !s.tools.length || s.tools.length > 32 || new Set(s.tools.map((entry: any) => entry.tool)).size !== s.tools.length) err(f, `${s.id}: agent requires a unique bounded Tool subset`);
         for (const entry of Array.isArray(s.tools) ? s.tools : []) {
           const contract = toolSchemas(entry.tool);
@@ -644,7 +652,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
-  else if (step.tool === "agent") allowed.push("context", "instructions", "skills", "profile", "task", "tools", "output_schema", "validate", "budget");
+  else if (step.tool === "agent") allowed.push("context", "instructions", "skills", "instruction_selection", "failure_policy", "profile", "task", "tools", "output_schema", "validate", "budget");
   else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout", "validate");
   else if (step.tool === "wait") allowed.push("for");
   else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format", "title"];

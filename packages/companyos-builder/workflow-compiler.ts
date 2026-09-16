@@ -112,8 +112,11 @@ export function compileWorkflows(args: {
         const validator = raw.validate === undefined ? undefined : resolveTool(raw.validate, raw.id);
         if (validator && (validator.resolved.risk !== "R0" || validator.tool.contract.capabilities.length || !raw.validate.startsWith("company:"))) throw new Error("Agent completion validator must be a pure granted Company Tool");
         return { ...base, kind: "agent", allowedTools: tools.map((entry: any) => entry.tool.runtimeId), maxRisk: maximumRisk(...tools.map((entry: any) => entry.tool.risk)),
-          agent: { context: raw.context, instructions, ...(raw.skills ? { skills: raw.skills } : {}), profile: raw.profile, task: raw.task, tools, outputSchema: raw.output_schema,
-            ...(validator ? { validator: structuredClone(validator.resolved) } : {}), budget: { turns: raw.budget.turns, toolCalls: raw.budget.tool_calls, outputTokens: raw.budget.output_tokens } } };
+          agent: { context: raw.context, instructions, ...(raw.failure_policy ? { failurePolicy: raw.failure_policy } : {}), ...(raw.instruction_selection !== undefined ? { instructionSelection: raw.instruction_selection } : {}), ...(raw.skills ? { skills: raw.skills } : {}), profile: raw.profile, task: raw.task, tools, outputSchema: raw.output_schema,
+            ...(validator ? { validator: structuredClone(validator.resolved) } : {}), budget: { turns: raw.budget.turns, toolCalls: raw.budget.tool_calls, outputTokens: raw.budget.output_tokens,
+              ...(raw.budget.total_input_bytes === undefined ? {} : { totalInputBytes: raw.budget.total_input_bytes }),
+              ...(raw.budget.total_output_tokens === undefined ? {} : { totalOutputTokens: raw.budget.total_output_tokens }),
+              ...(raw.budget.no_progress_turns === undefined ? {} : { noProgressTurns: raw.budget.no_progress_turns }) } } };
       }
       if (raw.tool === "collect") {
         const path = calendar(); usedSchedules.add(path);

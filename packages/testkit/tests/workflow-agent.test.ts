@@ -17,19 +17,19 @@ import { readLanguageAttempts } from "../../language/attempts.ts";
 import type { ModelExecutionSelection } from "../../runner/model-execution.ts";
 
 const selection = { profile: "reasoning", model: "synthetic/test", route: "openai-compatible" } as ModelExecutionSelection;
-function fixture(change: (data: any) => void = () => {}) {
+function fixture(change: (data: any, files: Record<string, string>, agent: any) => void = () => {}) {
   const artifact = structuredClone(engineArtifact()), agent = artifact.agents.find(agent => agent.id === "sprint")!;
   const files = { ...readWorkspaceFiles(resolve(import.meta.dirname, "../fixtures/lindenhof-studio")) };
   for (const path of Object.keys(files)) if (path.startsWith("workflows/")) delete files[path];
   const instruction = Object.keys(agent.materials).find(path => path.startsWith("agents/sprint/skills/"))!;
   assert.ok(instruction);
   const declaration = { type: "workflow", id: "agent-task", owner: "agents/sprint", version: 1, execution_mode: "unattended", trigger: "operator",
-    steps: [{ work: "agent", context: { source: "Synthetic transcript", identity: "source-1" }, instructions: [instruction], profile: "reasoning", task: "sprint.test",
+    steps: [{ work: "agent", failure_policy: "stop", context: { source: "Synthetic transcript", identity: "source-1" }, instructions: [instruction], profile: "reasoning", task: "sprint.test",
       tools: [{ tool: "oregano:directory/members", bind: {} }], output_schema: { type: "object", additionalProperties: false, required: ["verified"], properties: { verified: { const: true } } },
       budget: { turns: 8, tool_calls: 16, output_tokens: 8000 } }] };
   // Use the actual directory grant spelling resolved by the fixture.
   declaration.steps[0]!.tools[0]!.tool = agent.toolSet.tools.find(tool => tool.runtimeId.includes("directory"))!.grantId;
-  change(declaration);
+  change(declaration, files, agent);
   files["workflows/agent-task.md"] = `---\n${YAML.stringify(declaration)}---\n## Steps\n1. [sprint, R0] Continue the task. <!-- step:work -->\n`;
   artifact.workflows = compileWorkflows({ files, agents: artifact.agents, provenance: artifact.workflows![0]!.provenance });
   const { artifactHash, ...content } = artifact;
@@ -41,7 +41,7 @@ function model(rounds: Array<Array<{ name: string; input: any }>>) {
   let calls = 0; const requests: any[] = [];
   const generate: WorkflowAgentGenerator = async request => {
     requests.push(structuredClone({ context: request.context, turns: request.turns }));
-    await request.beforeDispatch(selection, { system_prompt_digest: "a".repeat(64), system_instruction_characters: 12 });
+    await request.beforeDispatch(selection, { system_prompt_digest: "a".repeat(64), system_instruction_characters: 12 }, { inputBytes: 1000, outputTokens: request.outputTokens });
     const round = rounds[calls++]!; assert.ok(round, "unexpected model dispatch");
     return { response: { messages: [], text: "", finishReason: "tool-calls", calls: round.map((call, i) => ({ ...call, id: `call-${calls}-${i}` })) },
       evidence: { model_execution: { ...selection, inputTokens: 100, outputTokens: 20 } } };
@@ -56,6 +56,59 @@ test("compiler binds an Agent step to scoped Skills, finite budgets and exact R0
   assert.throws(() => fixture(data => data.steps[0].instructions = ["company.md"]), /Skill/);
   assert.throws(() => fixture(data => data.steps[0].tools = [{ tool: "oregano:communications/publish" }]), /R0.R1/);
   assert.throws(() => fixture(data => data.steps[0].tools.push(data.steps[0].tools[0])), /unique/);
+});
+
+test("cumulative input budget stops before another paid dispatch and survives resume", async () => {
+  const artifact = fixture(data => { data.steps[0].budget.total_input_bytes = 1000; data.steps[0].budget.total_output_tokens = 8000; });
+  const name = agentToolName(artifact.workflows![0]!.steps[0]!.agent!.tools[0]!.tool.grantId);
+  const m = model([[{ name, input: {} }], [{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  const h = engineFixture({ artifact, agentGenerator: m.generate });
+  let run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(m.calls, 1); assert.equal(run.state.status, "waiting");
+  assert.deepEqual(run.state.steps.work!.agent!.turns[0]!.requestBudget, { inputBytes: 1000, outputTokens: 8000 });
+  assert.equal(run.state.steps.work!.agent!.turns[0]!.outputTokensUsed, 20);
+  await h.engine().resume(run.runId, ENGINE_OPERATOR); run = (await h.engine().advance(run.runId))!;
+  assert.equal(m.calls, 1); assert.equal(run.state.status, "waiting");
+  const attempts = await readLanguageAttempts(h.control, [run.runId]);
+  assert.equal(attempts.filter(a => a.dispatched_at).length, 1);
+  assert.ok(attempts.some(a => a.status === "failed" && !a.dispatched_at));
+});
+
+test("repeated rejected finishes stop without a new paid turn", async () => {
+  const m = model(Array.from({ length: 3 }, () => [{ name: AGENT_FINISH_TOOL, input: { verified: false } }]));
+  const h = engineFixture({ artifact: fixture(data => { data.steps[0].budget.no_progress_turns = 2; }), agentGenerator: m.generate });
+  let run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(m.calls, 2); assert.equal(run.state.status, "waiting");
+  await h.engine().resume(run.runId, ENGINE_OPERATOR); run = (await h.engine().advance(run.runId))!;
+  assert.equal(m.calls, 2); assert.equal(run.state.steps.work!.agent!.turns.length, 2);
+});
+
+test("selected instructions cannot escape the declared owning Agent Skill scope", async () => {
+  const artifact = fixture(data => { data.steps[0].skills = data.steps[0].instructions; data.steps[0].instruction_selection = ["agents/other/skills/injected/SKILL.md"]; });
+  let calls = 0;
+  const h = engineFixture({ artifact, agentGenerator: async () => { calls++; throw Error("Must not dispatch"); } });
+  const run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(calls, 0); assert.equal(run.state.status, "waiting");
+  assert.equal((await readLanguageAttempts(h.control, [run.runId])).length, 0);
+});
+
+test("routing eagerly delivers the selected Skill and excludes other scoped procedures", async () => {
+  const selected = "agents/sprint/skills/selected/SKILL.md", unrelated = "agents/sprint/skills/unrelated/SKILL.md";
+  const artifact = fixture((data, files, agent) => {
+    files[selected] = agent.materials[selected] = "Selected meeting procedure";
+    files[unrelated] = agent.materials[unrelated] = "Unrelated media procedure";
+    data.steps[0].skills = [selected, unrelated]; data.steps[0].instruction_selection = [selected];
+  });
+  const m = model([[{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  const h = engineFixture({ artifact, agentGenerator: async request => {
+    assert.ok(request.instructions.includes("Selected meeting procedure"));
+    assert.ok(!request.instructions.includes("Unrelated media procedure"));
+    assert.equal(request.agent.materials[unrelated], undefined);
+    assert.deepEqual(request.skills, []);
+    return m.generate(request);
+  } });
+  const run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(m.calls, 1);
 });
 
 test("model response is durable before ordered Tool dispatch, with one continuing conversation", async () => {
@@ -109,14 +162,19 @@ test("unknown model outcomes stay stopped with charge evidence and no automatic 
   assert.equal(calls, 1); assert.ok(run.state.blocked); assert.equal((await readLanguageAttempts(h.control, [run.runId]))[0]!.status, "unknown");
 });
 
-test("incomplete known responses retain costs and allow a bounded continuation", async () => {
+test("incomplete known responses retain costs and stop until an explicit bounded retry", async () => {
   let calls = 0; const m = model([[{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
   const h = engineFixture({ artifact: fixture(), agentGenerator: async request => {
     if (calls++ === 0) { await request.beforeDispatch(selection, { system_prompt_digest: "b".repeat(64), system_instruction_characters: 10 });
       throw new LanguageGenerationError("Length", "incomplete", { model_execution: { ...selection, inputTokens: 100, outputTokens: 8000 } }); }
     return m.generate(request);
   } });
-  const run = (await h.engine().advance((await open(h)).runId))!;
+  let run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(run.state.status, "waiting"); assert.equal(calls, 1);
+  await h.engine().resume(run.runId, ENGINE_OPERATOR);
+  run = (await h.engine().advance(run.runId))!; assert.equal(calls, 1);
+  run = await h.engine().retryAgentModel(run.runId, ENGINE_OPERATOR, run.revision, run.state.steps.work!.agent!.turns.at(-1)!.attemptId, "Reviewed incomplete output retry");
+  run = (await h.engine().advance(run.runId))!;
   assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked));
   assert.deepEqual((await readLanguageAttempts(h.control, [run.runId])).map(a => a.status).sort(), ["failed", "succeeded"]);
 });

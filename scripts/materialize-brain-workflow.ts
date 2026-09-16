@@ -6,7 +6,6 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import { sha256 } from "../packages/runtime/canonical.ts";
 import { validateTranscriptSelectionPolicy, type TranscriptSelectionPolicy } from "../packages/brain/import-policy.ts";
 import { materializeBrainPrompts, type BrainPromptInputs } from "./materialize-brain-prompts.ts";
-import { MAX_INSTRUCTION_CHARACTERS } from "../packages/language/prompt-binding.ts";
 
 const blueprintRoot = fileURLToPath(new URL("../packages/blueprints/brain/", import.meta.url));
 const toolRoot = fileURLToPath(new URL("../packages/cli/content/templates/brain-import/", import.meta.url));
@@ -94,12 +93,20 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     if (sha256(text) !== entry.sha256) throw new Error("Changed adopted Agent Skill section");
     return text.replace(/\{\{([a-z_]+)\}\}/g, (_: string, key: keyof typeof input.prompt.directories) => input.prompt.directories[key]);
   };
+  const contentAdoption = JSON.parse(readAsset(blueprintRoot, "ingestion-adoption.json"));
+  if (contentAdoption.version !== 1 || contentAdoption.upstream.commit !== "668b9bac302705f3bca0ae4792a49fab0a79a74e") throw new Error("Unexpected content Skill adoption");
+  const contentSkills = Object.fromEntries(contentAdoption.skills.map((entry: any) => {
+    const text = readAsset(blueprintRoot, entry.path);
+    if (sha256(text) !== entry.sha256) throw new Error("Changed content Skill; review the adoption manifest");
+    return [entry.id, [text]];
+  }));
   const groups = {
     task: [taskInstructions, `Reviewed perspective: ${input.prompt.perspective}\nDirectory mappings: ${JSON.stringify(input.prompt.directories)}`, ...["filing", "quality", "untrusted", "lookup", "model-roles"].map(section)],
     "meeting-work": ["meeting-contract", "meeting-normalize", "meeting-page"].map(section),
     "entity-work": ["meeting-entities", "enrich"].map(section),
     "verify-work": ["meeting-verify", "meeting-report"].map(section),
     "source-work": ["ingest", "extraction"].map(section),
+    ...contentSkills,
   };
   const agentSkills = Object.fromEntries(Object.entries(groups).map(([name, sections]) => {
     const path = `agents/${input.prompt.agent_id}/skills/brain-${name}/SKILL.md`;
@@ -107,44 +114,27 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     if (text.length > 30000 || text.includes("{{")) throw new Error("Incremental Agent Skill exceeds its reviewed instruction bound");
     return [path, text];
   }));
-  const oneShotSections = ["filing", "quality", "untrusted", "lookup", "model-roles", "meeting-contract", "meeting-page", "meeting-entities", "meeting-verify"];
-  const oneShotContract = `# One-shot Brain source synthesis
-
-Use the supplied complete source, triage, pre-retrieved existing pages, participant_resolution and exact original-source evidence. Resolve attendees only from source evidence and the supplied name lookup receipts; an unresolved or ambiguous speaker remains visibly uncertain. Do not call Tools; do not claim that any page has already been written. Preserve prior sourced Timeline entries and active Takes when updating a page. Create a meeting page for a meeting source and meaningful person pages for confirmed attendees. Other company/concept pages are optional when source evidence warrants them. Never promote a company-specific claim into Core policy.
-
-Return exactly one JSON object with keys source_identity, source_version, pages, meetings, verification, gaps. source_identity and source_version must exactly match the input. pages is an array of 1–15 objects with exactly slug and markdown. Each markdown value is a complete ordinary page with YAML frontmatter and body. Use the reviewed directory mappings. Each page needs type, title, lang and bounded tags (plain lower-case labels). The host stamps created/updated from its trusted processing instant and meeting date from source occurrence; do not invent these dates. Keep participant aliases where evidenced. Cite the supplied [[internal_evidence_page]] on every page and on each Take/Timeline entry. A meeting page must contain ## Summary, ## Key Decisions, ## Action Items, ## Notable Quotes; explicitly say when no supported decision, action or quote exists. Person/company/concept pages need <!-- timeline --> and meeting backlinks. Mark uncertainty and disagreements rather than smoothing them away.
-
-Write useful depth when the source supports it. Meeting prose distinguishes the objective, topics covered, actual decisions, proposals, actions with evidenced owners, and verbatim notable quotes; include time and participants only when source evidence supplies them. Concept prose explains the specific thesis, its reasoning, implications, counterpositions and development across supplied earlier pages rather than a one-sentence stub. Person/company prose compiles current supported truth, relevant views, work and relationships with citations; leave unknown fields unknown. Add clear headings where they help, without imposing a company-specific directory or page layout. Choose tags from evidenced subjects, never as a substitute for links or sources.
-
-meetings is an array of meeting summaries with slug, attendees and entities. verification contains exactly six objects, one each for check V1, V2, V3, V4, V5 and V6. Every object requires check, status and a short nonempty detail explaining the observation. Each status must be exactly "passed", "not-applicable" or "flagged-uncertainty"; never use "pass". These are proposed observations, not proof of saved-page verification. Put only a contiguous verbatim transcript span on a blockquote line under Notable Quotes, without ellipses, quotation marks, attribution or source notation on that same line; if no exact span exists, state that none was retained. Cite the source separately. Every proposed page, including each person page, must contain the exact [[internal_evidence_page]] reference. gaps is an array of unresolved evidence gaps. No Markdown fence or explanatory prose outside the JSON object. If coverage cannot fit, return a bounded explicit gap rather than fabricated knowledge.
-
-Reviewed company perspective: ${input.prompt.perspective}
-Directory mappings: ${JSON.stringify(input.prompt.directories)}
-Filing categories: ${input.prompt.filing_categories.join(", ")}
-
-`;
-  const oneShotBase = oneShotContract + oneShotSections.map(section).join("\n\n");
-  if (oneShotBase.length > MAX_INSTRUCTION_CHARACTERS || oneShotBase.includes("{{")) throw new Error("One-shot instructions exceed the reviewed bound");
-  const oneShotMaterials: Record<string, string> = {}, oneShotPrompts = [];
-  for (const profile of ["reasoning", "deep"] as const) {
-    const path = `agents/${input.prompt.agent_id}/skills/brain-one-shot-${profile}/SKILL.md`;
-    const instructions = `---\nname: brain-one-shot-${profile}\ndescription: Produce one source-scoped multi-page Brain proposal without model Tools.\n---\n\n` + oneShotBase;
-    oneShotMaterials[path] = instructions;
-    oneShotPrompts.push({ agent_id: input.prompt.agent_id, path, model_task: profile === "deep" ? "brain.ingest.deep" : "brain.ingest",
-      model_profile: profile, max_instruction_characters: instructions.length, conversation_context: false });
-  }
   const directories = input.prompt.directories;
   const config = { schema_version: 2, id: "brain-import", transcripts, triage: structuredClone(input.triage), source_projection: input.source_projection, source_routes: structuredClone(sourceRoutes), segment_characters: input.segment_characters,
-    prompts: { triage: binding("triage"), one_shot: { reasoning: oneShotPrompts[0].path, deep: oneShotPrompts[1].path },
+    prompts: { triage: binding("triage"),
       ...Object.fromEntries(Object.entries(phaseNames).map(([key, phase]) => [key, { reasoning: binding(phase), deep: binding(`${phase}-deep`) }])) },
     page_directories: { person: directories.person_directory, company: directories.company_directory, concept: directories.concept_directory, meeting: directories.meeting_directory, source: directories.evidence_directory },
-    agent: { instructions: Object.keys(agentSkills),
-      skills: [], budget: { turns: 12, tool_calls: 48, output_tokens: 12000 } },
+    ingestion: { routes: Object.fromEntries(Object.entries({
+      meeting: ["meeting-work", "entity-work", "verify-work"],
+      discussion: ["source-work", "entity-work"],
+      article: ["idea-work", "source-work", "entity-work"],
+      idea: ["idea-work", "source-work", "entity-work"],
+      document: ["media-work", "source-work", "entity-work"],
+      media: ["media-work", "source-work", "entity-work"],
+    }).map(([kind, names]) => [kind, names.map(name => `agents/${input.prompt.agent_id}/skills/brain-${name}/SKILL.md`)])) },
+    agent: { instructions: [`agents/${input.prompt.agent_id}/skills/brain-task/SKILL.md`],
+      skills: Object.keys(agentSkills).filter(path => !path.endsWith("/brain-task/SKILL.md")),
+      budget: { turns: 12, tool_calls: 48, output_tokens: 12000, total_input_bytes: 2000000, total_output_tokens: 48000, no_progress_turns: 2 } },
     source_history: { workflow_id: "brain-import", from: history } };
-  const materials: Record<string, string> = { ...prompts.materials, ...oneShotMaterials, ...agentSkills, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
+  const materials: Record<string, string> = { ...prompts.materials, ...agentSkills, [workflowPath]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, "workflows/brain-import/config.yaml": YAML.stringify(config) };
   for (const [path, text] of Object.entries(assets).filter(([path]) => declaredTools.includes(`company:${path.split("/")[1]}`))) materials[`agents/${input.prompt.agent_id}/${path}`] = text;
   const tools = declaredTools;
-  return { materials, prompts: [...prompts.prompts, ...oneShotPrompts], report: { version: 1, blueprint: "oregano/brain", inputs_digest: sha256(input), workflow_steps: workflow.steps.length,
+  return { materials, prompts: prompts.prompts, report: { version: 1, blueprint: "oregano/brain", inputs_digest: sha256(input), workflow_steps: workflow.steps.length,
     files: Object.entries(materials).map(([path, text]) => ({ path, digest: sha256(text) })), prompt_qualification: prompts.report,
     requirements: { tools: [...tools, "oregano:records/query", "oregano:brain/recall", "oregano:brain/entity", "oregano:brain/remember"], source_projection: input.source_projection },
     activated: false, grants_applied: false, provider_bindings_applied: false, admission_created: false,

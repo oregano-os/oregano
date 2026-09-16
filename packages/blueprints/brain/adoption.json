@@ -578,7 +578,7 @@
       ],
       "source_excerpt_sha256": "e4a21edb464e95db7c3397f91bec7d1f17973bf749ec3b2df3656c22b9e88a2a",
       "path": "sections/ingest.md",
-      "sha256": "de8eda314243bc3ff46f33b8fdd2a91d0ade9d2014d2802d66b3763a1ec3f22f",
+      "sha256": "db2d61657e71dbcea300e5c3f4d3a734b8c21dd0679813889d693da24e3b2851",
       "adaptation_reason": "Apply the general procedure to selected source items, not a new per-message extractor. Records preserve originals, Workspace mappings determine types/links, and meaningful Timeline entries supply backlinks.",
       "adaptations": [
         {

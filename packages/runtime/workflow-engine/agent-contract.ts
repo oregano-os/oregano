@@ -19,6 +19,6 @@ export interface WorkflowAgentRequest {
   outputSchema: JsonSchema;
   tools: Array<{ name: string; description: string; inputSchema: JsonSchema }>;
   turns: WorkflowAgentTurn[];
-  beforeDispatch(selection: ModelExecutionSelection, instructions: LanguageInstructionEvidence): Promise<void>;
+  beforeDispatch(selection: ModelExecutionSelection, instructions: LanguageInstructionEvidence, reservation?: { inputBytes: number; outputTokens: number }): Promise<void>;
 }
 export type WorkflowAgentGenerator = (request: WorkflowAgentRequest) => Promise<{ response: WorkflowAgentResponse; evidence: Record<string, unknown> }>;

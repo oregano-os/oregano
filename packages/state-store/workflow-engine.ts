@@ -24,6 +24,10 @@ export interface WorkflowAgentResponse {
 }
 export interface WorkflowAgentTurn {
   attemptId: string;
+  /** Exact rendered model input size and reserved response ceiling, retained on failure. */
+  requestBudget?: { inputBytes: number; outputTokens: number };
+  /** Missing usage consumes the reserved response ceiling rather than counting as free. */
+  outputTokensUsed?: number;
   response?: WorkflowAgentResponse;
   failure?: { outcome: "failed" | "unknown"; digest: string };
   /** Explicit further generation, never a claim that the unavailable attempt was free. */
@@ -47,7 +51,7 @@ export interface WorkflowStoredDecision {
 }
 export interface WorkflowSourceAdmission {
   kind: "transcript-cohort" | "non-transcript-selection";
-  sourceKind?: "discussion";
+  sourceKind?: "discussion" | "article" | "idea" | "document" | "media";
   importId: string;
   cohortId: string;
   policyDigest: string;

@@ -1,3 +1,4 @@
+import { agentBudgetUsed, agentNoProgressTurns } from "./agent-budgets.ts";
 import { randomUUID } from "node:crypto";
 import type { JsonValue } from "../../capabilities/contracts.ts";
 import { validateJsonSchemaValue } from "../../capabilities/validation.ts";
@@ -32,8 +33,9 @@ export async function advanceWorkflowAgent(args: {
   stored.status = "running";
   const turns = stored.agent.turns, last = turns.at(-1);
   const result = (event: string, evidence: JsonValue = {}, output?: JsonValue) => ({ state, event, evidence, output });
-  if (last?.failure?.outcome === "unknown" && !last.retryAuthorization) throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
+  if (last?.failure && (last.failure.outcome === "unknown" || definition.failurePolicy === "stop") && !last.retryAuthorization) throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
   if (!last || last.failure || (last.response && last.results.length === last.response.calls.length)) {
+    if (definition.budget.noProgressTurns !== undefined && agentNoProgressTurns(turns) >= definition.budget.noProgressTurns) throw new Error("Agent stopped after repeated turns without new evidence or successful operations");
     if (turns.length >= definition.budget.turns) throw new Error("Agent model-turn budget exhausted");
     turns.push({ attemptId: `language-attempt:${randomUUID()}`, results: [] });
     return result("workflow.agent-turn-prepared", { turn: turns.length - 1 });
@@ -49,11 +51,23 @@ export async function advanceWorkflowAgent(args: {
     const attempt = new LanguageAttempt(options.control, { runId: run.runId, stepId: step.id,
       inputHash: sha256({ inputDigest, turns }), fence,
       evidence: { workflow_id: workflow.id, artifact_hash: artifact.artifactHash, model_profile: profile, model_task: definition.task, agent_turn: turns.length - 1 } }, last.attemptId);
+    const previous = turns.slice(0, -1), used = agentBudgetUsed(previous);
+    if ((definition.budget.totalInputBytes !== undefined || definition.budget.totalOutputTokens !== undefined)
+      && previous.some(turn => !turn.requestBudget)) throw new Error("Cumulative Agent budget evidence is missing");
+    const outputTokens = Math.min(definition.budget.outputTokens, (definition.budget.totalOutputTokens ?? Infinity) - used.outputTokens);
+    if (outputTokens < 1) throw new Error("Agent cumulative output-token budget exhausted");
+    const chosen = definition.instructionSelection === undefined ? [] : resolveWorkflowValue(definition.instructionSelection, workflow, context);
+    if (!Array.isArray(chosen) || chosen.some(path => typeof path !== "string" || !definition.skills?.includes(path))
+      || new Set(chosen).size !== chosen.length) throw new Error("Agent instruction selection exceeds its compiled Skill scope");
+    const selected = chosen as string[];
+    const instructions = [...new Set([...definition.instructions, ...selected])];
+    const scopedAgent = definition.instructionSelection === undefined ? agent : { ...agent,
+      materials: Object.fromEntries(Object.entries(agent.materials).filter(([path]) => !definition.skills?.includes(path) || selected.includes(path))) };
     await attempt.prepare();
     let received = false;
     try {
-      const generated = await options.agentGenerator({ agent, instructions: definition.instructions.map(path => agent.materials[path]!),
-        context: task, skills: definition.skills, profile, task: definition.task, outputTokens: definition.budget.outputTokens,
+      const generated = await options.agentGenerator({ agent: scopedAgent, instructions: instructions.map(path => agent.materials[path]!),
+        context: task, skills: definition.instructionSelection === undefined ? definition.skills : [], profile, task: definition.task, outputTokens,
         outputSchema: definition.outputSchema, turns: turns.slice(0, -1),
         tools: definition.tools.map(entry => {
           const tool = agent.tools.find(tool => tool.contract.runtimeId === entry.tool.runtimeId)!;
@@ -61,18 +75,29 @@ export async function advanceWorkflowAgent(args: {
           for (const key of Object.keys(entry.bind)) delete (inputSchema.properties as Record<string, unknown> | undefined)?.[key];
           if (Array.isArray(inputSchema.required)) inputSchema.required = inputSchema.required.filter(key => !Object.hasOwn(entry.bind, String(key)));
           return { name: agentToolName(entry.tool.grantId), description: tool.contract.description ?? entry.tool.grantId, inputSchema };
-        }), beforeDispatch: (selection, evidence) => attempt.dispatch(selection, evidence) });
+        }), beforeDispatch: async (selection, evidence, reservation) => {
+          if (reservation && (!Number.isSafeInteger(reservation.inputBytes) || reservation.inputBytes < 1
+            || !Number.isSafeInteger(reservation.outputTokens) || reservation.outputTokens < 1 || reservation.outputTokens > outputTokens)) throw new Error("Invalid host Agent budget reservation");
+          if ((definition.budget.totalInputBytes !== undefined || definition.budget.totalOutputTokens !== undefined) && !reservation) throw new Error("Host must provide cumulative Agent budget evidence before dispatch");
+          if (reservation && used.inputBytes + reservation.inputBytes > (definition.budget.totalInputBytes ?? Infinity)) throw new Error("Agent cumulative input-byte budget exhausted before model dispatch");
+          if (reservation) { last.requestBudget = reservation; attempt.context.evidence.agent_request_budget = reservation; }
+          await attempt.dispatch(selection, evidence);
+        } });
+      const usage = (generated.evidence.model_execution as { outputTokens?: unknown } | undefined)?.outputTokens;
+      if (last.requestBudget && typeof usage === "number" && Number.isSafeInteger(usage) && usage >= 0) last.outputTokensUsed = usage;
       last.response = structuredClone(generated.response);
       received = true;
       await attempt.finish("succeeded", generated.evidence);
       return result("workflow.agent-response-retained", { turn: turns.length - 1, response_digest: sha256(last.response) });
     } catch (error) {
       if (received) throw error; // Never downgrade a known response if receipt/event persistence fails.
-      const outcome = error instanceof LanguageGenerationError && error.kind === "incomplete" ? "failed" : "unknown";
+      const outcome = !attempt.dispatched || error instanceof LanguageGenerationError && error.kind === "incomplete" ? "failed" : "unknown";
+      const usage = error instanceof LanguageGenerationError ? (error.evidence.model_execution as { outputTokens?: unknown } | undefined)?.outputTokens : undefined;
+      if (last.requestBudget && typeof usage === "number" && Number.isSafeInteger(usage) && usage >= 0) last.outputTokensUsed = usage;
       await attempt.finish(outcome, { ...(error instanceof LanguageGenerationError ? error.evidence : {}), error_digest: languageFailureDigest(error) });
       last.failure = { outcome, digest: languageFailureDigest(error) };
       delete last.response;
-      if (outcome === "unknown") { state.status = "waiting"; state.blocked = { stepId: step.id, code: "effect-needs-review", errorDigest: last.failure.digest }; }
+      if (outcome === "unknown" || definition.failurePolicy === "stop") { state.status = "waiting"; state.blocked = { stepId: step.id, code: "effect-needs-review", errorDigest: last.failure.digest }; }
       return result("workflow.agent-attempt-failed", { turn: turns.length - 1, outcome });
     }
   }

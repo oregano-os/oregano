@@ -1,7 +1,7 @@
 ---
 type: workflow
 id: brain-import
-version: 3
+version: 4
 owner: agents/brain-owner
 execution_mode: unattended
 trigger: operator
@@ -26,6 +26,10 @@ steps:
       identity: $instance.source_identity
       version: $instance.source_version
       segment_characters: $config.segment_characters
+  - ingestion-router: company:brain-ingestion-router
+    input:
+      source: $steps.prepare.source
+      routes: $config.ingestion.routes
   - source-history: company:brain-source-history
     input:
       identity: $steps.prepare.source.identity
@@ -56,34 +60,20 @@ steps:
   - choose-route: route
     on: $steps.agent-context.route
     skip: finish-skip
-    reasoning: synthesize-source
-    deep: synthesize-source
+    reasoning: process-source
+    deep: process-source
   - finish-skip: company:brain-agent-outcome
     input:
       task: $steps.agent-context.task
       route: $steps.agent-context.route
       execution: null
     then: end
-  - synthesize-source: company:brain-one-shot
-    input:
-      task: $steps.agent-context.task
-      route: $steps.agent-context.model_profile
-      prompt_paths: $config.prompts.one_shot
-      processing_instant: $trigger.instant
-  - choose-synthesis: route
-    on: $steps.synthesize-source.route
-    one-shot: finish-one-shot
-    agent: process-source
-  - finish-one-shot: company:brain-one-shot-outcome
-    input:
-      task: $steps.agent-context.task
-      synthesis: $steps.synthesize-source
-      route: $steps.agent-context.route
-    then: end
   - process-source: agent
+    failure_policy: stop
     context: $steps.agent-context.task
     instructions: $config.agent.instructions
     skills: $config.agent.skills
+    instruction_selection: $steps.ingestion-router.instructions
     profile: $steps.agent-context.model_profile
     task: brain.ingest
     tools:
@@ -204,16 +194,14 @@ steps:
 ---
 # Incremental source processing
 
-1. [brain-owner, R0] Source record. <!-- step:source-record -->
-2. [brain-owner, R0] Prepare. <!-- step:prepare -->
-3. [brain-owner, R0] Source history. <!-- step:source-history -->
-4. [brain-owner, R0] Triage. <!-- step:triage -->
-5. [brain-owner, R0] Gate. <!-- step:gate -->
-6. [brain-owner, R0] Agent context. <!-- step:agent-context -->
-7. [brain-owner, R0] Choose route. <!-- step:choose-route -->
-8. [brain-owner, R0] Finish skip. <!-- step:finish-skip -->
-9. [brain-owner, R1] Prefetch bounded Brain context, synthesize once without model Tools, validate, save, and read back. <!-- step:synthesize-source -->
-10. [brain-owner, R0] Choose a bounded Agent fallback before any one-shot write. <!-- step:choose-synthesis -->
-11. [brain-owner, R0] Retain a settled one-shot outcome. <!-- step:finish-one-shot -->
-12. [brain-owner, R1] For oversized or incomplete synthesis, save and verify in one continuing Agent task. <!-- step:process-source -->
-13. [brain-owner, R0] Record completion only after accepted saved-page verification. <!-- step:finish-import -->
+1. [brain-owner, R0] Read the exact source from its authorized provider projection. <!-- step:source-record -->
+2. [brain-owner, R0] Preserve the complete normalized content and provenance. <!-- step:prepare -->
+3. [brain-owner, R0] Select the procedure by content kind, independently of provider. <!-- step:ingestion-router -->
+4. [brain-owner, R0] Read earlier processing evidence. <!-- step:source-history -->
+5. [brain-owner, R0] Triage the complete source. <!-- step:triage -->
+6. [brain-owner, R0] Choose skip, reasoning or deep. <!-- step:gate -->
+7. [brain-owner, R0] Prepare one continuing source task. <!-- step:agent-context -->
+8. [brain-owner, R0] Choose the model role. <!-- step:choose-route -->
+9. [brain-owner, R0] Retain a supported skip. <!-- step:finish-skip -->
+10. [brain-owner, R1] Follow the selected Skills: read, write incrementally, verify saved pages and correct defects. <!-- step:process-source -->
+11. [brain-owner, R0] Complete only after accepted saved-page verification. <!-- step:finish-import -->
