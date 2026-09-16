@@ -198,6 +198,8 @@ Observation/export/ingestion dates do not establish when the event happened.
 Undated knowledge uses explicit Markdown prose and an empty Take date; the narrow
 Timeline operation is reserved for events with an evidenced date. Page metadata
 still uses the trusted processing day.
+Action attribution is checked separately for each request; missing owner
+placeholders and unresolved author roles remain unspecified.
 
 Qualification must separate upstream procedure conformance from provider and
 model execution. A copied Skill is neither a runtime nor a cost guarantee.

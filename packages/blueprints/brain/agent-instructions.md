@@ -59,6 +59,10 @@ Preserve every quantity's unit, population and qualifier in prose, Takes and
 Timeline summaries alike. A ratio about call counts is not a ratio about cost;
 a test run is not a conversation. Flag conflicting dates instead of inventing a
 resolution. Keep proposals, assigned work and completed results distinct.
+Verify the owner of each action separately. An addressee in one request is not
+automatically responsible for the next parallel request. A literal owner
+placeholder means unspecified, not an unnamed tagged person. Do not infer an
+unresolved author's seniority or role from their tone or the requests they make.
 For Notable Quotes, copy a short contiguous passage exactly from the retained
 original, including its wording. Put only the spoken text on the blockquote line;
 put attribution and citations in the following ordinary paragraph. Do not reconstruct,

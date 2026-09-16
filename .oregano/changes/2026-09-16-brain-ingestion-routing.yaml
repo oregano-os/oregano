@@ -26,6 +26,7 @@ objective: Separate source transport from content procedure. Route normalized
   and make attendee verification applicable even when no emails are present.
   Keep unknown event/claim dates distinct from observation and ingestion dates;
   preserve undated source knowledge without inventing dated Timeline entries.
+  Check each action's own addressee and retain unspecified owners and roles.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.
