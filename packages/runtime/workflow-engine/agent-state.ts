@@ -1,7 +1,7 @@
 import type { CompiledWorkflowStep } from "../../companyos-builder/workflow-types.ts";
 import type { WorkflowStepState } from "../../state-store/workflow-engine.ts";
 import { canonicalJson } from "../canonical.ts";
-import { AGENT_FINISH_TOOL } from "./agent-contract.ts";
+import { AGENT_FINISH_TOOL, isTextCompletion } from "./agent-contract.ts";
 
 /** Append-only conversation evidence. A prepared turn can gain one response and ordered results. */
 export function validateAgentState(step: WorkflowStepState, declaration: CompiledWorkflowStep, prior?: WorkflowStepState): void {
@@ -53,11 +53,15 @@ export function validateAgentState(step: WorkflowStepState, declaration: Compile
     for (const [i, result] of turn.results.entries()) if (result.callId !== turn.response!.calls[i]!.id
       || (result.error === undefined) === (result.output === undefined)
       || (result.error !== undefined && (typeof result.error !== "string" || !result.error.length || result.error.length > 2000))) throw new Error("Invalid Agent Tool result");
+    if (index < turns.length - 1 && declaration.agent.completion === "text" && isTextCompletion(turn.response)) throw new Error("Agent cannot advance beyond its final text response");
     if (index < turns.length - 1 && (turn.failure && (turn.failure.outcome === "unknown" || declaration.agent.failurePolicy === "stop") && !turn.retryAuthorization || (!turn.failure && (!turn.response || turn.results.length !== turn.response.calls.length)))) throw new Error("Agent cannot advance beyond an unresolved turn");
   }
   if (calls > declaration.agent.budget.toolCalls) throw new Error("Agent Tool budget exhausted");
   if (step.status === "succeeded") {
     const last = turns.at(-1)!, result = last.results.at(-1)?.output as Record<string, unknown> | undefined;
-    if (last.response?.calls.at(-1)?.name !== AGENT_FINISH_TOOL || result?.accepted !== true || last.results.length !== last.response.calls.length) throw new Error("Agent task requires accepted completion evidence");
+    if (declaration.agent.completion === "text") {
+      const calls = turns.flatMap(turn => turn.results.map((entry, i) => ({ ...turn.response!.calls[i]!, ...entry })));
+      if (!isTextCompletion(last.response) || last.results.length || canonicalJson(step.output) !== canonicalJson({ result: { text: last.response!.text }, calls })) throw new Error("Agent task requires its retained final text and Tool journal");
+    } else if (last.response?.calls.at(-1)?.name !== AGENT_FINISH_TOOL || result?.accepted !== true || last.results.length !== last.response.calls.length) throw new Error("Agent task requires accepted completion evidence");
   }
 }

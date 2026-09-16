@@ -22,7 +22,6 @@ requires:
     - company:brain-source-records
     - company:brain-agent-context
     - company:brain-agent-outcome
-    - company:brain-check-agent-completion
     - company:brain-generate
     - company:brain-prepare-source
     - company:brain-source-history

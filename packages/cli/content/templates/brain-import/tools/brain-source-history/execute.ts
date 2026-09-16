@@ -22,7 +22,8 @@ export default defineCompanyTool({async execute(input:any,context:any){
   if(!Array.isArray(result.pages)||!Array.isArray(result.receipts))throw Error('Earlier outcome lacks retained page and effect evidence');
   if(result.status==='skipped'){if(result.pages.length||result.receipts.length)throw Error('Earlier skip has unexpected writes');prior_skipped_versions.push(result.source_version);}
   else {
-   if(!['ingested','reconciled'].includes(result.status)||!result.pages.length||!result.receipts.length)throw Error('Earlier knowledge has no complete write outcome');
+   if(result.status==='processed'){if(result.verification_mode!=='agent-skill'||typeof result.agent_report!=='string'||!result.agent_report.trim())throw Error('Processed source lacks its final Agent report');}
+   else if(!['ingested','reconciled'].includes(result.status)||!result.pages.length||!result.receipts.length)throw Error('Earlier knowledge has no complete write outcome');
    for(const page of result.pages){if(typeof page.slug!=='string'||! /^[a-z0-9-]+\/[a-z0-9-]+$/.test(page.slug))throw Error('Earlier outcome has an invalid page identity');slugs.add(page.slug);}
   }
   prior_runs.push(run.id);

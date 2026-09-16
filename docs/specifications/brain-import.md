@@ -46,8 +46,8 @@ materializations. Historical one-shot Tools remain in the template archive solel
 for qualification of retained definitions; they are not installed or granted by
 the active workflow. Dream and cross-source consolidation are not implemented.
 
-Nine restricted Company Tools prepare/read sources, select content instructions,
-apply common triage, read source history, check completion and retain outcomes.
+Eight restricted Company Tools prepare/read sources, select content instructions,
+apply common triage, read source history and retain outcomes.
 Executable code remains outside the Blueprint under the Workbench template tree.
 Missing extraction, unknown content kinds and unavailable publication discovery
 are explicit gaps, never claims that copied Skills provide a working Connector.
@@ -55,15 +55,14 @@ Thus this adoption is **not full provider/acquisition parity** with GBrain.
 Source acquisition, media extraction and feed enumeration require their own
 maintained Connector qualification before activation.
 
-Each Brain operation retains normal validation, expected revisions, Git/index
-receipts and read-back. An invalid meeting verification verdict does not mask
-independently known source-link, quotation or read-back defects in that feedback.
-Completion feedback distinguishes canonical slugs from
-display names, combines independently known repairs (including missing reads),
-and rejects unresolved saved links. Saved meeting blockquotes must match a
-contiguous passage in the full original, allowing Unicode/whitespace normalization
-only. Attribution and citations stay outside blockquotes. This mechanical check
-does not establish the correctness of surrounding summaries or decisions.
+Each Brain operation retains normal validation, expected revisions and Git/index
+receipts. The active Agent uses `completion: text`: after following the adopted
+Skill checks and repairs it ends with a complete non-empty text response without
+Tool calls. There is no active `brain-check-agent-completion` grant, structured
+finish Tool, or second Core check of saved quotes, sections, citation membership,
+read-back coverage, backlinks or model-reported V1–V6 verdicts. These remain Agent
+responsibilities in the Skills. Historical structured templates remain available
+for immutable older definitions.
 The complete source and complete Tool receipts remain in Records/run evidence.
 Only the model-facing Brain entity response omits derived copies of text already
 present in its canonical Markdown, including duplicate outgoing-link excerpts;
@@ -75,12 +74,9 @@ They reserve the existing bounded conversation for saved-page checks and repairs
 no run limit is raised. Decision/action citations retain available original anchors,
 and verification rechecks final agreements, logical alternatives and pronoun
 addressees against those passages rather than trusting an earlier summary.
-For originals with bracketed ISO-timestamped utterances, completion requires each
-substantive Key Decisions and Action Items entry to cite a full timestamp present
-in that original. Missing or invented anchors return same-task repair feedback;
-explicit no-decision/no-action explanations and untimed originals remain supported.
-This checks citation presence and membership only, not whether the passage supports
-the interpretation. Independent source-first acceptance remains necessary.
+Available source anchors support the Agent's source comparison; Core does not
+require a timestamp on every decision or treat citation presence as acceptance.
+Independent source-first Phase 1 qualification remains necessary.
 
 The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
 `BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the
@@ -334,13 +330,16 @@ finishes do not reset the counter. Exhaustion leaves the source unfinished and
 preserves writes and costs. Known incomplete generations and unknown provider
 outcomes both stop; no automatic paid retry or alternate path is started.
 
-The completion validator uses Core-retained calls and receipts, not model-invented
-write claims. It requires each page read after its own last write, source identity and
-Record version, actual saved content, meeting links and entity Timeline backlinks,
-and all six adopted semantic check results. Rejected completion returns feedback to
-the same Agent conversation. Existing partial pages remain saved and the source
-remains unfinished. Semantic quality still requires representative real-source
-qualification; synthetic tests prove execution and validation behavior only.
+The final source outcome has technical status `processed`, `verification_mode:
+agent-skill`, and an unchanged `agent_report`. `verification` stays empty rather
+than inventing six machine-certified verdicts. The outcome derives changed page
+identities/hashes and index revisions from Core-retained write receipts; it does
+not require another read or inspect page meaning. No-write reports remain
+`processed`, distinct from the utility gate's explicit `skipped`. All-failed writes,
+wrong source provenance and unresolved Git/index receipts cannot become successful
+write evidence. Prior source-page identities remain available for reconciliation.
+A processed source can still fail independent semantic acceptance; a final report
+stating a gap is retained verbatim. It does not trigger another paid generation.
 
 Source updates read previous originals and derived pages, update compiled truth and
 supersede old claims without losing Timeline/Takes identity. An unchanged completed

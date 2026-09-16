@@ -7,6 +7,8 @@ import type { WorkflowAgentResponse, WorkflowAgentTurn } from "../../state-store
 export const AGENT_SKILL_TOOL = "companyos_read_skill";
 export const AGENT_FINISH_TOOL = "companyos_finish_task";
 export const agentToolName = (grantId: string): string => grantId.replace(/[^a-zA-Z0-9_]/g, "_");
+export const isTextCompletion = (response: WorkflowAgentResponse | undefined): boolean =>
+  response?.finishReason === "stop" && response.calls.length === 0 && response.text.trim().length > 0;
 export const agentCallKey = (turn: number, call: number): string => `agent-call:${turn}:${call}`;
 export interface WorkflowAgentRequest {
   agent: CompiledAgent;
@@ -16,6 +18,7 @@ export interface WorkflowAgentRequest {
   profile: "utility" | "reasoning" | "deep";
   task: string;
   outputTokens: number;
+  completion?: "text";
   outputSchema: JsonSchema;
   tools: Array<{ name: string; description: string; inputSchema: JsonSchema }>;
   turns: WorkflowAgentTurn[];

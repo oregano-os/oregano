@@ -274,7 +274,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         run_id: { type: "string" }, status: { type: "string", enum: ["running", "waiting", "done", "cancelled", "failed"] }, blocked: { type: "boolean" },
         succeeded_steps: { type: "array", items: { type: "string" } },
       } });
-      else if (s.tool === "agent") outputOf.set(s.id, { type: "object", required: ["result", "calls"], additionalProperties: false, properties: { result: s.output_schema, calls: { type: "array", items: { type: "object" } } } });
+      else if (s.tool === "agent") outputOf.set(s.id, { type: "object", required: ["result", "calls"], additionalProperties: false, properties: { result: s.completion === "text" ? { type: "object", additionalProperties: false, required: ["text"], properties: { text: { type: "string", minLength: 1 } } } : s.output_schema, calls: { type: "array", items: { type: "object" } } } });
       else if (s.tool === "collect") outputOf.set(s.id, { type: "object", additionalProperties: false, required: s.fields, properties: Object.fromEntries((s.fields ?? []).map((field: string) => [field, { type: "string", minLength: 1, maxLength: 4000 }])) });
       else if (s.tool === "wait") outputOf.set(s.id, { type: "object", required: ["instant"], properties: { instant: { type: "string", format: "date-time" } } });
       else if (s.tool === "route") outputOf.set(s.id, { type: "object", properties: {} });
@@ -505,7 +505,10 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         if (!Array.isArray(s.instructions) || !s.instructions.length || s.instructions.length > 16
           || s.instructions.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path))) err(f, `${s.id}: instructions must select existing owning Agent Skill files`);
         if (s.skills !== undefined && (!Array.isArray(s.skills) || s.skills.length > 16 || s.skills.some((path: any) => typeof path !== "string" || !path.startsWith(`${data.owner}/skills/`) || !Object.hasOwn(files, path)))) err(f, `${s.id}: on-demand Skills must belong to the owning Agent`);
-        if (!s.output_schema || s.output_schema.type !== "object" || !ajv.validateSchema(s.output_schema)) err(f, `${s.id}: agent requires an object output_schema`);
+        if (s.completion !== undefined && s.completion !== "text") err(f, `${s.id}: unsupported Agent completion mode`);
+        if (s.completion === "text") {
+          if (s.output_schema !== undefined || s.validate !== undefined) err(f, `${s.id}: text completion has no structured output_schema or completion validator`);
+        } else if (!s.output_schema || s.output_schema.type !== "object" || !ajv.validateSchema(s.output_schema)) err(f, `${s.id}: agent requires an object output_schema`);
         if (s.failure_policy !== undefined && s.failure_policy !== "stop") err(f, `${s.id}: unsupported Agent failure policy`);
         if (s.instruction_selection !== undefined) {
           if (!s.skills?.length) err(f, `${s.id}: instruction selection requires a declared Skill scope`);
@@ -652,7 +655,7 @@ function validateStepOptions(step: any, output: Map<string, Schema>, file: strin
     if (!values) err(file, `${step.id}: route requires a finite declared enum or boolean`);
     allowed = [step.id, "id", "tool", "on", ...(values ?? [true, false]).map(String)];
   } else if (step.tool === "start") allowed.push("workflow", "input", "for_each");
-  else if (step.tool === "agent") allowed.push("context", "instructions", "skills", "instruction_selection", "failure_policy", "profile", "task", "tools", "output_schema", "validate", "budget");
+  else if (step.tool === "agent") allowed.push("context", "instructions", "skills", "instruction_selection", "failure_policy", "completion", "profile", "task", "tools", "output_schema", "validate", "budget");
   else if (step.tool === "collect") allowed.push("from", "context", "fields", "timeout", "validate");
   else if (step.tool === "wait") allowed.push("for");
   else if (step.tool.startsWith("human:")) allowed = [step.id, "id", "tool", "after", "binds", "via", "timeout", "approve", "reject", "message", "labels", "recipient", "thread", "continue_in", "review_format", "title"];

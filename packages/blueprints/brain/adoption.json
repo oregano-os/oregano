@@ -482,7 +482,7 @@
       ],
       "source_excerpt_sha256": "db95831fd36316f29f837fcf5b8be022c3148710a1692be98b383356752a1fff",
       "path": "sections/meeting-page.md",
-      "sha256": "77535b12c41dd643286a72891c39e356d938fdfec29601074484c1eb605f5d71",
+      "sha256": "d01a0ce3163134c40473b588dfdf3020eccce7a510537dcc33fb191f3a7a0bfe",
       "adaptation_reason": "Preserve the actual meeting template and all claim-verification layers; external web enrichment is excluded. Preserve quantitative units and final corrected decisions in every representation, and flag conflicting dates. Retain available original decision/action anchors and verify final logical alternatives and speaker/addressee attribution before propagation and completion.",
       "adaptations": [
         {

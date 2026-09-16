@@ -54,19 +54,11 @@ knowledge, Takes and Timeline prose. A correct main paragraph does not excuse an
 incorrect short Take or event summary. If a date conflicts with source chronology,
 preserve and flag the conflict rather than silently resolving it.
 
-For each decision and action, locate the exact supporting passage in the complete
-original and check subsequent corrections before accepting the claim. Include the
-full original timestamp in each Key Decisions and Action Items entry when the
-original is timestamped; use the original message reference for message sources.
-A date or `[Source: same]` alone is not a passage reference. Do this on the first
-draft and on repairs. Citation membership is checked mechanically at completion,
-but you must check that the cited passage actually supports the claim. Preserve
-logical alternatives: "one of A or B" does not mean A is mandatory and B optional,
-or that two different fields must both be set. Resolve "I", "you" and "we" using
-the named speaker and evidenced addressee; do not substitute the speaker for the
-listener. If the addressee cannot be resolved, keep that ownership uncertain.
-Compare the saved decision/action wording against those passages again during
-final verification, not only against your own earlier summary.
+For each decision and action, check the supporting passage and later corrections
+in the original before propagating the claim. Preserve alternatives and identify
+the actual speaker and addressee. Recheck the saved wording against the original,
+not only against your earlier summary. Source references aid this Agent check;
+there is no additional host citation-membership or content-completion gate.
 
 **Consistency check — transcript support alone is NOT sufficient.** A claim
 can be faithfully transcribed and still wrong. Every claim that passes the

@@ -2,39 +2,15 @@ version: 3
 plan_id: brain-ingestion-routing-2026-09-16
 created: 2026-09-16
 title: Route source content through bounded incremental ingestion Skills
-objective: Require original timestamp citations for saved meeting decisions and actions,
-  with semantic source-first acceptance remaining independent. Separate source transport from content procedure. Route normalized
-  sources to the applicable adopted ingestion Skill, write meetings before entity
-  enrichment, and verify actual saved pages. Remove automatic one-shot fallback,
-  bound continuing Agent cost and stop repeated attempts without progress. Add a
-  deterministic evidenced Timeline addition within remember and verify saved-page
-  hashes through durable write receipts without rewriting unrelated page content.
-  Allow an explicitly named ordinary Workflow for isolated qualification while
-  retaining existing source identities, admissions and ordinary deduplication.
-  Exclude every unselected Skill from explicitly routed model context, including
-  retired procedures still present in broad Agent read scopes.
-  Return bounded actionable page-validation diagnostics to the continuing Agent
-  and make the canonical Takes-before-Timeline serialization explicit.
-  Explain atomic batch rejection and missing declared evidence so a repair
-  resends required source pages instead of assuming a partial save.
-  Return concurrent completion defects together, check saved verbatim quotations
-  against the retained original, and omit redundant outgoing-link excerpts from
-  model replay while preserving complete Markdown and durable Tool receipts.
-  Keep invalid meeting verification verdicts in the combined feedback instead of
-  masking independently known saved-page source, quotation and read-back defects.
-  Align adopted entity instructions with incremental writes in the same task;
-  verify quantities, final agreements and company coverage before propagation,
-  and make attendee verification applicable even when no emails are present.
-  Keep unknown event/claim dates distinct from observation and ingestion dates;
-  preserve undated source knowledge without inventing dated Timeline entries.
-  Check each action's own addressee and retain unspecified owners and roles.
-  Supply exact evidence write paths and internal links, batch independent reads,
-  and verify anchored final decisions and pronoun addressees within existing bounds.
-  Allow trusted Model Recipe bindings to select scoped Workflow reasoning effort,
-  preserving low as the default and every output, time, retry and cumulative bound.
-  Resolve the continuing Agent model task through validated Workflow bindings so
-  reasoning and deep select their distinct ModelRecipe tasks. Freeze referenced
-  tasks before dispatch while retaining historical literal-task journal digests.
+objective: Adopt Skill-led source interpretation, saved-page verification and repair
+  with an opt-in text completion mode in the existing bounded Agent runtime.
+  A complete non-empty response without Tool calls ends the task; retain its
+  report and derive actual changes from durable write receipts. Remove the active
+  Brain content-completion validator and mandatory structured finish report.
+  Preserve the default structured completion mode for existing Workflows, exact
+  source provenance, scoped grants, ordinary write validation, recovery, source
+  deduplication and all execution budgets. Keep incremental Timeline mutations,
+  scoped instruction/model routing and independent source-first qualification.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.
   - Change Brain directories, page authority, provider grants or source selection.

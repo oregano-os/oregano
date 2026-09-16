@@ -585,6 +585,11 @@ step's Agent journal to distinguish a prepared model turn, retained response,
 completed Tool call and accepted final result. Partial external writes are not
 workflow completion. Resume uses receipt reconciliation for known writes. Unknown
 model outcomes remain stopped; ordinary resume must not generate another paid call.
+For `completion: text`, terminal evidence is the persisted complete non-empty
+no-Tool response and the call journal. It ends without another generation or a
+content validator. A final report can describe uncertainty or incomplete work;
+inspect it separately from actual write receipts and independent acceptance.
+Default structured Agent tasks still require an accepted finish Tool.
 Finite budgets and scoped Skill reads are pinned in the Artifact. Deploying a new
 definition does not migrate an existing run or reset its attempts.
 

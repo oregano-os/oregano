@@ -306,3 +306,43 @@ test("Agent-step grants remain available to ordinary contexts while active assig
   const retained = structuredClone(artifact); retained.workflows![0]!.reservedEffects = [selected.runtimeId];
   await assert.rejects(guardWorkflowInvocation({ artifact: retained, tool, risk: "R0", request, reader: { read: async () => undefined } }), /reserved/);
 });
+
+test("text completion is explicit, resumes a retained final response and never calls the model again", async () => {
+  const configure = (data: any) => { data.steps[0].completion = "text"; delete data.steps[0].output_schema; };
+  assert.throws(() => fixture(data => { data.steps[0].completion = "text"; }), /output_schema/);
+  assert.throws(() => fixture(data => { configure(data); data.steps[0].validate = "company:unknown"; }), /validator/);
+  const artifact = fixture(configure), step = artifact.workflows![0]!.steps[0]!;
+  assert.equal(step.agent!.completion, "text");
+  const name = agentToolName(step.agent!.tools[0]!.tool.grantId);
+  const m = model([[{ name, input: {} }], []]);
+  const h = engineFixture({ artifact, agentGenerator: async request => {
+    assert.equal(request.completion, "text");
+    const value = await m.generate(request);
+    if (!value.response.calls.length) { value.response.text = "Finished the requested check. Remaining uncertainty is described here."; value.response.finishReason = "stop"; }
+    return value;
+  } });
+  let run = await open(h);
+  for (let i = 0; i < 20 && run.state.steps.work?.agent?.turns.at(-1)?.response?.finishReason !== "stop"; i++) run = (await h.engine().step(run.runId))!;
+  assert.equal(m.calls, 2); assert.equal(run.state.steps.work!.status, "running");
+  // Re-enter through a fresh engine after the terminal response was persisted.
+  run = (await h.engine().advance(run.runId))!;
+  assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(m.calls, 2);
+  const output = run.state.steps.work!.output as any;
+  assert.match(output.result.text, /Remaining uncertainty/); assert.equal(output.calls.length, 1);
+  await h.engine().advance(run.runId); assert.equal(m.calls, 2);
+});
+
+test("empty text and ordinary prose in structured mode cannot silently complete a task", async () => {
+  for (const textMode of [true, false]) {
+    const artifact = fixture(data => { data.steps[0].budget.no_progress_turns = 2;
+      if (textMode) { data.steps[0].completion = "text"; delete data.steps[0].output_schema; } });
+    const m = model([[], []]);
+    const h = engineFixture({ artifact, agentGenerator: async request => {
+      const value = await m.generate(request); value.response.finishReason = "stop";
+      value.response.text = textMode ? "  " : "I claim this is complete."; return value;
+    } });
+    const run = (await h.engine().advance((await open(h)).runId))!;
+    assert.equal(run.state.status, "waiting"); assert.equal(m.calls, 2);
+    assert.notEqual(run.state.steps.work!.status, "succeeded");
+  }
+});

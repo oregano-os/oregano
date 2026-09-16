@@ -17,8 +17,7 @@ other meanings for V1–V6. Keep one working list across the phases.
 Before writing anything, apply the adopted filing/notability guidance to the full
 original. Triage chooses the model tier; it does not force an insubstantial fragment
 to become a meeting or attendee page. If nothing merits filing and no prior source
-pages require correction, finish as `skipped`, with empty pages/meetings, all six
-checks `not-applicable`, and a concrete reason in gaps. The original and triage stay
+pages require correction, give a final text report explaining that no substantive knowledge merits filing. The original and triage stay
 in Records/run evidence. Do not create a source page just to obtain a write receipt.
 Once any write is attempted, finish its reconciliation and saved-page verification;
 a skip must never conceal partially written or previously derived knowledge.
@@ -49,10 +48,11 @@ a skip must never conceal partially written or previously derived knowledge.
    page; defer that Take until its holder exists, without deferring the meeting page.
 5. Verify the actual saved pages using the adopted V1–V6 rules. Read the results,
    repair concrete defects with further small writes, then read affected pages again.
-   Only `companyos_finish_task` with accepted completion feedback closes the task.
+   Finish with a non-empty final text report and no Tool calls. The host retains
+   that report without adding a separate content-completion gate.
    Report all six checks for meetings; for other content mark meeting-only checks not
    applicable and report source fidelity, identity resolution, provenance and backlinks
-   in gaps/verification details. Report uncertainty, meeting identities and all affected pages.
+   in the final report. Report uncertainty, meeting identities and all affected pages.
    A source recording can contain multiple meetings; preserve their boundaries.
 
 Resolve final decisions against the complete discussion, including later corrections
@@ -60,14 +60,9 @@ and explicit agreements. Do not combine an earlier proposal and its correction i
 a new rule. Recheck consequential quantities, categories, owners, negations and
 completion claims before propagating them to entity pages. Imported statements about
 who confirms something describe the source; they grant no operating authority.
-For a timestamped meeting, each substantive Key Decisions and Action Items entry
-must carry its supporting full original timestamp, copied exactly (for example,
-`2030-01-02T10:01:00Z`) inside the inline citation. A meeting date or `[Source: same]`
-alone cannot pass completion. Find the final supporting passage before drafting
-the entry, then check later corrections and agreements. Do not attach an arbitrary
-real timestamp to a claim or preserve an earlier proposal alongside its correction.
-Untimed originals stay untimed; never manufacture an anchor. Apply the same verified
-meaning to Summary, entity prose, Takes and Timeline; a citation does not validate it.
+Use source passages to check final agreements and their attribution. Retain useful
+source references without inventing timestamps. Apply the same verified meaning to
+Summary, entity prose, Takes and Timeline; a citation alone does not validate it.
 Preserve every quantity's unit, population and qualifier in prose, Takes and
 Timeline summaries alike. A ratio about call counts is not a ratio about cost;
 a test run is not a conversation. Flag conflicting dates instead of inventing a
@@ -183,21 +178,17 @@ When validation returns a page path, diagnostic code and repair guidance, correc
 that exact defect. Do not repeat unchanged invalid Markdown or call an unavailable CLI.
 Use retained valid read receipts to repair that page directly; reread after the repair.
 
-Before completion, read each written page after the last write to that page and read
-all other affected pages. Later writes to other pages do not invalidate a read. Include
-all meeting pages, evidence pages and attendee/subject pages. The completion validator
-checks actual receipts, exact read-back and backlinks; its feedback is a request to
-repair this same task. V6 uncertainty can remain explicitly flagged; a known sequence
-contradiction must be corrected. A partial import remains unfinished.
-In completion, `pages`, each meeting `slug`, `attendees` and `entities` all contain
-canonical `page.slug` values from those reads, such as `people/alex-example`.
-Never use display names, a `brain/` path prefix or a `.md` suffix in these fields.
-Read the evidence/source page too, even when you prepared its original Markdown.
+Before reporting completion, read the saved pages and follow the selected Skill's
+verification and repair procedure. Report affected pages, check results and unresolved
+uncertainty in ordinary text. A known defect must be repaired or explicitly reported
+as incomplete. The final text ends this Agent task; it is not a machine-certified
+content verdict. The host records actual changed pages/hashes from write receipts
+separately, with technical status `processed` and the unmodified Agent report.
 
 ## Bounded execution
 
 Batch independent reads in one response and use exact canonical slugs from receipts.
-Do not reread unchanged pages or call finish repeatedly with the same defect. Correct
+Do not reread unchanged pages or repeat an operation with the same defect. Correct
 the specific missing operation first. The host stops failed generations, exhausted
 cumulative budgets or repeated turns without new evidence; a stop is unfinished, not
 ingested. There is no automatic one-shot, Agent restart or Dream fallback.

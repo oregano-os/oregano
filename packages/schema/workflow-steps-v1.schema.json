@@ -382,6 +382,9 @@
           },
           "failure_policy": {
             "const": "stop"
+          },
+          "completion": {
+            "const": "text"
           }
         },
         "additionalProperties": {

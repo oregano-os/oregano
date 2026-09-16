@@ -81,3 +81,17 @@ test("trusted scoped effort reaches the provider and dispatch evidence without i
     const result = await generate(input); assert.equal(result.evidence.reasoning, effort);
   }
 });
+
+test("text completion exposes no finish Tool or structured-completion instructions", async () => {
+  const generate = createWorkflowAgentGenerator({ resolve: (() => ({ model: "test", selection: {} })) as typeof resolveModelExecution,
+    generate: (async (options: any) => {
+      assert.equal(options.tools.companyos_finish_task, undefined);
+      assert.ok(options.tools.read_page); assert.match(options.system, /non-empty text report/);
+      assert.ok(!options.system.includes("Finish by calling companyos_finish_task"));
+      return { text: "Completed the Skill checks; uncertainty remains explicit.", finishReason: "stop", toolCalls: [],
+        response: { id: "text-final", modelId: "test", messages: [{ role: "assistant", content: "Completed the Skill checks; uncertainty remains explicit." }] }, usage: {} };
+    }) as unknown as typeof generateText });
+  const value = await generate({ ...request(), completion: "text" });
+  assert.equal(value.response.calls.length, 0); assert.equal(value.response.finishReason, "stop");
+  assert.match(value.response.text, /uncertainty/);
+});

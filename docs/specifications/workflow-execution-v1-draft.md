@@ -865,8 +865,8 @@ projection. It never establishes absence of feedback, approvals or provider even
 
 An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-demand
 `skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
-a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, `output_schema`
-and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, a structured
+`output_schema` or `completion: text`, and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
 `task` accepts a literal model-task name or an ordinary Workflow reference to a
 string. The compiler checks its producer and requires referenced output paths;
 the runtime resolves and validates the name before preparing a paid attempt.
@@ -916,13 +916,27 @@ usage. Both stopped outcomes require an explicit exact operator retry; resume al
 never repeats a paid generation. Historical definitions without this policy retain
 their bounded known-incomplete continuation behavior and immutable journals.
 
-`companyos_finish_task` validates the result and optional Company validator. Feedback
+Structured completion is the default: `companyos_finish_task` validates the result
+and optional Company validator. Feedback
 keeps the same conversation open. Accepted completion returns `{result, calls}`; the
 call journal is Core-owned evidence. Ordinary read-repair does not rewind Agent
 steps or erase their writes. Retrospective workflow verification includes Agent
 attempts, guarded calls and effect receipts. No chat-specific provider or runtime is
 introduced into a Workspace.
 
+
+### Skill-led text completion
+
+An Agent step may opt into `completion: text`. It declares neither `output_schema`
+nor `validate`, and exposes no `companyos_finish_task`. A retained complete `stop`
+response with non-empty text and no Tool calls ends the task as
+`{result: {text}, calls}`. The report is Agent-authored; it is not a verified business
+outcome. Empty text, truncated/unknown responses and pending calls cannot complete
+it. Recovery consumes a persisted final response without another model dispatch,
+including when the final response used the last available turn. The journal cannot
+advance beyond terminal text or substitute a different report/call history.
+All Tool grants, effects, R0/R1 scope, source bindings and finite budgets still apply.
+Existing definitions retain structured completion and their historical input digests.
 
 ### Explicit continuation of an unwritten source
 

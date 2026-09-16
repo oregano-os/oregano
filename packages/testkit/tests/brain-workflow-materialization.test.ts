@@ -32,7 +32,10 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.equal(config.source_history.from, "2026-02-01T00:00:00.000Z");
   assert.deepEqual(config.triage, input.triage); assert.equal(config.page_directories.concept, "topics");
   const tools = result.report.requirements.tools.filter(id => id.startsWith("company:"));
-  assert.equal(tools.length, 9);
+  assert.equal(tools.length, 8);
+  assert.ok(!tools.includes("company:brain-check-agent-completion"));
+  const processing = workflow.steps.find((step: any) => step["process-source"] === "agent");
+  assert.equal(processing.completion, "text"); assert.equal(processing.validate, undefined); assert.equal(processing.output_schema, undefined);
   for (const id of tools) {
     const tool = loadCompanyTool(result.materials, "analyst", id.slice(8));
     assert.equal(tool.contract.agentId, "analyst"); assert.equal(tool.contract.risk, id === "company:brain-one-shot" ? "R1" : "R0");
@@ -233,8 +236,10 @@ test("triage retains every source character and distinguishes complete coverage 
   }
 });
 
-test('incremental completion checks actual saved pages and returns correction feedback', async () => {
- const result=materializeBrainWorkflow(input), tool=loadCompanyTool(result.materials,'analyst','brain-check-agent-completion');
+test('historical structured completion retains its original validation contract', async () => {
+ const result=materializeBrainWorkflow(input);
+ for(const name of ['TOOL.md','execute.ts'])result.materials['agents/analyst/tools/brain-check-agent-completion/'+name]=readFileSync(new URL('../../cli/content/templates/brain-import/tools/brain-check-agent-completion/'+name,import.meta.url),'utf8');
+ const tool=loadCompanyTool(result.materials,'analyst','brain-check-agent-completion');
  const source='sources/import-example',meeting='meetings/example',person='people/example';
  const evidence='source_identity: "source:1"\nsource_version: "v1"\nrecord_version_id: '+ 'a'.repeat(64);
  const meetingText='## Summary\nA sourced meeting. [['+source+']] [['+person+']]\n## Key Decisions\nDiscussion only.\n## Action Items\nNo commitments.\n## Notable Quotes\nNo notable quotes.';
@@ -432,4 +437,37 @@ test('an explicitly named qualification Workflow reuses the same procedure with 
  assert.equal(isolated.report.activated,false); assert.equal(isolated.report.admission_created,false);
  for(const [path,text] of Object.entries(normal.materials))if(path.startsWith('agents/'))assert.equal(isolated.materials[path],text);
  for(const workflow_id of ['../brain-import','a/b','MixedCase',''])assert.throws(()=>materializeBrainWorkflow({...input,workflow_id}),/identity/);
+});
+
+test("text reports retain observed writes without a second content or read-back gate", async () => {
+ const result=materializeBrainWorkflow(input),tool=loadCompanyTool(result.materials,'analyst','brain-agent-outcome');
+ const task={source:{identity:'source:1',version:'v1'},prior:{requests:[]}};
+ const report='Skill verification reported complete. A disputed interpretation remains documented.';
+ const call={name:'oregano_brain_remember',input:{provenance:{source_id:'source:1',source_version:'v1'},changes:{pages:[{path:'brain/meetings/example.md',markdown:'## Summary\nA draft with an unverified quote and missing company link.'}]}},
+  output:{status:'saved',saved_commit:'b'.repeat(40),sync_status:'indexed',indexed_revision:{git_commit:'b'.repeat(40)},page_results:[{path:'brain/meetings/example.md',content_hash:'a'.repeat(64)}]}};
+ const run=(calls:any[],sourceTask:any=task)=>executeIsolatedCompanyTool({compiledSource:tool.compiledSource,input:{task:sourceTask,route:'deep',execution:{result:{text:report},calls}},context:{instanceId:'synthetic',runId:'workflow:test',stepId:'finish',agentId:'analyst',toolId:tool.contract.runtimeId},allowedCapabilities:[],invokeCapability:async()=>{throw Error('No provider');}}) as Promise<any>;
+ const outcome=await run([call]);
+ assert.equal(outcome.status,'processed');assert.equal(outcome.agent_report,report);assert.equal(outcome.verification_mode,'agent-skill');
+ assert.deepEqual(outcome.verification,[]);assert.deepEqual(outcome.pages,[{slug:'meetings/example',content_hash:'a'.repeat(64)}]);
+ assert.deepEqual(validateJsonSchemaValue(tool.contract.outputSchema!,outcome),[]);
+ assert.equal((await run([])).status,'processed','A text report without writes is not fabricated as ingested or a utility skip');
+ await assert.rejects(run([{name:'oregano_brain_remember',error:'invalid_batch'}]),/All attempted writes failed/);
+ await assert.rejects(run([{...call,output:{...call.output,sync_status:'pending'}}]),/Git\/index/);
+ await assert.rejects(run([call],{...task,source:{identity:'source:other',version:'v1'}}),/provenance/);
+ const old={...task,prior:{requests:[{slug:'people/existing'}]}};
+ assert.deepEqual((await run([],old)).pages,[{slug:'people/existing'}],'Retained source lineage survives a no-write report');
+});
+
+test("later source versions retain pages from text-completed reports without inventing a quality verdict", async () => {
+ const material=materializeBrainWorkflow(input),tool=loadCompanyTool(material.materials,'analyst','brain-source-history');
+ const execute=(output:any)=>executeIsolatedCompanyTool({compiledSource:tool.compiledSource,
+  input:{workflow_id:'brain-import',identity:'source:1',version:'v2',history_from:'2030-01-01T00:00:00Z',cutoff:'2030-01-03T00:00:00Z'},
+  context:{instanceId:'synthetic',runId:'workflow:current',stepId:'history',agentId:'analyst',toolId:tool.contract.runtimeId},allowedCapabilities:['evidence.query'],
+  invokeCapability:async()=>({coverage:{complete:true},items:[{id:'workflow:prior',workflow_id:'brain-import',fields:{source_identity:'source:1',source_version:'v1'},status:'done',
+   steps:{'finish-import':{status:'succeeded',output}}}]})}) as Promise<any>;
+ const base={status:'processed',source_identity:'source:1',source_version:'v1',pages:[],receipts:[],verification_mode:'agent-skill',agent_report:'No substantive knowledge was filed.'};
+ assert.deepEqual((await execute(base)).prior_skipped_versions,[]);
+ const retained=await execute({...base,pages:[{slug:'people/example'}],agent_report:'Existing sourced page retained; a claim remains uncertain.'});
+ assert.equal(retained.status,'reconciliation-required');assert.equal(retained.requests[0].slug,'people/example');
+ await assert.rejects(execute({...base,agent_report:''}),/final Agent report/);
 });

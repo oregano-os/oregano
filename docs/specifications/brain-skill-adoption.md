@@ -162,8 +162,8 @@ All five reviewed procedure Skills are in the task's instruction list, each with
 the existing 30000-character limit. This makes the original meeting template and
 V1–V6 definitions available without depending on an optional Tool call. The filing
 rules can produce a no-write notability skip; routing to a higher model tier does
-not override them. Public regressions cover skipped sources, per-page read-back,
-required sections and unchanged prior-source reconciliation constraints.
+not override them. Public regressions cover source outcomes, retained write evidence,
+Skill delivery and unchanged prior-source reconciliation constraints.
 
 ## Content routing revision (2026-09-16)
 
@@ -210,16 +210,16 @@ unknown attempts. Do not label local mocks or prior one-shot outcomes as a live
 reference run. No Dream workflow or synthesized new knowledge is introduced.
 
 The continuing task explicitly rechecks final agreements against earlier proposals
-before entity propagation. Its quote serialization uses short contiguous original
-passages, with attribution/citations outside the quote. Completion mechanically
-compares saved blockquotes with the retained original using Unicode/whitespace
-normalization only; it returns quote, identifier and read-back defects together,
-including when the reported meeting verification verdict also needs correction.
-This stricter serialization is an Oregano adaptation of V4, not an independent
-semantic critic or proof that every paraphrased decision is correct.
+before entity propagation. The Agent follows the adopted claim checks and V1–V6
+read/verify/repair instructions, then gives an ordinary final text report. New
+materializations have no additional server content-completion gate or finish Tool.
+Quotes, sections, speakers, links and read-back remain Skill responsibilities;
+a technically completed task is not an independent semantic quality verdict.
+The source outcome retains the Agent report and separate actual write receipts.
+Historical phase-only and structured-completion templates remain available solely
+for their pinned definitions, with their original stricter behavior intact.
 
 The continuing ingestion instructions use the existing `remember.timeline_add`
 page alternative for small evidenced events on existing pages. Current-knowledge
-changes and corrections keep the full read/edit/replace path. Completion compares
-actual post-write page hashes with durable `page_results`, including unchanged
-targets, rather than expecting the model to have generated a whole page.
+changes and corrections keep the full read/edit/replace path. Durable `page_results`
+retain actual hashes without an extra model call or model-generated whole page.

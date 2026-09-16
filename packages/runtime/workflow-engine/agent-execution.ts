@@ -15,7 +15,7 @@ import { resolveWorkflowValue } from "./references.ts";
 import { workflowContext, WorkflowRunContextReader } from "./readers.ts";
 import { workflowEffectKey, workflowExecutionStepId } from "./guard.ts";
 import { BrainError } from "../../brain/contracts.ts";
-import { AGENT_SKILL_TOOL, AGENT_FINISH_TOOL, agentCallKey, agentToolName } from "./agent-contract.ts";
+import { AGENT_SKILL_TOOL, AGENT_FINISH_TOOL, isTextCompletion, agentCallKey, agentToolName } from "./agent-contract.ts";
 
 /** One durable quantum: prepare a model turn, retain its response, or execute one saved call. */
 export async function advanceWorkflowAgent(args: {
@@ -31,12 +31,17 @@ export async function advanceWorkflowAgent(args: {
   if (typeof modelTask !== "string" || !/^[a-z][a-z0-9._-]{0,255}$/.test(modelTask)) throw new Error("Invalid Agent model task");
   // Static tasks remain frozen by the Artifact. Preserve their historical digest
   // so existing journals resume unchanged; bind newly supported references too.
-  const inputDigest = jsonDigest({ context: task, profile, ...(definition.task.startsWith("$") ? { modelTask } : {}) });
+  const inputDigest = jsonDigest({ context: task, profile, ...(definition.task.startsWith("$") ? { modelTask } : {}), ...(definition.completion ? { completion: definition.completion } : {}) });
   const stored = state.steps[step.id] ??= { status: "running", startedAt: now, inputDigest, agent: { turns: [] } };
   if (stored.inputDigest !== inputDigest || !stored.agent) throw new Error("Agent task input changed after preparation");
   stored.status = "running";
   const turns = stored.agent.turns, last = turns.at(-1);
   const result = (event: string, evidence: JsonValue = {}, output?: JsonValue) => ({ state, event, evidence, output });
+  if (definition.completion === "text" && isTextCompletion(last?.response)) {
+    const calls = turns.flatMap(turn => turn.results.map((entry, i) => ({ ...turn.response!.calls[i]!, ...entry })));
+    return result("workflow.agent-completed", { turns: turns.length, tool_calls: calls.length, completion: "text" },
+      { result: { text: last!.response!.text }, calls });
+  }
   if (last?.failure && (last.failure.outcome === "unknown" || definition.failurePolicy === "stop") && !last.retryAuthorization) throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
   if (!last || last.failure || (last.response && last.results.length === last.response.calls.length)) {
     if (definition.budget.noProgressTurns !== undefined && agentNoProgressTurns(turns) >= definition.budget.noProgressTurns) throw new Error("Agent stopped after repeated turns without new evidence or successful operations");
@@ -75,7 +80,7 @@ export async function advanceWorkflowAgent(args: {
     try {
       const generated = await options.agentGenerator({ agent: scopedAgent, instructions: instructions.map(path => agent.materials[path]!),
         context: task, skills: definition.instructionSelection === undefined ? definition.skills : [], profile, task: modelTask, outputTokens,
-        outputSchema: definition.outputSchema, turns: turns.slice(0, -1),
+        ...(definition.completion ? { completion: definition.completion } : {}), outputSchema: definition.outputSchema, turns: turns.slice(0, -1),
         tools: definition.tools.map(entry => {
           const tool = agent.tools.find(tool => tool.contract.runtimeId === entry.tool.runtimeId)!;
           const inputSchema = structuredClone(tool.contract.inputSchema);
@@ -121,6 +126,7 @@ export async function advanceWorkflowAgent(args: {
     return result("workflow.agent-skill-read", { call_key: key, path: input.path });
   }
   if (call.name === AGENT_FINISH_TOOL) {
+    if (definition.completion === "text") return reject("This task ends with a final text report, not a finish Tool.");
     if (callIndex !== last.response.calls.length - 1) return reject("Finish must be the last Tool call of a turn.");
     const errors = validateJsonSchemaValue(definition.outputSchema, call.input);
     if (errors.length) return reject(errors.join("; "));
