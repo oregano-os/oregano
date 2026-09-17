@@ -19,10 +19,18 @@ export function addBrainTimeline(page: BrainPage, addition: BrainTimelineAdditio
     || !Array.isArray(addition.evidence) || !addition.evidence.length || addition.evidence.length > 16
     || new Set(addition.evidence).size !== addition.evidence.length
     || addition.evidence.some(slug => typeof slug !== "string" || !/^[a-z][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,119}$/.test(slug))) invalid();
-  const entry = `- ${addition.date}: ${addition.summary.trim()}${addition.detail ? ` — ${addition.detail.trim()}` : ""} ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")}`;
+  const proseText = `${addition.summary.trim()}${addition.detail ? ` — ${addition.detail.trim()}` : ""}`;
+  // A readable citation supplies the visible navigation. Keep the direct source
+  // references in the same entry for the unchanged evidence validator/indexer.
+  const hasCitation = /\\\[\[\[[^\[\]\n|]+\|Source: [^\]\n]+\]\]\\\]/.test(proseText);
+  const references = hasCitation
+    ? `<!-- Source evidence: ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")} -->`
+    : addition.evidence.map(slug => `\\[[[${slug}|Source: ${addition.date}]]\\]`).join(" ");
+  const entry = `- ${addition.date}: ${proseText} ${references}`;
   // Exact duplicate protection also covers an intentional retry with a fresh key
   // after rereading. Source corrections still require an explicit replacement.
-  if (timelineProseLines(page.timeline).some(line => line.text === entry)) return page.markdown;
+  const legacyEntry = `- ${addition.date}: ${proseText} ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")}`;
+  if (timelineProseLines(page.timeline).some(line => line.text === entry || line.text === legacyEntry)) return page.markdown;
 
   const raw = page.markdown, newline = raw.includes("\r\n") ? "\r\n" : "\n";
   const header = raw.match(/^\uFEFF?\s*---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)!;

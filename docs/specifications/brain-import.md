@@ -100,6 +100,17 @@ and exact internal source links; entity pages preserve existing Timeline history
 and meeting backlinks. Tags improve browsing but are not authority or a
 substitute for provenance.
 
+Inline citations use an aliased wiki link inside escaped visible brackets, for
+example `\[[[meetings/review-example|Source: Meeting "Review", 2030-01-02]]\]`.
+Entity prose and Timeline link to the meeting; citations within that meeting link
+to its evidence page, which retains the original-source URL. Bare `[Source: ...]`
+labels are not links. The extra direct Timeline source reference remains in a
+same-line `<!-- Source evidence: [[sources/review-example]] -->` comment, so the
+existing evidence validation and indexing remain intact without a second visible
+raw path. `timeline_add` supplies that comment when summary/detail contains the
+bracketed citation; otherwise it emits bracketed evidence links with the event
+date. Existing pages and historical receipts are not migrated automatically.
+
 A consuming Workspace must declare a matching Records projection with `identity`,
 `version`, `kind`, `original_url`, `occurred_at`, `text`, `complete` and preserved
 `source_context` values. The ordinary Records, Agent/Tool and Workflow validators

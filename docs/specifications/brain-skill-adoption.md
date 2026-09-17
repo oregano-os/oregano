@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-16
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -29,6 +29,8 @@ source passages except for explicit Oregano operation, storage, model-role,
 path and synthetic-example adaptations. Upstream personal storage, external
 enrichment, autonomous extra Agents and provider-specific model defaults are
 excluded. Review the pinned source ranges when changing an adaptation.
+The citation adaptation adds clickable, bracketed wiki aliases and hides redundant
+Timeline source paths in same-line comments while preserving direct provenance.
 
 The adjacent declarative Workflow is now part of the inspectable `oregano/brain`
 Blueprint. `scripts/materialize-brain-workflow.ts` composes this prompt helper

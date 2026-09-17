@@ -116,6 +116,9 @@ page object has only `path`, `expected_content_hash` and `markdown`; do not add
 Copy `task.evidence.path` for the prepared source page and `task.evidence.link`
 for its internal citation. Every meeting must include that link; every entity
 Timeline entry and Take must directly include it as well as any meeting backlink.
+Use the shared clickable, bracketed citation format. In Timeline, retain the
+direct source link in a same-line `<!-- Source evidence: [[directory/slug]] -->`
+comment; only the readable meeting citation is visible.
 Keep batches small: save source/meeting first, then independently prepared entity
 updates may share a bounded batch. Never postpone the meeting to draft every entity.
 Separate write calls depend on the preceding receipt's revision and must not be
@@ -125,8 +128,9 @@ For changed current knowledge, new pages or source corrections, supply complete
 `markdown` after reading the page. For a simple event on an existing page, supply
 `timeline_add: {date, summary, detail?, evidence}` instead of `markdown`: use the
 actual evidenced YYYY-MM-DD event date, single-line summary/detail and canonical
-internal evidence slugs also listed in provenance. Put the meeting link in the
-summary/detail when a meeting backlink is required. Core preserves frontmatter
+internal evidence slugs also listed in provenance. Put the bracketed, aliased meeting citation in the
+summary/detail when a meeting backlink is required. Core keeps direct evidence
+references in a same-line comment when that visible citation is supplied. Core preserves frontmatter
 (including dates), current knowledge, Takes and unrelated history. This operation
 does not update current assertions or correct an earlier event. Reconcile those
 through the full read/edit/replace path; do not append contradictory claims.
@@ -137,8 +141,9 @@ it. On repair, include every still-absent dependency again or save the valid sou
 and meeting first. Never assume that the other pages in a rejected batch succeeded.
 An entity Timeline or Take needs a direct link to this task's internal source
 evidence page as well as its meeting backlink; the meeting is a content page,
-not an evidence-role page. Use canonical `[[directory/slug]]` links from the task
-and read results for indexed internal references.
+not an evidence-role page. Keep that direct link in a same-line source comment
+for Timeline entries. Use canonical `[[directory/slug|Source: ...]]` targets from
+the task and read results, wrapped in escaped outer brackets for visible citations.
 Read each affected page after its final write and compare `content_hash` with the
 matching `page_results` receipt, including an unchanged Timeline addition.
 A stale page requires a fresh read and merge. A saved/pending outcome requires receipt
@@ -160,7 +165,7 @@ supported values; this example does not authorize creating them):
 ```markdown
 ## Current knowledge
 
-Source-grounded prose.
+Source-grounded prose. \[[[sources/review-example|Source: Review, 2030-01-02]]\]
 
 <!--- gbrain:takes:begin -->
 | # | claim | kind | who | weight | since | source |
@@ -171,7 +176,7 @@ Source-grounded prose.
 <!-- timeline -->
 ## Timeline
 
-- 2030-01-02: Alex proposed a review. [[sources/review-example]]
+- 2030-01-02: Alex proposed a review. \[[[sources/review-example|Source: Review, 2030-01-02]]\]
 ```
 
 When validation returns a page path, diagnostic code and repair guidance, correct

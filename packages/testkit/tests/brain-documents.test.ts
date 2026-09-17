@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parseBrainConfiguration } from "../../brain/configuration.ts";
 import { assertBrainPath, assertBrainGitEntry } from "../../brain/paths.ts";
-import { parseBrainPage, serializeBrainPage, checkBrainCorpus, resolveBrainName } from "../../brain/documents.ts";
+import { referenceLinks, parseBrainPage, serializeBrainPage, checkBrainCorpus, resolveBrainName } from "../../brain/documents.ts";
 import { parseTakes, renderTakes } from "../../brain/takes.ts";
 import { readLocalBrainFiles } from "../../brain/local-files.ts";
 import { splitBody } from "../../brain/upstream/timeline.ts";
@@ -88,4 +88,15 @@ test("local input rejects links, hardlinks and executable Markdown", async () =>
     await rm(join(root, "brain/topics"), { recursive: true });
     await symlink(root, join(root, "brain/topics")); await assert.rejects(readLocalBrainFiles(root));
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+
+test('Visible citation brackets do not become part of an aliased wiki target', () => {
+ const citation = String.raw`\[[[sources/review|Source: Meeting "Review", 2026-09-15]]\]`;
+ assert.deepEqual(referenceLinks(citation).map(link => link.target), ['sources/review']);
+ assert.deepEqual(referenceLinks('[[sources/review|Review]] [Review](sources/review.md)').map(link => link.target), ['sources/review', 'sources/review']);
+ assert.deepEqual(referenceLinks(String.raw`\[[sources/review]]`), [], 'An escaped wiki opener is literal text');
+ const body = 'Source-grounded knowledge.\n\n<!-- timeline -->\n- 2026-09-15: Reviewed. ' + citation;
+ const checked = checkBrainCorpus({...brainFiles, 'brain/topics/citation.md': page('topic', 'Citation', body)}, brainConfig);
+ assert.deepEqual(checked.diagnostics.filter(d => d.path === 'brain/topics/citation.md'), []);
 });

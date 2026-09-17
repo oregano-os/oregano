@@ -5,7 +5,7 @@ kind: specification
 status: building
 authority: canonical
 language: en
-updated: 2026-09-16
+updated: 2026-09-17
 owners: [oregano-maintainers]
 audience: [human, agent]
 availability: experimental
@@ -193,7 +193,13 @@ Core edits dated Markdown deterministically without a model call. It preserves
 frontmatter, current knowledge, Takes and unrelated history, normalizes recognized
 legacy Timeline separators, and inserts before the first older/equal dated bullet
 (or at the end when none exists) without reordering existing prose. Exact repeated
-entries are unchanged; operation-key replay also prevents duplicate commits.
+entries are unchanged, including matching entries in the older raw-link format;
+operation-key replay also prevents duplicate commits. A bracketed aliased `Source:`
+link in summary/detail supplies visible navigation; Core retains the direct
+`evidence` links in a same-line Markdown comment. Without that citation it emits
+bracketed evidence links with the event date. Escaped outer display brackets are
+not part of indexed wiki targets. Evidence validation still requires the direct
+source references; a meeting link alone does not satisfy it.
 Source corrections and changed current assertions use full page replacement or
 explicit unique-passage withdrawal. They must not append contradictory events.
 Provenance identifies source, version, processing action and internal evidence

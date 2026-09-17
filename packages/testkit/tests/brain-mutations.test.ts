@@ -177,7 +177,7 @@ test("Timeline-only edits preserve raw metadata, current knowledge, Takes and ex
   const result = prepareBrainRemember(files, brainConfig, input), saved = result.files[path];
   const marker = '<!-- timeline -->';
   assert.equal(saved.slice(0, saved.indexOf(marker)), source.slice(0, source.indexOf(marker)));
-  const entry = '- 2026-09-15: Reviewed the proposal. — No shared decision was made. [[sources/review]]\r\n';
+  const entry = '- 2026-09-15: Reviewed the proposal. — No shared decision was made. \\[[[sources/review|Source: 2026-09-15]]\\]\r\n';
   assert.equal(saved.replace(entry, ''), source);
   assert.deepEqual(parseBrainPage(path, saved, brainConfig).page!.takes, parseBrainPage(path, source, brainConfig).page!.takes);
   const again = structuredClone(input); again.operation_key = 'timeline:2'; again.changes.pages[0].expected_content_hash = sha256(saved);
@@ -227,7 +227,7 @@ test("Timeline additions reject malformed events, undeclared evidence and absent
 });
 
 test('Timeline insertion and duplicate detection leave fenced examples untouched', () => {
- const entry='- 2026-09-15: Reviewed expansion. [[sources/review]]';
+ const entry='- 2026-09-15: Reviewed expansion. \\[[[sources/review|Source: 2026-09-15]]\\]';
  const history='A sourced example follows. [[sources/review]]\n```markdown\n'+entry+'\n```\n\n- 2026-09-14: Earlier event. [[sources/review]]\n';
  const original=page('topic','Expansion','Current account.\n\n<!-- timeline -->\n\n'+history);
  const request:BrainRememberInput={changes:{expected_revision:revision,pages:[{path,expected_content_hash:sha256(original),timeline_add:{date:'2026-09-15',summary:'Reviewed expansion.',evidence:['sources/review']}}]},provenance,operation_key:'timeline:code-example'};
@@ -237,4 +237,25 @@ test('Timeline insertion and duplicate detection leave fenced examples untouched
  assert.ok(saved.includes(entry+'\n- 2026-09-14: Earlier event.'));
  const open=original.replace('\n```\n','\n');request.changes.pages[0].expected_content_hash=sha256(open);
  assert.throws(()=>prepareBrainRemember({...brainFiles,[path]:open},brainConfig,request),code('ambiguous_target'));
+});
+
+
+test('Readable Timeline citations hide duplicate source navigation while retaining validated provenance', () => {
+ const citation = String.raw`\[[[topics/expansion|Source: Meeting "Review", 2026-09-15]]\]`;
+ const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [{ path, expected_content_hash: sha256(brainFiles[path]),
+   timeline_add: { date: '2026-09-15', summary: 'Reviewed the proposal.', detail: citation, evidence: ['sources/review'] } }] }, provenance, operation_key: 'timeline:readable' };
+ const result = prepareBrainRemember(brainFiles, brainConfig, input), saved = result.files[path];
+ const entry = '- 2026-09-15: Reviewed the proposal. — ' + citation + ' <!-- Source evidence: [[sources/review]] -->';
+ assert.ok(saved.includes(entry));
+ const parsed = parseBrainPage(path, saved, brainConfig).page!;
+ assert.ok(parsed.links.some(link => link.target === 'topics/expansion'));
+ assert.ok(parsed.links.some(link => link.target === 'sources/review'));
+ assert.ok(!result.diagnostics.some(item => item.severity === 'error'));
+ const invalid = remember(saved.replace('<!-- Source evidence: [[sources/review]] -->', ''));
+ assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, invalid), code('invalid_batch'), 'A content citation alone still cannot replace direct evidence');
+ const replay = structuredClone(input); replay.changes.pages[0].expected_content_hash = sha256(saved);
+ assert.equal(prepareBrainRemember(result.files, brainConfig, replay).changes.length, 0);
+ const legacy = saved.replace(entry, '- 2026-09-15: Reviewed the proposal. — ' + citation + ' [[sources/review]]');
+ replay.changes.pages[0].expected_content_hash = sha256(legacy);
+ assert.equal(prepareBrainRemember({...brainFiles, [path]: legacy}, brainConfig, replay).changes.length, 0, 'Existing raw-link events are not duplicated');
 });

@@ -10,7 +10,7 @@ const normalizeName = (value: string) => normalizeBrainReference(value).normaliz
 
 export function referenceLinks(text: string): Array<{ target: string; context: string }> {
   const result: Array<{ target: string; context: string }> = [];
-  for (const match of text.matchAll(/\[\[([^\]\n]+)\]\]|(?<!!)\[[^\]\n]+\]\(([^\s)]+)\)/g)) {
+  for (const match of text.matchAll(/(?<!\\)\[\[([^\[\]\n]+)\]\]|(?<!!)\[[^\]\n]+\]\(([^\s)]+)\)/g)) {
     const target = (match[1] ? match[1].split("|")[0] : match[2]).trim();
     if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith("#")) continue;
     const lineStart = text.lastIndexOf("\n", match.index) + 1;
