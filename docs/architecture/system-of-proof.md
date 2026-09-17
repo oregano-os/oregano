@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-11
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -54,7 +54,7 @@ The layers have different jobs and MUST NOT be collapsed:
 | Company Workspace Git history | Reviewed company intent, policies, Workflows, Agents, grants, and exact change history | That a deployment or provider effect occurred |
 | Oregano Core and immutable Artifact provenance | Exact executable contracts, compiled material, versions, and hashes used by one Instance | Company approval or provider success |
 | `companyos` | Workflow, identity, approval, handoff, idempotency, and effect-control evidence | External provider business truth by itself |
-| `companyos_records` | Versioned provider observations, current pointers, authorized projections, freshness, reconciliation, synchronization receipts, and atomic Sprint event, state, decision, and intent evidence | Curated Handbook authority or a second provider authority |
+| `companyos_records` | Versioned provider observations, current pointers, authorized projections, freshness, reconciliation, synchronization receipts, and retained historical audit evidence | Curated Handbook authority or a second provider authority |
 | External provider receipt or verified reread | The provider accepted or currently exposes the exact bounded effect or object version | That CompanyOS policy authorized the action |
 
 A defensible proof normally links an authenticated principal, the exact Core,
@@ -86,10 +86,10 @@ The maintained DDL is `packages/state-postgres/schema.sql`.
 This schema records immutable Source Events and object versions, current object
 pointers, rebuildable projection rows, access decisions, synchronization
 receipts and watermarks, reconciliation leases, durable timers, Connector echo
-receipts, callback replay claims, and atomic Sprint event, monotonic state,
-decision, and intent outcomes. A Sprint event, its resulting state and decision
-evidence, and its newly created intents commit together or not at all. Provider
-deletion is an observed version or absence decision; it does not silently erase
+receipts and callback replay claims. Existing historical Sprint audit rows
+remain retained evidence; fresh databases do not create the retired Sprint
+tables. Current workflow execution evidence uses the general control schema.
+Provider deletion is an observed version or absence decision; it does not silently erase
 retained CompanyOS evidence.
 
 The maintained DDL is `packages/state-postgres/records-schema.sql`.
@@ -122,53 +122,24 @@ CompanyOS distinguishes three categories:
    session state. Its mechanism-defined expiry continues to apply even when a
    company retains durable proof indefinitely.
 
-The queued or leased status of a Sprint intent is coordination state. The
-accepted Sprint event, resulting state version, deterministic intent content,
-and terminal dispatch outcome remain durable proof; expiring a lease never
-erases them.
+Workflow leases and worker claims are coordination state. Durable execution
+history, decisions, approved Tool requests, effect outcomes, and provider
+receipts remain proof; expiring a lease never erases that evidence. Company
+Records source versions and projection references provide the operational
+facts used by an execution.
 
-The hosted Sprint path does not add a fourth evidence schema. Operator-opened
-snapshots, Slack-normalized submissions, clock events, states, decisions,
-intents, timer outcomes, and dispatch outcomes stay in `companyos_records`.
-An allowlisted Slack conversation first enters that schema as immutable
-generic `communication-message` object versions and access-scoped projection
-rows. A Domain-owned derived-record envelope may interpret one projected
-version, but does not create another database authority: the accepted Sprint
-event stores the exact projection id, record id, and source-version id, while
-typed references bind recognized card links to already authorized work-item
-records. Provider message content never supplies identity, Agent selection,
-approval, or effect authority. Historical Sprint replay uses an isolated
-definition and controlled clock and stores only proof outcomes; the maintained
-host refuses its compiled live communication and work-item bindings.
-Hosted Sprint scenario runs use the same evidence schema and a separate
-digest-derived definition and timer namespace. They execute the real compiled
-host in proof-only Shadow mode and retain a bounded, content-free report over
-durable event types, decision outcomes, intent states, timer states, source
-versions, and active-binding readiness. The report includes full evidence
-counts and digests while returning only a fixed maximum of individual rows; the
-complete proof remains durable. It contains no rendered message body and does
-not make a provider receipt claim. Repeating the same immutable input returns
-the same proof digest without creating duplicate coordination rows.
-An optional test-only publication adds the ordinary Tool execution and Slack
-provider receipt to that proof chain. Before the effect, the host reruns the
-scenario, compares the exact report digest, loads the chosen stored Monday
-hand-off intent, and renders the compiled Workspace template. The receipt
-records the actual Sprint Agent, template and content digests, exact test
-binding, provider message id, thread reference, and publication time. A changed
-digest or different intent type fails before a Connector call.
-Any ordinary Tool authorization, confirmation, effect claim, and execution
-outcome stays in `companyos`; an external provider receipt or verified reread
-completes the chain. Shadow dispatch records a template digest and rendered
-content digest only and produces no provider receipt because no provider effect
-occurred. If a provider accepts an effect but a dependent receipt step cannot
-be verified, the effect remains `unknown` with its bounded partial receipt. It
-is never rewritten as an ordinary failure or retried automatically; an
-operator must reconcile the provider before deciding any recovery action.
-An exact-human subject confirmation for a reversible briefing is retained in
-the same control chain as ordinary authorization. A Rollover batch uses the
-ordinary R3 approval chain instead; its frozen item versions remain in Sprint
-intent evidence, while the approved Tool request, complete preflight, provider
-receipts, rereads, and any partial unknown outcome remain execution proof.
+Provider message content never supplies identity, Agent selection, approval,
+or effect authority. An exact-human subject confirmation is retained with the
+control evidence for the bounded request it authorizes. Batch effects retain
+the approved request, preflight evidence, provider receipts, and verified
+results through the ordinary approval and execution controls.
+
+If a provider accepts an effect but its outcome cannot be verified, the effect
+remains unknown with its available evidence. It is not rewritten as an ordinary
+failure or retried automatically; recovery must reconcile the provider first.
+The retired Sprint replay and simulation paths are not current proof-producing
+interfaces. See [Workflow operations](../operations/workflow-engine.md) for the
+maintained execution and migration boundary.
 
 `retention: retain` means that CompanyOS does not schedule an automatic purge
 merely because evidence has reached an age or disappeared from its provider.

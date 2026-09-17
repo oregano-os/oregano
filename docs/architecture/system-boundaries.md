@@ -5,7 +5,7 @@ kind: architecture
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -60,13 +60,13 @@ See the [maintained host profile](../operations/maintained-host-profile.md).
 Core must not contain company names, board IDs, channel IDs, company roles,
 company thresholds, company policies, or provider credentials.
 
-Company Records and the Sprint domain follow the same rule. Core owns generic
+Company Records and declared Workflows follow the same rule. Core owns generic
 source-version, projection, access, freshness, reconciliation, business-time,
-Sprint-event, read-model, intent, durable-timer, idempotency, and evidence
-mechanisms. A maintained Connector may implement a provider protocol inside
-its privileged boundary, but the Sprint domain consumes only normalized
-records and Capability contracts. The declarative Sprint Blueprint remains
-separate from executable domain code.
+durable workflow state, timer, idempotency, and evidence mechanisms. A
+maintained Connector may implement a provider protocol inside its privileged
+boundary; workflows use authorized Records and Capability contracts.
+Reusable Agent behavior may be authored as a declarative Blueprint. Its
+presence in the Core repository does not make it a Core execution component.
 
 Every new Change Plan must make this boundary review explicit. It assigns
 responsibilities separately to Core, Packages or Blueprints, the Company
@@ -166,7 +166,7 @@ secret transport and PostgreSQL behavior satisfy the same contract.
 ::: implementation-example
 
 The current `companyos-postgres@3.0.0` manifest qualifies 15 control/Workflow and 11
-Records/Sprint tables. Historical identities are recognized for upgrade but
+Records tables. Historical identities are recognized for upgrade but
 obsolete schema constructors are removed. Knowledge retirement is an explicit
 one-time migration, separate from normal initialization and read-only health.
 Schema presence never grants identity, Tool or effect authority.
