@@ -509,7 +509,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         if (s.completion === "text") {
           if (s.output_schema !== undefined || s.validate !== undefined) err(f, `${s.id}: text completion has no structured output_schema or completion validator`);
         } else if (!s.output_schema || s.output_schema.type !== "object" || !ajv.validateSchema(s.output_schema)) err(f, `${s.id}: agent requires an object output_schema`);
-        if (s.failure_policy !== undefined && s.failure_policy !== "stop") err(f, `${s.id}: unsupported Agent failure policy`);
+        if (s.failure_policy !== undefined && !["stop", "continue-output-limit"].includes(s.failure_policy)) err(f, `${s.id}: unsupported Agent failure policy`);
         if (s.instruction_selection !== undefined) {
           if (!s.skills?.length) err(f, `${s.id}: instruction selection requires a declared Skill scope`);
           validateInput(s.instruction_selection, { type: "array", minItems: 1, maxItems: 16, items: { type: "string" } }, s.id);
@@ -518,7 +518,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         if (!b || Object.keys(b).filter(key => !["total_input_bytes", "total_output_tokens", "no_progress_turns"].includes(key)).sort().join(",") !== "output_tokens,tool_calls,turns"
           || !Number.isSafeInteger(b.turns) || b.turns < 1 || b.turns > 64
           || !Number.isSafeInteger(b.tool_calls) || b.tool_calls < 1 || b.tool_calls > 256
-          || !Number.isSafeInteger(b.output_tokens) || b.output_tokens < 256 || b.output_tokens > 16000
+          || !Number.isSafeInteger(b.output_tokens) || b.output_tokens < 256 || b.output_tokens > 32000
           || (b.total_input_bytes !== undefined && (!Number.isSafeInteger(b.total_input_bytes) || b.total_input_bytes < 1000 || b.total_input_bytes > 16000000))
           || (b.total_output_tokens !== undefined && (!Number.isSafeInteger(b.total_output_tokens) || b.total_output_tokens < b.output_tokens || b.total_output_tokens > 128000))
           || (b.no_progress_turns !== undefined && (!Number.isSafeInteger(b.no_progress_turns) || b.no_progress_turns < 1 || b.no_progress_turns > 8))) err(f, `${s.id}: agent budget exceeds maintained finite bounds`);

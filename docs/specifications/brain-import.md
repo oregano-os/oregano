@@ -303,7 +303,7 @@ include its reviewed admission binding; installing Skills alone activates nothin
 ## Continuing Agent imports
 
 The `process-source` continuing Agent has a finite Workspace-reviewed budget
-(materialized starting values: 12 model turns, 48 Tool calls, 12000 output tokens
+(materialized starting values: 12 model turns, 48 Tool calls, 32000 output tokens
 per response, 48,000 cumulative output tokens and two consecutive turns without
 new Tool evidence). Newly materialized imports omit the optional cumulative
 `total_input_bytes` cap. Serialized UTF-8 input bytes, including repeated history
@@ -344,8 +344,16 @@ unknown usage consumes the reserved response ceiling. The host checks the next
 serialized input against the remaining allowance before dispatch. No-progress
 means no new successful Tool evidence: repeated identical reads and rejected
 finishes do not reset the counter. Exhaustion leaves the source unfinished and
-preserves writes and costs. Known incomplete generations and unknown provider
-outcomes both stop; no automatic paid retry or alternate path is started.
+preserves writes and costs. New imports select `failure_policy: continue-output-limit`.
+A known output-length cutoff discards that response's partial calls and continues
+only the remaining work in the same journal. It consumes output budget and counts
+as no progress. The host asks for one operation per response and one page per write;
+Core rejects multi-call recovery responses and exact repetitions of successful R1
+inputs. Earlier writes, source identity and cost evidence stay unchanged. Other
+incomplete or unknown provider outcomes stop. Historical Artifacts keep their
+original policy. A reviewed 360-second model timeout fits within the maintained
+600-second Agent worker/lease envelope; no model or cost budget is selected by
+source text or by the Blueprint.
 
 The final source outcome has technical status `processed`, `verification_mode:
 agent-skill`, and an unchanged `agent_report`. `verification` stays empty rather

@@ -15,7 +15,7 @@ import { resolveWorkflowValue } from "./references.ts";
 import { workflowContext, WorkflowRunContextReader } from "./readers.ts";
 import { workflowEffectKey, workflowExecutionStepId } from "./guard.ts";
 import { BrainError } from "../../brain/contracts.ts";
-import { AGENT_SKILL_TOOL, AGENT_FINISH_TOOL, isTextCompletion, agentCallKey, agentToolName } from "./agent-contract.ts";
+import { AGENT_SKILL_TOOL, AGENT_FINISH_TOOL, agentFailureNeedsReview, isTextCompletion, agentCallKey, agentToolName } from "./agent-contract.ts";
 
 /** One durable quantum: prepare a model turn, retain its response, or execute one saved call. */
 export async function advanceWorkflowAgent(args: {
@@ -42,7 +42,7 @@ export async function advanceWorkflowAgent(args: {
     return result("workflow.agent-completed", { turns: turns.length, tool_calls: calls.length, completion: "text" },
       { result: { text: last!.response!.text }, calls });
   }
-  if (last?.failure && (last.failure.outcome === "unknown" || definition.failurePolicy === "stop") && !last.retryAuthorization) throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
+  if (last && agentFailureNeedsReview(last, definition.failurePolicy)) throw new Error("Agent model outcome requires reconciliation; no automatic paid retry");
   if (!last || last.failure || (last.response && last.results.length === last.response.calls.length)) {
     if (definition.budget.noProgressTurns !== undefined && agentNoProgressTurns(turns) >= definition.budget.noProgressTurns) throw new Error("Agent stopped after repeated turns without new evidence or successful operations");
     if (turns.length >= definition.budget.turns) throw new Error("Agent model-turn budget exhausted");
@@ -107,10 +107,11 @@ export async function advanceWorkflowAgent(args: {
       const usage = error instanceof LanguageGenerationError ? (error.evidence.model_execution as { outputTokens?: unknown } | undefined)?.outputTokens : undefined;
       if (last.requestBudget && typeof usage === "number" && Number.isSafeInteger(usage) && usage >= 0) last.outputTokensUsed = usage;
       await attempt.finish(outcome, { ...(error instanceof LanguageGenerationError ? error.evidence : {}), error_digest: languageFailureDigest(error) });
-      last.failure = { outcome, digest: languageFailureDigest(error) };
+      const outputLimit = attempt.dispatched && error instanceof LanguageGenerationError && error.kind === "incomplete" && error.evidence.finish_reason === "length";
+      last.failure = { outcome, digest: languageFailureDigest(error), ...(outputLimit ? { reason: "output-limit" as const } : {}) };
       delete last.response;
-      if (outcome === "unknown" || definition.failurePolicy === "stop") { state.status = "waiting"; state.blocked = { stepId: step.id, code: "effect-needs-review", errorDigest: last.failure.digest }; }
-      return result("workflow.agent-attempt-failed", { turn: turns.length - 1, outcome });
+      if (agentFailureNeedsReview(last, definition.failurePolicy)) { state.status = "waiting"; state.blocked = { stepId: step.id, code: "effect-needs-review", errorDigest: last.failure.digest }; }
+      return result("workflow.agent-attempt-failed", { turn: turns.length - 1, outcome, ...(outputLimit ? { reason: "output-limit" } : {}) });
     }
   }
   const callIndex = last.results.length, call = last.response.calls[callIndex]!, key = agentCallKey(turns.length - 1, callIndex);
@@ -119,6 +120,8 @@ export async function advanceWorkflowAgent(args: {
     last.results.push({ callId: call.id, error: feedback.slice(0, 2000) });
     return result("workflow.agent-tool-feedback", { call_key: key, feedback_digest: sha256(feedback) });
   };
+  const recoveringOutput = turns.some(turn => turn.failure?.reason === "output-limit");
+  if (recoveringOutput && last.response.calls.length > 1) return reject("After an output cutoff, issue exactly one small Tool operation per response. Split writes by page; no calls in this response execute.");
   if (call.name === AGENT_SKILL_TOOL) {
     const input = call.input as Record<string, JsonValue>;
     if (!input || Object.keys(input).join(",") !== "path" || typeof input.path !== "string" || !definition.skills?.includes(input.path)) return reject("Skill is not in this task's declared scope.");
@@ -144,6 +147,10 @@ export async function advanceWorkflowAgent(args: {
   const tool = agent.tools.find(tool => tool.contract.runtimeId === entry.tool.runtimeId)!;
   const errors = validateJsonSchemaValue(tool.contract.inputSchema, input);
   if (errors.length) return reject(errors.join("; "));
+  if (recoveringOutput && entry.tool.risk === "R1" && turns.slice(0, -1).some(turn => turn.results.some((result, index) =>
+    result.error === undefined && turn.response?.calls[index]?.name === call.name && result.input !== undefined && jsonDigest(result.input) === jsonDigest(input)))) {
+    return reject("This exact write already succeeded earlier in this task. Use its retained receipt; do not repeat saved work. Read current state before proposing a different remaining change.");
+  }
   const runtime = new CompanyOSRuntime({ artifact, state: options.control, connectors: await options.connectors(artifact), workflowContext: reader });
   let output: unknown;
   try { output = await runtime.execute({ runId: run.runId, stepId: workflowExecutionStepId(step.id, key), agentId: workflow.agentId,

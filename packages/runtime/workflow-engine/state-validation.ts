@@ -158,7 +158,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
 export function validateWorkflowLease(args: { owner: string; token: string; now: string; expiresAt: string }): void {
   identifier(args.owner); identifier(args.token); workflowInstant(args.now); workflowInstant(args.expiresAt);
   const duration = Date.parse(args.expiresAt) - Date.parse(args.now);
-  if (duration <= 0 || duration > 300_000) throw new Error("Workflow worker lease must last at most five minutes");
+  if (duration <= 0 || duration > 600_000) throw new Error("Workflow worker lease must last at most ten minutes");
 }
 
 export function validateWorkflowAssignment(assignment: WorkflowAssignment, identity: WorkflowRunIdentity, artifact: CompanyOSArtifact, now: string): void {

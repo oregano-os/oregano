@@ -2,7 +2,7 @@ import { modelToolResult } from "./workflow-agent-context.ts";
 import { generateText, tool, jsonSchema, type ModelMessage } from "ai";
 import type { JsonValue } from "../../../capabilities/contracts.ts";
 import type { WorkflowAgentGenerator } from "../../../runtime/workflow-engine/agent-contract.ts";
-import { AGENT_SKILL_TOOL, AGENT_FINISH_TOOL } from "../../../runtime/workflow-engine/agent-contract.ts";
+import { AGENT_SKILL_TOOL, AGENT_FINISH_TOOL, AGENT_MODEL_TIMEOUT_MS } from "../../../runtime/workflow-engine/agent-contract.ts";
 import { LanguageGenerationError } from "../../../language/contracts.ts";
 import { sha256 } from "../../../runtime/canonical.ts";
 import { agentInstructions } from "./agent-instructions.ts";
@@ -15,7 +15,8 @@ export function createWorkflowAgentGenerator(dependencies: {
   return async request => {
     const execution = dependencies.resolve({ profile: request.profile, task: request.task, requiredCapability: "tools" });
     const reasoning = execution.selection.reasoningEffort ?? "low";
-    const selection = { ...execution.selection, reasoningEffort: reasoning };
+    const timeoutMs = Math.min(execution.selection.timeoutMs ?? 90_000, AGENT_MODEL_TIMEOUT_MS);
+    const selection = { ...execution.selection, reasoningEffort: reasoning, timeoutMs };
     const declarations = [...request.tools];
     if (request.completion !== "text") declarations.push({ name: AGENT_FINISH_TOOL,
       description: "Submit the completed task only after reading back and verifying its saved results. Validation feedback keeps this same task open. This Tool does not itself write knowledge.", inputSchema: request.outputSchema });
@@ -31,7 +32,9 @@ export function createWorkflowAgentGenerator(dependencies: {
       request.instructions.map((content, i) => `<task-skill index="${i}">\n${content}\n</task-skill>`).join("\n");
     const messages: ModelMessage[] = [{ role: "user", content: JSON.stringify(request.context) }];
     for (const turn of request.turns) {
-      if (turn.failure) { messages.push({ role: "user", content: "The preceding model response did not complete. No Tool calls from it were executed. Continue the same task, keeping the next output bounded." }); continue; }
+      if (turn.failure) { messages.push({ role: "user", content: turn.failure.reason === "output-limit"
+        ? "The preceding response hit its output-token limit. No Tool calls from that response were executed. Earlier confirmed Tool results and saved writes remain valid: do not repeat them. Continue only the remaining work in this same task. Issue exactly one small Tool operation per response, write one page at a time, and use narrow updates where available. Read the saved state if uncertain. Keep explanations brief; never shorten or drop required source evidence. The failed response still counts against the unchanged cumulative budget."
+        : "The preceding model response did not complete. No Tool calls from it were executed. Continue the same task, keeping the next output bounded." }); continue; }
       if (!turn.response) throw new Error("Unresolved model turn cannot be sent again");
       messages.push(...turn.response.messages as unknown as ModelMessage[]);
       if (turn.results.length) messages.push({ role: "tool", content: turn.results.map((result, i) => ({
@@ -50,7 +53,7 @@ export function createWorkflowAgentGenerator(dependencies: {
     let generated;
     try { generated = await dependencies.generate({ model: execution.model, system, messages, tools,
       reasoning, maxOutputTokens: outputTokens,
-      maxRetries: 0, abortSignal: AbortSignal.timeout(Math.min(execution.selection.timeoutMs ?? 90_000, 120_000)) }); }
+      maxRetries: 0, abortSignal: AbortSignal.timeout(timeoutMs) }); }
     catch { throw new LanguageGenerationError("Agent provider outcome is unavailable", "provider-error", {
       model_execution: modelExecutionEvidence(selection, { response: { id: "", modelId: "" }, usage: {} }), ...instructionEvidence, reasoning, finish_reason: null,
     }); }

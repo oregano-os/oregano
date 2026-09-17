@@ -321,7 +321,9 @@ stable opening key. The engine must derive scheduled opening keys from declared
 instance fields and keep an explicit operator request identity for independent
 runs. Reusing an opening key with changed inputs fails.
 
-A worker holds an expiring lease for at most five minutes. State commits require
+A worker holds an expiring lease for at most ten minutes. Ordinary Workflows use
+five minutes; Workflows containing Agent steps use ten minutes to cover the
+maintained six-minute provider timeout and receipt persistence. State commits require
 the same current lease and optimistic revision, retain completed outputs and
 decision bindings, append an event, and bind delivered conversations atomically.
 A conflicting conversation assignment rolls back the entire transition. Exact
@@ -866,7 +868,7 @@ projection. It never establishes absence of feedback, approvals or provider even
 An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-demand
 `skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
 a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, a structured
-`output_schema` or `completion: text`, and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+`output_schema` or `completion: text`, and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=32000).
 `task` accepts a literal model-task name or an ordinary Workflow reference to a
 string. The compiler checks its producer and requires referenced output paths;
 the runtime resolves and validates the name before preparing a paid attempt.
@@ -915,6 +917,29 @@ the opt-in `failure_policy: stop` also stops known incomplete output with retain
 usage. Both stopped outcomes require an explicit exact operator retry; resume alone
 never repeats a paid generation. Historical definitions without this policy retain
 their bounded known-incomplete continuation behavior and immutable journals.
+
+`failure_policy: continue-output-limit` opts into automatic continuation only for
+an actually dispatched, known incomplete response whose trusted host finish reason
+is `length`. Other incomplete results and unknown outcomes remain stopped. The
+failed turn retains a typed `output-limit` reason, usage and reservation; no partial
+Tool call is retained or executed. Its next turn uses the same source, Artifact,
+conversation and cumulative budgets. A cutoff counts as a no-progress turn; missing
+usage consumes its reservation. Exhausting any turn, output, Tool or no-progress
+bound still stops the task. Ordinary resume never resets those bounds.
+
+After a known cutoff the host supplies explicit repair instructions: preserve
+confirmed receipts, perform only remaining work, issue one small operation per
+response and split page writes. Core rejects multi-call responses before any Tool
+executes and rejects an exact previously successful R1 input without re-dispatch.
+Reads remain repeatable so the Agent can inspect current state. Existing write
+idempotency, revision and provenance validation still apply to every new operation.
+This is technical recovery, not a content critic or a completion override.
+
+The maintained Agent host accepts a reviewed model timeout up to 360 seconds.
+The operator and steps endpoints allow 600 seconds, and the steps-worker timer
+lease also covers 600 seconds. The existing 150-second dispatch window leaves
+headroom for one final 360-second call plus receipt persistence. Other endpoints,
+ordinary Tool deadlines and task budgets remain unchanged.
 
 Structured completion is the default: `companyos_finish_task` validates the result
 and optional Company validator. Feedback

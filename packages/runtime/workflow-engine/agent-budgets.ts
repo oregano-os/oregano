@@ -7,6 +7,7 @@ export function agentNoProgressTurns(turns: readonly WorkflowAgentTurn[]): numbe
   const seen = new Set<string>();
   let idle = 0;
   for (const turn of turns) {
+    if (turn.failure?.reason === "output-limit") { idle++; continue; }
     if (!turn.response || turn.results.length !== turn.response.calls.length) continue;
     let progressed = false;
     for (const [i, result] of turn.results.entries()) {

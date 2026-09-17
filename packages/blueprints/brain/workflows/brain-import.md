@@ -69,7 +69,7 @@ steps:
       execution: null
     then: end
   - process-source: agent
-    failure_policy: stop
+    failure_policy: continue-output-limit
     context: $steps.agent-context.task
     instructions: $config.agent.instructions
     skills: $config.agent.skills

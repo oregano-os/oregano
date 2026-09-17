@@ -1,5 +1,6 @@
 import { assertUnwrittenSource, sourceContinuationOrigin, sourceContinuationRunId } from "./source-continuation.ts";
 import { readLanguageAttempts } from "../../language/attempts.ts";
+import { AGENT_HOST_DURATION_MS } from "./agent-contract.ts";
 import { advanceWorkflowAgent } from "./agent-execution.ts";
 import type { WorkflowAgentGenerator } from "./agent-contract.ts";
 import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
@@ -279,7 +280,11 @@ export class WorkflowEngine {
     this.#enabled(existing.workflowId); await this.#ensureTimers(existing);
     if (existing.state.status === "waiting") return existing;
     const now = this.#now();
-    const run = await store.claim({ instanceId, runId, owner: "workflow-worker", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    // The immutable Workflow, not a stale cursor, determines lease headroom:
+    // another worker may advance the cursor between this read and our claim.
+    const { workflow: leaseWorkflow } = await this.#definition(existing);
+    const leaseMs = leaseWorkflow.steps.some(step => step.agent) ? AGENT_HOST_DURATION_MS : 300_000;
+    const run = await store.claim({ instanceId, runId, owner: "workflow-worker", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + leaseMs).toISOString() });
     if (!run) return store.read(instanceId, runId);
     try {
       const { artifact, workflow, step } = await this.#definition(run);

@@ -1,7 +1,7 @@
 import type { CompiledWorkflowStep } from "../../companyos-builder/workflow-types.ts";
 import type { WorkflowStepState } from "../../state-store/workflow-engine.ts";
 import { canonicalJson } from "../canonical.ts";
-import { AGENT_FINISH_TOOL, isTextCompletion } from "./agent-contract.ts";
+import { AGENT_FINISH_TOOL, agentFailureNeedsReview, isTextCompletion } from "./agent-contract.ts";
 
 /** Append-only conversation evidence. A prepared turn can gain one response and ordered results. */
 export function validateAgentState(step: WorkflowStepState, declaration: CompiledWorkflowStep, prior?: WorkflowStepState): void {
@@ -38,7 +38,8 @@ export function validateAgentState(step: WorkflowStepState, declaration: Compile
         || !Number.isFinite(Date.parse(retry.authorizedAt)) || new Date(retry.authorizedAt).toISOString() !== retry.authorizedAt
         || (!before?.retryAuthorization && (!before?.failure || index !== old.length - 1 || turns.length !== old.length))) throw new Error("Invalid explicit Agent model retry proof");
     }
-    if (turn.failure && (!['failed', 'unknown'].includes(turn.failure.outcome) || !/^[a-f0-9]{64}$/.test(turn.failure.digest))) throw new Error("Invalid Agent failure evidence");
+    if (turn.failure && (!['failed', 'unknown'].includes(turn.failure.outcome) || !/^[a-f0-9]{64}$/.test(turn.failure.digest)
+      || turn.failure.reason !== undefined && (turn.failure.reason !== "output-limit" || turn.failure.outcome !== "failed"))) throw new Error("Invalid Agent failure evidence");
     if (turn.response) {
       const response = turn.response;
       if (!Array.isArray(response.messages) || !Array.isArray(response.calls) || response.calls.length > 16
@@ -54,7 +55,7 @@ export function validateAgentState(step: WorkflowStepState, declaration: Compile
       || (result.error === undefined) === (result.output === undefined)
       || (result.error !== undefined && (typeof result.error !== "string" || !result.error.length || result.error.length > 2000))) throw new Error("Invalid Agent Tool result");
     if (index < turns.length - 1 && declaration.agent.completion === "text" && isTextCompletion(turn.response)) throw new Error("Agent cannot advance beyond its final text response");
-    if (index < turns.length - 1 && (turn.failure && (turn.failure.outcome === "unknown" || declaration.agent.failurePolicy === "stop") && !turn.retryAuthorization || (!turn.failure && (!turn.response || turn.results.length !== turn.response.calls.length)))) throw new Error("Agent cannot advance beyond an unresolved turn");
+    if (index < turns.length - 1 && (agentFailureNeedsReview(turn, declaration.agent.failurePolicy) || (!turn.failure && (!turn.response || turn.results.length !== turn.response.calls.length)))) throw new Error("Agent cannot advance beyond an unresolved turn");
   }
   if (calls > declaration.agent.budget.toolCalls) throw new Error("Agent Tool budget exhausted");
   if (step.status === "succeeded") {

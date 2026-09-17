@@ -38,7 +38,7 @@ export interface CompiledWorkflowStep {
   maxRisk: RiskLevel;
   input?: WorkflowValue;
   agent?: {
-    context: WorkflowValue; instructions: string[]; skills?: string[]; instructionSelection?: WorkflowValue; failurePolicy?: "stop"; completion?: "text"; profile: WorkflowValue; task: string;
+    context: WorkflowValue; instructions: string[]; skills?: string[]; instructionSelection?: WorkflowValue; failurePolicy?: "stop" | "continue-output-limit"; completion?: "text"; profile: WorkflowValue; task: string;
     tools: Array<{ tool: ResolvedTool; bind: Record<string, WorkflowValue> }>;
     outputSchema: import("../capabilities/contracts.ts").JsonSchema;
     validator?: ResolvedTool;

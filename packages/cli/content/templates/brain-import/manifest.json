@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "workflow_digest": "89d8e0bd6418ed3891793c35d18956f83a57708fe847d1da0e5697c3dbcfe2c7",
+  "workflow_digest": "5bb251b1afab91c7815f9511343dad2896ce4b4e5bb281ef660cf85d60465b02",
   "files": [
     {
       "path": "tools/brain-agent-context/TOOL.md",
@@ -307,5 +307,5 @@
       "digest": "bbe58d1bf14e624ba8406b456d5b81a07e8aa8776c94eb6af8192db1a8c60457"
     }
   ],
-  "agent_instruction_digest": "863408818ab29f57cedda5922d2801d1bf81a595a74580e338894c72d1dfe968"
+  "agent_instruction_digest": "c3ce6ad9d5c2cd1c06b0c2d26401d451d5055a26858db5ec9b8ec8f2f85b079f"
 }

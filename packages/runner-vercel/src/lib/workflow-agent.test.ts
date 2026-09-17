@@ -95,3 +95,37 @@ test("text completion exposes no finish Tool or structured-completion instructio
   assert.equal(value.response.calls.length, 0); assert.equal(value.response.finishReason, "stop");
   assert.match(value.response.text, /uncertainty/);
 });
+
+test("known cutoff feedback preserves completed receipts and asks for one small remaining operation", async () => {
+  const generate = createWorkflowAgentGenerator({ resolve: (() => ({ model: "test", selection: {} })) as typeof resolveModelExecution,
+    generate: (async (options: any) => {
+      assert.deepEqual(options.messages[2].content[0].output, { type: "json", value: { saved_commit: "synthetic-saved-commit" } });
+      const feedback = options.messages[3].content;
+      assert.match(feedback, /output-token limit/); assert.match(feedback, /one small Tool operation/);
+      assert.match(feedback, /do not repeat/); assert.match(feedback, /one page at a time/);
+      return { text: "Done", finishReason: "stop", toolCalls: [], response: { id: "after-cutoff", modelId: "test", messages: [] }, usage: {} };
+    }) as unknown as typeof generateText });
+  const input = request(); input.turns = [
+    { attemptId: "saved", response: { messages: [{ role: "assistant", content: "Saving" }], text: "", finishReason: "tool-calls", calls: [{ id: "saved-call", name: "write_page", input: {} }] }, results: [{ callId: "saved-call", output: { saved_commit: "synthetic-saved-commit" } }] },
+    { attemptId: "cutoff", failure: { outcome: "failed", digest: "a".repeat(64), reason: "output-limit" }, results: [] },
+  ];
+  await generate(input);
+});
+
+test("reviewed output and timeout bounds reach the provider while smaller reservations still win", async t => {
+  const timeouts: number[] = [];
+  t.mock.method(AbortSignal, "timeout", (ms: number) => { timeouts.push(ms); return new AbortController().signal; });
+  for (const remaining of [32000, 16000]) {
+    const generate = createWorkflowAgentGenerator({ resolve: (() => ({ model: "test", selection: { maxOutputTokens: 32000, timeoutMs: 360000 } })) as typeof resolveModelExecution,
+      generate: (async (options: any) => {
+        assert.equal(options.maxOutputTokens, remaining); assert.equal(options.maxRetries, 0);
+        return { text: "Done", finishReason: "stop", toolCalls: [], response: { id: "bounded", modelId: "test", messages: [] }, usage: {} };
+      }) as unknown as typeof generateText });
+    const input = { ...request(), outputTokens: remaining };
+    input.beforeDispatch = async (selection, _evidence, reservation) => {
+      assert.equal(selection.timeoutMs, 360000); assert.equal(reservation!.outputTokens, remaining);
+    };
+    await generate(input);
+  }
+  assert.deepEqual(timeouts, [360000, 360000]);
+});

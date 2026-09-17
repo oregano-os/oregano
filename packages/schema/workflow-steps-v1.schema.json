@@ -381,7 +381,7 @@
             ]
           },
           "failure_policy": {
-            "const": "stop"
+            "enum": ["stop", "continue-output-limit"]
           },
           "completion": {
             "const": "text"

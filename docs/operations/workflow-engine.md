@@ -646,11 +646,32 @@ include earlier generation steps such as utility triage in complete import cost
 reports. Missing usage is not zero cost.
 
 Unknown model responses stop without an automatic paid continuation. With
-`failure_policy: stop` (used by new Brain imports), known incomplete responses stop
-as well; historical definitions retain their original bounded continuation policy. `resume` does not authorize another model call. An explicit exact
+`failure_policy: stop`, known incomplete responses stop as well. New Brain imports
+use `failure_policy: continue-output-limit`: only a retained, dispatched `length`
+cutoff automatically continues within the same journal. Partial calls are discarded,
+prior successful receipts are replayed as context, exact repeated successful R1
+inputs are rejected, and recovery permits one Tool operation per response.
+Cutoffs consume output budget and count toward the no-progress limit. Unknown
+outcomes, other finish reasons and historical definitions retain their stop policy. `resume` does not authorize another model call. An explicit exact
 `retry-agent-model` action can authorize another attempt only for a dispatched
 failed/unknown response; it retains prior costs and cannot reset the original
 budgets or discard saved Tool results. A local pre-dispatch budget rejection
 requires correcting the reviewed configuration, not pretending it was a paid
 failure or silently switching to another pipeline. No-progress stops similarly
 remain unfinished; never mark a partially written source as ingested.
+
+### Agent output recovery and hosting headroom
+
+New Brain imports allow 32,000 tokens per response; the remaining 48,000-token
+task allowance may reduce the next response ceiling. This is not a budget reset.
+Use a reviewed 360,000 ms model binding when adopting the larger allowance. The
+host caps Agent calls at 360 seconds, with 600-second operator/steps endpoints,
+a 600-second steps-worker timer lease and a 600-second Agent-Workflow lease.
+The existing 150-second dispatch window leaves 90 seconds of headroom. Workflows without
+Agent steps retain their five-minute lease. Unavailable transport remains unknown
+and requires explicit reconciliation/retry; it is never classified as a cutoff.
+
+A configuration change applies to newly built Artifacts. It neither rewrites an
+old run's budgets/policy nor restarts completed or stopped sources. Qualify recovery
+with a saved operation, a known cutoff, a worker restart and the remaining work;
+verify unchanged source identity, preserved receipts and all failed-attempt costs.

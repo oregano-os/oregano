@@ -16,6 +16,7 @@ import { LanguageGenerationError } from "../../language/contracts.ts";
 import { readLanguageAttempts } from "../../language/attempts.ts";
 import type { ModelExecutionSelection } from "../../runner/model-execution.ts";
 import { resolveModelExecutionSelection } from "../../runner/model-execution.ts";
+import { WorkflowWorkers } from "../../runtime/workflow-engine/workers.ts";
 import { advanceWorkflowAgent } from "../../runtime/workflow-engine/agent-execution.ts";
 
 const selection = { profile: "reasoning", model: "synthetic/test", route: "openai-compatible" } as ModelExecutionSelection;
@@ -230,7 +231,7 @@ test("a lost read snapshot repeats only the read and retains the same model resp
   const commit = h.store.commit.bind(h.store); let drop = true;
   h.store.commit = async args => { if (drop && args.event.name === "workflow.agent-tool-completed") { drop = false; return undefined; } return commit(args); };
   run = (await h.engine().step(run.runId))!; assert.equal(h.calls.length, 1);
-  h.now = "2030-01-04T14:36:00.000Z";
+  h.now = "2030-01-04T14:41:00.000Z";
   run = (await h.engine().advance(run.runId))!;
   assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(h.calls.length, 2); assert.equal(m.calls, 2);
 });
@@ -367,4 +368,130 @@ test("empty text and ordinary prose in structured mode cannot silently complete 
     assert.equal(run.state.status, "waiting"); assert.equal(m.calls, 2);
     assert.notEqual(run.state.steps.work!.status, "succeeded");
   }
+});
+
+test("output-cutoff recovery preserves saved writes, charges the failed turn and survives worker restart", async () => {
+  const artifact = fixture((data, _files, agent) => {
+    const step = data.steps[0]; step.failure_policy = "continue-output-limit";
+    step.budget = { turns: 12, tool_calls: 48, output_tokens: 32000, total_output_tokens: 48000, no_progress_turns: 3 };
+    // Synthetic R1 Tool: the connector counts every invocation and has no deduplication.
+    const grant = step.tools[0].tool;
+    agent.tools.find((tool: any) => tool.contract.grantId === grant).contract.risk = "R1";
+    const resolved = agent.toolSet.tools.find((tool: any) => tool.grantId === grant);
+    resolved.risk = "R1"; resolved.contractDigest = sha256(agent.tools.find((tool: any) => tool.contract.grantId === grant).contract);
+  });
+  const name = agentToolName(artifact.workflows![0]!.steps[0]!.agent!.tools[0]!.tool.grantId);
+  const m = model([[{ name, input: {} }], [{ name, input: {} }], [{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  let calls = 0;
+  const h = engineFixture({ artifact, agentGenerator: async request => {
+    if (calls++ === 1) {
+      await request.beforeDispatch(selection, { system_prompt_digest: "a".repeat(64), system_instruction_characters: 12 }, { inputBytes: 1000, outputTokens: request.outputTokens });
+      throw new LanguageGenerationError("Synthetic cutoff", "incomplete", { finish_reason: "length", model_execution: { outputTokens: 32000 } });
+    }
+    if (calls === 3) {
+      assert.equal(request.outputTokens, 15980);
+      assert.equal(request.turns[0]!.results.length, 1);
+      assert.equal(request.turns[1]!.failure?.reason, "output-limit");
+    }
+    if (calls === 4) assert.match(request.turns[2]!.results[0]!.error!, /already succeeded/);
+    return m.generate(request);
+  } });
+  let run = await open(h);
+  while (!run.state.steps.work?.agent?.turns.at(-1)?.failure) run = (await h.engine().step(run.runId))!;
+  const prior = structuredClone(run), paid = await readLanguageAttempts(h.control, [run.runId]);
+  assert.equal(run.state.status, "running"); assert.equal(h.calls.length, 1);
+  run = (await h.engine().advance(run.runId))!;
+  assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(calls, 4);
+  assert.equal(run.runId, prior.runId); assert.equal(run.artifactHash, prior.artifactHash);
+  assert.deepEqual(run.fields, prior.fields);
+  assert.deepEqual(run.state.steps.work!.agent!.turns.slice(0, 2), prior.state.steps.work!.agent!.turns);
+  assert.equal(h.calls.length, 1, "An exact repeated confirmed R1 write must not dispatch");
+  const attempts = await readLanguageAttempts(h.control, [run.runId]);
+  assert.equal(attempts.length, 4); assert.equal(attempts.filter(a => a.status === "failed").length, 1);
+  for (const earlier of paid) assert.deepEqual(attempts.find(a => a.attempt_id === earlier.attempt_id), earlier);
+  await h.engine().advance(run.runId); assert.equal(calls, 4); assert.equal(h.calls.length, 1);
+});
+
+test("output recovery permits only confirmed length failures; stop and unknown outcomes remain blocked", async () => {
+  for (const [policy, kind, finish] of [
+    ["stop", "incomplete", "length"], ["continue-output-limit", "provider-error", "length"],
+    ["continue-output-limit", "incomplete", "content-filter"], ["continue-output-limit", "incomplete", undefined],
+  ] as const) {
+    let calls = 0;
+    const h = engineFixture({ artifact: fixture(data => { data.steps[0].failure_policy = policy; }), agentGenerator: async request => {
+      calls++; await request.beforeDispatch(selection, { system_prompt_digest: "a".repeat(64), system_instruction_characters: 12 });
+      throw new LanguageGenerationError("Synthetic incomplete outcome", kind, { finish_reason: finish });
+    } });
+    let run = (await h.engine().advance((await open(h)).runId))!;
+    assert.equal(run.state.status, "waiting"); assert.equal(calls, 1);
+    await h.engine().resume(run.runId, ENGINE_OPERATOR); run = (await h.engine().advance(run.runId))!;
+    assert.equal(run.state.status, "waiting"); assert.equal(calls, 1);
+  }
+});
+
+test("consecutive cutoffs exhaust no-progress, cumulative output or turn bounds without resets", async () => {
+  for (const limit of ["no-progress", "output", "turns", "missing-usage"]) {
+    let calls = 0;
+    const artifact = fixture(data => {
+      data.steps[0].failure_policy = "continue-output-limit";
+      data.steps[0].budget = { turns: limit === "turns" ? 1 : 12, tool_calls: 48, output_tokens: 32000,
+        total_output_tokens: 48000, no_progress_turns: limit === "no-progress" ? 2 : 8 };
+    });
+    const h = engineFixture({ artifact, agentGenerator: async request => {
+      calls++; await request.beforeDispatch(selection, { system_prompt_digest: "a".repeat(64), system_instruction_characters: 12 }, { inputBytes: 1000, outputTokens: request.outputTokens });
+      if (calls === 2 && ["output", "missing-usage"].includes(limit)) assert.equal(request.outputTokens, 16000);
+      throw new LanguageGenerationError("Synthetic cutoff", "incomplete", { finish_reason: "length",
+        model_execution: limit === "missing-usage" ? {} : { outputTokens: limit === "no-progress" ? 100 : request.outputTokens } });
+    } });
+    let run = (await h.engine().advance((await open(h)).runId))!;
+    assert.equal(run.state.status, "waiting"); assert.equal(calls, limit === "turns" ? 1 : 2);
+    assert.equal(h.calls.length, 0);
+    await h.engine().resume(run.runId, ENGINE_OPERATOR); run = (await h.engine().advance(run.runId))!;
+    assert.equal(calls, limit === "turns" ? 1 : 2); assert.equal(run.state.status, "waiting");
+  }
+});
+
+test("recovery rejects oversized operation batches before dispatch and then accepts one operation", async () => {
+  const artifact = fixture(data => { data.steps[0].failure_policy = "continue-output-limit"; });
+  const name = agentToolName(artifact.workflows![0]!.steps[0]!.agent!.tools[0]!.tool.grantId);
+  const m = model([[{ name, input: {} }, { name, input: {} }], [{ name, input: {} }], [{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  let calls = 0;
+  const h = engineFixture({ artifact, agentGenerator: async request => {
+    if (calls++ === 0) {
+      await request.beforeDispatch(selection, { system_prompt_digest: "a".repeat(64), system_instruction_characters: 12 });
+      throw new LanguageGenerationError("Synthetic cutoff", "incomplete", { finish_reason: "length" });
+    }
+    return m.generate(request);
+  } });
+  const run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(h.calls.length, 1);
+  assert.ok(run.state.steps.work!.agent!.turns[1]!.results.every(r => /exactly one small/.test(r.error!)));
+});
+
+test("Agent response persists after the old five-minute lease boundary", async () => {
+  const m = model([[{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  const h = engineFixture({ artifact: fixture(), agentGenerator: async request => {
+    const value = await m.generate(request);
+    h.now = new Date(Date.parse(h.now) + 350_000).toISOString();
+    return value;
+  } });
+  const run = (await h.engine().advance((await open(h)).runId))!;
+  assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(m.calls, 1);
+});
+
+
+test("the steps worker retains its timer lease while a long Agent response is saved", async () => {
+  const m = model([[{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+  const h = engineFixture({ artifact: fixture(), agentGenerator: async request => {
+    const value = await m.generate(request);
+    h.now = new Date(Date.parse(h.now) + 350_000).toISOString();
+    return value;
+  } });
+  const run = await open(h);
+  const workers = new WorkflowWorkers({ artifact: h.artifact, engine: h.engine(), store: h.store, timers: h.timers, clock: () => h.now,
+    configuration: { enabledWorkflowIds: [run.workflowId], autoOpenWorkflowIds: [], schedulePrincipal: ENGINE_OPERATOR, activatedAt: h.now, maxLatenessMinutes: 5 } });
+  const result = await workers.run("steps");
+  assert.equal(result.ok, true, JSON.stringify(result.errors)); assert.equal(m.calls, 1);
+  assert.equal((await h.store.read(run.instanceId, run.runId))!.state.status, "done");
+  assert.equal((await h.timers.list("workflow-host-steps"))[0]!.state, "completed");
 });

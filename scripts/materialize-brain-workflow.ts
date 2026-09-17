@@ -135,7 +135,7 @@ export function materializeBrainWorkflow(input: BrainWorkflowInputs) {
     }).map(([kind, names]) => [kind, names.map(name => `agents/${input.prompt.agent_id}/skills/brain-${name}/SKILL.md`)])) },
     agent: { instructions: [`agents/${input.prompt.agent_id}/skills/brain-task/SKILL.md`],
       skills: Object.keys(agentSkills).filter(path => !path.endsWith("/brain-task/SKILL.md")),
-      budget: { turns: 12, tool_calls: 48, output_tokens: 12000, total_output_tokens: 48000, no_progress_turns: 2 } },
+      budget: { turns: 12, tool_calls: 48, output_tokens: 32000, total_output_tokens: 48000, no_progress_turns: 2 } },
     source_history: { workflow_id: workflowId, from: history } };
   const materials: Record<string, string> = { ...prompts.materials, ...agentSkills, [`workflows/${workflowId}.md`]: `---\n${YAML.stringify(workflow)}---\n${body.replaceAll("[brain-owner,", `[${input.prompt.agent_id},`)}`, [workflow.config]: YAML.stringify(config) };
   for (const [path, text] of Object.entries(assets).filter(([path]) => declaredTools.includes(`company:${path.split("/")[1]}`))) materials[`agents/${input.prompt.agent_id}/${path}`] = text;

@@ -29,7 +29,7 @@ export interface WorkflowAgentTurn {
   /** Missing usage consumes the reserved response ceiling rather than counting as free. */
   outputTokensUsed?: number;
   response?: WorkflowAgentResponse;
-  failure?: { outcome: "failed" | "unknown"; digest: string };
+  failure?: { outcome: "failed" | "unknown"; digest: string; reason?: "output-limit" };
   /** Explicit further generation, never a claim that the unavailable attempt was free. */
   retryAuthorization?: { principal: string; authorizedAt: string; reasonDigest: string };
   results: Array<{ callId: string; input?: JsonValue; output?: JsonValue; error?: string }>;

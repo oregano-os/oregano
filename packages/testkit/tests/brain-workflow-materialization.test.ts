@@ -43,6 +43,9 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   }
   assert.equal(result.prompts.length, 21);
   assert.equal(config.agent.budget.turns, 12);
+  assert.equal(config.agent.budget.output_tokens, 32000);
+  assert.equal(processing.failure_policy, "continue-output-limit");
+  assert.ok(!result.materials["agents/analyst/skills/brain-task/SKILL.md"].includes("Keep that direct link in a same-line source comment"));
   assert.equal(config.prompts.one_shot, undefined);
   assert.equal(config.agent.budget.total_input_bytes, undefined);
   assert.equal(config.agent.budget.total_output_tokens, 48000);
