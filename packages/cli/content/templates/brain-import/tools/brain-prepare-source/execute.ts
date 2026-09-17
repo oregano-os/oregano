@@ -4,7 +4,7 @@ export default defineCompanyTool({ async execute(input) {
   if (x.records.access_decision?.allowed !== true || x.records.next_cursor) throw new Error("Source Records read is incomplete or unauthorized");
   if (!Array.isArray(x.records.rows) || x.records.rows.length !== 1) throw new Error("Exactly one selected source version is required");
   const v = x.records.rows[0].values;
-  if (!v || v.identity !== x.identity || v.version !== x.version || v.complete !== true || !['meeting', 'discussion'].includes(v.kind)) throw new Error("Source identity, version or complete coverage does not match");
+  if (!v || v.identity !== x.identity || v.version !== x.version || v.complete !== true || !['meeting', 'discussion', 'article', 'idea', 'document', 'media', 'publication'].includes(v.kind)) throw new Error("Source identity, version or complete coverage does not match");
   if (typeof v.text !== 'string' || !v.text.trim() || v.text.length > 2000000) throw new Error("Source text is absent or exceeds the bounded workflow capacity");
   const remote = typeof v.original_url === 'string' && /^https:\/\/[^\s@]+$/.test(v.original_url);
   const local = v.identity.startsWith('local:raw/') && typeof v.original_url === 'string' && /^file:\/\/\/[^\s?#]+$/.test(v.original_url);

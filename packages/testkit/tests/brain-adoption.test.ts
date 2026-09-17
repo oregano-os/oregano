@@ -360,7 +360,8 @@ test("a continuing Agent saves Brain knowledge before completion and recovers a 
     executions.commit = async args => { if (drop && args.event.name === "workflow.agent-tool-completed") { drop = false; return undefined; } return commit(args); };
     run = (await engine().step(run.runId))!;
     assert.equal(commits, 1); assert.equal(models, 1); assert.equal(run.state.status, "running"); assert.ok(files[path]!.includes("A sourced incremental update."));
-    now = "2030-01-01T00:06:00.000Z";
+    // Reclaim only after the Agent Workflow's ten-minute worker lease expires.
+    now = "2030-01-01T00:11:00.000Z";
     run = (await engine().advance(run.runId))!;
     assert.equal(run.state.status, "done", JSON.stringify(run.state.blocked)); assert.equal(commits, 1); assert.equal(models, 2);
     assert.equal((run.state.steps.work!.agent!.turns[1]!.results[0]!.output as any).page.markdown, files[path]);

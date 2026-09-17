@@ -103,7 +103,7 @@ test("a lost completion event recovers its usage from the effect without another
 test("invalid bounded output is charged and failed, while missing dispatch evidence cannot pass", async () => {
   for (const callback of [true, false]) {
     const state = new InMemoryStateStore();
-    await assert.rejects(connector(state, async request => { if (callback) await request.beforeDispatch!(selection); return { text: "x".repeat(20001), evidence: { model_execution: usage } }; }).invoke("language.generate", input, context));
+    await assert.rejects(connector(state, async request => { if (callback) await request.beforeDispatch!(selection); return { text: "x".repeat(60001), evidence: { model_execution: usage } }; }).invoke("language.generate", input, context));
     assert.equal((await readLanguageAttempts(state, [context.runId]))[0].status, callback ? "failed" : "unknown");
   }
 });

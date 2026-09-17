@@ -1,30 +1,30 @@
 {
   "version": 2,
-  "workflow_digest": "3221bd6fe9e5b1f010c9bdf41b5c444b1cfa4123d58b436df158ef0372013913",
+  "workflow_digest": "5bb251b1afab91c7815f9511343dad2896ce4b4e5bb281ef660cf85d60465b02",
   "files": [
     {
       "path": "tools/brain-agent-context/TOOL.md",
-      "digest": "5f3ff9f6ea4230b8ddc750691b4649e5da31983d5af13ecf9f7a9aa5fad58667"
+      "digest": "99bfd0b157cdc38dfd2cdc4772de72521b6d832e6c3076298eafeedd2bc69d00"
     },
     {
       "path": "tools/brain-agent-context/execute.ts",
-      "digest": "2f5c52c6a34aa2a553febedc9bc42d30347bf443f37819dda986fc4ed62a31cd"
+      "digest": "9f5e21d8f854cd06c5a694958d573985de434e06c731f1ff8835c5d2ee6b4c5d"
     },
     {
       "path": "tools/brain-agent-outcome/TOOL.md",
-      "digest": "30474b0f74794801751a82ddd95609789989b45951cad6ed41af3eb112857e27"
+      "digest": "c5908a91cc44afe5193b8f5c5074b20fdbf4ad15f021a5f88de70e6d067b3da1"
     },
     {
       "path": "tools/brain-agent-outcome/execute.ts",
-      "digest": "5610baca34c96efefb0ad44f06773618d39aa3295707363bbebe819de5f9a767"
+      "digest": "50fdd9d648ceb657afc3379ecd60b8cc72b6d5e2978e16a645ec3ab8e3cfeb76"
     },
     {
       "path": "tools/brain-check-agent-completion/TOOL.md",
-      "digest": "b4692145e84748c41a8c63bd260e54581f76cea459753c5d96bf454b07083815"
+      "digest": "b498eb0b53012d9efbe56cf979375d909ff7834fa173f8ffeb832ac5960dab5b"
     },
     {
       "path": "tools/brain-check-agent-completion/execute.ts",
-      "digest": "723e0cdafe49facbe4f046dd98418e3d2e30fc189b77c04fb1ecfe59ec5a6dc6"
+      "digest": "7ce8eb72796a3845a624fb56091e94292a3b197ad52322400966a9c2600b3f1e"
     },
     {
       "path": "tools/brain-check-correction-verification/TOOL.md",
@@ -35,20 +35,20 @@
       "digest": "e0b770d30a3df6396a03b8452eaf62524efd111815e9ca7c1206a8d1de5c6a0e"
     },
     {
-      "path": "tools/brain-check-discussion-pages/TOOL.md",
-      "digest": "f4a1e1539538a34a046ed931a645a9f3893f1df6cac767e7fc9cf4cb2220de72"
-    },
-    {
-      "path": "tools/brain-check-discussion-pages/execute.ts",
-      "digest": "4a56ecf1292f95dfb19fce2704bd288e03008f1bb794c41dc9e099cf4e7f98c8"
-    },
-    {
       "path": "tools/brain-check-discussion/TOOL.md",
       "digest": "ca67f252b90e11ce3346c1e4eb75553e19ff815efcec35ecf4e0cb7a5fb046d7"
     },
     {
       "path": "tools/brain-check-discussion/execute.ts",
       "digest": "d1afa85abeeaa62d9909fd85c064c87e891a795ec88349225298358f943a04d8"
+    },
+    {
+      "path": "tools/brain-check-discussion-pages/TOOL.md",
+      "digest": "f4a1e1539538a34a046ed931a645a9f3893f1df6cac767e7fc9cf4cb2220de72"
+    },
+    {
+      "path": "tools/brain-check-discussion-pages/execute.ts",
+      "digest": "4a56ecf1292f95dfb19fce2704bd288e03008f1bb794c41dc9e099cf4e7f98c8"
     },
     {
       "path": "tools/brain-check-lookups/TOOL.md",
@@ -116,11 +116,35 @@
     },
     {
       "path": "tools/brain-generate/TOOL.md",
-      "digest": "e223246c80c5a9f2bdffb799cd72c9510bc070bc9ac18dbb187e2c9dc29d6ab8"
+      "digest": "cdb2446d3c3e3d8b1f15798355dfc857524df2775e0fb8100b3ac1331f8f8ab9"
     },
     {
       "path": "tools/brain-generate/execute.ts",
       "digest": "3aa9fd5afe0f518e32779f32299ddbafe0753fa6b41b448b4e99ac155a96d420"
+    },
+    {
+      "path": "tools/brain-ingestion-router/TOOL.md",
+      "digest": "0c96c221fcf2d4d80f2aa52e62ba0283711757814165045b81d1a9eb1ab71b30"
+    },
+    {
+      "path": "tools/brain-ingestion-router/execute.ts",
+      "digest": "598c4bf531a7058ebbe6b8a7ea0e06d925d5b335cb702b16ceea522bf3acb36c"
+    },
+    {
+      "path": "tools/brain-one-shot/TOOL.md",
+      "digest": "ef41c69ac970fa8d8a76714a73d37b03b8acb873d2b078319f7b80e1b48526e3"
+    },
+    {
+      "path": "tools/brain-one-shot/execute.ts",
+      "digest": "0f4258baccc4a54f1156d63353dc81ce1dc824b58aed21f950500cec23722248"
+    },
+    {
+      "path": "tools/brain-one-shot-outcome/TOOL.md",
+      "digest": "0af92b92969873705ac3d168d591a06059be2df47c06099acedec769cb33fc24"
+    },
+    {
+      "path": "tools/brain-one-shot-outcome/execute.ts",
+      "digest": "86479fc237c4fc002f097ce39846bdfefbcc572e4cc32a178e6025c935eb9e5d"
     },
     {
       "path": "tools/brain-plan-discussion/TOOL.md",
@@ -147,6 +171,14 @@
       "digest": "bf19520fb28d20be5a9845c14696dd25c9eb679835aabf0d592dbe5ba83d9daa"
     },
     {
+      "path": "tools/brain-prepare-correction/TOOL.md",
+      "digest": "89452fc2a6d7d5d8caee80d311b96dc83699334e00c7c8a0ef99ebd75459fb63"
+    },
+    {
+      "path": "tools/brain-prepare-correction/execute.ts",
+      "digest": "9f7157a464f5259f4f555bd9be05c3323b1e00f993aa4979d4e269d7ab1c0450"
+    },
+    {
       "path": "tools/brain-prepare-correction-records/TOOL.md",
       "digest": "ec1e59fdef696dc7059ba56544cf5ea0755af0abc90d2ac0481e03fb42a5adc6"
     },
@@ -163,12 +195,12 @@
       "digest": "08bcf6723817a74b30b70af384caee8f3683571936acf78afe478bd303a101b1"
     },
     {
-      "path": "tools/brain-prepare-correction/TOOL.md",
-      "digest": "89452fc2a6d7d5d8caee80d311b96dc83699334e00c7c8a0ef99ebd75459fb63"
+      "path": "tools/brain-prepare-discussion/TOOL.md",
+      "digest": "2eac814f5a0b365731c225c404b137ab4add495fff744f1437da17760485bc57"
     },
     {
-      "path": "tools/brain-prepare-correction/execute.ts",
-      "digest": "9f7157a464f5259f4f555bd9be05c3323b1e00f993aa4979d4e269d7ab1c0450"
+      "path": "tools/brain-prepare-discussion/execute.ts",
+      "digest": "4ae54df51dccaed3e67a6bfff2774e5e7984c689db88ca3f6d15e44c1fb2a02c"
     },
     {
       "path": "tools/brain-prepare-discussion-pages/TOOL.md",
@@ -177,14 +209,6 @@
     {
       "path": "tools/brain-prepare-discussion-pages/execute.ts",
       "digest": "2f52a0c4074897dc7a4deac914077f86581b786f40474f000cbc598bc3c851a0"
-    },
-    {
-      "path": "tools/brain-prepare-discussion/TOOL.md",
-      "digest": "2eac814f5a0b365731c225c404b137ab4add495fff744f1437da17760485bc57"
-    },
-    {
-      "path": "tools/brain-prepare-discussion/execute.ts",
-      "digest": "4ae54df51dccaed3e67a6bfff2774e5e7984c689db88ca3f6d15e44c1fb2a02c"
     },
     {
       "path": "tools/brain-prepare-entity-pages/TOOL.md",
@@ -227,20 +251,20 @@
       "digest": "3a5cf159fec99f20235fd2abd28f706effb03af00016651041f5a46d5195b80d"
     },
     {
+      "path": "tools/brain-prepare-source/TOOL.md",
+      "digest": "7dfe6d663af8ccb735c410432b295fd00160cf7702fadd9e63df2071d6de73a4"
+    },
+    {
+      "path": "tools/brain-prepare-source/execute.ts",
+      "digest": "22841a51b28fea3b41008e2f922f64a18f86e65ead9aae968056532e5ca7e361"
+    },
+    {
       "path": "tools/brain-prepare-source-history/TOOL.md",
       "digest": "ae32a1bc2f7354ca8a2e41f24a9ba9d9f0f7307fff243d1c53ab2fdab35baf86"
     },
     {
       "path": "tools/brain-prepare-source-history/execute.ts",
       "digest": "7b1b5fab27586c569bc25406fdd1f0003ddbc7fee6f74aa8f979268550be5da6"
-    },
-    {
-      "path": "tools/brain-prepare-source/TOOL.md",
-      "digest": "07b19bad9d189a7e7166595f016c608efcd30e86b8e8e09318778728316e24af"
-    },
-    {
-      "path": "tools/brain-prepare-source/execute.ts",
-      "digest": "a92ebdc653ec7e0e0ed0268eb348935b68ed4366498c48d42c609cdd590205aa"
     },
     {
       "path": "tools/brain-prepare-verification/TOOL.md",
@@ -264,7 +288,7 @@
     },
     {
       "path": "tools/brain-source-history/execute.ts",
-      "digest": "3e2eae16e67432cb2363c7aacdbbdf78ebcafbc0780c4caf51220e9dde594908"
+      "digest": "4c57f41f83cfe02bf99339f1cd45602ee5c18894aa4ec40123195e1f28400cf5"
     },
     {
       "path": "tools/brain-source-records/TOOL.md",
@@ -283,5 +307,5 @@
       "digest": "bbe58d1bf14e624ba8406b456d5b81a07e8aa8776c94eb6af8192db1a8c60457"
     }
   ],
-  "agent_instruction_digest": "584d5770649a5ac24fa2bd4d6901b14278338812857ef199051c9122b64f6e78"
+  "agent_instruction_digest": "c3ce6ad9d5c2cd1c06b0c2d26401d451d5055a26858db5ec9b8ec8f2f85b079f"
 }

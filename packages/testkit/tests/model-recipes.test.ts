@@ -8,6 +8,21 @@ import {
 
 const encoded = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString("base64");
 
+test("scoped reasoning effort follows trusted task precedence and rejects arbitrary settings", () => {
+  const binding = { route: "anthropic-direct", model: "anthropic/claude-sonnet-5" };
+  const configuration = decodeModelRuntimeConfiguration(encoded({ version: 1,
+    default: { ...binding, reasoningEffort: "high" },
+    profiles: { deep: { ...binding, reasoningEffort: "low" } },
+    tasks: { "analyst.ingest": { ...binding, reasoningEffort: "medium" } },
+  }));
+  const resolve = (task?: string) => resolveModelExecutionSelection({ configuration, profile: "deep", task, environment: {} });
+  assert.equal(resolve().reasoningEffort, "low");
+  assert.equal(resolve("analyst.ingest").reasoningEffort, "medium");
+  for (const reasoningEffort of [null, false, "max", 12000, { budget: 12000 }]) {
+    assert.throws(() => decodeModelRuntimeConfiguration(encoded({ version: 1, default: { ...binding, reasoningEffort } })), /reasoningEffort/);
+  }
+});
+
 test("Core registers native, named compatible, local, and generic provider recipes", () => {
   assert.deepEqual(CORE_MODEL_RECIPE_REGISTRY.list().map((entry) => entry.route), [
     "anthropic-direct",

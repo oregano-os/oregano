@@ -64,7 +64,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
     const proof = state.sourceAdmission; safeObject(proof);
     const expected = proof.kind === "non-transcript-selection" ? "cohortId,importId,kind,policyDigest,sourceIdentity,sourceKind,sourceVersion" : "cohortId,importId,kind,policyDigest,sourceIdentity,sourceVersion";
     if (!["transcript-cohort", "non-transcript-selection"].includes(proof.kind) || Object.keys(proof).sort().join(",") !== expected
-      || (proof.kind === "non-transcript-selection" && proof.sourceKind !== "discussion")) throw new Error("Invalid Workflow source admission proof");
+      || (proof.kind === "non-transcript-selection" && !["discussion", "article", "idea", "document", "media"].includes(proof.sourceKind ?? ""))) throw new Error("Invalid Workflow source admission proof");
     digest(proof.cohortId); digest(proof.policyDigest);
     identifier(proof.importId);
     for (const value of [proof.sourceIdentity, proof.sourceVersion]) if (typeof value !== "string" || !value.length || value.length > 1000 || /[\x00-\x1f]/.test(value)) throw new Error("Invalid source admission identity or version");
@@ -158,7 +158,7 @@ export function validateWorkflowState(state: WorkflowMutableState, workflowId: s
 export function validateWorkflowLease(args: { owner: string; token: string; now: string; expiresAt: string }): void {
   identifier(args.owner); identifier(args.token); workflowInstant(args.now); workflowInstant(args.expiresAt);
   const duration = Date.parse(args.expiresAt) - Date.parse(args.now);
-  if (duration <= 0 || duration > 300_000) throw new Error("Workflow worker lease must last at most five minutes");
+  if (duration <= 0 || duration > 600_000) throw new Error("Workflow worker lease must last at most ten minutes");
 }
 
 export function validateWorkflowAssignment(assignment: WorkflowAssignment, identity: WorkflowRunIdentity, artifact: CompanyOSArtifact, now: string): void {

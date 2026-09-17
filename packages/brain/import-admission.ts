@@ -15,8 +15,8 @@ export interface TranscriptImportBinding {
   processingField?: string;
   sourceIdentityField: string;
   sourceVersionField: string;
-  /** Exact reviewed discussion versions; never a wildcard, channel expansion or transcript slot. */
-  nonTranscriptSources?: Array<{ identity: string; version: string; kind: "discussion" }>;
+  /** Exact reviewed non-meeting content versions; never a wildcard, channel expansion or transcript slot. */
+  nonTranscriptSources?: Array<{ identity: string; version: string; kind: "discussion" | "article" | "idea" | "document" | "media" }>;
 }
 const identifier = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9_-]{0,62}$/.test(value);
 export function parseTranscriptImportBindings(raw: unknown, artifact: CompanyOSArtifact, enabled: readonly string[]): TranscriptImportBinding[] {
@@ -32,7 +32,7 @@ export function parseTranscriptImportBindings(raw: unknown, artifact: CompanyOSA
     if (binding.nonTranscriptSources !== undefined) {
       const selected = binding.nonTranscriptSources;
       if (!Array.isArray(selected) || selected.length > 100 || selected.some(source => !source || typeof source !== "object"
-        || Object.keys(source).sort().join(",") !== "identity,kind,version" || source.kind !== "discussion"
+        || Object.keys(source).sort().join(",") !== "identity,kind,version" || !["discussion", "article", "idea", "document", "media"].includes(source.kind)
         || [source.identity, source.version].some(value => typeof value !== "string" || !value.length || value.length > 1000 || /[\x00-\x1f]/.test(value)))
         || new Set(selected.map(source => source.identity)).size !== selected.length) throw new Error("Invalid exact non-transcript source selection");
     }

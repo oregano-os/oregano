@@ -1,5 +1,6 @@
 import { assertUnwrittenSource, sourceContinuationOrigin, sourceContinuationRunId } from "./source-continuation.ts";
 import { readLanguageAttempts } from "../../language/attempts.ts";
+import { AGENT_HOST_DURATION_MS } from "./agent-contract.ts";
 import { advanceWorkflowAgent } from "./agent-execution.ts";
 import type { WorkflowAgentGenerator } from "./agent-contract.ts";
 import { parseTranscriptImportBindings, transcriptImportOrigin, type TranscriptImportBinding } from "../../brain/import-admission.ts";
@@ -279,7 +280,11 @@ export class WorkflowEngine {
     this.#enabled(existing.workflowId); await this.#ensureTimers(existing);
     if (existing.state.status === "waiting") return existing;
     const now = this.#now();
-    const run = await store.claim({ instanceId, runId, owner: "workflow-worker", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + 300_000).toISOString() });
+    // The immutable Workflow, not a stale cursor, determines lease headroom:
+    // another worker may advance the cursor between this read and our claim.
+    const { workflow: leaseWorkflow } = await this.#definition(existing);
+    const leaseMs = leaseWorkflow.steps.some(step => step.agent) ? AGENT_HOST_DURATION_MS : 300_000;
+    const run = await store.claim({ instanceId, runId, owner: "workflow-worker", token: randomUUID(), now, expiresAt: new Date(Date.parse(now) + leaseMs).toISOString() });
     if (!run) return store.read(instanceId, runId);
     try {
       const { artifact, workflow, step } = await this.#definition(run);
@@ -800,16 +805,16 @@ export class WorkflowEngine {
     try {
       if (run.revision !== expectedRevision) throw new Error("Agent retry revision is stale");
       const { step } = await this.#definition(run), stored = run.state.steps[step.id], turns = stored?.agent?.turns, last = turns?.at(-1);
-      if (!step.agent || !last || last.attemptId !== attemptId || last.failure?.outcome !== "unknown" || last.response || last.results.length || last.retryAuthorization
+      if (!step.agent || !last || last.attemptId !== attemptId || !last.failure || last.response || last.results.length || last.retryAuthorization
         || !run.state.blocked || run.state.blocked.stepId !== step.id || run.state.status !== "waiting") throw new Error("Agent retry requires a blocked unavailable model response with no Tool calls");
       if (turns!.length >= step.agent.budget.turns) throw new Error("Agent model-turn budget exhausted");
       const attempt = (await readLanguageAttempts(this.#options.control, [runId])).find(item => item.attempt_id === attemptId);
-      if (attempt?.status !== "unknown" || !attempt.dispatched_at || attempt.step_id !== step.id) throw new Error("Unavailable model attempt receipt is required");
+      if (!attempt || !["unknown", "failed"].includes(attempt.status) || !attempt.dispatched_at || attempt.step_id !== step.id) throw new Error("Unavailable model attempt receipt is required");
       const state = structuredClone(run.state), target = state.steps[step.id]!;
       target.agent!.turns.at(-1)!.retryAuthorization = { principal, authorizedAt: now, reasonDigest: sha256(reason) };
       target.status = "running"; state.status = "running"; delete state.blocked;
       return await this.#save(run, state, "workflow.agent-model-retry-authorized", { attempt_id: attemptId, principal,
-        reason_digest: sha256(reason), prior_cost_status: "unknown", tool_calls_from_unavailable_response: 0 }, undefined, principal);
+        reason_digest: sha256(reason), prior_cost_status: attempt.status, tool_calls_from_unavailable_response: 0 }, undefined, principal);
     } finally { await this.#options.store.release({ instanceId: run.instanceId, runId, leaseToken: run.lease!.token }); }
   }
 

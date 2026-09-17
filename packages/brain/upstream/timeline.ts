@@ -75,7 +75,7 @@ const DATED_BULLET_RE = /^\s*[-*+]\s+\**\d{4}\b/;
  * splitting. Returns the section's [start, end) line range (heading
  * included, next H2 excluded) or null.
  */
-function findBareTimelineSection(lines: string[]): { start: number; end: number } | null {
+export function findBareTimelineSection(lines: string[]): { start: number; end: number } | null {
   let inFence = false;
   for (let i = 0; i < lines.length; i++) {
     const fence = /^\s*(`{3,}|~{3,})/.exec(lines[i]);
@@ -107,4 +107,3 @@ function findBareTimelineSection(lines: string[]): { start: number; end: number 
   }
   return null;
 }
-

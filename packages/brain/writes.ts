@@ -19,6 +19,8 @@ export interface BrainWriteResult {
   base_commit: string;
   saved_commit: string | null;
   changed_paths: string[];
+  /** Saved content digests, including unchanged remember targets; absent on legacy receipts. */
+  page_results?: Array<{ path: string; content_hash: string | null }>;
   sync_status: "not_requested" | "pending" | "indexed" | "current_head_indexed";
   indexed_revision: BrainRevision | null;
   sync_error?: string;
@@ -34,6 +36,7 @@ interface Checkpoint {
   version: 1; kind: Kind; operation_id: string; input_digest: string; base_commit: string;
   actor: string; agent: string; phase: "prepared" | "saved";
   changes: Array<{ path: string; before: string | null; after: string | null }>;
+  page_results?: BrainWriteResult["page_results"];
   receipt?: BrainRepositoryCommitReceipt;
   result?: BrainWriteResult;
 }
@@ -84,6 +87,9 @@ export class BrainWrites {
       || !context.subject.groupIds.includes("company:active")) throw new BrainError("access_denied", "A write requires an authenticated active company subject and effect context.");
     const expected = kind === "remember" ? (input as BrainRememberInput).changes?.expected_revision : (input as BrainForgetInput).target?.expected_revision;
     assertBrainWriteIdentity(expected, input.operation_key);
+    const pageResults = (files: Record<string, string>, changedPaths: string[]) =>
+      [...new Set(kind === "remember" ? (input as BrainRememberInput).changes.pages.map(page => page.path) : changedPaths)]
+        .sort().map(path => ({ path, content_hash: Object.hasOwn(files, path) ? sha256(files[path]) : null }));
     const operation = sha256({ scope, branch: binding.branch, operation_key: input.operation_key });
     const key = `brain-operation:${operation}`, digest = sha256({ kind, input: { ...input, dry_run: false }, configuration: sha256(configuration) });
     const now = this.options.now ?? (() => new Date()), sourceId = `brain-write:${sha256({ scope, branch: binding.branch })}`, token = randomUUID();
@@ -97,7 +103,8 @@ export class BrainWrites {
         const prepared = kind === "remember" ? prepareBrainRemember(files, configuration, input as BrainRememberInput) : prepareBrainForget(files, configuration, input as BrainForgetInput);
         await this.#checkRetiredRows(files, prepared.changes);
         return { status: "dry_run", operation_id: operation, base_commit: base, saved_commit: null,
-          changed_paths: prepared.changes.map(change => change.path), sync_status: "not_requested", indexed_revision: await this.options.store.revision(scope) ?? null };
+          changed_paths: prepared.changes.map(change => change.path), page_results: pageResults(prepared.files, prepared.changes.map(change => change.path)),
+          sync_status: "not_requested", indexed_revision: await this.options.store.revision(scope) ?? null };
       }
       let row = await effects.getEffect(key);
       let checkpoint = row?.evidence as Checkpoint | undefined;
@@ -133,7 +140,7 @@ export class BrainWrites {
           after: change.markdown === null ? null : sha256(change.markdown) }));
         if (checkpoint && sha256(checkpoint.changes) !== sha256(changes)) throw new BrainError("recovery_conflict", "The reconstructed preparation does not match its durable proof.");
         const proposed: Checkpoint = checkpoint ?? { version: 1, kind, operation_id: operation, input_digest: digest, base_commit: base,
-          actor: context.subject.principalId, agent: context.agentId, phase: "prepared", changes };
+          actor: context.subject.principalId, agent: context.agentId, phase: "prepared", changes, page_results: pageResults(prepared.files, changes.map(change => change.path)) };
         request = { binding, baseCommit: base, operationId: operation, inputDigest: digest,
           changes: prepared.changes.map(change => ({ ...change, expectedContentHash: Object.hasOwn(files, change.path) ? sha256(files[change.path]) : null })) };
         if (!row || state === "claimed" && !recovery?.only) {
@@ -181,6 +188,7 @@ export class BrainWrites {
       } catch (error) { syncError = error instanceof BrainError ? error.code : "index_unavailable"; }
       const result: BrainWriteResult = { status: saved.changes.length ? "saved" : "unchanged", operation_id: operation, base_commit: saved.base_commit,
         saved_commit: saved.receipt?.commit ?? null, changed_paths: saved.changes.map(change => change.path), sync_status: syncStatus,
+        ...(saved.page_results ? { page_results: saved.page_results } : {}),
         indexed_revision: indexed, ...(syncError ? { sync_error: syncError } : {}) };
       await advance({ ...saved, result }, "succeeded");
       return result;

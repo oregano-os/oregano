@@ -321,7 +321,9 @@ stable opening key. The engine must derive scheduled opening keys from declared
 instance fields and keep an explicit operator request identity for independent
 runs. Reusing an opening key with changed inputs fails.
 
-A worker holds an expiring lease for at most five minutes. State commits require
+A worker holds an expiring lease for at most ten minutes. Ordinary Workflows use
+five minutes; Workflows containing Agent steps use ten minutes to cover the
+maintained six-minute provider timeout and receipt persistence. State commits require
 the same current lease and optimistic revision, retain completed outputs and
 decision bindings, append an event, and bind delivered conversations atomically.
 A conflicting conversation assignment rolls back the entire transition. Exact
@@ -865,8 +867,31 @@ projection. It never establishes absence of feedback, approvals or provider even
 
 An opt-in `agent` step selects owning-Agent scoped `instructions`, optional on-demand
 `skills`, evidence `context`, a utility/reasoning/deep `profile`, ModelRecipe `task`,
-a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, `output_schema`
-and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=16000).
+a subset of granted R0/R1 `tools`, fixed Tool input `bind` values, a structured
+`output_schema` or `completion: text`, and finite `budget` (`turns` <=64, `tool_calls` <=256, `output_tokens` <=32000).
+`task` accepts a literal model-task name or an ordinary Workflow reference to a
+string. The compiler checks its producer and requires referenced output paths;
+the runtime resolves and validates the name before preparing a paid attempt.
+Referenced task values are frozen with the Agent input and recorded as resolved
+names in dispatch evidence. Existing literal-task journals retain their original
+input digest. Task bindings retain ModelRecipe precedence over profile bindings;
+changing a profile alone does not select a different task binding.
+Optional `instruction_selection` resolves a subset of the declared `skills`
+allowlist and includes only those procedures as eager instructions; it cannot
+load a file outside the compiled owning Agent scope. Unselected Skill content is
+removed from the model request, including retired Skills that remain in the
+Agent's read scope but are absent from this step's allowlist. Only the fixed
+instructions and selected Skills are delivered; ordinary non-Skill reference
+materials remain available. Without selection, on-demand behavior is unchanged.
+Optional budget fields `total_input_bytes` (1,000–16,000,000),
+`total_output_tokens` (at least `output_tokens`, at most 128,000), and
+`no_progress_turns` (1–8) bound the whole Agent step. Input size counts serialized
+system, messages and Tool declarations, including replayed/cacheable content;
+it is a payload measure, not a provider token count or dollar limit. Actual output
+usage replaces the reserved ceiling when available; unavailable usage retains the
+reservation. The host must supply input/output reservation evidence before paid
+dispatch for a cumulative budget. Repeated identical successful Tool evidence and
+rejected finishes are not progress. A stop preserves the journal and all costs.
 Each selected Skill is at most 30000 characters. Subject-confirmed and R2–R4 Tools
 remain outside this step type. Optional `validate` names a granted pure R0 Company
 Tool with no capabilities; it receives `{context: {task, calls}, facts}` and returns
@@ -888,15 +913,55 @@ the next pending call to its compiled Tool contract and exact fixed inputs. Effe
 keys include immutable turn/call position; they do not include mutable input hashes.
 A lost write-result snapshot reuses the existing effect receipt. A lost read result
 may repeat the read. Unknown model outcomes stop without an automatic paid retry;
-known incomplete output retains usage and receives bounded continuation feedback.
+the opt-in `failure_policy: stop` also stops known incomplete output with retained
+usage. Both stopped outcomes require an explicit exact operator retry; resume alone
+never repeats a paid generation. Historical definitions without this policy retain
+their bounded known-incomplete continuation behavior and immutable journals.
 
-`companyos_finish_task` validates the result and optional Company validator. Feedback
+`failure_policy: continue-output-limit` opts into automatic continuation only for
+an actually dispatched, known incomplete response whose trusted host finish reason
+is `length`. Other incomplete results and unknown outcomes remain stopped. The
+failed turn retains a typed `output-limit` reason, usage and reservation; no partial
+Tool call is retained or executed. Its next turn uses the same source, Artifact,
+conversation and cumulative budgets. A cutoff counts as a no-progress turn; missing
+usage consumes its reservation. Exhausting any turn, output, Tool or no-progress
+bound still stops the task. Ordinary resume never resets those bounds.
+
+After a known cutoff the host supplies explicit repair instructions: preserve
+confirmed receipts, perform only remaining work, issue one small operation per
+response and split page writes. Core rejects multi-call responses before any Tool
+executes and rejects an exact previously successful R1 input without re-dispatch.
+Reads remain repeatable so the Agent can inspect current state. Existing write
+idempotency, revision and provenance validation still apply to every new operation.
+This is technical recovery, not a content critic or a completion override.
+
+The maintained Agent host accepts a reviewed model timeout up to 360 seconds.
+The operator and steps endpoints allow 600 seconds, and the steps-worker timer
+lease also covers 600 seconds. The existing 150-second dispatch window leaves
+headroom for one final 360-second call plus receipt persistence. Other endpoints,
+ordinary Tool deadlines and task budgets remain unchanged.
+
+Structured completion is the default: `companyos_finish_task` validates the result
+and optional Company validator. Feedback
 keeps the same conversation open. Accepted completion returns `{result, calls}`; the
 call journal is Core-owned evidence. Ordinary read-repair does not rewind Agent
 steps or erase their writes. Retrospective workflow verification includes Agent
 attempts, guarded calls and effect receipts. No chat-specific provider or runtime is
 introduced into a Workspace.
 
+
+### Skill-led text completion
+
+An Agent step may opt into `completion: text`. It declares neither `output_schema`
+nor `validate`, and exposes no `companyos_finish_task`. A retained complete `stop`
+response with non-empty text and no Tool calls ends the task as
+`{result: {text}, calls}`. The report is Agent-authored; it is not a verified business
+outcome. Empty text, truncated/unknown responses and pending calls cannot complete
+it. Recovery consumes a persisted final response without another model dispatch,
+including when the final response used the last available turn. The journal cannot
+advance beyond terminal text or substitute a different report/call history.
+All Tool grants, effects, R0/R1 scope, source bindings and finite budgets still apply.
+Existing definitions retain structured completion and their historical input digests.
 
 ### Explicit continuation of an unwritten source
 
@@ -927,7 +992,7 @@ blocks continuation, including in archived read-repair snapshots.
 ### Explicit retry of an unavailable Agent model response
 
 An authenticated operator may call `retry-agent-model` with the exact run revision,
-last attempt ID and reason. Core requires a stopped Agent turn with an unavailable
+last attempt ID and reason. Core requires a stopped Agent turn with an unavailable or known incomplete
 model response, no retained response or Tool results, and its unknown dispatched
 attempt receipt. Current activation/source scope and the original task budget still
 apply. This is permission for another paid generation, not proof of zero prior cost.

@@ -75,7 +75,9 @@ binding can set `max_instruction_characters` to a positive integer up to
 30,000, based on measured complete instructions and model qualification.
 Going above 16,000 also requires the explicit phase task/profile pair.
 Unchanged bindings retain the 16,000 default. Serialized evidence remains
-bounded at 150,000 string units; linked instruction files are not loaded.
+bounded at 200,000 JavaScript string units, including any trusted repair-feedback
+wrapper. Requests exceeding that serialized bound fail before model dispatch;
+linked instruction files are not loaded.
 Select only the evidence needed for the task. Runtime permits up to 65 seconds
 for Tools declaring this capability; a configured shorter Tool timeout wins.
 The host adapter may impose tighter model limits. Successful calls record the

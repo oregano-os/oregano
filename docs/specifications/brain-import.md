@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-15
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -23,19 +23,60 @@ operations; they do not add an alternate source endpoint or business runtime.
 
 ## Reusable authoring assets
 
-`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its ten-step
-operator Workflow retains complete source/triage coverage, then assigns one durable
-tool-using Agent task to the selected reasoning/deep role. The Agent reads existing
-knowledge, saves meeting knowledge, enriches entities and checks actual saved pages.
-There is no whole-import draft gate before the first write. Each operation retains
-normal Core validation, expected revisions, Git receipts and index reconciliation. Completion feedback lists missing saved-page reads together, rejects unresolved
-links reported by the index, and distinguishes person/company Timeline backlinks
-from ordinary references to other meetings or evidence pages. These checks run
-after writes and do not create a whole-import pre-write gate.
-Eight selected restricted Company Tools prepare source context, apply common triage,
-read exact source Records and their history, validate completion and record outcomes. Historical phase Tool
-templates remain available for retained definitions. Executable code stays outside
-the Blueprint under the Workbench template tree.
+`packages/blueprints/brain/` is an inspectable declarative Blueprint. Its
+11-step operator Workflow reads the exact source Record, preserves complete
+coverage, and routes by semantic content kind before utility triage. Provider
+projection routes select where to read; content routes select how to ingest.
+A meeting from any provider uses the meeting procedure. A discussion remains a
+discussion even when its provider also delivers meeting transcripts.
+
+| Content kind | Procedure | Acquisition boundary |
+|---|---|---|
+| meeting | Adopted meeting normalization, meeting write, entity enrichment, V1–V6 | Complete retained transcript |
+| discussion | General ingest, sourced current knowledge and Timeline updates | Complete retained discussion |
+| article / idea | Adopted idea-ingest, author resolution, analysis and backlinks | Complete selected content |
+| document / media | Adopted media-ingest, format-aware analysis and entity propagation | Complete adapter-produced extraction |
+| publication | Blog discovery requirements retained, execution unavailable | Needs a separately adopted enumeration/fetch adapter |
+
+The selected reasoning/deep Agent reads existing knowledge, writes meeting pages
+before completing all entity drafts, enriches relevant entities, then verifies
+actual saved pages and corrects concrete defects in the same task. There is no
+one-shot synthesis stage, aggregate draft gate or error-to-Agent fallback in new
+materializations. Historical one-shot Tools remain in the template archive solely
+for qualification of retained definitions; they are not installed or granted by
+the active workflow. Dream and cross-source consolidation are not implemented.
+
+Eight restricted Company Tools prepare/read sources, select content instructions,
+apply common triage, read source history and retain outcomes.
+Executable code remains outside the Blueprint under the Workbench template tree.
+Missing extraction, unknown content kinds and unavailable publication discovery
+are explicit gaps, never claims that copied Skills provide a working Connector.
+Thus this adoption is **not full provider/acquisition parity** with GBrain.
+Source acquisition, media extraction and feed enumeration require their own
+maintained Connector qualification before activation.
+
+Each Brain operation retains normal validation, expected revisions and Git/index
+receipts. The active Agent uses `completion: text`: after following the adopted
+Skill checks and repairs it ends with a complete non-empty text response without
+Tool calls. There is no active `brain-check-agent-completion` grant, structured
+finish Tool, or second Core check of saved quotes, sections, citation membership,
+read-back coverage, backlinks or model-reported V1–V6 verdicts. These remain Agent
+responsibilities in the Skills. Historical structured templates remain available
+for immutable older definitions.
+The complete source and complete Tool receipts remain in Records/run evidence.
+Only the model-facing Brain entity response omits derived copies of text already
+present in its canonical Markdown, including duplicate outgoing-link excerpts;
+hashes, revisions, link-resolution identities and incoming graph evidence remain.
+The prepared evidence context supplies both the canonical page slug and its exact
+write path/internal link. Adopted instructions distinguish those representations,
+batch independent initial/final reads, and retain small source/meeting-first writes.
+They reserve the existing bounded conversation for saved-page checks and repairs;
+no run limit is raised. Decision/action citations retain available original anchors,
+and verification rechecks final agreements, logical alternatives and pronoun
+addressees against those passages rather than trusting an earlier summary.
+Available source anchors support the Agent's source comparison; Core does not
+require a timestamp on every decision or treat citation presence as acceptance.
+Independent source-first Phase 1 qualification remains necessary.
 
 The pure build-time helper `scripts/materialize-brain-workflow.ts` accepts explicit
 `BrainWorkflowInputs` and returns ordinary Workspace file contents. Supply the
@@ -45,9 +86,31 @@ segment size, triage calibration and source-history start. No company quantity,
 date, value threshold, account, model provider or directory vocabulary is a
 Core default. The helper reuses prompt materialization and the Tool contract
 schemas, verifies template content digests, and rejects inconsistent inputs.
-The result contains the Workflow/configuration, 21 scoped prompt bindings and
-eight restricted Tool pairs plus five scoped Agent Skills. Its report identifies every resulting content digest
+The result contains the Workflow/configuration, 21 retained phase prompt bindings and
+nine restricted Tool pairs plus eight scoped Agent Skills. Its report identifies every resulting content digest
 and every required Tool without applying a grant.
+
+New meeting and entity proposals include ordinary `type`, `title`, `lang` and
+bounded `tags`. The Agent sets `created` for new pages and `updated` from the trusted
+processing day supplied by the host; an existing page keeps its original `created` value. Existing
+legacy pages without a trustworthy creation date are not assigned an invented
+date. Meeting `date` comes from the retained source occurrence, not the page
+creation date. The body carries the evidenced summary, decisions/actions/quotes
+and exact internal source links; entity pages preserve existing Timeline history
+and meeting backlinks. Tags improve browsing but are not authority or a
+substitute for provenance.
+
+Inline citations use an aliased wiki link inside escaped visible brackets, for
+example `\[[[meetings/review-example|Source: Meeting "Review", 2030-01-02]]\]`.
+Entity prose and Timeline link to the meeting; citations within that meeting link
+to its evidence page, which retains the original-source URL. Bare `[Source: ...]`
+labels are not links. Do not append duplicate raw source links or HTML source
+comments: comments remain visible in Markdown editing views. Timeline validation
+follows one cited content page to its direct original-backed evidence, while
+Takes keep direct evidence and writes retain provenance. `timeline_add` validates
+that a supplied bracketed citation reaches every declared evidence page and adds
+no duplicate comment; otherwise it emits bracketed evidence links with the event
+date. Existing pages and historical receipts are not migrated automatically.
 
 A consuming Workspace must declare a matching Records projection with `identity`,
 `version`, `kind`, `original_url`, `occurred_at`, `text`, `complete` and preserved
@@ -239,10 +302,22 @@ include its reviewed admission binding; installing Skills alone activates nothin
 
 ## Continuing Agent imports
 
-The `process-source` Agent step has a finite Workspace-reviewed budget (materialized
-starting values: 48 model turns, 192 Tool calls, 12000 output tokens per response).
+The `process-source` continuing Agent has a finite Workspace-reviewed budget
+(materialized starting values: 12 model turns, 48 Tool calls, 32000 output tokens
+per response, 48,000 cumulative output tokens and two consecutive turns without
+new Tool evidence). Newly materialized imports omit the optional cumulative
+`total_input_bytes` cap. Serialized UTF-8 input bytes, including repeated history
+and cacheable content, remain recorded for each turn; they are not model tokens
+or a dollar budget. Per-request host/provider bounds remain enforced. Existing
+run Artifacts retain their original budgets: changing the template or Workspace
+configuration neither changes an opened run nor restarts a stopped import.
 Actual provider limits may tighten those values. Haiku utility triage is separate;
 the continuing task uses the resolved reasoning/deep profile through ModelRecipe.
+The restricted context Tool maps that route to `brain.ingest` or
+`brain.ingest.deep` respectively. The Workflow binds both profile and task from
+that validated output; source text cannot supply either model-task name. This
+preserves distinct task-specific model bindings even when a Company uses the
+same model for both roles. Actual attempt evidence records the selected task.
 Each paid attempt, including failure or uncertain transport, remains chargeable and
 is recorded by the existing language-attempt service. No per-microphase model reset
 or prewrite meeting/entity draft bundle is required.
@@ -250,16 +325,46 @@ or prewrite meeting/entity draft bundle is required.
 The initial task Skill carries shared filing and authority rules. Reviewed meeting,
 entity, source-update and verification Skills are delivered in full from compiled
 Agent materials, each bounded to 30000 characters. A Skill read grants no Tool or
-provider authority. Full originals remain in task evidence and Records; the host
+provider authority. The router's `instruction_selection` must be a subset of the
+compiled owning-Agent Skill scope. Applicable instructions are supplied eagerly;
+unrelated content Skills are excluded from the model context. Full originals remain in task evidence and Records; the host
 never silently truncates them or substitutes a recorder summary.
+The task receives a trusted processing day. Its derived-page guidance requires
+source-grounded tags, creation and update dates, and the original event date for
+meetings. It preserves existing creation metadata and aliases rather than
+inventing values for legacy pages. This guidance also asks for the substantive
+meeting and entity detail supported by the original, while keeping inline
+source evidence, Takes and Timeline history.
 
-The completion validator uses Core-retained calls and receipts, not model-invented
-write claims. It requires each page read after its own last write, source identity and
-Record version, actual saved content, meeting links and entity Timeline backlinks,
-and all six adopted semantic check results. Rejected completion returns feedback to
-the same Agent conversation. Existing partial pages remain saved and the source
-remains unfinished. Semantic quality still requires representative real-source
-qualification; synthetic tests prove execution and validation behavior only.
+Cumulative budgets count all replayed input, including cache reads. They bound
+this continuing Agent step, not a dollar invoice: utility triage is separately
+bounded by complete source segmentation and remains included in the import's
+attempt/cost report. Output accounting uses actual provider usage when available;
+unknown usage consumes the reserved response ceiling. The host checks the next
+serialized input against the remaining allowance before dispatch. No-progress
+means no new successful Tool evidence: repeated identical reads and rejected
+finishes do not reset the counter. Exhaustion leaves the source unfinished and
+preserves writes and costs. New imports select `failure_policy: continue-output-limit`.
+A known output-length cutoff discards that response's partial calls and continues
+only the remaining work in the same journal. It consumes output budget and counts
+as no progress. The host asks for one operation per response and one page per write;
+Core rejects multi-call recovery responses and exact repetitions of successful R1
+inputs. Earlier writes, source identity and cost evidence stay unchanged. Other
+incomplete or unknown provider outcomes stop. Historical Artifacts keep their
+original policy. A reviewed 360-second model timeout fits within the maintained
+600-second Agent worker/lease envelope; no model or cost budget is selected by
+source text or by the Blueprint.
+
+The final source outcome has technical status `processed`, `verification_mode:
+agent-skill`, and an unchanged `agent_report`. `verification` stays empty rather
+than inventing six machine-certified verdicts. The outcome derives changed page
+identities/hashes and index revisions from Core-retained write receipts; it does
+not require another read or inspect page meaning. No-write reports remain
+`processed`, distinct from the utility gate's explicit `skipped`. All-failed writes,
+wrong source provenance and unresolved Git/index receipts cannot become successful
+write evidence. Prior source-page identities remain available for reconciliation.
+A processed source can still fail independent semantic acceptance; a final report
+stating a gap is retained verbatim. It does not trigger another paid generation.
 
 Source updates read previous originals and derived pages, update compiled truth and
 supersede old claims without losing Timeline/Takes identity. An unchanged completed
@@ -341,3 +446,23 @@ Qualification may replay exact retained source evidence through the current prom
 and pure routing/outcome Tools without changing source admission or historical
 Workflow results. Such calls are separate qualification evidence, retain every
 model attempt and cost, and cannot be reported as a newly completed live import.
+
+### Isolated procedure qualification
+
+The materializer accepts an optional reviewed `workflow_id` (default
+`brain-import`). It changes only the declarative Workflow/configuration identity
+and its source-history scope; instruction assets, steps, source identities,
+budgets and admission rules are identical. This authoring option does not open,
+activate or restart a run. Enabling another Workflow still needs ordinary
+Workspace review and an exact Instance admission binding.
+
+For an authorized isolated qualification of already completed source versions,
+use a separately named Workflow in a protected Preview, an explicitly isolated
+Git branch and test database, and the existing frozen cohort with the same exact
+processing subset. Retain original Records, ordinary runs, pages and cost receipts.
+The qualification uses its own source-history scope and separate run/effect IDs;
+never represent that scope as proof of ordinary delivery or of no historical
+knowledge. Record both identities, the source-version equality and the unchanged
+cohort proof. Repeated delivery within either Workflow still deduplicates. A
+normal unchanged delivery proves deduplication, not execution of a revised
+procedure. `continueUnwrittenSource` remains limited to eligible unwritten runs.

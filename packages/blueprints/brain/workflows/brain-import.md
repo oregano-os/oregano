@@ -1,7 +1,7 @@
 ---
 type: workflow
 id: brain-import
-version: 2
+version: 4
 owner: agents/brain-owner
 execution_mode: unattended
 trigger: operator
@@ -26,6 +26,10 @@ steps:
       identity: $instance.source_identity
       version: $instance.source_version
       segment_characters: $config.segment_characters
+  - ingestion-router: company:brain-ingestion-router
+    input:
+      source: $steps.prepare.source
+      routes: $config.ingestion.routes
   - source-history: company:brain-source-history
     input:
       identity: $steps.prepare.source.identity
@@ -52,6 +56,7 @@ steps:
       gate: $steps.gate
       history: $steps.source-history
       directories: $config.page_directories
+      processing_instant: $trigger.instant
   - choose-route: route
     on: $steps.agent-context.route
     skip: finish-skip
@@ -64,11 +69,13 @@ steps:
       execution: null
     then: end
   - process-source: agent
+    failure_policy: continue-output-limit
     context: $steps.agent-context.task
     instructions: $config.agent.instructions
     skills: $config.agent.skills
+    instruction_selection: $steps.ingestion-router.instructions
     profile: $steps.agent-context.model_profile
-    task: brain.ingest
+    task: $steps.agent-context.model_task
     tools:
       - tool: oregano:brain/recall
       - tool: oregano:brain/entity
@@ -80,104 +87,7 @@ steps:
       - tool: oregano:brain/remember
         bind:
           provenance: $steps.agent-context.provenance
-    output_schema:
-      type: object
-      additionalProperties: false
-      required:
-        - source_identity
-        - source_version
-        - status
-        - pages
-        - meetings
-        - verification
-        - gaps
-      properties:
-        source_identity:
-          type: string
-          minLength: 1
-          maxLength: 2000
-        source_version:
-          type: string
-          minLength: 1
-          maxLength: 2000
-        status:
-          enum:
-            - ingested
-            - reconciled
-            - skipped
-        pages:
-          type: array
-          maxItems: 200
-          items:
-            type: string
-            minLength: 1
-            maxLength: 2000
-        meetings:
-          type: array
-          maxItems: 30
-          items:
-            type: object
-            additionalProperties: false
-            required:
-              - slug
-              - attendees
-              - entities
-            properties:
-              slug:
-                type: string
-                minLength: 1
-                maxLength: 2000
-              attendees:
-                type: array
-                maxItems: 100
-                items:
-                  type: string
-                  minLength: 1
-                  maxLength: 2000
-              entities:
-                type: array
-                maxItems: 100
-                items:
-                  type: string
-                  minLength: 1
-                  maxLength: 2000
-        verification:
-          type: array
-          maxItems: 6
-          items:
-            type: object
-            additionalProperties: false
-            required:
-              - check
-              - status
-              - detail
-            properties:
-              check:
-                description: "Adopted checks: V1 sections; V2 page and Timeline backlinks; V3 speaker resolution; V4 verbatim quotes; V5 attendee evidence; V6 event sequence."
-                enum:
-                  - V1
-                  - V2
-                  - V3
-                  - V4
-                  - V5
-                  - V6
-              status:
-                enum:
-                  - passed
-                  - not-applicable
-                  - flagged-uncertainty
-              detail:
-                type: string
-                minLength: 1
-                maxLength: 2000
-        gaps:
-          type: array
-          maxItems: 100
-          items:
-            type: string
-            minLength: 1
-            maxLength: 2000
-    validate: company:brain-check-agent-completion
+    completion: text
     budget: $config.agent.budget
   - finish-import: company:brain-agent-outcome
     input:
@@ -187,13 +97,14 @@ steps:
 ---
 # Incremental source processing
 
-1. [brain-owner, R0] Source record. <!-- step:source-record -->
-2. [brain-owner, R0] Prepare. <!-- step:prepare -->
-3. [brain-owner, R0] Source history. <!-- step:source-history -->
-4. [brain-owner, R0] Triage. <!-- step:triage -->
-5. [brain-owner, R0] Gate. <!-- step:gate -->
-6. [brain-owner, R0] Agent context. <!-- step:agent-context -->
-7. [brain-owner, R0] Choose route. <!-- step:choose-route -->
-8. [brain-owner, R0] Finish skip. <!-- step:finish-skip -->
-9. [brain-owner, R1] Understand, read, save meeting knowledge, enrich entities, verify saved pages and correct defects in one continuing Agent task. <!-- step:process-source -->
-10. [brain-owner, R0] Record completion only after accepted saved-page verification. <!-- step:finish-import -->
+1. [brain-owner, R0] Read the exact source from its authorized provider projection. <!-- step:source-record -->
+2. [brain-owner, R0] Preserve the complete normalized content and provenance. <!-- step:prepare -->
+3. [brain-owner, R0] Select the procedure by content kind, independently of provider. <!-- step:ingestion-router -->
+4. [brain-owner, R0] Read earlier processing evidence. <!-- step:source-history -->
+5. [brain-owner, R0] Triage the complete source. <!-- step:triage -->
+6. [brain-owner, R0] Choose skip, reasoning or deep. <!-- step:gate -->
+7. [brain-owner, R0] Prepare one continuing source task. <!-- step:agent-context -->
+8. [brain-owner, R0] Choose the model role. <!-- step:choose-route -->
+9. [brain-owner, R0] Retain a supported skip. <!-- step:finish-skip -->
+10. [brain-owner, R1] Follow the selected Skills: read, write incrementally, verify saved pages and correct defects. <!-- step:process-source -->
+11. [brain-owner, R0] Retain the final Agent report and actual write receipts. <!-- step:finish-import -->
