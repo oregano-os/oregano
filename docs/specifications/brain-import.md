@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-16
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -292,8 +292,13 @@ include its reviewed admission binding; installing Skills alone activates nothin
 
 The `process-source` continuing Agent has a finite Workspace-reviewed budget
 (materialized starting values: 12 model turns, 48 Tool calls, 12000 output tokens
-per response, 2,000,000 cumulative serialized input bytes, 48,000 cumulative
-output tokens and two consecutive turns without new Tool evidence).
+per response, 48,000 cumulative output tokens and two consecutive turns without
+new Tool evidence). Newly materialized imports omit the optional cumulative
+`total_input_bytes` cap. Serialized UTF-8 input bytes, including repeated history
+and cacheable content, remain recorded for each turn; they are not model tokens
+or a dollar budget. Per-request host/provider bounds remain enforced. Existing
+run Artifacts retain their original budgets: changing the template or Workspace
+configuration neither changes an opened run nor restarts a stopped import.
 Actual provider limits may tighten those values. Haiku utility triage is separate;
 the continuing task uses the resolved reasoning/deep profile through ModelRecipe.
 The restricted context Tool maps that route to `brain.ingest` or

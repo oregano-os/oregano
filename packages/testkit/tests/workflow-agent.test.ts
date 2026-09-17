@@ -132,6 +132,28 @@ test("cumulative input budget stops before another paid dispatch and survives re
   assert.ok(attempts.some(a => a.status === "failed" && !a.dispatched_at));
 });
 
+test("omitting cumulative input limits permits larger totals while preserving accounting and output limits", async () => {
+  for (const usedOutput of [20, 8000]) {
+    const artifact = fixture(data => { data.steps[0].budget.total_output_tokens = 8000; });
+    assert.equal(artifact.workflows![0]!.steps[0]!.agent!.budget.totalInputBytes, undefined);
+    const name = agentToolName(artifact.workflows![0]!.steps[0]!.agent!.tools[0]!.tool.grantId);
+    const m = model([[{ name, input: {} }], [{ name: AGENT_FINISH_TOOL, input: { verified: true } }]]);
+    const h = engineFixture({ artifact, agentGenerator: async request => {
+      const result = await m.generate({ ...request, beforeDispatch: (selection, evidence, reservation) =>
+        request.beforeDispatch(selection, evidence, { ...reservation!, inputBytes: 1_100_000 }) });
+      return { ...result, evidence: { ...result.evidence,
+        model_execution: { ...selection, inputTokens: 100, outputTokens: usedOutput } } };
+    } });
+    const run = (await h.engine().advance((await open(h)).runId))!;
+    const turns = run.state.steps.work!.agent!.turns;
+    assert.equal(m.calls, usedOutput === 20 ? 2 : 1);
+    assert.equal(run.state.status, usedOutput === 20 ? "done" : "waiting");
+    assert.equal(turns.reduce((sum, turn) => sum + (turn.requestBudget?.inputBytes ?? 0), 0), m.calls * 1_100_000);
+    assert.equal(turns[0]!.outputTokensUsed, usedOutput);
+    if (usedOutput === 20) assert.equal(turns[1]!.requestBudget!.outputTokens, 7980);
+  }
+});
+
 test("repeated rejected finishes stop without a new paid turn", async () => {
   const m = model(Array.from({ length: 3 }, () => [{ name: AGENT_FINISH_TOOL, input: { verified: false } }]));
   const h = engineFixture({ artifact: fixture(data => { data.steps[0].budget.no_progress_turns = 2; }), agentGenerator: m.generate });

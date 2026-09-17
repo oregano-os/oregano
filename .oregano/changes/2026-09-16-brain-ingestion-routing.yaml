@@ -9,7 +9,10 @@ objective: Adopt Skill-led source interpretation, saved-page verification and re
   Brain content-completion validator and mandatory structured finish report.
   Preserve the default structured completion mode for existing Workflows, exact
   source provenance, scoped grants, ordinary write validation, recovery, source
-  deduplication and all execution budgets. Keep incremental Timeline mutations,
+  deduplication and the remaining execution budgets. Omit the optional cumulative
+  input-byte cap from newly materialized Brain imports while retaining input-size
+  accounting, per-request host bounds and historical immutable run definitions.
+  Keep incremental Timeline mutations,
   scoped instruction/model routing and independent source-first qualification.
 non_goals:
   - Implement Dream, reflection, consolidation or concept synthesis workflows.

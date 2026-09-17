@@ -44,7 +44,8 @@ test("portable Brain adoption uses reviewed company inputs and compiles every re
   assert.equal(result.prompts.length, 21);
   assert.equal(config.agent.budget.turns, 12);
   assert.equal(config.prompts.one_shot, undefined);
-  assert.equal(config.agent.budget.total_input_bytes, 2000000);
+  assert.equal(config.agent.budget.total_input_bytes, undefined);
+  assert.equal(config.agent.budget.total_output_tokens, 48000);
   assert.equal(config.agent.budget.no_progress_turns, 2);
   assert.ok(!JSON.stringify(workflow).includes("one-shot"));
   assert.match(result.materials["agents/analyst/skills/brain-task/SKILL.md"], /trusted `processing_day`/);
