@@ -16,7 +16,7 @@ const fixture = resolve(import.meta.dirname, "../fixtures/lindenhof-studio");
 
 const eventSource = {
   schema_version: 1, id: "sprint-board-events", activation: "blocked", provider: "monday", resource_binding: "sprint-board",
-  triggers: [{ id: "sprint-card-changed", events: ["item-created", "item-moved"], params: { cohort: "pilot" } }],
+  triggers: [{ id: "sprint-card-changed", events: ["item-created", "item-moved", "item-changed"], fields: ["type"], params: { cohort: "pilot" } }],
 };
 const intakeWorkflow = `---
 type: workflow
@@ -42,6 +42,7 @@ steps:
     on: $trigger.event.kind
     item-created: end
     item-moved: end
+    item-changed: end
 ---
 # Card intake
 
@@ -69,7 +70,7 @@ const rewrite = (files: Record<string, string>, path: string, change: (data: any
 };
 const event = (overrides: Partial<WorkflowTriggerEvent> = {}): WorkflowTriggerEvent => ({
   kind: "item-created", event_id: "b5ed2e17c530f43668de130142445cba", resource_binding: "sprint-board", work_item_id: "item-1",
-  group_id: "backlog", actor_id: "9603417", occurred_at: "2030-01-04T09:07:28.210Z", ...overrides,
+  group_id: "backlog", field: "", actor_id: "9603417", occurred_at: "2030-01-04T09:07:28.210Z", ...overrides,
 });
 function activeFixture(change?: (files: Record<string, string>) => void) {
   const { root } = eventWorkspace((files) => { rewrite(files, "events/sprint-board.yaml", (data) => { data.activation = "active"; }); change?.(files); });
@@ -144,6 +145,9 @@ test("event openings refuse blocked sources, foreign resources, undeclared kinds
   const open = (input: WorkflowTriggerEvent, overrides: Record<string, unknown> = {}) => h.engine().openEvent({ workflowId: "card-intake", principal: ENGINE_OPERATOR, event: input, instant: h.now, ...overrides });
   await assert.rejects(open(event({ resource_binding: "roles-board" })), /resource binding/);
   await assert.rejects(open(event({ kind: "item-deleted" })), /[Ee]vent kind/);
+  await assert.rejects(open(event({ kind: "item-changed", field: "status" })), /[Ee]vent field/);
+  await assert.rejects(open(event({ field: "Type Column" })), /'field' is invalid/);
+  assert.equal((await open(event({ kind: "item-changed", field: "type", event_id: "type0000000000000000000000000001" }))).trigger.event!.field, "type");
   await assert.rejects(open(event({ event_id: "" })), /event identity/);
   await assert.rejects(open(event({ occurred_at: "yesterday" })), /instant/);
   await assert.rejects(open(event(), { fields: { event_id: "forged" } }), /trusted trigger/);
@@ -151,7 +155,7 @@ test("event openings refuse blocked sources, foreign resources, undeclared kinds
   await assert.rejects(h.engine().openOperator({ workflowId: "card-intake", principal: ENGINE_OPERATOR, requestId: "manual", fields: {} }), /verified provider event/);
   await assert.rejects(h.engine().openScheduled({ workflowId: "card-intake", principal: ENGINE_OPERATOR, fields: {}, instant: h.now }), /no declared schedule/);
   await assert.rejects(open(event(), { principal: "slack:T10001:U99999" }), /authorized human operator/);
-  assert.equal((await h.store.list({ instanceId: h.artifact.instance.id, limit: 20 })).length, 0);
+  assert.equal((await h.store.list({ instanceId: h.artifact.instance.id, limit: 20 })).length, 1, "only the declared field change opened a run");
 });
 
 test("hosting configuration enables event openings explicitly and keeps them apart from calendar automation", () => {

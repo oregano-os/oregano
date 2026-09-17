@@ -758,8 +758,10 @@ Workspace computation or explicitly reviewed inputs.
 An event source under `events/` is the non-temporal sibling of a schedule. It
 declares `schema_version: 1`, an `id`, `activation`, the logical `provider`,
 the logical `resource_binding` and `triggers`, each with an `id`, the
-normalized `events` it accepts (`item-created`, `item-moved`) and optional
-opaque `params`. A workflow selects one trigger with `trigger: event:<id>`.
+normalized `events` it accepts (`item-created`, `item-moved`, `item-changed`),
+for changes an optional list of logical `fields` (names bound in the
+Instance's resource field map) and optional opaque `params`. A workflow
+selects one trigger with `trigger: event:<id>`.
 Trigger IDs share one namespace with calendars: a schedule and an event source
 claiming the same ID are both selected and fail validation as ambiguous. Only
 referenced event files become executable; other YAML in `events/` is ignored.
@@ -775,8 +777,12 @@ Core fills three trusted fields: `trigger_id`, `run_date` and `event_id`. The
 default key is `trigger_id` plus `event_id`, so every distinct provider event
 opens its own run and a redelivered event reuses it. `$trigger.event` exposes
 the verified identity only: `kind`, `event_id`, `resource_binding`,
-`work_item_id`, `group_id`, `actor_id` and `occurred_at`. `kind` is the enum of
-the trigger's declared events and may drive a route. The payload never
+`work_item_id`, `group_id`, `field`, `actor_id` and `occurred_at`. `kind` is
+the enum of the trigger's declared events and may drive a route; `field` is
+the logical resource field of an `item-changed` event and empty otherwise.
+A trigger that declares `fields` rejects changes to any other field. The
+provider column is never exposed; the host resolves it through the Instance's
+resource field map before opening. The payload never
 substitutes for the current record; the workflow rereads the item through the
 ordinary Records or work-item Tools and its declared freshness requirement.
 

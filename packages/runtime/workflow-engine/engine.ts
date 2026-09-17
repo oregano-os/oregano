@@ -177,15 +177,16 @@ export class WorkflowEngine {
     const workflow = this.#artifact.workflows?.find((candidate) => candidate.id === args.workflowId);
     if (!workflow || workflow.trigger.kind !== "event") throw new Error("Workflow has no declared event trigger");
     if (trustedOpeningFields(workflow).some((field) => Object.hasOwn(fields, field))) throw new Error("Opening fields cannot override trusted trigger identity");
-    const eventPath = workflow.trigger.eventPath;
+    const eventPath = workflow.trigger.eventPath, triggerId = workflow.trigger.id;
     const source = workflow.events?.find((candidate) => candidate.path === eventPath)?.declaration;
     if (!source) throw new Error("Workflow event source is missing from the historical Artifact");
     if (source.activation !== "active") throw new Error("Workflow event activation is blocked");
-    const declared = source.triggers.find((trigger) => trigger.id === workflow.trigger.id);
+    const declared = source.triggers.find((trigger) => trigger.id === triggerId);
     if (!declared) throw new Error("Workflow event trigger is absent from its declared source");
     const event = validateWorkflowTriggerEvent(args.event); workflowInstant(args.instant);
     if (event.resource_binding !== source.resource_binding) throw new Error("Event does not belong to the declared resource binding");
     if (!declared.events.includes(event.kind as WorkflowEventKind)) throw new Error("Event kind is not declared for this trigger");
+    if (event.kind === "item-changed" && declared.fields?.length && !declared.fields.includes(event.field)) throw new Error("Event field is not declared for this trigger");
     const key = { ...fields, trigger_id: workflow.trigger.id, run_date: localDateAt(args.instant, this.#calendar(workflow)?.timezone ?? "UTC"), event_id: event.event_id };
     if (workflow.instance.key.some((field) => !key[field as keyof typeof key])) throw new Error("Event opening is missing a declared instance key field");
     const originKey = `event:${sha256(workflow.instance.key.map((field) => [field, key[field as keyof typeof key]]))}`;

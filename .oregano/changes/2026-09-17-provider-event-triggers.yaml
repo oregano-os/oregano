@@ -37,6 +37,7 @@ files_expected:
   - packages/schema/event-source-v1.schema.json
   - packages/schema/workflow-steps-v1.schema.json
   - packages/state-store/workflow-engine.ts
+  - packages/testkit/fixtures/workflow-boundary-conformance.test.ts
   - packages/testkit/fixtures/workflow-hosting.test.ts
   - packages/testkit/tests/monday-board-webhook.test.ts
   - packages/testkit/tests/workflow-event-triggers.test.ts

@@ -25,7 +25,7 @@ test("missing credentials and undeclared clock overrides cannot admit an ordinar
   const h = engineFixture();
   const config: WorkflowHostingConfiguration = { version: 1, instanceId: h.artifact.instance.id,
     artifactHash: h.artifact.artifactHash, environment: "development", enabledWorkflowIds: ["monday-handoff"],
-    autoOpenWorkflowIds: [], schedulePrincipal: ENGINE_OPERATOR, activatedAt: h.now, maxLatenessMinutes: 60,
+    autoOpenWorkflowIds: [], eventOpenWorkflowIds: [], schedulePrincipal: ENGINE_OPERATOR, activatedAt: h.now, maxLatenessMinutes: 60,
     operators: [{ principal: ENGINE_OPERATOR, secretRef: "env:TEST_OPERATOR_SECRET" }] };
   const environment = { TEST_OPERATOR_SECRET: "a".repeat(48), CRON_SECRET: "b".repeat(48) };
   const anonymous = new Request("https://example.test/api/workflows/operator");

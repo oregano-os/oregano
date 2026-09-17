@@ -107,7 +107,8 @@ provider: monday
 resource_binding: sprint-board
 triggers:
   - id: sprint-card-changed
-    events: [item-created, item-moved]
+    events: [item-created, item-changed]
+    fields: [type]
 ```
 
 ```yaml
@@ -116,8 +117,14 @@ trigger: event:sprint-card-changed
 
 :::
 
-The workflow receives `$trigger.event.work_item_id`, `$trigger.event.kind`
-and the other verified identity fields; it must still read the card through
+`events` names the normalized kinds: `item-created`, `item-moved` (the
+provider's physical group) and `item-changed` (one bound field). When a board
+expresses its stages through a status column rather than physical groups,
+declare `item-changed` with the logical field the Instance binds to that
+column; other columns never open the workflow.
+
+The workflow receives `$trigger.event.work_item_id`, `$trigger.event.kind`,
+`$trigger.event.field` and the other verified identity fields; it must still read the card through
 `oregano:records/query` or `oregano:work-items/read` before deciding anything.
 The default instance key is `trigger_id` plus `event_id`, so each provider
 event opens one run and a redelivery reuses it. Add `calendar:` when the

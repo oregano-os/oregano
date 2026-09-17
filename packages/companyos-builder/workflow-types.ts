@@ -19,14 +19,15 @@ export interface CompiledWorkflowSchedule {
   declaration: WorkflowSchedule;
 }
 /** Normalized provider events a Connector may deliver; the workflow rereads the record itself. */
-export type WorkflowEventKind = "item-created" | "item-moved";
+export type WorkflowEventKind = "item-created" | "item-moved" | "item-changed";
 export interface WorkflowEventSource {
   schema_version: 1;
   id: string;
   activation: "blocked" | "active";
   provider: string;
   resource_binding: string;
-  triggers: Array<{ id: string; events: WorkflowEventKind[]; params?: Record<string, JsonValue> }>;
+  /** `fields` names logical resource fields (as bound in the Instance) whose change may open the workflow. */
+  triggers: Array<{ id: string; events: WorkflowEventKind[]; fields?: string[]; params?: Record<string, JsonValue> }>;
   blocking_inputs?: string[];
 }
 export interface CompiledWorkflowEventSource {

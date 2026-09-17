@@ -59,12 +59,23 @@
               "type": "string",
               "enum": [
                 "item-created",
-                "item-moved"
+                "item-moved",
+                "item-changed"
               ]
             }
           },
           "params": {
             "type": "object"
+          },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,62}$"
+            }
           }
         }
       }

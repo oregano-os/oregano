@@ -685,7 +685,8 @@ See the [maintained host profile](../operations/maintained-host-profile.md).
   action, or production verification is claimed.
 - Declared workflows can open from a verified provider board event. A
   Workspace event source under `events/` declares the logical resource binding
-  and the normalized kinds `item-created` and `item-moved`; a workflow selects
+  and the normalized kinds `item-created`, `item-moved` and `item-changed`
+  (bound to logical fields, never provider columns); a workflow selects
   one trigger with `trigger: event:<id>` and receives identity-only
   `$trigger.event` fields. The engine derives a per-event identity from
   `trigger_id` and `event_id`, reuses the run on redelivery, rejects changed

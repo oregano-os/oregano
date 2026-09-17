@@ -124,6 +124,8 @@ export interface WorkflowTriggerEvent {
   resource_binding: string;
   work_item_id: string;
   group_id: string;
+  /** Logical resource field for a change event; empty for creation and moves. */
+  field: string;
   actor_id: string;
   occurred_at: string;
 }

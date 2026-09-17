@@ -9,6 +9,8 @@ export interface MondayBoardEvent {
   boardId: string;
   workItemId: string;
   groupId: string;
+  /** Provider column of a change event; empty for creation and moves. The host maps it to the logical field. */
+  columnId: string;
   actorId: string;
   occurredAt: string;
   providerType: string;
@@ -23,6 +25,10 @@ const EVENT_KINDS: Record<string, WorkflowEventKind> = {
   move_pulse_into_group: "item-moved",
   item_moved_to_any_group: "item-moved",
   item_moved_to_specific_group: "item-moved",
+  update_column_value: "item-changed",
+  change_column_value: "item-changed",
+  change_status_column_value: "item-changed",
+  change_specific_column_value: "item-changed",
 };
 
 const identifier = (name: string, value: unknown, pattern = /^[A-Za-z0-9_.-]{1,128}$/): string => {
@@ -55,6 +61,7 @@ export function parseMondayBoardWebhook(rawBody: string): MondayBoardWebhook {
     boardId: identifier("boardId", raw.boardId, /^\d{1,20}$/),
     workItemId: identifier("pulseId", raw.pulseId ?? raw.itemId, /^\d{1,20}$/),
     groupId: identifier("groupId", raw.destGroupId ?? raw.groupId),
+    columnId: kind === "item-changed" ? identifier("columnId", raw.columnId) : "",
     actorId: identifier("userId", raw.userId, /^-?\d{1,20}$/),
     occurredAt: occurredAt.toISOString(),
     providerType: type,
@@ -73,7 +80,8 @@ export function verifyMondayBoardWebhookToken(url: string, secret: string): bool
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-export function workflowEventFromMondayBoardEvent(event: MondayBoardEvent, resourceBinding: string): WorkflowTriggerEvent {
+/** `field` is the logical resource field the host resolved for a change event; empty otherwise. */
+export function workflowEventFromMondayBoardEvent(event: MondayBoardEvent, resourceBinding: string, field = ""): WorkflowTriggerEvent {
   return { kind: event.kind, event_id: event.eventId, resource_binding: resourceBinding, work_item_id: event.workItemId,
-    group_id: event.groupId, actor_id: event.actorId, occurred_at: event.occurredAt };
+    group_id: event.groupId, field, actor_id: event.actorId, occurred_at: event.occurredAt };
 }

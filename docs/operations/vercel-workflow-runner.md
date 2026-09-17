@@ -179,13 +179,17 @@ handler checks the token before it reads the database or the Artifact, answers
 the provider's `challenge` only after that check, and returns 401 otherwise.
 
 Register one subscription per accepted event kind on the exact board the
-Instance binds as a resource, for example `create_item` and
-`item_moved_to_any_group` on the Sprint board. Deliveries are normalized to
-`item-created` and `item-moved`; subitem events and other types are answered
-with `accepted: false` and an explicit reason so the provider does not retry.
-The board must map to a resource binding in the Instance's Monday Connector
-configuration, otherwise the delivery is answered `unbound-board`. Events whose
-`userId` is the Instance's own `actor_id` are answered `self-authored`.
+Instance binds as a resource: `create_item` for `item-created`,
+`item_moved_to_any_group` for `item-moved`, and for `item-changed` a
+`change_specific_column_value` subscription whose `config` names the exact
+column bound to the declared logical field (for example the status column the
+Workspace maps as `type`). Deliveries are normalized to those kinds; subitem
+events and other types are answered with `accepted: false` and an explicit
+reason so the provider does not retry. The board must map to a resource
+binding in the Instance's Monday Connector configuration, otherwise the
+delivery is answered `unbound-board`; a column change on a column the resource
+does not bind is answered `unbound-column`. Events whose `userId` is the
+Instance's own `actor_id` are answered `self-authored`.
 
 An accepted delivery opens every enabled event workflow whose active source
 declares that resource binding and event kind, using the provider trigger time

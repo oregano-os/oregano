@@ -22,29 +22,39 @@ export interface MondayBoardWebhookDependencies {
   now?: () => number;
 }
 
-interface MondayBoardBinding { actorId: string; resourceBindings: Map<string, string> }
+interface MondayBoardResource { binding: string; fields: Record<string, string> }
+interface MondayBoardBinding { actorId: string; resources: Map<string, MondayBoardResource> }
 
-/** Exact board-to-resource pairs and the Instance's own provider identity, read from the pinned Artifact. */
+/** Exact board-to-resource pairs, their logical field map and the Instance's own provider identity, read from the pinned Artifact. */
 function mondayBoardBinding(artifact: CompanyOSArtifact): MondayBoardBinding | undefined {
   const entry = artifact.connectors?.find((connector) => connector.connector === "oregano/monday-work-items");
   const configuration = entry?.configuration as { actor_id?: unknown; resources?: unknown } | undefined;
   if (!configuration || typeof configuration.actor_id !== "string" || !Array.isArray(configuration.resources)) return undefined;
-  const resourceBindings = new Map<string, string>();
+  const resources = new Map<string, MondayBoardResource>();
   for (const raw of configuration.resources) {
-    const resource = raw as { id?: unknown; board_id?: unknown };
-    if (typeof resource?.id === "string" && typeof resource.board_id === "string") resourceBindings.set(resource.board_id, resource.id);
+    const resource = raw as { id?: unknown; board_id?: unknown; fields?: unknown };
+    if (typeof resource?.id !== "string" || typeof resource.board_id !== "string") continue;
+    const fields = Object.fromEntries(Object.entries((resource.fields && typeof resource.fields === "object" ? resource.fields : {}) as Record<string, unknown>)
+      .filter(([, column]) => typeof column === "string")) as Record<string, string>;
+    resources.set(resource.board_id, { binding: resource.id, fields });
   }
-  return { actorId: configuration.actor_id, resourceBindings };
+  return { actorId: configuration.actor_id, resources };
 }
 
-/** Active event workflows whose declared source matches this exact provider event. */
-export function selectMondayEventWorkflows(artifact: CompanyOSArtifact, eventOpenWorkflowIds: readonly string[], resourceBinding: string, event: MondayBoardEvent): CompiledWorkflow[] {
+/** The logical field bound to a provider column, or empty when the Instance does not bind it. */
+export function logicalFieldFor(resource: MondayBoardResource, columnId: string): string {
+  return Object.entries(resource.fields).find(([, column]) => column === columnId)?.[0] ?? "";
+}
+
+/** Active event workflows whose declared source matches this exact provider event and, for a change, its logical field. */
+export function selectMondayEventWorkflows(artifact: CompanyOSArtifact, eventOpenWorkflowIds: readonly string[], resourceBinding: string, event: MondayBoardEvent, field = ""): CompiledWorkflow[] {
   return (artifact.workflows ?? []).filter((workflow) => {
     if (!eventOpenWorkflowIds.includes(workflow.id) || workflow.trigger.kind !== "event") return false;
     const eventPath = workflow.trigger.eventPath, triggerId = workflow.trigger.id;
     const source = workflow.events?.find((candidate) => candidate.path === eventPath)?.declaration;
     if (!source || source.provider !== "monday" || source.activation !== "active" || source.resource_binding !== resourceBinding) return false;
-    return source.triggers.some((trigger) => trigger.id === triggerId && trigger.events.includes(event.kind));
+    return source.triggers.some((trigger) => trigger.id === triggerId && trigger.events.includes(event.kind)
+      && (event.kind !== "item-changed" || !trigger.fields?.length || trigger.fields.includes(field)));
   });
 }
 
@@ -66,10 +76,13 @@ export async function handleMondayBoardWebhook(request: Request, dependencies: M
   if ("ignored" in parsed) return notAccepted(parsed.ignored);
   const { event } = parsed;
   const binding = mondayBoardBinding(dependencies.artifact);
-  const resourceBinding = binding?.resourceBindings.get(event.boardId);
-  if (!binding || !resourceBinding) return notAccepted("unbound-board");
+  const resource = binding?.resources.get(event.boardId);
+  if (!binding || !resource) return notAccepted("unbound-board");
+  const resourceBinding = resource.binding;
   if (event.actorId === binding.actorId) return notAccepted("self-authored");
-  const workflows = selectMondayEventWorkflows(dependencies.artifact, dependencies.eventOpenWorkflowIds, resourceBinding, event);
+  const field = event.kind === "item-changed" ? logicalFieldFor(resource, event.columnId) : "";
+  if (event.kind === "item-changed" && !field) return notAccepted("unbound-column");
+  const workflows = selectMondayEventWorkflows(dependencies.artifact, dependencies.eventOpenWorkflowIds, resourceBinding, event, field);
   if (!workflows.length) return notAccepted("no-active-event-workflow");
   const now = (dependencies.now ?? Date.now)();
   const replayKey = `monday:board-event:${dependencies.artifact.instance.id}:${event.eventId}`;
@@ -77,7 +90,7 @@ export async function handleMondayBoardWebhook(request: Request, dependencies: M
     const opened: Array<{ workflowId: string; runId: string }> = [];
     for (const workflow of workflows) {
       const run = await dependencies.openEvent({ workflowId: workflow.id, principal: dependencies.schedulePrincipal,
-        event: workflowEventFromMondayBoardEvent(event, resourceBinding), instant: event.occurredAt });
+        event: workflowEventFromMondayBoardEvent(event, resourceBinding, field), instant: event.occurredAt });
       opened.push({ workflowId: workflow.id, runId: run.runId });
     }
     // The engine origin key is the idempotency boundary; the claim only short-circuits later redeliveries.

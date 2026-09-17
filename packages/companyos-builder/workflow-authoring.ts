@@ -348,7 +348,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         if (path[0] === "event") {
           if (!eventTrigger) { err(f, `${fromStep}: $trigger.event fields require an event trigger`); return null; }
           const eventFields: Record<string, Schema> = { kind: { type: "string", enum: [...eventTrigger.events] }, event_id: { type: "string" }, resource_binding: { type: "string" },
-            work_item_id: { type: "string" }, group_id: { type: "string" }, actor_id: { type: "string" }, occurred_at: { type: "string", format: "date-time" } };
+            work_item_id: { type: "string" }, group_id: { type: "string" }, field: { type: "string" }, actor_id: { type: "string" }, occurred_at: { type: "string", format: "date-time" } };
           if (path.length !== 2 || !eventFields[path[1]!]) { err(f, `${fromStep}: unknown $trigger.event field '${path.slice(1).join(".")}'`); return null; }
           return eventFields[path[1]!];
         }

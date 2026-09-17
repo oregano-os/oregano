@@ -24,7 +24,7 @@ function boardFixture() {
   cpSync(resolve(import.meta.dirname, "../fixtures/lindenhof-studio"), root, { recursive: true });
   mkdirSync(join(root, "events"), { recursive: true });
   writeFileSync(join(root, "events/sprint-board.yaml"), YAML.stringify({ schema_version: 1, id: "sprint-board-events", activation: "active", provider: "monday", resource_binding: "sprint-board",
-    triggers: [{ id: "sprint-card-changed", events: ["item-created", "item-moved"] }] }));
+    triggers: [{ id: "sprint-card-changed", events: ["item-created", "item-changed"], fields: ["type"] }] }));
   writeFileSync(join(root, "workflows/card-intake.md"), `---
 type: workflow
 id: card-intake
@@ -51,7 +51,7 @@ steps:
   rmSync(root, { recursive: true, force: true });
   artifact.connectors = [{ id: "monday", connector: "oregano/monday-work-items", connectorVersion: "0.1.0", configuration: { token_ref: "env:MONDAY_API_TOKEN", api_version: "dev", actor_id: "115144288",
     credential_identity: { account_id: "1", member_id: "115144288", external_agent_id: "1", kind: "external_agent_member" },
-    resources: [{ id: "sprint-board", board_id: "1771812698", permission: "read-write", fields: {} }, { id: "roles-board", board_id: "5740819791", permission: "read", fields: {} }] } }];
+    resources: [{ id: "sprint-board", board_id: "1771812698", permission: "read-write", fields: { owner: "person", type: "color_type", status: "status" } }, { id: "roles-board", board_id: "5740819791", permission: "read", fields: {} }] } }];
   const { artifactHash, ...content } = artifact;
   artifact.artifactHash = sha256({ ...content, provenance: { ...content.provenance, builtAt: undefined } });
   const h = engineFixture({ artifact });
@@ -66,13 +66,17 @@ const request = (body: unknown, args: { token?: string; method?: string } = {}) 
 
 test("board webhook parsing normalizes supported provider events and ignores everything else explicitly", () => {
   const parsed = parseMondayBoardWebhook(JSON.stringify(created));
-  assert.deepEqual(parsed, { event: { kind: "item-created", eventId: "b5ed2e17c530f43668de130142445cba", boardId: "1771812698", workItemId: "1772099344", groupId: "topics",
+  assert.deepEqual(parsed, { event: { kind: "item-created", eventId: "b5ed2e17c530f43668de130142445cba", boardId: "1771812698", workItemId: "1772099344", groupId: "topics", columnId: "",
     actorId: "9603417", occurredAt: "2030-01-04T09:07:28.210Z", providerType: "create_pulse", subscriptionId: "73759690" } });
   const moved = parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, type: "move_pulse_into_group", groupId: "topics", destGroupId: "planned", triggerUuid: "5c28578c66653a87b00a80aa4f7a6ce3" } }));
   assert.equal("event" in moved && moved.event.kind, "item-moved");
   assert.equal("event" in moved && moved.event.groupId, "planned");
+  const changed = parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, type: "update_column_value", columnId: "color_type", columnType: "color", value: { label: { text: "IN SPRINT" } }, previousValue: null, triggerUuid: "504b2eb76c80f672a18f892c0f700e41" } }));
+  assert.equal("event" in changed && changed.event.kind, "item-changed");
+  assert.equal("event" in changed && changed.event.columnId, "color_type");
+  assert.throws(() => parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, type: "update_column_value" } })), /columnId/);
   assert.deepEqual(parseMondayBoardWebhook(JSON.stringify({ challenge: "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P" })), { challenge: "3eZbrw1aBm2rZgRNFdxV2595E9CY3gmdALWMmHkvFXO7tYXAYM8P" });
-  assert.deepEqual(parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, type: "update_column_value" } })), { ignored: "unsupported-event:update_column_value" });
+  assert.deepEqual(parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, type: "delete_pulse" } })), { ignored: "unsupported-event:delete_pulse" });
   assert.deepEqual(parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, parentItemId: "1771812716" } })), { ignored: "subitem-event" });
   assert.throws(() => parseMondayBoardWebhook("not json"), /valid JSON/);
   assert.throws(() => parseMondayBoardWebhook(JSON.stringify({ event: { ...created.event, triggerUuid: "../x" } })), /triggerUuid/);
@@ -83,7 +87,18 @@ test("board webhook parsing normalizes supported provider events and ignores eve
   assert.equal(verifyMondayBoardWebhookToken("https://company.example/hook", SECRET), false);
   assert.equal(verifyMondayBoardWebhookToken(`https://company.example/hook?token=short`, "short"), false);
   assert.deepEqual(workflowEventFromMondayBoardEvent((parsed as { event: any }).event, "sprint-board"), { kind: "item-created", event_id: "b5ed2e17c530f43668de130142445cba",
-    resource_binding: "sprint-board", work_item_id: "1772099344", group_id: "topics", actor_id: "9603417", occurred_at: "2030-01-04T09:07:28.210Z" });
+    resource_binding: "sprint-board", work_item_id: "1772099344", group_id: "topics", field: "", actor_id: "9603417", occurred_at: "2030-01-04T09:07:28.210Z" });
+});
+
+test("a bound column change opens the workflow with its logical field; unbound or undeclared columns are refused explicitly", async () => {
+  const { h, dependencies, calls } = boardFixture();
+  const change = (columnId: string, triggerUuid: string) => ({ event: { ...created.event, type: "update_column_value", columnId, columnType: "color", value: { label: { text: "IN SPRINT" } }, triggerUuid } });
+  const typed = await (await handleMondayBoardWebhook(request(change("color_type", "type0000000000000000000000000001")), dependencies)).json();
+  assert.equal(typed.accepted, true);
+  assert.equal(calls[0]!.event.kind, "item-changed"); assert.equal(calls[0]!.event.field, "type");
+  assert.deepEqual(await (await handleMondayBoardWebhook(request(change("status", "stat0000000000000000000000000001")), dependencies)).json(), { ok: true, accepted: false, reason: "no-active-event-workflow" }, "status is bound but not declared by the trigger");
+  assert.deepEqual(await (await handleMondayBoardWebhook(request(change("text_unbound", "unb00000000000000000000000000001")), dependencies)).json(), { ok: true, accepted: false, reason: "unbound-column" });
+  assert.equal((await h.store.list({ instanceId: h.artifact.instance.id, limit: 20 })).length, 1);
 });
 
 test("a verified board event opens the declared workflow once; redeliveries and self-authored changes never open twice", async () => {
@@ -93,7 +108,7 @@ test("a verified board event opens the declared workflow once; redeliveries and 
   const body = await first.json();
   assert.equal(body.accepted, true); assert.equal(body.redelivered, false); assert.equal(body.opened.length, 1); assert.equal(body.opened[0].workflowId, "card-intake");
   assert.deepEqual(calls[0], { workflowId: "card-intake", principal: ENGINE_OPERATOR, instant: "2030-01-04T09:07:28.210Z",
-    event: { kind: "item-created", event_id: "b5ed2e17c530f43668de130142445cba", resource_binding: "sprint-board", work_item_id: "1772099344", group_id: "topics", actor_id: "9603417", occurred_at: "2030-01-04T09:07:28.210Z" } });
+    event: { kind: "item-created", event_id: "b5ed2e17c530f43668de130142445cba", resource_binding: "sprint-board", work_item_id: "1772099344", group_id: "topics", field: "", actor_id: "9603417", occurred_at: "2030-01-04T09:07:28.210Z" } });
   const again = await (await handleMondayBoardWebhook(request(created), dependencies)).json();
   assert.equal(again.accepted, true); assert.equal(again.redelivered, true); assert.equal(again.opened[0].runId, body.opened[0].runId);
   assert.equal((await h.store.list({ instanceId: h.artifact.instance.id, limit: 20 })).length, 1);
