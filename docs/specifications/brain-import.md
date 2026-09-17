@@ -104,11 +104,12 @@ Inline citations use an aliased wiki link inside escaped visible brackets, for
 example `\[[[meetings/review-example|Source: Meeting "Review", 2030-01-02]]\]`.
 Entity prose and Timeline link to the meeting; citations within that meeting link
 to its evidence page, which retains the original-source URL. Bare `[Source: ...]`
-labels are not links. The extra direct Timeline source reference remains in a
-same-line `<!-- Source evidence: [[sources/review-example]] -->` comment, so the
-existing evidence validation and indexing remain intact without a second visible
-raw path. `timeline_add` supplies that comment when summary/detail contains the
-bracketed citation; otherwise it emits bracketed evidence links with the event
+labels are not links. Do not append duplicate raw source links or HTML source
+comments: comments remain visible in Markdown editing views. Timeline validation
+follows one cited content page to its direct original-backed evidence, while
+Takes keep direct evidence and writes retain provenance. `timeline_add` validates
+that a supplied bracketed citation reaches every declared evidence page and adds
+no duplicate comment; otherwise it emits bracketed evidence links with the event
 date. Existing pages and historical receipts are not migrated automatically.
 
 A consuming Workspace must declare a matching Records projection with `identity`,

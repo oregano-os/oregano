@@ -12,8 +12,9 @@ objective: Adopt Skill-led source interpretation, saved-page verification and re
   deduplication and the remaining execution budgets. Omit the optional cumulative
   input-byte cap from newly materialized Brain imports while retaining input-size
   accounting, per-request host bounds and historical immutable run definitions.
-  Render clickable bracketed Source citations; retain direct Timeline evidence
-  in Markdown comments when a readable meeting citation supplies navigation.
+  Render clickable bracketed Source citations without duplicate HTML comments.
+  Validate Timeline evidence directly or through one cited content page to its
+  original-backed evidence, preserving direct Take evidence and write provenance.
   Keep incremental Timeline mutations,
   scoped instruction/model routing and independent source-first qualification.
 non_goals:

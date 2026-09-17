@@ -100,3 +100,24 @@ test('Visible citation brackets do not become part of an aliased wiki target', (
  const checked = checkBrainCorpus({...brainFiles, 'brain/topics/citation.md': page('topic', 'Citation', body)}, brainConfig);
  assert.deepEqual(checked.diagnostics.filter(d => d.path === 'brain/topics/citation.md'), []);
 });
+
+test('Timeline evidence permits one content hop and rejects missing, ambiguous, circular or historical chains', () => {
+ const target = 'brain/people/reviewer.md';
+ const event = page('person', 'Reviewer', 'Current context.\n\n<!-- timeline -->\n- 2030-01-02: Reviewed. \\[[[topics/notes|Source: Meeting "Review", 2030-01-02]]\\]');
+ const files = { ...brainFiles, [target]: event,
+   'brain/topics/notes.md': page('topic', 'Review notes', 'Account. [[sources/review|Original transcript]]') };
+ const invalid = (input: Record<string, string>) => checkBrainCorpus(input, brainConfig).diagnostics.some(d => d.path === target && d.code === 'timeline_evidence_missing');
+ assert.equal(invalid(files), false);
+ for (const content of ['No source.', '[[topics/notes]]', '[[topics/expansion]]', '[[people/alex]]',
+   'Current account.\n\n<!-- timeline -->\n- Older event. [[sources/review]]']) {
+   assert.equal(invalid({ ...files, 'brain/topics/notes.md': page('topic', 'Review notes', content) }), true, content);
+ }
+ assert.equal(invalid({ ...files, 'brain/sources/review.md': page('source', 'Review', 'No original URL.') }), true);
+ assert.equal(invalid({ ...files, 'brain/topics/notes.md': page('topic', 'Review notes', '[[Duplicate]]'),
+   'brain/sources/a.md': page('source', 'Duplicate', '[Original](https://example.org/a)'),
+   'brain/sources/b.md': page('source', 'Duplicate', '[Original](https://example.org/b)') }), true);
+ const self = { ...files, 'brain/topics/notes.md': page('topic', 'Review notes', '[[sources/review]]\n\n<!-- timeline -->\n- 2030-01-02: Reviewed. [[topics/notes]]') };
+ assert.ok(checkBrainCorpus(self, brainConfig).diagnostics.some(d => d.path === 'brain/topics/notes.md' && d.code === 'timeline_evidence_missing'));
+ const indirectTake = { ...files, 'brain/topics/expansion.md': brainFiles['brain/topics/expansion.md'].replaceAll('[[sources/review]]', '[[topics/notes]]') };
+ assert.ok(checkBrainCorpus(indirectTake, brainConfig).diagnostics.some(d => d.code === 'take_evidence_missing'), 'Takes retain direct evidence');
+});

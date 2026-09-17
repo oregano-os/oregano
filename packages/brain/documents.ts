@@ -84,6 +84,27 @@ export function resolveBrainName(pages: readonly BrainPage[], name: string): Bra
   return pages.filter(page => page.aliases.some(alias => normalizeName(alias) === normalized) || normalizeName(page.title) === normalized);
 }
 
+/** Timeline navigation may go through one content page, never an arbitrary graph walk. */
+export function resolveTimelineEvidence(pages: readonly BrainPage[], config: BrainConfiguration, text: string, from: string): Set<string> {
+  const evidence = new Set<string>();
+  const resolve = (target: string) => {
+    const matches = resolveBrainName(pages, target);
+    return matches.length === 1 ? matches[0] : undefined;
+  };
+  const retain = (page: BrainPage | undefined) => {
+    if (page && config.types[page.type].role === "evidence" && page.original_links.length) evidence.add(page.slug);
+  };
+  for (const link of referenceLinks(text)) {
+    const target = resolve(link.target);
+    retain(target);
+    if (!target || target.slug === from || config.types[target.type].role !== "content") continue;
+    // Only the cited content's current body supplies this hop, not its Timeline,
+    // unrelated people/company links, or another content page.
+    for (const source of referenceLinks(target.compiled_truth)) retain(resolve(source.target));
+  }
+  return evidence;
+}
+
 /** Derives references from one complete prospective corpus; never creates stub pages. */
 export function checkBrainCorpus(files: Record<string, string>, config: BrainConfiguration): BrainCorpus {
   const pages: BrainPage[] = [], diagnostics: BrainDiagnostic[] = [];
@@ -110,7 +131,7 @@ export function checkBrainCorpus(files: Record<string, string>, config: BrainCon
     if (config.types[page.type].role === "evidence" && page.original_links.length === 0) issue("original_source_missing", "Evidence pages require readable context and a direct original-source link.");
     // Treat paragraphs/list items as prose blocks; no Timeline entry IDs or metadata grammar.
     const timelineBlocks = page.timeline.split(/\n\s*\n|\n(?=[-*+]\s)/).filter(block => block.trim() && !/^\s*#{1,6}\s[^\n]+\s*$/.test(block));
-    for (const block of timelineBlocks) if (!evidence(block)) issue("timeline_evidence_missing", "Each Timeline prose entry must cite an existing evidence page with its original-source link.");
+    for (const block of timelineBlocks) if (!resolveTimelineEvidence(pages, config, block, page.slug).size) issue("timeline_evidence_missing", "Each Timeline entry must cite evidence directly or through one content page that links to evidence with an original-source link.");
     for (const take of page.takes) {
       if (!evidence(take.source)) issue("take_evidence_missing", "Each Take must cite an existing internal evidence page with its original-source link.", take.row_num);
       if (take.holder === "world" || take.holder === "brain") continue;

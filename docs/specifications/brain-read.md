@@ -101,8 +101,12 @@ history. Current retrieval indexes active Takes separately and removes the entir
 Takes fence from ordinary page search, preventing withdrawn claims from leaking
 through prose excerpts. Entity inspection deliberately includes inactive history.
 
-Every Timeline entry and Take must link to an existing internal evidence page;
-that page must link to an original source. Ordinary unresolved or ambiguous
+Every Timeline entry must link to an existing internal evidence page directly or
+through one uniquely resolved content-role page whose current body links directly
+to that evidence page. The evidence page must link to an original source. Self
+links, ambiguous targets, content-to-content chains and evidence found only in a
+cited page's historical Timeline do not satisfy this chain. Takes continue to
+require direct links to original-backed evidence pages. Ordinary unresolved or ambiguous
 references produce diagnostics. Invalid evidence chains prevent indexing. Body
 and mapped frontmatter links form outgoing relationships; backlinks are derived.
 Write validation returns the affected page path and bounded diagnostic codes with
@@ -112,8 +116,8 @@ CLI access. The caller corrects the specific defect within its existing task and
 budgets; diagnostics do not restart a stopped task.
 Batch validation failures explicitly report that none of the proposed pages were
 saved. Repair must include any still-absent source pages. Missing provenance names
-the declared evidence reference; Timeline/Take feedback distinguishes direct
-evidence citations from links to a content or meeting page.
+the declared evidence reference; Timeline feedback explains the one-content-hop
+source chain, while Takes still require direct evidence citations.
 The checker never creates stub pages. Mechanical validity does not prove factual
 accuracy or that an attendee page is meaningful; source-based review remains
 necessary when preparing or ingesting knowledge.
@@ -193,13 +197,15 @@ Core edits dated Markdown deterministically without a model call. It preserves
 frontmatter, current knowledge, Takes and unrelated history, normalizes recognized
 legacy Timeline separators, and inserts before the first older/equal dated bullet
 (or at the end when none exists) without reordering existing prose. Exact repeated
-entries are unchanged, including matching entries in the older raw-link format;
-operation-key replay also prevents duplicate commits. A bracketed aliased `Source:`
-link in summary/detail supplies visible navigation; Core retains the direct
-`evidence` links in a same-line Markdown comment. Without that citation it emits
-bracketed evidence links with the event date. Escaped outer display brackets are
-not part of indexed wiki targets. Evidence validation still requires the direct
-source references; a meeting link alone does not satisfy it.
+entries are unchanged, including matching entries in the older raw-link or HTML
+comment formats; operation-key replay also prevents duplicate commits. A bracketed
+aliased `Source:` link in summary/detail supplies visible navigation without a
+duplicate source comment. It must reach every declared `evidence` page directly or
+through the one-content-hop chain described above. Evidence remains in write
+provenance; indexed relationships follow the visible links. Without a supplied
+citation, Core emits bracketed evidence links with the event date. Escaped outer
+display brackets are not part of indexed wiki targets. Existing comments are not
+removed automatically; a reviewed Markdown edit can remove redundant comments.
 Source corrections and changed current assertions use full page replacement or
 explicit unique-passage withdrawal. They must not append contradictory events.
 Provenance identifies source, version, processing action and internal evidence

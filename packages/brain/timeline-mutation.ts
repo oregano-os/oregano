@@ -8,6 +8,8 @@ export interface BrainTimelineAddition {
   evidence: string[];
 }
 
+export const hasBrainSourceCitation = (text: string): boolean => /\\\[\[\[[^\[\]\n|]+\|Source: [^\]\n]+\]\]\\\]/.test(text);
+
 /** A small prose edit, not an event store or a model-generated page replacement. */
 export function addBrainTimeline(page: BrainPage, addition: BrainTimelineAddition): string {
   const invalid = (): never => { throw new BrainError("invalid_input", "Timeline additions require a real YYYY-MM-DD event date, bounded single-line summary/detail and canonical evidence slugs."); };
@@ -20,17 +22,17 @@ export function addBrainTimeline(page: BrainPage, addition: BrainTimelineAdditio
     || new Set(addition.evidence).size !== addition.evidence.length
     || addition.evidence.some(slug => typeof slug !== "string" || !/^[a-z][a-z0-9-]{0,39}\/[a-z0-9][a-z0-9-]{0,119}$/.test(slug))) invalid();
   const proseText = `${addition.summary.trim()}${addition.detail ? ` — ${addition.detail.trim()}` : ""}`;
-  // A readable citation supplies the visible navigation. Keep the direct source
-  // references in the same entry for the unchanged evidence validator/indexer.
-  const hasCitation = /\\\[\[\[[^\[\]\n|]+\|Source: [^\]\n]+\]\]\\\]/.test(proseText);
-  const references = hasCitation
-    ? `<!-- Source evidence: ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")} -->`
+  // Provenance stays in the write receipt; the readable citation is validated
+  // against the prospective corpus rather than duplicated in an HTML comment.
+  const references = hasBrainSourceCitation(proseText)
+    ? ""
     : addition.evidence.map(slug => `\\[[[${slug}|Source: ${addition.date}]]\\]`).join(" ");
-  const entry = `- ${addition.date}: ${proseText} ${references}`;
+  const entry = `- ${addition.date}: ${proseText}${references ? ` ${references}` : ""}`;
   // Exact duplicate protection also covers an intentional retry with a fresh key
   // after rereading. Source corrections still require an explicit replacement.
   const legacyEntry = `- ${addition.date}: ${proseText} ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")}`;
-  if (timelineProseLines(page.timeline).some(line => line.text === entry || line.text === legacyEntry)) return page.markdown;
+  const commentEntry = `- ${addition.date}: ${proseText} <!-- Source evidence: ${addition.evidence.map(slug => `[[${slug}]]`).join(" ")} -->`;
+  if (timelineProseLines(page.timeline).some(line => [entry, legacyEntry, commentEntry].includes(line.text))) return page.markdown;
 
   const raw = page.markdown, newline = raw.includes("\r\n") ? "\r\n" : "\n";
   const header = raw.match(/^\uFEFF?\s*---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/)!;

@@ -114,11 +114,10 @@ page object has only `path`, `expected_content_hash` and `markdown`; do not add
 `kind` (that field belongs to other operations). A write path is
 `brain/<directory>/<slug>.md`, while an entity name or link uses `<directory>/<slug>`.
 Copy `task.evidence.path` for the prepared source page and `task.evidence.link`
-for its internal citation. Every meeting must include that link; every entity
-Timeline entry and Take must directly include it as well as any meeting backlink.
-Use the shared clickable, bracketed citation format. In Timeline, retain the
-direct source link in a same-line `<!-- Source evidence: [[directory/slug]] -->`
-comment; only the readable meeting citation is visible.
+for its internal citation. Every meeting must include that link. Entity Timeline
+entries may cite the meeting/content page when its current body directly cites
+the evidence page; Takes still require direct evidence. Use the shared clickable,
+bracketed Source citation, without duplicate raw links or Source evidence comments.
 Keep batches small: save source/meeting first, then independently prepared entity
 updates may share a bounded batch. Never postpone the meeting to draft every entity.
 Separate write calls depend on the preceding receipt's revision and must not be
@@ -129,8 +128,8 @@ For changed current knowledge, new pages or source corrections, supply complete
 `timeline_add: {date, summary, detail?, evidence}` instead of `markdown`: use the
 actual evidenced YYYY-MM-DD event date, single-line summary/detail and canonical
 internal evidence slugs also listed in provenance. Put the bracketed, aliased meeting citation in the
-summary/detail when a meeting backlink is required. Core keeps direct evidence
-references in a same-line comment when that visible citation is supplied. Core preserves frontmatter
+summary/detail when a meeting backlink is required. Core validates the citation's
+source chain without adding comments. Core preserves frontmatter
 (including dates), current knowledge, Takes and unrelated history. This operation
 does not update current assertions or correct an earlier event. Reconcile those
 through the full read/edit/replace path; do not append contradictory claims.

@@ -66,7 +66,7 @@ test("a rejected source batch explains atomicity and preserves missing dependenc
   const source = { path: "brain/sources/new-review.md", expected_content_hash: null,
     markdown: page("source", "New review", "Synthetic source. [Original](https://example.org/reviews/new)") };
   const meeting = { path: "brain/topics/new-review.md", expected_content_hash: null,
-    markdown: page("topic", "Review notes", "The review is pending. [[sources/new-review]]") };
+    markdown: page("topic", "Review notes", "The review is pending; its original-source citation is missing.") };
   const person = { path: "brain/people/reviewer.md", expected_content_hash: null,
     markdown: page("person", "Reviewer Example", "Review participant.\n\n<!-- timeline -->\n\n- 2030-01-02: Reviewed the proposal. [[topics/new-review]]") };
   const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [source, meeting, person] },
@@ -75,8 +75,8 @@ test("a rejected source batch explains atomicity and preserves missing dependenc
   assert.throws(() => prepareBrainRemember(before, brainConfig, input), (error: unknown) => {
     assert.ok(error instanceof BrainError && error.code === "invalid_batch");
     assert.match(error.message, /entire batch was rejected before saving/);
-    assert.match(error.message, /directly cite declared evidence \[\[sources\/new-review\]\]/);
-    assert.match(error.message, /meeting\/content backlink alone is insufficient/);
+    assert.match(error.message, /Declared evidence: \[\[sources\/new-review\]\]/);
+    assert.match(error.message, /through one cited content page/);
     return true;
   });
   assert.deepEqual(before, brainFiles, "The proposed source and meeting were not partially saved");
@@ -240,22 +240,30 @@ test('Timeline insertion and duplicate detection leave fenced examples untouched
 });
 
 
-test('Readable Timeline citations hide duplicate source navigation while retaining validated provenance', () => {
- const citation = String.raw`\[[[topics/expansion|Source: Meeting "Review", 2026-09-15]]\]`;
+test('Readable Timeline citations follow the content source chain without duplicate comments', () => {
+ const citation = String.raw`\[[[topics/review-notes|Source: Meeting "Review", 2026-09-15]]\]`;
+ const files = { ...brainFiles, 'brain/topics/review-notes.md': page('topic', 'Review notes', 'Review account. [[sources/review|Original transcript]]') };
  const input: BrainRememberInput = { changes: { expected_revision: revision, pages: [{ path, expected_content_hash: sha256(brainFiles[path]),
    timeline_add: { date: '2026-09-15', summary: 'Reviewed the proposal.', detail: citation, evidence: ['sources/review'] } }] }, provenance, operation_key: 'timeline:readable' };
- const result = prepareBrainRemember(brainFiles, brainConfig, input), saved = result.files[path];
- const entry = '- 2026-09-15: Reviewed the proposal. — ' + citation + ' <!-- Source evidence: [[sources/review]] -->';
+ const result = prepareBrainRemember(files, brainConfig, input), saved = result.files[path];
+ const entry = '- 2026-09-15: Reviewed the proposal. — ' + citation;
  assert.ok(saved.includes(entry));
+ assert.ok(!saved.includes('Source evidence:'));
  const parsed = parseBrainPage(path, saved, brainConfig).page!;
- assert.ok(parsed.links.some(link => link.target === 'topics/expansion'));
- assert.ok(parsed.links.some(link => link.target === 'sources/review'));
+ assert.ok(parsed.links.some(link => link.target === 'topics/review-notes'));
  assert.ok(!result.diagnostics.some(item => item.severity === 'error'));
- const invalid = remember(saved.replace('<!-- Source evidence: [[sources/review]] -->', ''));
- assert.throws(() => prepareBrainRemember(brainFiles, brainConfig, invalid), code('invalid_batch'), 'A content citation alone still cannot replace direct evidence');
+ assert.doesNotThrow(() => prepareBrainRemember(files, brainConfig, remember(saved)), 'Full page replacements use the same valid source chain');
  const replay = structuredClone(input); replay.changes.pages[0].expected_content_hash = sha256(saved);
  assert.equal(prepareBrainRemember(result.files, brainConfig, replay).changes.length, 0);
- const legacy = saved.replace(entry, '- 2026-09-15: Reviewed the proposal. — ' + citation + ' [[sources/review]]');
- replay.changes.pages[0].expected_content_hash = sha256(legacy);
- assert.equal(prepareBrainRemember({...brainFiles, [path]: legacy}, brainConfig, replay).changes.length, 0, 'Existing raw-link events are not duplicated');
+ for (const suffix of [' [[sources/review]]', ' <!-- Source evidence: [[sources/review]] -->']) {
+   const legacy = saved.replace(entry, entry + suffix);
+   replay.changes.pages[0].expected_content_hash = sha256(legacy);
+   assert.equal(prepareBrainRemember({...files, [path]: legacy}, brainConfig, replay).changes.length, 0, 'Existing events are not duplicated');
+ }
+ const wrongSource = { ...files, 'brain/sources/other.md': page('source', 'Other review', '[Original](https://example.org/other)'),
+   'brain/topics/review-notes.md': page('topic', 'Review notes', 'A different review. [[sources/other]]') };
+ assert.throws(() => prepareBrainRemember(wrongSource, brainConfig, input), code('invalid_batch'), 'A valid but unrelated source cannot replace the declared provenance');
+ const direct = structuredClone(input); direct.changes.pages[0].timeline_add!.detail = String.raw`\[[[sources/review|Source: Discussion, 2026-09-15]]\]`;
+ const directSaved = prepareBrainRemember(brainFiles, brainConfig, direct).files[path];
+ assert.ok(!directSaved.includes('Source evidence:'));
 });

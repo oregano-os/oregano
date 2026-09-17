@@ -1,9 +1,9 @@
 import { sha256 } from "../runtime/canonical.ts";
 import { BrainError, type BrainConfiguration, type BrainPage } from "./contracts.ts";
-import { checkBrainCorpus, parseBrainPage, resolveBrainName, serializeBrainPage } from "./documents.ts";
+import { checkBrainCorpus, parseBrainPage, resolveBrainName, resolveTimelineEvidence, serializeBrainPage } from "./documents.ts";
 import { assertBrainPath } from "./paths.ts";
 import { parseTakes, renderTakes, TAKES_BEGIN, TAKES_END } from "./takes.ts";
-import { addBrainTimeline, type BrainTimelineAddition } from "./timeline-mutation.ts";
+import { addBrainTimeline, hasBrainSourceCitation, type BrainTimelineAddition } from "./timeline-mutation.ts";
 
 export const MAX_BRAIN_WRITE_FILES = 16;
 export const MAX_BRAIN_WRITE_UNITS = 400_000;
@@ -96,7 +96,7 @@ function finishMutation(before: Record<string, string>, after: Record<string, st
   const errors = checked.diagnostics.filter(item => item.severity === "error");
   if (errors.length) {
     const hint = evidence.length && errors.some(item => ["timeline_evidence_missing", "take_evidence_missing"].includes(item.code))
-      ? `Timeline entries and Takes must directly cite declared evidence ${evidence.slice(0, 4).map(slug => `[[${slug}]]`).join(", ")}; a meeting/content backlink alone is insufficient. ` : "";
+      ? `Timeline entries must link to original-backed evidence directly or through one cited content page; Takes still require direct evidence. Declared evidence: ${evidence.slice(0, 4).map(slug => `[[${slug}]]`).join(", ")}. ` : "";
     fail("invalid_batch", hint + "Brain validation: " + errors.slice(0, 12).map(item => `${item.path}: ${item.code}: ${item.message}`).join("; "));
   }
   return { files: after, changes, diagnostics: checked.diagnostics };
@@ -132,8 +132,17 @@ export function prepareBrainRemember(files: Record<string, string>, config: Brai
       fail("provenance_missing", `Declared evidence ${source} must resolve to an evidence-role page with an original-source link. Include its complete source page in this batch if it has not been saved; pages from a rejected batch do not exist.`);
     }
   }
-  for (const change of replacements) for (const source of change.timeline_add?.evidence ?? []) {
-    if (!provenance.evidence.includes(source)) fail("provenance_missing", "Every Timeline evidence reference must be declared in this write's provenance.");
+  for (const change of replacements) {
+    const addition = change.timeline_add;
+    if (!addition) continue;
+    const text = `${addition.summary} ${addition.detail ?? ""}`;
+    const cited = resolveTimelineEvidence(corpus.pages, config, text, parsedPage(change.path, next[change.path], config).slug);
+    for (const source of addition.evidence) {
+      if (!provenance.evidence.includes(source)) fail("provenance_missing", "Every Timeline evidence reference must be declared in this write's provenance.");
+      if (hasBrainSourceCitation(text) && !cited.has(resolveBrainName(corpus.pages, source)[0]!.slug)) {
+        fail("invalid_batch", "The readable Timeline citation must reach every declared evidence page directly or through one cited content page; no hidden source comments are added.");
+      }
+    }
   }
   return finishMutation(files, next, config, provenance.evidence);
 }

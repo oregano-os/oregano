@@ -28,14 +28,14 @@ Use a canonical slug from the task/read results and an accurate source label.
   bracketed link to the retained evidence page, with the actual context/title/date.
 - **Synthesis:** link each supporting meeting/evidence page; never invent a target.
 
-Use the same visible citation in Current knowledge and Timeline. In a meeting
-Timeline entry, omit the extra visible source/hash link. Preserve the direct
-source reference in a same-line Markdown comment for provenance:
-`<!-- Source evidence: [[{{evidence_directory}}/review-example]] -->`.
-For `timeline_add`, put the readable citation in summary/detail and keep canonical
-source slugs in `evidence`; Core formats the hidden references. Without a supplied
-citation, Core renders bracketed source links with the event date. Takes retain
-their direct evidence links; escape alias pipes inside table cells.
+Use the same visible citation in Current knowledge and Timeline. Keep only the
+readable Source citation; do not append a duplicate raw link or Source evidence
+comment. A cited meeting/content page must directly link to its evidence page,
+which retains the original-source URL. For `timeline_add`, put the readable
+citation in summary/detail and keep canonical source slugs in `evidence`; Core
+validates that the citation reaches those sources without adding hidden markup.
+Without a supplied citation, Core renders bracketed source links with the event
+date. Takes retain their direct evidence links; escape alias pipes inside table cells.
 
 ## Phases
 
