@@ -113,9 +113,19 @@ export interface WorkflowRunIdentity {
   originKey: string;
   originDigest: string;
   subjectPrincipal: string;
-  trigger: { id: string; instant: string; previous_instant?: string; params: Record<string, JsonValue> };
+  trigger: { id: string; instant: string; previous_instant?: string; params: Record<string, JsonValue>; event?: WorkflowTriggerEvent };
   fields: Record<string, string>;
   createdAt: string;
+}
+/** Trusted identity of one verified provider event; never a substitute for the current record. */
+export interface WorkflowTriggerEvent {
+  kind: string;
+  event_id: string;
+  resource_binding: string;
+  work_item_id: string;
+  group_id: string;
+  actor_id: string;
+  occurred_at: string;
 }
 export interface WorkflowRun extends WorkflowRunIdentity {
   revision: number;

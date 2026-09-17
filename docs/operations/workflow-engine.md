@@ -6,7 +6,7 @@ status: approved
 authority: canonical
 language: en
 implementation_scope: general
-updated: 2026-09-15
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -218,6 +218,28 @@ Callers and child steps cannot supply or override this trusted field. Operator
 retries retain the first opening time. Existing workflows that do not declare
 it keep their prior fields and identity. Business period fields still require
 Workspace computation or explicitly reviewed inputs.
+
+## Open a workflow from a provider event
+
+A workflow with `trigger: event:<id>` opens when a verified provider event
+reaches the host, not on a calendar. Check four independent switches before
+expecting a run: the Workspace event source under `events/` is `active`; the
+Instance hosting configuration lists the workflow in `eventOpenWorkflowIds`;
+the provider subscription is registered against the exact ingress URL with the
+Instance credential; and the Instance's Connector configuration maps the
+provider board to the logical resource binding. A missing switch is reported
+as an explicit non-acceptance reason, never as a silent drop or a retry loop.
+
+Each provider event opens one run keyed by `trigger_id` and `event_id`; a
+redelivery returns the same run. Changes the Instance's own provider identity
+made are suppressed as echoes, so an Agent write never opens a workflow about
+itself. The opened workflow reads the card through the ordinary Records scan
+requirement; the delivery latency is therefore bounded by the configured
+Records polling interval, and `$trigger.event` holds identity only. To stop
+deliveries, unregister the provider subscription or remove the workflow from
+`eventOpenWorkflowIds`; retained runs and evidence are unaffected. The
+maintained registration steps are in the
+[Monday board events guide](vercel-workflow-runner.md#monday-board-events).
 
 ## Recover a decision that was never published
 

@@ -92,19 +92,41 @@ export function validateWorkflowAuthoring(dir: string): string[] {
 export function workflowSchedules(files: WorkspaceFiles, declarations: any[]): { path: string; data: any }[] {
   if (!declarations.length) return [];
   const paths = new Set(declarations.map((data) => data?.calendar).filter((path) => typeof path === "string"));
-  const triggers = new Set<string>();
-  const selectTrigger = (value: unknown): void => {
-    if (typeof value === "string" && value.startsWith("schedule:")) triggers.add(value.slice(9));
-  };
-  for (const data of declarations) {
-    selectTrigger(data?.trigger);
-    for (const step of Array.isArray(data?.steps) ? data.steps : []) selectTrigger(step?.for);
-  }
+  const triggers = referencedTriggerIds(declarations);
   // Parse every candidate for unambiguous discovery. Invalid YAML cannot hide a
   // competing trigger. Other scheduling schemas are not executable calendars.
   return workspacePaths(files, "schedules", /\.ya?ml$/)
     .map((path) => ({ path, data: YAML.parse(workspaceFile(files, path)) }))
     .filter(({ path, data }) => paths.has(path) || (Array.isArray(data?.triggers) && data.triggers.some((trigger: any) => triggers.has(trigger?.id))));
+}
+
+/** Trigger IDs share one namespace, so a calendar and an event source claiming the same ID are both selected and fail closed. */
+function referencedTriggerIds(declarations: any[]): Set<string> {
+  const triggers = new Set<string>();
+  const selectTrigger = (value: unknown): void => {
+    if (typeof value !== "string") return;
+    if (value.startsWith("schedule:")) triggers.add(value.slice(9));
+    else if (value.startsWith("event:")) triggers.add(value.slice(6));
+  };
+  for (const data of declarations) {
+    selectTrigger(data?.trigger);
+    for (const step of Array.isArray(data?.steps) ? data.steps : []) selectTrigger(step?.for);
+  }
+  return triggers;
+}
+
+/** Event sources are the non-temporal siblings of schedules; only referenced files become executable. */
+export function workflowEventSources(files: WorkspaceFiles, declarations: any[]): { path: string; data: any }[] {
+  if (!declarations.some((data) => typeof data?.trigger === "string" && data.trigger.startsWith("event:"))) return [];
+  const triggers = referencedTriggerIds(declarations);
+  return workspacePaths(files, "events", /\.ya?ml$/)
+    .map((path) => ({ path, data: YAML.parse(workspaceFile(files, path)) }))
+    .filter(({ data }) => Array.isArray(data?.triggers) && data.triggers.some((trigger: any) => triggers.has(trigger?.id)));
+}
+
+/** Opening fields Core fills itself; a Workspace declares business fields beside them. */
+export function workflowTrustedFields(data: any): string[] {
+  return String(data?.trigger ?? "").startsWith("event:") ? ["trigger_id", "run_date", "event_id"] : ["trigger_id", "run_date"];
 }
 
 export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
@@ -159,15 +181,19 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
   if (!parsed.length) return errors;
   const schedules = workflowSchedules(files, parsed.map((doc) => doc.data));
   for (const entry of schedules) validateSchedule(entry.data, entry.path, err);
+  const eventSources = workflowEventSources(files, parsed.map((doc) => doc.data));
+  for (const entry of eventSources) validateEventSource(entry.data, entry.path, err);
   if (errors.length) return errors;
   const triggerOwners = new Map<string, string>();
-  for (const entry of schedules) for (const trigger of entry.data.triggers ?? []) {
-    if (triggerOwners.has(trigger.id) && triggerOwners.get(trigger.id) !== entry.path) err(entry.path, `Trigger ${trigger.id} is ambiguous across schedules`);
+  for (const entry of [...schedules, ...eventSources]) for (const trigger of entry.data.triggers ?? []) {
+    if (triggerOwners.has(trigger.id) && triggerOwners.get(trigger.id) !== entry.path) err(entry.path, `Trigger ${trigger.id} is ambiguous across schedules and event sources`);
     triggerOwners.set(trigger.id, entry.path);
   }
   const schedule = { triggers: schedules.flatMap((entry) => entry.data.triggers ?? []) };
   const triggerParams = new Map<string, Set<string>>();
   for (const trigger of schedule.triggers) triggerParams.set(trigger.id, new Set(Object.keys(trigger.params ?? {})));
+  const eventTriggers = new Map<string, any>();
+  for (const entry of eventSources) for (const trigger of entry.data.triggers) eventTriggers.set(trigger.id, trigger);
   const idsSeen = new Set<string>();
   for (const { f, data } of parsed) {
     const schemaIssues = validateJsonSchemaValue(loadSchema("workflow-steps-v1.schema.json"), data);
@@ -178,6 +204,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
     if (data.calendar && !schedules.some((entry) => entry.path === data.calendar)) err(f, "calendar must name a declared schedule file");
     const needsCalendar = data.steps.some((step: any) => Object.values(step)[0]?.toString().startsWith("human:") || step.for?.business_days || Object.values(step)[0] === "collect");
     if (needsCalendar && data.trigger === "operator" && !data.calendar) err(f, "operator business-day waits and decisions require calendar");
+    if (needsCalendar && data.trigger.startsWith("event:") && !data.calendar) err(f, "event business-day waits and decisions require calendar");
   }
   if (errors.length) return errors;
   const stepsOf = (data: any) => data.steps.map((s: any) => {
@@ -186,9 +213,11 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
     return { ...s, id, tool: s[id] };
   });
   for (const { f, data, body } of parsed) {
-    if (data.trigger !== "operator" && !triggerParams.has(data.trigger.slice(9))) err(f, "Workflow trigger is not declared in a schedule");
-    const fields = new Set(["trigger_id", "run_date", ...(data.instance?.fields ?? [])]);
-    for (const key of typeof data.instance?.key === "string" ? [data.instance.key] : data.instance?.key ?? ["trigger_id", "run_date"]) if (!fields.has(key)) err(f, `Instance key ${key} is not a declared field`);
+    if (data.trigger.startsWith("schedule:") && !triggerParams.has(data.trigger.slice(9))) err(f, "Workflow trigger is not declared in a schedule");
+    if (data.trigger.startsWith("event:") && !eventTriggers.has(data.trigger.slice(6))) err(f, "Workflow trigger is not declared in an event source");
+    const fields = new Set([...workflowTrustedFields(data), ...(data.instance?.fields ?? [])]);
+    const defaultKey = data.trigger.startsWith("event:") ? ["trigger_id", "event_id"] : ["trigger_id", "run_date"];
+    for (const key of typeof data.instance?.key === "string" ? [data.instance.key] : data.instance?.key ?? defaultKey) if (!fields.has(key)) err(f, `Instance key ${key} is not a declared field`);
     const config = data.config ? readLiteralConfiguration(files, data.config) : {};
     const owner = `${data.owner}/instructions.md`;
     const grants = new Set([...(workspaceDocument(files, owner).data?.tools ?? []), ...(compileWorkspaceRuntimePolicy(files)?.commonToolGrants ?? [])]);
@@ -313,9 +342,18 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         return { ...literalSchema(node), const: node };
       }
       if (m[1] === "trigger") {
-        const known: Record<string, Schema> = { id: { type: "string" }, instant: { type: "string", format: "date-time" }, previous_instant: { type: "string", format: "date-time" } };
+        const eventTrigger = String(data.trigger).startsWith("event:") ? eventTriggers.get(String(data.trigger).slice(6)) : undefined;
+        const known: Record<string, Schema> = { id: { type: "string" }, instant: { type: "string", format: "date-time" },
+          ...(eventTrigger ? {} : { previous_instant: { type: "string", format: "date-time" } }) };
+        if (path[0] === "event") {
+          if (!eventTrigger) { err(f, `${fromStep}: $trigger.event fields require an event trigger`); return null; }
+          const eventFields: Record<string, Schema> = { kind: { type: "string", enum: [...eventTrigger.events] }, event_id: { type: "string" }, resource_binding: { type: "string" },
+            work_item_id: { type: "string" }, group_id: { type: "string" }, actor_id: { type: "string" }, occurred_at: { type: "string", format: "date-time" } };
+          if (path.length !== 2 || !eventFields[path[1]!]) { err(f, `${fromStep}: unknown $trigger.event field '${path.slice(1).join(".")}'`); return null; }
+          return eventFields[path[1]!];
+        }
         if (path[0] === "params") {
-          const candidates = schedule.triggers.filter((trigger: any) => triggerIds(data).includes(trigger.id));
+          const candidates = [...schedule.triggers, ...eventTriggers.values()].filter((trigger: any) => triggerIds(data).includes(trigger.id));
           const values: any[] = [];
           for (const trigger of candidates) {
             let value = trigger.params;
@@ -330,7 +368,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
         return known[path[0]] ?? null;
       }
       if (m[1] === "instance") {
-        const fields: string[] = ["trigger_id", "run_date", ...(data.instance?.fields ?? [])];
+        const fields: string[] = [...workflowTrustedFields(data), ...(data.instance?.fields ?? [])];
         if (path.length !== 1) err(f, `${fromStep}: instance fields are scalar strings`);
         if (!fields.includes(path[0])) err(f, `${fromStep}: $instance.${path[0]} is not a declared instance field`);
         return { type: "string" };
@@ -599,7 +637,7 @@ export function validateWorkflowFiles(files: WorkspaceFiles): string[] {
 
 function triggerIds(data: any): string[] {
   const raw = String(data.trigger ?? "");
-  const m = raw.match(/^schedule:\[?([^\]]+)\]?$/);
+  const m = raw.match(/^(?:schedule|event):\[?([^\]]+)\]?$/);
   return m ? m[1].split(",").map((s) => s.trim()) : [];
 }
 
@@ -618,6 +656,16 @@ function unionSchema(values: Schema[]): Schema {
 }
 
 type AuthoringError = (file: string, message: string) => void;
+function validateEventSource(data: any, file: string, err: AuthoringError): void {
+  const issues = validateJsonSchemaValue(loadSchema("event-source-v1.schema.json"), data);
+  for (const issue of issues) err(file, issue);
+  if (issues.length) return;
+  const seen = new Set<string>();
+  for (const trigger of data.triggers) {
+    if (seen.has(trigger.id)) err(file, `Event trigger ${trigger.id} is declared more than once`);
+    seen.add(trigger.id);
+  }
+}
 function validateSchedule(data: any, file: string, err: AuthoringError): void {
   const issues = validateJsonSchemaValue(loadSchema("schedule-v1.schema.json"), data);
   for (const issue of issues) err(file, issue);

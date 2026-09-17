@@ -11,7 +11,7 @@ providers:
   - slack
   - monday
   - postgres
-updated: 2026-09-13
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -90,8 +90,9 @@ Example shape; replace all illustrative IDs and the hash:
   "instanceId": "example-preview",
   "artifactHash": "<exact Artifact hash>",
   "environment": "preview",
-  "enabledWorkflowIds": ["daily-summary", "period-close"],
+  "enabledWorkflowIds": ["daily-summary", "period-close", "card-intake"],
   "autoOpenWorkflowIds": ["daily-summary"],
+  "eventOpenWorkflowIds": ["card-intake"],
   "schedulePrincipal": "slack:TEXAMPLE:UEXAMPLE",
   "activatedAt": "2030-01-01T00:00:00.000Z",
   "maxLatenessMinutes": 60,
@@ -114,6 +115,11 @@ whose required fields are supplied by trigger identity, run date and the
 explicitly declared trusted `trigger_instant`. Otherwise
 prepare exact future occurrences using `schedule` and explicit Workspace-defined
 fields. The engine persists a start wait; Core does not invent business periods.
+`eventOpenWorkflowIds` is the separate opt-in for event-triggered workflows;
+each listed workflow must be enabled, declare `trigger: event:<id>` and need
+only the trusted `trigger_id`, `run_date` and `event_id` fields. It defaults
+to an empty list, so no provider event opens anything until the Instance
+decides.
 
 ## Worker and operator calls
 
@@ -123,6 +129,7 @@ fields. The engine persists a start wait; Core does not invent business periods.
 | `GET /api/workflows/steps` | Scheduler bearer credential | Advance bounded pages of enabled running workflows. |
 | `GET /api/workflows/records` | Scheduler bearer credential | Synchronize explicitly retained Artifact/source pairs through the existing Records service. |
 | `POST /api/workflows/operator` | Configured human bearer credential | Open, prepare, inspect, cancel or resume runs; reread a provider reply. |
+| `POST /api/webhooks/monday-board?token=…` | Instance webhook credential in the registered URL | Open enabled event workflows from one verified Monday board event; answer the registration challenge. |
 
 Operator bodies are strict JSON, at most 32 KiB. Each example is a separate
 request. Callers cannot supply a principal, approval decision, arbitrary schedule
@@ -160,6 +167,34 @@ workflow and authenticated operator as any other opening. Automatic scheduling
 may remain blocked. Retrying the same request reuses its opening; selecting
 different parameters under that request ID fails. Omission preserves the
 existing behavior without inferring a variant.
+
+## Monday board events
+
+Monday board webhooks created through the provider API carry no signature.
+The maintained ingress therefore authenticates the registered URL itself:
+set `MONDAY_BOARD_WEBHOOK_SECRET` (at least 32 characters, distinct from every
+other credential) and register the subscription against
+`https://<deployment>/api/webhooks/monday-board?token=<that secret>`. The
+handler checks the token before it reads the database or the Artifact, answers
+the provider's `challenge` only after that check, and returns 401 otherwise.
+
+Register one subscription per accepted event kind on the exact board the
+Instance binds as a resource, for example `create_item` and
+`item_moved_to_any_group` on the Sprint board. Deliveries are normalized to
+`item-created` and `item-moved`; subitem events and other types are answered
+with `accepted: false` and an explicit reason so the provider does not retry.
+The board must map to a resource binding in the Instance's Monday Connector
+configuration, otherwise the delivery is answered `unbound-board`. Events whose
+`userId` is the Instance's own `actor_id` are answered `self-authored`.
+
+An accepted delivery opens every enabled event workflow whose active source
+declares that resource binding and event kind, using the provider trigger time
+as the opening instant. The response lists the opened run IDs; a redelivery
+returns the same runs with `redelivered: true`. If an opening fails the host
+answers 503 without recording a replay claim, so the provider's retry reaches
+the engine again. Activation of the Workspace event source, the hosting
+opt-in and the provider registration remain three separate human decisions;
+none is implied by deploying this Core version.
 
 ## Human decisions and conversations
 

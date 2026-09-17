@@ -1,0 +1,85 @@
+version: 3
+plan_id: provider-event-triggers-2026-09-17
+created: 2026-09-17
+title: Open declared workflows from verified provider board events
+objective: Add an event trigger kind beside schedule and operator so a Workspace can open a declared workflow when a verified Monday board event arrives, using the same declaration, activation, identity and hosting structure as calendars.
+non_goals:
+  - Register a Monday webhook, activate an event source or change any live Instance.
+  - Change existing scheduled or operator openings, their identities or hosted behavior.
+  - Interpret provider payload content as authority; the reread Company Record remains the evidence.
+  - Add Slack or other provider event ingress; the contract is provider-neutral, only the Monday adapter is maintained.
+placement: core
+change_class: security
+files_expected:
+  - .oregano/changes/2026-09-17-provider-event-triggers.yaml
+  - docs/_generated/document-registry.json
+  - docs/_generated/navigation.json
+  - docs/architecture/company-workspace.md
+  - docs/onboarding/company-workspace.md
+  - docs/operations/vercel-workflow-runner.md
+  - docs/operations/workflow-engine.md
+  - docs/specifications/workflow-execution-v1-draft.md
+  - docs/status/current.md
+  - docs/workbench/guides/author-a-workflow.md
+  - packages/cli/content/guides/author-a-workflow.md
+  - packages/cli/src/workspace-generator.mjs
+  - packages/companyos-builder/workflow-authoring.ts
+  - packages/companyos-builder/workflow-compiler.ts
+  - packages/companyos-builder/workflow-types.ts
+  - packages/connectors/monday/board-webhook.ts
+  - packages/runner-vercel/src/app/api/webhooks/monday-board/route.ts
+  - packages/runner-vercel/src/lib/monday-board-webhook.ts
+  - packages/runner-vercel/src/lib/workflow-configuration.ts
+  - packages/runtime/workflow-engine/context.ts
+  - packages/runtime/workflow-engine/engine.ts
+  - packages/runtime/workflow-engine/state-validation.ts
+  - packages/schema/README.md
+  - packages/schema/event-source-v1.schema.json
+  - packages/schema/workflow-steps-v1.schema.json
+  - packages/state-store/workflow-engine.ts
+  - packages/testkit/fixtures/workflow-hosting.test.ts
+  - packages/testkit/tests/monday-board-webhook.test.ts
+  - packages/testkit/tests/workflow-event-triggers.test.ts
+tests:
+  - packages/testkit/tests/monday-board-webhook.test.ts
+  - packages/testkit/tests/workflow-event-triggers.test.ts
+  - packages/testkit/tests/workflow-compiler.test.ts
+  - packages/testkit/tests/workflow-engine.test.ts
+  - packages/testkit/tests/workflow-hosting.test.ts
+  - packages/testkit/tests/workflow-occurrence-identity.test.ts
+  - packages/testkit/tests/monday-agent-runtime.test.ts
+  - packages/testkit/tests/monday-sprint-connector.test.ts
+documentation_impact:
+  required: true
+  affected_documents:
+    - architecture.company-workspace
+    - onboarding.company-workspace
+    - operations.vercel-workflow-runner
+    - operations.workflow-engine
+    - specification.workflow-execution-v1
+    - status.current
+    - guide.author-workflow
+architecture:
+  placement:
+    core: The event trigger kind, event-source declaration contract, event opening identity, hosted event ingress verification and the maintained Monday board-event adapter.
+    packages: The Monday Connector gains a board-event parser; the standard Tools, Capabilities and Records service are unchanged.
+    workspace: Which board, which event kinds, which workflow opens and what it does with the card stay declared in events/ and workflows/; activation stays blocked until the Workspace decides.
+    instance: The exact webhook credential, the enabled event workflows and the Monday resource-to-board binding are Instance hosting configuration, never Git content.
+  mechanisms_extended:
+    - mechanism: timers-and-business-time
+      reason: Event openings reuse the same opening path, instance-key identity, origin deduplication and calendar-derived run date as scheduled occurrences; an event source is the non-temporal sibling of a schedule.
+    - mechanism: approvals-effects-and-idempotency
+      reason: Provider event identity becomes the run origin key; redelivery reuses the run, changed input under the same identity conflicts, and the durable replay claim rejects repeated deliveries before any opening.
+    - mechanism: capability-contracts-and-connectors
+      reason: The Monday Connector already verifies agent callbacks and suppresses self-authored echoes; the board-event parser and actor-based echo suppression extend that adapter instead of adding provider logic to the engine.
+    - mechanism: identity-and-authorization
+      reason: Event openings run under the configured accountable schedule principal and the Instance enablement list; no caller-supplied principal, workflow or fields.
+    - mechanism: company-records
+      reason: The opened workflow reads the card through the existing Records scan wait; the event payload only carries identity and is never substituted for the current record.
+  new_core_mechanisms: []
+  boundary_assertions:
+    company_values_in_core: false
+    secrets_in_git: false
+    public_fixtures: synthetic-only
+  core_reusability: Any Company Workspace that keeps work items in a provider board can open a declared workflow per created or moved item without polling; the event-source contract names only logical resource bindings and normalized event kinds, so another provider adapter can supply the same normalized event.
+rollback: Revert for new deployments; existing scheduled and operator runs are unaffected. Retained event-opened runs keep their identity and can be drained with this runtime. Unregistering the provider webhook stops deliveries without deleting retained evidence.

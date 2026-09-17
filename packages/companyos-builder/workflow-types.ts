@@ -18,6 +18,22 @@ export interface CompiledWorkflowSchedule {
   digest: string;
   declaration: WorkflowSchedule;
 }
+/** Normalized provider events a Connector may deliver; the workflow rereads the record itself. */
+export type WorkflowEventKind = "item-created" | "item-moved";
+export interface WorkflowEventSource {
+  schema_version: 1;
+  id: string;
+  activation: "blocked" | "active";
+  provider: string;
+  resource_binding: string;
+  triggers: Array<{ id: string; events: WorkflowEventKind[]; params?: Record<string, JsonValue> }>;
+  blocking_inputs?: string[];
+}
+export interface CompiledWorkflowEventSource {
+  path: string;
+  digest: string;
+  declaration: WorkflowEventSource;
+}
 export interface CompiledWorkflowTemplate {
   path: string;
   digest: string;
@@ -75,10 +91,12 @@ export interface CompiledWorkflow {
   executionMode: "supervised" | "unattended";
   source: { path: string; digest: string };
   provenance: { coreCommit: string; workspaceCommit: string; workbenchVersion: string; instanceId: string };
-  trigger: { kind: "operator" } | { kind: "schedule"; id: string; schedulePath: string };
+  trigger: { kind: "operator" } | { kind: "schedule"; id: string; schedulePath: string } | { kind: "event"; id: string; eventPath: string };
   instance: { key: string[]; fields: string[] };
   config?: { path: string; digest: string; value: Record<string, WorkflowValue> };
   schedules: CompiledWorkflowSchedule[];
+  /** Present only for event-triggered workflows so existing manifests keep their shape. */
+  events?: CompiledWorkflowEventSource[];
   templates: CompiledWorkflowTemplate[];
   entry: string;
   steps: CompiledWorkflowStep[];

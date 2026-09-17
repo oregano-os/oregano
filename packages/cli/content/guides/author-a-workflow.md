@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -40,7 +40,8 @@ when the workflow can produce effects.
 ## Executable steps (validation and compilation available)
 
 A workflow may declare `type: workflow`, a stable `id`, a `version`, its
-`owner`, `execution_mode`, one schedule trigger (or `operator`) and `steps:`.
+`owner`, `execution_mode`, one schedule trigger, one event trigger or
+`operator`, and `steps:`.
 Each list entry starts with its step ID mapped to a Tool, `wait`, `route` or
 `human:<role>`. The remaining fields are that construct's options. Mirror each
 step once in the prose with an owner/risk marker and `<!-- step:id -->`, in
@@ -83,6 +84,48 @@ that must satisfy the executable calendar contract. Independent scheduling
 metadata may coexist in `schedules/`; it is not added to workflow manifests.
 Keep all candidate YAML readable and avoid competing trigger IDs. Invalid or
 missing referenced calendars still block validation and compilation.
+
+## Open a workflow from a provider event
+
+To react to a created or moved card instead of scanning on a timer, declare
+an event source under `events/` with the logical `provider`, the logical
+`resource_binding` and one or more triggers, then reference one trigger from
+the workflow.
+
+::: implementation-example
+
+The maintained board-event adapter is described in
+[Monday board events](../../operations/vercel-workflow-runner.md#monday-board-events).
+A Workspace using it declares:
+
+```yaml
+# events/sprint-board.yaml
+schema_version: 1
+id: sprint-board-events
+activation: blocked
+provider: monday
+resource_binding: sprint-board
+triggers:
+  - id: sprint-card-changed
+    events: [item-created, item-moved]
+```
+
+```yaml
+trigger: event:sprint-card-changed
+```
+
+:::
+
+The workflow receives `$trigger.event.work_item_id`, `$trigger.event.kind`
+and the other verified identity fields; it must still read the card through
+`oregano:records/query` or `oregano:work-items/read` before deciding anything.
+The default instance key is `trigger_id` plus `event_id`, so each provider
+event opens one run and a redelivery reuses it. Add `calendar:` when the
+workflow waits or decides in business days. Keep `activation: blocked` until
+the Workspace decides to go live; the Instance separately opts the workflow
+into event opening and registers the provider subscription. Trigger IDs share
+one namespace with calendars, so a schedule and an event source cannot claim
+the same ID.
 
 ## Assigned fact collection
 

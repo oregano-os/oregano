@@ -5,7 +5,7 @@ kind: specification
 status: draft
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-17
 owners: [oregano-maintainers]
 audience: [human, agent]
 ---
@@ -26,11 +26,13 @@ explicit route. Business calculations belong in a reviewed Company Tool.
 
 ## Ten v1 constructs
 
-1. **Trigger:** a declared schedule or authenticated operator opens a run.
-   Schedule parameters are opaque data; calendars carry no workflow semantics.
+1. **Trigger:** a declared schedule, a declared provider event source or an
+   authenticated operator opens a run. Schedule and event parameters are
+   opaque data; calendars and event sources carry no workflow semantics.
 2. **Instance:** a declared key field list identifies the run. Scheduled
-   defaults are `trigger_id` and local `run_date`, scoped by Instance and
-   workflow. All key fields are present and immutable at creation.
+   defaults are `trigger_id` and local `run_date`, event defaults are
+   `trigger_id` and `event_id`, scoped by Instance and workflow. All key
+   fields are present and immutable at creation.
 3. **Tool step:** the owning Agent calls an exact compiled Tool with typed
    input through the ordinary CompanyOSRuntime boundary.
 4. **Message:** an ordinary communication Tool substitutes a frozen Skill
@@ -750,6 +752,44 @@ Callers and child steps cannot supply or override this trusted field. Operator
 retries retain the first opening time. Existing workflows that do not declare
 it keep their prior fields and identity. Business period fields still require
 Workspace computation or explicitly reviewed inputs.
+
+## Provider event openings
+
+An event source under `events/` is the non-temporal sibling of a schedule. It
+declares `schema_version: 1`, an `id`, `activation`, the logical `provider`,
+the logical `resource_binding` and `triggers`, each with an `id`, the
+normalized `events` it accepts (`item-created`, `item-moved`) and optional
+opaque `params`. A workflow selects one trigger with `trigger: event:<id>`.
+Trigger IDs share one namespace with calendars: a schedule and an event source
+claiming the same ID are both selected and fail validation as ambiguous. Only
+referenced event files become executable; other YAML in `events/` is ignored.
+
+The compiled manifest records `trigger.kind: event`, its `eventPath` and the
+frozen source declaration under `events`. Manifests of schedule and operator
+workflows keep their previous shape and hashes. Event workflows may name a
+`calendar` for business-day waits, decisions and the local `run_date`; without
+one the run date is UTC. `$trigger.previous_instant` is unavailable because an
+event has no preceding declared occurrence.
+
+Core fills three trusted fields: `trigger_id`, `run_date` and `event_id`. The
+default key is `trigger_id` plus `event_id`, so every distinct provider event
+opens its own run and a redelivered event reuses it. `$trigger.event` exposes
+the verified identity only: `kind`, `event_id`, `resource_binding`,
+`work_item_id`, `group_id`, `actor_id` and `occurred_at`. `kind` is the enum of
+the trigger's declared events and may drive a route. The payload never
+substitutes for the current record; the workflow rereads the item through the
+ordinary Records or work-item Tools and its declared freshness requirement.
+
+`openEvent` requires the enabled workflow, the configured accountable opening
+principal, an active event source, an event whose resource binding and kind
+match the declaration, and an exact opening instant. Callers cannot supply
+trusted fields, a principal or a workflow the Instance has not enabled for
+event opening. Changing the event content under the same identity is a
+conflict. Operator and scheduled openings reject event workflows; an event
+workflow opens only from a verified provider event. A hosted adapter verifies
+the delivery, maps the provider resource to the logical binding, suppresses
+the Instance's own provider identity as an echo and ignores unsupported or
+unbound events explicitly before any opening.
 
 ### Complete readable review presentation
 

@@ -4,8 +4,8 @@ import { loadCompanyTool } from "./workspace-loader.ts";
 import YAML from "yaml";
 import { sha256 } from "../runtime/canonical.ts";
 import type { CompiledAgent } from "./types.ts";
-import type { CompiledWorkflow, CompiledWorkflowStep, CompiledWorkflowSchedule, CompiledWorkflowTemplate, WorkflowValue } from "./workflow-types.ts";
-import { validateWorkflowFiles, workflowSchedules } from "./workflow-authoring.ts";
+import type { CompiledWorkflow, CompiledWorkflowEventSource, CompiledWorkflowStep, CompiledWorkflowSchedule, CompiledWorkflowTemplate, WorkflowValue } from "./workflow-types.ts";
+import { validateWorkflowFiles, workflowEventSources, workflowSchedules, workflowTrustedFields } from "./workflow-authoring.ts";
 import { workspaceFile, workspaceDocument, workspacePaths, type WorkspaceFiles } from "./workspace-files.ts";
 
 type Declaration = Record<string, any>;
@@ -40,6 +40,12 @@ export function compileWorkflows(args: {
     if (candidates.length !== 1) throw new Error(`Trigger '${triggerId}' needs exactly one schedule`);
     return candidates[0]!;
   };
+  const eventSources: CompiledWorkflowEventSource[] = workflowEventSources(files, declarations.map(({ data }) => data)).map(({ path, data }) => ({ path, digest: sha256(workspaceFile(files, path)), declaration: data }));
+  const eventSourceFor = (triggerId: string): CompiledWorkflowEventSource => {
+    const candidates = eventSources.filter((source) => source.declaration.triggers.some((trigger) => trigger.id === triggerId));
+    if (candidates.length !== 1) throw new Error(`Event trigger '${triggerId}' needs exactly one event source`);
+    return candidates[0]!;
+  };
   return declarations.map(({ path, data }) => {
     const agentId = data.owner.slice(7);
     const agent = args.agents.find((candidate) => candidate.id === agentId);
@@ -63,6 +69,8 @@ export function compileWorkflows(args: {
     });
     const triggerId = data.trigger.startsWith("schedule:") ? data.trigger.slice(9) : undefined;
     const startingSchedule = triggerId ? scheduleFor(triggerId) : undefined;
+    const eventTriggerId = data.trigger.startsWith("event:") ? data.trigger.slice(6) : undefined;
+    const startingEvents = eventTriggerId ? eventSourceFor(eventTriggerId) : undefined;
     const calendarPath = data.calendar ?? startingSchedule?.path;
     const calendar = (): string => {
       if (!calendarPath || !schedules.some((schedule) => schedule.path === calendarPath)) throw new Error(`${data.id}: business-day waits and decisions require an explicit calendar or a scheduled trigger`);
@@ -223,16 +231,18 @@ export function compileWorkflows(args: {
       if (step.decision?.role === "subject" && (!step.decision.recipient || steps.some((effect) => effect.requiresDecisions.some((requirement) => requirement.stepId === step.id) && Number(effect.maxRisk.slice(1)) > 2))) throw new Error("Subject confirmation requires one recipient and effects no higher than R2");
     }
     for (const step of steps) step.requiredOutputPaths.sort((a, b) => a.join(".").localeCompare(b.join(".")));
-    const rawKey = data.instance?.key ?? ["trigger_id", "run_date"];
+    const rawKey = data.instance?.key ?? (eventTriggerId ? ["trigger_id", "event_id"] : ["trigger_id", "run_date"]);
     const key: string[] = typeof rawKey === "string" ? [rawKey] : rawKey;
-    const fields: string[] = [...new Set<string>(["trigger_id", "run_date", ...(data.instance?.fields ?? [])])];
+    const fields: string[] = [...new Set<string>([...workflowTrustedFields(data), ...(data.instance?.fields ?? [])])];
     for (const field of key) if (!fields.includes(field)) throw new Error(`${data.id}: instance key '${field}' must be declared in fields`);
     const manifest = {
       manifestVersion: 1 as const, id: data.id, version: data.version, agentId, executionMode: data.execution_mode,
       source: { path, digest: sha256(workspaceFile(files, path)) }, provenance: { ...args.provenance },
-      trigger: triggerId ? { kind: "schedule" as const, id: triggerId, schedulePath: startingSchedule!.path } : { kind: "operator" as const },
+      trigger: triggerId ? { kind: "schedule" as const, id: triggerId, schedulePath: startingSchedule!.path }
+        : eventTriggerId ? { kind: "event" as const, id: eventTriggerId, eventPath: startingEvents!.path } : { kind: "operator" as const },
       instance: { key, fields }, ...(config ? { config } : {}),
-      schedules: schedules.filter((schedule) => usedSchedules.has(schedule.path)), templates: [...templates.values()].sort((a, b) => a.path.localeCompare(b.path)),
+      schedules: schedules.filter((schedule) => usedSchedules.has(schedule.path)), ...(startingEvents ? { events: [startingEvents] } : {}),
+      templates: [...templates.values()].sort((a, b) => a.path.localeCompare(b.path)),
       entry: steps[0]!.id, steps, reservedEffects: [...new Set(steps.filter((step) => ["effect", "message", "decision"].includes(step.kind)).flatMap((step) => step.allowedTools))].sort(),
     };
     return freeze({ ...manifest, manifestHash: sha256(manifest) } as CompiledWorkflow);

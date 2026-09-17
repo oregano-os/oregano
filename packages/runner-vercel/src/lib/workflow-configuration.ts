@@ -15,6 +15,8 @@ export interface WorkflowHostingConfiguration {
   environment: "preview" | "production" | "development";
   enabledWorkflowIds: string[];
   autoOpenWorkflowIds: string[];
+  /** Event-triggered workflows a verified provider event may open; empty unless the Instance opts in. */
+  eventOpenWorkflowIds: string[];
   schedulePrincipal: string;
   activatedAt: string;
   maxLatenessMinutes: number;
@@ -52,16 +54,23 @@ export function decodeWorkflowHostingConfiguration(artifact: CompanyOSArtifact, 
   try { parsed = JSON.parse(gunzipSync(Buffer.from(encoded, "base64"), { maxOutputLength: 65_536 }).toString("utf8")); }
   catch { throw new Error("Workflow Instance configuration is malformed"); }
   const value = record(parsed, "Workflow Instance configuration");
-  keys(value, ["version", "instanceId", "artifactHash", "environment", "enabledWorkflowIds", "autoOpenWorkflowIds", "schedulePrincipal", "activatedAt", "maxLatenessMinutes", "operators", "recordSync", "transcriptImports"], "Workflow Instance configuration");
+  keys(value, ["version", "instanceId", "artifactHash", "environment", "enabledWorkflowIds", "autoOpenWorkflowIds", "eventOpenWorkflowIds", "schedulePrincipal", "activatedAt", "maxLatenessMinutes", "operators", "recordSync", "transcriptImports"], "Workflow Instance configuration");
   if (value.version !== 1 || value.instanceId !== artifact.instance.id || value.artifactHash !== artifact.artifactHash
     || value.environment !== artifact.instance.environment || value.environment !== environment.VERCEL_ENV) throw new Error("Workflow configuration does not match the exact deployed Instance and Artifact");
   if (!["preview", "production", "development"].includes(String(value.environment))) throw new Error("Workflow deployment environment is unsupported");
   const enabledWorkflowIds = names(value.enabledWorkflowIds, "enabledWorkflowIds"), autoOpenWorkflowIds = names(value.autoOpenWorkflowIds, "autoOpenWorkflowIds");
-  if (enabledWorkflowIds.some((id) => !artifact.workflows?.some((workflow) => workflow.id === id)) || autoOpenWorkflowIds.some((id) => !enabledWorkflowIds.includes(id))) throw new Error("Workflow configuration selects an absent or disabled workflow");
+  const eventOpenWorkflowIds = value.eventOpenWorkflowIds === undefined ? [] : names(value.eventOpenWorkflowIds, "eventOpenWorkflowIds");
+  if (enabledWorkflowIds.some((id) => !artifact.workflows?.some((workflow) => workflow.id === id)) || [...autoOpenWorkflowIds, ...eventOpenWorkflowIds].some((id) => !enabledWorkflowIds.includes(id))) throw new Error("Workflow configuration selects an absent or disabled workflow");
   for (const id of autoOpenWorkflowIds) {
     const workflow = artifact.workflows!.find((workflow) => workflow.id === id)!;
     if (workflow.trigger.kind !== "schedule" || workflowOpeningFields(workflow).some((field) => !["trigger_id", "run_date", "trigger_instant"].includes(field))) {
       throw new Error(`Automatic opening of '${id}' needs explicit business fields; prepare its scheduled occurrence through the operator instead`);
+    }
+  }
+  for (const id of eventOpenWorkflowIds) {
+    const workflow = artifact.workflows!.find((workflow) => workflow.id === id)!;
+    if (workflow.trigger.kind !== "event" || workflowOpeningFields(workflow).some((field) => !["trigger_id", "run_date", "event_id"].includes(field))) {
+      throw new Error(`Event opening of '${id}' needs a declared event trigger and only trusted event identity fields`);
     }
   }
   const activatedAt = string(value.activatedAt, "activatedAt", /^.+$/); workflowInstant(activatedAt);
@@ -84,7 +93,7 @@ export function decodeWorkflowHostingConfiguration(artifact: CompanyOSArtifact, 
   const recordSync = parseWorkflowRecordSyncConfiguration(value.recordSync);
   const transcriptImports = parseTranscriptImportBindings(value.transcriptImports, artifact, enabledWorkflowIds);
   return { version: 1, instanceId: artifact.instance.id, artifactHash: artifact.artifactHash, environment: value.environment as WorkflowHostingConfiguration["environment"],
-    enabledWorkflowIds, autoOpenWorkflowIds, schedulePrincipal, activatedAt, maxLatenessMinutes: Number(value.maxLatenessMinutes), operators, ...(recordSync ? { recordSync } : {}), ...(transcriptImports.length ? { transcriptImports } : {}) };
+    enabledWorkflowIds, autoOpenWorkflowIds, eventOpenWorkflowIds, schedulePrincipal, activatedAt, maxLatenessMinutes: Number(value.maxLatenessMinutes), operators, ...(recordSync ? { recordSync } : {}), ...(transcriptImports.length ? { transcriptImports } : {}) };
 }
 
 const matches = (authorization: string, secret: string | undefined): boolean => {

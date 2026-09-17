@@ -5,7 +5,7 @@ kind: guide
 status: approved
 authority: canonical
 language: en
-updated: 2026-09-13
+updated: 2026-09-17
 owners:
   - oregano-maintainers
 audience:
@@ -173,8 +173,9 @@ Create the Spec-defined directory tree and the required entrypoints. The
 minimum governed repository includes `company.md` with an exact
 `workspace_version`, `AGENTS.md`, handbook, policies, the Builder Agent
 entrypoint, and empty `workflows/`, `connections/`, and `schedules/`
-directories. Do not create an operating agent or workflow until the company
-has approved one.
+directories. An `events/` directory is added only when the company declares
+its first provider event source. Do not create an operating agent or workflow
+until the company has approved one.
 
 Add these machine-readable control files:
 
