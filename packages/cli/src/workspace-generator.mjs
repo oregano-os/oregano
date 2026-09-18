@@ -229,7 +229,7 @@ export function renderWorkspace(input, coreIdentity) {
         approval: "process-steward",
       },
       behavior: {
-        paths: ["workflows/**", "schedules/**", "agents/*/instructions.md"],
+        paths: ["workflows/**", "schedules/**", "events/**", "agents/*/instructions.md"],
         approval: "process-steward",
         change_plan: "required",
         inspection: "required",
@@ -336,7 +336,7 @@ jobs:
   }, `# Data retention\n\n1. Secrets and raw personal material never enter Git.\n2. Retention periods require an approved company decision before operating use.\n3. Identity history remains attributable; offboarding marks identities inactive.\n4. Provider deletion and backup behavior must be verified before activation.`));
   files.set("agents/builder/instructions.md", document({
     description: `Builder for requested Workspace changes at ${company_name}.`,
-    scope: { read: ["company.md", "handbook/**", "policies/**", "workflows/**", "agents/**", "connections/**", "schedules/**", ".companyos/governance.yaml"] },
+    scope: { read: ["company.md", "handbook/**", "policies/**", "workflows/**", "agents/**", "connections/**", "schedules/**", "events/**", ".companyos/governance.yaml"] },
     tools: [],
   }, `# Builder\n\nRead the relevant current process and its referenced definitions before\nproposing a change. Clarify ambiguous workflow steps, participants, approval\nand access decisions with the requester. Preserve documented choices when\nunchanged. Prepare a resolved build brief with before/after behavior and tests,\nthen start isolated development under the existing request. The finished\nresult needs the configured human acceptance before live adoption.\n\nThis definition declares that Builder is wanted in this Workspace. Instance\nbindings supply coding execution and repository access separately. The\nBuilder has no business Tool grants or production deployment credentials.`));
 

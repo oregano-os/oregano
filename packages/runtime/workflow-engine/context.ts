@@ -1,11 +1,11 @@
 import type { WorkflowDispatchFence } from "../../state-store/interface.ts";
 import type { CapabilityCallContext, JsonValue } from "../../capabilities/contracts.ts";
 import type { RosterMember } from "../../state-store/roster.ts";
-import type { WorkflowReviewDelivery, WorkflowStepState } from "../../state-store/workflow-engine.ts";
+import type { WorkflowReviewDelivery, WorkflowStepState, WorkflowTriggerEvent } from "../../state-store/workflow-engine.ts";
 
 export interface WorkflowReferenceContext {
   steps: Record<string, JsonValue>;
-  trigger: { id: string; instant: string; previous_instant?: string; params: Record<string, JsonValue> };
+  trigger: { id: string; instant: string; previous_instant?: string; params: Record<string, JsonValue>; event?: WorkflowTriggerEvent };
   instance: Record<string, string>;
   item?: JsonValue;
 }

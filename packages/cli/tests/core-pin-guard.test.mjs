@@ -15,7 +15,7 @@ test("build pin requires exact SHA equality even for the same release version", 
     mkdirSync(join(root, ".companyos"));
     writeFileSync(join(root, "company.md"), "# Synthetic Company\n");
     const path = join(root, ".companyos/compatibility.yaml");
-    const pin = (ref) => writeFileSync(path, `version: 1\ncore:\n  ref: ${ref}\n  version: 0.15.0\n`);
+    const pin = (ref) => writeFileSync(path, `version: 1\ncore:\n  ref: ${ref}\n  version: 0.16.0\n`);
     pin(actual);
     assert.doesNotThrow(() => assertWorkspaceCoreCommit(root, actual));
     const other = actual === "a".repeat(40) ? "b".repeat(40) : "a".repeat(40);

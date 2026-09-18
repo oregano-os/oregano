@@ -10,7 +10,7 @@ const fixture = () => {
   const h = engineFixture();
   h.artifact.instance.environment = "preview";
   const value: WorkflowHostingConfiguration = { version: 1, instanceId: h.artifact.instance.id, artifactHash: h.artifact.artifactHash, environment: "preview",
-    enabledWorkflowIds: h.artifact.workflows!.map((w) => w.id), autoOpenWorkflowIds: ["weekday-digest", "board-hygiene"], schedulePrincipal: ENGINE_OPERATOR,
+    enabledWorkflowIds: h.artifact.workflows!.map((w) => w.id), autoOpenWorkflowIds: ["weekday-digest", "board-hygiene"], eventOpenWorkflowIds: [], schedulePrincipal: ENGINE_OPERATOR,
     activatedAt: "2030-01-01T00:00:00.000Z", maxLatenessMinutes: 60, operators: [{ principal: ENGINE_OPERATOR, secretRef: "env:TEST_OPERATOR_SECRET" }] };
   const environment = { VERCEL_ENV: "preview", COMPANYOS_WORKFLOW_ENABLED: "true", TEST_OPERATOR_SECRET: "a".repeat(48), CRON_SECRET: "b".repeat(48),
     [WORKFLOW_CONFIGURATION_ENV]: gzipSync(JSON.stringify(value)).toString("base64") };

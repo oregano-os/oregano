@@ -8,11 +8,11 @@ import { randomUUID } from "node:crypto";
 import { prepareWorkflowReadRepair } from "./read-repair.ts";
 import type { Connector, JsonValue } from "../../capabilities/contracts.ts";
 import type { CompanyOSArtifact } from "../../companyos-builder/types.ts";
-import type { CompiledWorkflow, CompiledWorkflowStep, WorkflowSchedule } from "../../companyos-builder/workflow-types.ts";
+import type { CompiledWorkflow, CompiledWorkflowStep, WorkflowEventKind, WorkflowSchedule } from "../../companyos-builder/workflow-types.ts";
 import type { StateStore } from "../../state-store/interface.ts";
 import { findByCanonicalPrincipal, isHumanRosterMember, type RosterMember } from "../../state-store/roster.ts";
 import type { ClaimedDurableTimer } from "../../state-store/durable-timers.ts";
-import type { WorkflowAssignment, WorkflowConversation, WorkflowExecutionStore, WorkflowMutableState, WorkflowRun, WorkflowRunIdentity } from "../../state-store/workflow-engine.ts";
+import type { WorkflowAssignment, WorkflowConversation, WorkflowExecutionStore, WorkflowMutableState, WorkflowRun, WorkflowRunIdentity, WorkflowTriggerEvent } from "../../state-store/workflow-engine.ts";
 import { CompanyOSRuntime } from "../companyos-runtime.ts";
 import { DurableTimerService } from "../durable-timers.ts";
 import { canonicalJson, jsonDigest, sha256 } from "../canonical.ts";
@@ -22,7 +22,7 @@ import { authorizeWorkflowDecisionPrincipal, workflowDecisionId, workflowDecisio
 import { assertWorkflowArtifact, workflowEffectKey, workflowExecutionStepId, workflowToolInput } from "./guard.ts";
 import { assertWorkflowOutput, resolveWorkflowValue, workflowItems, workflowOpeningFields } from "./references.ts";
 import { workflowContext, WorkflowLeaseLostError, WorkflowRunContextReader, WorkflowReviewContextReader } from "./readers.ts";
-import { workflowAssignmentKey, workflowPublicationKey, workflowInstant, workflowOriginDigest, workflowRunId } from "./state-validation.ts";
+import { workflowAssignmentKey, workflowPublicationKey, workflowInstant, workflowOriginDigest, workflowRunId, validateWorkflowTriggerEvent } from "./state-validation.ts";
 import { workflowEffectReview } from "./effect-review.ts";
 import { prepareWorkflowReviewDelivery, workflowReviewNoticeInput, workflowReviewStepId, workflowReviewEffectKey } from "./review-notice.ts";
 import { verifyCompletedWorkflow } from "./verification.ts";
@@ -54,6 +54,8 @@ export interface WorkflowEngineOptions {
 }
 
 const terminal = (run: WorkflowRun): boolean => ["done", "cancelled", "failed"].includes(run.state.status);
+/** Fields Core fills from the trigger; callers and child steps never supply them. */
+const trustedOpeningFields = (workflow: CompiledWorkflow): string[] => ["trigger_id", "run_date", "trigger_instant", ...(workflow.trigger.kind === "event" ? ["event_id"] : [])];
 const timerId = (run: WorkflowRunIdentity, stepId: string, kind: string, instant: string): string => sha256({ instanceId: run.instanceId, workflowId: run.workflowId, runId: run.runId, stepId, kind, instant });
 const opaqueId = (value: string): void => { if (typeof value !== "string" || !value.length || value.length > 255 || /[\u0000-\u001f]/.test(value)) throw new Error("Workflow event identity must be bounded and explicit"); };
 
@@ -138,6 +140,7 @@ export class WorkflowEngine {
 
   async openOperator(args: { workflowId: string; requestId: string; principal: string; fields: Record<string, string>; triggerVariant?: number; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }): Promise<WorkflowRun> {
     await this.#operator(args.principal); this.#enabled(args.workflowId); opaqueId(args.requestId);
+    if (this.#artifact.workflows?.find((candidate) => candidate.id === args.workflowId)?.trigger.kind === "event") throw new Error("Event workflows open only from a verified provider event");
     if (args.triggerVariant !== undefined) {
       if (!Number.isSafeInteger(args.triggerVariant) || args.triggerVariant < 0 || args.triggerVariant > 999 || args.params !== undefined) throw new Error("Invalid or conflicting workflow trigger variant");
       const workflow = this.#artifact.workflows?.find((candidate) => candidate.id === args.workflowId);
@@ -167,17 +170,41 @@ export class WorkflowEngine {
     return this.#open({ ...args, params: occurrence.params }, originKey);
   }
 
-  async #open(args: { workflowId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue> }, originKey: string, predecessor?: WorkflowRun): Promise<WorkflowRun> {
+  /** A verified provider event supplies trusted identity only; the workflow rereads the record itself. */
+  async openEvent(args: { workflowId: string; principal: string; event: WorkflowTriggerEvent; instant: string; fields?: Record<string, string> }): Promise<WorkflowRun> {
+    await this.#operator(args.principal); this.#enabled(args.workflowId);
+    const fields = structuredClone(args.fields ?? {});
+    const workflow = this.#artifact.workflows?.find((candidate) => candidate.id === args.workflowId);
+    if (!workflow || workflow.trigger.kind !== "event") throw new Error("Workflow has no declared event trigger");
+    if (trustedOpeningFields(workflow).some((field) => Object.hasOwn(fields, field))) throw new Error("Opening fields cannot override trusted trigger identity");
+    const eventPath = workflow.trigger.eventPath, triggerId = workflow.trigger.id;
+    const source = workflow.events?.find((candidate) => candidate.path === eventPath)?.declaration;
+    if (!source) throw new Error("Workflow event source is missing from the historical Artifact");
+    if (source.activation !== "active") throw new Error("Workflow event activation is blocked");
+    const declared = source.triggers.find((trigger) => trigger.id === triggerId);
+    if (!declared) throw new Error("Workflow event trigger is absent from its declared source");
+    const event = validateWorkflowTriggerEvent(args.event); workflowInstant(args.instant);
+    if (event.resource_binding !== source.resource_binding) throw new Error("Event does not belong to the declared resource binding");
+    if (!declared.events.includes(event.kind as WorkflowEventKind)) throw new Error("Event kind is not declared for this trigger");
+    if (event.kind === "item-changed" && declared.fields?.length && !declared.fields.includes(event.field)) throw new Error("Event field is not declared for this trigger");
+    const key = { ...fields, trigger_id: workflow.trigger.id, run_date: localDateAt(args.instant, this.#calendar(workflow)?.timezone ?? "UTC"), event_id: event.event_id };
+    if (workflow.instance.key.some((field) => !key[field as keyof typeof key])) throw new Error("Event opening is missing a declared instance key field");
+    const originKey = `event:${sha256(workflow.instance.key.map((field) => [field, key[field as keyof typeof key]]))}`;
+    return this.#open({ workflowId: args.workflowId, principal: args.principal, fields, instant: args.instant, params: structuredClone(declared.params ?? {}), event }, originKey);
+  }
+
+  async #open(args: { workflowId: string; principal: string; fields: Record<string, string>; instant?: string; previousInstant?: string; params?: Record<string, JsonValue>; event?: WorkflowTriggerEvent }, originKey: string, predecessor?: WorkflowRun): Promise<WorkflowRun> {
     const workflow = this.#artifact.workflows?.find((workflow) => workflow.id === args.workflowId);
     if (!workflow) throw new Error("Unknown workflow");
     const now = this.#now(), instant = args.instant ?? now; workflowInstant(instant);
     const calendar = this.#calendar(workflow);
-    if (["trigger_id", "run_date", "trigger_instant"].some(field => Object.hasOwn(args.fields, field))) throw new Error("Opening fields cannot override trusted trigger identity");
-    const fields = { trigger_id: workflow.trigger.kind === "schedule" ? workflow.trigger.id : "operator", run_date: localDateAt(instant, calendar?.timezone ?? "UTC"),
-      ...(workflow.instance.fields.includes("trigger_instant") ? { trigger_instant: instant } : {}), ...structuredClone(args.fields) };
+    if (trustedOpeningFields(workflow).some(field => Object.hasOwn(args.fields, field))) throw new Error("Opening fields cannot override trusted trigger identity");
+    if ((workflow.trigger.kind === "event") !== Boolean(args.event)) throw new Error("Event workflows open only from a verified provider event");
+    const fields = { trigger_id: workflow.trigger.kind === "operator" ? "operator" : workflow.trigger.id, run_date: localDateAt(instant, calendar?.timezone ?? "UTC"),
+      ...(workflow.instance.fields.includes("trigger_instant") ? { trigger_instant: instant } : {}), ...(args.event ? { event_id: args.event.event_id } : {}), ...structuredClone(args.fields) };
     const missing = workflowOpeningFields(workflow).filter((field) => !fields[field as keyof typeof fields]);
     if (missing.length) throw new Error(`Workflow opening requires reviewed fields: ${missing.join(", ")}`);
-    const trigger = { id: fields.trigger_id, instant, params: structuredClone(args.params ?? {}) } as WorkflowRunIdentity["trigger"];
+    const trigger = { id: fields.trigger_id, instant, params: structuredClone(args.params ?? {}), ...(args.event ? { event: structuredClone(args.event) } : {}) } as WorkflowRunIdentity["trigger"];
     if (args.previousInstant) { workflowInstant(args.previousInstant); trigger.previous_instant = args.previousInstant; }
     else if (JSON.stringify(workflow.steps).includes('"$trigger.previous_instant"')) {
       if (!calendar || workflow.trigger.kind !== "schedule") throw new Error("Workflow requires an explicit previous trigger instant");
@@ -231,7 +258,7 @@ export class WorkflowEngine {
         || jsonDigest(successor.state.sourceAdmission!) !== jsonDigest(predecessor.state.sourceAdmission!)) throw new Error("Source continuation receipt conflicts with its predecessor");
       return successor;
     }
-    const fields = Object.fromEntries(Object.entries(predecessor.fields).filter(([key]) => !["trigger_id", "run_date", "trigger_instant"].includes(key)));
+    const fields = Object.fromEntries(Object.entries(predecessor.fields).filter(([key]) => !["trigger_id", "run_date", "trigger_instant", "event_id"].includes(key)));
     return this.#open({ workflowId: predecessor.workflowId, principal: predecessor.subjectPrincipal, fields,
       instant: predecessor.updatedAt }, sourceContinuationOrigin(predecessor.runId), predecessor);
   }
