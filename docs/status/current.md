@@ -60,7 +60,7 @@ not establish live deployment or model-quality qualification. See
 [Agent attachments and provider policies](../operations/agent-attachments.md).
 
 
-Unreleased on main after Core 0.15.0: a private workflow decision card roots
+Core 0.16.0 and Workbench experimental.24 release provider event triggers (above) together with the conversation-root decision cards: a private workflow decision card roots
 the conversation that follows it by default. Later messages to the same person
 use the card's own thread unless a Workspace declares otherwise, the affirmative
 control links there, an optional title replaces the generic card heading, and a

@@ -2,7 +2,7 @@ version: 3
 plan_id: provider-event-triggers-2026-09-17
 created: 2026-09-17
 title: Open declared workflows from verified provider board events
-objective: Add an event trigger kind beside schedule and operator so a Workspace can open a declared workflow when a verified Monday board event arrives, using the same declaration, activation, identity and hosting structure as calendars.
+objective: Release Core 0.16.0 and Workbench experimental.24. Add an event trigger kind beside schedule and operator so a Workspace can open a declared workflow when a verified Monday board event arrives, using the same declaration, activation, identity and hosting structure as calendars.
 non_goals:
   - Register a Monday webhook, activate an event source or change any live Instance.
   - Change existing scheduled or operator openings, their identities or hosted behavior.
@@ -11,6 +11,16 @@ non_goals:
 placement: core
 change_class: security
 files_expected:
+  - package.json
+  - packages/cli/package.json
+  - packages/cli/tests/core-pin-guard.test.mjs
+  - packages/cli/tests/live-setup.test.mjs
+  - packages/cli/tests/workbench.test.mjs
+  - packages/testkit/tests/brain-skill-materialization.test.ts
+  - packages/testkit/tests/handbook-workspace.test.ts
+  - packages/testkit/tests/brain-adoption.test.ts
+  - packages/testkit/fixtures/acme-casas/.companyos/compatibility.yaml
+  - packages/testkit/fixtures/lindenhof-studio/.companyos/compatibility.yaml
   - .oregano/changes/2026-09-17-provider-event-triggers.yaml
   - docs/_generated/document-registry.json
   - docs/_generated/navigation.json
@@ -83,4 +93,4 @@ architecture:
     secrets_in_git: false
     public_fixtures: synthetic-only
   core_reusability: Any Company Workspace that keeps work items in a provider board can open a declared workflow per created or moved item without polling; the event-source contract names only logical resource bindings and normalized event kinds, so another provider adapter can supply the same normalized event.
-rollback: Revert for new deployments; existing scheduled and operator runs are unaffected. Retained event-opened runs keep their identity and can be drained with this runtime. Unregistering the provider webhook stops deliveries without deleting retained evidence.
+rollback: MINOR release 0.16.0 (new event trigger contract and conversation-root decision cards; no schema migration, database manifest unchanged). Consumers adopt by re-pinning compatibility to the release commit. Revert for new deployments; existing scheduled and operator runs are unaffected. Retained event-opened runs keep their identity and can be drained with this runtime. Unregistering the provider webhook stops deliveries without deleting retained evidence.

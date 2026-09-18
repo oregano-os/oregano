@@ -20,7 +20,7 @@ function fixture() {
   const instance: InstanceBuildConfiguration = { version: 1, instanceId: "example-test", environment: "test", agentBindings: [],
     bindings: [["artifact.publish", "oregano/artifact-sandbox"], ...["marketing-campaign.launch", "marketing-campaign.read-report", "marketing-campaign.stop-asset", "conversion.record"].map(id => [id, "oregano/marketing-sandbox"])]
       .map(([capability, connector]) => ({ capability, connector, contractVersion: "1.0.0", connectorVersion: "1.0.0" })) };
-  const build = () => buildCompanyOSArtifact({ workspaceRoot: root, instance, coreVersion: "0.15.0", coreCommit: "1".repeat(40), workspaceCommit: "2".repeat(40), workbenchVersion: "0.1.0-experimental.23" });
+  const build = () => buildCompanyOSArtifact({ workspaceRoot: root, instance, coreVersion: "0.16.0", coreCommit: "1".repeat(40), workspaceCommit: "2".repeat(40), workbenchVersion: "0.1.0-experimental.24" });
   const adopt = (grants = BRAIN_READ_CAPABILITIES.map(contract => `oregano:brain/${contract.id.slice(6)}`)) => {
     const policy = YAML.parse(readFileSync(join(root, ".companyos/governance.yaml"), "utf8"));
     policy.runtime = { common_tool_grants: grants, brain_reading: "company-wide" };
